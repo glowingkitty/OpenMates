@@ -163,3 +163,75 @@ fully-resolved conversation.
 | `backend/tests/test_webhook_auth.py`                                              | Auth service unit tests (key format, lookup, expiry, rate limit, dedupe)          |
 | `backend/tests/test_webhook_incoming.py`                                          | Incoming endpoint integration: pre-create, plaintext WS broadcast, AI dispatch, offline email branch, `require_confirmation`, encryption failure |
 | `frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts`                       | E2E: create key in UI, POST to /incoming, new chat appears, system + assistant messages render, cleanup |
+
+## Future work — outgoing webhooks
+
+The `webhook_keys` schema already carries a `direction` field (`incoming` /
+`outgoing`); outgoing is not yet wired. From a user perspective, outgoing
+webhooks would let users pipe OpenMates events into Slack, Notion, Obsidian,
+n8n, Home Assistant, a SIEM, or anything else that accepts HTTP POSTs. The
+four event groups most worth building, ordered by expected value:
+
+### 1. Chat lifecycle — the highest-leverage group
+
+- `chat.assistant_replied` — fires every time the assistant finishes a turn.
+  Covers the "auto-save my conversations somewhere external" use case that is
+  by far the most common outgoing-webhook ask. Payload: `chat_id`,
+  `message_id`, `role`, `content`, `timestamps`.
+- `chat.user_message_sent` — audit-log style mirroring.
+- `chat.created` / `chat.deleted` — keep an external chat index in sync.
+
+### 2. Skill / task completion — "tell me when X is done"
+
+- `skill.completed` with a skill-name filter (e.g. only fire for
+  `images/generate`, `pdf/read`, `events/search`). Good for slow skills where
+  the user wants a push outside the chat UI — phone via Pushover, desk
+  speaker via Home Assistant, etc.
+- `ai.long_task_completed` — fires when a multi-minute assistant turn
+  finishes. "I started a research task, ping me on Telegram when it's done."
+
+### 3. Reminders & memories — extend the existing reminder flow outward
+
+- `reminder.fired` — fires alongside the existing in-app `reminder_fired`
+  WebSocket event. Enables integrations with home automation (dim lights,
+  play audio), physical buttons (n8n → ESP32), or dedicated notification
+  channels.
+- `memory.updated` — fires when the AI stores a new memory. Lets users keep
+  an external "second brain" (Obsidian / Logseq) in sync with what the
+  assistant has learned.
+
+### 4. Billing & account events
+
+- `credits.low` (balance < threshold) — Slack ping before a user runs out
+  mid-task, or trigger an auto-top-up via a separate flow.
+- `account.login_from_new_device` — ship to a SIEM / Splunk.
+- `payment.failed` — surface failed charges to whatever dashboard the user
+  actually watches.
+
+### Open design decision — outbound plaintext & consent model
+
+The most important question to resolve before any outgoing webhooks get built
+is the **privacy / consent model**:
+
+> Does OpenMates decrypt chat content server-side in order to send it out to a
+> non-OpenMates destination, and if so, under what explicit user consent?
+
+Reminders, the AI pipeline, and incoming webhooks all already have the server
+in the loop on plaintext, so the precedent is there — but outgoing webhooks
+would be the **first feature where plaintext leaves OpenMates over HTTP to a
+user-specified endpoint**. Questions to answer before implementation:
+
+- Is outbound plaintext opt-in per webhook key, with the payload otherwise
+  redacted to chat IDs + timestamps only?
+- Should outgoing webhook payloads be HMAC-signed with a per-key secret so
+  receivers can verify authenticity, the way GitHub / Stripe do?
+- Do we want a per-event-type allowlist (user configures: "this key only
+  receives `chat.assistant_replied` events, not `account.*`") so leaking a
+  single outgoing key can't be turned into a full account-surveillance hose?
+- Do we want delivery retries + a dead-letter queue, or fire-and-forget? Most
+  webhook producers (GitHub, Stripe, Linear) use retries with exponential
+  backoff and at-least-once delivery — matching that expectation is probably
+  non-negotiable long-term, but v1 could ship fire-and-forget.
+
+Tracked in Linear — see the "Outgoing webhooks" issue for the full
+implementation plan once the design decisions above are answered.

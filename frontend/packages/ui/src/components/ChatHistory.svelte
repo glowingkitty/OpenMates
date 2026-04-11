@@ -29,6 +29,7 @@
     
   // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
   import ChatHeader from './ChatHeader.svelte';
+  import WebhookPendingBanner from './WebhookPendingBanner.svelte';
   // Note: Icon was previously used for preprocessing step cards (now removed).
   // If Icon is needed elsewhere in future, re-import it.
 
@@ -1551,6 +1552,11 @@
             />
         </div>
     {/if}
+
+    <!-- Pending webhook approval banner. Visible only when the active chat
+         originates from a webhook key with require_confirmation=true and the
+         user has not yet clicked Process or Reject. -->
+    <WebhookPendingBanner />
 
     {#if showMessages}
         <div class="chat-history-content" 

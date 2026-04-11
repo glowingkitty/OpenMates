@@ -27,6 +27,8 @@ from . import test_notification_email_task  # Import E2E test failure notificati
 from . import test_run_summary_email_task  # Import daily test run summary email task
 from . import test_run_started_email_task  # Import test run started notification task
 from . import cron_session_email_task  # Import cron job session notification task
+from . import webhook_chat_notification_email_task  # Import webhook offline notification task
+from . import webhook_rate_limit_digest_email_task  # Import webhook rate-limit daily digest task
 
 # Note: When celery_config.py imports 'backend.core.api.app.tasks.email_tasks',
 # this __init__.py will execute and import all the task modules, which causes
@@ -55,4 +57,6 @@ __all__ = [
     'test_run_summary_email_task',
     'test_run_started_email_task',
     'cron_session_email_task',
+    'webhook_chat_notification_email_task',
+    'webhook_rate_limit_digest_email_task',
 ]

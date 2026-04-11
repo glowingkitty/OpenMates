@@ -893,7 +893,8 @@ class DirectusService:
         params = {
             "filter[key_hash][_eq]": key_hash,
             "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,direction,"
-                      "permissions,require_confirmation,is_active,expires_at,last_used_at",
+                      "permissions,require_confirmation,is_active,expires_at,last_used_at,"
+                      "message_template,rate_limit_count,rate_limit_period",
             "limit": 1
         }
         try:
@@ -918,7 +919,8 @@ class DirectusService:
         params = {
             "filter[user_id][_eq]": user_id,
             "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,direction,"
-                      "permissions,require_confirmation,is_active,expires_at,last_used_at,created_at",
+                      "permissions,require_confirmation,is_active,expires_at,last_used_at,created_at,"
+                      "message_template,rate_limit_count,rate_limit_period",
             "sort": "-created_at"
         }
         try:
@@ -938,6 +940,9 @@ class DirectusService:
         direction: str = "incoming",
         permissions: Optional[List[str]] = None,
         require_confirmation: bool = False,
+        message_template: str = "{{payload}}",
+        rate_limit_count: Optional[int] = 3,
+        rate_limit_period: str = "hour",
         expires_at: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
@@ -952,6 +957,12 @@ class DirectusService:
             direction: "incoming" or "outgoing" (default: "incoming")
             permissions: List of allowed actions (default: ["trigger_chat"])
             require_confirmation: Whether user must approve each incoming chat
+            message_template: Jinja2 template rendered with incoming body as
+                `payload`. Default "{{payload}}" dumps the whole JSON body.
+            rate_limit_count: Max invocations per rate_limit_period. None means
+                unlimited (skip rate-limit check). Default: 3.
+            rate_limit_period: One of "minute" | "hour" | "day" | "week".
+                Default: "hour".
             expires_at: Optional expiration timestamp (ISO format)
 
         Returns:
@@ -968,6 +979,9 @@ class DirectusService:
             "direction": direction,
             "permissions": permissions or ["trigger_chat"],
             "require_confirmation": require_confirmation,
+            "message_template": message_template,
+            "rate_limit_count": rate_limit_count,
+            "rate_limit_period": rate_limit_period,
             "is_active": True,
             "created_at": current_timestamp,
             "updated_at": current_timestamp,

@@ -15,10 +15,10 @@
 # These complement test_webhook_auth.py (which only covers the auth service).
 # Run: python -m pytest backend/tests/test_webhook_incoming.py -v
 
-import json
 import sys
 import types
 from types import SimpleNamespace
+from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -83,9 +83,9 @@ try:
     from backend.core.api.app.routers.webhooks import (
         webhook_incoming,
         _dispatch_webhook_ai_request,
-        WebhookIncomingRequest,
+        _render_webhook_template,
+        DEFAULT_MESSAGE_TEMPLATE,
         WEBHOOK_TASK_TEMPLATE,
-        PENDING_WEBHOOK_CHAT_TTL,
     )
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
@@ -122,7 +122,12 @@ def _make_request(cache_service, encryption_service, directus_service):
     return request
 
 
-def _make_webhook_info(require_confirmation: bool = False):
+def _make_webhook_info(
+    require_confirmation: bool = False,
+    message_template: str = DEFAULT_MESSAGE_TEMPLATE,
+    rate_limit_count: Optional[int] = 3,
+    rate_limit_period: str = "hour",
+):
     return {
         "webhook_id": "wh_test_id",
         "user_id": "user_test_id",
@@ -130,6 +135,9 @@ def _make_webhook_info(require_confirmation: bool = False):
         "require_confirmation": require_confirmation,
         "permissions": ["trigger_chat"],
         "key_hash": "fake_hash",
+        "message_template": message_template,
+        "rate_limit_count": rate_limit_count,
+        "rate_limit_period": rate_limit_period,
     }
 
 
@@ -178,13 +186,22 @@ def _reset_stubs(user_online: bool = True):
 
 
 @pytest.mark.asyncio
-async def test_webhook_incoming_default_path_dispatches_ai_and_broadcasts():
+async def test_webhook_incoming_default_template_dumps_full_json_body():
+    """Default template `{{payload_json}}` should render the entire body as JSON."""
     _reset_stubs(user_online=True)
     cache = _make_cache_service()
     enc = _make_encryption_service()
     directus = _make_directus_service()
     request = _make_request(cache, enc, directus)
-    payload = WebhookIncomingRequest(message="Build failed on main")
+    # Realistic external webhook shape — GitHub-like PR notification.
+    payload = {
+        "action": "opened",
+        "pull_request": {
+            "title": "Fix race in webhook handler",
+            "user": {"login": "octocat"},
+        },
+        "repository": {"full_name": "openmates/webhooks"},
+    }
     webhook_info = _make_webhook_info(require_confirmation=False)
 
     fake_registry = MagicMock()
@@ -208,47 +225,127 @@ async def test_webhook_incoming_default_path_dispatches_ai_and_broadcasts():
     directus.chat.create_chat_in_directus.assert_awaited_once()
     minimal = directus.chat.create_chat_in_directus.await_args.args[0]
     assert minimal["hashed_user_id"] == "hashed_user_test_id"
-    assert minimal["title_v"] == 0
-    assert minimal["unread_count"] == 1
 
-    # chat_ids_versions sorted set updated
-    cache.add_chat_to_ids_versions.assert_awaited_once()
-
-    # Vault-encrypted offline copy cached
-    cache.set.assert_awaited_once()
-    pending_key, raw_value = cache.set.await_args.args[0], cache.set.await_args.args[1]
-    assert pending_key.startswith("webhook_pending_chat:user_test_id:")
-    cached_record = json.loads(raw_value)
-    assert cached_record["role"] == "system"
-    assert cached_record["source"] == "webhook"
-    assert cached_record["encrypted_content"] == "vault_encrypted_blob"
-    assert cache.set.await_args.kwargs.get("ttl") == PENDING_WEBHOOK_CHAT_TTL
-
-    # WebSocket broadcast carries PLAINTEXT content (mirrors reminder_fired)
+    # WS broadcast content is the RENDERED template output — for the default
+    # `{{payload_json}}` that's the pretty-printed full JSON body.
     _FAKE_WS_MANAGER.broadcast_to_user.assert_awaited_once()
-    broadcast_kwargs = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs
-    msg = broadcast_kwargs["message"]
-    assert msg["type"] == "webhook_chat"
-    assert msg["payload"]["content"] == "Build failed on main"
-    assert msg["payload"]["status"] == "processing"
-    assert msg["payload"]["source"] == "webhook"
+    msg = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]
+    rendered = msg["payload"]["content"]
+    assert "Fix race in webhook handler" in rendered
+    assert "octocat" in rendered
+    assert "openmates/webhooks" in rendered
 
-    # AI dispatch was called with the wrapped task template
+    # Vault encryption was applied to the rendered string, not the raw body
+    enc.encrypt_with_user_key.assert_awaited_once()
+    enc_call_args = enc.encrypt_with_user_key.await_args.args
+    assert "Fix race in webhook handler" in enc_call_args[0]
+
+    # AI dispatch carries the rendered template wrapped in WEBHOOK_TASK_TEMPLATE
     fake_registry.dispatch_skill.assert_awaited_once()
-    args = fake_registry.dispatch_skill.await_args.args
-    assert args[0] == "ai"
-    assert args[1] == "ask"
-    ask_request = args[2]
-    assert ask_request["chat_id"] == response.chat_id
-    assert ask_request["chat_has_title"] is False
-    assert len(ask_request["message_history"]) == 1
+    ask_request = fake_registry.dispatch_skill.await_args.args[2]
     user_turn = ask_request["message_history"][0]
-    assert user_turn["role"] == "user"
-    assert "Build failed on main" in user_turn["content"]
     assert "[Incoming Webhook" in user_turn["content"]
+    assert "Fix race in webhook handler" in user_turn["content"]
 
-    # Active AI task tracked in cache
-    cache.set_active_ai_task.assert_awaited_once_with(response.chat_id, "ai_task_123")
+
+@pytest.mark.asyncio
+async def test_webhook_incoming_custom_template_extracts_fields_via_dotted_path():
+    """Custom template with dotted-path substitution pulls specific fields."""
+    _reset_stubs(user_online=True)
+    cache = _make_cache_service()
+    enc = _make_encryption_service()
+    directus = _make_directus_service()
+    request = _make_request(cache, enc, directus)
+
+    payload = {
+        "action": "opened",
+        "pull_request": {
+            "title": "Fix race",
+            "html_url": "https://github.com/openmates/webhooks/pull/42",
+            "user": {"login": "octocat"},
+        },
+        "repository": {"full_name": "openmates/webhooks"},
+    }
+    template = (
+        "New pull request on {{payload.repository.full_name}}:\n"
+        "Title: {{payload.pull_request.title}}\n"
+        "By: {{payload.pull_request.user.login}}\n"
+        "URL: {{payload.pull_request.html_url}}"
+    )
+    webhook_info = _make_webhook_info(
+        require_confirmation=False,
+        message_template=template,
+    )
+
+    fake_registry = MagicMock()
+    fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_dotted"})
+
+    with patch(
+        "backend.core.api.app.services.skill_registry.get_global_registry",
+        return_value=fake_registry,
+    ):
+        response = await webhook_incoming.__wrapped__(
+            request=request,
+            payload=payload,
+            webhook_info=webhook_info,
+        )
+
+    assert response.status == "processing"
+
+    rendered = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]["payload"]["content"]
+    # All four field substitutions present
+    assert "openmates/webhooks" in rendered
+    assert "Title: Fix race" in rendered
+    assert "By: octocat" in rendered
+    assert "https://github.com/openmates/webhooks/pull/42" in rendered
+    # And does NOT dump the raw JSON (since the template is custom)
+    assert '"action"' not in rendered
+
+
+@pytest.mark.asyncio
+async def test_webhook_incoming_template_missing_field_renders_empty_not_crash():
+    """Chainable undefined — a missing dotted path just produces empty text."""
+    _reset_stubs(user_online=True)
+    cache = _make_cache_service()
+    enc = _make_encryption_service()
+    directus = _make_directus_service()
+    request = _make_request(cache, enc, directus)
+
+    payload = {"some": {"shape": "that doesn't match"}}
+    template = "Missing: [{{payload.not.in.body}}] Present: [{{payload.some.shape}}]"
+    webhook_info = _make_webhook_info(message_template=template)
+
+    fake_registry = MagicMock()
+    fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "tk"})
+
+    with patch(
+        "backend.core.api.app.services.skill_registry.get_global_registry",
+        return_value=fake_registry,
+    ):
+        await webhook_incoming.__wrapped__(
+            request=request,
+            payload=payload,
+            webhook_info=webhook_info,
+        )
+
+    rendered = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]["payload"]["content"]
+    assert "Missing: []" in rendered
+    assert "Present: [that doesn't match]" in rendered
+
+
+def test_render_webhook_template_falls_back_on_broken_template():
+    """Bad Jinja syntax falls back to the JSON dump — webhooks never 500 on user typos."""
+    body = {"k": "v"}
+    out = _render_webhook_template("{{ payload.k | no_such_filter }}", body)
+    # Falls back to the JSON dump
+    assert '"k": "v"' in out
+
+
+def test_render_webhook_template_empty_or_none_uses_default():
+    body = {"key": "value"}
+    assert '"key"' in _render_webhook_template(None, body)
+    assert '"key"' in _render_webhook_template("", body)
+    assert '"key"' in _render_webhook_template("   ", body)
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +367,7 @@ async def test_webhook_incoming_offline_user_queues_email_and_still_dispatches_a
     enc = _make_encryption_service()
     directus = _make_directus_service()
     request = _make_request(cache, enc, directus)
-    payload = WebhookIncomingRequest(message="Cron heartbeat")
+    payload = {"event": "cron_heartbeat", "source": "nightly-batch"}
     webhook_info = _make_webhook_info(require_confirmation=False)
 
     fake_registry = MagicMock()
@@ -314,7 +411,7 @@ async def test_webhook_incoming_require_confirmation_skips_ai_dispatch():
     enc = _make_encryption_service()
     directus = _make_directus_service()
     request = _make_request(cache, enc, directus)
-    payload = WebhookIncomingRequest(message="needs approval")
+    payload = {"message": "needs approval"}
     webhook_info = _make_webhook_info(require_confirmation=True)
 
     fake_registry = MagicMock()
@@ -353,7 +450,7 @@ async def test_webhook_incoming_vault_encryption_failure_returns_500():
     enc = _make_encryption_service(succeed=False)
     directus = _make_directus_service()
     request = _make_request(cache, enc, directus)
-    payload = WebhookIncomingRequest(message="will fail")
+    payload = {"anything": "goes"}
     webhook_info = _make_webhook_info()
 
     with pytest.raises(HTTPException) as exc_info:

@@ -1227,6 +1227,15 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
         'options': {'queue': 'email'},
     },
+    # Webhook rate-limit digest — one email per affected user listing every
+    # webhook of theirs that hit its rate limit in the last 24h. Runs at 07:00
+    # UTC, slightly before the other daily email sweeps so the user sees
+    # credit-protection signal first.
+    'webhook-rate-limit-digest-daily': {
+        'task': 'app.tasks.email_tasks.webhook_rate_limit_digest_email_task.process_webhook_rate_limit_digest',
+        'schedule': crontab(hour=7, minute=0),  # Daily at 07:00 UTC
+        'options': {'queue': 'email'},
+    },
     # Unified daily notification dispatcher — single sweep that dispatches all per-user
     # notification emails (backup reminders, future: tips & tricks, etc.). Runs at 09:00 UTC
     # so it does not overlap with the password security reminder at 08:00.

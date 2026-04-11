@@ -1,0 +1,69 @@
+<mjml>
+  <mj-head>
+    <mj-title>OpenMates — Webhooks hit their rate limit in the last 24 hours</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="normal" line-height="1.4" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section>
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/alert.png" align="center" css-class="email-icon-50" />
+          <mj-text font-size="26px" font-weight="bold" padding-bottom="16px" align="center">
+            <mark>Webhook rate limit hit</mark>
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="16px" align="left">
+            One or more of your incoming webhooks hit its rate limit in the last 24 hours. We blocked the extra invocations so they could not spend credits without your approval.
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="16px" align="left">
+            If this was expected — for example, an upstream service is sending more events than you want OpenMates to process — you can leave the limit as-is. If it was not expected, review the webhook in Settings and either raise its limit, pause it, or fix the upstream source.
+          </mj-text>
+
+          <mj-text font-size="14px" color="#808080" padding-bottom="8px" align="left">
+            <strong>Total blocked invocations in the last 24h:</strong> {{ total_hits }}
+          </mj-text>
+
+          <mj-table font-size="14px" padding-bottom="20px">
+            <tr style="border-bottom: 1px solid #cccccc; text-align: left; font-weight: bold;">
+              <th style="padding: 8px;">Webhook (ID)</th>
+              <th style="padding: 8px;">Blocked</th>
+              <th style="padding: 8px;">Current limit</th>
+            </tr>
+            {% for row in webhook_rows %}
+            <tr style="border-bottom: 1px solid #eeeeee; text-align: left;">
+              <td style="padding: 8px; font-family: 'Monaco', 'Menlo', monospace; font-size: 12px;">{{ row.webhook_id[:8] }}…</td>
+              <td style="padding: 8px;">{{ row.hit_count }}</td>
+              <td style="padding: 8px;">
+                {% if row.rate_limit_count %}
+                {{ row.rate_limit_count }} / {{ row.rate_limit_period }}
+                {% else %}
+                unlimited
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </mj-table>
+
+          <mj-button href="{{ settings_url }}" background-color="#6364FF" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="15px 30px" css-class="open-chat-button">
+            Review webhooks in Settings
+          </mj-button>
+
+          <mj-text font-size="13px" color="#808080" padding-top="16px" align="left">
+            Webhook names are encrypted end-to-end so only the ID prefix is shown here. Match it with the entry in Settings › Developers › Webhooks to identify the key.
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -27,8 +27,12 @@ import time
 import uuid
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Body
 from pydantic import BaseModel, Field
+
+from jinja2 import ChainableUndefined
+from jinja2.exceptions import TemplateError
+from jinja2.sandbox import SandboxedEnvironment
 
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -51,6 +55,20 @@ router = APIRouter(
 
 # --- CRUD models (JWT-authenticated) ---
 
+# Supported rate-limit periods → seconds in a sliding window.
+# Exposed as a module constant so webhook_auth.py can reuse it.
+RATE_LIMIT_PERIOD_SECONDS = {
+    "minute": 60,
+    "hour": 3600,
+    "day": 86400,
+    "week": 604800,
+}
+DEFAULT_RATE_LIMIT_COUNT = 3
+DEFAULT_RATE_LIMIT_PERIOD = "hour"
+DEFAULT_MESSAGE_TEMPLATE = "{{payload_json}}"
+MAX_TEMPLATE_LENGTH = 4000
+
+
 class WebhookCreateRequest(BaseModel):
     """Request to create a new webhook key. Key hash + encrypted fields are
     generated client-side (zero-knowledge pattern matching API keys)."""
@@ -61,6 +79,28 @@ class WebhookCreateRequest(BaseModel):
     direction: str = Field(default="incoming", pattern="^(incoming|outgoing)$")
     permissions: List[str] = Field(default=["trigger_chat"])
     require_confirmation: bool = Field(default=False)
+    message_template: str = Field(
+        default=DEFAULT_MESSAGE_TEMPLATE,
+        max_length=MAX_TEMPLATE_LENGTH,
+        description=(
+            "Jinja2 template rendered with the incoming JSON body as `payload`. "
+            "Use `{{payload_json}}` for the pretty-printed full body, or "
+            "dotted-path access like `{{payload.pull_request.title}}` for specific fields."
+        ),
+    )
+    rate_limit_count: Optional[int] = Field(
+        default=DEFAULT_RATE_LIMIT_COUNT,
+        ge=1,
+        le=10,
+        description=(
+            "Maximum invocations allowed per rate_limit_period. "
+            "Set to null to disable rate limiting (unlimited). Range 1–10 otherwise."
+        ),
+    )
+    rate_limit_period: str = Field(
+        default=DEFAULT_RATE_LIMIT_PERIOD,
+        pattern="^(minute|hour|day|week)$",
+    )
     expires_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp")
 
 
@@ -71,6 +111,9 @@ class WebhookResponse(BaseModel):
     direction: str = "incoming"
     permissions: List[str] = []
     require_confirmation: bool = False
+    message_template: str = DEFAULT_MESSAGE_TEMPLATE
+    rate_limit_count: Optional[int] = DEFAULT_RATE_LIMIT_COUNT
+    rate_limit_period: str = DEFAULT_RATE_LIMIT_PERIOD
     is_active: bool = True
     created_at: Optional[str] = None
     expires_at: Optional[str] = None
@@ -86,23 +129,58 @@ class WebhookUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
     require_confirmation: Optional[bool] = None
     encrypted_name: Optional[str] = Field(default=None, max_length=512)
-
-
-# --- Incoming webhook models (webhook-key authenticated) ---
-
-class WebhookIncomingRequest(BaseModel):
-    """Payload sent by external services to trigger a chat."""
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=50_000,
-        description="The message content. Will be stored as a system message in a new chat.",
-    )
+    message_template: Optional[str] = Field(default=None, max_length=MAX_TEMPLATE_LENGTH)
+    rate_limit_count: Optional[int] = Field(default=None, ge=1, le=10)
+    rate_limit_period: Optional[str] = Field(default=None, pattern="^(minute|hour|day|week)$")
 
 
 class WebhookIncomingResponse(BaseModel):
     chat_id: str
     status: str  # "processing" or "pending_confirmation"
+
+
+# ---------------------------------------------------------------------------
+# Jinja2 template rendering for webhook message content
+# ---------------------------------------------------------------------------
+#
+# Templates are user-supplied and stored in the DB, so we render them with a
+# SandboxedEnvironment that blocks access to dangerous attributes / methods
+# (e.g. __class__.__bases__ SSTI escapes). ChainableUndefined means missing
+# paths like {{payload.pull_request.title}} render as empty strings instead
+# of raising an error when the external service sends an unexpected shape.
+
+_WEBHOOK_JINJA_ENV = SandboxedEnvironment(
+    autoescape=False,  # System message is plaintext, not HTML.
+    undefined=ChainableUndefined,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
+
+
+def _render_webhook_template(template_str: Optional[str], payload: Any) -> str:
+    """Render a webhook message template against the incoming body.
+
+    Exposes two variables to the template:
+      - `payload`      → the parsed body (dict / list / primitive), for
+                         dotted-path access like {{payload.pull_request.title}}.
+      - `payload_json` → the pretty-printed JSON string of the whole body,
+                         for templates that want to dump everything at once.
+
+    Falls back to the pretty-printed JSON if the template is missing, empty,
+    or fails to render — the webhook must never fail because the user wrote
+    a broken template.
+    """
+    payload_json = json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+    tpl_source = (template_str or DEFAULT_MESSAGE_TEMPLATE).strip() or DEFAULT_MESSAGE_TEMPLATE
+    try:
+        template = _WEBHOOK_JINJA_ENV.from_string(tpl_source)
+        rendered = template.render(payload=payload, payload_json=payload_json)
+    except TemplateError as tpl_err:
+        logger.warning(
+            f"Webhook template render failed ({tpl_err}); falling back to raw JSON dump"
+        )
+        return payload_json
+    return rendered.strip() or payload_json
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +246,17 @@ async def create_webhook(
 
     hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
 
+    # Fail fast if the user-supplied template is syntactically broken.
+    # (Rendering errors at call time fall back to raw JSON, but create-time
+    # validation gives the user immediate feedback on a typo.)
+    try:
+        _WEBHOOK_JINJA_ENV.from_string(payload.message_template)
+    except TemplateError as tpl_err:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid message template: {tpl_err}",
+        )
+
     created = await directus_service.create_webhook(
         user_id=current_user.id,
         hashed_user_id=hashed_user_id,
@@ -177,6 +266,9 @@ async def create_webhook(
         direction=payload.direction,
         permissions=payload.permissions,
         require_confirmation=payload.require_confirmation,
+        message_template=payload.message_template,
+        rate_limit_count=payload.rate_limit_count,
+        rate_limit_period=payload.rate_limit_period,
         expires_at=payload.expires_at,
     )
 
@@ -190,6 +282,9 @@ async def create_webhook(
         direction=payload.direction,
         permissions=payload.permissions,
         require_confirmation=payload.require_confirmation,
+        message_template=payload.message_template,
+        rate_limit_count=payload.rate_limit_count,
+        rate_limit_period=payload.rate_limit_period,
         is_active=True,
         created_at=created.get("created_at"),
         expires_at=created.get("expires_at"),
@@ -214,6 +309,9 @@ async def list_webhooks(
             direction=item.get("direction", "incoming"),
             permissions=item.get("permissions") or [],
             require_confirmation=bool(item.get("require_confirmation", False)),
+            message_template=item.get("message_template") or DEFAULT_MESSAGE_TEMPLATE,
+            rate_limit_count=item.get("rate_limit_count") if item.get("rate_limit_count") is not None else DEFAULT_RATE_LIMIT_COUNT,
+            rate_limit_period=item.get("rate_limit_period") or DEFAULT_RATE_LIMIT_PERIOD,
             is_active=bool(item.get("is_active", True)),
             created_at=item.get("created_at"),
             expires_at=item.get("expires_at"),
@@ -248,6 +346,19 @@ async def update_webhook(
         update_data["require_confirmation"] = payload.require_confirmation
     if payload.encrypted_name is not None:
         update_data["encrypted_name"] = payload.encrypted_name
+    if payload.message_template is not None:
+        try:
+            _WEBHOOK_JINJA_ENV.from_string(payload.message_template)
+        except TemplateError as tpl_err:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid message template: {tpl_err}",
+            )
+        update_data["message_template"] = payload.message_template
+    if payload.rate_limit_count is not None:
+        update_data["rate_limit_count"] = payload.rate_limit_count
+    if payload.rate_limit_period is not None:
+        update_data["rate_limit_period"] = payload.rate_limit_period
 
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -268,6 +379,9 @@ async def update_webhook(
         direction=target.get("direction", "incoming"),
         permissions=target.get("permissions") or [],
         require_confirmation=payload.require_confirmation if payload.require_confirmation is not None else target.get("require_confirmation", False),
+        message_template=(payload.message_template if payload.message_template is not None else target.get("message_template") or DEFAULT_MESSAGE_TEMPLATE),
+        rate_limit_count=(payload.rate_limit_count if payload.rate_limit_count is not None else target.get("rate_limit_count") if target.get("rate_limit_count") is not None else DEFAULT_RATE_LIMIT_COUNT),
+        rate_limit_period=(payload.rate_limit_period or target.get("rate_limit_period") or DEFAULT_RATE_LIMIT_PERIOD),
         is_active=payload.is_active if payload.is_active is not None else target.get("is_active", True),
         created_at=target.get("created_at"),
         expires_at=target.get("expires_at"),
@@ -315,13 +429,18 @@ async def delete_webhook(
     summary="Trigger a new chat via webhook",
     description=(
         "External services call this endpoint to create a new chat with a system message. "
+        "The entire JSON body is available to the webhook key's message template as "
+        "`{{payload}}` (dotted-path access) or `{{payload_json}}` (full JSON dump). "
         "Authenticate with a webhook key: `Authorization: Bearer wh-...`"
     ),
 )
-@limiter.limit("10/minute")
+@limiter.limit("60/minute")
 async def webhook_incoming(
     request: Request,
-    payload: WebhookIncomingRequest,
+    payload: Any = Body(
+        ...,
+        description="Arbitrary JSON body from the external service (any shape).",
+    ),
     webhook_info: Dict[str, Any] = Depends(verify_webhook_key),
 ):
     """
@@ -345,10 +464,22 @@ async def webhook_incoming(
     hashed_user_id = webhook_info["hashed_user_id"]
     require_confirmation = webhook_info["require_confirmation"]
     webhook_id = webhook_info["webhook_id"]
+    message_template = webhook_info.get("message_template") or DEFAULT_MESSAGE_TEMPLATE
 
     cache_service: CacheService = request.app.state.cache_service
     encryption_service = request.app.state.encryption_service
     directus_service: DirectusService = request.app.state.directus_service
+
+    # --- Render the per-key Jinja2 template into the system message content ---
+    # The user's template decides how the external service's JSON body becomes a
+    # human-readable prompt (e.g. "Analyze this pull request: {{payload.pull_request.title}}").
+    # Rendering is sandboxed and chainable-undefined, so missing paths fall back
+    # to empty strings instead of 500-ing the webhook.
+    rendered_message = _render_webhook_template(message_template, payload)
+    if not rendered_message:
+        # Belt-and-braces — _render_webhook_template already falls back to the
+        # raw JSON dump, but an empty body still means nothing to say.
+        raise HTTPException(status_code=400, detail="Rendered webhook message is empty")
 
     # --- Get user's vault key ID (needed for the offline-delivery safety net) ---
     cached_user = await cache_service.get_user_by_id(user_id)
@@ -408,7 +539,7 @@ async def webhook_incoming(
     # frontend can recover the chat via the pending cache after a cold-boot.
     try:
         encrypted_content, key_version = await encryption_service.encrypt_with_user_key(
-            payload.message, vault_key_id
+            rendered_message, vault_key_id
         )
     except Exception as e:
         logger.error(f"Vault encryption failed for webhook chat: {e}", exc_info=True)
@@ -452,7 +583,7 @@ async def webhook_incoming(
                     "payload": {
                         "chat_id": chat_id,
                         "message_id": message_id,
-                        "content": payload.message,  # plaintext — frontend encrypts with chat key
+                        "content": rendered_message,  # rendered plaintext — frontend encrypts with chat key
                         "status": status_value,
                         "source": "webhook",
                         "webhook_id": webhook_id,
@@ -491,7 +622,7 @@ async def webhook_incoming(
                 user_id=user_id,
                 chat_id=chat_id,
                 message_id=message_id,
-                message=payload.message,
+                message=rendered_message,
                 cache_service=cache_service,
             )
         except Exception as ai_error:
@@ -502,6 +633,158 @@ async def webhook_incoming(
             # Non-fatal — the chat + system message still exist; user can reply manually.
 
     return WebhookIncomingResponse(chat_id=chat_id, status=status_value)
+
+
+# ---------------------------------------------------------------------------
+# Pending approval endpoints (JWT auth — user confirms a pending webhook chat)
+# ---------------------------------------------------------------------------
+
+class WebhookApprovalResponse(BaseModel):
+    chat_id: str
+    status: str  # "processing" (approved) or "rejected"
+
+
+@router.post(
+    "/pending/{chat_id}/approve",
+    response_model=WebhookApprovalResponse,
+    summary="Approve a pending webhook chat",
+    description=(
+        "When a webhook key has `require_confirmation=true`, the incoming chat "
+        "lands in a `pending_confirmation` state and the AI is NOT dispatched "
+        "automatically. Calling this endpoint approves the pending chat, which "
+        "decrypts the cached content and hands off to the AI pipeline."
+    ),
+)
+@limiter.limit("30/minute")
+async def approve_pending_webhook(
+    request: Request,
+    chat_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    cache_service: CacheService = request.app.state.cache_service
+    encryption_service = request.app.state.encryption_service
+
+    pending_key = f"webhook_pending_chat:{current_user.id}:{chat_id}"
+    pending_raw = await cache_service.get(pending_key)
+    if not pending_raw:
+        raise HTTPException(status_code=404, detail="No pending webhook chat with that id")
+
+    try:
+        pending = json.loads(pending_raw) if isinstance(pending_raw, str) else pending_raw
+    except (ValueError, TypeError) as parse_err:
+        logger.error(f"Corrupt pending webhook record for chat {chat_id}: {parse_err}")
+        raise HTTPException(status_code=500, detail="Corrupt pending webhook record")
+
+    # Sanity-check ownership even though the cache key already includes user_id.
+    if pending.get("user_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Pending webhook does not belong to this user")
+
+    encrypted_content = pending.get("encrypted_content")
+    if not encrypted_content:
+        raise HTTPException(status_code=500, detail="Pending webhook record missing content")
+
+    # Get vault_key_id (cache first, Directus fallback — never treat miss as terminal).
+    cached_user = await cache_service.get_user_by_id(current_user.id)
+    vault_key_id = cached_user.get("vault_key_id") if cached_user else None
+    if not vault_key_id:
+        directus_service: DirectusService = request.app.state.directus_service
+        try:
+            success, user_profile, _ = await directus_service.get_user_profile(current_user.id)
+            if success and user_profile:
+                vault_key_id = user_profile.get("vault_key_id")
+        except Exception as e:
+            logger.error(f"Vault key fetch failed during webhook approval: {e}")
+    if not vault_key_id:
+        raise HTTPException(status_code=500, detail="User encryption not configured")
+
+    try:
+        plaintext = await encryption_service.decrypt_with_user_key(encrypted_content, vault_key_id)
+    except Exception as dec_err:
+        logger.error(f"Vault decrypt failed for webhook approval {chat_id[:8]}...: {dec_err}")
+        raise HTTPException(status_code=500, detail="Failed to decrypt pending webhook content")
+
+    if not plaintext:
+        raise HTTPException(status_code=500, detail="Decrypted pending webhook content is empty")
+
+    message_id = pending.get("message_id") or str(uuid.uuid4())
+
+    try:
+        await _dispatch_webhook_ai_request(
+            user_id=current_user.id,
+            chat_id=chat_id,
+            message_id=message_id,
+            message=plaintext,
+            cache_service=cache_service,
+        )
+    except Exception as ai_err:
+        logger.error(f"AI dispatch failed for webhook approval {chat_id[:8]}...: {ai_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to dispatch AI request")
+
+    # Clear the pending cache entry — one-shot approval, no replay.
+    await cache_service.delete(pending_key)
+
+    # Notify the user's other devices that the chat is now processing so their
+    # "Approve/Reject" banner disappears in real time.
+    try:
+        from backend.core.api.app.routes.websockets import manager
+        if manager.is_user_active(current_user.id):
+            await manager.broadcast_to_user(
+                message={
+                    "type": "webhook_chat_approved",
+                    "event": "webhook_chat_approved",
+                    "payload": {"chat_id": chat_id, "status": "processing"},
+                },
+                user_id=current_user.id,
+            )
+    except Exception as ws_err:
+        logger.warning(f"Failed to broadcast webhook_chat_approved: {ws_err}")
+
+    logger.info(f"Approved webhook chat {chat_id} for user {current_user.id[:8]}...")
+    return WebhookApprovalResponse(chat_id=chat_id, status="processing")
+
+
+@router.post(
+    "/pending/{chat_id}/reject",
+    response_model=WebhookApprovalResponse,
+    summary="Reject a pending webhook chat",
+    description=(
+        "Discards a pending webhook chat. The cached content is dropped and "
+        "the client should remove the chat locally. The Directus chat row "
+        "stays for consistency with the phased-sync model but is unused."
+    ),
+)
+@limiter.limit("30/minute")
+async def reject_pending_webhook(
+    request: Request,
+    chat_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    cache_service: CacheService = request.app.state.cache_service
+
+    pending_key = f"webhook_pending_chat:{current_user.id}:{chat_id}"
+    pending_raw = await cache_service.get(pending_key)
+    if not pending_raw:
+        raise HTTPException(status_code=404, detail="No pending webhook chat with that id")
+
+    await cache_service.delete(pending_key)
+
+    # Broadcast rejection so all devices drop the chat locally.
+    try:
+        from backend.core.api.app.routes.websockets import manager
+        if manager.is_user_active(current_user.id):
+            await manager.broadcast_to_user(
+                message={
+                    "type": "webhook_chat_rejected",
+                    "event": "webhook_chat_rejected",
+                    "payload": {"chat_id": chat_id},
+                },
+                user_id=current_user.id,
+            )
+    except Exception as ws_err:
+        logger.warning(f"Failed to broadcast webhook_chat_rejected: {ws_err}")
+
+    logger.info(f"Rejected webhook chat {chat_id} for user {current_user.id[:8]}...")
+    return WebhookApprovalResponse(chat_id=chat_id, status="rejected")
 
 
 # ---------------------------------------------------------------------------

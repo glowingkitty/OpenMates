@@ -11,7 +11,6 @@
 
 import hashlib
 import logging
-import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
@@ -28,15 +27,29 @@ logger = logging.getLogger(__name__)
 # Webhook key prefix — distinguishes webhook keys from API keys ("sk-api-")
 WEBHOOK_KEY_PREFIX = "wh-"
 
-# Per-key rate limit: max requests within the sliding window
-WEBHOOK_RATE_LIMIT_MAX_REQUESTS = 30
-WEBHOOK_RATE_LIMIT_WINDOW_SECONDS = 3600  # 1 hour
+# Per-key rate limit: defaults applied when a webhook record has no explicit
+# rate_limit_count / rate_limit_period set. Actual limits come from the DB.
+WEBHOOK_DEFAULT_RATE_LIMIT_COUNT = 3
+WEBHOOK_DEFAULT_RATE_LIMIT_PERIOD = "hour"
+
+# Mapping of period name → sliding-window length in seconds.
+# Keep in sync with routers/webhooks.py::RATE_LIMIT_PERIOD_SECONDS.
+WEBHOOK_RATE_LIMIT_PERIOD_SECONDS = {
+    "minute": 60,
+    "hour": 3600,
+    "day": 86400,
+    "week": 604800,
+}
 
 # Request deduplication window (seconds) — rejects replayed request IDs
 WEBHOOK_IDEMPOTENCY_WINDOW_SECONDS = 300  # 5 minutes
 
 # Cache TTL for webhook key records (seconds)
 WEBHOOK_KEY_CACHE_TTL = 300  # 5 minutes (matches api_key pattern)
+
+# Daily hit-counter TTL for the rate-limit digest email (48h so the 07:00 UTC
+# beat task can always see "yesterday" and "today" when it runs).
+WEBHOOK_RATE_LIMIT_HIT_TTL = 172800  # 48 hours
 
 # Allowed permissions for incoming webhooks
 ALLOWED_PERMISSIONS = {"trigger_chat"}
@@ -162,7 +175,20 @@ class WebhookAuthService:
             )
 
         # --- 7. Per-key rate limiting ---
-        await self._check_rate_limit(key_hash)
+        # Read the user-configured limit from the webhook record. A null
+        # rate_limit_count means "unlimited" — skip the check entirely.
+        webhook_id = webhook_record.get("id")
+        user_id = webhook_record.get("user_id")
+        rate_limit_count = webhook_record.get("rate_limit_count")
+        rate_limit_period = webhook_record.get("rate_limit_period") or WEBHOOK_DEFAULT_RATE_LIMIT_PERIOD
+        if rate_limit_count is not None:
+            await self._check_rate_limit(
+                key_hash=key_hash,
+                webhook_id=webhook_id,
+                user_id=user_id,
+                max_requests=int(rate_limit_count),
+                period=rate_limit_period,
+            )
 
         # --- 8. Request deduplication ---
         if request_id:
@@ -172,12 +198,15 @@ class WebhookAuthService:
         await self._update_last_used(key_hash, webhook_record)
 
         return {
-            "webhook_id": webhook_record.get("id"),
-            "user_id": webhook_record.get("user_id"),
+            "webhook_id": webhook_id,
+            "user_id": user_id,
             "hashed_user_id": webhook_record.get("hashed_user_id"),
             "require_confirmation": bool(webhook_record.get("require_confirmation", False)),
             "permissions": permissions,
             "key_hash": key_hash,
+            "message_template": webhook_record.get("message_template"),
+            "rate_limit_count": rate_limit_count,
+            "rate_limit_period": rate_limit_period,
         }
 
     # --- Internal helpers ---
@@ -223,12 +252,31 @@ class WebhookAuthService:
             logger.warning(f"Error parsing webhook key expiry: {e}")
             # Don't fail on unparseable dates — log and continue
 
-    async def _check_rate_limit(self, key_hash: str) -> None:
+    async def _check_rate_limit(
+        self,
+        key_hash: str,
+        webhook_id: Optional[str],
+        user_id: Optional[str],
+        max_requests: int,
+        period: str,
+    ) -> None:
         """
-        Sliding-window rate limit per webhook key using cache counters.
-        Raises WebhookRateLimitError if exceeded.
+        Per-key sliding-window rate limit backed by Redis counters.
+
+        max_requests / period come from the webhook record on each call, so
+        changing the limit in the UI takes effect immediately (no restart).
+        When the limit is exceeded a separate per-day "hit counter" is also
+        incremented so the daily digest email task can surface the event.
         """
-        rate_key = f"webhook_rate:{key_hash}"
+        period_seconds = WEBHOOK_RATE_LIMIT_PERIOD_SECONDS.get(period)
+        if not period_seconds:
+            logger.warning(
+                f"Unknown rate_limit_period '{period}' on webhook {key_hash[:12]}..., "
+                f"defaulting to hour"
+            )
+            period_seconds = WEBHOOK_RATE_LIMIT_PERIOD_SECONDS["hour"]
+
+        rate_key = f"webhook_rate:{key_hash}:{period}"
         try:
             client = await self.cache_service.client
             if not client:
@@ -237,22 +285,53 @@ class WebhookAuthService:
             current = await client.get(rate_key)
             count = int(current) if current else 0
 
-            if count >= WEBHOOK_RATE_LIMIT_MAX_REQUESTS:
+            if count >= max_requests:
                 ttl = await client.ttl(rate_key)
                 retry_after = max(ttl, 60)
+                # Record this rate-limit hit for the daily digest email.
+                await self._record_rate_limit_hit(
+                    client=client,
+                    webhook_id=webhook_id,
+                    user_id=user_id,
+                )
                 raise WebhookRateLimitError(retry_after=retry_after)
 
             pipe = client.pipeline()
             pipe.incr(rate_key)
             # Set TTL only if key is new (INCR creates it with no TTL)
             if count == 0:
-                pipe.expire(rate_key, WEBHOOK_RATE_LIMIT_WINDOW_SECONDS)
+                pipe.expire(rate_key, period_seconds)
             await pipe.execute()
         except WebhookRateLimitError:
             raise
         except Exception as e:
             logger.warning(f"Rate limit check failed for webhook {key_hash[:12]}...: {e}")
             # Fail open — don't block requests if cache is broken
+
+    async def _record_rate_limit_hit(
+        self,
+        client: Any,
+        webhook_id: Optional[str],
+        user_id: Optional[str],
+    ) -> None:
+        """
+        Increment the per-day rate-limit hit counter for this webhook + user.
+        The daily digest beat task scans these keys and emails the user.
+
+        Key shape: `webhook_rl_hits:{user_id}:{webhook_id}:{YYYY-MM-DD}`
+        TTL: 48h (so the 07:00 UTC run can always read "yesterday" + "today").
+        """
+        if not webhook_id or not user_id:
+            return
+        try:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            hit_key = f"webhook_rl_hits:{user_id}:{webhook_id}:{today}"
+            pipe = client.pipeline()
+            pipe.incr(hit_key)
+            pipe.expire(hit_key, WEBHOOK_RATE_LIMIT_HIT_TTL)
+            await pipe.execute()
+        except Exception as e:
+            logger.warning(f"Failed to record webhook rate-limit hit: {e}")
 
     async def _check_idempotency(self, key_hash: str, request_id: str) -> None:
         """

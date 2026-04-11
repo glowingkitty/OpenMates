@@ -810,9 +810,18 @@ export class ChatSynchronizationService extends EventTarget {
       // generated chat key and persists locally. Mirrors reminder_fired.
       // Implemented in chatSyncServiceHandlersWebhooks.ts to keep webhook code
       // isolated from app-settings/memories handling.
+      //
+      // Also registers `webhook_chat_approved` / `webhook_chat_rejected` so
+      // cross-device approval / rejection clears the pending banner here.
       import("./chatSyncServiceHandlersWebhooks").then((webhooks) => {
         webSocketService.on("webhook_chat", (payload) =>
           webhooks.handleWebhookChatImpl(this, payload),
+        );
+        webSocketService.on("webhook_chat_approved", (payload) =>
+          webhooks.handleWebhookChatApprovedImpl(this, payload),
+        );
+        webSocketService.on("webhook_chat_rejected", (payload) =>
+          webhooks.handleWebhookChatRejectedImpl(this, payload),
         );
       });
 

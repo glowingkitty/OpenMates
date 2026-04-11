@@ -50,6 +50,16 @@ webhooks:
     require_confirmation:
       type: boolean
       note: "When true, incoming webhook chats are created as pending and require user approval before AI processing begins. Default: false."
+    message_template:
+      type: text
+      note: "Jinja2 template rendered with the incoming webhook body as `payload`. Default '{{payload}}' dumps the entire JSON body. Use '{{payload.pull_request.title}}' style dotted-path access to extract specific fields. Rendered against a SandboxedEnvironment — no arbitrary attribute / method access."
+    rate_limit_count:
+      type: integer
+      note: "Maximum number of successful webhook invocations allowed per rate_limit_period. Null means unlimited (skip rate-limit check)."
+    rate_limit_period:
+      type: string
+      length: 16
+      note: "Rate-limit window: 'minute' | 'hour' | 'day' | 'week'. Default: 'hour'."
     is_active:
       type: boolean
       note: "Whether this webhook key is currently active. Inactive keys are rejected on authentication."

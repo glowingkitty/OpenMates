@@ -152,6 +152,29 @@ test('webhook — create key, POST to /incoming, new chat appears with AI respon
 	await nameInput.fill(keyName);
 	log(`Entered webhook name: "${keyName}"`);
 
+	// Fill in a Jinja2 template that extracts fields via dotted paths — this
+	// is what a real user would do when integrating with an external service
+	// like GitHub. The default would just dump the raw JSON body.
+	const messageTemplate =
+		'E2E webhook test — please reply with "acknowledged".\n\n' +
+		'Repo: {{payload.repository.full_name}}\n' +
+		'Title: {{payload.pull_request.title}}\n' +
+		'Author: {{payload.pull_request.user.login}}';
+	const templateInput = page.getByTestId('webhook-message-template-input');
+	await expect(templateInput).toBeVisible({ timeout: 5000 });
+	await templateInput.fill(messageTemplate);
+	log('Filled message template with dotted-path substitutions.');
+
+	// Default the rate-limit dropdowns explicitly so this test doesn't depend
+	// on whatever the browser retained from previous runs.
+	const rateLimitCount = page.getByTestId('webhook-rate-limit-count');
+	await expect(rateLimitCount).toBeVisible({ timeout: 5000 });
+	await rateLimitCount.selectOption({ label: '3' });
+	const rateLimitPeriod = page.getByTestId('webhook-rate-limit-period');
+	await expect(rateLimitPeriod).toBeVisible({ timeout: 5000 });
+	await rateLimitPeriod.selectOption({ value: 'hour' });
+	log('Set rate limit to 3 per hour.');
+
 	const confirmButton = page.getByTestId('webhook-create-confirm-button');
 	await expect(confirmButton).toBeEnabled({ timeout: 3000 });
 	await confirmButton.click();
@@ -183,16 +206,28 @@ test('webhook — create key, POST to /incoming, new chat appears with AI respon
 		await page.waitForTimeout(500);
 	}
 
-	// ── Phase 3: POST to the incoming endpoint ───────────────────────────────
-	const webhookMessage = `Webhook E2E test ${Date.now()} — please reply with the word "acknowledged".`;
-	log(`POSTing to ${API_BASE_URL}/v1/webhooks/incoming...`);
+	// ── Phase 3: POST a GitHub-shaped JSON body to the incoming endpoint ───
+	// The webhook key's template extracts fields via dotted paths, so the
+	// rendered system message should contain the substituted values — not the
+	// raw JSON dump.
+	const uniqueMarker = `e2e-${Date.now()}`;
+	const githubPayload = {
+		action: 'opened',
+		pull_request: {
+			title: `E2E webhook PR ${uniqueMarker}`,
+			user: { login: 'e2e-tester' },
+			html_url: `https://github.com/openmates/webhooks/pull/${Date.now()}`
+		},
+		repository: { full_name: 'openmates/webhooks-e2e' }
+	};
+	log(`POSTing GitHub-shaped payload to ${API_BASE_URL}/v1/webhooks/incoming...`);
 	const incomingResponse = await request.post(`${API_BASE_URL}/v1/webhooks/incoming`, {
 		headers: {
 			Authorization: `Bearer ${rawWebhookKey}`,
 			'Content-Type': 'application/json',
 			Origin: 'https://app.dev.openmates.org'
 		},
-		data: { message: webhookMessage }
+		data: githubPayload
 	});
 	log(`Incoming endpoint responded: ${incomingResponse.status()}`);
 	expect(incomingResponse.status()).toBe(200);
@@ -227,9 +262,13 @@ test('webhook — create key, POST to /incoming, new chat appears with AI respon
 	}).toPass({ timeout: 30000, intervals: [2000] });
 
 	const sysText = await systemMsg.first().textContent();
-	log(`System message text: "${sysText?.substring(0, 200)}"`);
-	expect(sysText || '').toContain('Webhook E2E test');
-	log('System message verified — webhook content rendered correctly.');
+	log(`System message text: "${sysText?.substring(0, 300)}"`);
+	// The template should have substituted dotted-path fields from the GitHub
+	// payload. Assert each substitution landed — not a raw JSON dump.
+	expect(sysText || '').toContain('openmates/webhooks-e2e');
+	expect(sysText || '').toContain(`E2E webhook PR ${uniqueMarker}`);
+	expect(sysText || '').toContain('e2e-tester');
+	log('System message verified — template substitutions rendered correctly.');
 
 	// ── Phase 7: Assert the AI assistant response streams in ─────────────────
 	const assistantMsgs = page.getByTestId('message-assistant');

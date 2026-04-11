@@ -26,6 +26,7 @@
 
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
+import { pendingWebhookChatsStore } from "../stores/pendingWebhookChatsStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
@@ -181,6 +182,21 @@ export async function handleWebhookChatImpl(
       // Local copy is saved; will sync later via normal retry path.
     }
 
+    // If the webhook key requires confirmation, park the chat in the pending
+    // store so WebhookPendingBanner.svelte renders a Process / Reject prompt
+    // when the user opens the chat. The backend has NOT dispatched the AI
+    // yet; clicking Process in the UI calls /v1/webhooks/pending/{id}/approve
+    // which triggers the dispatch.
+    if (status === "pending_confirmation") {
+      pendingWebhookChatsStore.add({
+        chat_id,
+        message_id,
+        content,
+        webhook_id: payload.webhook_id,
+        fired_at: firedAt,
+      });
+    }
+
     // Refresh the UI: surface the new chat in the sidebar and let the active
     // chat view pick it up immediately.
     serviceInstance.dispatchEvent(
@@ -220,4 +236,46 @@ export async function handleWebhookChatImpl(
       error,
     );
   }
+}
+
+/**
+ * Handles the `webhook_chat_approved` WebSocket event.
+ * Fired when the user approves a pending webhook on ANY device (including
+ * this one). We just clear the pending entry so the approval banner hides.
+ */
+export function handleWebhookChatApprovedImpl(
+  _serviceInstance: ChatSynchronizationService,
+  rawPayload: unknown,
+): void {
+  const payload = rawPayload as { chat_id?: string } | undefined;
+  if (!payload?.chat_id) return;
+  pendingWebhookChatsStore.remove(payload.chat_id);
+  console.info(
+    `[ChatSyncService:Webhook] Pending webhook chat ${payload.chat_id} approved (cross-device sync)`,
+  );
+}
+
+/**
+ * Handles the `webhook_chat_rejected` WebSocket event.
+ * Clears the pending entry and removes the chat locally — the user
+ * rejected it on another device, so it should disappear here too.
+ */
+export async function handleWebhookChatRejectedImpl(
+  _serviceInstance: ChatSynchronizationService,
+  rawPayload: unknown,
+): Promise<void> {
+  const payload = rawPayload as { chat_id?: string } | undefined;
+  if (!payload?.chat_id) return;
+  pendingWebhookChatsStore.remove(payload.chat_id);
+  try {
+    await chatDB.deleteChat(payload.chat_id);
+  } catch (err) {
+    console.warn(
+      `[ChatSyncService:Webhook] Failed to delete rejected chat ${payload.chat_id}:`,
+      err,
+    );
+  }
+  console.info(
+    `[ChatSyncService:Webhook] Pending webhook chat ${payload.chat_id} rejected — removed locally`,
+  );
 }
