@@ -244,6 +244,9 @@
 
   let addressLines = $derived(getAddressLines(activeAppointment?.address));
 
+  /** Booking platform name for labels/disclaimer — falls back to a generic word. */
+  let providerName = $derived(activeAppointment?.provider_platform?.trim() || 'the provider');
+
   /** Header title: formatted appointment date/time (most important info at a glance) */
   let headerTitle = $derived.by(() => {
     if (effectiveSlotDatetime) return formatSlot(effectiveSlotDatetime);
@@ -414,15 +417,15 @@
     {/if}
 
     {#if effectiveSlotDatetime}
-      <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
+      <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated').replace('{provider}', providerName)}</p>
     {/if}
   {/snippet}
 
   {#snippet embedHeaderCta()}
     {#if activeAppointment.booking_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Jameda')} href={activeAppointment.booking_url} />
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} href={activeAppointment.booking_url} />
     {:else if activeAppointment.practice_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Doctolib')} href={activeAppointment.practice_url} />
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} href={activeAppointment.practice_url} />
     {/if}
   {/snippet}
 </EntryWithMapTemplate>

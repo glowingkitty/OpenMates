@@ -116,6 +116,7 @@ async def test_doctolib_phs_proxy_provider_shape(
         assert providers, "phs_proxy returned zero healthcareProviders"
 
         # Inspect the first few providers for the full field set.
+        gps_found = False
         for prov in providers[:3]:
             refs = prov.get("references") or {}
             online_booking = prov.get("onlineBooking") or {}
@@ -140,6 +141,29 @@ async def test_doctolib_phs_proxy_provider_shape(
                 assert "type" in ins_sector, (
                     f"insuranceSector dict missing .type key: {ins_sector}"
                 )
+
+            # GPS shape: 2026-Q1 flipped from a single `gpsPoint` string
+            # ("lat,lon") to numeric `lat`/`lng` fields on the location object.
+            # The skill reads these to render the map in the appointment
+            # fullscreen embed — if both shapes disappear, the map silently
+            # stops showing for Doctolib results (as it did before this
+            # assertion was added). Accept either shape so the probe catches
+            # a flip in either direction.
+            loc = prov.get("location") or {}
+            has_latlng = isinstance(loc.get("lat"), (int, float)) and isinstance(
+                loc.get("lng"), (int, float)
+            )
+            has_gps_point = (
+                isinstance(loc.get("gpsPoint"), str) and "," in loc["gpsPoint"]
+            )
+            if has_latlng or has_gps_point:
+                gps_found = True
+        assert gps_found, (
+            "None of the first 3 providers exposed GPS coordinates — "
+            "expected numeric location.lat/location.lng (2026-Q1 shape) "
+            "or the legacy location.gpsPoint string. The appointment "
+            "fullscreen map depends on this."
+        )
 
 
 @pytest.mark.provider_contract

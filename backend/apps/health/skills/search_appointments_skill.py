@@ -661,7 +661,7 @@ async def _search_doctors(
 
     Returns up to max_doctors provider dicts. Each provider includes:
     - name, firstName, title, gender, type (PERSON/ORGANIZATION)
-    - location: {address, city, zipcode, gpsPoint}
+    - location: {address, city, zipcode, lat, lng} (older responses used gpsPoint)
     - link: relative URL for the practice page
     - onlineBooking: {agendaIds, telehealth}
     - matchedVisitMotive: {visitMotiveId, name, insuranceSector, allowNewPatients}
@@ -815,18 +815,28 @@ def _extract_gps(loc: Dict[str, Any]) -> Optional[Dict[str, float]]:
     """Extract GPS coordinates from a Doctolib location dict.
 
     Returns {latitude, longitude} or None if coordinates are unavailable.
-    The Doctolib API provides a gpsPoint string like "lat,lon".
+
+    As of 2026-Q1 the phs_proxy/raw response exposes coordinates as numeric
+    `lat`/`lng` fields directly on the location object. Older responses used
+    a comma-separated `gpsPoint` string — kept as a fallback in case the API
+    shape flips back.
     """
+    lat_raw = loc.get("lat")
+    lon_raw = loc.get("lng")
+    if isinstance(lat_raw, (int, float)) and isinstance(lon_raw, (int, float)):
+        return {"latitude": float(lat_raw), "longitude": float(lon_raw)}
+
     gps_point = loc.get("gpsPoint", "")
-    if not gps_point or "," not in str(gps_point):
-        return None
-    try:
-        parts = str(gps_point).split(",")
-        lat = float(parts[0].strip())
-        lon = float(parts[1].strip())
-        return {"latitude": lat, "longitude": lon}
-    except (ValueError, IndexError):
-        return None
+    if gps_point and "," in str(gps_point):
+        try:
+            parts = str(gps_point).split(",")
+            return {
+                "latitude": float(parts[0].strip()),
+                "longitude": float(parts[1].strip()),
+            }
+        except (ValueError, IndexError):
+            pass
+    return None
 
 
 def _result_hash(practice_id: int, visit_motive_id: int, slot_datetime: str = "") -> str:
