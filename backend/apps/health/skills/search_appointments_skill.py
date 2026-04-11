@@ -1840,6 +1840,20 @@ class SearchAppointmentsSkill(BaseSkill):
             SearchAppointmentsResponse with grouped results, provider info, and
             follow-up suggestions.
         """
+        # Lazily instantiate the SecretsManager when the dispatcher did not
+        # inject one. Needed so the Google Places enrichment pass (and
+        # Webshare proxy credentials) can actually read secrets from Vault.
+        # Without this, base_app.dispatch_skill passes secrets_manager=None
+        # and enrichment silently no-ops.
+        secrets_manager, error_response = await self._get_or_create_secrets_manager(
+            secrets_manager=secrets_manager,
+            skill_name="SearchAppointmentsSkill",
+            error_response_factory=lambda msg: SearchAppointmentsResponse(error=msg),
+            logger=logger,
+        )
+        if error_response:
+            return error_response
+
         # Validate and normalise the requests array
         validated, err = self._validate_requests_array(
             requests=requests,
