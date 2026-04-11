@@ -69,6 +69,10 @@
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { reminderContext } from '../stores/reminderContextStore';
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
+    import {
+        skillStoreExampleFullscreenStore,
+        closeSkillStoreExampleFullscreen,
+    } from '../stores/skillStoreExampleFullscreenStore'; // Synthetic fullscreen state from app-store skill examples
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
@@ -995,6 +999,32 @@
     let embedFullscreenData = $state<EmbedFullscreenState>(null);
 
     /**
+     * Subscribe to the app-store skill example fullscreen store and mount
+     * the synthetic example inside the normal fullscreen container so it
+     * behaves exactly like a real chat embed (slide-up animation,
+     * data-driven routing, child drilldown, download/copy, etc.).
+     *
+     * Sharing is implicitly disabled because synthetic examples have no
+     * real embed id in the embed store — the share button in
+     * EmbedTopBar only activates for embeds with a resolvable id.
+     */
+    $effect(() => {
+        const example = $skillStoreExampleFullscreenStore;
+        if (!example) return;
+        embedFullscreenData = {
+            embedId: example.embedId,
+            embedType: 'app-skill-use',
+            decodedContent: example.decodedContent,
+            attrs: { app_id: example.appId, skill_id: example.skillId },
+            embedData: { status: 'finished' },
+            focusChildEmbedId: null,
+            highlightQuoteText: null,
+            focusLineRange: null,
+        };
+        showEmbedFullscreen = true;
+    });
+
+    /**
      * Direction of the last embed navigation gesture.
      * Used to drive the directional slide-in animation in UnifiedEmbedFullscreen:
      *   'next'     → new embed slides in from the right
@@ -1569,11 +1599,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         showEmbedFullscreen = false;
         embedFullscreenData = null;
-        
+
+        // Clear any active app-store skill example so the $effect doesn't
+        // immediately re-mount the synthetic embed.
+        closeSkillStoreExampleFullscreen();
+
         // Reset forceOverlayMode when embed is closed
         // This ensures the next time an embed is opened, it uses the default layout based on screen size
         forceOverlayMode = false;
-        
+
         // Clear embed URL hash when embed is closed
         activeEmbedStore.clearActiveEmbed();
         console.debug('[ActiveChat] Cleared embed from URL hash');

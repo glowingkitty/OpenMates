@@ -3,19 +3,21 @@
 
   App-store "Examples" section shown inside SkillDetails.svelte. Renders a
   horizontal scrollable row of real, curated embed previews for the given
-  skill, captured from actual provider responses. Clicking a card opens the
-  skill's fullscreen component (with sharing disabled) so users can interact
-  with download, copy, and other read-only actions before installing.
+  skill, captured from actual provider responses. Clicking a card closes
+  the settings panel and opens the skill's fullscreen inside ActiveChat —
+  using the exact same data-driven fullscreen container, animation and
+  child-embed drilldown as a real chat embed.
 
   Data flow:
-    - skillStoreExamplesResolver looks up the preview/fullscreen Svelte
-      components and the `*Preview.examples.ts` fixture file via the embed
-      registry.
+    - skillStoreExamplesResolver looks up the preview component and the
+      `*Preview.examples.ts` fixture file via the embed registry.
     - Each example is a flat props object (same shape as *.preview.ts).
-    - For the preview card we spread the props straight in.
-    - For the fullscreen we wrap the flat props into the data-driven shape
-      expected by post-OPE-276 fullscreen components
-      (`{ data: { decodedContent, embedData } }`).
+    - For the preview card we spread the props into the preview component.
+    - For the fullscreen we publish a synthetic EmbedFullscreenState to
+      `skillStoreExampleFullscreenStore`. ActiveChat subscribes to that
+      store and mounts the fullscreen inside its normal container, so
+      behaviour matches regular chat embeds (including child drilldown
+      into WebsiteEmbedFullscreen / VideoEmbedFullscreen, download, copy).
 
   Hidden entirely when no examples file exists for the skill.
 -->
@@ -28,6 +30,8 @@
         loadSkillExamples,
         hasSkillExamples,
     } from '../../services/skillStoreExamplesResolver';
+    import { openSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
+    import { panelState } from '../../stores/panelStateStore';
 
     interface Props {
         appId: string;
@@ -37,9 +41,7 @@
     let { appId, skillId }: Props = $props();
 
     let PreviewComponent = $state<Component | null>(null);
-    let FullscreenComponent = $state<Component | null>(null);
     let examples = $state<Array<Record<string, unknown>>>([]);
-    let activeIndex = $state<number | null>(null);
 
     // Whether the skill has an examples bundle at all — controls section visibility.
     let available = $derived(hasSkillExamples(appId, skillId));
@@ -47,9 +49,7 @@
     $effect(() => {
         // Reset on skill change
         PreviewComponent = null;
-        FullscreenComponent = null;
         examples = [];
-        activeIndex = null;
 
         if (!available) return;
 
@@ -62,7 +62,6 @@
                 // Guard against stale async resolution after prop change
                 if (currentAppId !== appId || currentSkillId !== skillId) return;
                 PreviewComponent = bundle.previewComponent;
-                FullscreenComponent = bundle.fullscreenComponent;
                 examples = bundle.examples;
             })
             .catch((err) => {
@@ -71,51 +70,37 @@
     });
 
     /**
-     * Wrap flat preview props into the data-driven shape expected by
-     * post-OPE-276 fullscreen components. Top-level nav props stay at
-     * the top; everything else goes under `data.decodedContent`.
+     * Build the `decodedContent` payload that the fullscreen component
+     * reads from `data.decodedContent`. Mirrors the shape produced by
+     * the real app-skill-use pipeline: app/skill ids + the flat example
+     * props (query, provider, status, results).
      */
-    const FULLSCREEN_TOP_LEVEL_PROPS = new Set([
-        'onClose',
-        'embedId',
-        'hasPreviousEmbed',
-        'hasNextEmbed',
-        'onNavigatePrevious',
-        'onNavigateNext',
-        'navigateDirection',
-        'showChatButton',
-        'onShowChat',
-        'data',
-    ]);
-
-    function toFullscreenProps(flat: Record<string, unknown>): Record<string, unknown> {
-        if ('data' in flat) return flat;
-        const decodedContent: Record<string, unknown> = {};
-        const topLevel: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(flat)) {
-            if (FULLSCREEN_TOP_LEVEL_PROPS.has(k)) {
-                topLevel[k] = v;
-            } else {
-                decodedContent[k] = v;
-            }
-        }
-        const status = (decodedContent.status as string | undefined) ?? 'finished';
+    function buildDecodedContent(flat: Record<string, unknown>): Record<string, unknown> {
         return {
-            ...topLevel,
-            data: {
-                decodedContent,
-                embedData: { status },
-                attrs: { app_id: appId, skill_id: skillId },
-            },
+            ...flat,
+            app_id: appId,
+            skill_id: skillId,
         };
     }
 
     function openExample(index: number) {
-        activeIndex = index;
-    }
+        const example = examples[index];
+        if (!example) return;
+        const embedId =
+            typeof example.id === 'string' && example.id
+                ? example.id
+                : `store-example-${appId}-${skillId}-${index}`;
 
-    function closeExample() {
-        activeIndex = null;
+        // Close the settings panel first so the user sees the fullscreen
+        // slide up inside ActiveChat.
+        panelState.closeSettings();
+
+        openSkillStoreExampleFullscreen({
+            embedId,
+            appId,
+            skillId,
+            decodedContent: buildDecodedContent(example),
+        });
     }
 
     function handleKey(e: KeyboardEvent, index: number) {
@@ -154,31 +139,6 @@
             </div>
         </div>
     </div>
-
-    {#if activeIndex !== null && FullscreenComponent}
-        {@const Fullscreen = FullscreenComponent}
-        {@const fsProps = toFullscreenProps(examples[activeIndex])}
-        <div
-            class="examples-fullscreen-portal"
-            role="dialog"
-            aria-modal="true"
-        >
-            <Fullscreen
-                {...fsProps}
-                onClose={closeExample}
-                showShare={false}
-                hasPreviousEmbed={activeIndex > 0}
-                hasNextEmbed={activeIndex < examples.length - 1}
-                onNavigatePrevious={() => {
-                    if (activeIndex !== null && activeIndex > 0) activeIndex -= 1;
-                }}
-                onNavigateNext={() => {
-                    if (activeIndex !== null && activeIndex < examples.length - 1)
-                        activeIndex += 1;
-                }}
-            />
-        </div>
-    {/if}
 {/if}
 
 <style>
@@ -236,9 +196,9 @@
 
     /*
      * Each card is a fixed-width slot containing a full embed preview.
-     * We wrap the preview in a focusable outer div so the whole card is
-     * keyboard-activatable, and an inner div that contains the preview
-     * component (which itself has its own click handlers for fullscreen).
+     * The outer wrapper is the click target; the inner wrapper blocks
+     * pointer events from reaching the preview's own internal buttons
+     * so a single click always goes through our handler.
      */
     .example-card {
         flex: 0 0 auto;
@@ -254,26 +214,5 @@
 
     .example-card-inner {
         pointer-events: none;
-    }
-
-    /*
-     * Re-enable pointer events inside the preview so hover/click still
-     * reach the preview component's own fullscreen button. The outer
-     * click handler then takes over via onFullscreen.
-     */
-    .example-card-inner :global(*) {
-        pointer-events: auto;
-    }
-
-    /*
-     * Fullscreen overlay — sits above everything and fills the viewport.
-     * UnifiedEmbedFullscreen positions itself absolutely inside its parent,
-     * so we provide a fixed full-viewport parent here.
-     */
-    .examples-fullscreen-portal {
-        position: fixed;
-        inset: 0;
-        z-index: var(--z-index-modal, 1000);
-        background: rgba(0, 0, 0, 0.5);
     }
 </style>
