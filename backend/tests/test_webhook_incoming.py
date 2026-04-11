@@ -24,32 +24,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # webhook_incoming imports `routes.websockets` and `tasks.celery_config` lazily
-# inside the function body. Both pull in payment_service → polar_sdk, which is
-# not installed in the unit-test environment. Inject lightweight stub modules
-# into sys.modules BEFORE importing the router so the lazy imports resolve to
-# fakes that the tests can mutate per-case.
-
-def _install_stub_module(dotted_name: str, **attrs) -> types.ModuleType:
-    parts = dotted_name.split(".")
-    # Ensure every parent package exists in sys.modules so getattr-walks work.
-    for i in range(1, len(parts)):
-        parent_name = ".".join(parts[:i])
-        if parent_name not in sys.modules:
-            parent = types.ModuleType(parent_name)
-            parent.__path__ = []  # Mark as package
-            sys.modules[parent_name] = parent
-    module = sys.modules.get(dotted_name)
-    if module is None:
-        module = types.ModuleType(dotted_name)
-        sys.modules[dotted_name] = module
-    for key, value in attrs.items():
-        setattr(module, key, value)
-    # Attach to parent so `from x.y import z` works
-    if len(parts) > 1:
-        parent = sys.modules[".".join(parts[:-1])]
-        setattr(parent, parts[-1], module)
-    return module
-
+# inside the function body. Both pull in payment_service → polar_sdk, which may
+# or may not be installed depending on the env. Force the lazy imports to
+# resolve to lightweight stubs in sys.modules so tests get the same fake
+# manager / celery app regardless of whether the real modules would have loaded.
 
 _FAKE_WS_MANAGER = MagicMock(name="fake_ws_manager")
 _FAKE_WS_MANAGER.is_user_active = MagicMock(return_value=True)
@@ -58,22 +36,48 @@ _FAKE_WS_MANAGER.broadcast_to_user = AsyncMock()
 _FAKE_CELERY_APP = MagicMock(name="fake_celery_app")
 _FAKE_CELERY_APP.send_task = MagicMock()
 
-# Only stub if the real modules are unimportable (polar_sdk missing).
-try:
-    import backend.core.api.app.routes.websockets  # noqa: F401
-except Exception:
-    _install_stub_module(
-        "backend.core.api.app.routes.websockets",
-        manager=_FAKE_WS_MANAGER,
-    )
 
-try:
-    import backend.core.api.app.tasks.celery_config  # noqa: F401
-except Exception:
-    _install_stub_module(
-        "backend.core.api.app.tasks.celery_config",
-        app=_FAKE_CELERY_APP,
-    )
+def _force_stub_leaf_module(dotted_name: str, **attrs) -> types.ModuleType:
+    """Force-replace the leaf module in sys.modules with a stub.
+
+    Works in both environments:
+      - Local dev: the real parent package may fail to import (e.g.
+        backend.core.api.app.tasks.__init__ pulls in polar_sdk via the email
+        task chain). Fall back to a minimal stub parent so the lazy
+        `from x.y.z import w` inside webhook_incoming still finds something.
+      - CI / production: the real parent imports cleanly. We still replace the
+        leaf so tests get a deterministic fake manager / celery app instead of
+        whatever the real package put in sys.modules.
+
+    We never touch parent packages that already exist — that would shadow real
+    sibling submodules (e.g. `routers` would become unreachable if we replaced
+    `backend.core.api.app` itself).
+    """
+    parent_name, _, leaf = dotted_name.rpartition(".")
+    if parent_name not in sys.modules:
+        try:
+            __import__(parent_name)
+        except Exception:
+            stub_parent = types.ModuleType(parent_name)
+            stub_parent.__path__ = []
+            sys.modules[parent_name] = stub_parent
+    parent = sys.modules[parent_name]
+    stub = types.ModuleType(dotted_name)
+    for key, value in attrs.items():
+        setattr(stub, key, value)
+    sys.modules[dotted_name] = stub
+    setattr(parent, leaf, stub)
+    return stub
+
+
+_force_stub_leaf_module(
+    "backend.core.api.app.routes.websockets",
+    manager=_FAKE_WS_MANAGER,
+)
+_force_stub_leaf_module(
+    "backend.core.api.app.tasks.celery_config",
+    app=_FAKE_CELERY_APP,
+)
 
 try:
     from backend.core.api.app.routers.webhooks import (
@@ -272,16 +276,7 @@ async def test_webhook_incoming_offline_user_queues_email_and_still_dispatches_a
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_offline"})
 
-    # Force the lazy `from backend.core.api.app.tasks.celery_config import app`
-    # inside _queue_webhook_email_notification to resolve to our fake module —
-    # the real celery_config loaded successfully (just with warnings) so the
-    # opportunistic stub above didn't kick in.
-    fake_celery_module = types.ModuleType("backend.core.api.app.tasks.celery_config")
-    fake_celery_module.app = _FAKE_CELERY_APP
-    with patch.dict(
-        sys.modules,
-        {"backend.core.api.app.tasks.celery_config": fake_celery_module},
-    ), patch(
+    with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
     ):
