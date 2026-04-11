@@ -206,10 +206,13 @@ skills:
     description_translation_key: app_skills.health.search_appointments.description
     icon_image: calendar.svg
     preprocessor_hint: >
-      Search for available doctor/specialist appointments by speciality and city.
-      Returns up to 6 different doctors with their soonest slot + up to 5 alternate slot times,
-      enriched with Google Places ratings, reviews, opening hours, phone, and website.
-      Costs 250 credits per search.
+      Search available medical appointments at German doctors/specialists by speciality and city.
+      Triggers on: Arzt, Facharzt, Termin, Arzttermin, appointment, doctor, Zahnarzt, dentist,
+      Hautarzt, Augenarzt, Frauenarzt, Kinderarzt, Orthopäde, Kardiologe, MRT, MRI, CT,
+      Röntgen, X-ray, Ultraschall, ultrasound, Radiologie, radiology, Blutabnahme, blood test,
+      Impfung, vaccination, Vorsorge, check-up, Untersuchung, or any medical exam / scan / booking.
+      Note: "Termin" in a medical context always means appointment, never event.
+      Sources: Doctolib, Jameda (Germany only). Returns one card per doctor with alternate slot times.
     stage: production
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
