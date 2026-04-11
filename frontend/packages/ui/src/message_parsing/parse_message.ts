@@ -153,17 +153,9 @@ function convertEmbedLinksInNode(
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = _parseLineFragment(rawRef);
-        // Hallucination guard: if the ref resolves to nothing in the live
-        // index AND the document has no sibling app_id to fall back on,
-        // the LLM invented a ref that points at nothing. Drop the node
-        // entirely so the stray markup simply disappears from the rendered
-        // message. See issue 0d5b2385 (LLM emitted "sven-walter-febnm-YZt").
         const resolvedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
         const resolvedAppId =
           _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
-        if (!resolvedId && !resolvedAppId && !fallbackAppId) {
-          return []; // dropped — no visible output
-        }
         return {
           type: "embedPreviewLarge",
           attrs: {
@@ -203,15 +195,6 @@ function convertEmbedLinksInNode(
       const resolvedLiveAppId =
         _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
       const appId = resolvedLiveAppId ?? fallbackAppId;
-
-      // Hallucination guard: if the ref resolves to nothing in the live
-      // index AND the message has no sibling embeds (no fallback app_id),
-      // the LLM invented a ref. Drop the node entirely so the stray
-      // [text](embed:ref) markup is stripped from the rendered message.
-      // See issue 0d5b2385.
-      if (!resolvedEmbedId && !resolvedLiveAppId && !fallbackAppId) {
-        return []; // dropped — no visible output
-      }
 
       return {
         type: "embedInline",
