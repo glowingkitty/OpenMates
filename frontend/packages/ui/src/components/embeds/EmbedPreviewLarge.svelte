@@ -130,16 +130,18 @@
   let wrapperEl = $state<HTMLElement | null>(null);
   let isExpanded = $state(false);
 
+  // First card's measured rendered height — published to overlays so their negative
+  // margin matches the actual rendered shell, not the static min-height (which can
+  // mismatch the rendered content and cause a vertical jump on carousel navigation).
+  let measuredShellHeight = $state(0);
+
   onMount(() => {
     if (!wrapperEl) return;
-    console.debug('[EmbedPreviewLarge] Mounted', { embedRef, carouselIndex, width: wrapperEl.offsetWidth });
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const newExpanded = entry.contentRect.width > 400;
-        if (newExpanded !== isExpanded) {
-          console.debug('[EmbedPreviewLarge] ResizeObserver', { embedRef, width: entry.contentRect.width, isExpanded: newExpanded });
-        }
-        isExpanded = newExpanded;
+        isExpanded = entry.contentRect.width > 400;
+        // entry.contentRect.height excludes border; offsetHeight includes it.
+        measuredShellHeight = (entry.target as HTMLElement).offsetHeight;
       }
     });
     ro.observe(wrapperEl);
@@ -148,10 +150,11 @@
 
   let shellMinHeight = $derived(isExpanded ? 365 : 215);
 
-  // First card publishes its shell height so overlay cards can match the negative margin.
+  // First card publishes its actual rendered height so overlay cards can match
+  // the negative margin precisely. Falls back to shellMinHeight before measurement.
   $effect(() => {
     if (isFirstCard) {
-      shellHeightStore.set(shellMinHeight);
+      shellHeightStore.set(measuredShellHeight || shellMinHeight);
     }
   });
 </script>
