@@ -14,7 +14,7 @@
 # ships English up-front; the other locales are filled in automatically
 # via scripts/auto_translate.py.
 
-app_store_examples.web.search.1:
+web.search.1:
   context: Query label for the first web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set for how to get started learning the Rust programming language.
   en: How to learn Rust programming as a beginner
   de: Rust-Programmierung für Anfänger lernen
@@ -38,7 +38,7 @@ app_store_examples.web.search.1:
   sv: Hur man lär sig Rust-programmering som nybörjare
   he: איך ללמוד תכנות ב-Rust למתחילים
   verified_by_human: [en]
-app_store_examples.web.search.2:
+web.search.2:
   context: Query label for the second web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set comparing consumer noise-cancelling headphones for 2026.
   en: Best noise cancelling headphones 2026
   de: Beste Noise-Cancelling-Kopfhörer 2026
@@ -62,7 +62,7 @@ app_store_examples.web.search.2:
   sv: Bästa brusreducerande hörlurarna 2026
   he: האוזניות הטובות ביותר לביטול רעשים 2026
   verified_by_human: [en]
-app_store_examples.web.search.3:
+web.search.3:
   context: Query label for the third web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set about recent discoveries made by the James Webb Space Telescope.
   en: Latest James Webb Space Telescope discoveries
   de: Neueste Entdeckungen des James-Webb-Weltraumteleskops
@@ -87,7 +87,7 @@ app_store_examples.web.search.3:
   he: "התגליות האחרונות של טלסקופ החלל ג'יימס וב"
   verified_by_human: [en]
 
-app_store_examples.news.search.1:
+news.search.1:
   context: Query label for the first news search example in the app store. Shown on a preview card that opens a real Brave news search result set covering notable artificial intelligence breakthroughs in 2026.
   en: AI breakthroughs in 2026
   de: KI-Durchbrüche 2026
@@ -111,7 +111,7 @@ app_store_examples.news.search.1:
   sv: AI-genombrott 2026
   he: פריצות דרך בבינה מלאכותית ב-2026
   verified_by_human: [en]
-app_store_examples.news.search.2:
+news.search.2:
   context: Query label for the second news search example in the app store. Shown on a preview card that opens a real Brave news search result set about recent European climate policy developments.
   en: European climate policy updates
   de: Updates zur europäischen Klimapolitik
@@ -135,7 +135,7 @@ app_store_examples.news.search.2:
   sv: Uppdateringar om europeisk klimatpolitik
   he: עדכונים במדיניות האקלים האירופית
   verified_by_human: [en]
-app_store_examples.news.search.3:
+news.search.3:
   context: Query label for the third news search example in the app store. Shown on a preview card that opens a real Brave news search result set about SpaceX's Mars mission plans.
   en: SpaceX Mars mission news
   de: Neuigkeiten zur SpaceX-Marsmission
@@ -160,7 +160,7 @@ app_store_examples.news.search.3:
   he: חדשות על משימת SpaceX למאדים
   verified_by_human: [en]
 
-app_store_examples.videos.search.1:
+videos.search.1:
   context: Query label for the first videos search example in the app store. Shown on a preview card that opens a real Brave video search result set about using Svelte 5 runes in tutorials.
   en: Svelte 5 runes tutorial
   de: Svelte 5 Runes Tutorial
@@ -184,7 +184,7 @@ app_store_examples.videos.search.1:
   sv: Svelte 5 runes-guide
   he: מדריך Svelte 5 runes
   verified_by_human: [en]
-app_store_examples.videos.search.2:
+videos.search.2:
   context: Query label for the second videos search example in the app store. Shown on a preview card that opens a real Brave video search result set about cooking an authentic pasta carbonara.
   en: How to cook authentic pasta carbonara
   de: Authentische Pasta Carbonara kochen
@@ -208,7 +208,7 @@ app_store_examples.videos.search.2:
   sv: Hur man lagar äkta pasta carbonara
   he: איך להכין פסטה קרבונרה אותנטית
   verified_by_human: [en]
-app_store_examples.videos.search.3:
+videos.search.3:
   context: Query label for the third videos search example in the app store. Shown on a preview card that opens a real Brave video search result set explaining how black holes work.
   en: How black holes work explained
   de: Funktionsweise von Schwarzen Löchern erklärt
@@ -233,7 +233,7 @@ app_store_examples.videos.search.3:
   he: הסבר על איך חורים שחורים עובדים
   verified_by_human: [en]
 
-app_store_examples.maps.search.1:
+maps.search.1:
   context: Query label for the first maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for the best coffee shops in San Francisco, USA.
   en: Best coffee shops in San Francisco
   de: Beste Cafés in San Francisco
@@ -257,7 +257,7 @@ app_store_examples.maps.search.1:
   sv: Bästa kaféerna i San Francisco
   he: בתי הקפה הטובים ביותר בסן פרנסיסקו
   verified_by_human: [en]
-app_store_examples.maps.search.2:
+maps.search.2:
   context: Query label for the second maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for Italian restaurants near Times Square in New York City, USA.
   en: Italian restaurants near Times Square, New York
   de: Italienische Restaurants in der Nähe des Times Square, New York
@@ -281,7 +281,7 @@ app_store_examples.maps.search.2:
   sv: Italienska restauranger nära Times Square, New York
   he: מסעדות איטלקיות ליד טיימס סקוור, ניו יורק
   verified_by_human: [en]
-app_store_examples.maps.search.3:
+maps.search.3:
   context: Query label for the third maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for bookstores in central London, UK.
   en: Bookstores in central London
   de: Buchhandlungen im Zentrum von London
