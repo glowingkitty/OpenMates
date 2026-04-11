@@ -44,7 +44,7 @@ from urllib.parse import urlencode
 
 import httpx
 
-from backend.shared.providers.google_places import PlaceDetails, search_place_details
+from backend.shared.providers.google_maps.google_places import search_places as google_search_places
 from backend.shared.testing.caching_http_transport import create_http_client
 
 if TYPE_CHECKING:
@@ -841,7 +841,8 @@ def _group_slots_by_doctor(
 def _merge_ratings(
     jameda_rating: Optional[float],
     jameda_count: Optional[int],
-    places: Optional[PlaceDetails],
+    places_rating: Optional[float],
+    places_rating_count: Optional[int],
 ) -> Tuple[Optional[float], Optional[int], List[str]]:
     """Merge Jameda and Google Places ratings into a single combined score.
 
@@ -867,12 +868,12 @@ def _merge_ratings(
         total_count += 1
         sources.append("jameda")
 
-    if places and places.rating is not None and places.rating_count and places.rating_count > 0:
-        total_score += places.rating * places.rating_count
-        total_count += places.rating_count
+    if places_rating is not None and places_rating_count and places_rating_count > 0:
+        total_score += places_rating * places_rating_count
+        total_count += places_rating_count
         sources.append("google")
-    elif places and places.rating is not None:
-        total_score += places.rating * 1
+    elif places_rating is not None:
+        total_score += places_rating * 1
         total_count += 1
         sources.append("google")
 
@@ -881,6 +882,83 @@ def _merge_ratings(
 
     combined = round(total_score / total_count, 2)
     return combined, total_count, sources
+
+
+def _parse_google_opening_hours(raw: Optional[Dict[str, Any]]) -> List[str]:
+    """Extract the human-readable weekday descriptions from a Google Places
+    opening-hours object. Returns an empty list when the field is missing.
+    """
+    if not raw or not isinstance(raw, dict):
+        return []
+    descriptions = raw.get("weekdayDescriptions")
+    if isinstance(descriptions, list):
+        return [d for d in descriptions if isinstance(d, str) and d.strip()]
+    return []
+
+
+def _parse_google_reviews(raw: Any) -> List[Dict[str, Any]]:
+    """Extract up to 5 reviews from a Google Places review array into a flat
+    dict list suitable for embed storage.
+    """
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, Any]] = []
+    for rev in raw[:5]:
+        if not isinstance(rev, dict):
+            continue
+        author_attr = rev.get("authorAttribution") or {}
+        text_obj = rev.get("text") or {}
+        out.append({
+            "author": author_attr.get("displayName") if isinstance(author_attr, dict) else None,
+            "rating": rev.get("rating"),
+            "text": text_obj.get("text") if isinstance(text_obj, dict) else None,
+            "language": text_obj.get("languageCode") if isinstance(text_obj, dict) else None,
+            "relative_time": rev.get("relativePublishTimeDescription"),
+        })
+    return out
+
+
+def _parse_google_accessibility(raw: Any) -> List[str]:
+    """Flatten the accessibilityOptions dict into a list of flag strings."""
+    if not isinstance(raw, dict):
+        return []
+    flags: List[str] = []
+    if raw.get("wheelchairAccessibleEntrance"):
+        flags.append("wheelchair_entrance")
+    if raw.get("wheelchairAccessibleParking"):
+        flags.append("wheelchair_parking")
+    if raw.get("wheelchairAccessibleSeating"):
+        flags.append("wheelchair_seating")
+    if raw.get("wheelchairAccessibleRestroom"):
+        flags.append("wheelchair_restroom")
+    return flags
+
+
+# Health-specific field mask — extends the google_maps DEFAULT_FIELD_MASK with
+# fields useful for doctor practices (Google Maps URI, accessibility, reviews).
+# All of these fields are in the same Enterprise SKU tier, so there is no
+# additional billing cost for requesting them.
+_HEALTH_FIELD_MASK = [
+    # Essentials / Pro
+    "places.id",
+    "places.displayName",
+    "places.formattedAddress",
+    "places.location",
+    "places.types",
+    "places.businessStatus",
+    "places.googleMapsUri",
+    "places.accessibilityOptions",
+    # Enterprise (rating trigger)
+    "places.rating",
+    "places.userRatingCount",
+    "places.reviews",
+    "places.regularOpeningHours",
+    "places.currentOpeningHours",
+    "places.nationalPhoneNumber",
+    "places.internationalPhoneNumber",
+    "places.websiteUri",
+    "places.editorialSummary",
+]
 
 
 def _build_places_query(item: Dict[str, Any]) -> str:
@@ -902,51 +980,68 @@ async def _enrich_with_google_places(
 ) -> List[Dict[str, Any]]:
     """Enrich each doctor result with Google Places data in parallel.
 
-    Merges Jameda and Google ratings into a single weighted average and copies
-    over reviews, opening hours, phone, website, editorial summary, Google Maps
-    deep link, accessibility flags, and business status. Items with
-    `business_status=CLOSED_PERMANENTLY` are dropped because Google confirmed
-    the practice no longer exists.
+    Reuses the existing google_maps.google_places.search_places() wrapper
+    (same kv/data/providers/google_maps API key) so we don't maintain a
+    duplicate Places API client. Merges Jameda and Google ratings into a
+    single weighted average and copies over reviews, opening hours, phone,
+    website, editorial summary, Google Maps deep link, accessibility flags,
+    and business status. Items with `business_status=CLOSED_PERMANENTLY` are
+    dropped because Google confirmed the practice no longer exists.
 
     No-ops when `secrets_manager` is None (e.g. unit tests without API key).
     """
     if not items or secrets_manager is None:
         return items
 
-    async def _lookup(item: Dict[str, Any]) -> Optional[PlaceDetails]:
+    async def _lookup(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         query = _build_places_query(item)
         if not query:
             return None
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(15.0, connect=5.0),
-            follow_redirects=True,
-        ) as client:
-            return await search_place_details(
-                client=client,
+        try:
+            resp = await google_search_places(
+                text_query=query,
                 secrets_manager=secrets_manager,
-                query=query,
-                region_code="DE",
+                page_size=1,
                 language_code="de",
+                field_mask=list(_HEALTH_FIELD_MASK),
+                include_reviews=True,
             )
+        except Exception as exc:
+            logger.warning(
+                "[health:google_places] Lookup failed for '%s': %s",
+                item.get("name", "?"), exc,
+            )
+            return None
 
-    results = await asyncio.gather(
+        if not isinstance(resp, dict):
+            return None
+        if resp.get("error"):
+            logger.info(
+                "[health:google_places] API error for '%s': %s",
+                item.get("name", "?"), resp.get("error"),
+            )
+            return None
+        results = resp.get("results") or []
+        return results[0] if results else None
+
+    lookups = await asyncio.gather(
         *[_lookup(item) for item in items],
         return_exceptions=True,
     )
 
     enriched: List[Dict[str, Any]] = []
-    for item, place_or_exc in zip(items, results):
-        place: Optional[PlaceDetails] = None
+    for item, place_or_exc in zip(items, lookups):
+        place: Optional[Dict[str, Any]] = None
         if isinstance(place_or_exc, Exception):
             logger.warning(
                 "[health:google_places] Enrichment error for '%s': %s",
                 item.get("name", "?"), place_or_exc,
             )
-        else:
+        elif isinstance(place_or_exc, dict):
             place = place_or_exc
 
         # Drop permanently-closed practices — Google confirmed they're gone.
-        if place and place.business_status == "CLOSED_PERMANENTLY":
+        if place and place.get("businessStatus") == "CLOSED_PERMANENTLY":
             logger.info(
                 "[health:google_places] Dropping CLOSED_PERMANENTLY result: %s",
                 item.get("name", "?"),
@@ -956,10 +1051,13 @@ async def _enrich_with_google_places(
         # Merge ratings (Jameda + Google → weighted average)
         jameda_rating = item.get("rating") if item.get("provider_platform") == "Jameda" else None
         jameda_count = item.get("rating_count") if item.get("provider_platform") == "Jameda" else None
+        places_rating = place.get("rating") if place else None
+        places_rating_count = place.get("userRatingCount") if place else None
         combined_rating, combined_count, sources = _merge_ratings(
             jameda_rating=jameda_rating,
             jameda_count=jameda_count,
-            places=place,
+            places_rating=places_rating,
+            places_rating_count=places_rating_count,
         )
         item["rating"] = combined_rating
         item["rating_count"] = combined_count
@@ -967,39 +1065,38 @@ async def _enrich_with_google_places(
 
         # Copy enriched Google Places fields onto the item when available.
         if place is not None:
-            if place.reviews:
-                item["google_reviews"] = [
-                    {
-                        "author": r.author,
-                        "rating": r.rating,
-                        "text": r.text,
-                        "language": r.language,
-                        "relative_time": r.relative_time,
-                    }
-                    for r in place.reviews
-                ]
-            if place.opening_hours_weekday_text:
-                item["opening_hours"] = place.opening_hours_weekday_text
-            if place.phone_international or place.phone_national:
-                item["phone"] = place.phone_international or place.phone_national
-            if place.website_uri:
-                item["website"] = place.website_uri
-            if place.editorial_summary:
-                item["description"] = place.editorial_summary
-            if place.google_maps_uri:
-                item["google_maps_uri"] = place.google_maps_uri
-            if place.business_status:
-                item["business_status"] = place.business_status
-            # Accessibility — combine the Google flags into a simple list.
-            access_flags: List[str] = []
-            if place.wheelchair_accessible_entrance:
-                access_flags.append("wheelchair_entrance")
-            if place.wheelchair_accessible_parking:
-                access_flags.append("wheelchair_parking")
-            if place.wheelchair_accessible_seating:
-                access_flags.append("wheelchair_seating")
-            if place.wheelchair_accessible_restroom:
-                access_flags.append("wheelchair_restroom")
+            reviews = _parse_google_reviews(place.get("reviews"))
+            if reviews:
+                item["google_reviews"] = reviews
+
+            hours_raw = place.get("currentOpeningHours") or place.get("regularOpeningHours")
+            opening_hours_text = _parse_google_opening_hours(hours_raw)
+            if opening_hours_text:
+                item["opening_hours"] = opening_hours_text
+
+            phone = place.get("internationalPhoneNumber") or place.get("nationalPhoneNumber")
+            if isinstance(phone, str) and phone.strip():
+                item["phone"] = phone.strip()
+
+            website = place.get("websiteUri")
+            if isinstance(website, str) and website.strip():
+                item["website"] = website.strip()
+
+            editorial = place.get("editorialSummary")
+            if isinstance(editorial, dict):
+                editorial_text = editorial.get("text")
+                if isinstance(editorial_text, str) and editorial_text.strip():
+                    item["description"] = editorial_text.strip()
+
+            maps_uri = place.get("googleMapsUri")
+            if isinstance(maps_uri, str) and maps_uri.strip():
+                item["google_maps_uri"] = maps_uri.strip()
+
+            business_status = place.get("businessStatus")
+            if isinstance(business_status, str) and business_status:
+                item["business_status"] = business_status
+
+            access_flags = _parse_google_accessibility(place.get("accessibilityOptions"))
             if access_flags:
                 item["accessibility"] = access_flags
 
