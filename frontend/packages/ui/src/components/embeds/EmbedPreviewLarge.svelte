@@ -41,7 +41,7 @@
   //   - The FIRST card (carouselIndex === 0) is always rendered as the "shell"
   //     and holds the left/right navigation arrows.
   //   - Non-first cards overlay on top using negative margin.
-  //   - Only the active card is visible; others use display:none or visibility:hidden.
+  //   - All cards stay mounted; visibility crossfades via opacity for smooth transitions.
   //
   // Architecture: See docs/architecture/embeds.md for rendering pipeline.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
@@ -114,6 +114,12 @@
     e.preventDefault();
     e.stopPropagation();
     carouselStore.update((i) => (i + 1) % carouselTotal);
+  }
+
+  function handleDotClick(e: MouseEvent, index: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    carouselStore.set(index);
   }
 
   // ── Embed ID resolution ─────────────────────────────────────────────────
@@ -193,6 +199,20 @@
       >
         <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
       </button>
+
+      <div class="carousel-dots" role="tablist" aria-label="Carousel position">
+        {#each Array(carouselTotal) as _, i}
+          <button
+            class="carousel-dot"
+            class:carousel-dot--active={currentIndex === i}
+            type="button"
+            role="tab"
+            aria-selected={currentIndex === i}
+            aria-label={`Go to slide ${i + 1} of ${carouselTotal}`}
+            onclick={(e) => handleDotClick(e, i)}
+          ></button>
+        {/each}
+      </div>
     {/if}
   </div>
 {:else if hasMultiple}
@@ -228,10 +248,13 @@
 
   .embed-preview-large-content {
     width: 100%;
+    opacity: 1;
+    transition: opacity var(--duration-normal) var(--easing-default);
   }
 
   .embed-preview-large-content--hidden {
-    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* ── Non-first cards: overlay ────────────────────────────────────────────── */
@@ -239,10 +262,56 @@
   .embed-preview-large-overlay {
     position: relative;
     z-index: var(--z-index-raised-2);
+    opacity: 1;
+    transition: opacity var(--duration-normal) var(--easing-default);
   }
 
   .embed-preview-large-overlay--hidden {
-    display: none;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── Pagination dots ─────────────────────────────────────────────────────── */
+  .carousel-dots {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background-color: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: var(--z-index-dropdown-2);
+    pointer-events: auto;
+  }
+
+  .carousel-dot {
+    width: 7px;
+    height: 7px;
+    padding: 0 !important;
+    min-width: unset !important;
+    border: none;
+    border-radius: 50% !important;
+    background-color: rgba(255, 255, 255, 0.45) !important;
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--easing-default),
+                width var(--duration-fast) var(--easing-default);
+    margin: 0 !important;
+    filter: none !important;
+  }
+
+  .carousel-dot:hover {
+    background-color: rgba(255, 255, 255, 0.7) !important;
+    scale: none !important;
+  }
+
+  .carousel-dot--active {
+    width: 18px;
+    border-radius: 999px !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
   }
 
   /* ── Navigation arrows (matches ChatHeader .nav-arrow style) ────────────── */
