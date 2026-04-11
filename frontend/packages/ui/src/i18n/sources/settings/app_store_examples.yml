@@ -305,3 +305,295 @@ maps.search.3:
   sv: Bokhandlar i centrala London
   he: חנויות ספרים במרכז לונדון
   verified_by_human: [en]
+
+shopping.search_products.1:
+  context: Query label for the first shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for organic dark chocolate bars.
+  en: Organic dark chocolate
+  de: Bio-Zartbitterschokolade
+  zh: 有机黑巧克力
+  es: Chocolate negro orgánico
+  fr: Chocolat noir bio
+  pt: Chocolate amargo orgânico
+  ru: Органический темный шоколад
+  ja: オーガニック ダークチョコレート
+  ko: 유기농 다크 초콜릿
+  it: Cioccolato fondente biologico
+  tr: Organik bitter çikolata
+  vi: Sô-cô-la đen hữu cơ
+  id: Cokelat hitam organik
+  pl: Ekologiczna gorzka czekolada
+  nl: Biologische pure chocolade
+  ar: شوكولاتة داكنة عضوية
+  hi: ऑर्गेनिक डार्क चॉकलेट
+  th: ดาร์กช็อกโกแลตออร์แกนิก
+  cs: Bio hořká čokoláda
+  sv: Ekologisk mörk choklad
+  he: שוקולד מריר אורגני
+  verified_by_human: [en]
+shopping.search_products.2:
+  context: Query label for the second shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for extra virgin olive oil.
+  en: Extra virgin olive oil
+  de: Natives Olivenöl extra
+  zh: 特级初榨橄榄油
+  es: Aceite de oliva virgen extra
+  fr: "Huile d'olive extra vierge"
+  pt: Azeite de oliva extra virgem
+  ru: Оливковое масло Extra Virgin
+  ja: エキストラバージン オリーブオイル
+  ko: 엑스트라 버진 올리브 오일
+  it: Olio extravergine di oliva
+  tr: Sızma zeytinyağı
+  vi: Dầu ô liu nguyên chất
+  id: Minyak zaitun extra virgin
+  pl: Oliwa z oliwek extra virgin
+  nl: Extra vierge olijfolie
+  ar: زيت زيتون بكر ممتاز
+  hi: एक्स्ट्रा वर्जिन जैतून का तेल
+  th: น้ำมันมะกอกเอ็กซ์ตร้าเวอร์จิ้น
+  cs: Extra panenský olivový olej
+  sv: Extra jungfruolivolja
+  he: שמן זית כתית מעולה
+  verified_by_human: [en]
+shopping.search_products.3:
+  context: Query label for the third shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for spaghetti pasta.
+  en: Spaghetti pasta
+  de: Spaghetti
+  zh: 意大利面
+  es: Pasta de espaguetis
+  fr: Pâtes spaghetti
+  pt: Espaguete
+  ru: Паста спагетти
+  ja: スパゲッティ パスタ
+  ko: 스파게티 파스타
+  it: Spaghetti
+  tr: Spagetti makarna
+  vi: Mì Ý spaghetti
+  id: Pasta spageti
+  pl: Makaron spaghetti
+  nl: Spaghetti pasta
+  ar: مكرونة سباغيتي
+  hi: स्पैगेटी पास्ता
+  th: พาสต้าสปาเกตตี
+  cs: Těstoviny špagety
+  sv: Spagetti
+  he: פסטה ספגטי
+  verified_by_human: [en]
+
+travel.search_stays.1:
+  context: Query label for the first travel stays example in the app store. Shown on a preview card that opens real Google Hotels results for hotels in Barcelona, Spain.
+  en: Hotels in Barcelona, Spain
+  de: Hotels in Barcelona, Spanien
+  zh: 西班牙巴塞罗那酒店
+  es: Hoteles en Barcelona, España
+  fr: Hôtels à Barcelone, Espagne
+  pt: Hotéis em Barcelona, Espanha
+  ru: Отели в Барселоне, Испания
+  ja: スペイン、バルセロナのホテル
+  ko: 스페인 바르셀로나 호텔
+  it: Hotel a Barcellona, Spagna
+  tr: "Barselona, İspanya'daki oteller"
+  vi: Khách sạn tại Barcelona, Tây Ban Nha
+  id: Hotel di Barcelona, Spanyol
+  pl: Hotele w Barcelonie, Hiszpania
+  nl: Hotels in Barcelona, Spanje
+  ar: فنادق في برشلونة، إسبانيا
+  hi: बार्सिलोना, स्पेन में होटल
+  th: โรงแรมในบาร์เซโลนา ประเทศสเปน
+  cs: Hotely v Barceloně, Španělsko
+  sv: Hotell i Barcelona, Spanien
+  he: מלונות בברצלונה, ספרד
+  verified_by_human: [en]
+travel.search_stays.2:
+  context: Query label for the second travel stays example in the app store. Shown on a preview card that opens real Google Hotels results for boutique hotels in Paris, France.
+  en: Boutique hotels in Paris, France
+  de: Boutique-Hotels in Paris, Frankreich
+  zh: 法国巴黎精品酒店
+  es: Hoteles boutique en París, Francia
+  fr: Boutique-hôtels à Paris, France
+  pt: Hotéis boutique em Paris, França
+  ru: Бутик-отели в Париже, Франция
+  ja: フランス、パリのブティックホテル
+  ko: 프랑스 파리 부티크 호텔
+  it: Boutique hotel a Parigi, Francia
+  tr: "Paris, Fransa'daki butik oteller"
+  vi: Khách sạn boutique tại Paris, Pháp
+  id: Hotel butik di Paris, Prancis
+  pl: Hotele butikowe w Paryżu, Francja
+  nl: Boutique hotels in Parijs, Frankrijk
+  ar: فنادق بوتيك في باريس، فرنسا
+  hi: पेरिस, फ्रांस में बुटीक होटल
+  th: บูติกโฮเทลในปารีส ประเทศฝรั่งเศส
+  cs: Boutique hotely v Paříži, Francie
+  sv: Boutiquehotell i Paris, Frankrike
+  he: מלונות בוטיק בפריז, צרפת
+  verified_by_human: [en]
+travel.search_stays.3:
+  context: Query label for the third travel stays example in the app store. Shown on a preview card that opens real Google Hotels results for beach resorts in Bali, Indonesia.
+  en: Beach resorts in Bali, Indonesia
+  de: Strandresorts in Bali, Indonesien
+  zh: 印度尼西亚巴厘岛海滨度假村
+  es: Resorts de playa en Bali, Indonesia
+  fr: Resorts de plage à Bali, Indonésie
+  pt: Resorts de praia em Bali, Indonésia
+  ru: Пляжные курорты на Бали, Индонезия
+  ja: インドネシア、バリ島のビーチリゾート
+  ko: 인도네시아 발리 비치 리조트
+  it: Resort sulla spiaggia a Bali, Indonesia
+  tr: "Bali, Endonezya'daki sahil tatil köyleri"
+  vi: Khu nghỉ dưỡng ven biển tại Bali, Indonesia
+  id: Resor pantai di Bali, Indonesia
+  pl: Kurorty nadmorskie na Bali, Indonezja
+  nl: Strandresorts in Bali, Indonesië
+  ar: منتجعات شاطئية في بالي، إندونيسيا
+  hi: बाली, इंडोनेशिया में बीच रिसॉर्ट्स
+  th: รีสอร์ตริมหาดในบาหลี ประเทศอินโดนีเซีย
+  cs: Plážové resorty na Bali, Indonésie
+  sv: Strandresorter på Bali, Indonesien
+  he: אתרי נופש על החוף בבאלי, אינדונזיה
+  verified_by_human: [en]
+
+events.search.1:
+  context: Query label for the first events search example in the app store. Shown on a preview card that opens real event search results for technology conferences happening in San Francisco, USA.
+  en: Tech conferences in San Francisco
+  de: Tech-Konferenzen in San Francisco
+  zh: 旧金山科技会议
+  es: Conferencias de tecnología en San Francisco
+  fr: Conférences tech à San Francisco
+  pt: Conferências de tecnologia em San Francisco
+  ru: Технологические конференции в Сан-Франциско
+  ja: サンフランシスコのテックカンファレンス
+  ko: 샌프란시스코 테크 컨퍼런스
+  it: Conferenze tech a San Francisco
+  tr: "San Francisco'daki teknoloji konferansları"
+  vi: Hội nghị công nghệ tại San Francisco
+  id: Konferensi teknologi di San Francisco
+  pl: Konferencje technologiczne w San Francisco
+  nl: Tech-conferenties in San Francisco
+  ar: مؤتمرات تقنية في سان فرانسيسكو
+  hi: सैन फ्रांसिस्को में टेक कॉन्फ्रेंस
+  th: งานประชุมเทคโนโลยีในซานฟรานซิสโก
+  cs: Technologické konference v San Franciscu
+  sv: Teknikkonferenser i San Francisco
+  he: כנסי טכנולוגיה בסן פרנסיסקו
+  verified_by_human: [en]
+events.search.2:
+  context: Query label for the second events search example in the app store. Shown on a preview card that opens real event search results for live music concerts happening in Berlin, Germany.
+  en: Live music concerts in Berlin
+  de: Live-Musikkonzerte in Berlin
+  zh: 柏林现场音乐会
+  es: Conciertos de música en vivo en Berlín
+  fr: Concerts de musique live à Berlin
+  pt: Concertos de música ao vivo em Berlim
+  ru: Концерты живой музыки в Берлине
+  ja: ベルリンのライブコンサート
+  ko: 베를린 라이브 음악 콘서트
+  it: Concerti di musica dal vivo a Berlino
+  tr: "Berlin'deki canlı müzik konserleri"
+  vi: Buổi hòa nhạc trực tiếp tại Berlin
+  id: Konser musik langsung di Berlin
+  pl: Koncerty muzyki na żywo w Berlinie
+  nl: Live muziekconcerten in Berlijn
+  ar: حفلات موسيقية حية في برلين
+  hi: बर्लिन में लाइव म्यूजिक कॉन्सर्ट
+  th: คอนเสิร์ตดนตรีสดในเบอร์ลิน
+  cs: Koncerty živé hudby v Berlíně
+  sv: Livekonserter i Berlin
+  he: הופעות מוזיקה חיה בברלין
+  verified_by_human: [en]
+events.search.3:
+  context: Query label for the third events search example in the app store. Shown on a preview card that opens real event search results for art exhibitions happening in London, UK.
+  en: Art exhibitions in London
+  de: Kunstausstellungen in London
+  zh: 伦敦艺术展
+  es: Exposiciones de arte en Londres
+  fr: "Expositions d'art à Londres"
+  pt: Exposições de arte em Londres
+  ru: Художественные выставки в Лондоне
+  ja: ロンドンの美術展
+  ko: 런던 미술 전시회
+  it: "Mostre d'arte a Londra"
+  tr: "Londra'daki sanat sergileri"
+  vi: Triển lãm nghệ thuật tại London
+  id: Pameran seni di London
+  pl: Wystawy sztuki w Londynie
+  nl: Kunsttentoonstellingen in Londen
+  ar: معارض فنية في لندن
+  hi: लंदन में कला प्रदर्शनियां
+  th: นิทรรศการศิลปะในลอนดอน
+  cs: Umělecké výstavy v Londýně
+  sv: Konstutställningar i London
+  he: תערוכות אמנות בלונדון
+  verified_by_human: [en]
+
+images.search.1:
+  context: Query label for the first images search example in the app store. Shown on a preview card that opens real Brave image search results for photos of the Golden Gate Bridge at sunset.
+  en: Golden Gate Bridge at sunset
+  de: Golden Gate Bridge bei Sonnenuntergang
+  zh: 日落时分的金门大桥
+  es: Puente Golden Gate al atardecer
+  fr: Golden Gate Bridge au coucher du soleil
+  pt: Ponte Golden Gate ao pôr do sol
+  ru: Мост Золотые Ворота на закате
+  ja: 夕暮れ時のゴールデンゲートブリッジ
+  ko: 일몰 무렵의 금문교
+  it: Golden Gate Bridge al tramonto
+  tr: Gün batımında Golden Gate Köprüsü
+  vi: Cầu Cổng Vàng lúc hoàng hôn
+  id: Jembatan Golden Gate saat matahari terbenam
+  pl: Most Golden Gate o zachodzie słońca
+  nl: Golden Gate Bridge bij zonsondergang
+  ar: جسر غولدن غيت عند الغروب
+  hi: सूर्यास्त के समय गोल्डन गेट ब्रिज
+  th: สะพานโกลเดนเกตยามพระอาทิตย์ตก
+  cs: Golden Gate Bridge při západu slunce
+  sv: Golden Gate-bron i solnedgången
+  he: גשר הזהב בשקיעה
+  verified_by_human: [en]
+images.search.2:
+  context: Query label for the second images search example in the app store. Shown on a preview card that opens real Brave image search results for minimalist Scandinavian interior design photography.
+  en: Minimalist Scandinavian interior design
+  de: Minimalistisches skandinavisches Innendesign
+  zh: 极简北欧风室内设计
+  es: Diseño de interiores escandinavo minimalista
+  fr: "Design d'intérieur scandinave minimaliste"
+  pt: Design de interiores escandinavo minimalista
+  ru: Минималистичный скандинавский дизайн интерьера
+  ja: ミニマルな北欧インテリアデザイン
+  ko: 미니멀한 북유럽 인테리어 디자인
+  it: "Design d'interni scandinavo minimalista"
+  tr: Minimalist İskandinav iç mekan tasarımı
+  vi: Thiết kế nội thất Scandinavian tối giản
+  id: Desain interior Skandinavia minimalis
+  pl: Minimalistyczny skandynawski wystrój wnętrz
+  nl: Minimalistisch Scandinavisch interieurontwerp
+  ar: تصميم داخلي اسكندنافي بسيط
+  hi: मिनिमलिस्ट स्कैंडिनेवियाई इंटीरियर डिजाइन
+  th: การตกแต่งภายในสไตล์สแกนดิเนเวียนแบบมินิมอล
+  cs: Minimalistický skandinávský interiérový design
+  sv: Minimalistisk skandinavisk inredning
+  he: עיצוב פנים סקנדינבי מינימליסטי
+  verified_by_human: [en]
+images.search.3:
+  context: Query label for the third images search example in the app store. Shown on a preview card that opens real Brave image search results for black and white film photography portraits.
+  en: Black and white film photography portraits
+  de: Schwarz-Weiß-Filmporträts
+  zh: 黑白胶片摄影人像
+  es: Retratos de fotografía analógica en blanco y negro
+  fr: Portraits photo argentique noir et blanc
+  pt: Retratos de fotografia analógica em preto e branco
+  ru: Черно-белые пленочные портреты
+  ja: モノクロフィルム写真のポートレート
+  ko: 흑백 필름 인물 사진
+  it: Ritratti fotografici in bianco e nero su pellicola
+  tr: Siyah beyaz film fotoğrafçılığı portreleri
+  vi: Ảnh chân dung chụp phim đen trắng
+  id: Potret fotografi film hitam putih
+  pl: Czarno-białe portrety z fotografii analogowej
+  nl: Zwart-wit filmfotografie portretten
+  ar: صور بورتريه فوتوغرافية بالأبيض والأسود
+  hi: ब्लैक एंड व्हाइट फिल्म फोटोग्राफी पोर्ट्रेट
+  th: ภาพถ่ายพอร์ตเทรตฟิล์มขาวดำ
+  cs: Černobílé filmové portrétní fotografie
+  sv: Svartvita porträtt på film
+  he: פורטרטים בצילום פילם שחור-לבן
+  verified_by_human: [en]
