@@ -31,8 +31,6 @@
         hasSkillExamples,
     } from '../../services/skillStoreExamplesResolver';
     import { openSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
-    import { panelState } from '../../stores/panelStateStore';
-    import { settingsMenuVisible } from '../Settings.svelte';
 
     interface Props {
         appId: string;
@@ -117,17 +115,13 @@
                 ? example.id
                 : `store-example-${appId}-${skillId}-${index}`;
 
-        // Close the settings panel first so the user sees the fullscreen
-        // slide up inside ActiveChat. We must drive BOTH of the settings
-        // stores: `settingsMenuVisible` triggers the visual close inside
-        // Settings.svelte (which also strips the `.mobile-overlay` class
-        // that would otherwise keep the invisible settings menu above the
-        // chat at z-index 1006, blocking clicks on chat history), and
-        // `panelState.closeSettings()` keeps the global panel state in
-        // sync. See Settings.svelte `toggleMenu` for the reference path.
-        settingsMenuVisible.set(false);
-        panelState.closeSettings();
-
+        // Intentionally do NOT close the settings panel here. The user
+        // should be able to browse multiple examples (and the rest of
+        // the app store) without losing context. ActiveChat's fullscreen
+        // container is rendered inside the chat area and sits at its
+        // normal z-index; on wide screens it appears alongside the open
+        // settings panel. On close it returns to the open skill details
+        // page so the user can keep exploring.
         openSkillStoreExampleFullscreen({
             embedId,
             appId,
