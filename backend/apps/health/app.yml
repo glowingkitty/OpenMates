@@ -207,12 +207,11 @@ skills:
     icon_image: calendar.svg
     preprocessor_hint: >
       Search available medical appointments at German doctors/specialists by speciality and city.
-      Triggers on: Arzt, Facharzt, Termin, Arzttermin, appointment, doctor, Zahnarzt, dentist,
-      Hautarzt, Augenarzt, Frauenarzt, Kinderarzt, Orthopäde, Kardiologe, MRT, MRI, CT,
-      Röntgen, X-ray, Ultraschall, ultrasound, Radiologie, radiology, Blutabnahme, blood test,
-      Impfung, vaccination, Vorsorge, check-up, Untersuchung, or any medical exam / scan / booking.
-      Note: "Termin" in a medical context always means appointment, never event.
-      Sources: Doctolib, Jameda (Germany only). Returns one card per doctor with alternate slot times.
+      Covers any medical booking — general practitioners, specialists (e.g. dentist, dermatologist,
+      gynecologist), scans and imaging (e.g. MRT/MRI, CT, Röntgen, Ultraschall), vaccinations,
+      check-ups, blood tests, and other examinations.
+      Note: "Termin" in a medical context means appointment, not event — route here instead of events-search.
+      Sources: Doctolib, Jameda (Germany only).
     stage: production
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
