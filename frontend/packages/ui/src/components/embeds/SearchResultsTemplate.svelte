@@ -158,6 +158,30 @@
     selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null
   );
 
+  /**
+   * Fallback population for consumers that only supply `legacyResults`
+   * (no `embedIds`) — e.g. the app-store skill examples fixture flow.
+   *
+   * The real-chat path goes through `onChildrenLoaded` after embedStore
+   * fetches complete, which reliably sets `allResults`. When there are
+   * no child embed ids to load, the content snippet used to assign
+   * `allResults = results` inline via `{void ...}`, but that
+   * template-assignment pattern didn't reliably persist in Svelte 5,
+   * so child drilldown from a legacy-results grid silently never
+   * populated `selectedResult`. This effect fixes that by computing
+   * the typed results whenever `legacyResults` (or the transformer)
+   * changes and no embedIds were provided.
+   */
+  $effect(() => {
+    const hasEmbedIds =
+      (typeof embedIds === 'string' && embedIds.trim().length > 0) ||
+      (Array.isArray(embedIds) && embedIds.length > 0);
+    if (hasEmbedIds) return; // real-chat path handles allResults via callback
+    if (!legacyResultTransformer) return;
+    if (!legacyResults || legacyResults.length === 0) return;
+    allResults = legacyResultTransformer(legacyResults);
+  });
+
   let errorText = $derived(errorMessageProp || $text('chat.an_error_occured'));
 
   // ── Handlers ──
