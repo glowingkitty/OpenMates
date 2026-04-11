@@ -33,7 +33,8 @@ RUN apt-get clean && \
 COPY requirements.txt /app/
 
 # Install Python dependencies and explicitly install celery
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
 
 # Copy application code
 COPY . /app/
