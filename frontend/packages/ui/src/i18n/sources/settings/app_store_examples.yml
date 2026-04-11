@@ -597,3 +597,368 @@ images.search.3:
   sv: Svartvita porträtt på film
   he: פורטרטים בצילום פילם שחור-לבן
   verified_by_human: [en]
+
+health.search_appointments.1:
+  context: Query label for the first health appointments example in the app store. Shown on a preview card that opens real Doctolib appointment results for ophthalmologists (eye doctors) in Berlin, Germany.
+  en: Eye doctor in Berlin
+  de: Augenarzt in Berlin
+  zh: 柏林的眼科医生
+  es: Oftalmólogo en Berlín
+  fr: Ophtalmologue à Berlin
+  pt: Oftalmologista em Berlim
+  ru: Офтальмолог в Берлине
+  ja: ベルリンの眼科医
+  ko: 베를린의 안과 의사
+  it: Oculista a Berlino
+  tr: "Berlin'de göz doktoru"
+  vi: Bác sĩ mắt ở Berlin
+  id: Dokter mata di Berlin
+  pl: Okulista w Berlinie
+  nl: Oogarts in Berlijn
+  ar: طبيب عيون في برلين
+  hi: बर्लिन में आँखों के डॉक्टर
+  th: จักษุแพทย์ในเบอร์ลิน
+  cs: Oční lékař v Berlíně
+  sv: Ögonläkare i Berlin
+  he: רופא עיניים בברלין
+  verified_by_human: [en]
+health.search_appointments.2:
+  context: Query label for the second health appointments example in the app store. Shown on a preview card that opens real appointment results for dermatologists (skin doctors) in Munich, Germany.
+  en: Dermatologist in Munich
+  de: Hautarzt in München
+  zh: 慕尼黑的皮肤科医生
+  es: Dermatólogo en Múnich
+  fr: Dermatologue à Munich
+  pt: Dermatologista em Munique
+  ru: Дерматолог в Мюнхене
+  ja: ミュンヘンの皮膚科医
+  ko: 뮌헨의 피부과 의사
+  it: Dermatologo a Monaco
+  tr: "Münih'te dermatolog"
+  vi: Bác sĩ da liễu ở Munich
+  id: Dokter kulit di Munich
+  pl: Dermatolog w Monachium
+  nl: Dermatoloog in München
+  ar: طبيب جلدية في ميونخ
+  hi: म्यूनिख में त्वचा विशेषज्ञ
+  th: แพทย์ผิวหนังในมิวนิก
+  cs: Dermatolog v Mnichově
+  sv: Hudläkare i München
+  he: רופא עור במינכן
+  verified_by_human: [en]
+health.search_appointments.3:
+  context: Query label for the third health appointments example in the app store. Shown on a preview card that opens real appointment results for gynecologists in Hamburg, Germany.
+  en: Gynecologist in Hamburg
+  de: Frauenarzt in Hamburg
+  zh: 汉堡的妇科医生
+  es: Ginecólogo en Hamburgo
+  fr: Gynécologue à Hambourg
+  pt: Ginecologista em Hamburgo
+  ru: Гинеколог в Гамбурге
+  ja: ハンブルクの産婦人科医
+  ko: 함부르크의 산부인과 의사
+  it: Ginecologo ad Amburgo
+  tr: "Hamburg'da jinekolog"
+  vi: Bác sĩ phụ khoa ở Hamburg
+  id: Dokter kandungan di Hamburg
+  pl: Ginekolog w Hamburgu
+  nl: Gynaecoloog in Hamburg
+  ar: طبيب نساء في هامبورغ
+  hi: हैम्बर्ग में स्त्री रोग विशेषज्ञ
+  th: สูตินรีแพทย์ในฮัมบูร์ก
+  cs: Gynekolog v Hamburku
+  sv: Gynekolog i Hamburg
+  he: רופא נשים בהמבורג
+  verified_by_human: [en]
+
+home.search.1:
+  context: Query label for the first home listings example in the app store. Shown on a preview card that opens real rental listings for apartments in Berlin, Germany.
+  en: Apartments for rent in Berlin
+  de: Mietwohnungen in Berlin
+  zh: 柏林的待租公寓
+  es: Apartamentos en alquiler en Berlín
+  fr: Appartements à louer à Berlin
+  pt: Apartamentos para alugar em Berlim
+  ru: Аренда квартир в Берлине
+  ja: ベルリンの賃貸アパート
+  ko: 베를린의 아파트 임대
+  it: Appartamenti in affitto a Berlino
+  tr: "Berlin'de kiralık daireler"
+  vi: Căn hộ cho thuê ở Berlin
+  id: Apartemen disewakan di Berlin
+  pl: Mieszkania na wynajem w Berlinie
+  nl: Appartementen te huur in Berlijn
+  ar: شقق للإيجار في برلين
+  hi: बर्लिन में किराए के लिए अपार्टमेंट
+  th: อพาร์ตเมนต์ให้เช่าในเบอร์ลิน
+  cs: Byty k pronájmu v Berlíně
+  sv: Lägenheter att hyra i Berlin
+  he: דירות להשכרה בברלין
+  verified_by_human: [en]
+home.search.2:
+  context: Query label for the second home listings example in the app store. Shown on a preview card that opens real purchase listings for apartments in Munich, Germany.
+  en: Apartments to buy in Munich
+  de: Eigentumswohnungen in München
+  zh: 慕尼黑的待售公寓
+  es: Apartamentos en venta en Múnich
+  fr: Appartements à acheter à Munich
+  pt: Apartamentos para comprar em Munique
+  ru: Купить квартиру в Мюнхене
+  ja: ミュンヘンの購入用アパート
+  ko: 뮌헨의 아파트 매매
+  it: Appartamenti in vendita a Monaco
+  tr: "Münih'te satılık daireler"
+  vi: Mua căn hộ ở Munich
+  id: Apartemen dijual di Munich
+  pl: Mieszkania na sprzedaż w Monachium
+  nl: Appartementen te koop in München
+  ar: شقق للبيع في ميونخ
+  hi: म्यूनिख में खरीदने के लिए अपार्टमेंट
+  th: อพาร์ตเมนต์สำหรับซื้อในมิวนิก
+  cs: Byty ke koupi v Mnichově
+  sv: Lägenheter att köpa i München
+  he: דירות לקנייה במינכן
+  verified_by_human: [en]
+home.search.3:
+  context: Query label for the third home listings example in the app store. Shown on a preview card that opens real listings for homes in the old town district of Hamburg, Germany.
+  en: Homes in Hamburg Altstadt
+  de: Häuser in Hamburg Altstadt
+  zh: 汉堡老城区的住宅
+  es: Casas en Hamburg Altstadt
+  fr: Maisons à Hambourg Altstadt
+  pt: Casas em Hamburgo Altstadt
+  ru: Дома в Альтштадте, Гамбург
+  ja: ハンブルク旧市街の住宅
+  ko: 함부르크 알트슈타트의 주택
+  it: Case ad Amburgo Altstadt
+  tr: "Hamburg Altstadt'ta evler"
+  vi: Nhà ở Hamburg Altstadt
+  id: Rumah di Hamburg Altstadt
+  pl: Domy w Hamburg Altstadt
+  nl: Woningen in Hamburg Altstadt
+  ar: منازل في بلدة هامبورغ القديمة
+  hi: हैम्बर्ग अल्टस्टाड में घर
+  th: บ้านในย่านเมืองเก่าฮัมบูร์ก
+  cs: Domy v Hamburg Altstadt
+  sv: Bostäder i Hamburg Altstadt
+  he: בתים בהמבורג אלטשטאדט
+  verified_by_human: [en]
+
+travel.search_connections.1:
+  context: Query label for the first travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Munich, Germany to London, United Kingdom.
+  en: Flights from Munich to London
+  de: Flüge von München nach London
+  zh: 慕尼黑飞往伦敦的航班
+  es: Vuelos de Múnich a Londres
+  fr: Vols de Munich à Londres
+  pt: Voos de Munique para Londres
+  ru: Авиабилеты Мюнхен — Лондон
+  ja: ミュンヘン発ロンドン行きのフライト
+  ko: 뮌헨발 런던행 항공권
+  it: Voli da Monaco a Londra
+  tr: Münih - Londra uçuşları
+  vi: Chuyến bay từ Munich đến London
+  id: Penerbangan dari Munich ke London
+  pl: Loty z Monachium do Londynu
+  nl: Vluchten van München naar Londen
+  ar: رحلات طيران من ميونخ إلى لندن
+  hi: म्यूनिख से लंदन के लिए उड़ानें
+  th: เที่ยวบินจากมิวนิกไปลอนดอน
+  cs: Lety z Mnichova do Londýna
+  sv: Flyg från München till London
+  he: טיסות ממינכן ללונדון
+  verified_by_human: [en]
+travel.search_connections.2:
+  context: Query label for the second travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Berlin, Germany to Barcelona, Spain.
+  en: Flights from Berlin to Barcelona
+  de: Flüge von Berlin nach Barcelona
+  zh: 柏林飞往巴塞罗那的航班
+  es: Vuelos de Berlín a Barcelona
+  fr: Vols de Berlin à Barcelone
+  pt: Voos de Berlim para Barcelona
+  ru: Авиабилеты Берлин — Барселона
+  ja: ベルリン発バルセロナ行きのフライト
+  ko: 베를린발 바르셀로나행 항공권
+  it: Voli da Berlino a Barcellona
+  tr: Berlin - Barselona uçuşları
+  vi: Chuyến bay từ Berlin đến Barcelona
+  id: Penerbangan dari Berlin ke Barcelona
+  pl: Loty z Berlina do Barcelony
+  nl: Vluchten van Berlijn naar Barcelona
+  ar: رحلات طيران من برلين إلى برشلونة
+  hi: बर्लिन से बार्सिलोना के लिए उड़ानें
+  th: เที่ยวบินจากเบอร์ลินไปบาร์เซโลนา
+  cs: Lety z Berlína do Barcelony
+  sv: Flyg från Berlin till Barcelona
+  he: טיסות מברלין לברצלונה
+  verified_by_human: [en]
+travel.search_connections.3:
+  context: Query label for the third travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Frankfurt, Germany to Paris, France.
+  en: Flights from Frankfurt to Paris
+  de: Flüge von Frankfurt nach Paris
+  zh: 法兰克福飞往巴黎的航班
+  es: Vuelos de Fráncfort a París
+  fr: Vols de Francfort à Paris
+  pt: Voos de Frankfurt para Paris
+  ru: Авиабилеты Франкфурт — Париж
+  ja: フランクフルト発パリ行きのフライト
+  ko: 프랑크푸르트발 파리행 항공권
+  it: Voli da Francoforte a Parigi
+  tr: Frankfurt - Paris uçuşları
+  vi: Chuyến bay từ Frankfurt đến Paris
+  id: Penerbangan dari Frankfurt ke Paris
+  pl: Loty z Frankfurtu do Paryża
+  nl: Vluchten van Frankfurt naar Parijs
+  ar: رحلات طيران من فرانكفورت إلى باريس
+  hi: फ्रैंकफर्ट से पेरिस के लिए उड़ानें
+  th: เที่ยวบินจากแฟรงก์เฟิร์ตไปปารีส
+  cs: Lety z Frankfurtu do Paříže
+  sv: Flyg från Frankfurt till Paris
+  he: טיסות מפרנקפורט לפריז
+  verified_by_human: [en]
+
+travel.price_calendar.1:
+  context: Query label for the first travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Munich, Germany to London, United Kingdom in May 2026.
+  en: Munich → London, May 2026
+  de: München → London, Mai 2026
+  zh: 慕尼黑 → 伦敦，2026年5月
+  es: Múnich → Londres, mayo de 2026
+  fr: Munich → Londres, mai 2026
+  pt: Munique → Londres, maio de 2026
+  ru: Мюнхен → Лондон, май 2026
+  ja: ミュンヘン → ロンドン、2026年5月
+  ko: 뮌헨 → 런던, 2026년 5월
+  it: Monaco → Londra, maggio 2026
+  tr: Münih → Londra, Mayıs 2026
+  vi: Munich → London, tháng 5 năm 2026
+  id: Munich → London, Mei 2026
+  pl: Monachium → Londyn, maj 2026
+  nl: München → Londen, mei 2026
+  ar: ميونخ ← لندن، مايو 2026
+  hi: म्यूनिख → लंदन, मई 2026
+  th: มิวนิก → ลอนดอน พฤษภาคม 2026
+  cs: Mnichov → Londýn, květen 2026
+  sv: München → London, maj 2026
+  he: מינכן ← לונדון, מאי 2026
+  verified_by_human: [en]
+travel.price_calendar.2:
+  context: Query label for the second travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Berlin, Germany to Barcelona, Spain in June 2026.
+  en: Berlin → Barcelona, June 2026
+  de: Berlin → Barcelona, Juni 2026
+  zh: 柏林 → 巴塞罗那，2026年6月
+  es: Berlín → Barcelona, junio de 2026
+  fr: Berlin → Barcelone, juin 2026
+  pt: Berlim → Barcelona, junho de 2026
+  ru: Берлин → Барселона, июнь 2026
+  ja: ベルリン → バルセロナ、2026年6月
+  ko: 베를린 → 바르셀로나, 2026년 6월
+  it: Berlino → Barcellona, giugno 2026
+  tr: Berlin → Barselona, Haziran 2026
+  vi: Berlin → Barcelona, tháng 6 năm 2026
+  id: Berlin → Barcelona, Juni 2026
+  pl: Berlin → Barcelona, czerwiec 2026
+  nl: Berlijn → Barcelona, juni 2026
+  ar: برلين ← برشلونة، يونيو 2026
+  hi: बर्लिन → बार्सिलोना, जून 2026
+  th: เบอร์ลิน → บาร์เซโลนา มิถุนายน 2026
+  cs: Berlín → Barcelona, červen 2026
+  sv: Berlin → Barcelona, juni 2026
+  he: ברלין ← ברצלונה, יוני 2026
+  verified_by_human: [en]
+travel.price_calendar.3:
+  context: Query label for the third travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Frankfurt, Germany to Paris, France in July 2026.
+  en: Frankfurt → Paris, July 2026
+  de: Frankfurt → Paris, Juli 2026
+  zh: 法兰克福 → 巴黎，2026年7月
+  es: Fráncfort → París, julio de 2026
+  fr: Francfort → Paris, juillet 2026
+  pt: Frankfurt → Paris, julho de 2026
+  ru: Франкфурт → Париж, июль 2026
+  ja: フランクフルト → パリ、2026年7月
+  ko: 프랑크푸르트 → 파리, 2026년 7월
+  it: Francoforte → Parigi, luglio 2026
+  tr: Frankfurt → Paris, Temmuz 2026
+  vi: Frankfurt → Paris, tháng 7 năm 2026
+  id: Frankfurt → Paris, Juli 2026
+  pl: Frankfurt → Paryż, lipiec 2026
+  nl: Frankfurt → Parijs, juli 2026
+  ar: فرانكفورت ← باريس، يوليو 2026
+  hi: फ्रैंकफर्ट → पेरिस, जुलाई 2026
+  th: แฟรงก์เฟิร์ต → ปารีส กรกฎาคม 2026
+  cs: Frankfurt → Paříž, červenec 2026
+  sv: Frankfurt → Paris, juli 2026
+  he: פרנקפורט ← פריז, יולי 2026
+  verified_by_human: [en]
+
+videos.get_transcript.1:
+  context: Query label for the first video transcript example in the app store. Shown on a preview card that opens a real YouTube transcript from a neural networks tutorial video.
+  en: Learning neural networks on YouTube
+  de: Neuronale Netze lernen auf YouTube
+  zh: 在 YouTube 上学习神经网络
+  es: Aprender sobre redes neuronales en YouTube
+  fr: Apprendre les réseaux de neurones sur YouTube
+  pt: Aprender redes neurais no YouTube
+  ru: Изучение нейросетей на YouTube
+  ja: YouTubeでニューラルネットワークを学ぶ
+  ko: 유튜브에서 신경망 배우기
+  it: Imparare le reti neurali su YouTube
+  tr: "YouTube'da yapay sinir ağlarını öğrenme"
+  vi: Học về mạng nơ-ron trên YouTube
+  id: Belajar neural network di YouTube
+  pl: Nauka sieci neuronowych na YouTube
+  nl: Neurale netwerken leren op YouTube
+  ar: تعلم الشبكات العصبية على يوتيوب
+  hi: YouTube पर न्यूरल नेटवर्क सीखना
+  th: เรียนรู้เรื่องโครงข่ายประสาทเทียมบน YouTube
+  cs: Učení neuronových sítí na YouTube
+  sv: Lär dig neurala nätverk på YouTube
+  he: למידת רשתות נוירונים ב-YouTube
+  verified_by_human: [en]
+videos.get_transcript.2:
+  context: Query label for the second video transcript example in the app store. Shown on a preview card that opens a real YouTube transcript from a tutorial video about building a GPT language model from scratch.
+  en: Building GPT from scratch tutorial
+  de: "Tutorial: GPT von Grund auf bauen"
+  zh: 从零开始构建 GPT 教程
+  es: Tutorial para crear GPT desde cero
+  fr: "Tutoriel : créer un GPT de zéro"
+  pt: Tutorial de como criar um GPT do zero
+  ru: "Создание GPT с нуля: туториал"
+  ja: ゼロから作るGPTチュートリアル
+  ko: GPT 처음부터 만들기 튜토리얼
+  it: "Tutorial: creare GPT da zero"
+  tr: Sıfırdan GPT oluşturma eğitimi
+  vi: Hướng dẫn xây dựng GPT từ đầu
+  id: Tutorial membangun GPT dari nol
+  pl: "Poradnik: budowanie GPT od podstaw"
+  nl: GPT bouwen vanaf nul tutorial
+  ar: درس تعليمي لبناء GPT من الصفر
+  hi: शुरू से GPT बनाने का ट्यूटोरियल
+  th: บทเรียนการสร้าง GPT ตั้งแต่เริ่มต้น
+  cs: "Tutoriál: Tvorba GPT od nuly"
+  sv: "Tutorial: Bygg GPT från grunden"
+  he: מדריך לבניית GPT מאפס
+  verified_by_human: [en]
+videos.get_transcript.3:
+  context: Query label for the third video transcript example in the app store. Shown on a preview card that opens a real YouTube transcript from a full Python programming course.
+  en: Python programming full course
+  de: Python-Programmierung Komplettkurs
+  zh: Python 编程完整课程
+  es: Curso completo de programación en Python
+  fr: Cours complet de programmation Python
+  pt: Curso completo de programação Python
+  ru: Полный курс программирования на Python
+  ja: Pythonプログラミング完全コース
+  ko: 파이썬 프로그래밍 전체 강의
+  it: Corso completo di programmazione Python
+  tr: Python programlama tam kursu
+  vi: Khóa học lập trình Python đầy đủ
+  id: Kursus lengkap pemrograman Python
+  pl: Pełny kurs programowania w Pythonie
+  nl: Volledige cursus Python programmeren
+  ar: دورة برمجة بايثون كاملة
+  hi: पायथन प्रोग्रामिंग का पूरा कोर्स
+  th: คอร์สเรียนเขียนโปรแกรม Python ฉบับเต็ม
+  cs: Kompletní kurz programování v Pythonu
+  sv: Komplett kurs i Python-programmering
+  he: קורס תכנות פייתון מלא
+  verified_by_human: [en]
