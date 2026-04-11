@@ -39,6 +39,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	checkMailosaurQuota,
 	createMailosaurClient,
 	getMailosaurServerId,
 	getE2EDebugUrl
@@ -247,6 +248,12 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
 	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required.');
 	test.skip(!MAILOSAUR_SERVER_ID, 'Cannot derive Mailosaur server ID.');
+
+	// Check Mailosaur daily quota before proceeding — skip cleanly if exhausted.
+	if (MAILOSAUR_API_KEY) {
+		const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
+		test.skip(!quota.available, `Mailosaur daily email quota reached (${quota.current}/${quota.limit}).`);
+	}
 
 	const log = createSignupLogger('NEWSLETTER_FLOW');
 	const screenshot = createStepScreenshotter(log);

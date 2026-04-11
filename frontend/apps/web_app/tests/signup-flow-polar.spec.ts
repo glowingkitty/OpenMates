@@ -36,6 +36,7 @@ const {
 	getSignupTestDomain,
 	getMailosaurServerId,
 	buildSignupEmail,
+	checkMailosaurQuota,
 	createMailosaurClient,
 	generateTotp,
 	assertNoMissingTranslations,
@@ -155,6 +156,12 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required for email validation.');
+
+	// Check Mailosaur daily quota before proceeding — skip cleanly if exhausted.
+	if (MAILOSAUR_API_KEY) {
+		const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
+		test.skip(!quota.available, `Mailosaur daily email quota reached (${quota.current}/${quota.limit}).`);
+	}
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
 	}

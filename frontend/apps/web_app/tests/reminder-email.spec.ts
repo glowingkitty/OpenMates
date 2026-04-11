@@ -26,6 +26,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	generateTotp,
+	checkMailosaurQuota,
 	createMailosaurClient,
 	getMailosaurServerId,
 	getTestAccount,
@@ -170,6 +171,12 @@ test('reminder — email: reminder email arrives after browser is closed', async
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required.');
+
+	// Check Mailosaur daily quota before proceeding — skip cleanly if exhausted.
+	if (MAILOSAUR_API_KEY) {
+		const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
+		test.skip(!quota.available, `Mailosaur daily email quota reached (${quota.current}/${quota.limit}).`);
+	}
 
 	const mailosaurServerId = getMailosaurServerId(TEST_EMAIL ?? '', MAILOSAUR_SERVER_ID_ENV);
 	if (!mailosaurServerId) {
