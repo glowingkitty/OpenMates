@@ -10166,7 +10166,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
             <!-- Smooth transition: chat shrinks while fullscreen panel grows simultaneously -->
             {#if showEmbedFullscreen && embedFullscreenData}
-                <div 
+                <div
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideLayout}
                     class:overlay-mode={!showSideBySideLayout}
@@ -10175,6 +10175,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                     class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
                 >
+                <!-- Sample data banner — shown only when previewing an app-store
+                     skill example backed by synthetic fixture data (e.g. maps,
+                     health, home, events). Helps users understand the people,
+                     places and prices on these cards are not real. -->
+                {#if embedFullscreenData?.decodedContent?.is_store_example}
+                    <div class="store-example-banner" data-testid="store-example-banner">
+                        {$text('settings.app_store_examples.banner.sample_data')}
+                    </div>
+                {/if}
                 <!-- Key block forces complete recreation when embed changes -->
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
@@ -10614,6 +10623,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .fullscreen-embed-container {
         position: relative;
         height: 100%;
+    }
+
+    /* Sample-data banner — only rendered for synthetic app-store example
+       embeds (is_store_example flag on decodedContent). Sits on top of
+       the EmbedTopBar row via a high z-index + top offset that clears the
+       action buttons. Pointer events disabled so the Close button stays
+       clickable through it. */
+    .store-example-banner {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: calc(var(--z-index-dropdown) + 10);
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 500;
+        line-height: 1.3;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        max-width: calc(100% - 160px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
     
     /* Overlay mode (default): Absolute positioning over everything */

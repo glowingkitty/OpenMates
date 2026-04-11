@@ -962,3 +962,28 @@ videos.get_transcript.3:
   sv: Komplett kurs i Python-programmering
   he: קורס תכנות פייתון מלא
   verified_by_human: [en]
+
+banner.sample_data:
+  context: Banner text shown at the top of the fullscreen view when the user is previewing a hand-crafted app-store example with synthetic data. Makes it clear the people, places, prices or listings on the card are not real. Stays short — a single line.
+  en: Sample data — this is what real results from this skill look like.
+  de: Beispieldaten — so sehen echte Ergebnisse dieses Skills aus.
+  zh: 示例数据 — 这就是此技能真实结果的样子。
+  es: Datos de ejemplo — así se ven los resultados reales de esta skill.
+  fr: "Données d'exemple — voici à quoi ressemblent les résultats réels de cette skill."
+  pt: Dados de exemplo — é assim que os resultados reais desta skill se parecem.
+  ru: Пример данных — так выглядят реальные результаты этого навыка.
+  ja: サンプルデータ — このスキルの実際の結果は、このように表示されます。
+  ko: 샘플 데이터 — 이 스킬의 실제 결과는 이와 같습니다.
+  it: Dati di esempio — ecco come appaiono i risultati reali di questa skill.
+  tr: Örnek veriler — bu yeteneğin gerçek sonuçları böyle görünür.
+  vi: Dữ liệu mẫu — đây là giao diện kết quả thực tế từ kỹ năng này.
+  id: Data contoh — beginilah tampilan hasil asli dari skill ini.
+  pl: Przykładowe dane — tak wyglądają rzeczywiste wyniki tej umiejętności.
+  nl: Voorbeeldgegevens — zo zien echte resultaten van deze skill eruit.
+  ar: بيانات تجريبية — هكذا تبدو النتائج الحقيقية لهذه المهارة.
+  hi: सैंपल डेटा — इस स्किल के वास्तविक परिणाम ऐसे ही दिखते हैं।
+  th: ข้อมูลตัวอย่าง — นี่คือลักษณะของผลลัพธ์จริงจากสกิลนี้
+  cs: Ukázková data — takto vypadají skutečné výsledky této dovednosti.
+  sv: Exempeldata — så här ser riktiga resultat från den här färdigheten ut.
+  he: נתוני דוגמה — כך נראות תוצאות אמיתיות מהמיומנות הזו.
+  verified_by_human: [en]

@@ -1,14 +1,21 @@
 /**
  * App-store examples for the shopping skill.
  *
- * Captured from real REWE product search responses, trimmed to 4 products per query.
+ * Invented brand names and prices so the app store does not endorse specific supermarket products.
+ *
+ * These are hand-crafted synthetic fixtures. All names, addresses,
+ * prices and ratings are invented so that the app store never promotes
+ * specific real-world businesses, doctors, landlords or venues. The
+ * shape matches the real provider response so the preview + fullscreen
+ * render identically. A "Sample data" banner is shown at the top of
+ * the fullscreen via the is_store_example flag set by SkillExamplesSection.
  */
 
 export interface ShoppingSearchStoreExample {
   id: string;
   query: string;
   query_translation_key?: string;
-  provider: string;
+  provider?: string;
   status: 'finished';
   results: Array<Record<string, unknown>>;
 }
@@ -16,46 +23,58 @@ export interface ShoppingSearchStoreExample {
 const examples: ShoppingSearchStoreExample[] = [
   {
     "id": "store-example-shopping-search-products-1",
-    "query": "Bio dark chocolate",
+    "query": "Organic dark chocolate",
     "query_translation_key": "settings.app_store_examples.shopping.search_products.1",
-    "provider": "REWE",
+    "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "product_id": "1006852",
-        "title": "REWE Bio Edelvollmilch-Schokolade 100g",
-        "brand": "REWE Bio",
-        "image_url": "https://img.rewe-static.de/1006852/9584790_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/rewe-bio-edelvollmilch-schokolade-100g/1006852",
-        "category_path": "Süßes & Salziges/Schokolade/Tafelschokolade/Vollmilch-Schokolade/",
-        "provider": "REWE"
+        "product_id": "sp-1-1",
+        "title": "Brightleaf Organic Dark Chocolate 70%",
+        "brand": "Brightleaf",
+        "price_cents": 299,
+        "price_eur": "2.99",
+        "grammage": "100g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "1168942",
-        "title": "Gepa Bio Mandel-Orange Schokolade Noir 100g",
-        "brand": "Gepa",
-        "image_url": "https://img.rewe-static.de/1168942/14206770_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/gepa-bio-mandel-orange-schokolade-noir-100g/1168942",
-        "category_path": "Süßes & Salziges/Schokolade/Tafelschokolade/Nuss-Schokolade/",
-        "provider": "REWE"
+        "product_id": "sp-1-2",
+        "title": "Meadowford Bio Zartbitter 85%",
+        "brand": "Meadowford",
+        "price_cents": 349,
+        "price_eur": "3.49",
+        "grammage": "100g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "3009709",
-        "title": "REWE Bio Edel-Bitter-Schokolade 85% 100g",
-        "brand": "REWE Bio",
-        "image_url": "https://img.rewe-static.de/3009709/26210056_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/rewe-bio-edel-bitter-schokolade-85-100g/3009709",
-        "category_path": "Süßes & Salziges/Schokolade/Tafelschokolade/Zartbitter-Schokolade/",
-        "provider": "REWE"
+        "product_id": "sp-1-3",
+        "title": "Cacao North Single Origin 72%",
+        "brand": "Cacao North",
+        "price_cents": 429,
+        "price_eur": "4.29",
+        "grammage": "80g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "8572345",
-        "title": "Gepa Bio Naturland Lemon Crisp Schokolade 80g",
-        "brand": "Gepa",
-        "image_url": "https://img.rewe-static.de/8572345/35138618_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/gepa-bio-naturland-lemon-crisp-schokolade-80g/8572345",
-        "category_path": "Süßes & Salziges/Schokolade/Tafelschokolade/Zartbitter-Schokolade/",
-        "provider": "REWE"
+        "product_id": "sp-1-4",
+        "title": "Sample House Dark Chocolate 60%",
+        "brand": "Sample House",
+        "price_cents": 189,
+        "price_eur": "1.89",
+        "grammage": "100g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       }
     ]
   },
@@ -63,41 +82,56 @@ const examples: ShoppingSearchStoreExample[] = [
     "id": "store-example-shopping-search-products-2",
     "query": "Extra virgin olive oil",
     "query_translation_key": "settings.app_store_examples.shopping.search_products.2",
-    "provider": "REWE",
+    "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "product_id": "9895756",
-        "title": "Olivenöl Extra Vergine 1000ml",
-        "image_url": "https://img.rewe-static.de/9895756/48822830_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/olivenoel-extra-vergine-1000ml/9895756",
-        "category_path": "Öle, Soßen & Gewürze/Öle/Olivenöl/",
-        "provider": "REWE"
+        "product_id": "sp-2-1",
+        "title": "Olivara Extra Vergine Classico 500ml",
+        "brand": "Olivara",
+        "price_cents": 899,
+        "price_eur": "8.99",
+        "grammage": "500ml",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "2826640",
-        "title": "Bertolli Extra Vergine Robusto würzig 500ml",
-        "brand": "Bertolli",
-        "image_url": "https://img.rewe-static.de/2826640/20867635_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/bertolli-extra-vergine-robusto-wuerzig-500ml/2826640",
-        "category_path": "Öle, Soßen & Gewürze/Öle/Olivenöl/",
-        "provider": "REWE"
+        "product_id": "sp-2-2",
+        "title": "Sample Grove Organic EVOO",
+        "brand": "Sample Grove",
+        "price_cents": 1199,
+        "price_eur": "11.99",
+        "grammage": "500ml",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "3308580",
-        "title": "Ghorban Bio Olio Extra Vergine di Oliva 500ml",
-        "image_url": "https://img.rewe-static.de/3308580/28120803_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/ghorban-bio-olio-extra-vergine-di-oliva-500ml/3308580",
-        "category_path": "Öle, Soßen & Gewürze/Öle/Olivenöl/",
-        "provider": "REWE"
+        "product_id": "sp-2-3",
+        "title": "Harbor Press Cold Extracted Olive Oil 750ml",
+        "brand": "Harbor Press",
+        "price_cents": 1549,
+        "price_eur": "15.49",
+        "grammage": "750ml",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "2047909",
-        "title": "Ghorban Bio Olivenöl Olio Extra Vergine Di Olivia 250ml",
-        "image_url": "https://img.rewe-static.de/2047909/29208351_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/ghorban-bio-olivenoel-olio-extra-vergine-di-olivia-250ml/2047909",
-        "category_path": "Öle, Soßen & Gewürze/Öle/Olivenöl/",
-        "provider": "REWE"
+        "product_id": "sp-2-4",
+        "title": "Example Hills Italian Olivenöl",
+        "brand": "Example Hills",
+        "price_cents": 599,
+        "price_eur": "5.99",
+        "grammage": "500ml",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       }
     ]
   },
@@ -105,43 +139,56 @@ const examples: ShoppingSearchStoreExample[] = [
     "id": "store-example-shopping-search-products-3",
     "query": "Spaghetti pasta",
     "query_translation_key": "settings.app_store_examples.shopping.search_products.3",
-    "provider": "REWE",
+    "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "product_id": "9660143",
-        "title": "Bernbacher Bella Pasta Spaghetti XXL 1kg",
-        "brand": "Bernbacher",
-        "image_url": "https://img.rewe-static.de/9660143/24301440_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/bernbacher-bella-pasta-spaghetti-xxl-1kg/9660143",
-        "category_path": "Fertiggerichte & Konserven/Gekühlte Nudeln & Teigwaren/Frische Pasta/",
-        "provider": "REWE"
+        "product_id": "sp-3-1",
+        "title": "Bella Nonna Spaghetti n°5 500g",
+        "brand": "Bella Nonna",
+        "price_cents": 149,
+        "price_eur": "1.49",
+        "grammage": "500g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "5233046",
-        "title": "Pasta Sassella Spaghettini 500g",
-        "image_url": "https://img.rewe-static.de/5233046/32754186_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/pasta-sassella-spaghettini-500g/5233046",
-        "category_path": "Fertiggerichte & Konserven/Gekühlte Nudeln & Teigwaren/Frische Pasta/",
-        "provider": "REWE"
+        "product_id": "sp-3-2",
+        "title": "Sample Pasta Spaghetti Integrali",
+        "brand": "Sample Pasta",
+        "price_cents": 189,
+        "price_eur": "1.89",
+        "grammage": "500g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "8219291",
-        "title": "Giovanni Rana Spaghetti 250g",
-        "brand": "Giovanni Rana",
-        "image_url": "https://img.rewe-static.de/8219291/31378818_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/giovanni-rana-spaghetti-250g/8219291",
-        "category_path": "Fertiggerichte & Konserven/Gekühlte Nudeln & Teigwaren/Frische Pasta/",
-        "provider": "REWE"
+        "product_id": "sp-3-3",
+        "title": "Grano Oro Bronze-Cut Spaghetti 500g",
+        "brand": "Grano Oro",
+        "price_cents": 229,
+        "price_eur": "2.29",
+        "grammage": "500g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       },
       {
-        "product_id": "720372",
-        "title": "Zabler Hochzeit Nudeln Spaghetti 250g",
-        "brand": "Zabler",
-        "image_url": "https://img.rewe-static.de/0720372/2532500_digital-image.png",
-        "purchase_url": "https://shop.rewe.de/p/zabler-hochzeit-nudeln-spaghetti-250g/720372",
-        "category_path": "Kochen & Backen/Nudeln/Lange Pasta/",
-        "provider": "REWE"
+        "product_id": "sp-3-4",
+        "title": "Meadowford Organic Spaghetti",
+        "brand": "Meadowford",
+        "price_cents": 269,
+        "price_eur": "2.69",
+        "grammage": "500g",
+        "image_url": "",
+        "purchase_url": "",
+        "category_path": "Sample Data",
+        "provider": "Sample Data"
       }
     ]
   }

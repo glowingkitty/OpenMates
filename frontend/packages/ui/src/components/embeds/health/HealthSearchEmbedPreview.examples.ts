@@ -1,7 +1,14 @@
 /**
  * App-store examples for the health skill.
  *
- * Captured from real Doctolib/Jameda appointment search responses, trimmed to 5 appointments per query.
+ * Invented doctors, practices and addresses so the app store never promotes specific real-world medical providers.
+ *
+ * These are hand-crafted synthetic fixtures. All names, addresses,
+ * prices and ratings are invented so that the app store never promotes
+ * specific real-world businesses, doctors, landlords or venues. The
+ * shape matches the real provider response so the preview + fullscreen
+ * render identically. A "Sample data" banner is shown at the top of
+ * the fullscreen via the is_store_example flag set by SkillExamplesSection.
  */
 
 export interface HealthSearchStoreExample {
@@ -16,307 +23,262 @@ export interface HealthSearchStoreExample {
 const examples: HealthSearchStoreExample[] = [
   {
     "id": "store-example-health-search-appointments-1",
-    "query": "Augenarzt in Berlin",
+    "query": "Eye doctor in Berlin",
     "query_translation_key": "settings.app_store_examples.health.search_appointments.1",
-    "provider": "Doctolib, Jameda",
+    "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "slot_datetime": "2026-04-13T08:20:00.000+02:00",
-        "name": "Augenarzt Kreuzberg - Grauer Star, Grüner Star, AMD & Augenlasern",
-        "doctor_type": "ORGANIZATION",
-        "speciality": "Augenarzt",
-        "address": "Gneisenaustraße 115, 10961 Berlin",
-        "gps_coordinates": {
-          "latitude": 52.4930835,
-          "longitude": 13.3884183
-        },
-        "languages": [],
-        "telehealth": false,
-        "insurance": "public",
-        "allows_new_patients": true
-      },
-      {
-        "slot_datetime": "2026-04-13T08:00:00.000+02:00",
-        "name": "Augenarzt Eastgate - Grauer Star, Grüner Star, AMD & Augenlasern",
-        "doctor_type": "ORGANIZATION",
-        "speciality": "Augenarzt",
-        "address": "Marzahner Promenade 1A, 12679 Berlin",
-        "gps_coordinates": {
-          "latitude": 52.5436813,
-          "longitude": 13.5448268
-        },
-        "languages": [],
-        "telehealth": false,
-        "insurance": "private",
-        "allows_new_patients": true
-      },
-      {
-        "slot_datetime": "2026-04-13T08:25:00.000+02:00",
-        "name": "Mehmet emin  Sucu",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Augenarzt",
-        "address": "Nürnberger Straße 67, 10787 Berlin",
-        "gps_coordinates": {
-          "latitude": 52.504344,
-          "longitude": 13.340916
-        },
-        "languages": [],
-        "telehealth": false,
-        "insurance": "private",
-        "allows_new_patients": true
-      },
-      {
-        "slot_datetime": "2026-04-13T08:40:00.000+02:00",
-        "name": "Dr. med. Jan Jerrentrup",
+        "slot_datetime": "2026-05-04T09:00:00",
+        "name": "Dr. Lena Example",
         "title": "Dr. med.",
-        "gender": "male",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Augenarzt",
-        "address": "Rheinbabenallee 12, 14199 Berlin",
+        "speciality": "Ophthalmology",
+        "address": "Sample Allee 12, 10115 Sample City",
         "gps_coordinates": {
-          "latitude": 52.47529,
-          "longitude": 13.28357010000002
+          "latitude": 52.53,
+          "longitude": 13.385
         },
+        "insurance": "public",
+        "telehealth": false,
+        "rating": 4.7,
+        "rating_count": 312,
         "languages": [
           "de",
-          "gb"
+          "en"
         ],
-        "telehealth": false,
-        "insurance": "private",
         "allows_new_patients": true
       },
       {
-        "slot_datetime": "2026-04-13T08:00:00.000+02:00",
-        "name": "Augenarzt Weißensee - Grauer Star, Grüner Star, AMD & Augenlasern",
-        "doctor_type": "ORGANIZATION",
-        "speciality": "Augenarzt",
-        "address": "Schönstraße 5-7, 13086 Berlin",
+        "slot_datetime": "2026-05-04T10:30:00",
+        "name": "Dr. Jonas Fictional",
+        "title": "Dr. med.",
+        "speciality": "Ophthalmology",
+        "address": "Beispielstraße 7, 10178 Sample City",
         "gps_coordinates": {
-          "latitude": 52.5534928,
-          "longitude": 13.4504461
+          "latitude": 52.522,
+          "longitude": 13.407
         },
-        "languages": [],
+        "insurance": "public",
         "telehealth": false,
-        "insurance": "unknown",
+        "rating": 4.5,
+        "rating_count": 180,
+        "languages": [
+          "de"
+        ],
+        "allows_new_patients": true
+      },
+      {
+        "slot_datetime": "2026-05-05T14:00:00",
+        "name": "Prof. Dr. Anna Sample",
+        "title": "Prof. Dr. med.",
+        "speciality": "Ophthalmology",
+        "address": "Invented Platz 3, 10245 Sample City",
+        "gps_coordinates": {
+          "latitude": 52.505,
+          "longitude": 13.455
+        },
+        "insurance": "private",
+        "telehealth": true,
+        "rating": 4.8,
+        "rating_count": 520,
+        "languages": [
+          "de",
+          "en",
+          "fr"
+        ],
+        "allows_new_patients": true
+      },
+      {
+        "slot_datetime": "2026-05-06T11:15:00",
+        "name": "Dr. Markus Invented",
+        "title": "Dr. med.",
+        "speciality": "Ophthalmology",
+        "address": "Demo Chaussee 44, 10319 Sample City",
+        "gps_coordinates": {
+          "latitude": 52.516,
+          "longitude": 13.482
+        },
+        "insurance": "public",
+        "telehealth": false,
+        "rating": 4.4,
+        "rating_count": 96,
+        "languages": [
+          "de"
+        ],
         "allows_new_patients": true
       }
     ]
   },
   {
     "id": "store-example-health-search-appointments-2",
-    "query": "Hautarzt in München",
+    "query": "Dermatologist in Munich",
     "query_translation_key": "settings.app_store_examples.health.search_appointments.2",
-    "provider": "Doctolib, Jameda",
+    "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "slot_datetime": "2026-04-13T10:00:00.000+02:00",
-        "name": "Dr. Can Cengiz",
-        "title": "Dr.",
-        "gender": "female",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Hautärztin",
-        "address": "Bauseweinallee 2, 81247 München",
+        "slot_datetime": "2026-05-11T08:30:00",
+        "name": "Dr. Sophie Example",
+        "title": "Dr. med.",
+        "speciality": "Dermatology",
+        "address": "Sample Straße 5, 80331 Sample City",
         "gps_coordinates": {
-          "latitude": 48.1646324,
-          "longitude": 11.4767602
+          "latitude": 48.137,
+          "longitude": 11.575
         },
-        "languages": [
-          "de",
-          "gb"
-        ],
-        "telehealth": false,
         "insurance": "public",
-        "allows_new_patients": true
-      },
-      {
-        "slot_datetime": "2026-04-13T08:00:00.000+02:00",
-        "name": "Prof. Dr. Dr. med. Markus Reinholz - Dermatologie",
-        "doctor_type": "ORGANIZATION",
-        "speciality": "Hautarzt",
-        "address": "Leopoldstraße 102, 80802 München",
-        "gps_coordinates": {
-          "latitude": 48.1650189,
-          "longitude": 11.5867537
-        },
-        "languages": [
-          "de",
-          "gb",
-          "fr",
-          "es"
-        ],
         "telehealth": false,
-        "insurance": "private",
+        "rating": 4.6,
+        "rating_count": 245,
+        "languages": [
+          "de"
+        ],
         "allows_new_patients": true
       },
       {
-        "slot_datetime": "2026-04-13T08:10:00.000+02:00",
-        "name": "Dr. med. Hannes  Reinhardt  ",
+        "slot_datetime": "2026-05-11T10:00:00",
+        "name": "Dr. Paul Fictional",
         "title": "Dr. med.",
-        "gender": "male",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Hautarzt",
-        "address": "Wendl-Dietrich-Straße 6, 80634 München",
+        "speciality": "Dermatology",
+        "address": "Beispiel Platz 2, 80539 Sample City",
         "gps_coordinates": {
-          "latitude": 48.1527462,
-          "longitude": 11.53125620000003
+          "latitude": 48.14,
+          "longitude": 11.581
         },
-        "languages": [
-          "de",
-          "gb",
-          "es"
-        ],
+        "insurance": "public",
         "telehealth": false,
-        "insurance": "private",
+        "rating": 4.5,
+        "rating_count": 182,
+        "languages": [
+          "de"
+        ],
         "allows_new_patients": true
       },
       {
-        "slot_datetime": "2026-04-13T09:15:00.000+02:00",
-        "name": "Dr. med. Julia Walch",
+        "slot_datetime": "2026-05-12T15:30:00",
+        "name": "Dr. Hanna Sample",
         "title": "Dr. med.",
-        "gender": "female",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Hautärztin",
-        "address": "Nördliches Schloßrondell 10, 80638 München",
+        "speciality": "Dermatology",
+        "address": "Invented Ring 18, 80802 Sample City",
         "gps_coordinates": {
-          "latitude": 48.1606181,
-          "longitude": 11.506871
+          "latitude": 48.161,
+          "longitude": 11.587
         },
+        "insurance": "private",
+        "telehealth": true,
+        "rating": 4.8,
+        "rating_count": 430,
         "languages": [
           "de",
-          "gb"
+          "en"
         ],
-        "telehealth": false,
-        "insurance": "private",
         "allows_new_patients": true
       },
       {
-        "slot_datetime": "2026-04-13T09:25:00.000+02:00",
-        "name": "Dr. med. Florian Kapp",
+        "slot_datetime": "2026-05-13T09:45:00",
+        "name": "Dr. Max Invented",
         "title": "Dr. med.",
-        "gender": "male",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Hautarzt",
-        "address": "Gottfried-Keller-Straße 33, 81245 München",
+        "speciality": "Dermatology",
+        "address": "Demo Ufer 11, 80469 Sample City",
         "gps_coordinates": {
-          "latitude": 48.1505257,
-          "longitude": 11.4640658
+          "latitude": 48.13,
+          "longitude": 11.572
         },
-        "languages": [
-          "de",
-          "gb"
-        ],
+        "insurance": "public",
         "telehealth": false,
-        "insurance": "private",
+        "rating": 4.3,
+        "rating_count": 110,
+        "languages": [
+          "de"
+        ],
         "allows_new_patients": true
       }
     ]
   },
   {
     "id": "store-example-health-search-appointments-3",
-    "query": "Gynäkologe in Hamburg",
+    "query": "Gynecologist in Hamburg",
     "query_translation_key": "settings.app_store_examples.health.search_appointments.3",
-    "provider": "Doctolib, Jameda",
+    "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "slot_datetime": "2026-04-13T08:00:00.000+02:00",
-        "name": "Dr. Christina Schäfer",
-        "title": "Dr.",
-        "gender": "female",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Frauenärztin",
-        "address": "Hoheluftchaussee 52, 20253 Hamburg",
+        "slot_datetime": "2026-05-18T09:00:00",
+        "name": "Dr. Clara Example",
+        "title": "Dr. med.",
+        "speciality": "Gynecology",
+        "address": "Sample Weg 8, 20095 Sample City",
         "gps_coordinates": {
-          "latitude": 53.5808768,
-          "longitude": 9.9736376
+          "latitude": 53.55,
+          "longitude": 9.993
         },
+        "insurance": "public",
+        "telehealth": false,
+        "rating": 4.7,
+        "rating_count": 360,
+        "languages": [
+          "de",
+          "en"
+        ],
+        "allows_new_patients": true
+      },
+      {
+        "slot_datetime": "2026-05-18T11:00:00",
+        "name": "Dr. Erika Fictional",
+        "title": "Dr. med.",
+        "speciality": "Gynecology",
+        "address": "Beispiel Allee 22, 20359 Sample City",
+        "gps_coordinates": {
+          "latitude": 53.557,
+          "longitude": 9.975
+        },
+        "insurance": "public",
+        "telehealth": false,
+        "rating": 4.6,
+        "rating_count": 240,
         "languages": [
           "de"
         ],
-        "telehealth": false,
-        "insurance": "private",
         "allows_new_patients": true
       },
       {
-        "slot_datetime": "2026-04-13T08:00:00.000+02:00",
-        "name": "André Meidel",
-        "title": "",
-        "gender": "male",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Frauenarzt",
-        "address": "Eppendorfer Baum 35, 20249 Hamburg",
+        "slot_datetime": "2026-05-19T15:00:00",
+        "name": "Prof. Dr. Maria Sample",
+        "title": "Prof. Dr. med.",
+        "speciality": "Gynecology",
+        "address": "Invented Kai 3, 20457 Sample City",
         "gps_coordinates": {
-          "latitude": 53.5842214,
-          "longitude": 9.9820354
+          "latitude": 53.541,
+          "longitude": 9.992
         },
-        "languages": [
-          "gb",
-          "fr"
-        ],
-        "telehealth": false,
         "insurance": "private",
-        "allows_new_patients": true
-      },
-      {
-        "slot_datetime": "2026-04-13T08:00:00.000+02:00",
-        "name": "Dr. med. Bastian Radtke",
-        "title": "Dr. med.",
-        "gender": "male",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Frauenarzt",
-        "address": "Bellmannstraße 5, 22607 Hamburg",
-        "gps_coordinates": {
-          "latitude": 53.560249,
-          "longitude": 9.8847877
-        },
+        "telehealth": true,
+        "rating": 4.8,
+        "rating_count": 580,
         "languages": [
           "de",
-          "gb"
+          "en",
+          "tr"
         ],
-        "telehealth": false,
-        "insurance": "private",
         "allows_new_patients": true
       },
       {
-        "slot_datetime": "2026-04-13T08:30:00.000+02:00",
-        "name": "Dr. med. Claudia Nawroth",
+        "slot_datetime": "2026-05-20T08:30:00",
+        "name": "Dr. Linda Invented",
         "title": "Dr. med.",
-        "gender": "female",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Frauenärztin",
-        "address": "Wolffstraße 9, 22525 Hamburg",
+        "speciality": "Gynecology",
+        "address": "Demo Chaussee 77, 20535 Sample City",
         "gps_coordinates": {
-          "latitude": 53.5793289,
-          "longitude": 9.933449999999999
+          "latitude": 53.563,
+          "longitude": 10.03
         },
-        "languages": [
-          "de",
-          "gb"
-        ],
+        "insurance": "public",
         "telehealth": false,
-        "insurance": "private",
-        "allows_new_patients": true
-      },
-      {
-        "slot_datetime": "2026-04-13T09:00:00.000+02:00",
-        "name": "Dr. med. Sabine Bachmann",
-        "title": "Dr. med.",
-        "gender": "female",
-        "doctor_type": "INDIVIDUAL_PRACTITIONER",
-        "speciality": "Frauenärztin",
-        "address": "Neuer Wall 32, 20354 Hamburg",
-        "gps_coordinates": {
-          "latitude": 53.5519811,
-          "longitude": 9.9904227
-        },
+        "rating": 4.4,
+        "rating_count": 125,
         "languages": [
-          "de",
-          "gb"
+          "de"
         ],
-        "telehealth": false,
-        "insurance": "private",
         "allows_new_patients": true
       }
     ]

@@ -104,6 +104,10 @@
             ...(resolvedQuery !== undefined ? { query: resolvedQuery } : {}),
             app_id: appId,
             skill_id: skillId,
+            // Marker read by ActiveChat to render the "Sample data" banner
+            // above the fullscreen. Harmless on real embeds because real
+            // decodedContent never sets this field.
+            is_store_example: true,
         };
     }
 
