@@ -216,27 +216,19 @@ skills:
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
       per_unit:
-        credits: 250
+        credits: 20
         unit_name: request
     providers:
       - name: Doctolib
         no_api_key: true
       - name: Jameda
         no_api_key: true
-      - name: Google Places
-        no_api_key: false
     exclude_fields_for_llm:
       - type
       - hash
       - visit_motive_id
       - agenda_id
       - practice_id
-      # Google Places enrichment: keep verbose fields out of the LLM context
-      # because they cost many tokens per doctor × 6 doctors and the LLM
-      # doesn't need them to make a recommendation. Users see them in the
-      # fullscreen UI directly.
-      - google_reviews
-      - opening_hours
     suggestions_follow_up_requests:
       - Filter for telehealth appointments only
       - Search for private insurance options
