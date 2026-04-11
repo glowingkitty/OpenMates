@@ -1,14 +1,15 @@
 /**
- * App-store examples for the maps skill.
+ * App-store examples for the maps search skill.
  *
- * Invented business names and addresses so the app store does not promote specific real-world places.
+ * Business names are hand-crafted and fictional (marked "(fictional)"),
+ * so the app store never promotes a specific real-world café, restaurant
+ * or bookstore. Coordinates and street names are REAL and spread across
+ * recognisable neighbourhoods in each city so the map renders authentic
+ * tiles + markers — that's what makes the preview useful to someone
+ * deciding whether to install the maps skill.
  *
- * These are hand-crafted synthetic fixtures. All names, addresses,
- * prices and ratings are invented so that the app store never promotes
- * specific real-world businesses, doctors, landlords or venues. The
- * shape matches the real provider response so the preview + fullscreen
- * render identically. A "Sample data" banner is shown at the top of
- * the fullscreen via the is_store_example flag set by SkillExamplesSection.
+ * A "Sample data" banner is rendered above the fullscreen via the
+ * is_store_example flag on decodedContent.
  */
 
 export interface MapsSearchStoreExample {
@@ -29,44 +30,44 @@ const examples: MapsSearchStoreExample[] = [
     "status": "finished",
     "results": [
       {
-        "displayName": "The Foggy Harbor Café",
-        "formattedAddress": "123 Sample Street, Sample City 94103",
+        "displayName": "The Foggy Harbor Café (fictional)",
+        "formattedAddress": "Valencia Street, San Francisco, CA 94110",
         "location": {
-          "latitude": 37.774,
-          "longitude": -122.419
+          "latitude": 37.7599,
+          "longitude": -122.4214
         },
         "rating": 4.7,
         "userRatingCount": 1850,
         "placeType": "cafe"
       },
       {
-        "displayName": "Morning Compass Coffee",
-        "formattedAddress": "456 Example Avenue, Sample City 94110",
+        "displayName": "Morning Compass Coffee (fictional)",
+        "formattedAddress": "Columbus Avenue, San Francisco, CA 94133",
         "location": {
-          "latitude": 37.758,
-          "longitude": -122.414
+          "latitude": 37.8024,
+          "longitude": -122.41
         },
         "rating": 4.6,
         "userRatingCount": 1240,
         "placeType": "cafe"
       },
       {
-        "displayName": "Brightleaf Roasters",
-        "formattedAddress": "789 Demo Lane, Sample City 94117",
+        "displayName": "Brightleaf Roasters (fictional)",
+        "formattedAddress": "Hayes Street, San Francisco, CA 94102",
         "location": {
-          "latitude": 37.769,
-          "longitude": -122.447
+          "latitude": 37.776,
+          "longitude": -122.4234
         },
         "rating": 4.5,
         "userRatingCount": 980,
         "placeType": "cafe"
       },
       {
-        "displayName": "Linden Park Coffee House",
-        "formattedAddress": "321 Fictional Road, Sample City 94114",
+        "displayName": "Linden Park Coffee House (fictional)",
+        "formattedAddress": "Clement Street, San Francisco, CA 94118",
         "location": {
-          "latitude": 37.76,
-          "longitude": -122.432
+          "latitude": 37.7825,
+          "longitude": -122.4647
         },
         "rating": 4.4,
         "userRatingCount": 760,
@@ -83,10 +84,10 @@ const examples: MapsSearchStoreExample[] = [
     "results": [
       {
         "displayName": "Trattoria del Sole (fictional)",
-        "formattedAddress": "100 Example Broadway, Sample City 10036",
+        "formattedAddress": "West 46th Street, New York, NY 10036",
         "location": {
-          "latitude": 40.758,
-          "longitude": -73.985
+          "latitude": 40.7598,
+          "longitude": -73.9873
         },
         "rating": 4.6,
         "userRatingCount": 2140,
@@ -94,10 +95,10 @@ const examples: MapsSearchStoreExample[] = [
       },
       {
         "displayName": "Osteria Rosetta (fictional)",
-        "formattedAddress": "22 Demo 46th Street, Sample City 10036",
+        "formattedAddress": "West 55th Street, New York, NY 10019",
         "location": {
-          "latitude": 40.757,
-          "longitude": -73.984
+          "latitude": 40.7646,
+          "longitude": -73.9837
         },
         "rating": 4.5,
         "userRatingCount": 1820,
@@ -105,10 +106,10 @@ const examples: MapsSearchStoreExample[] = [
       },
       {
         "displayName": "La Piazza Nova (fictional)",
-        "formattedAddress": "88 Sample 42nd Street, Sample City 10036",
+        "formattedAddress": "West 44th Street, New York, NY 10036",
         "location": {
-          "latitude": 40.756,
-          "longitude": -73.988
+          "latitude": 40.758,
+          "longitude": -73.9855
         },
         "rating": 4.4,
         "userRatingCount": 1520,
@@ -116,10 +117,10 @@ const examples: MapsSearchStoreExample[] = [
       },
       {
         "displayName": "Vico's Tavola (fictional)",
-        "formattedAddress": "15 Example 48th Street, Sample City 10036",
+        "formattedAddress": "9th Avenue, New York, NY 10019",
         "location": {
-          "latitude": 40.759,
-          "longitude": -73.983
+          "latitude": 40.7628,
+          "longitude": -73.9914
         },
         "rating": 4.3,
         "userRatingCount": 980,
@@ -136,10 +137,10 @@ const examples: MapsSearchStoreExample[] = [
     "results": [
       {
         "displayName": "The Inkwell Bookshop (fictional)",
-        "formattedAddress": "12 Example Bloomsbury Street, Sample City WC1B 3QA",
+        "formattedAddress": "Great Russell Street, London WC1B",
         "location": {
-          "latitude": 51.517,
-          "longitude": -0.126
+          "latitude": 51.5194,
+          "longitude": -0.127
         },
         "rating": 4.8,
         "userRatingCount": 2340,
@@ -147,10 +148,10 @@ const examples: MapsSearchStoreExample[] = [
       },
       {
         "displayName": "Maple & Mortar Books (fictional)",
-        "formattedAddress": "44 Demo Charing Road, Sample City WC2H 0BL",
+        "formattedAddress": "Long Acre, London WC2E",
         "location": {
-          "latitude": 51.514,
-          "longitude": -0.128
+          "latitude": 51.5133,
+          "longitude": -0.124
         },
         "rating": 4.7,
         "userRatingCount": 1980,
@@ -158,10 +159,10 @@ const examples: MapsSearchStoreExample[] = [
       },
       {
         "displayName": "The Reading Lantern (fictional)",
-        "formattedAddress": "7 Fictional Great Russell Street, Sample City WC1B 3NH",
+        "formattedAddress": "Charing Cross Road, London WC2H",
         "location": {
-          "latitude": 51.518,
-          "longitude": -0.127
+          "latitude": 51.5148,
+          "longitude": -0.129
         },
         "rating": 4.6,
         "userRatingCount": 1520,
@@ -169,10 +170,10 @@ const examples: MapsSearchStoreExample[] = [
       },
       {
         "displayName": "Westhaven Books & Tea (fictional)",
-        "formattedAddress": "99 Example Fleet Street, Sample City EC4Y 1HT",
+        "formattedAddress": "Aldersgate Street, London EC1A",
         "location": {
-          "latitude": 51.513,
-          "longitude": -0.107
+          "latitude": 51.5203,
+          "longitude": -0.0962
         },
         "rating": 4.5,
         "userRatingCount": 1100,
