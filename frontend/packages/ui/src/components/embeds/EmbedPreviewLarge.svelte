@@ -274,7 +274,7 @@
   /* ── Pagination dots ─────────────────────────────────────────────────────── */
   .carousel-dots {
     position: absolute;
-    bottom: 12px;
+    bottom: -28px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
