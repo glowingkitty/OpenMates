@@ -299,12 +299,12 @@ skills:
                 type: integer
                 description: >
                   How many days ahead to search for appointments. Must be one of
-                  1, 3, 7, or 14 (Doctolib API constraint). Defaults to 7.
+                  1, 3, or 7 (Doctolib API caps availability queries at 7 days).
+                  Defaults to 7.
                 enum:
                   - 1
                   - 3
                   - 7
-                  - 14
                 default: 7
               max_doctors:
                 type: integer
