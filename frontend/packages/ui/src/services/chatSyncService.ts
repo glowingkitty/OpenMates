@@ -804,6 +804,18 @@ export class ChatSynchronizationService extends EventTarget {
         module.handleReminderFiredImpl(this, payload),
       );
 
+      // Handle incoming webhook chats — external services POST to
+      // /v1/webhooks/incoming, the backend broadcasts a `webhook_chat` WS event
+      // with plaintext content, and this handler encrypts with a freshly-
+      // generated chat key and persists locally. Mirrors reminder_fired.
+      // Implemented in chatSyncServiceHandlersWebhooks.ts to keep webhook code
+      // isolated from app-settings/memories handling.
+      import("./chatSyncServiceHandlersWebhooks").then((webhooks) => {
+        webSocketService.on("webhook_chat", (payload) =>
+          webhooks.handleWebhookChatImpl(this, payload),
+        );
+      });
+
       // Handle user_notification events — server-initiated toasts with optional deep-link buttons.
       // Currently emitted by set_reminder_skill when the user has no email notifications active.
       webSocketService.on("user_notification", (payload) =>
