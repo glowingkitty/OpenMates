@@ -328,7 +328,13 @@
       {#if activeAppointment.telehealth}
         <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
       {/if}
-      {#if activeAppointment.insurance}
+      {#if activeAppointment.insurance === 'unknown'}
+        <!-- Jameda doesn't expose per-doctor insurance sector info — warn
+             the user that they need to verify it on Jameda before booking -->
+        <span class="badge insurance-unknown-badge" title="Insurance requirement not available — verify on Jameda before booking">
+          Insurance: verify on Jameda
+        </span>
+      {:else if activeAppointment.insurance}
         <span class="badge insurance-badge">{activeAppointment.insurance}</span>
       {/if}
       {#if activeAppointment.accessibility}
@@ -480,6 +486,11 @@
     color: var(--color-grey-70);
     border: 1px solid var(--color-grey-30);
     text-transform: capitalize;
+  }
+  .insurance-unknown-badge {
+    background-color: rgba(var(--color-warning-rgb, 245, 166, 35), 0.12);
+    color: var(--color-warning, #f5a623);
+    border: 1px solid rgba(var(--color-warning-rgb, 245, 166, 35), 0.3);
   }
   .accessibility-badge {
     background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.08);
