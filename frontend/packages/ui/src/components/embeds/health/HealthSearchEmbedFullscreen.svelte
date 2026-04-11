@@ -312,7 +312,6 @@
   status={localStatus}
   errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  minCardWidth="260px"
   {initialChildEmbedId}
   {hasPreviousEmbed}
   {hasNextEmbed}

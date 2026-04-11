@@ -185,7 +185,6 @@
 <SearchResultsTemplate
   appId="home"
   skillId="search"
-  minCardWidth="280px"
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}
   skillIconName="search"

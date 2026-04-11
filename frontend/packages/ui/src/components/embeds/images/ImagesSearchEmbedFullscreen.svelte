@@ -188,7 +188,6 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
-  minCardWidth="180px"
   skeletonCount={8}
   status={statusProp}
 >

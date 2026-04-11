@@ -254,7 +254,6 @@
 <SearchResultsTemplate
   appId="shopping"
   skillId="search_products"
-  minCardWidth="220px"
   maxGridWidth="1100px"
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}

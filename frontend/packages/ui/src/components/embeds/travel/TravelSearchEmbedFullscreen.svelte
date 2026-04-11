@@ -465,7 +465,6 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
   onResultsLoaded={(results) => { headerResults = results; }}
   {initialChildEmbedId}
-  minCardWidth="260px"
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
