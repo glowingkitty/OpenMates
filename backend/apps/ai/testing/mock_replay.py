@@ -412,9 +412,12 @@ async def replay_fixture(
 # --- Embed recreation for fixtures ---
 
 # Regex to find embed reference JSON blocks in fixture responses.
-# Matches: ```json\n{"type": "...", "embed_id": "uuid"}\n```
+# Matches: ```json\n{"type": "...", "embed_id": "uuid", ...}\n```
+# Captures the full JSON object so we can read the original fields (type,
+# focus_id, app_id, etc.) without needing a separate embed-content map in the
+# fixture for every embed type.
 _EMBED_REF_PATTERN = re.compile(
-    r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"([a-f0-9-]+)"[^}]*\}\s*\n\s*```',
+    r'```json\s*\n\s*(\{[^}]*"embed_id"\s*:\s*"[a-f0-9-]+"[^}]*\})\s*\n\s*```',
     re.DOTALL,
 )
 
@@ -460,9 +463,20 @@ async def _recreate_fixture_embeds(
 
     # Process matches in reverse so string indices stay valid after replacement
     for match in reversed(matches):
-        old_embed_id = match.group(1)
+        raw_block = match.group(1)
+        try:
+            ref_fields: Dict[str, Any] = json.loads(raw_block)
+        except Exception as e:
+            logger.warning(f"[MOCK] Could not parse embed ref JSON '{raw_block}': {e}")
+            continue
+
+        old_embed_id = ref_fields.get("embed_id", "")
+        # Prefer fixture's explicit per-embed metadata when present; otherwise
+        # fall back to the fields inlined in the JSON block (this is how
+        # focus_mode_activation refs are stored — they carry focus_id/app_id
+        # directly in the block).
         embed_meta = embed_content_map.get(old_embed_id, {})
-        embed_type = embed_meta.get("type", "code")
+        embed_type = embed_meta.get("type") or ref_fields.get("type", "code")
 
         try:
             if embed_type == "code":
@@ -494,6 +508,47 @@ async def _recreate_fixture_embeds(
                     response = response[:match.start()] + new_block + response[match.end():]
                     logger.info(
                         f"[MOCK] Recreated {embed_type} embed: {old_embed_id} → {embed_data['embed_id']}"
+                    )
+            elif embed_type == "focus_mode_activation":
+                # Focus mode activation embeds are recreated from the fields
+                # inlined in the fixture JSON block (focus_id, app_id,
+                # focus_mode_name). The real flow would also schedule a
+                # Celery auto-confirm task after 5s, but mock replay is
+                # read-only — the frontend only needs the embed to render
+                # the activation UI for the spec to pass.
+                focus_id = embed_meta.get("focus_id") or ref_fields.get("focus_id")
+                app_id = embed_meta.get("app_id") or ref_fields.get("app_id")
+                focus_mode_name = (
+                    embed_meta.get("focus_mode_name")
+                    or ref_fields.get("focus_mode_name")
+                    or focus_id
+                    or "focus mode"
+                )
+                if not (focus_id and app_id):
+                    logger.warning(
+                        f"[MOCK] focus_mode_activation embed {old_embed_id} is missing "
+                        f"focus_id/app_id in fixture — skipping."
+                    )
+                    continue
+                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
+                    focus_id=focus_id,
+                    app_id=app_id,
+                    focus_mode_name=focus_mode_name,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                )
+                if fm_embed_data:
+                    new_ref = fm_embed_data["embed_reference"]
+                    new_block = f"```json\n{new_ref}\n```"
+                    response = response[:match.start()] + new_block + response[match.end():]
+                    logger.info(
+                        f"[MOCK] Recreated focus_mode_activation embed: "
+                        f"{old_embed_id} → {fm_embed_data['embed_id']}"
                     )
             else:
                 logger.info(f"[MOCK] Skipping embed recreation for type '{embed_type}' (not yet supported)")
