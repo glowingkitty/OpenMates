@@ -254,19 +254,11 @@
     return slots[0] || null;
   });
 
-  // Best rating across all results (highest score). Used as a quality hint in
-  // the preview card so users can see at a glance that top results are rated.
-  let bestRatingInfo = $derived.by(() => {
-    let best: { rating: number; count: number } | null = null;
-    for (const r of flatResults) {
-      if (r.rating == null) continue;
-      const count = r.rating_count ?? 0;
-      if (!best || r.rating > best.rating) {
-        best = { rating: r.rating, count };
-      }
-    }
-    return best;
-  });
+  // Rating display intentionally lives on the per-doctor appointment card
+  // (HealthAppointmentEmbedPreview), not on the search summary — aggregate
+  // "best rating" is misleading because it doesn't tell you which doctor
+  // scored it, and the per-doctor ratings are the actionable info when
+  // choosing an appointment.
 
   // Format earliest slot as human-readable date
   let earliestSlotDisplay = $derived.by(() => {
@@ -353,15 +345,6 @@
           {#if earliestSlotDisplay}
             <span class="earliest-slot">
               {$text('embeds.from')} {earliestSlotDisplay}
-            </span>
-          {/if}
-
-          {#if bestRatingInfo}
-            <span class="best-rating" title="Best rated doctor in results">
-              {bestRatingInfo.rating.toFixed(1)} ★
-              {#if bestRatingInfo.count > 0}
-                <span class="rating-count">({bestRatingInfo.count})</span>
-              {/if}
             </span>
           {/if}
         </div>
@@ -453,23 +436,6 @@
     font-size: var(--font-size-xxs);
   }
 
-  /* Best rating across results — star + review count */
-  .best-rating {
-    font-size: var(--font-size-small);
-    color: var(--color-warning, #f5a623);
-    font-weight: 600;
-  }
-
-  .best-rating .rating-count {
-    color: var(--color-grey-60);
-    font-weight: 500;
-    font-size: var(--font-size-xxs);
-    margin-left: 2px;
-  }
-
-  .health-search-details.mobile .best-rating {
-    font-size: var(--font-size-xxs);
-  }
 
   /* Error state */
   .search-error {

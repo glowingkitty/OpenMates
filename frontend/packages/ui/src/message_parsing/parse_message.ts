@@ -153,14 +153,26 @@ function convertEmbedLinksInNode(
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = _parseLineFragment(rawRef);
-        const appId =
-          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
+        // Hallucination guard: if the ref is not in the live index AND the
+        // document has no sibling app_id to fall back on, the LLM invented
+        // a ref that points at nothing. Render as plain text instead of a
+        // dead card that breaks when clicked. See issue 0d5b2385 where the
+        // LLM emitted "sven-walter-febnm-YZt" with no matching embed.
+        const resolvedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
+        const resolvedAppId =
+          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+        if (!resolvedId && !resolvedAppId && !fallbackAppId) {
+          return {
+            type: "text",
+            text: `[!](embed:${cleanRef})`,
+          };
+        }
         return {
           type: "embedPreviewLarge",
           attrs: {
             embedRef: cleanRef,
-            embedId: null,
-            appId,
+            embedId: resolvedId,
+            appId: resolvedAppId ?? fallbackAppId,
             carouselIndex: 0, // will be overwritten by _hoistBlockEmbedPreviews Phase B
             carouselTotal: 1,
           },
@@ -189,14 +201,29 @@ function convertEmbedLinksInNode(
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
       //   always available on first parse, even on page reload, with no async work.
-      const appId =
-        _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
+      const resolvedEmbedId =
+        _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
+      const resolvedLiveAppId =
+        _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+      const appId = resolvedLiveAppId ?? fallbackAppId;
+
+      // Hallucination guard: if the ref resolves to nothing in the live
+      // index AND the message has no sibling embeds (no fallback app_id),
+      // the LLM invented a ref. Render as plain text rather than a dead
+      // clickable card. See issue 0d5b2385.
+      if (!resolvedEmbedId && !resolvedLiveAppId && !fallbackAppId) {
+        return {
+          type: "text",
+          text: displayText || `[](embed:${cleanRef})`,
+          marks: node.marks.filter((_: any, i: number) => i !== linkMarkIndex),
+        };
+      }
 
       return {
         type: "embedInline",
         attrs: {
           embedRef: cleanRef,
-          embedId: null, // resolved lazily at click time via embedStore.resolveByRef()
+          embedId: resolvedEmbedId, // resolved synchronously when available
           displayText: resolvedDisplayText,
           appId,
           focusLineStart: lineStart,

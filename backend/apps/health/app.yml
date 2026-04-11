@@ -231,6 +231,12 @@ skills:
       - visit_motive_id
       - agenda_id
       - practice_id
+      # Google Places enrichment: keep verbose fields out of the LLM context
+      # because they cost many tokens per doctor × 6 doctors and the LLM
+      # doesn't need them to make a recommendation. Users see them in the
+      # fullscreen UI directly.
+      - google_reviews
+      - opening_hours
     suggestions_follow_up_requests:
       - Filter for telehealth appointments only
       - Search for private insurance options

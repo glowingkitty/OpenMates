@@ -101,7 +101,38 @@ DOCTOLIB_SPECIALITY_SLUGS: Dict[str, str] = {
     "psychiatrist":                 "psychiatrie-und-psychotherapie",
     "psychotherapist":              "psychologischer-psychotherapeut-psychotherapeutin",
     "radiologe":                    "radiologe",
+    "radiologin":                   "radiologe",
     "radiologist":                  "radiologe",
+    # LLMs commonly pass "radiologie" (the German field name, not the
+    # profession) — Doctolib serves the URL under "radiologe", not "radiologie".
+    "radiologie":                   "radiologe",
+    "radiology":                    "radiologe",
+    "diagnostische-radiologie":     "radiologe",
+    "radiologische-diagnostik":     "radiologe",
+    # MRT/MRI/CT/Röntgen/Ultraschall are imaging procedures performed by
+    # radiologists — route them all to the radiologe speciality so the LLM
+    # can pass the procedure name verbatim without us returning 404.
+    "mrt":                          "radiologe",
+    "mri":                          "radiologe",
+    "magnetresonanztomographie":    "radiologe",
+    "magnetresonanz":               "radiologe",
+    "kernspintomographie":          "radiologe",
+    "kernspin":                     "radiologe",
+    "ct":                           "radiologe",
+    "computertomographie":          "radiologe",
+    "computertomografie":           "radiologe",
+    "röntgen":                      "radiologe",
+    "rontgen":                      "radiologe",
+    "roentgen":                     "radiologe",
+    "x-ray":                        "radiologe",
+    "xray":                         "radiologe",
+    "ultraschall":                  "radiologe",
+    "ultrasound":                   "radiologe",
+    "sonographie":                  "radiologe",
+    "sonografie":                   "radiologe",
+    "mammographie":                 "radiologe",
+    "mammografie":                  "radiologe",
+    "mammogram":                    "radiologe",
     "rheumatologie":                "rheumatologie",
     "rheumatologe":                 "rheumatologie",
     "rheumatologist":               "rheumatologie",
@@ -259,7 +290,26 @@ JAMEDA_SPECIALITY_SLUGS: Dict[str, str] = {
     "chirurg":                      "chirurg",
     "surgeon":                      "chirurg",
     "radiologe":                    "radiologe",
+    "radiologin":                   "radiologe",
     "radiologist":                  "radiologe",
+    "radiologie":                   "radiologe",
+    "radiology":                    "radiologe",
+    # MRT/CT/Röntgen/Ultraschall are procedures done by radiologists.
+    "mrt":                          "radiologe",
+    "mri":                          "radiologe",
+    "magnetresonanztomographie":    "radiologe",
+    "kernspintomographie":          "radiologe",
+    "kernspin":                     "radiologe",
+    "ct":                           "radiologe",
+    "computertomographie":          "radiologe",
+    "röntgen":                      "radiologe",
+    "rontgen":                      "radiologe",
+    "roentgen":                     "radiologe",
+    "x-ray":                        "radiologe",
+    "ultraschall":                  "radiologe",
+    "ultrasound":                   "radiologe",
+    "sonographie":                  "radiologe",
+    "mammographie":                 "radiologe",
     "rheumatologie":                "rheumatologe",
     "rheumatologe":                 "rheumatologe",
     "rheumatologist":               "rheumatologe",
@@ -1154,8 +1204,21 @@ async def _process_single_doctolib_request(
             f"Supported: {', '.join(sorted(VISIT_MOTIVE_CATEGORIES.keys()))}"
         )
 
-    # Resolve speciality slug
-    speciality_slug = DOCTOLIB_SPECIALITY_SLUGS.get(speciality_raw, speciality_raw)
+    # Resolve speciality slug — warn loudly when the LLM passes an unknown
+    # term so we can add the mapping. Without the warning, an unknown
+    # speciality silently falls through and Doctolib returns 404 for every
+    # request (seen in issue 0d5b2385 where "mrt" and "radiologie" both hit
+    # the fallback path and produced zero results).
+    speciality_slug = DOCTOLIB_SPECIALITY_SLUGS.get(speciality_raw)
+    if speciality_slug is None:
+        speciality_slug = speciality_raw
+        logger.warning(
+            "[health:search_appointments] Doctolib speciality '%s' not in "
+            "DOCTOLIB_SPECIALITY_SLUGS map. Using raw value as slug — this "
+            "will likely 404. Add a mapping in search_appointments_skill.py "
+            "DOCTOLIB_SPECIALITY_SLUGS dict.",
+            speciality_raw,
+        )
 
     # Resolve city slug
     city_slug = DOCTOLIB_CITY_SLUGS.get(city_raw, city_raw.replace(" ", "-"))
@@ -1738,7 +1801,15 @@ async def _process_single_jameda_request(
                 "languages": [],
                 "telehealth": False,
                 "visit_motive": service_name,
-                "insurance": "",
+                # Jameda's public API does not expose per-doctor insurance
+                # sector info (neither addresses nor services endpoint return
+                # it — verified by reverse-engineering the v3 API). We mark
+                # the sector as "unknown" so the LLM (and UI) can warn the
+                # user that Jameda results may include both public and
+                # private practices. When the user requires a specific
+                # insurance sector, the orchestrator skips Jameda entirely
+                # and relies only on Doctolib, which has a real filter.
+                "insurance": "unknown",
                 "allows_new_patients": True,
                 "practice_url": f"{JAMEDA_BASE_URL}/{speciality_slug}/{city_slug}",
                 "provider_platform": "Jameda",
@@ -1892,6 +1963,20 @@ class SearchAppointmentsSkill(BaseSkill):
                     "Proceeding without proxy.",
                     exc,
                 )
+
+        # Force Doctolib-only when the user requires a specific insurance
+        # sector. Jameda's public API does not expose insurance info, so
+        # returning Jameda results would risk sending users to practices
+        # that don't accept their insurance. Doctolib has a real
+        # insuranceSector filter that we actually use (_fetch_availability).
+        for req in validated:
+            if req.get("insurance_sector") in ("public", "private") and req.get("provider_platform") == "both":
+                logger.info(
+                    "[health:search_appointments] Request %s asks for insurance_sector=%s — "
+                    "forcing Doctolib-only (Jameda cannot filter by insurance).",
+                    req.get("id", "?"), req.get("insurance_sector"),
+                )
+                req["provider_platform"] = "doctolib_de"
 
         # Process all requests in parallel
         # Each request gets its own httpx.AsyncClient so different requests
