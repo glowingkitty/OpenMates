@@ -371,7 +371,28 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	// ─── Payment consent ─────────────────────────────────────────────────────────
 
+	// DEBUG (temp): wait up to 10s for the overlay toggle; on failure dump page HTML
+	// so we can see what the Payment component actually rendered at the hang point.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	const overlayExists = await consentToggle
+		.waitFor({ state: 'attached', timeout: 10000 })
+		.then(() => true)
+		.catch(() => false);
+	if (!overlayExists) {
+		const stripeIframeCount = await page
+			.locator('iframe[title="Secure payment input frame"]')
+			.count();
+		// Dump inside body contents. Slice so logs stay readable.
+		const bodyHtml = await page.evaluate(() => document.body.innerHTML);
+		const paymentIdx = bodyHtml.indexOf('payment-component');
+		const slice = paymentIdx >= 0 ? bodyHtml.slice(paymentIdx, paymentIdx + 3500) : bodyHtml.slice(0, 3500);
+		logSignupCheckpoint('DEBUG: consent toggle NOT in DOM.', {
+			stripeIframeCount,
+			htmlLength: bodyHtml.length
+		});
+		logSignupCheckpoint(`DEBUG payment-component HTML slice:\n${slice}`);
+		throw new Error('DEBUG: #limited-refund-consent-toggle was not attached to DOM within 10s.');
+	}
 	await setToggleChecked(consentToggle, true);
 	await takeStepScreenshot(page, 'payment-form-stripe');
 	logSignupCheckpoint('Payment consent accepted — Stripe payment form visible.');

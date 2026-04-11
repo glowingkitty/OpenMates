@@ -75,10 +75,14 @@ BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 # tests/dev-smoke/README.md for the policy. Anything that isn't a core user
 # flow that must keep working belongs in the nightly run, not here.
 HOURLY_DEV_SPECS: list[str] = [
-    "dev-smoke/dev-smoke-reachability.spec.ts",
+    # Order determines test-account slot: specs[i] → account (i+1).
+    # chat-flow is first so it uses testacct1 (known healthy) — testacct4 has
+    # accumulated broken chat state that stalls DB init during login.
+    # dev-smoke doesn't use account credentials, so it can safely run on any slot.
+    "chat-flow.spec.ts",
     "settings-buy-credits-stripe.spec.ts",
     "signup-flow-polar.spec.ts",
-    "chat-flow.spec.ts",
+    "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
 
 # Where each hourly mode parks its result archives + heartbeat marker.
