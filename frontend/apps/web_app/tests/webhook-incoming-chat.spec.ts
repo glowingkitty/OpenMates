@@ -134,11 +134,6 @@ test('webhook — create key, POST to /incoming, new chat appears with AI respon
 	await page.waitForTimeout(2000);
 	log('Logged in.');
 
-	// Snapshot the initial sidebar count so we can detect the new chat later
-	const sidebarItems = page.getByTestId('chat-item-wrapper');
-	const initialItemCount = await sidebarItems.count();
-	log(`Initial sidebar chat count: ${initialItemCount}`);
-
 	// ── Phase 2: Create a webhook key ────────────────────────────────────────
 	await navigateToWebhooks(page, log);
 	await screenshot(page, 'webhooks-page');
@@ -208,30 +203,15 @@ test('webhook — create key, POST to /incoming, new chat appears with AI respon
 	const expectedChatId: string = respJson.chat_id;
 	log(`Backend created chat ${expectedChatId}, status=${respJson.status}`);
 
-	// ── Phase 4: Poll for the new chat to appear in the sidebar ──────────────
-	const POLL_TIMEOUT_MS = 120000; // 2 min
-	const pollStart = Date.now();
-	let newChatFoundInSidebar = false;
+	// ── Phase 4: Navigate directly to the new chat via its URL ───────────────
+	// At the default Playwright viewport (1280×720) the chat sidebar is closed,
+	// so chat-item-wrapper elements are not rendered. We already have the
+	// chat_id from the POST response — give the WS event a few seconds to
+	// propagate to the browser (handler creates the chat in IndexedDB), then
+	// navigate directly.
+	log('Waiting for webhook_chat WS event to propagate to the browser...');
+	await page.waitForTimeout(8000);
 
-	log('Polling sidebar for new webhook chat...');
-	while (Date.now() - pollStart < POLL_TIMEOUT_MS) {
-		const currentCount = await sidebarItems.count();
-		if (currentCount > initialItemCount) {
-			log(`Sidebar count increased: ${initialItemCount} → ${currentCount}`);
-			newChatFoundInSidebar = true;
-			break;
-		}
-		const elapsed = Math.round((Date.now() - pollStart) / 1000);
-		if (elapsed > 0 && elapsed % 15 === 0) log(`...${elapsed}s elapsed`);
-		await page.waitForTimeout(2500);
-	}
-
-	await screenshot(page, 'after-webhook-poll');
-	expect(newChatFoundInSidebar, 'Expected the webhook to create a new chat in the sidebar').toBe(
-		true
-	);
-
-	// ── Phase 5: Open the new chat directly via URL ──────────────────────────
 	const currentFullUrl = page.url();
 	const originAndPath = currentFullUrl.split('#')[0];
 	const newChatUrl = `${originAndPath}#chat-id=${expectedChatId}`;
