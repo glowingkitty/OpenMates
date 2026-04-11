@@ -230,6 +230,11 @@ deployment/prod_server/prod-cloud-config.yaml
 .claude/security-acknowledged.json
 .claude/security-acknowledged.json.tmp
 .claude/.prefetch-cache/
+# Claude Code's in-session scheduled-task infrastructure — we never use it;
+# all recurring jobs live in the host crontab. The lock file shows up any
+# time a Claude session starts, so keep it out of git.
+.claude/scheduled_tasks.json
+.claude/scheduled_tasks.lock
 security-audit/
 .cursor
 .svelte-kit
