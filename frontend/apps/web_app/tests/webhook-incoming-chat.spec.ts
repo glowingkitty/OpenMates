@@ -261,22 +261,12 @@ test('webhook — create key, POST to /incoming, new chat appears with AI respon
 		log(`Chat cleanup skipped: ${e}`);
 	}
 
-	// Delete the webhook key we created
-	try {
-		await navigateToWebhooks(page, log);
-		const ourWebhook = page
-			.getByTestId('webhook-item')
-			.filter({ has: page.getByTestId('webhook-name').filter({ hasText: keyName }) })
-			.first();
-		if (await ourWebhook.isVisible({ timeout: 5000 }).catch(() => false)) {
-			page.once('dialog', (dialog: any) => dialog.accept());
-			await ourWebhook.getByTestId('webhook-delete-button').click();
-			await page.waitForTimeout(1500);
-			log(`Deleted webhook key "${keyName}".`);
-		}
-	} catch (e) {
-		log(`Webhook cleanup skipped: ${e}`);
-	}
-
+	// Webhook-key cleanup is intentionally skipped here. After deleting the
+	// chat, the settings menu toggle is in a state where the close-icon
+	// overlay intercepts pointer events and clicks hang until the test
+	// timeout. The next run's cleanupStaleE2EWebhooks() prefix will pick up
+	// any leftover E2E-* keys and remove them — we tolerate one stale key
+	// rather than spend 7 minutes fighting the UI here.
+	log(`Leaving webhook key "${keyName}" for next-run cleanup.`);
 	log('PASSED.');
 });
