@@ -22,7 +22,7 @@ const examples: MapsSearchStoreExample[] = [
   {
     "id": "store-example-maps-search-1",
     "query": "best coffee shops in San Francisco",
-    "query_translation_key": "app_store_examples.maps.search.1",
+    "query_translation_key": "settings.app_store_examples.maps.search.1",
     "provider": "Google Maps",
     "status": "finished",
     "results": [
@@ -101,7 +101,7 @@ const examples: MapsSearchStoreExample[] = [
   {
     "id": "store-example-maps-search-2",
     "query": "italian restaurants near Times Square New York",
-    "query_translation_key": "app_store_examples.maps.search.2",
+    "query_translation_key": "settings.app_store_examples.maps.search.2",
     "provider": "Google Maps",
     "status": "finished",
     "results": [
@@ -180,7 +180,7 @@ const examples: MapsSearchStoreExample[] = [
   {
     "id": "store-example-maps-search-3",
     "query": "bookstores in central London",
-    "query_translation_key": "app_store_examples.maps.search.3",
+    "query_translation_key": "settings.app_store_examples.maps.search.3",
     "provider": "Google Maps",
     "status": "finished",
     "results": [

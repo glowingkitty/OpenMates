@@ -22,7 +22,7 @@ const examples: WebSearchStoreExample[] = [
   {
     "id": "store-example-web-search-1",
     "query": "how to learn rust programming as a beginner",
-    "query_translation_key": "app_store_examples.web.search.1",
+    "query_translation_key": "settings.app_store_examples.web.search.1",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
@@ -115,7 +115,7 @@ const examples: WebSearchStoreExample[] = [
   {
     "id": "store-example-web-search-2",
     "query": "best noise cancelling headphones 2026",
-    "query_translation_key": "app_store_examples.web.search.2",
+    "query_translation_key": "settings.app_store_examples.web.search.2",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
@@ -209,7 +209,7 @@ const examples: WebSearchStoreExample[] = [
   {
     "id": "store-example-web-search-3",
     "query": "latest james webb space telescope discoveries",
-    "query_translation_key": "app_store_examples.web.search.3",
+    "query_translation_key": "settings.app_store_examples.web.search.3",
     "provider": "Brave Search",
     "status": "finished",
     "results": [

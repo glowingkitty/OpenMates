@@ -22,7 +22,7 @@ const examples: NewsSearchStoreExample[] = [
   {
     "id": "store-example-news-search-1",
     "query": "ai breakthroughs 2026",
-    "query_translation_key": "app_store_examples.news.search.1",
+    "query_translation_key": "settings.app_store_examples.news.search.1",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
@@ -100,7 +100,7 @@ const examples: NewsSearchStoreExample[] = [
   {
     "id": "store-example-news-search-2",
     "query": "climate policy europe",
-    "query_translation_key": "app_store_examples.news.search.2",
+    "query_translation_key": "settings.app_store_examples.news.search.2",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
@@ -181,7 +181,7 @@ const examples: NewsSearchStoreExample[] = [
   {
     "id": "store-example-news-search-3",
     "query": "spacex mars mission",
-    "query_translation_key": "app_store_examples.news.search.3",
+    "query_translation_key": "settings.app_store_examples.news.search.3",
     "provider": "Brave Search",
     "status": "finished",
     "results": [

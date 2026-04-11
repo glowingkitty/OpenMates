@@ -22,7 +22,7 @@ const examples: VideosSearchStoreExample[] = [
   {
     "id": "store-example-videos-search-1",
     "query": "svelte 5 runes tutorial",
-    "query_translation_key": "app_store_examples.videos.search.1",
+    "query_translation_key": "settings.app_store_examples.videos.search.1",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
@@ -99,7 +99,7 @@ const examples: VideosSearchStoreExample[] = [
   {
     "id": "store-example-videos-search-2",
     "query": "cooking perfect pasta carbonara",
-    "query_translation_key": "app_store_examples.videos.search.2",
+    "query_translation_key": "settings.app_store_examples.videos.search.2",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
@@ -176,7 +176,7 @@ const examples: VideosSearchStoreExample[] = [
   {
     "id": "store-example-videos-search-3",
     "query": "how black holes work explained",
-    "query_translation_key": "app_store_examples.videos.search.3",
+    "query_translation_key": "settings.app_store_examples.videos.search.3",
     "provider": "Brave Search",
     "status": "finished",
     "results": [

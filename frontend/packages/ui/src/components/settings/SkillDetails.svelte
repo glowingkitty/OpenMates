@@ -324,7 +324,10 @@
                 </div>
             </div>
 
-            <!-- How to use section (after pricing) -->
+            <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
+            <SkillExamplesSection {appId} {skillId} />
+
+            <!-- How to use section (after examples) -->
             {#if howToUseExamples.length > 0}
                 <div class="section how-to-use-section">
                     <SettingsSectionHeading title={$text('settings.app_store.skills.how_to_use')} icon="skill" />
@@ -354,10 +357,7 @@
                 </div>
             {/if}
 
-            <!-- Examples section (real embed previews from curated skill runs) -->
-            <SkillExamplesSection {appId} {skillId} />
-
-            <!-- Models list (below pricing and how-to-use) -->
+            <!-- Models list (below pricing, examples and how-to-use) -->
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.skills.models')} icon="skill" />
                 <div class="models-list">
@@ -408,7 +408,10 @@
                 </div>
             </div>
 
-            <!-- How to use section (after pricing) - horizontal scrollable example instructions -->
+            <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
+            <SkillExamplesSection {appId} {skillId} />
+
+            <!-- How to use section (after examples) - horizontal scrollable example instructions -->
             {#if howToUseExamples.length > 0}
                 <div class="section how-to-use-section">
                     <SettingsSectionHeading title={$text('settings.app_store.skills.how_to_use')} icon="skill" />
@@ -446,10 +449,7 @@
                 </div>
             {/if}
 
-            <!-- Examples section (real embed previews from curated skill runs) -->
-            <SkillExamplesSection {appId} {skillId} />
-
-            <!-- Providers section (below pricing and how-to-use) -->
+            <!-- Providers section (below pricing, examples and how-to-use) -->
             {#if skill.providers && skill.providers.length > 0}
                 <div class="section">
                     <SettingsSectionHeading title={$text('settings.app_store.skills.providers')} icon="provider" />
