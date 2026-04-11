@@ -1581,26 +1581,41 @@ async def handle_main_processing(
             except Exception as e:
                 logger.warning(f"{log_prefix} Error building description for focus mode {focus_id}: {e}")
         
+        # Tool name MUST conform to Google Gemini's function-name spec:
+        # ^[a-zA-Z_][a-zA-Z0-9_]*$. Hyphens cause Gemini to return
+        # FinishReason.MALFORMED_FUNCTION_CALL, so we use snake_case here
+        # even though the rest of the codebase uses hyphens for app skills.
+        # The downstream resolver map below translates back to ("system",
+        # "activate_focus_mode") for the dispatcher.
+        #
+        # NOTE: We intentionally do NOT use an `enum` constraint on focus_id.
+        # Gemini 3.x emits FinishReason.MALFORMED_FUNCTION_CALL when the enum
+        # contains hyphenated values (e.g. "jobs-career-insights"). Listing
+        # the valid IDs in the description works reliably across providers
+        # and still gives the model a constrained vocabulary to choose from.
+        _valid_ids_list = ", ".join(f'"{fid}"' for fid in relevant_focus_modes)
+        _desc_lines = [
+            "Activate a focus mode to specialize the assistant's behavior for a specific task. "
+            "Focus modes provide specialized instructions that help with particular types of requests.",
+            "",
+            f"Valid focus_id values (use EXACTLY one of these): {_valid_ids_list}",
+        ]
+        if focus_mode_descriptions:
+            _desc_lines.extend(["", "Available focus modes:", *focus_mode_descriptions])
         activate_tool = {
             "type": "function",
             "function": {
-                # Tool name MUST conform to Google Gemini's function-name spec:
-                # ^[a-zA-Z_][a-zA-Z0-9_]*$. Hyphens cause Gemini to return
-                # FinishReason.MALFORMED_FUNCTION_CALL when emitting the call,
-                # so we use snake_case here even though the rest of the codebase
-                # uses hyphens for app skills. The downstream resolver map below
-                # contains explicit entries that translate the canonicalized form
-                # back to the (app_id="system", skill_id="activate_focus_mode")
-                # tuple expected by the dispatcher at line ~2752.
                 "name": "activate_focus_mode",
-                "description": "Activate a focus mode to specialize the assistant's behavior for a specific task. Focus modes provide specialized instructions that help with particular types of requests.\n\nAvailable focus modes:\n" + "\n".join(focus_mode_descriptions) if focus_mode_descriptions else "Activate a focus mode to specialize the assistant's behavior.",
+                "description": "\n".join(_desc_lines),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "focus_id": {
                             "type": "string",
-                            "description": "The focus mode to activate (format: app_id-focus_id)",
-                            "enum": relevant_focus_modes
+                            "description": (
+                                f"The focus mode to activate. Must be one of: {_valid_ids_list}. "
+                                "Format: app_id-focus_id."
+                            ),
                         }
                     },
                     "required": ["focus_id"]

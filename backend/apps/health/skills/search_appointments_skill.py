@@ -217,11 +217,14 @@ DOCTOLIB_CITY_SLUGS: Dict[str, str] = {
 
 # Max total appointment slots to return per request (soonest first).
 # Used as the per-provider cap BEFORE grouping by doctor.
-DEFAULT_MAX_SLOTS = 60  # 6 doctors × ~10 slots each worst case
+DEFAULT_MAX_SLOTS = 100  # 10 doctors × ~10 slots each worst case
 
 # Max doctors to return per request after grouping slots by doctor.
 # Each returned doctor card shows one primary slot + up to 5 additional slots.
-DEFAULT_MAX_DOCTORS_RETURNED = 6
+DEFAULT_MAX_DOCTORS_RETURNED = 10
+# When insurance_sector is NOT set, split the 10 slots between public and
+# private (soonest-first within each bucket) then backfill unknown.
+DEFAULT_INSURANCE_BUCKET_SIZE = 5
 
 # Max alternate slot datetimes to attach to each doctor card.
 DEFAULT_MAX_ADDITIONAL_SLOTS = 5
@@ -910,6 +913,59 @@ def _group_slots_by_doctor(
     return grouped
 
 
+def _apply_insurance_policy(
+    grouped: List[Dict[str, Any]],
+    requested_sector: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Ordering + capping rules for insurance handling.
+
+    Every input item is already grouped by doctor and sorted by
+    `slot_datetime` ascending (earliest first). Each item carries an
+    `insurance` field set to one of:
+      - "public"    — Doctolib motive restricted to gesetzliche KV
+      - "private"   — Doctolib motive restricted to private KV
+      - "unknown"   — Jameda results (v3 API has no insurance info) or
+                      Doctolib motives with insuranceSector=null
+
+    Rules:
+
+      insurance_sector SET (e.g. "public"):
+        1. All matching-sector items first (earliest-first order preserved)
+        2. All "unknown" items next
+        3. DROP the opposite sector entirely
+        Capped at DEFAULT_MAX_DOCTORS_RETURNED.
+
+      insurance_sector NOT set:
+        1. Up to DEFAULT_INSURANCE_BUCKET_SIZE public items
+        2. Up to DEFAULT_INSURANCE_BUCKET_SIZE private items
+        3. Backfill from "unknown" until we reach DEFAULT_MAX_DOCTORS_RETURNED
+        Always capped at DEFAULT_MAX_DOCTORS_RETURNED.
+
+    Within every bucket we preserve the incoming earliest-first order.
+    """
+    if not grouped:
+        return grouped
+
+    public = [r for r in grouped if r.get("insurance") == "public"]
+    private = [r for r in grouped if r.get("insurance") == "private"]
+    unknown = [r for r in grouped if r.get("insurance") not in ("public", "private")]
+
+    if requested_sector in ("public", "private"):
+        matched = public if requested_sector == "public" else private
+        ordered = matched + unknown
+        return ordered[:DEFAULT_MAX_DOCTORS_RETURNED]
+
+    # No sector requested — split 5 + 5, backfill from unknown.
+    ordered = (
+        public[:DEFAULT_INSURANCE_BUCKET_SIZE]
+        + private[:DEFAULT_INSURANCE_BUCKET_SIZE]
+    )
+    remaining = DEFAULT_MAX_DOCTORS_RETURNED - len(ordered)
+    if remaining > 0:
+        ordered.extend(unknown[:remaining])
+    return ordered[:DEFAULT_MAX_DOCTORS_RETURNED]
+
+
 async def _process_single_doctolib_request(
     client: httpx.AsyncClient,
     request: Dict[str, Any],
@@ -1138,7 +1194,14 @@ async def _process_single_doctolib_request(
                 "languages": provider.get("languages", []),
                 "telehealth": online_booking.get("telehealth", False),
                 "visit_motive": visit_motive.get("name", ""),
-                "insurance": ins_sector_obj.get("type", ""),
+                # Doctolib returns insuranceSector.type as "PUBLIC"/"PRIVATE"
+                # for motives that restrict by insurance, and null/missing for
+                # motives that accept any. We normalise to lowercase strings
+                # and fall back to "unknown" so the UI can show the same
+                # "verify on booking" badge we use for Jameda.
+                "insurance": (
+                    (ins_sector_obj.get("type") or "").lower() or "unknown"
+                ),
                 "allows_new_patients": visit_motive.get("allowNewPatients", True),
                 "practice_url": _practice_url(provider),
                 "provider_platform": "Doctolib",
@@ -1892,8 +1955,12 @@ class SearchAppointmentsSkill(BaseSkill):
                 #    plus their next N alternate slots".
                 results = _group_slots_by_doctor(results)
 
-                # 3. Cap at DEFAULT_MAX_DOCTORS_RETURNED per request.
-                results = results[:DEFAULT_MAX_DOCTORS_RETURNED]
+                # 3. Apply the insurance selection policy (see _apply_insurance_policy
+                #    docstring) and cap at DEFAULT_MAX_DOCTORS_RETURNED.
+                results = _apply_insurance_policy(
+                    results,
+                    requested_sector=req.get("insurance_sector"),
+                )
 
             if error or not results:
                 return request_id, results, error
