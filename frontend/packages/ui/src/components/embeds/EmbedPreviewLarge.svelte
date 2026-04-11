@@ -170,6 +170,7 @@
   <div
     bind:this={wrapperEl}
     class="embed-preview-large-wrapper"
+    class:embed-preview-large-wrapper--carousel={hasMultiple}
     style="min-height: {shellMinHeight}px;"
   >
     <div class="embed-preview-large-container">
@@ -235,6 +236,11 @@
     width: 100%;
   }
 
+  /* Reserve space below the shell for the pagination dots that float at bottom: -8px. */
+  .embed-preview-large-wrapper--carousel {
+    margin-bottom: 24px;
+  }
+
   /* ── Container query context ─────────────────────────────────────────────
      Establishes a CSS container named "embed-preview" so that child components
      (UnifiedEmbedPreview) can use @container queries to switch between
@@ -274,7 +280,7 @@
   /* ── Pagination dots ─────────────────────────────────────────────────────── */
   .carousel-dots {
     position: absolute;
-    bottom: -15px;
+    bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
