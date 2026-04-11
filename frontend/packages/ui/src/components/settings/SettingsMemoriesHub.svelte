@@ -164,6 +164,8 @@
 </script>
 
 <div class="settings-memories-hub">
+    <p class="encryption-notice">{$text('settings.app_settings_memories.encryption_notice')}</p>
+
     {#if !isAuthenticated}
         <!-- Non-authenticated users: prompt to sign in -->
         <div class="empty-state">
@@ -236,6 +238,14 @@
         padding: 14px;
         max-width: 1400px;
         margin: 0 auto;
+    }
+
+    .encryption-notice {
+        color: var(--color-font-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin: 0 0 1rem 0;
+        padding: 0 0.5rem;
     }
 
     .empty-state {
