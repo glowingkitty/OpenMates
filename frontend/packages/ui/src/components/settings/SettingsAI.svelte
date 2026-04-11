@@ -3,12 +3,12 @@
      and settings & memories that previously lived under the AI app in the
      app store. Replaces the old "Chat" settings sidebar entry.
 
-     Sections (order matches Figma design):
+     Sections:
      1. Pricing
      2. Default models
      3. Settings & Memories
-     4. Available providers (server provider toggles)
-     5. Available models
+     4. Available models
+     5. Available providers (server provider toggles)
 -->
 
 <script lang="ts">
@@ -19,6 +19,7 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { providersMetadata } from '../../data/providersMetadata';
+    import { simplifyProviderName } from '../../utils/providerDisplay';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import { notificationStore } from '../../stores/notificationStore';
@@ -269,7 +270,7 @@
                 const providerMeta = providersMetadata[server.id];
                 providers.push({
                     id: server.id,
-                    name: server.name,
+                    name: simplifyProviderName(server.name),
                     region: server.region,
                     logoSvg: providerMeta?.logo_svg ?? '',
                 });
@@ -297,6 +298,15 @@
             ? [...disabledProviders, providerId]
             : disabledProviders.filter(id => id !== providerId);
         updateProfile({ disabled_ai_providers: newDisabled });
+    }
+
+    function handleProviderClick(provider: ServerProvider) {
+        dispatch('openSettings', {
+            settingsPath: `ai/provider/${provider.id}`,
+            direction: 'forward',
+            icon: 'ai',
+            title: provider.name
+        });
     }
 
     /** Display-friendly region label */
@@ -452,57 +462,8 @@
         </div>
     {/if}
 
-    <!-- 4. Available providers section - visible to all, toggles only for authenticated -->
-    {#if serverProviders.length > 0}
-        <div class="section">
-            <SettingsSectionHeading title={$text('settings.ai.available_providers')} icon="server" />
-            <p class="providers-description">{$text('settings.ai.available_providers_description')}</p>
-
-            <div class="providers-list">
-                {#each serverProviders as provider (provider.id)}
-                    {@const enabled = isProviderEnabled(provider.id)}
-                    <div class="provider-item" data-testid="provider-item">
-                        <div class="provider-icon">
-                            {#if provider.logoSvg}
-                                <img
-                                    src={getProviderIconUrl(provider.logoSvg)}
-                                    alt={provider.name}
-                                    class="provider-logo"
-                                />
-                            {:else}
-                                <div class="provider-logo-placeholder">
-                                    <Icon name="server" type="subsetting" size="24px" noAnimation={true} />
-                                </div>
-                            {/if}
-                        </div>
-                        <div class="provider-info">
-                            <span class="provider-name">{provider.name}</span>
-                            <span class="provider-region">{getRegionLabel(provider.region)}</span>
-                        </div>
-                        {#if isAuthenticated}
-                            <div
-                                class="provider-toggle"
-                                data-testid="provider-toggle"
-                                onclick={() => handleProviderToggle(provider.id)}
-                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleProviderToggle(provider.id); } }}
-                                role="button"
-                                tabindex="0"
-                            >
-                                <div style="pointer-events: none;">
-                                    <Toggle
-                                        checked={enabled}
-                                        ariaLabel={`${enabled ? 'Disable' : 'Enable'} ${provider.name}`}
-                                    />
-                                </div>
-                            </div>
-                        {/if}
-                    </div>
-                {/each}
-            </div>
-        </div>
-    {/if}
-
-    <!-- 5. Available models section -->
+    <!-- 4. Available models section (ordered above providers because users
+         care more about model selection than the underlying server). -->
     <div class="section">
         <SettingsSectionHeading title={$text('settings.ai_ask.ai_ask_settings.available_models')} icon="ai" />
         <p class="models-description">{$text('settings.ai_ask.ai_ask_settings.models_description')}</p>
@@ -537,7 +498,7 @@
                     </div>
                     <div class="model-info">
                         <span class="model-name" data-testid="model-name">{model.name}</span>
-                        <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', model.provider_name)}</span>
+                        <span class="model-provider">{$text('enter_message.mention_dropdown.from_provider').replace('{provider}', simplifyProviderName(model.provider_name))}</span>
                     </div>
                     {#if isAuthenticated}
                         <div
@@ -566,6 +527,63 @@
             {/if}
         </div>
     </div>
+
+    <!-- 5. Available providers section - visible to all, toggles only for authenticated -->
+    {#if serverProviders.length > 0}
+        <div class="section">
+            <SettingsSectionHeading title={$text('settings.ai.available_providers')} icon="server" />
+            <p class="providers-description">{$text('settings.ai.available_providers_description')}</p>
+
+            <div class="providers-list">
+                {#each serverProviders as provider (provider.id)}
+                    {@const enabled = isProviderEnabled(provider.id)}
+                    <div
+                        class="provider-item"
+                        data-testid="provider-item"
+                        role="button"
+                        tabindex="0"
+                        onclick={() => handleProviderClick(provider)}
+                        onkeydown={(e) => e.key === 'Enter' && handleProviderClick(provider)}
+                    >
+                        <div class="provider-icon">
+                            {#if provider.logoSvg}
+                                <img
+                                    src={getProviderIconUrl(provider.logoSvg)}
+                                    alt={provider.name}
+                                    class="provider-logo"
+                                />
+                            {:else}
+                                <div class="provider-logo-placeholder">
+                                    <Icon name="server" type="subsetting" size="24px" noAnimation={true} />
+                                </div>
+                            {/if}
+                        </div>
+                        <div class="provider-info">
+                            <span class="provider-name" data-testid="provider-name">{provider.name}</span>
+                            <span class="provider-region">{getRegionLabel(provider.region)}</span>
+                        </div>
+                        {#if isAuthenticated}
+                            <div
+                                class="provider-toggle"
+                                data-testid="provider-toggle"
+                                onclick={(e) => { e.stopPropagation(); handleProviderToggle(provider.id); }}
+                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); handleProviderToggle(provider.id); } }}
+                                role="button"
+                                tabindex="0"
+                            >
+                                <div style="pointer-events: none;">
+                                    <Toggle
+                                        checked={enabled}
+                                        ariaLabel={`${enabled ? 'Disable' : 'Enable'} ${provider.name}`}
+                                    />
+                                </div>
+                            </div>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -847,6 +865,16 @@
         gap: var(--spacing-6);
         padding: var(--spacing-6) var(--spacing-8);
         border-radius: var(--radius-3);
+        cursor: pointer;
+        transition: background var(--duration-fast);
+    }
+
+    .provider-item:hover {
+        background: var(--color-grey-10);
+    }
+
+    :global(.dark) .provider-item:hover {
+        background: var(--color-grey-15);
     }
 
     .provider-icon {

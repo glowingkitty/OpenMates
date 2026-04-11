@@ -78,6 +78,56 @@ available_providers:
   he: ספקים זמינים
   verified_by_human: []
 
+provider_models_heading:
+  context: Heading on the AI provider detail page listing models available on that provider. '{provider}' is replaced with the provider name.
+  en: Models available on {provider}
+  de: Auf {provider} verfügbare Modelle
+  zh: "{provider} 上可用的模型"
+  es: Modelos disponibles en {provider}
+  fr: Modèles disponibles sur {provider}
+  pt: Modelos disponíveis em {provider}
+  ru: Модели, доступные на {provider}
+  ja: "{provider} で利用可能なモデル"
+  ko: "{provider}에서 사용 가능한 모델"
+  it: Modelli disponibili su {provider}
+  tr: "{provider} üzerinde mevcut modeller"
+  vi: Các mô hình có sẵn trên {provider}
+  id: Model yang tersedia di {provider}
+  pl: Modele dostępne u {provider}
+  nl: Modellen beschikbaar op {provider}
+  ar: النماذج المتاحة على {provider}
+  hi: "{provider} पर उपलब्ध मॉडल"
+  th: "โมเดลที่พร้อมใช้งานบน {provider}"
+  cs: Modely dostupné u {provider}
+  sv: Modeller tillgängliga på {provider}
+  he: "מודלים הזמינים ב-{provider}"
+  verified_by_human: []
+
+provider_models_description:
+  context: Description on the AI provider detail page explaining that the listed models are informational. '{provider}' is replaced with the provider name.
+  en: These AI models are hosted by {provider}. This is an informational list — to enable, disable, or configure a model, open it from the Available models section.
+  de: Diese KI-Modelle werden von {provider} gehostet. Dies ist eine informative Liste — um ein Modell zu aktivieren, zu deaktivieren oder zu konfigurieren, öffnen Sie es im Abschnitt Verfügbare Modelle.
+  zh: 这些 AI 模型由 {provider} 托管。这是一份信息列表 — 若要启用、停用或配置模型，请在“可用模型”部分中打开它。
+  es: Estos modelos de IA están alojados por {provider}. Esta es una lista informativa — para habilitar, deshabilitar o configurar un modelo, ábrelo desde la sección Modelos disponibles.
+  fr: Ces modèles d'IA sont hébergés par {provider}. Il s'agit d'une liste informative — pour activer, désactiver ou configurer un modèle, ouvrez-le depuis la section Modèles disponibles.
+  pt: Esses modelos de IA são hospedados por {provider}. Esta é uma lista informativa — para habilitar, desabilitar ou configurar um modelo, abra-o na seção Modelos disponíveis.
+  ru: Эти модели ИИ размещены у {provider}. Это информационный список — чтобы включить, отключить или настроить модель, откройте её в разделе «Доступные модели».
+  ja: "これらの AI モデルは {provider} によってホストされています。これは情報リストです。モデルを有効化、無効化、または構成するには、「利用可能なモデル」セクションから開いてください。"
+  ko: "이 AI 모델은 {provider}에서 호스팅됩니다. 이는 정보 목록입니다. 모델을 활성화, 비활성화 또는 구성하려면 사용 가능한 모델 섹션에서 여세요."
+  it: Questi modelli di IA sono ospitati da {provider}. Questo è un elenco informativo — per abilitare, disabilitare o configurare un modello, aprilo dalla sezione Modelli disponibili.
+  tr: "Bu yapay zeka modelleri {provider} tarafından barındırılmaktadır. Bu bilgilendirme amaçlı bir listedir — bir modeli etkinleştirmek, devre dışı bırakmak veya yapılandırmak için Mevcut modeller bölümünden açın."
+  vi: "Các mô hình AI này được lưu trữ bởi {provider}. Đây là danh sách thông tin — để bật, tắt hoặc cấu hình mô hình, hãy mở nó từ mục Mô hình khả dụng."
+  id: Model AI ini dihosting oleh {provider}. Ini adalah daftar informasi — untuk mengaktifkan, menonaktifkan, atau mengonfigurasi model, buka dari bagian Model yang tersedia.
+  pl: "Te modele AI są hostowane przez {provider}. To lista informacyjna — aby włączyć, wyłączyć lub skonfigurować model, otwórz go w sekcji Dostępne modele."
+  nl: Deze AI-modellen worden gehost door {provider}. Dit is een informatieve lijst — om een model in te schakelen, uit te schakelen of te configureren, open het vanuit de sectie Beschikbare modellen.
+  ar: "تتم استضافة نماذج الذكاء الاصطناعي هذه بواسطة {provider}. هذه قائمة إعلامية — لتفعيل أو تعطيل أو تكوين نموذج، افتحه من قسم النماذج المتاحة."
+  hi: "ये AI मॉडल {provider} द्वारा होस्ट किए गए हैं। यह एक सूचनात्मक सूची है — किसी मॉडल को सक्षम, अक्षम या कॉन्फ़िगर करने के लिए, उसे उपलब्ध मॉडल अनुभाग से खोलें।"
+  th: "โมเดล AI เหล่านี้โฮสต์โดย {provider} นี่คือรายการข้อมูล — หากต้องการเปิด ปิด หรือกำหนดค่าโมเดล ให้เปิดจากส่วนโมเดลที่พร้อมใช้งาน"
+  cs: "Tyto modely AI jsou hostovány u {provider}. Toto je informativní seznam — k povolení, zakázání nebo nastavení modelu jej otevřete v sekci Dostupné modely."
+  sv: "Dessa AI-modeller hostas av {provider}. Detta är en informativ lista — för att aktivera, inaktivera eller konfigurera en modell, öppna den från avsnittet Tillgängliga modeller."
+  he: "מודלים אלה של בינה מלאכותית מתארחים על-ידי {provider}. זוהי רשימה להודעה בלבד — כדי להפעיל, לבטל או להגדיר מודל, פתחו אותו מתוך הקטע מודלים זמינים."
+  verified_by_human: []
+
 available_providers_description:
   context: Description text under Available providers heading explaining server selection
   en: Here you can limit which server providers you want to allow to process your requests. Keep in mind, this can reduce the selection of available models and impact your response quality. EU servers are selected by default if available for a model.

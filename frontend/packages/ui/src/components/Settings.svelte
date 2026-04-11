@@ -64,6 +64,7 @@ changes to the documentation (to keep the documentation up to date).
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper } from './settings/settingsRoutes';
     import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
+    import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
@@ -233,6 +234,8 @@ changes to the documentation (to keep the documentation up to date).
         for (const route of dynamicEntryRoutes) {
             if (/^ai\/model\//.test(route)) {
                 views[route] = AiModelDetailsWrapper;
+            } else if (/^ai\/provider\//.test(route)) {
+                views[route] = AiProviderDetailsWrapper;
             } else {
                 views[route] = AppDetailsWrapper;
             }
@@ -583,6 +586,14 @@ changes to the documentation (to keep the documentation up to date).
             if (!$authStore.isAuthenticated && pathString === 'shared') {
                 continue; // Skip the 'shared' segment for non-authenticated users
             }
+
+            // Skip the synthetic 'ai/model' and 'ai/provider' container segments.
+            // Their actual route parent is 'ai', and the final segment is the
+            // model/provider id — the intermediate 'model'/'provider' is a
+            // route namespace, not a navigable page.
+            if (pathString === 'ai/model' || pathString === 'ai/provider') {
+                continue;
+            }
             
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
@@ -739,15 +750,17 @@ changes to the documentation (to keep the documentation up to date).
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
     
     // True when the header should show a provider icon (model or provider detail pages)
+    // NOTE: Top-level AI settings model/provider detail pages (`ai/model/*`,
+    // `ai/provider/*`) intentionally fall through to `isStandardSubPage` so they
+    // render the standard settings-banner-shell (same gradient header as Privacy,
+    // Billing, etc.). Back navigation for those routes is handled in backToMainView.
     let isModelDetailPage = $derived(
         // app_store model/provider detail pages
         (activeSettingsView.startsWith('app_store/') &&
         (
             /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView) ||
             /^app_store\/[^/]+\/skill\/[^/]+\/provider\/[^/]+$/.test(activeSettingsView)
-        )) ||
-        // Top-level AI settings model detail pages (ai/model/{modelId})
-        /^ai\/model\/[^/]+$/.test(activeSettingsView)
+        ))
     );
 
     // True when the header should show a mate profile image (mate detail pages)
@@ -847,6 +860,9 @@ changes to the documentation (to keep the documentation up to date).
      */
     let activeSubMenuDescription = $derived.by(() => {
         if (!isStandardSubPage) return '';
+        // AI model/provider detail pages show the model/provider name as the
+        // banner title — no inherited description from the parent AI section.
+        if (/^ai\/(model|provider)\//.test(activeSettingsView)) return '';
         // Use the top-level path segment for description lookup
         const topSegment = activeSettingsView.split('/')[0];
         const key = settingsPageDescriptionKeys[topSegment];
@@ -1246,6 +1262,14 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
+        // Check if this is a top-level AI server-provider detail route
+        // Pattern: ai/provider/{provider_id} (from SettingsAI page)
+        const aiProviderDetailPattern = /^ai\/provider\/[^/]+$/;
+        if (aiProviderDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         // Check if this is a dynamic reminder entry route that needs to be registered
         // Pattern: app_store/reminder/entry/{reminder_id}[/edit]
         const reminderEntryPattern = /^app_store\/reminder\/entry\/[^/]+(\/edit)?$/;
@@ -1363,13 +1387,25 @@ changes to the documentation (to keep the documentation up to date).
             }
         } else if (/^ai\/model\/[^/]+$/.test(settingsPath)) {
             // Top-level AI model detail route: ai/model/{modelId}
-            // Show provider icon and model name in header (same as app_store model detail)
+            // Rendered inside the standard settings-banner-shell so the icon is
+            // the AI icon and the title is the model name.
             const aiModelId = settingsPath.replace('ai/model/', '');
             const modelMeta = modelsMetadata.find(m => m.id === aiModelId);
             activeSubMenuIcon = 'ai';
-            activeSubMenuProviderIconSvg = modelMeta?.logo_svg ?? '';
+            activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
             activeSubMenuTitleRaw = detail.title ?? (modelMeta?.name ?? aiModelId);
+        } else if (/^ai\/provider\/[^/]+$/.test(settingsPath)) {
+            // Top-level AI server-provider detail route: ai/provider/{providerId}
+            // Rendered inside the standard settings-banner-shell (AI icon + provider name).
+            const aiProviderId = settingsPath.replace('ai/provider/', '');
+            const providerMeta = providersMetadata[aiProviderId];
+            activeSubMenuIcon = 'ai';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            // Prefer the title passed in from SettingsAI (already simplified) over
+            // raw providersMetadata which has a different name for some ids.
+            activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? aiProviderId);
         } else if (settingsPath.startsWith('mates/') && settingsPath !== 'mates') {
             // Mate detail route: mates/{mateId}
             // Show the mate's profile image (via mate-profile CSS class) and the mate's name.
@@ -1561,6 +1597,12 @@ changes to the documentation (to keep the documentation up to date).
                         previousPathSegments = navigationPath.slice(0, -1);
                     }
                 }
+            } else if (/^ai\/(model|provider)\/[^/]+$/.test(currentPath)) {
+                // AI model/provider detail pages — back always returns to
+                // the top-level AI settings page, not an intermediate 'ai/model'
+                // or 'ai/provider' path (which don't exist as navigable views).
+                previousPath = 'ai';
+                previousPathSegments = ['ai'];
             } else if (navigationPath.join('/') === 'incognito/info') {
                 // 'incognito/info' is the only incognito route — there is no bare 'incognito' route.
                 // Pressing back should return to the main settings page, not try to navigate to
@@ -2597,7 +2639,7 @@ changes to the documentation (to keep the documentation up to date).
          Displays the user's avatar + username and a clickable credits count.
          Placed outside the content-wrapper so sticky positioning works correctly. -->
     {#if activeSettingsView === 'main'}
-        <div class="settings-banner-shell">
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
             {#if headerChatDecorIcons.length > 0}
                 <div
                     class="header-chat-icons-layer on-banner"
@@ -2637,7 +2679,7 @@ changes to the documentation (to keep the documentation up to date).
          Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
          sticky positioning works here because this element is a direct flex child of .settings-menu. -->
     {#if isAnyAppBannerPage && currentAppMetadata}
-        <div class="settings-banner-shell">
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
             <AppDetailsHeader
                 appId={currentAppId}
                 app={currentAppMetadata}
@@ -2661,7 +2703,7 @@ changes to the documentation (to keep the documentation up to date).
          Uses the openmates gradient with the page icon and title.
          Placed outside the content-wrapper for the same sticky-positioning reason. -->
     {#if isStandardSubPage}
-        <div class="settings-banner-shell">
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
             <AppDetailsHeader
                 scrollTop={contentScrollTop}
                 breadcrumbLabel={breadcrumbLabel}
