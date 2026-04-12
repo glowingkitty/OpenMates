@@ -33,7 +33,7 @@
   Dimensions:
     - Desktop: 50vh height (min 240px), 14px border-radius
     - Mobile (≤730px): 50vh height (min 190px)
-    - When settings panel is open: reverts to fixed 240px / 190px
+    - When settings panel is open or embed fullscreen is side-by-side: reverts to fixed 240px / 190px
 
   Props:
     title          - decrypted/plaintext chat title
@@ -437,6 +437,13 @@
   }
 
   .chat-header-banner.settings-open {
+    height: 240px;
+    min-height: unset;
+  }
+
+  /* When an embed fullscreen is open side-by-side with chat, revert to fixed height
+     so the chat header matches the embed header height */
+  :global(.side-by-side-active) .chat-header-banner {
     height: 240px;
     min-height: unset;
   }
@@ -865,6 +872,11 @@
     }
 
     .chat-header-banner.settings-open {
+      height: 190px;
+      min-height: unset;
+    }
+
+    :global(.side-by-side-active) .chat-header-banner {
       height: 190px;
       min-height: unset;
     }
