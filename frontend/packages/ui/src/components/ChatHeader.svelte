@@ -49,7 +49,6 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
-  import { isSettingsOpen } from '../stores/panelStateStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -293,7 +292,6 @@
 <div
   class="chat-header-banner"
   class:is-loaded={isLoaded}
-  class:settings-open={$isSettingsOpen}
   style={bannerStyle}
 >
   <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
@@ -436,13 +434,11 @@
     user-select: none;
   }
 
-  .chat-header-banner.settings-open {
-    height: 240px;
-    min-height: unset;
-  }
-
-  /* When an embed fullscreen is open side-by-side with chat, revert to fixed height
-     so the chat header matches the embed header height */
+  /* When settings panel is open or embed fullscreen is side-by-side, revert to
+     fixed height so the chat header matches the settings/embed header height.
+     .menu-open is set on .chat-container by +page.svelte when settings is open.
+     .side-by-side-active is set on .active-chat-container by ActiveChat.svelte. */
+  :global(.menu-open) .chat-header-banner,
   :global(.side-by-side-active) .chat-header-banner {
     height: 240px;
     min-height: unset;
@@ -871,11 +867,7 @@
       min-height: 190px;
     }
 
-    .chat-header-banner.settings-open {
-      height: 190px;
-      min-height: unset;
-    }
-
+    :global(.menu-open) .chat-header-banner,
     :global(.side-by-side-active) .chat-header-banner {
       height: 190px;
       min-height: unset;
