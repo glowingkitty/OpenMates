@@ -114,6 +114,10 @@ jobs:
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.PROD_SMOKE_EMAIL_DOMAIN }}
           MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
           MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
           PROD_SMOKE_GIFT_CARD_CODE: ${{ secrets.PROD_SMOKE_GIFT_CARD_CODE }}
 
       # ─── Build failure summary for notification ──────────────────────────

@@ -34,9 +34,8 @@ const {
 	createStepScreenshotter,
 	setToggleChecked,
 	getSignupTestDomain,
-	getMailosaurServerId,
-	createMailosaurClient,
-	checkMailosaurQuota,
+	createEmailClient,
+	checkEmailQuota,
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
@@ -58,13 +57,10 @@ const {
  * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of the existing test account.
  * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
  * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
- * - MAILOSAUR_API_KEY: Mailosaur API key for test mailbox access.
- * - SIGNUP_TEST_EMAIL_DOMAINS: Used to derive Mailosaur server ID.
- * - MAILOSAUR_SERVER_ID: (optional) Mailosaur server ID if not derivable.
+ * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
+ * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
  */
 
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
-const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
 
@@ -107,11 +103,13 @@ test('completes full account recovery flow with same password', async ({
 	// Validate required environment variables
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
-	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required for email validation.');
-	if (MAILOSAUR_API_KEY) {
-		const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
-		test.skip(!quota.available, `Mailosaur daily email quota reached (${quota.current}/${quota.limit}).`);
-	}
+
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+	const quota = await checkEmailQuota();
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
+
 	test.skip(!OPENMATES_TEST_ACCOUNT_EMAIL, 'OPENMATES_TEST_ACCOUNT_EMAIL is required.');
 	test.skip(!OPENMATES_TEST_ACCOUNT_PASSWORD, 'OPENMATES_TEST_ACCOUNT_PASSWORD is required.');
 
@@ -119,17 +117,7 @@ test('completes full account recovery flow with same password', async ({
 		throw new Error('Missing signup test domain after skip guard.');
 	}
 
-	const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
-	if (!mailosaurServerId) {
-		throw new Error(
-			'MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.'
-		);
-	}
-
-	const { waitForMailosaurMessage, extractSixDigitCode } = createMailosaurClient({
-		apiKey: MAILOSAUR_API_KEY,
-		serverId: mailosaurServerId
-	});
+	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
 
 	// Grant clipboard permissions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);

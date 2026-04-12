@@ -16,7 +16,7 @@ export {};
  *   OPENMATES_TEST_ACCOUNT_EMAIL    — must be a Mailosaur address
  *   OPENMATES_TEST_ACCOUNT_PASSWORD
  *   OPENMATES_TEST_ACCOUNT_OTP_KEY
- *   MAILOSAUR_API_KEY
+ *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN (preferred) or MAILOSAUR_API_KEY (fallback)
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -26,16 +26,13 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	generateTotp,
-	checkMailosaurQuota,
-	createMailosaurClient,
-	getMailosaurServerId,
+	createEmailClient,
+	checkEmailQuota,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
-const MAILOSAUR_SERVER_ID_ENV = process.env.MAILOSAUR_SERVER_ID;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -170,29 +167,18 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	test.setTimeout(600000); // 10 min
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
-	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required.');
 
-	// Check Mailosaur daily quota before proceeding — skip cleanly if exhausted.
-	if (MAILOSAUR_API_KEY) {
-		const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
-		test.skip(!quota.available, `Mailosaur daily email quota reached (${quota.current}/${quota.limit}).`);
-	}
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
 
-	const mailosaurServerId = getMailosaurServerId(TEST_EMAIL ?? '', MAILOSAUR_SERVER_ID_ENV);
-	if (!mailosaurServerId) {
-		throw new Error(
-			'Cannot derive Mailosaur server ID. Set MAILOSAUR_SERVER_ID or use a Mailosaur email for OPENMATES_TEST_ACCOUNT_EMAIL.'
-		);
-	}
+	const quota = await checkEmailQuota();
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
 	const log = createSignupLogger('REMINDER_EMAIL');
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	const { deleteAllMessages, waitForMailosaurMessage } = createMailosaurClient({
-		apiKey: MAILOSAUR_API_KEY,
-		serverId: mailosaurServerId
-	});
+	const { deleteAllMessages, waitForMailosaurMessage } = emailClient!;
 
 	await loginTestAccount(page, log);
 	await screenshot(page, 'logged-in');
@@ -201,11 +187,10 @@ test('reminder — email: reminder email arrives after browser is closed', async
 	await enableEmailNotifications(page, log, screenshot);
 	await page.waitForTimeout(1000);
 
-	// Clear Mailosaur inbox before sending the reminder so no stale emails from
-	// previous runs interfere with the poll. The Mailosaur search API's
-	// receivedAfter field is unreliable for archived messages.
+	// Clear inbox before sending the reminder so no stale emails from
+	// previous runs interfere with the poll.
 	await deleteAllMessages();
-	log('Mailosaur inbox cleared.');
+	log('Email inbox cleared.');
 
 	// Open a fresh chat
 	const newChatBtn = page.getByTestId('new-chat-button');

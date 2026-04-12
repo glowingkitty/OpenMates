@@ -17,6 +17,8 @@ const nodeCrypto = require('crypto');
 const ARTIFACTS_DIRNAME = 'artifacts';
 const PREVIOUS_RUN_DIRNAME = 'previous_run';
 const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
+const GMAIL_API_BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me';
+const GMAIL_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 // ─── Step log — shared state for checkpoint + screenshot interleaving ────────
 // Both createSignupLogger and createStepScreenshotter write to this log so the
@@ -329,8 +331,13 @@ function getMailosaurServerId(signupDomain: string, configuredServerId?: string)
 }
 
 /**
- * Build a time-based email local-part in the requested format: {MMM}{DD}{HH}{MM}.
- * Example: jan151333@testdomain.org.
+ * Build a time-based signup email address.
+ *
+ * For Mailosaur domains: generates jan151333@ae20drx9.mailosaur.net
+ * For Gmail (GMAIL_TEST_ADDRESS set): generates openmates-e2e+jan151333@gmail.com
+ *
+ * The Gmail +alias format routes all test emails to one inbox while keeping
+ * each signup address unique for the backend domain allowlist.
  */
 function buildSignupEmail(domain: string): string {
 	const now = new Date();
@@ -353,8 +360,16 @@ function buildSignupEmail(domain: string): string {
 	const day = String(now.getDate()).padStart(2, '0');
 	const hour = String(now.getHours()).padStart(2, '0');
 	const minute = String(now.getMinutes()).padStart(2, '0');
+	const timePart = `${month}${day}${hour}${minute}`;
 
-	return `${month}${day}${hour}${minute}@${domain}`;
+	// Gmail +alias mode: openmates-e2e+jan151333@gmail.com
+	const gmailTestAddress = process.env.GMAIL_TEST_ADDRESS;
+	if (gmailTestAddress && gmailTestAddress.includes('@')) {
+		const [localPart, gmailDomain] = gmailTestAddress.split('@');
+		return `${localPart}+${timePart}@${gmailDomain}`;
+	}
+
+	return `${timePart}@${domain}`;
 }
 
 /**
@@ -702,6 +717,361 @@ function createMailosaurClient({
 }
 
 /**
+ * Gmail API email client — drop-in replacement for createMailosaurClient.
+ * Uses OAuth2 refresh tokens to authenticate against the Gmail REST API.
+ * No npm dependencies — pure fetch() calls.
+ *
+ * Gmail uses +alias addressing: emails sent to "account+anything@gmail.com"
+ * arrive in the same inbox. We use the `to:` query to filter by recipient.
+ */
+function createGmailClient({
+	clientId,
+	clientSecret,
+	refreshToken
+}: {
+	clientId: string;
+	clientSecret: string;
+	refreshToken: string;
+}) {
+	if (!clientId || !clientSecret || !refreshToken) {
+		throw new Error('Gmail client requires GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.');
+	}
+
+	let cachedAccessToken: string | null = null;
+	let tokenExpiresAt = 0;
+
+	/**
+	 * Get a valid access token, refreshing if expired or missing.
+	 */
+	async function getAccessToken(): Promise<string> {
+		if (cachedAccessToken && Date.now() < tokenExpiresAt) {
+			return cachedAccessToken;
+		}
+
+		const response = await fetch(GMAIL_TOKEN_URL, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({
+				client_id: clientId,
+				client_secret: clientSecret,
+				refresh_token: refreshToken,
+				grant_type: 'refresh_token'
+			})
+		});
+
+		if (!response.ok) {
+			const errorBody = await response.text();
+			throw new Error(`Gmail token refresh failed (${response.status}): ${errorBody}`);
+		}
+
+		const data = await response.json();
+		cachedAccessToken = data.access_token;
+		// Expire 60s early to avoid edge cases
+		tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
+		return cachedAccessToken!;
+	}
+
+	/**
+	 * Call the Gmail REST API with automatic auth.
+	 */
+	async function gmailFetch(
+		path: string,
+		options: { method?: string; headers?: Record<string, string> } = {}
+	): Promise<any> {
+		const token = await getAccessToken();
+		const response = await fetch(`${GMAIL_API_BASE_URL}${path}`, {
+			method: options.method || 'GET',
+			headers: {
+				Authorization: `Bearer ${token}`,
+				...options.headers
+			}
+		});
+
+		if (!response.ok) {
+			const errorBody = await response.text();
+			throw new Error(`Gmail API error (${response.status}): ${errorBody}`);
+		}
+
+		return response.json();
+	}
+
+	/**
+	 * Gmail message shape (minimal fields used in tests).
+	 * Matches the MailosaurMessage interface for compatibility.
+	 */
+	interface GmailMessage {
+		id?: string;
+		_id?: string;
+		subject?: string;
+		text?: { body?: string };
+		html?: { body?: string };
+	}
+
+	/**
+	 * Parse a Gmail API message payload into our normalized shape.
+	 * Gmail returns messages in a nested parts structure with base64url-encoded bodies.
+	 */
+	function parseGmailMessage(raw: any): GmailMessage {
+		const headers: any[] = raw.payload?.headers || [];
+		const subject = headers.find((h: any) => h.name.toLowerCase() === 'subject')?.value || '';
+
+		let textBody = '';
+		let htmlBody = '';
+
+		function extractParts(part: any): void {
+			if (!part) return;
+			const mimeType = part.mimeType || '';
+			const bodyData = part.body?.data;
+
+			if (bodyData) {
+				const decoded = Buffer.from(bodyData, 'base64url').toString('utf-8');
+				if (mimeType === 'text/plain') textBody = decoded;
+				if (mimeType === 'text/html') htmlBody = decoded;
+			}
+
+			if (part.parts) {
+				for (const subPart of part.parts) {
+					extractParts(subPart);
+				}
+			}
+		}
+
+		extractParts(raw.payload);
+
+		return {
+			id: raw.id,
+			subject,
+			text: { body: textBody },
+			html: { body: htmlBody }
+		};
+	}
+
+	/**
+	 * No-op for Gmail — we use gmail.readonly scope so can't delete.
+	 * Stale messages are filtered out by the `after:<epoch>` query parameter
+	 * in waitForMailosaurMessage, so inbox cleanup is not needed.
+	 */
+	async function deleteAllMessages(): Promise<void> {
+		console.log('[Gmail] deleteAllMessages is a no-op (using after: filter instead).');
+	}
+
+	/**
+	 * Poll Gmail for a message matching a recipient and optional subject.
+	 * Uses the Gmail search query syntax: `to:<email> subject:<text> after:<epoch>`.
+	 *
+	 * Drop-in replacement for waitForMailosaurMessage — same parameters and behavior.
+	 */
+	async function waitForMailosaurMessage({
+		sentTo,
+		subjectContains,
+		receivedAfter,
+		timeoutMs = 120000,
+		pollIntervalMs = 5000
+	}: {
+		sentTo: string;
+		subjectContains?: string;
+		receivedAfter: string;
+		timeoutMs?: number;
+		pollIntervalMs?: number;
+	}): Promise<GmailMessage> {
+		const deadline = Date.now() + timeoutMs;
+		const afterEpoch = Math.floor(new Date(receivedAfter).getTime() / 1000);
+
+		// Build Gmail search query
+		let query = `to:${sentTo} after:${afterEpoch}`;
+		if (subjectContains) {
+			query += ` subject:${subjectContains}`;
+		}
+
+		while (Date.now() < deadline) {
+			const elapsed = Math.round((Date.now() - (deadline - timeoutMs)) / 1000);
+			try {
+				const encodedQuery = encodeURIComponent(query);
+				const listData = await gmailFetch(`/messages?q=${encodedQuery}&maxResults=5`);
+				const messages: any[] = listData.messages || [];
+
+				console.log(`[Gmail] ${elapsed}s: query="${query}" returned ${messages.length} result(s)`);
+
+				if (messages.length > 0) {
+					// Fetch full message content
+					const fullMessage = await gmailFetch(`/messages/${messages[0].id}?format=full`);
+					const parsed = parseGmailMessage(fullMessage);
+					console.log(`[Gmail] Found matching message: "${parsed.subject}"`);
+					return parsed;
+				}
+			} catch (err: any) {
+				console.log(`[Gmail] ${elapsed}s: poll error: ${err.message}`);
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+		}
+
+		throw new Error(`Timed out waiting for Gmail message sent to ${sentTo}`);
+	}
+
+	/**
+	 * Extract the first 6-digit code from a message body or subject.
+	 */
+	function extractSixDigitCode(message: GmailMessage): string | null {
+		const candidateText = [
+			message.subject || '',
+			message.text?.body || '',
+			message.html?.body || ''
+		].join(' ');
+
+		const match = candidateText.match(/\b(\d{6})\b/);
+		return match ? match[1] : null;
+	}
+
+	/**
+	 * Extract all clickable links from a message payload.
+	 */
+	function extractMessageLinks(message: GmailMessage): string[] {
+		const htmlBody = message.html?.body || '';
+		const textBody = message.text?.body || '';
+		const links: string[] = [];
+
+		const hrefRegex = /href=["']([^"']+)["']/gi;
+		let hrefMatch = hrefRegex.exec(htmlBody);
+		while (hrefMatch) {
+			links.push(hrefMatch[1]);
+			hrefMatch = hrefRegex.exec(htmlBody);
+		}
+
+		const urlRegex = /https?:\/\/[^\s"'<>]+/gi;
+		const textMatches = textBody.match(urlRegex) || [];
+		const htmlMatches = htmlBody.match(urlRegex) || [];
+		links.push(...textMatches, ...htmlMatches);
+
+		return Array.from(new Set(links));
+	}
+
+	/**
+	 * Extract a refund link from a purchase confirmation email.
+	 */
+	function extractRefundLink(message: GmailMessage): string | null {
+		const links = extractMessageLinks(message);
+		const htmlBody = message.html?.body || '';
+		const textBody = message.text?.body || '';
+		const refundKeyword = /refund/i;
+
+		const refundLink = links.find((link) => refundKeyword.test(link));
+		if (refundLink) return refundLink;
+
+		for (const link of links) {
+			const linkIndex = textBody.indexOf(link);
+			if (linkIndex === -1) continue;
+			const contextStart = Math.max(0, linkIndex - 120);
+			const contextEnd = Math.min(textBody.length, linkIndex + link.length + 120);
+			const contextSlice = textBody.slice(contextStart, contextEnd);
+			if (refundKeyword.test(contextSlice)) return link;
+		}
+
+		const anchorRegex = /<a [^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis;
+		let anchorMatch = anchorRegex.exec(htmlBody);
+		while (anchorMatch) {
+			const anchorText = anchorMatch[2].replace(/<[^>]*>/g, ' ');
+			const anchorIndex = anchorMatch.index;
+			const htmlContext = htmlBody.slice(
+				Math.max(0, anchorIndex - 120),
+				Math.min(htmlBody.length, anchorIndex + anchorMatch[0].length + 120)
+			);
+			if (refundKeyword.test(anchorText) || refundKeyword.test(htmlContext)) {
+				return anchorMatch[1];
+			}
+			anchorMatch = anchorRegex.exec(htmlBody);
+		}
+
+		const invoiceLink = links.find(
+			(link) =>
+				/#settings\/billing\/invoices\//i.test(link) ||
+				/\/settings\/billing\/invoices\//i.test(link)
+		);
+		return invoiceLink || null;
+	}
+
+	return {
+		gmailFetch,
+		deleteAllMessages,
+		waitForMailosaurMessage,
+		extractSixDigitCode,
+		extractMessageLinks,
+		extractRefundLink
+	};
+}
+
+/**
+ * Unified email client factory — picks Gmail or Mailosaur based on available env vars.
+ * Gmail is preferred when GMAIL_REFRESH_TOKEN is set. Falls back to Mailosaur.
+ *
+ * Returns the same interface regardless of backend:
+ *   { deleteAllMessages, waitForMailosaurMessage, extractSixDigitCode, extractMessageLinks, extractRefundLink }
+ */
+function createEmailClient(): {
+	provider: 'gmail' | 'mailosaur';
+	deleteAllMessages: () => Promise<void>;
+	waitForMailosaurMessage: (opts: {
+		sentTo: string;
+		subjectContains?: string;
+		receivedAfter: string;
+		timeoutMs?: number;
+		pollIntervalMs?: number;
+	}) => Promise<any>;
+	extractSixDigitCode: (message: any) => string | null;
+	extractMessageLinks: (message: any) => string[];
+	extractRefundLink: (message: any) => string | null;
+} | null {
+	const gmailClientId = process.env.GMAIL_CLIENT_ID;
+	const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
+	const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
+
+	if (gmailClientId && gmailClientSecret && gmailRefreshToken) {
+		const client = createGmailClient({
+			clientId: gmailClientId,
+			clientSecret: gmailClientSecret,
+			refreshToken: gmailRefreshToken
+		});
+		return { provider: 'gmail', ...client };
+	}
+
+	const mailosaurApiKey = process.env.MAILOSAUR_API_KEY;
+	const mailosaurServerId = process.env.MAILOSAUR_SERVER_ID;
+	const signupDomain = getSignupTestDomain(process.env.SIGNUP_TEST_EMAIL_DOMAINS ?? '');
+	const derivedServerId = signupDomain
+		? getMailosaurServerId(signupDomain, mailosaurServerId ?? undefined)
+		: mailosaurServerId;
+
+	if (mailosaurApiKey && derivedServerId) {
+		const client = createMailosaurClient({
+			apiKey: mailosaurApiKey,
+			serverId: derivedServerId
+		});
+		return { provider: 'mailosaur', ...client };
+	}
+
+	return null;
+}
+
+/**
+ * Check email provider quota. For Gmail this is a no-op (effectively unlimited).
+ * For Mailosaur, checks the daily limit.
+ */
+async function checkEmailQuota(): Promise<{ available: boolean; current: number; limit: number }> {
+	const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
+	if (gmailRefreshToken) {
+		console.log('[Gmail] No quota limits — skipping quota check.');
+		return { available: true, current: 0, limit: 999999 };
+	}
+
+	const mailosaurApiKey = process.env.MAILOSAUR_API_KEY;
+	if (mailosaurApiKey) {
+		return checkMailosaurQuota(mailosaurApiKey);
+	}
+
+	return { available: false, current: 0, limit: 0 };
+}
+
+/**
  * Decode a base32-encoded secret (RFC 4648) into a raw byte buffer.
  * This is required for TOTP generation without external libraries.
  */
@@ -991,6 +1361,9 @@ module.exports = {
 	buildTestAccountEmail,
 	checkMailosaurQuota,
 	createMailosaurClient,
+	createGmailClient,
+	createEmailClient,
+	checkEmailQuota,
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
