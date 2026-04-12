@@ -16,6 +16,7 @@ import { embedStore } from "../services/embedStore";
 // Import all example chats
 import { giganticAirplanesChat } from "./data/example_chats/gigantic-airplanes";
 import { artemisIIMissionChat } from "./data/example_chats/artemis-ii-mission";
+import { beautifulSinglePageHtmlChat } from "./data/example_chats/beautiful-single-page-html";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -24,6 +25,7 @@ import { artemisIIMissionChat } from "./data/example_chats/artemis-ii-mission";
 const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
   artemisIIMissionChat,
+  beautifulSinglePageHtmlChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */
