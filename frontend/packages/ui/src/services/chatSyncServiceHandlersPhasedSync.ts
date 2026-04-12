@@ -216,33 +216,22 @@ export async function handlePhase3FullSyncImpl(
       return;
     }
 
-    // Only process when we have actual chat data
-    if (chats.length === 0) {
+    // Store chat data if present (may be empty when batches already sent all chats)
+    if (chats.length > 0) {
+      await storeAllChats(serviceInstance, chats, phase2ProcessedChatIds ?? undefined);
+      phase2ProcessedChatIds = null; // Clear after Phase 3 completes
+    } else {
       console.debug(
-        "[ChatSyncService] Phase 3 received empty chats array, nothing to store",
+        "[ChatSyncService] Phase 3 completion: 0 chats in payload (already sent as batches)",
       );
-      // Still store embeds and embed_keys if any (they can exist without chats being sent)
-      // CRITICAL: Store embed_keys FIRST so putEncrypted can decrypt content to extract app_id/skill_id
-      if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
-        await storeEmbedKeysBatch(embed_keys, "Phase 3");
-      }
-      if (embeds && Array.isArray(embeds) && embeds.length > 0) {
-        await storeEmbedsBatch(embeds, "Phase 3");
-      }
-      return;
+      phase2ProcessedChatIds = null;
     }
 
-    // Store all chats data, skipping those already processed in Phase 2
-    await storeAllChats(serviceInstance, chats, phase2ProcessedChatIds ?? undefined);
-    phase2ProcessedChatIds = null; // Clear after Phase 3 completes
-
-    // CRITICAL: Store embed_keys FIRST (needed to decrypt embed content for app_id/skill_id extraction)
+    // Store embed_keys and embeds regardless of whether chats were in this payload
+    // CRITICAL: Store embed_keys FIRST so putEncrypted can decrypt content to extract app_id/skill_id
     if (embed_keys && Array.isArray(embed_keys) && embed_keys.length > 0) {
       await storeEmbedKeysBatch(embed_keys, "Phase 3");
     }
-
-    // Store embeds from flat array (new format - deduplicated by backend)
-    // Now that keys are stored, putEncrypted can extract app_id/skill_id from decrypted content
     if (embeds && Array.isArray(embeds) && embeds.length > 0) {
       await storeEmbedsBatch(embeds, "Phase 3");
     }
@@ -256,11 +245,8 @@ export async function handlePhase3FullSyncImpl(
       console.log(
         `[ChatSyncService] Storing ${new_chat_suggestions.length} new chat suggestions`,
       );
-      // Pass full NewChatSuggestion objects with IDs from server
-      // Normalize to NewChatSuggestion format if needed
       const normalizedSuggestions = new_chat_suggestions.map((s) => {
         if (typeof s === "string") {
-          // Backward compatibility: if string, create object with generated ID
           return {
             id: globalThis.crypto.randomUUID(),
             encrypted_suggestion: s,
