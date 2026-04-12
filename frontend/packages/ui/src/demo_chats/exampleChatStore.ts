@@ -19,6 +19,7 @@ import { artemisIIMissionChat } from "./data/example_chats/artemis-ii-mission";
 import { beautifulSinglePageHtmlChat } from "./data/example_chats/beautiful-single-page-html";
 import { flightsBerlinBangkokChat } from "./data/example_chats/flights-berlin-to-bangkok";
 import { euChatControlLawChat } from "./data/example_chats/eu-chat-control-law-criticisms";
+import { creativityDrawingMeetupsBerlinChat } from "./data/example_chats/creativity-drawing-meetups-berlin";
 
 // ============================================================================
 // ALL EXAMPLE CHATS — add new chats here
@@ -30,6 +31,7 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   beautifulSinglePageHtmlChat,
   flightsBerlinBangkokChat,
   euChatControlLawChat,
+  creativityDrawingMeetupsBerlinChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 /** Maximum number of example chats shown on the homepage */

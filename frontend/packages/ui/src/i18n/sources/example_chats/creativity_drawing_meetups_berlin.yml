@@ -1,0 +1,1051 @@
+title:
+  context: Title of example chat about finding drawing and creativity meetups in Berlin
+  en: Creativity Drawing Meetups Berlin
+  de: Kreativität & Zeichnen Meetups Berlin
+  zh: 柏林创意绘画聚会
+  es: Encuentros de Dibujo y Creatividad en Berlín
+  fr: Meetups de Dessin et Créativité à Berlin
+  pt: Encontros de Desenho e Criatividade em Berlim
+  ru: Творческие встречи по рисованию в Берлине
+  ja: ベルリンのクリエイティブ・ドローイング・ミートアップ
+  ko: 베를린 창작 드로잉 모임
+  it: Meetup di Disegno e Creatività a Berlino
+  tr: Berlin'de Yaratıcılık ve Çizim Buluşmaları
+  vi: Gặp mặt Vẽ Sáng tạo tại Berlin
+  id: Pertemuan Kreativitas dan Menggambar di Berlin
+  pl: Spotkania Rysunkowe i Kreatywne w Berlinie
+  nl: Creativiteit & Teken-meetups in Berlijn
+  ar: لقاءات الرسم والإبداع في برلين
+  hi: बर्लिन में क्रिएटिविटी ड्राइंग मीटअप
+  th: มีตอัปวาดรูปเชิงสร้างสรรค์ในเบอร์ลิน
+  cs: Kreativní kreslířské meetupy v Berlíně
+  sv: Kreativa teckningsträffar i Berlin
+  he: "מפגשי ציור ויצירתיות בברלין"
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat where user searched for drawing and creativity meetups in Berlin for the upcoming week
+  en: User searched for creativity and drawing related meetups in Berlin for the upcoming week, and received a curated list of events including open draw sessions, watercolor workshops, life drawing, linocut, and creative co-working.
+  de: Der Benutzer suchte nach Kreativitäts- und Zeichen-Meetups in Berlin für die kommende Woche und erhielt eine kuratierte Liste von Veranstaltungen, darunter offene Zeichenabende, Aquarell-Workshops, Aktzeichnen, Linolschnitt und kreatives Co-Working.
+  zh: 用户搜索了柏林下周的创意和绘画相关聚会，获得了一份精选活动列表，包括开放绘画课程、水彩工坊、人体素描、版画和创意联合办公。
+  es: El usuario buscó encuentros de creatividad y dibujo en Berlín para la próxima semana, y recibió una lista curada de eventos que incluye sesiones de dibujo abierto, talleres de acuarela, dibujo al natural, linograbado y co-working creativo.
+  fr: L'utilisateur a recherché des meetups de créativité et de dessin à Berlin pour la semaine suivante, et a reçu une liste sélectionnée d'événements comprenant des sessions de dessin ouvertes, des ateliers d'aquarelle, du dessin de modèle vivant, de la linogravure et du co-working créatif.
+  pt: O utilizador pesquisou encontros de criatividade e desenho em Berlim para a semana seguinte, e recebeu uma lista curada de eventos incluindo sessões de desenho aberto, workshops de aguarela, desenho de modelo vivo, linogravura e co-working criativo.
+  ru: Пользователь искал творческие встречи и мероприятия по рисованию в Берлине на предстоящую неделю и получил подборку событий, включая открытые сессии рисования, мастер-классы по акварели, рисование с натуры, линогравюру и креативный коворкинг.
+  ja: ユーザーがベルリンの翌週のクリエイティビティ・ドローイング関連ミートアップを検索し、オープンドローセッション、水彩ワークショップ、ライフドローイング、リノカット、クリエイティブコワーキングなどの厳選イベントリストを受け取りました。
+  ko: 사용자가 다음 주 베를린의 창작 및 드로잉 관련 모임을 검색하여 오픈 드로잉 세션, 수채화 워크숍, 인체 드로잉, 리노컷, 크리에이티브 코워킹 등 엄선된 이벤트 목록을 받았습니다.
+  it: L'utente ha cercato meetup di creatività e disegno a Berlino per la settimana successiva, e ha ricevuto una lista curata di eventi tra cui sessioni di disegno aperto, workshop di acquerello, disegno dal vivo, linoleografia e co-working creativo.
+  tr: Kullanıcı gelecek hafta Berlin'deki yaratıcılık ve çizim buluşmalarını aradı ve açık çizim seansları, suluboya atölyeleri, canlı model çizimi, linol baskı ve yaratıcı ortak çalışma dahil özenle seçilmiş bir etkinlik listesi aldı.
+  vi: Người dùng đã tìm kiếm các buổi gặp mặt về sáng tạo và vẽ tại Berlin trong tuần tới, và nhận được danh sách sự kiện được tuyển chọn bao gồm các buổi vẽ mở, hội thảo màu nước, vẽ người mẫu, in khắc lino và không gian làm việc sáng tạo chung.
+  id: Pengguna mencari pertemuan kreativitas dan menggambar di Berlin untuk minggu depan, dan menerima daftar acara pilihan termasuk sesi menggambar terbuka, lokakarya cat air, menggambar model hidup, cetak lino, dan co-working kreatif.
+  pl: Użytkownik wyszukał spotkania kreatywne i rysunkowe w Berlinie na nadchodzący tydzień i otrzymał wyselekcjonowaną listę wydarzeń, w tym otwarte sesje rysunku, warsztaty akwarelowe, rysunek z natury, linoryt i kreatywny co-working.
+  nl: De gebruiker zocht naar creativiteits- en tekenmeetups in Berlijn voor de komende week, en ontving een samengestelde lijst met evenementen waaronder open tekensessies, aquarelworkshops, modeltekenen, linosnede en creatieve co-working.
+  ar: بحث المستخدم عن لقاءات الإبداع والرسم في برلين للأسبوع القادم، وتلقّى قائمة منتقاة من الفعاليات تشمل جلسات رسم مفتوحة وورش ألوان مائية ورسم من الطبيعة وطباعة لينو وعمل إبداعي مشترك.
+  hi: उपयोगकर्ता ने आने वाले सप्ताह के लिए बर्लिन में क्रिएटिविटी और ड्राइंग से जुड़े मीटअप खोजे, और ओपन ड्रॉ सत्र, वॉटरकलर वर्कशॉप, लाइफ ड्राइंग, लिनोकट और क्रिएटिव को-वर्किंग सहित चयनित इवेंट्स की सूची प्राप्त की।
+  th: ผู้ใช้ค้นหามีตอัปเกี่ยวกับความคิดสร้างสรรค์และการวาดรูปในเบอร์ลินสำหรับสัปดาห์หน้า และได้รับรายการกิจกรรมคัดสรร รวมถึงเซสชันวาดรูปเปิด เวิร์กช็อปสีน้ำ วาดภาพจากแบบจริง ภาพพิมพ์ลิโน และโคเวิร์กกิ้งเชิงสร้างสรรค์
+  cs: Uživatel hledal kreativní a kreslířské meetupy v Berlíně na příští týden a obdržel kurátorský seznam akcí zahrnující otevřené kreslení, akvarelové workshopy, kreslení aktu, linoryt a kreativní co-working.
+  sv: Användaren sökte efter kreativa teckningsträffar i Berlin för kommande vecka och fick en kuraterad lista med evenemang inklusive öppna teckningskvällar, akvarellworkshops, kroki, linoleumtryck och kreativ co-working.
+  he: "המשתמש חיפש מפגשי יצירתיות וציור בברלין לשבוע הקרוב, וקיבל רשימה אוצרת של אירועים כולל מפגשי ציור פתוחים, סדנאות צבעי מים, ציור מודל חי, חיתוך לינוליאום ועבודה יצירתית משותפת."
+  verified_by_human: []
+
+user_message_1:
+  context: User message asking about creativity and drawing meetups in Berlin next week
+  en: What creativity / drawing related meetups are happening in Berlin next week?
+  de: Welche Kreativitäts- / Zeichen-Meetups finden nächste Woche in Berlin statt?
+  zh: 下周柏林有哪些与创意/绘画相关的聚会？
+  es: ¿Qué encuentros de creatividad / dibujo hay en Berlín la próxima semana?
+  fr: Quels meetups de créativité / dessin ont lieu à Berlin la semaine prochaine ?
+  pt: Que encontros de criatividade / desenho acontecem em Berlim na próxima semana?
+  ru: Какие творческие / художественные встречи проходят в Берлине на следующей неделе?
+  ja: 来週ベルリンで開催されるクリエイティビティ／ドローイング関連のミートアップは？
+  ko: 다음 주 베를린에서 열리는 창작/드로잉 관련 모임은?
+  it: Quali meetup di creatività / disegno si tengono a Berlino la prossima settimana?
+  tr: Gelecek hafta Berlin'de hangi yaratıcılık / çizim buluşmaları var?
+  vi: Tuần tới có những buổi gặp mặt sáng tạo / vẽ nào diễn ra tại Berlin?
+  id: Pertemuan kreativitas / menggambar apa saja yang ada di Berlin minggu depan?
+  pl: Jakie spotkania kreatywne / rysunkowe odbywają się w Berlinie w przyszłym tygodniu?
+  nl: Welke creativiteits- / tekenmeetups vinden volgende week plaats in Berlijn?
+  ar: ما لقاءات الإبداع / الرسم التي تُقام في برلين الأسبوع القادم؟
+  hi: अगले सप्ताह बर्लिन में कौन से क्रिएटिविटी / ड्राइंग मीटअप हो रहे हैं?
+  th: สัปดาห์หน้ามีมีตอัปเกี่ยวกับความคิดสร้างสรรค์ / การวาดรูปอะไรบ้างในเบอร์ลิน?
+  cs: Jaké kreativní / kreslířské meetupy se konají příští týden v Berlíně?
+  sv: Vilka kreativa / teckningsträffar äger rum i Berlin nästa vecka?
+  he: "אילו מפגשי יצירתיות / ציור מתקיימים בברלין בשבוע הבא?"
+  verified_by_human: []
+
+assistant_message_1:
+  context: >
+    Assistant response listing drawing and creativity meetups in Berlin for the week of April 13-19 2026.
+    Contains embed references like (embed:xxx) that MUST stay identical in all languages.
+    Event names are proper nouns and should NOT be translated.
+    Markdown links with embed: URLs must keep the URL unchanged.
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin has a vibrant creative scene with several drawing and art-related meetups scheduled for next week (April 13–19, 2026). Here are some of the highlights:
+
+    ### Monday, April 13
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) at Offenes Wohnzimmer, Moabit. A relaxed evening for drawing, painting, and socialising. Materials like charcoal, watercolors, and acrylics are provided.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) in Friedrichshain. A practice group focused on fundamental techniques like wet-on-wet and color mixing.
+
+    ### Tuesday, April 14
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) at Studio Good, Prenzlauer Berg. A unique session where participants rotate drawings to create collaborative pieces, followed by individual printing work.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) at kunstraum heartspace, Prenzlauer Berg. A creative space dedicated to linocut enthusiasts of all levels.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) in Friedrichshain. This workshop combines science and imagination to explore the human body through watercolor.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) near Wilhelmine-Gemberg-Weg. An intimate session for participants to both draw and model in a respectful, queer-friendly atmosphere.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) at PAKD Gallery, Lichtenberg. A step-by-step course on realistic pencil drawing, covering perspective, light, and shadow.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) also at PAKD Gallery. Focuses on the academic traditions of realistic oil painting.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) in Friedrichshain. A low-pressure, guilt-free creative space with various supplies provided.
+
+    ### Thursday, April 16
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) at Theatre Pool, Friedrichshain. While not strictly drawing, this session focuses on spontaneous creativity and storytelling through theater games.
+
+    ### Online / Co-working
+    If you're looking to work on your own creative projects alongside others, there are co-working sessions on **[Monday](embed:creatives-co-working-LpA)** and **[Wednesday](embed:creatives-co-working-kZe)** (15:00 – 17:00) hosted by the Artists and Creatives Co-working group.
+
+    Would you like more details on any of these, or perhaps a different type of creative activity?
+
+    **Suggestions:**
+    *   [Search for weekend art exhibitions in Berlin](/#settings/appstore/web)
+    *   [Find art supply stores in your area](/#settings/appstore/maps)
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin hat eine lebendige Kreativszene mit mehreren Zeichen- und Kunst-Meetups für nächste Woche (13.–19. April 2026). Hier sind einige Highlights:
+
+    ### Montag, 13. April
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) im Offenen Wohnzimmer, Moabit. Ein entspannter Abend zum Zeichnen, Malen und Austauschen. Materialien wie Kohle, Aquarellfarben und Acryl werden bereitgestellt.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) in Friedrichshain. Eine Übungsgruppe mit Fokus auf grundlegende Techniken wie Nass-in-Nass und Farbmischung.
+
+    ### Dienstag, 14. April
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) im Studio Good, Prenzlauer Berg. Eine einzigartige Session, bei der die Teilnehmer Zeichnungen rotieren, um gemeinsame Werke zu schaffen, gefolgt von individueller Druckarbeit.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) im kunstraum heartspace, Prenzlauer Berg. Ein kreativer Raum für Linolschnitt-Begeisterte aller Niveaus.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) in Friedrichshain. Dieser Workshop verbindet Wissenschaft und Fantasie, um den menschlichen Körper mit Aquarell zu erkunden.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) nahe Wilhelmine-Gemberg-Weg. Eine intime Session, bei der die Teilnehmer sowohl zeichnen als auch Modell stehen können, in einer respektvollen, queer-freundlichen Atmosphäre.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) in der PAKD Gallery, Lichtenberg. Ein Schritt-für-Schritt-Kurs zum realistischen Bleistiftzeichnen mit Perspektive, Licht und Schatten.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) ebenfalls in der PAKD Gallery. Fokus auf die akademischen Traditionen der realistischen Ölmalerei.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) in Friedrichshain. Ein entspannter, schuldfreier kreativer Raum mit verschiedenen bereitgestellten Materialien.
+
+    ### Donnerstag, 16. April
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) im Theatre Pool, Friedrichshain. Zwar nicht direkt Zeichnen, aber diese Session konzentriert sich auf spontane Kreativität und Geschichtenerzählen durch Theaterspiele.
+
+    ### Online / Co-Working
+    Wenn du an deinen eigenen kreativen Projekten neben anderen arbeiten möchtest, gibt es Co-Working-Sessions am **[Montag](embed:creatives-co-working-LpA)** und **[Mittwoch](embed:creatives-co-working-kZe)** (15:00 – 17:00), veranstaltet von der Artists and Creatives Co-working Gruppe.
+
+    Möchtest du mehr Details zu einem dieser Events oder vielleicht eine andere Art kreativer Aktivität?
+
+    **Vorschläge:**
+    *   [Wochenend-Kunstausstellungen in Berlin suchen](/#settings/appstore/web)
+    *   [Kunstbedarfsläden in deiner Nähe finden](/#settings/appstore/maps)
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    柏林拥有充满活力的创意场景，下周（2026年4月13日至19日）有多场绘画和艺术相关聚会。以下是一些精选活动：
+
+    ### 周一，4月13日
+    *   **[Open Draw](embed:open-draw-iPc)**（18:00 – 21:00）在Offenes Wohnzimmer, Moabit。一个轻松的绘画、绘图和社交之夜。提供炭笔、水彩和丙烯颜料等材料。
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)**（18:00 – 19:30）在Friedrichshain。一个专注于湿画法和调色等基本技巧的练习小组。
+
+    ### 周二，4月14日
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)**（18:00 – 19:30）在Studio Good, Prenzlauer Berg。一个独特的环节，参与者轮流绘画以创作协作作品，之后进行个人版画制作。
+    *   **[Lino Café](embed:lino-caf-51i)**（18:00 – 20:00）在kunstraum heartspace, Prenzlauer Berg。一个面向各级别版画爱好者的创意空间。
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)**（18:00 – 19:30）在Friedrichshain。这个工作坊将科学与想象力结合，用水彩探索人体。
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)**（18:15 – 21:45）在Wilhelmine-Gemberg-Weg附近。一个亲密的环节，参与者可以在尊重、酷儿友好的氛围中绘画和担任模特。
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)**（18:30 – 21:30）在PAKD Gallery, Lichtenberg。一个循序渐进的写实铅笔画课程，涵盖透视、光影。
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)**（18:45 – 21:45）同样在PAKD Gallery。专注于写实油画的学院传统。
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)**（20:00 – 22:00）在Friedrichshain。一个低压、无负罪感的创意空间，提供各种材料。
+
+    ### 周四，4月16日
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)**（18:30 – 20:30）在Theatre Pool, Friedrichshain。虽然不完全是绘画，但这个环节专注于通过戏剧游戏进行即兴创作和讲故事。
+
+    ### 在线 / 联合办公
+    如果你想和其他人一起进行自己的创意项目，**[周一](embed:creatives-co-working-LpA)**和**[周三](embed:creatives-co-working-kZe)**（15:00 – 17:00）有由Artists and Creatives Co-working小组主办的联合办公活动。
+
+    想了解更多关于这些活动的详情，或者其他类型的创意活动吗？
+
+    **建议：**
+    *   [搜索柏林周末艺术展览](/#settings/appstore/web)
+    *   [查找附近的美术用品店](/#settings/appstore/maps)
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlín tiene una vibrante escena creativa con varios encuentros de dibujo y arte programados para la próxima semana (13–19 de abril de 2026). Estos son algunos de los destacados:
+
+    ### Lunes, 13 de abril
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) en Offenes Wohnzimmer, Moabit. Una velada relajada para dibujar, pintar y socializar. Se proporcionan materiales como carboncillo, acuarelas y acrílicos.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) en Friedrichshain. Un grupo de práctica enfocado en técnicas fundamentales como húmedo sobre húmedo y mezcla de colores.
+
+    ### Martes, 14 de abril
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) en Studio Good, Prenzlauer Berg. Una sesión única donde los participantes rotan dibujos para crear piezas colaborativas, seguida de trabajo de impresión individual.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) en kunstraum heartspace, Prenzlauer Berg. Un espacio creativo dedicado a entusiastas del linograbado de todos los niveles.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) en Friedrichshain. Este taller combina ciencia e imaginación para explorar el cuerpo humano a través de la acuarela.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) cerca de Wilhelmine-Gemberg-Weg. Una sesión íntima donde los participantes pueden tanto dibujar como modelar en un ambiente respetuoso y queer-friendly.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) en PAKD Gallery, Lichtenberg. Un curso paso a paso de dibujo realista a lápiz que cubre perspectiva, luz y sombra.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) también en PAKD Gallery. Se enfoca en las tradiciones académicas de la pintura al óleo realista.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) en Friedrichshain. Un espacio creativo sin presión y sin culpa, con diversos materiales proporcionados.
+
+    ### Jueves, 16 de abril
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) en Theatre Pool, Friedrichshain. Aunque no es estrictamente dibujo, esta sesión se centra en la creatividad espontánea y la narración a través de juegos teatrales.
+
+    ### En línea / Co-working
+    Si buscas trabajar en tus propios proyectos creativos junto a otros, hay sesiones de co-working los **[lunes](embed:creatives-co-working-LpA)** y **[miércoles](embed:creatives-co-working-kZe)** (15:00 – 17:00) organizadas por el grupo Artists and Creatives Co-working.
+
+    ¿Te gustaría más detalles sobre alguno de estos, o quizás otro tipo de actividad creativa?
+
+    **Sugerencias:**
+    *   [Buscar exposiciones de arte de fin de semana en Berlín](/#settings/appstore/web)
+    *   [Encontrar tiendas de materiales artísticos en tu zona](/#settings/appstore/maps)
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin possède une scène créative dynamique avec plusieurs meetups de dessin et d'art prévus pour la semaine prochaine (13–19 avril 2026). Voici quelques temps forts :
+
+    ### Lundi 13 avril
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) à l'Offenes Wohnzimmer, Moabit. Une soirée détendue pour dessiner, peindre et échanger. Du matériel comme le fusain, les aquarelles et les acryliques est fourni.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) à Friedrichshain. Un groupe de pratique axé sur les techniques fondamentales comme le mouillé sur mouillé et le mélange des couleurs.
+
+    ### Mardi 14 avril
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) au Studio Good, Prenzlauer Berg. Une session unique où les participants font tourner les dessins pour créer des œuvres collaboratives, suivie d'un travail d'impression individuel.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) au kunstraum heartspace, Prenzlauer Berg. Un espace créatif dédié aux passionnés de linogravure de tous niveaux.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) à Friedrichshain. Cet atelier mêle science et imagination pour explorer le corps humain à l'aquarelle.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) près de Wilhelmine-Gemberg-Weg. Une session intime où les participants peuvent dessiner et poser dans une atmosphère respectueuse et queer-friendly.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) à la PAKD Gallery, Lichtenberg. Un cours progressif de dessin réaliste au crayon, couvrant la perspective, la lumière et l'ombre.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) également à la PAKD Gallery. Se concentre sur les traditions académiques de la peinture à l'huile réaliste.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) à Friedrichshain. Un espace créatif sans pression et sans culpabilité, avec divers matériaux fournis.
+
+    ### Jeudi 16 avril
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) au Theatre Pool, Friedrichshain. Bien que ce ne soit pas strictement du dessin, cette session est axée sur la créativité spontanée et le storytelling à travers des jeux de théâtre.
+
+    ### En ligne / Co-working
+    Si vous souhaitez travailler sur vos propres projets créatifs aux côtés d'autres personnes, il y a des sessions de co-working le **[lundi](embed:creatives-co-working-LpA)** et le **[mercredi](embed:creatives-co-working-kZe)** (15:00 – 17:00) organisées par le groupe Artists and Creatives Co-working.
+
+    Souhaitez-vous plus de détails sur l'un de ces événements, ou peut-être un autre type d'activité créative ?
+
+    **Suggestions :**
+    *   [Rechercher des expositions d'art du week-end à Berlin](/#settings/appstore/web)
+    *   [Trouver des magasins de fournitures artistiques dans votre quartier](/#settings/appstore/maps)
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlim tem uma cena criativa vibrante com vários encontros de desenho e arte programados para a próxima semana (13–19 de abril de 2026). Aqui estão alguns destaques:
+
+    ### Segunda-feira, 13 de abril
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) no Offenes Wohnzimmer, Moabit. Uma noite descontraída para desenhar, pintar e socializar. Materiais como carvão, aguarelas e acrílicos são fornecidos.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) em Friedrichshain. Um grupo de prática focado em técnicas fundamentais como húmido sobre húmido e mistura de cores.
+
+    ### Terça-feira, 14 de abril
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) no Studio Good, Prenzlauer Berg. Uma sessão única onde os participantes rotacionam desenhos para criar peças colaborativas, seguida de trabalho de impressão individual.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) no kunstraum heartspace, Prenzlauer Berg. Um espaço criativo dedicado a entusiastas de linogravura de todos os níveis.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) em Friedrichshain. Este workshop combina ciência e imaginação para explorar o corpo humano através da aguarela.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) perto de Wilhelmine-Gemberg-Weg. Uma sessão intimista onde os participantes podem desenhar e posar numa atmosfera respeitosa e queer-friendly.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) na PAKD Gallery, Lichtenberg. Um curso passo a passo de desenho realista a lápis, cobrindo perspetiva, luz e sombra.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) também na PAKD Gallery. Foca nas tradições académicas da pintura a óleo realista.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) em Friedrichshain. Um espaço criativo sem pressão e sem culpa, com diversos materiais fornecidos.
+
+    ### Quinta-feira, 16 de abril
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) no Theatre Pool, Friedrichshain. Embora não seja estritamente desenho, esta sessão foca na criatividade espontânea e narrativa através de jogos teatrais.
+
+    ### Online / Co-working
+    Se procura trabalhar nos seus próprios projetos criativos ao lado de outros, há sessões de co-working à **[segunda-feira](embed:creatives-co-working-LpA)** e à **[quarta-feira](embed:creatives-co-working-kZe)** (15:00 – 17:00) organizadas pelo grupo Artists and Creatives Co-working.
+
+    Gostaria de mais detalhes sobre algum destes eventos, ou talvez outro tipo de atividade criativa?
+
+    **Sugestões:**
+    *   [Procurar exposições de arte de fim de semana em Berlim](/#settings/appstore/web)
+    *   [Encontrar lojas de material artístico na sua zona](/#settings/appstore/maps)
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Берлин обладает яркой творческой сценой с несколькими встречами по рисованию и искусству, запланированными на следующую неделю (13–19 апреля 2026). Вот некоторые из главных событий:
+
+    ### Понедельник, 13 апреля
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) в Offenes Wohnzimmer, Моабит. Расслабленный вечер рисования, живописи и общения. Предоставляются материалы: уголь, акварель и акрил.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) во Фридрихсхайне. Группа практики, сфокусированная на базовых техниках: мокрым по мокрому и смешивании цветов.
+
+    ### Вторник, 14 апреля
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) в Studio Good, Пренцлауэр-Берг. Уникальная сессия, где участники передают рисунки по кругу для создания коллективных работ, затем — индивидуальная печатная работа.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) в kunstraum heartspace, Пренцлауэр-Берг. Творческое пространство для любителей линогравюры всех уровней.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) во Фридрихсхайне. Мастер-класс, объединяющий науку и воображение для исследования человеческого тела акварелью.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) рядом с Wilhelmine-Gemberg-Weg. Камерная сессия, где участники могут рисовать и позировать в уважительной, квир-дружелюбной атмосфере.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) в PAKD Gallery, Лихтенберг. Пошаговый курс реалистичного карандашного рисунка, охватывающий перспективу, свет и тень.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) также в PAKD Gallery. Фокус на академических традициях реалистичной масляной живописи.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) во Фридрихсхайне. Непринуждённое, безвинное творческое пространство с предоставленными материалами.
+
+    ### Четверг, 16 апреля
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) в Theatre Pool, Фридрихсхайн. Хотя это не совсем рисование, сессия посвящена спонтанному творчеству и сторителлингу через театральные игры.
+
+    ### Онлайн / Коворкинг
+    Если вы хотите работать над своими творческими проектами вместе с другими, есть коворкинг-сессии в **[понедельник](embed:creatives-co-working-LpA)** и **[среду](embed:creatives-co-working-kZe)** (15:00 – 17:00), организованные группой Artists and Creatives Co-working.
+
+    Хотите больше деталей о каком-либо из этих событий, или, возможно, другой тип творческой активности?
+
+    **Предложения:**
+    *   [Искать выставки искусства на выходных в Берлине](/#settings/appstore/web)
+    *   [Найти магазины художественных принадлежностей поблизости](/#settings/appstore/maps)
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    ベルリンには活気あるクリエイティブシーンがあり、来週（2026年4月13日〜19日）にはいくつかのドローイング・アート関連ミートアップが予定されています。ハイライトをご紹介します：
+
+    ### 月曜日、4月13日
+    *   **[Open Draw](embed:open-draw-iPc)**（18:00 – 21:00）Offenes Wohnzimmer, Moabitにて。デッサン、ペインティング、交流のためのリラックスした夕べ。木炭、水彩、アクリル絵の具などの画材が用意されています。
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)**（18:00 – 19:30）Friedrichshainにて。ウェット・オン・ウェットや色の混合など基本テクニックに焦点を当てた練習グループ。
+
+    ### 火曜日、4月14日
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)**（18:00 – 19:30）Studio Good, Prenzlauer Bergにて。参加者がドローイングをローテーションして共同作品を制作し、その後個別の版画制作を行うユニークなセッション。
+    *   **[Lino Café](embed:lino-caf-51i)**（18:00 – 20:00）kunstraum heartspace, Prenzlauer Bergにて。あらゆるレベルのリノカット愛好家のためのクリエイティブスペース。
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)**（18:00 – 19:30）Friedrichshainにて。科学と想像力を融合させ、水彩で人体を探求するワークショップ。
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)**（18:15 – 21:45）Wilhelmine-Gemberg-Weg付近にて。参加者がデッサンとモデルの両方を行える、敬意あるクィアフレンドリーな雰囲気のインティメートなセッション。
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)**（18:30 – 21:30）PAKD Gallery, Lichtenbergにて。遠近法、光と影をカバーする写実的鉛筆画のステップバイステップコース。
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)**（18:45 – 21:45）同じくPAKD Galleryにて。写実的油彩画のアカデミックな伝統に焦点。
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)**（20:00 – 22:00）Friedrichshainにて。プレッシャーのない、罪悪感のないクリエイティブスペース。様々な画材が用意されています。
+
+    ### 木曜日、4月16日
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)**（18:30 – 20:30）Theatre Pool, Friedrichshainにて。厳密にはドローイングではありませんが、このセッションはシアターゲームを通じた即興的な創造性とストーリーテリングに焦点を当てています。
+
+    ### オンライン / コワーキング
+    他の人と一緒に自分のクリエイティブプロジェクトに取り組みたい場合、Artists and Creatives Co-workingグループが主催する**[月曜日](embed:creatives-co-working-LpA)**と**[水曜日](embed:creatives-co-working-kZe)**（15:00 – 17:00）のコワーキングセッションがあります。
+
+    これらのイベントの詳細や、別の種類のクリエイティブ活動をお知りになりたいですか？
+
+    **提案：**
+    *   [ベルリンの週末アート展覧会を検索](/#settings/appstore/web)
+    *   [お近くの画材店を探す](/#settings/appstore/maps)
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    베를린은 활기찬 크리에이티브 씬이 있으며, 다음 주(2026년 4월 13일~19일)에 여러 드로잉 및 미술 관련 모임이 예정되어 있습니다. 주요 하이라이트를 소개합니다:
+
+    ### 월요일, 4월 13일
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) Offenes Wohnzimmer, Moabit. 드로잉, 페인팅, 교류를 위한 편안한 저녁. 목탄, 수채화, 아크릴 등의 재료가 제공됩니다.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) Friedrichshain. 웻온웻과 색 혼합 같은 기본 기법에 초점을 맞춘 연습 그룹.
+
+    ### 화요일, 4월 14일
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) Studio Good, Prenzlauer Berg. 참가자들이 드로잉을 돌려가며 협업 작품을 만들고, 이어서 개인 판화 작업을 하는 독특한 세션.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) kunstraum heartspace, Prenzlauer Berg. 모든 수준의 리노컷 애호가를 위한 크리에이티브 공간.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) Friedrichshain. 과학과 상상력을 결합하여 수채화로 인체를 탐구하는 워크숍.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) Wilhelmine-Gemberg-Weg 근처. 존중적이고 퀴어 친화적인 분위기에서 참가자들이 드로잉과 모델링을 모두 할 수 있는 친밀한 세션.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) PAKD Gallery, Lichtenberg. 원근법, 빛과 그림자를 다루는 단계별 사실적 연필 드로잉 과정.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) 역시 PAKD Gallery. 사실적 유화의 아카데믹 전통에 초점.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) Friedrichshain. 부담 없고 죄책감 없는 크리에이티브 공간. 다양한 재료가 제공됩니다.
+
+    ### 목요일, 4월 16일
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) Theatre Pool, Friedrichshain. 엄밀히 드로잉은 아니지만, 이 세션은 연극 게임을 통한 즉흥적 창의성과 스토리텔링에 초점을 맞춥니다.
+
+    ### 온라인 / 코워킹
+    다른 사람들과 함께 자신의 창작 프로젝트를 진행하고 싶다면, Artists and Creatives Co-working 그룹이 주최하는 **[월요일](embed:creatives-co-working-LpA)**과 **[수요일](embed:creatives-co-working-kZe)** (15:00 – 17:00) 코워킹 세션이 있습니다.
+
+    이 중 하나에 대한 자세한 내용이나 다른 유형의 창작 활동을 알고 싶으신가요?
+
+    **제안:**
+    *   [베를린 주말 미술 전시회 검색](/#settings/appstore/web)
+    *   [근처 미술 용품점 찾기](/#settings/appstore/maps)
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlino ha una vivace scena creativa con diversi meetup di disegno e arte in programma per la prossima settimana (13–19 aprile 2026). Ecco alcuni dei punti salienti:
+
+    ### Lunedì, 13 aprile
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) all'Offenes Wohnzimmer, Moabit. Una serata rilassata per disegnare, dipingere e socializzare. Vengono forniti materiali come carboncino, acquerelli e acrilici.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) a Friedrichshain. Un gruppo di pratica focalizzato su tecniche fondamentali come bagnato su bagnato e mescolanza dei colori.
+
+    ### Martedì, 14 aprile
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) allo Studio Good, Prenzlauer Berg. Una sessione unica dove i partecipanti ruotano i disegni per creare opere collaborative, seguita da lavoro di stampa individuale.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) al kunstraum heartspace, Prenzlauer Berg. Uno spazio creativo dedicato agli appassionati di linoleografia di tutti i livelli.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) a Friedrichshain. Questo workshop unisce scienza e immaginazione per esplorare il corpo umano attraverso l'acquerello.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) vicino a Wilhelmine-Gemberg-Weg. Una sessione intima dove i partecipanti possono disegnare e posare in un'atmosfera rispettosa e queer-friendly.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) alla PAKD Gallery, Lichtenberg. Un corso passo passo di disegno realistico a matita, che copre prospettiva, luce e ombra.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) sempre alla PAKD Gallery. Si concentra sulle tradizioni accademiche della pittura a olio realistica.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) a Friedrichshain. Uno spazio creativo senza pressione e senza sensi di colpa, con vari materiali forniti.
+
+    ### Giovedì, 16 aprile
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) al Theatre Pool, Friedrichshain. Pur non essendo strettamente disegno, questa sessione si concentra sulla creatività spontanea e lo storytelling attraverso giochi teatrali.
+
+    ### Online / Co-working
+    Se desideri lavorare ai tuoi progetti creativi insieme ad altri, ci sono sessioni di co-working il **[lunedì](embed:creatives-co-working-LpA)** e il **[mercoledì](embed:creatives-co-working-kZe)** (15:00 – 17:00) organizzate dal gruppo Artists and Creatives Co-working.
+
+    Vorresti maggiori dettagli su qualcuno di questi eventi, o magari un altro tipo di attività creativa?
+
+    **Suggerimenti:**
+    *   [Cerca mostre d'arte del weekend a Berlino](/#settings/appstore/web)
+    *   [Trova negozi di materiale artistico nella tua zona](/#settings/appstore/maps)
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin, gelecek hafta (13–19 Nisan 2026) için planlanmış birçok çizim ve sanat buluşmasıyla canlı bir yaratıcı sahneye sahiptir. İşte öne çıkanlardan bazıları:
+
+    ### Pazartesi, 13 Nisan
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) Offenes Wohnzimmer, Moabit'te. Çizim, boyama ve sosyalleşme için rahat bir akşam. Kömür, suluboya ve akrilik gibi malzemeler sağlanır.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) Friedrichshain'da. Islak üzerine ıslak ve renk karıştırma gibi temel tekniklere odaklanan bir pratik grubu.
+
+    ### Salı, 14 Nisan
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) Studio Good, Prenzlauer Berg'de. Katılımcıların ortak eserler oluşturmak için çizimleri döndürdüğü, ardından bireysel baskı çalışması yapılan benzersiz bir seans.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) kunstraum heartspace, Prenzlauer Berg'de. Her seviyeden linol baskı meraklıları için yaratıcı bir alan.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) Friedrichshain'da. Bilim ve hayal gücünü birleştirerek insan vücudunu suluboyayla keşfeden bir atölye.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) Wilhelmine-Gemberg-Weg yakınında. Katılımcıların saygılı, queer dostu bir atmosferde hem çizim yapabildiği hem de modellik yapabildiği samimi bir seans.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) PAKD Gallery, Lichtenberg'de. Perspektif, ışık ve gölgeyi kapsayan adım adım gerçekçi kurşun kalem çizim kursu.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) yine PAKD Gallery'de. Gerçekçi yağlı boya resmin akademik geleneklerine odaklanır.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) Friedrichshain'da. Çeşitli malzemelerle düşük baskılı, suçluluk duymadan yaratıcı bir alan.
+
+    ### Perşembe, 16 Nisan
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) Theatre Pool, Friedrichshain'da. Kesinlikle çizim olmasa da bu seans, tiyatro oyunları aracılığıyla spontane yaratıcılık ve hikaye anlatımına odaklanır.
+
+    ### Çevrimiçi / Ortak Çalışma
+    Kendi yaratıcı projelerinizi başkalarıyla birlikte yürütmek istiyorsanız, Artists and Creatives Co-working grubunun düzenlediği **[Pazartesi](embed:creatives-co-working-LpA)** ve **[Çarşamba](embed:creatives-co-working-kZe)** (15:00 – 17:00) ortak çalışma seansları mevcuttur.
+
+    Bunlardan herhangi biri hakkında daha fazla bilgi ister misiniz, yoksa farklı bir yaratıcı aktivite türü mü tercih edersiniz?
+
+    **Öneriler:**
+    *   [Berlin'de hafta sonu sanat sergileri ara](/#settings/appstore/web)
+    *   [Yakınındaki sanat malzemesi mağazalarını bul](/#settings/appstore/maps)
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin có một cộng đồng sáng tạo sôi động với nhiều buổi gặp mặt về vẽ và nghệ thuật được lên lịch cho tuần tới (13–19 tháng 4, 2026). Dưới đây là một số điểm nổi bật:
+
+    ### Thứ Hai, 13 tháng 4
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) tại Offenes Wohnzimmer, Moabit. Một buổi tối thoải mái để vẽ, tô màu và giao lưu. Vật liệu như than, màu nước và acrylic được cung cấp.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) ở Friedrichshain. Nhóm thực hành tập trung vào các kỹ thuật cơ bản như ướt trên ướt và pha màu.
+
+    ### Thứ Ba, 14 tháng 4
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) tại Studio Good, Prenzlauer Berg. Một phiên độc đáo nơi người tham gia luân phiên bản vẽ để tạo tác phẩm hợp tác, sau đó là công việc in ấn cá nhân.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) tại kunstraum heartspace, Prenzlauer Berg. Không gian sáng tạo dành cho những người đam mê khắc lino ở mọi trình độ.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) ở Friedrichshain. Hội thảo này kết hợp khoa học và trí tưởng tượng để khám phá cơ thể người qua màu nước.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) gần Wilhelmine-Gemberg-Weg. Một phiên thân mật nơi người tham gia có thể vừa vẽ vừa làm người mẫu trong bầu không khí tôn trọng, thân thiện với cộng đồng queer.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) tại PAKD Gallery, Lichtenberg. Khóa học vẽ chì tả thực từng bước, bao gồm phối cảnh, ánh sáng và bóng.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) cũng tại PAKD Gallery. Tập trung vào truyền thống hàn lâm của hội họa sơn dầu tả thực.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) ở Friedrichshain. Không gian sáng tạo không áp lực, không cảm giác tội lỗi với nhiều vật liệu được cung cấp.
+
+    ### Thứ Năm, 16 tháng 4
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) tại Theatre Pool, Friedrichshain. Mặc dù không hoàn toàn là vẽ, phiên này tập trung vào sự sáng tạo tự phát và kể chuyện qua các trò chơi sân khấu.
+
+    ### Trực tuyến / Làm việc chung
+    Nếu bạn muốn làm việc trên các dự án sáng tạo của mình cùng với người khác, có các phiên làm việc chung vào **[Thứ Hai](embed:creatives-co-working-LpA)** và **[Thứ Tư](embed:creatives-co-working-kZe)** (15:00 – 17:00) do nhóm Artists and Creatives Co-working tổ chức.
+
+    Bạn có muốn biết thêm chi tiết về bất kỳ sự kiện nào trong số này, hoặc có lẽ một loại hoạt động sáng tạo khác không?
+
+    **Gợi ý:**
+    *   [Tìm kiếm triển lãm nghệ thuật cuối tuần ở Berlin](/#settings/appstore/web)
+    *   [Tìm cửa hàng vật liệu nghệ thuật gần bạn](/#settings/appstore/maps)
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin memiliki komunitas kreatif yang semarak dengan beberapa pertemuan menggambar dan seni yang dijadwalkan untuk minggu depan (13–19 April 2026). Berikut beberapa yang menonjol:
+
+    ### Senin, 13 April
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) di Offenes Wohnzimmer, Moabit. Malam santai untuk menggambar, melukis, dan bersosialisasi. Material seperti arang, cat air, dan akrilik disediakan.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) di Friedrichshain. Kelompok latihan yang berfokus pada teknik dasar seperti basah di atas basah dan pencampuran warna.
+
+    ### Selasa, 14 April
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) di Studio Good, Prenzlauer Berg. Sesi unik di mana peserta merotasi gambar untuk membuat karya kolaboratif, diikuti pekerjaan cetak individual.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) di kunstraum heartspace, Prenzlauer Berg. Ruang kreatif yang didedikasikan untuk penggemar cetak lino dari semua level.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) di Friedrichshain. Lokakarya ini menggabungkan sains dan imajinasi untuk mengeksplorasi tubuh manusia melalui cat air.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) dekat Wilhelmine-Gemberg-Weg. Sesi intim di mana peserta dapat menggambar dan menjadi model dalam suasana yang penuh hormat dan ramah queer.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) di PAKD Gallery, Lichtenberg. Kursus menggambar pensil realistis langkah demi langkah, mencakup perspektif, cahaya, dan bayangan.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) juga di PAKD Gallery. Berfokus pada tradisi akademis lukisan minyak realistis.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) di Friedrichshain. Ruang kreatif tanpa tekanan dan tanpa rasa bersalah dengan berbagai perlengkapan yang disediakan.
+
+    ### Kamis, 16 April
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) di Theatre Pool, Friedrichshain. Meskipun bukan menggambar secara ketat, sesi ini berfokus pada kreativitas spontan dan penceritaan melalui permainan teater.
+
+    ### Online / Co-working
+    Jika Anda ingin mengerjakan proyek kreatif Anda sendiri bersama orang lain, ada sesi co-working pada **[Senin](embed:creatives-co-working-LpA)** dan **[Rabu](embed:creatives-co-working-kZe)** (15:00 – 17:00) yang diselenggarakan oleh grup Artists and Creatives Co-working.
+
+    Apakah Anda ingin detail lebih lanjut tentang salah satu acara ini, atau mungkin jenis aktivitas kreatif yang berbeda?
+
+    **Saran:**
+    *   [Cari pameran seni akhir pekan di Berlin](/#settings/appstore/web)
+    *   [Temukan toko perlengkapan seni di sekitar Anda](/#settings/appstore/maps)
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin ma tętniącą życiem scenę kreatywną z kilkoma spotkaniami rysunkowymi i artystycznymi zaplanowanymi na przyszły tydzień (13–19 kwietnia 2026). Oto niektóre z najciekawszych:
+
+    ### Poniedziałek, 13 kwietnia
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) w Offenes Wohnzimmer, Moabit. Relaksujący wieczór rysowania, malowania i spotkań towarzyskich. Materiały takie jak węgiel, akwarele i akryle są zapewnione.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) we Friedrichshain. Grupa ćwiczeniowa skupiona na podstawowych technikach jak mokre na mokrym i mieszanie kolorów.
+
+    ### Wtorek, 14 kwietnia
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) w Studio Good, Prenzlauer Berg. Unikalna sesja, podczas której uczestnicy rotują rysunki, tworząc wspólne dzieła, a następnie pracują indywidualnie nad drukiem.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) w kunstraum heartspace, Prenzlauer Berg. Kreatywna przestrzeń dedykowana miłośnikom linorytu na wszystkich poziomach.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) we Friedrichshain. Warsztaty łączące naukę i wyobraźnię w eksploracji ludzkiego ciała za pomocą akwareli.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) w pobliżu Wilhelmine-Gemberg-Weg. Kameralna sesja, podczas której uczestnicy mogą zarówno rysować, jak i pozować w pełnej szacunku, queer-friendly atmosferze.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) w PAKD Gallery, Lichtenberg. Kurs realistycznego rysunku ołówkiem krok po kroku, obejmujący perspektywę, światło i cień.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) również w PAKD Gallery. Skupia się na akademickich tradycjach realistycznego malarstwa olejnego.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) we Friedrichshain. Twórcza przestrzeń bez presji i poczucia winy, z różnymi zapewnionymi materiałami.
+
+    ### Czwartek, 16 kwietnia
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) w Theatre Pool, Friedrichshain. Choć to nie jest ściśle rysowanie, ta sesja skupia się na spontanicznej kreatywności i opowiadaniu historii poprzez gry teatralne.
+
+    ### Online / Co-working
+    Jeśli chcesz pracować nad własnymi kreatywnymi projektami obok innych, sesje co-workingowe odbywają się w **[poniedziałek](embed:creatives-co-working-LpA)** i **[środę](embed:creatives-co-working-kZe)** (15:00 – 17:00), organizowane przez grupę Artists and Creatives Co-working.
+
+    Chcesz więcej szczegółów na temat któregoś z tych wydarzeń, a może inny rodzaj twórczej aktywności?
+
+    **Propozycje:**
+    *   [Szukaj weekendowych wystaw sztuki w Berlinie](/#settings/appstore/web)
+    *   [Znajdź sklepy z materiałami artystycznymi w pobliżu](/#settings/appstore/maps)
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlijn heeft een levendige creatieve scene met meerdere teken- en kunstmeetups gepland voor volgende week (13–19 april 2026). Hier zijn enkele hoogtepunten:
+
+    ### Maandag, 13 april
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) in Offenes Wohnzimmer, Moabit. Een ontspannen avond om te tekenen, schilderen en socialiseren. Materialen zoals houtskool, aquarel en acryl worden verstrekt.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) in Friedrichshain. Een oefengroep gericht op basistechnieken zoals nat-op-nat en kleurmenging.
+
+    ### Dinsdag, 14 april
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) bij Studio Good, Prenzlauer Berg. Een unieke sessie waar deelnemers tekeningen doorgeven om gezamenlijke werken te creëren, gevolgd door individueel drukwerk.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) bij kunstraum heartspace, Prenzlauer Berg. Een creatieve ruimte gewijd aan linosnede-enthousiastelingen van alle niveaus.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) in Friedrichshain. Deze workshop combineert wetenschap en verbeelding om het menselijk lichaam met aquarel te verkennen.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) nabij Wilhelmine-Gemberg-Weg. Een intieme sessie waar deelnemers zowel kunnen tekenen als poseren in een respectvolle, queer-friendly sfeer.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) bij PAKD Gallery, Lichtenberg. Een stapsgewijze cursus realistisch potloodtekenen, met perspectief, licht en schaduw.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) ook bij PAKD Gallery. Richt zich op de academische tradities van realistisch olieverfschilderen.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) in Friedrichshain. Een creatieve ruimte zonder druk en zonder schuldgevoel, met diverse verstrekte materialen.
+
+    ### Donderdag, 16 april
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) bij Theatre Pool, Friedrichshain. Hoewel het niet strikt tekenen is, richt deze sessie zich op spontane creativiteit en storytelling via theaterspelen.
+
+    ### Online / Co-working
+    Als je aan je eigen creatieve projecten wilt werken naast anderen, zijn er co-workingsessies op **[maandag](embed:creatives-co-working-LpA)** en **[woensdag](embed:creatives-co-working-kZe)** (15:00 – 17:00) georganiseerd door de Artists and Creatives Co-working groep.
+
+    Wil je meer details over een van deze evenementen, of misschien een ander type creatieve activiteit?
+
+    **Suggesties:**
+    *   [Zoek naar weekendkunstexposities in Berlijn](/#settings/appstore/web)
+    *   [Vind kunstwinkels in je buurt](/#settings/appstore/maps)
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    تتميز برلين بمشهد إبداعي نابض بالحياة مع عدة لقاءات للرسم والفن مجدولة للأسبوع القادم (13–19 أبريل 2026). إليك بعض أبرز الفعاليات:
+
+    ### الاثنين، 13 أبريل
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) في Offenes Wohnzimmer, Moabit. أمسية مريحة للرسم والتلوين والتواصل الاجتماعي. تُوفَّر مواد مثل الفحم والألوان المائية والأكريليك.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) في Friedrichshain. مجموعة تمرين تركز على التقنيات الأساسية مثل الرطب على الرطب وخلط الألوان.
+
+    ### الثلاثاء، 14 أبريل
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) في Studio Good, Prenzlauer Berg. جلسة فريدة يتناوب فيها المشاركون على الرسومات لإنشاء أعمال تعاونية، يليها عمل طباعة فردي.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) في kunstraum heartspace, Prenzlauer Berg. مساحة إبداعية مخصصة لهواة طباعة اللينو بجميع المستويات.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) في Friedrichshain. ورشة عمل تجمع بين العلم والخيال لاستكشاف جسم الإنسان بالألوان المائية.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) بالقرب من Wilhelmine-Gemberg-Weg. جلسة حميمة يمكن للمشاركين فيها الرسم والتمثيل كعارضين في أجواء محترمة وصديقة للمجتمع الكويري.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) في PAKD Gallery, Lichtenberg. دورة خطوة بخطوة للرسم الواقعي بالقلم الرصاص، تشمل المنظور والضوء والظل.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) أيضًا في PAKD Gallery. يركز على التقاليد الأكاديمية للرسم الزيتي الواقعي.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) في Friedrichshain. مساحة إبداعية بلا ضغط وبلا شعور بالذنب مع مواد متنوعة متوفرة.
+
+    ### الخميس، 16 أبريل
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) في Theatre Pool, Friedrichshain. رغم أنها ليست رسمًا بحتًا، تركز هذه الجلسة على الإبداع العفوي وسرد القصص من خلال ألعاب المسرح.
+
+    ### عبر الإنترنت / عمل مشترك
+    إذا كنت تبحث عن العمل على مشاريعك الإبداعية إلى جانب آخرين، هناك جلسات عمل مشترك يومَي **[الاثنين](embed:creatives-co-working-LpA)** و**[الأربعاء](embed:creatives-co-working-kZe)** (15:00 – 17:00) تنظمها مجموعة Artists and Creatives Co-working.
+
+    هل تريد مزيدًا من التفاصيل حول أي من هذه الفعاليات، أو ربما نوعًا مختلفًا من النشاط الإبداعي؟
+
+    **اقتراحات:**
+    *   [البحث عن معارض فنية في نهاية الأسبوع في برلين](/#settings/appstore/web)
+    *   [العثور على متاجر مستلزمات فنية بالقرب منك](/#settings/appstore/maps)
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    बर्लिन में एक जीवंत क्रिएटिव सीन है और अगले सप्ताह (13–19 अप्रैल 2026) के लिए कई ड्राइंग और कला संबंधी मीटअप निर्धारित हैं। यहाँ कुछ प्रमुख आकर्षण हैं:
+
+    ### सोमवार, 13 अप्रैल
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) Offenes Wohnzimmer, Moabit में। ड्राइंग, पेंटिंग और सोशलाइज़िंग के लिए एक आरामदायक शाम। चारकोल, वॉटरकलर और एक्रेलिक जैसी सामग्री उपलब्ध कराई जाती है।
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) Friedrichshain में। वेट-ऑन-वेट और रंग मिश्रण जैसी बुनियादी तकनीकों पर केंद्रित अभ्यास समूह।
+
+    ### मंगलवार, 14 अप्रैल
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) Studio Good, Prenzlauer Berg में। एक अनूठा सत्र जहाँ प्रतिभागी सहयोगी कृतियाँ बनाने के लिए ड्राइंग को रोटेट करते हैं, उसके बाद व्यक्तिगत प्रिंटिंग कार्य होता है।
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) kunstraum heartspace, Prenzlauer Berg में। सभी स्तरों के लिनोकट उत्साही लोगों के लिए एक रचनात्मक स्थान।
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) Friedrichshain में। यह वर्कशॉप विज्ञान और कल्पना को मिलाकर वॉटरकलर के माध्यम से मानव शरीर की खोज करता है।
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) Wilhelmine-Gemberg-Weg के पास। एक आत्मीय सत्र जहाँ प्रतिभागी सम्मानजनक, क्वीर-फ्रेंडली माहौल में ड्राइंग और मॉडलिंग दोनों कर सकते हैं।
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) PAKD Gallery, Lichtenberg में। परिप्रेक्ष्य, प्रकाश और छाया को कवर करने वाला यथार्थवादी पेंसिल ड्राइंग का चरण-दर-चरण कोर्स।
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) PAKD Gallery में भी। यथार्थवादी तेल चित्रकला की शैक्षणिक परंपराओं पर केंद्रित।
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) Friedrichshain में। कम दबाव वाला, अपराधबोध-मुक्त रचनात्मक स्थान जहाँ विभिन्न सामग्रियाँ उपलब्ध कराई जाती हैं।
+
+    ### गुरुवार, 16 अप्रैल
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) Theatre Pool, Friedrichshain में। हालाँकि यह सख्ती से ड्राइंग नहीं है, यह सत्र थिएटर गेम्स के माध्यम से सहज रचनात्मकता और कहानी सुनाने पर केंद्रित है।
+
+    ### ऑनलाइन / को-वर्किंग
+    यदि आप दूसरों के साथ अपनी रचनात्मक परियोजनाओं पर काम करना चाहते हैं, तो Artists and Creatives Co-working समूह द्वारा आयोजित **[सोमवार](embed:creatives-co-working-LpA)** और **[बुधवार](embed:creatives-co-working-kZe)** (15:00 – 17:00) को को-वर्किंग सत्र उपलब्ध हैं।
+
+    क्या आप इनमें से किसी के बारे में अधिक जानकारी चाहेंगे, या शायद किसी अन्य प्रकार की रचनात्मक गतिविधि?
+
+    **सुझाव:**
+    *   [बर्लिन में सप्ताहांत कला प्रदर्शनियाँ खोजें](/#settings/appstore/web)
+    *   [अपने क्षेत्र में कला सामग्री की दुकानें खोजें](/#settings/appstore/maps)
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    เบอร์ลินมีชุมชนสร้างสรรค์ที่มีชีวิตชีวา โดยมีมีตอัปเกี่ยวกับการวาดรูปและศิลปะหลายรายการที่กำหนดไว้สำหรับสัปดาห์หน้า (13–19 เมษายน 2026) นี่คือไฮไลท์บางส่วน:
+
+    ### วันจันทร์ที่ 13 เมษายน
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) ที่ Offenes Wohnzimmer, Moabit ค่ำคืนผ่อนคลายสำหรับวาดรูป ระบายสี และพบปะสังสรรค์ มีวัสดุเช่น ถ่าน สีน้ำ และอะคริลิกให้ใช้
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) ใน Friedrichshain กลุ่มฝึกปฏิบัติที่เน้นเทคนิคพื้นฐาน เช่น เปียกบนเปียกและการผสมสี
+
+    ### วันอังคารที่ 14 เมษายน
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) ที่ Studio Good, Prenzlauer Berg เซสชันพิเศษที่ผู้เข้าร่วมหมุนเวียนภาพวาดเพื่อสร้างผลงานร่วมกัน ตามด้วยงานพิมพ์รายบุคคล
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) ที่ kunstraum heartspace, Prenzlauer Berg พื้นที่สร้างสรรค์สำหรับผู้ที่ชื่นชอบการพิมพ์ลิโนทุกระดับ
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) ใน Friedrichshain เวิร์กช็อปที่ผสมผสานวิทยาศาสตร์และจินตนาการเพื่อสำรวจร่างกายมนุษย์ด้วยสีน้ำ
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) ใกล้ Wilhelmine-Gemberg-Weg เซสชันที่เป็นกันเองซึ่งผู้เข้าร่วมสามารถทั้งวาดรูปและเป็นแบบในบรรยากาศที่ให้เกียรติและเป็นมิตรกับ queer
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) ที่ PAKD Gallery, Lichtenberg คอร์สวาดรูปดินสอเหมือนจริงแบบทีละขั้นตอน ครอบคลุมทัศนียภาพ แสง และเงา
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) เช่นกันที่ PAKD Gallery เน้นประเพณีวิชาการของจิตรกรรมสีน้ำมันเหมือนจริง
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) ใน Friedrichshain พื้นที่สร้างสรรค์แบบไม่มีแรงกดดัน ไม่มีความรู้สึกผิด พร้อมวัสดุหลากหลายให้ใช้
+
+    ### วันพฤหัสบดีที่ 16 เมษายน
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) ที่ Theatre Pool, Friedrichshain แม้จะไม่ใช่การวาดรูปโดยตรง แต่เซสชันนี้เน้นที่ความคิดสร้างสรรค์แบบฉับพลันและการเล่าเรื่องผ่านเกมละคร
+
+    ### ออนไลน์ / โคเวิร์กกิ้ง
+    หากคุณต้องการทำโปรเจกต์สร้างสรรค์ของตัวเองควบคู่กับคนอื่น มีเซสชันโคเวิร์กกิ้งในวัน**[จันทร์](embed:creatives-co-working-LpA)**และวัน**[พุธ](embed:creatives-co-working-kZe)** (15:00 – 17:00) จัดโดยกลุ่ม Artists and Creatives Co-working
+
+    คุณต้องการรายละเอียดเพิ่มเติมเกี่ยวกับกิจกรรมเหล่านี้ หรืออาจต้องการกิจกรรมสร้างสรรค์ประเภทอื่นไหม?
+
+    **คำแนะนำ:**
+    *   [ค้นหานิทรรศการศิลปะช่วงสุดสัปดาห์ในเบอร์ลิน](/#settings/appstore/web)
+    *   [ค้นหาร้านอุปกรณ์ศิลปะใกล้คุณ](/#settings/appstore/maps)
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlín má živou kreativní scénu s několika kreslířskými a uměleckými meetupy naplánovanými na příští týden (13.–19. dubna 2026). Zde jsou některé z nejzajímavějších:
+
+    ### Pondělí, 13. dubna
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) v Offenes Wohnzimmer, Moabit. Uvolněný večer pro kreslení, malování a socializaci. K dispozici jsou materiály jako uhel, akvarely a akryly.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) ve Friedrichshainu. Cvičná skupina zaměřená na základní techniky jako mokré do mokrého a míchání barev.
+
+    ### Úterý, 14. dubna
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) ve Studio Good, Prenzlauer Berg. Unikátní sezení, kde účastníci rotují kresby a vytvářejí společná díla, následuje individuální tisková práce.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) v kunstraum heartspace, Prenzlauer Berg. Kreativní prostor věnovaný nadšencům linorytu všech úrovní.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) ve Friedrichshainu. Tento workshop spojuje vědu a fantazii k prozkoumání lidského těla akvarelem.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) poblíž Wilhelmine-Gemberg-Weg. Intimní sezení, kde účastníci mohou kreslit i stát modelem v respektující, queer-friendly atmosféře.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) v PAKD Gallery, Lichtenberg. Kurz realistické kresby tužkou krok za krokem, pokrývající perspektivu, světlo a stín.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) také v PAKD Gallery. Zaměřuje se na akademické tradice realistické olejomalby.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) ve Friedrichshainu. Kreativní prostor bez tlaku a bez pocitu viny, s různými poskytnutými materiály.
+
+    ### Čtvrtek, 16. dubna
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) v Theatre Pool, Friedrichshain. I když to není přímo kreslení, toto sezení se zaměřuje na spontánní kreativitu a vyprávění příběhů prostřednictvím divadelních her.
+
+    ### Online / Co-working
+    Pokud chcete pracovat na vlastních kreativních projektech společně s ostatními, co-workingová sezení se konají v **[pondělí](embed:creatives-co-working-LpA)** a ve **[středu](embed:creatives-co-working-kZe)** (15:00 – 17:00), pořádaná skupinou Artists and Creatives Co-working.
+
+    Chcete více podrobností o některé z těchto akcí, nebo možná jiný typ kreativní aktivity?
+
+    **Návrhy:**
+    *   [Hledat víkendové umělecké výstavy v Berlíně](/#settings/appstore/web)
+    *   [Najít obchody s výtvarnými potřebami ve vašem okolí](/#settings/appstore/maps)
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    Berlin har en livlig kreativ scen med flera tecknings- och konstrelaterade träffar planerade för nästa vecka (13–19 april 2026). Här är några av höjdpunkterna:
+
+    ### Måndag, 13 april
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) på Offenes Wohnzimmer, Moabit. En avslappnad kväll för teckning, målning och umgänge. Material som kol, akvarell och akryl tillhandahålls.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) i Friedrichshain. En övningsgrupp fokuserad på grundläggande tekniker som vått-i-vått och färgblandning.
+
+    ### Tisdag, 14 april
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) på Studio Good, Prenzlauer Berg. En unik session där deltagarna roterar teckningar för att skapa samarbetsverk, följt av individuellt tryckarbete.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) på kunstraum heartspace, Prenzlauer Berg. Ett kreativt utrymme för linoleumtrycksintresserade på alla nivåer.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) i Friedrichshain. Denna workshop kombinerar vetenskap och fantasi för att utforska den mänskliga kroppen genom akvarell.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) nära Wilhelmine-Gemberg-Weg. En intim session där deltagare kan både teckna och vara modell i en respektfull, queer-vänlig atmosfär.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) på PAKD Gallery, Lichtenberg. En steg-för-steg-kurs i realistisk blyantsteckning som täcker perspektiv, ljus och skugga.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) även på PAKD Gallery. Fokuserar på de akademiska traditionerna inom realistisk oljemålning.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) i Friedrichshain. Ett kreativt utrymme utan press och skuld, med olika material tillhandahållna.
+
+    ### Torsdag, 16 april
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) på Theatre Pool, Friedrichshain. Även om det inte är strikt teckning fokuserar denna session på spontan kreativitet och berättande genom teaterspel.
+
+    ### Online / Co-working
+    Om du vill arbeta med dina egna kreativa projekt tillsammans med andra finns det co-working-sessioner på **[måndag](embed:creatives-co-working-LpA)** och **[onsdag](embed:creatives-co-working-kZe)** (15:00 – 17:00) arrangerade av Artists and Creatives Co-working-gruppen.
+
+    Vill du ha mer information om någon av dessa, eller kanske en annan typ av kreativ aktivitet?
+
+    **Förslag:**
+    *   [Sök efter konstutställningar på helgen i Berlin](/#settings/appstore/web)
+    *   [Hitta konsttillbehörsbutiker i närheten](/#settings/appstore/maps)
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "65f0886d-e9aa-4ae0-8fbe-928b3fd44274", "app_id": "events", "skill_id": "search", "query": "creativity workshop", "provider": "Meetup"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
+    ```
+
+    לברלין יש סצנה יצירתית תוססת עם מספר מפגשי ציור ואמנות מתוכננים לשבוע הבא (13–19 באפריל 2026). הנה כמה מנקודות השיא:
+
+    ### יום שני, 13 באפריל
+    *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) ב-Offenes Wohnzimmer, Moabit. ערב רגוע לציור, צביעה וחברותא. חומרים כמו פחם, צבעי מים ואקריליק מסופקים.
+    *   **[Watercolours for Beginners](embed:watercolours-for-beginners-WY8)** (18:00 – 19:30) ב-Friedrichshain. קבוצת תרגול המתמקדת בטכניקות בסיסיות כמו רטוב על רטוב ועירוב צבעים.
+
+    ### יום שלישי, 14 באפריל
+    *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) ב-Studio Good, Prenzlauer Berg. מפגש ייחודי בו המשתתפים מסובבים ציורים ליצירת עבודות שיתופיות, ולאחר מכן עבודת הדפסה אישית.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) ב-kunstraum heartspace, Prenzlauer Berg. מרחב יצירתי המוקדש לחובבי חיתוך לינוליאום בכל הרמות.
+    *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) ב-Friedrichshain. סדנה זו משלבת מדע ודמיון לחקירת גוף האדם בצבעי מים.
+    *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) ליד Wilhelmine-Gemberg-Weg. מפגש אינטימי בו המשתתפים יכולים גם לצייר וגם לשמש כדגם באווירה מכבדת וידידותית לקהילה הקווירית.
+    *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) ב-PAKD Gallery, Lichtenberg. קורס ציור ריאליסטי בעיפרון צעד אחר צעד, המכסה פרספקטיבה, אור וצל.
+    *   **[Realistic Oil Painting](embed:realistic-oil-painting-8b1)** (18:45 – 21:45) גם ב-PAKD Gallery. מתמקד במסורות האקדמיות של ציור שמן ריאליסטי.
+    *   **[Neurodivergent Creative Tuesdays](embed:neurodivergent-creative-tuesdays-RQX)** (20:00 – 22:00) ב-Friedrichshain. מרחב יצירתי ללא לחץ וללא תחושת אשמה, עם חומרים מגוונים מסופקים.
+
+    ### יום חמישי, 16 באפריל
+    *   **[Improv Thursdays](embed:improv-thursdays-zos)** (18:30 – 20:30) ב-Theatre Pool, Friedrichshain. למרות שזה לא ציור בדיוק, המפגש מתמקד ביצירתיות ספונטנית וסיפור סיפורים דרך משחקי תיאטרון.
+
+    ### מקוון / עבודה משותפת
+    אם אתם מחפשים לעבוד על פרויקטים יצירתיים משלכם לצד אחרים, יש מפגשי עבודה משותפת ביום **[שני](embed:creatives-co-working-LpA)** וביום **[רביעי](embed:creatives-co-working-kZe)** (15:00 – 17:00) בארגון קבוצת Artists and Creatives Co-working.
+
+    רוצים פרטים נוספים על אחד מאלה, או אולי סוג אחר של פעילות יצירתית?
+
+    **הצעות:**
+    *   [חפש תערוכות אמנות בסוף השבוע בברלין](/#settings/appstore/web)
+    *   [מצא חנויות ציוד אמנותי באזורך](/#settings/appstore/maps)
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion to find ceramic or pottery workshops in Berlin
+  en: Find ceramic or pottery workshops in Berlin this week
+  de: Finde Keramik- oder Töpferei-Workshops in Berlin diese Woche
+  zh: 查找本周柏林的陶艺或陶器工坊
+  es: Encontrar talleres de cerámica o alfarería en Berlín esta semana
+  fr: Trouver des ateliers de céramique ou de poterie à Berlin cette semaine
+  pt: Encontrar oficinas de cerâmica ou olaria em Berlim esta semana
+  ru: Найти мастер-классы по керамике или гончарному делу в Берлине на этой неделе
+  ja: 今週のベルリンの陶芸・陶器ワークショップを探す
+  ko: 이번 주 베를린의 도자기 또는 도예 워크숍 찾기
+  it: Trovare laboratori di ceramica o terracotta a Berlino questa settimana
+  tr: Bu hafta Berlin'de seramik veya çömlek atölyeleri bul
+  vi: Tìm xưởng gốm sứ tại Berlin tuần này
+  id: Temukan lokakarya keramik atau tembikar di Berlin minggu ini
+  pl: Znajdź warsztaty ceramiczne lub garncarskie w Berlinie w tym tygodniu
+  nl: Vind keramiek- of pottenbakkersworkshops in Berlijn deze week
+  ar: ابحث عن ورش سيراميك أو فخار في برلين هذا الأسبوع
+  hi: इस सप्ताह बर्लिन में सिरेमिक या मिट्टी के बर्तन बनाने के वर्कशॉप खोजें
+  th: ค้นหาเวิร์กช็อปเซรามิกหรือปั้นดินในเบอร์ลินสัปดาห์นี้
+  cs: Najdi keramické nebo hrnčířské workshopy v Berlíně tento týden
+  sv: Hitta keramik- eller krukmakarworkshops i Berlin den här veckan
+  he: "מצא סדנאות קרמיקה או חרסינה בברלין השבוע"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion to search for photography meetups in Berlin
+  en: Search for photography meetups and photo walks in Berlin
+  de: Suche nach Fotografie-Meetups und Fotospaziergängen in Berlin
+  zh: 搜索柏林的摄影聚会和摄影漫步活动
+  es: Buscar encuentros de fotografía y paseos fotográficos en Berlín
+  fr: Rechercher des meetups de photographie et des promenades photo à Berlin
+  pt: Pesquisar encontros de fotografia e passeios fotográficos em Berlim
+  ru: Поиск фотовстреч и фотопрогулок в Берлине
+  ja: ベルリンの写真ミートアップとフォトウォークを検索
+  ko: 베를린의 사진 모임과 포토워크 검색
+  it: Cerca meetup di fotografia e passeggiate fotografiche a Berlino
+  tr: Berlin'de fotoğraf buluşmaları ve fotoğraf yürüyüşleri ara
+  vi: Tìm kiếm các buổi gặp mặt nhiếp ảnh và đi dạo chụp ảnh tại Berlin
+  id: Cari pertemuan fotografi dan jalan-jalan foto di Berlin
+  pl: Szukaj spotkań fotograficznych i spacerów z aparatem w Berlinie
+  nl: Zoek naar fotografie-meetups en fotowandelingen in Berlijn
+  ar: ابحث عن لقاءات التصوير الفوتوغرافي وجولات التصوير في برلين
+  hi: बर्लिन में फ़ोटोग्राफ़ी मीटअप और फ़ोटो वॉक खोजें
+  th: ค้นหามีตอัปถ่ายภาพและเดินถ่ายรูปในเบอร์ลิน
+  cs: Hledej fotografické meetupy a fotoprocházky v Berlíně
+  sv: Sök efter fototräffar och fotopromenader i Berlin
+  he: "חפש מפגשי צילום וטיולי צילום בברלין"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion to get more details about the life drawing session
+  en: Tell me more about the Cozy Life Drawing Session
+  de: Erzähl mir mehr über die Cozy Life Drawing Session
+  zh: 告诉我更多关于Cozy Life Drawing Session的信息
+  es: Cuéntame más sobre la Cozy Life Drawing Session
+  fr: Dis-moi en plus sur la Cozy Life Drawing Session
+  pt: Conta-me mais sobre a Cozy Life Drawing Session
+  ru: Расскажи подробнее о Cozy Life Drawing Session
+  ja: Cozy Life Drawing Sessionについて詳しく教えて
+  ko: Cozy Life Drawing Session에 대해 더 알려줘
+  it: Dimmi di più sulla Cozy Life Drawing Session
+  tr: Cozy Life Drawing Session hakkında daha fazla bilgi ver
+  vi: Cho tôi biết thêm về Cozy Life Drawing Session
+  id: Ceritakan lebih lanjut tentang Cozy Life Drawing Session
+  pl: Opowiedz mi więcej o Cozy Life Drawing Session
+  nl: Vertel me meer over de Cozy Life Drawing Session
+  ar: أخبرني المزيد عن Cozy Life Drawing Session
+  hi: Cozy Life Drawing Session के बारे में और बताएं
+  th: บอกเพิ่มเติมเกี่ยวกับ Cozy Life Drawing Session
+  cs: Řekni mi víc o Cozy Life Drawing Session
+  sv: Berätta mer om Cozy Life Drawing Session
+  he: "ספר לי עוד על Cozy Life Drawing Session"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion to find weekend art markets in Berlin
+  en: Find art markets and craft fairs happening this weekend in Berlin
+  de: Finde Kunstmärkte und Handwerksmessen dieses Wochenende in Berlin
+  zh: 查找本周末柏林的艺术市场和手工艺展会
+  es: Encontrar mercados de arte y ferias de artesanía este fin de semana en Berlín
+  fr: Trouver des marchés d'art et des foires artisanales ce week-end à Berlin
+  pt: Encontrar mercados de arte e feiras de artesanato neste fim de semana em Berlim
+  ru: Найти художественные рынки и ярмарки ремёсел в Берлине на этих выходных
+  ja: 今週末のベルリンのアートマーケットとクラフトフェアを探す
+  ko: 이번 주말 베를린의 아트 마켓과 공예 박람회 찾기
+  it: Trovare mercati d'arte e fiere artigianali questo fine settimana a Berlino
+  tr: Bu hafta sonu Berlin'de sanat pazarları ve el sanatları fuarları bul
+  vi: Tìm chợ nghệ thuật và hội chợ thủ công cuối tuần này tại Berlin
+  id: Temukan pasar seni dan pameran kerajinan akhir pekan ini di Berlin
+  pl: Znajdź targi sztuki i jarmarki rzemiosła w ten weekend w Berlinie
+  nl: Vind kunstmarkten en ambachtsmarkten dit weekend in Berlijn
+  ar: ابحث عن أسواق الفن ومعارض الحرف اليدوية هذا الأسبوع في برلين
+  hi: इस सप्ताहांत बर्लिन में कला बाज़ार और शिल्प मेले खोजें
+  th: ค้นหาตลาดศิลปะและงานหัตถกรรมสุดสัปดาห์นี้ในเบอร์ลิน
+  cs: Najdi umělecké trhy a řemeslné veletrhy tento víkend v Berlíně
+  sv: Hitta konstmarknader och hantverksmässor i helgen i Berlin
+  he: "מצא שווקי אמנות וירידי מלאכת יד בסוף השבוע בברלין"
+  verified_by_human: []
+
+follow_up_5:
+  context: Follow-up suggestion to compare the drawing courses and workshops
+  en: Compare the Classical Drawing Course and the Watercolour Workshop
+  de: Vergleiche den Classical Drawing Course und den Watercolour Workshop
+  zh: 比较Classical Drawing Course和Watercolour Workshop
+  es: Comparar el Classical Drawing Course y el Watercolour Workshop
+  fr: Comparer le Classical Drawing Course et le Watercolour Workshop
+  pt: Comparar o Classical Drawing Course e o Watercolour Workshop
+  ru: Сравни Classical Drawing Course и Watercolour Workshop
+  ja: Classical Drawing CourseとWatercolour Workshopを比較して
+  ko: Classical Drawing Course와 Watercolour Workshop 비교
+  it: Confronta il Classical Drawing Course e il Watercolour Workshop
+  tr: Classical Drawing Course ile Watercolour Workshop'u karşılaştır
+  vi: So sánh Classical Drawing Course và Watercolour Workshop
+  id: Bandingkan Classical Drawing Course dan Watercolour Workshop
+  pl: Porównaj Classical Drawing Course i Watercolour Workshop
+  nl: Vergelijk de Classical Drawing Course en de Watercolour Workshop
+  ar: قارن بين Classical Drawing Course و Watercolour Workshop
+  hi: Classical Drawing Course और Watercolour Workshop की तुलना करें
+  th: เปรียบเทียบ Classical Drawing Course กับ Watercolour Workshop
+  cs: Porovnej Classical Drawing Course a Watercolour Workshop
+  sv: Jämför Classical Drawing Course och Watercolour Workshop
+  he: "השווה בין Classical Drawing Course לבין Watercolour Workshop"
+  verified_by_human: []
+
+follow_up_6:
+  context: Follow-up suggestion to search for music and performance events in Berlin
+  en: What live music or performance events are happening in Berlin next week?
+  de: Welche Live-Musik- oder Performance-Veranstaltungen finden nächste Woche in Berlin statt?
+  zh: 下周柏林有哪些现场音乐或表演活动？
+  es: ¿Qué eventos de música en vivo o actuaciones hay en Berlín la próxima semana?
+  fr: Quels événements de musique live ou de spectacle ont lieu à Berlin la semaine prochaine ?
+  pt: Que eventos de música ao vivo ou espetáculos acontecem em Berlim na próxima semana?
+  ru: Какие концерты и перформансы проходят в Берлине на следующей неделе?
+  ja: 来週ベルリンで開催されるライブ音楽やパフォーマンスイベントは？
+  ko: 다음 주 베를린에서 열리는 라이브 음악이나 공연 이벤트는?
+  it: Quali eventi di musica dal vivo o performance ci sono a Berlino la prossima settimana?
+  tr: Gelecek hafta Berlin'de hangi canlı müzik veya performans etkinlikleri var?
+  vi: Tuần tới có những sự kiện nhạc sống hoặc biểu diễn nào diễn ra tại Berlin?
+  id: Acara musik live atau pertunjukan apa yang ada di Berlin minggu depan?
+  pl: Jakie wydarzenia muzyki na żywo lub performansy odbywają się w Berlinie w przyszłym tygodniu?
+  nl: Welke livemuziek- of optredenevenementen zijn er volgende week in Berlijn?
+  ar: ما فعاليات الموسيقى الحية أو العروض التي تُقام في برلين الأسبوع القادم؟
+  hi: अगले सप्ताह बर्लिन में कौन से लाइव म्यूज़िक या परफ़ॉर्मेंस इवेंट हो रहे हैं?
+  th: สัปดาห์หน้ามีกิจกรรมดนตรีสดหรือการแสดงอะไรบ้างในเบอร์ลิน?
+  cs: Jaké koncerty nebo performativní akce se konají příští týden v Berlíně?
+  sv: Vilka livemusik- eller föreställningsevenemang äger rum i Berlin nästa vecka?
+  he: "אילו אירועי מוזיקה חיה או מופעים מתקיימים בברלין בשבוע הבא?"
+  verified_by_human: []

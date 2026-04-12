@@ -1,0 +1,1530 @@
+title:
+  context: Title of example chat about the EU Chat Control law and its criticisms
+  en: "EU Chat Control Law: Criticisms and Current Status"
+  de: "EU Chat Control Gesetz: Kritik und aktueller Stand"
+  zh: 欧盟聊天控制法：批评与现状
+  es: "Ley Chat Control de la UE: Críticas y estado actual"
+  fr: "Loi Chat Control de l'UE : Critiques et état actuel"
+  pt: "Lei Chat Control da UE: Críticas e situação atual"
+  ru: "Закон ЕС Chat Control: критика и текущий статус"
+  ja: EU Chat Control法：批判と現状
+  ko: "EU 챗 컨트롤 법: 비판과 현황"
+  it: "Legge EU Chat Control: Critiche e stato attuale"
+  tr: "AB Chat Control Yasası: Eleştiriler ve Güncel Durum"
+  vi: "Luật Chat Control EU: Chỉ trích và tình trạng hiện tại"
+  id: "UU Chat Control EU: Kritik dan Status Terkini"
+  pl: "Ustawa UE Chat Control: Krytyka i aktualny stan"
+  nl: "EU Chat Control-wet: Kritiek en huidige status"
+  ar: "قانون مراقبة الدردشة الأوروبي: الانتقادات والوضع الراهن"
+  hi: "EU चैट कंट्रोल कानून: आलोचनाएँ और वर्तमान स्थिति"
+  th: "กฎหมาย EU Chat Control: คำวิจารณ์และสถานะปัจจุบัน"
+  cs: "EU zákon o kontrole chatu: Kritika a aktuální stav"
+  sv: "EU:s Chat Control-lag: Kritik och nuläge"
+  he: "חוק Chat Control של האיחוד האירופי: ביקורות ומצב נוכחי"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat discussing criticisms of the EU Chat Control (CSA Regulation) law regarding encryption, privacy, and digital rights"
+  en: "Discussion about criticisms of the EU Chat Control law, its impact on encryption and privacy, and current status in April 2026"
+  de: "Diskussion über die Kritik am EU Chat Control Gesetz, seine Auswirkungen auf Verschlüsselung und Privatsphäre sowie den aktuellen Stand im April 2026"
+  zh: 关于欧盟聊天控制法批评的讨论，包括其对加密和隐私的影响，以及2026年4月的最新状态
+  es: "Debate sobre las críticas a la ley Chat Control de la UE, su impacto en el cifrado y la privacidad, y el estado actual en abril de 2026"
+  fr: "Discussion sur les critiques de la loi Chat Control de l'UE, son impact sur le chiffrement et la vie privée, et l'état actuel en avril 2026"
+  pt: "Discussão sobre as críticas à lei Chat Control da UE, seu impacto na criptografia e privacidade, e o estado atual em abril de 2026"
+  ru: "Обсуждение критики закона ЕС Chat Control, его влияния на шифрование и конфиденциальность, а также текущего статуса в апреле 2026 года"
+  ja: EU Chat Control法に対する批判、暗号化とプライバシーへの影響、および2026年4月時点の現状についての議論
+  ko: "EU 챗 컨트롤 법에 대한 비판, 암호화 및 개인정보 보호에 미치는 영향, 그리고 2026년 4월 현재 상태에 대한 토론"
+  it: "Discussione sulle critiche alla legge EU Chat Control, il suo impatto sulla crittografia e la privacy, e lo stato attuale ad aprile 2026"
+  tr: "AB Chat Control yasasına yönelik eleştiriler, şifreleme ve gizlilik üzerindeki etkisi ve Nisan 2026 itibarıyla güncel durum hakkında tartışma"
+  vi: "Thảo luận về những chỉ trích đối với luật Chat Control của EU, tác động của nó đến mã hóa và quyền riêng tư, và tình trạng hiện tại vào tháng 4 năm 2026"
+  id: "Diskusi tentang kritik terhadap undang-undang Chat Control EU, dampaknya terhadap enkripsi dan privasi, serta status terkini pada April 2026"
+  pl: "Dyskusja na temat krytyki unijnej ustawy Chat Control, jej wpływu na szyfrowanie i prywatność oraz aktualnego stanu w kwietniu 2026 r."
+  nl: "Discussie over de kritiek op de EU Chat Control-wet, de impact ervan op encryptie en privacy, en de huidige status in april 2026"
+  ar: نقاش حول انتقادات قانون مراقبة الدردشة الأوروبي، وتأثيره على التشفير والخصوصية، والوضع الراهن في أبريل 2026
+  hi: "EU चैट कंट्रोल कानून की आलोचनाओं, एन्क्रिप्शन और गोपनीयता पर इसके प्रभाव और अप्रैल 2026 में वर्तमान स्थिति पर चर्चा"
+  th: การอภิปรายเกี่ยวกับคำวิจารณ์กฎหมาย EU Chat Control ผลกระทบต่อการเข้ารหัสและความเป็นส่วนตัว และสถานะปัจจุบันในเดือนเมษายน 2026
+  cs: "Diskuse o kritice zákona EU o kontrole chatu, jeho dopadu na šifrování a soukromí a aktuálním stavu v dubnu 2026"
+  sv: "Diskussion om kritiken mot EU:s Chat Control-lag, dess påverkan på kryptering och integritet samt nuläget i april 2026"
+  he: "דיון על ביקורות חוק Chat Control של האיחוד האירופי, השפעתו על הצפנה ופרטיות, והמצב הנוכחי באפריל 2026"
+  verified_by_human: []
+
+user_message_1:
+  context: User asking why the EU chatcontrol law is heavily criticized
+  en: "Why is the EU chatcontrol law heavily criticized?"
+  de: "Warum wird das EU Chat Control Gesetz so stark kritisiert?"
+  zh: 为什么欧盟聊天控制法受到强烈批评？
+  es: "¿Por qué la ley Chat Control de la UE es tan criticada?"
+  fr: "Pourquoi la loi Chat Control de l'UE est-elle si fortement critiquée ?"
+  pt: "Por que a lei Chat Control da UE é tão criticada?"
+  ru: "Почему закон ЕС Chat Control подвергается такой жёсткой критике?"
+  ja: なぜEU Chat Control法はこれほど強く批判されているのですか？
+  ko: "EU 챗 컨트롤 법이 왜 심하게 비판받고 있나요?"
+  it: "Perché la legge EU Chat Control è fortemente criticata?"
+  tr: "AB Chat Control yasası neden yoğun şekilde eleştiriliyor?"
+  vi: "Tại sao luật Chat Control của EU bị chỉ trích nặng nề?"
+  id: "Mengapa undang-undang Chat Control EU banyak dikritik?"
+  pl: "Dlaczego unijna ustawa Chat Control jest ostro krytykowana?"
+  nl: "Waarom wordt de EU Chat Control-wet zwaar bekritiseerd?"
+  ar: لماذا يتعرض قانون مراقبة الدردشة الأوروبي لانتقادات حادة؟
+  hi: "EU चैट कंट्रोल कानून की इतनी कड़ी आलोचना क्यों हो रही है?"
+  th: "ทำไมกฎหมาย EU Chat Control จึงถูกวิจารณ์อย่างหนัก?"
+  cs: "Proč je zákon EU o kontrole chatu tak silně kritizován?"
+  sv: "Varför är EU:s Chat Control-lag så hårt kritiserad?"
+  he: "מדוע חוק EU Chat Control מותח ביקורת כה חריפה?"
+  verified_by_human: []
+
+assistant_message_1:
+  context: "Long assistant response about EU Chat Control law with web search results, image search, and detailed analysis. Contains JSON code blocks that must NOT be translated, embed references that must stay identical, and markdown with links."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    The "Chat Control" proposal (officially the **EU Child Sexual Abuse (CSA) Regulation**) has become one of the most controversial pieces of digital legislation in European history. While its stated goal is to combat child sexual abuse, critics argue that the methods it proposes would fundamentally break the internet's security and privacy infrastructure.
+
+    As of **April 2026**, the debate has reached a critical turning point. The temporary rules that allowed tech companies to voluntarily scan messages (**Chat Control 1.0**) expired on **April 3, 2026**, after the [European Parliament rejected a further extension](embed:stateofsurveillance.org-dRV) in March.
+
+    ### Why the Criticism is so Intense
+
+    The heavy criticism stems from several fundamental conflicts between safety goals and digital rights:
+
+    #### 1. The "Backdoor" to Encryption
+    The most significant criticism involves **End-to-End Encryption (E2EE)**. Services like Signal and WhatsApp use E2EE so that only the sender and receiver can read a message.
+    *   **The Conflict:** To scan these messages for illegal content, the EU proposed **"Client-Side Scanning"**—software on your phone that checks your photos and texts *before* they are encrypted and sent.
+    *   **The Criticism:** Security experts and [privacy advocates](embed:globalencryption.org-83i) argue that this effectively creates a "backdoor." Once such a mechanism exists, it can be exploited by hackers, foreign intelligence services, or future authoritarian governments to monitor any type of speech.
+
+    #### 2. Shift to Mass Surveillance
+    Critics, including [European digital rights organizations](embed:fightchatcontrol.eu-YsN), argue the law moves away from "targeted suspicion" (investigating specific criminals) toward "generalized surveillance" (scanning everyone's private life).
+    *   **The Criticism:** This treats every citizen as a potential suspect. The [European Court of Human Rights](embed:globalencryption.org-83i) has previously ruled in cases like *Podchasov v. Russia* that weakening encryption to enable mass surveillance is a disproportionate violation of fundamental rights.
+
+    #### 3. Technical Unreliability (The "False Positive" Problem)
+    The proposal relies heavily on AI to detect new child abuse material and "grooming" (predatory behavior).
+    *   **The Criticism:** AI is not perfect. Independent [studies have highlighted high error rates](embed:en.wikipedia.org-Fav), where legal content—such as a parent sending a photo of their child in a bathtub to a doctor, or teenagers sharing consensual images—could be flagged and automatically sent to police. This could overwhelm law enforcement with "noise" while violating the privacy of innocent families.
+
+    #### 4. Vulnerability for At-Risk Groups
+    Ironically, many critics point out that the law could harm the very people it aims to protect.
+    *   **The Criticism:** Privacy and encryption are vital for whistleblowers, journalists, and victims of domestic abuse or political persecution. If the security of these apps is weakened, these vulnerable groups lose their safe spaces to communicate and seek help.
+
+    ### Summary of the Conflict
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Current Status (April 2026)
+    Following the [expiration of the voluntary scanning rules](embed:stateofsurveillance.org-Nsm) earlier this month, platforms like Meta and Google currently lack the legal basis to scan private messages within the EU. The battle has now shifted to **"Chat Control 2.0"**—the attempt to make this scanning mandatory. Negotiations continue between EU member states, with many still deeply divided over whether child safety can be achieved without sacrificing the core principle of private communication.
+
+    **What do you think?** Should the right to private, encrypted communication be absolute, or are there specific circumstances where you believe it should be bypassed for public safety?
+
+    If you want to look deeper into the legal arguments, you can check the [official European Parliament documentation](embed:europarl.europa.eu-xqu) or explore digital rights trackers like [EDRi](https://edri.org).
+
+    **Would you like to know more about:**
+    1. How **Client-Side Scanning** works technically?
+    2. Which EU countries are currently [supporting or opposing](embed:reddit.com-sFU) the mandatory law?
+    ---
+    *⚠️ This is educational information only and not legal advice. Consult a lawyer for legal advice.*
+
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Der „Chat Control"-Vorschlag (offiziell die **EU-Verordnung über sexuellen Kindesmissbrauch (CSA)**) ist zu einem der umstrittensten digitalen Gesetzgebungsvorhaben in der europäischen Geschichte geworden. Obwohl das erklärte Ziel die Bekämpfung von sexuellem Kindesmissbrauch ist, argumentieren Kritiker, dass die vorgeschlagenen Methoden die Sicherheits- und Datenschutzinfrastruktur des Internets grundlegend zerstören würden.
+
+    Im **April 2026** hat die Debatte einen kritischen Wendepunkt erreicht. Die vorläufigen Regeln, die Technologieunternehmen erlaubten, Nachrichten freiwillig zu scannen (**Chat Control 1.0**), sind am **3. April 2026** ausgelaufen, nachdem das [Europäische Parlament im März eine weitere Verlängerung abgelehnt hatte](embed:stateofsurveillance.org-dRV).
+
+    ### Warum die Kritik so intensiv ist
+
+    Die heftige Kritik resultiert aus mehreren grundlegenden Konflikten zwischen Sicherheitszielen und digitalen Rechten:
+
+    #### 1. Die „Hintertür" zur Verschlüsselung
+    Die bedeutendste Kritik betrifft die **Ende-zu-Ende-Verschlüsselung (E2EE)**. Dienste wie Signal und WhatsApp verwenden E2EE, sodass nur Absender und Empfänger eine Nachricht lesen können.
+    *   **Der Konflikt:** Um diese Nachrichten auf illegale Inhalte zu scannen, schlug die EU das **„Client-Side Scanning"** vor – Software auf Ihrem Telefon, die Ihre Fotos und Texte *vor* der Verschlüsselung und dem Versand überprüft.
+    *   **Die Kritik:** Sicherheitsexperten und [Datenschutzbefürworter](embed:globalencryption.org-83i) argumentieren, dass dies faktisch eine „Hintertür" schafft. Sobald ein solcher Mechanismus existiert, kann er von Hackern, ausländischen Geheimdiensten oder künftigen autoritären Regierungen ausgenutzt werden, um jede Art von Kommunikation zu überwachen.
+
+    #### 2. Übergang zur Massenüberwachung
+    Kritiker, darunter [europäische Organisationen für digitale Rechte](embed:fightchatcontrol.eu-YsN), argumentieren, dass das Gesetz von „gezieltem Verdacht" (Ermittlung gegen bestimmte Kriminelle) zur „generalisierten Überwachung" (Scannen des Privatlebens aller Menschen) übergeht.
+    *   **Die Kritik:** Dies behandelt jeden Bürger als potenziellen Verdächtigen. Der [Europäische Gerichtshof für Menschenrechte](embed:globalencryption.org-83i) hat in früheren Fällen wie *Podchasov v. Russia* entschieden, dass die Schwächung von Verschlüsselung zur Ermöglichung von Massenüberwachung einen unverhältnismäßigen Eingriff in Grundrechte darstellt.
+
+    #### 3. Technische Unzuverlässigkeit (Das „Falsch-Positiv"-Problem)
+    Der Vorschlag stützt sich stark auf KI zur Erkennung neuer Kindesmissbrauchsmaterialien und „Grooming" (Anbahnungsverhalten).
+    *   **Die Kritik:** KI ist nicht perfekt. Unabhängige [Studien haben auf hohe Fehlerquoten hingewiesen](embed:en.wikipedia.org-Fav), bei denen legale Inhalte – wie ein Elternteil, das einem Arzt ein Foto seines Kindes in der Badewanne schickt, oder Jugendliche, die einvernehmliche Bilder teilen – markiert und automatisch an die Polizei weitergeleitet werden könnten. Dies könnte die Strafverfolgungsbehörden mit „Rauschen" überwältigen und gleichzeitig die Privatsphäre unschuldiger Familien verletzen.
+
+    #### 4. Gefährdung schutzbedürftiger Gruppen
+    Ironischerweise weisen viele Kritiker darauf hin, dass das Gesetz genau den Menschen schaden könnte, die es schützen soll.
+    *   **Die Kritik:** Datenschutz und Verschlüsselung sind für Whistleblower, Journalisten sowie Opfer häuslicher Gewalt oder politischer Verfolgung von entscheidender Bedeutung. Wenn die Sicherheit dieser Apps geschwächt wird, verlieren diese gefährdeten Gruppen ihre sicheren Räume zur Kommunikation und Hilfesuchesuche.
+
+    ### Zusammenfassung des Konflikts
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Aktueller Stand (April 2026)
+    Nach dem [Ablauf der freiwilligen Scanregeln](embed:stateofsurveillance.org-Nsm) Anfang dieses Monats verfügen Plattformen wie Meta und Google derzeit über keine Rechtsgrundlage, um private Nachrichten innerhalb der EU zu scannen. Der Kampf hat sich nun auf **„Chat Control 2.0"** verlagert – den Versuch, dieses Scannen verpflichtend zu machen. Die Verhandlungen zwischen den EU-Mitgliedstaaten gehen weiter, wobei viele noch immer tief gespalten darüber sind, ob Kindersicherheit erreicht werden kann, ohne das Kernprinzip der privaten Kommunikation zu opfern.
+
+    **Was denken Sie?** Sollte das Recht auf private, verschlüsselte Kommunikation absolut sein, oder gibt es spezifische Umstände, unter denen Sie der Meinung sind, dass es zum Wohl der öffentlichen Sicherheit umgangen werden sollte?
+
+    Wenn Sie tiefer in die rechtlichen Argumente eintauchen möchten, können Sie die [offizielle Dokumentation des Europäischen Parlaments](embed:europarl.europa.eu-xqu) prüfen oder digitale Rechtsverfolger wie [EDRi](https://edri.org) erkunden.
+
+    **Möchten Sie mehr erfahren über:**
+    1. Wie **Client-Side Scanning** technisch funktioniert?
+    2. Welche EU-Länder derzeit das obligatorische Gesetz [unterstützen oder ablehnen](embed:reddit.com-sFU)?
+    ---
+    *⚠️ Dies sind ausschließlich Bildungsinformationen und keine Rechtsberatung. Konsultieren Sie einen Anwalt für Rechtsberatung.*
+
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    "聊天控制"提案（官方名称为**欧盟儿童性虐待（CSA）条例**）已成为欧洲历史上争议最大的数字立法之一。尽管其声明目标是打击儿童性虐待，但批评者认为，所提议的方法将从根本上破坏互联网的安全和隐私基础设施。
+
+    截至**2026年4月**，这场辩论已到达关键转折点。允许科技公司自愿扫描消息的临时规则（**Chat Control 1.0**）已于**2026年4月3日**到期，此前[欧洲议会于3月拒绝了进一步延期](embed:stateofsurveillance.org-dRV)。
+
+    ### 为何批评如此激烈
+
+    强烈批评源于安全目标与数字权利之间的几个根本性冲突：
+
+    #### 1. 加密的"后门"
+    最重要的批评涉及**端对端加密（E2EE）**。Signal和WhatsApp等服务使用E2EE，使得只有发送者和接收者才能读取消息。
+    *   **冲突：** 为了扫描这些消息中的非法内容，欧盟提议采用**"客户端扫描"**——在您的手机上安装软件，在照片和文本*被加密发送之前*进行检查。
+    *   **批评：** 安全专家和[隐私倡导者](embed:globalencryption.org-83i)认为，这实际上创建了一个"后门"。一旦这种机制存在，它就可能被黑客、外国情报机构或未来的威权政府利用，以监控任何类型的言论。
+
+    #### 2. 转向大规模监控
+    批评者，包括[欧洲数字权利组织](embed:fightchatcontrol.eu-YsN)，认为该法律正从"定向怀疑"（调查特定罪犯）转向"普遍监控"（扫描所有人的私生活）。
+    *   **批评：** 这将每个公民视为潜在嫌疑人。[欧洲人权法院](embed:globalencryption.org-83i)此前在*Podchasov v. Russia*等案件中裁定，削弱加密以实现大规模监控是对基本权利的不成比例侵犯。
+
+    #### 3. 技术不可靠性（"误报"问题）
+    该提案严重依赖人工智能来检测新的儿童虐待材料和"诱骗"（掠夺性行为）。
+    *   **批评：** 人工智能并不完美。独立[研究已指出较高的错误率](embed:en.wikipedia.org-Fav)，合法内容——例如父母将孩子在浴缸里的照片发给医生，或青少年分享经同意的图片——可能被标记并自动发送给警察。这可能用"噪音"压垮执法部门，同时侵犯无辜家庭的隐私。
+
+    #### 4. 弱势群体的脆弱性
+    讽刺的是，许多批评者指出，该法律可能伤害它本想保护的那些人。
+    *   **批评：** 隐私和加密对举报人、记者以及家庭暴力或政治迫害受害者至关重要。如果这些应用程序的安全性被削弱，这些弱势群体将失去用于沟通和寻求帮助的安全空间。
+
+    ### 冲突总结
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### 当前状态（2026年4月）
+    本月初[自愿扫描规则到期](embed:stateofsurveillance.org-Nsm)后，Meta和Google等平台目前缺乏在欧盟内扫描私人消息的法律依据。战场现已转移到**"Chat Control 2.0"**——使这种扫描成为强制性的尝试。欧盟成员国之间的谈判仍在继续，许多国家在是否能够在不牺牲私人通信核心原则的情况下实现儿童安全问题上仍存在深刻分歧。
+
+    **您怎么看？** 私密加密通信的权利应该是绝对的吗？还是存在某些特定情况，您认为出于公共安全考虑可以被绕过？
+
+    如果您想深入了解法律论点，可以查阅[欧洲议会官方文件](embed:europarl.europa.eu-xqu)，或探索[EDRi](https://edri.org)等数字权利追踪机构。
+
+    **您是否想了解更多关于：**
+    1. **客户端扫描**在技术上如何运作？
+    2. 目前哪些欧盟国家[支持或反对](embed:reddit.com-sFU)这一强制性法律？
+    ---
+    *⚠️ 这仅为教育信息，不构成法律建议。如需法律建议，请咨询律师。*
+
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    La propuesta "Chat Control" (oficialmente el **Reglamento de la UE sobre Abuso Sexual Infantil (CSA)**) se ha convertido en una de las legislaciones digitales más controvertidas de la historia europea. Aunque su objetivo declarado es combatir el abuso sexual infantil, los críticos argumentan que los métodos propuestos destruirían fundamentalmente la infraestructura de seguridad y privacidad de Internet.
+
+    En **abril de 2026**, el debate ha llegado a un punto de inflexión crítico. Las reglas temporales que permitían a las empresas tecnológicas escanear mensajes voluntariamente (**Chat Control 1.0**) expiraron el **3 de abril de 2026**, después de que el [Parlamento Europeo rechazara una prórroga adicional](embed:stateofsurveillance.org-dRV) en marzo.
+
+    ### Por qué las críticas son tan intensas
+
+    Las duras críticas surgen de varios conflictos fundamentales entre los objetivos de seguridad y los derechos digitales:
+
+    #### 1. La "Puerta trasera" al cifrado
+    La crítica más significativa implica el **Cifrado de Extremo a Extremo (E2EE)**. Servicios como Signal y WhatsApp utilizan E2EE para que solo el remitente y el receptor puedan leer un mensaje.
+    *   **El conflicto:** Para escanear estos mensajes en busca de contenido ilegal, la UE propuso el **"Escaneo del Lado del Cliente"**: software en su teléfono que verifica sus fotos y textos *antes* de que sean cifrados y enviados.
+    *   **La crítica:** Los expertos en seguridad y los [defensores de la privacidad](embed:globalencryption.org-83i) argumentan que esto crea de hecho una "puerta trasera". Una vez que existe tal mecanismo, puede ser explotado por hackers, servicios de inteligencia extranjeros o futuros gobiernos autoritarios para monitorizar cualquier tipo de comunicación.
+
+    #### 2. Cambio hacia la vigilancia masiva
+    Los críticos, incluidas las [organizaciones europeas de derechos digitales](embed:fightchatcontrol.eu-YsN), argumentan que la ley se aleja de la "sospecha dirigida" (investigar a criminales específicos) hacia la "vigilancia generalizada" (escanear la vida privada de todos).
+    *   **La crítica:** Esto trata a cada ciudadano como un sospechoso potencial. El [Tribunal Europeo de Derechos Humanos](embed:globalencryption.org-83i) ya ha dictaminado en casos como *Podchasov v. Russia* que debilitar el cifrado para posibilitar la vigilancia masiva es una violación desproporcionada de los derechos fundamentales.
+
+    #### 3. Falta de fiabilidad técnica (El problema de los "Falsos Positivos")
+    La propuesta se basa en gran medida en la IA para detectar nuevo material de abuso infantil y el "grooming" (comportamiento depredador).
+    *   **La crítica:** La IA no es perfecta. [Estudios independientes han destacado altas tasas de error](embed:en.wikipedia.org-Fav), donde contenido legal —como un padre enviando una foto de su hijo en la bañera a un médico, o adolescentes compartiendo imágenes con consentimiento— podría ser marcado y enviado automáticamente a la policía. Esto podría saturar a las fuerzas del orden con "ruido" mientras viola la privacidad de familias inocentes.
+
+    #### 4. Vulnerabilidad para los grupos en riesgo
+    Irónicamente, muchos críticos señalan que la ley podría perjudicar a las mismas personas que pretende proteger.
+    *   **La crítica:** La privacidad y el cifrado son vitales para los denunciantes, periodistas y víctimas de violencia doméstica o persecución política. Si se debilita la seguridad de estas aplicaciones, estos grupos vulnerables pierden sus espacios seguros para comunicarse y buscar ayuda.
+
+    ### Resumen del conflicto
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Estado actual (abril de 2026)
+    Tras la [expiración de las normas de escaneo voluntario](embed:stateofsurveillance.org-Nsm) a principios de este mes, plataformas como Meta y Google actualmente carecen de base legal para escanear mensajes privados dentro de la UE. La batalla se ha desplazado ahora a **"Chat Control 2.0"**: el intento de hacer obligatorio este escaneo. Las negociaciones continúan entre los estados miembros de la UE, con muchos aún profundamente divididos sobre si la seguridad infantil puede lograrse sin sacrificar el principio fundamental de la comunicación privada.
+
+    **¿Qué opina usted?** ¿Debería el derecho a la comunicación privada y cifrada ser absoluto, o existen circunstancias específicas en las que considera que debería ser omitido por seguridad pública?
+
+    Si desea profundizar en los argumentos legales, puede consultar la [documentación oficial del Parlamento Europeo](embed:europarl.europa.eu-xqu) o explorar rastreadores de derechos digitales como [EDRi](https://edri.org).
+
+    **¿Le gustaría saber más sobre:**
+    1. ¿Cómo funciona técnicamente el **Escaneo del Lado del Cliente**?
+    2. ¿Qué países de la UE están actualmente [apoyando u oponiéndose](embed:reddit.com-sFU) a la ley obligatoria?
+    ---
+    *⚠️ Esta es información educativa únicamente y no constituye asesoramiento legal. Consulte a un abogado para obtener asesoramiento legal.*
+
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    La proposition « Chat Control » (officiellement le **Règlement de l'UE sur les abus sexuels sur enfants (CSA)**) est devenue l'une des législations numériques les plus controversées de l'histoire européenne. Bien que son objectif déclaré soit de lutter contre les abus sexuels sur les enfants, les critiques soutiennent que les méthodes proposées détruiraient fondamentalement l'infrastructure de sécurité et de confidentialité d'Internet.
+
+    En **avril 2026**, le débat a atteint un tournant critique. Les règles temporaires permettant aux entreprises technologiques de scanner volontairement les messages (**Chat Control 1.0**) ont expiré le **3 avril 2026**, après que le [Parlement européen a rejeté une nouvelle prolongation](embed:stateofsurveillance.org-dRV) en mars.
+
+    ### Pourquoi les critiques sont si intenses
+
+    Les vives critiques découlent de plusieurs conflits fondamentaux entre les objectifs de sécurité et les droits numériques :
+
+    #### 1. La « Porte dérobée » vers le chiffrement
+    La critique la plus significative concerne le **Chiffrement de Bout en Bout (E2EE)**. Des services comme Signal et WhatsApp utilisent l'E2EE pour que seuls l'expéditeur et le destinataire puissent lire un message.
+    *   **Le conflit :** Pour analyser ces messages à la recherche de contenus illégaux, l'UE a proposé le **« Scan côté client »** : un logiciel sur votre téléphone qui vérifie vos photos et textes *avant* qu'ils soient chiffrés et envoyés.
+    *   **La critique :** Les experts en sécurité et les [défenseurs de la vie privée](embed:globalencryption.org-83i) soutiennent que cela crée effectivement une « porte dérobée ». Une fois qu'un tel mécanisme existe, il peut être exploité par des pirates, des services de renseignement étrangers ou de futurs gouvernements autoritaires pour surveiller tout type de communication.
+
+    #### 2. Basculement vers la surveillance de masse
+    Les critiques, dont les [organisations européennes de défense des droits numériques](embed:fightchatcontrol.eu-YsN), soutiennent que la loi s'éloigne de la « suspicion ciblée » (enquêter sur des criminels spécifiques) vers la « surveillance généralisée » (scanner la vie privée de tout le monde).
+    *   **La critique :** Cela traite chaque citoyen comme un suspect potentiel. La [Cour européenne des droits de l'homme](embed:globalencryption.org-83i) a déjà statué dans des affaires comme *Podchasov v. Russia* que l'affaiblissement du chiffrement pour permettre la surveillance de masse est une violation disproportionnée des droits fondamentaux.
+
+    #### 3. Manque de fiabilité technique (Le problème des « Faux Positifs »)
+    La proposition s'appuie fortement sur l'IA pour détecter de nouveaux matériaux d'abus sexuels sur enfants et le « grooming » (comportement prédateur).
+    *   **La critique :** L'IA n'est pas parfaite. Des [études indépendantes ont mis en évidence des taux d'erreur élevés](embed:en.wikipedia.org-Fav), où des contenus légaux — comme un parent envoyant la photo de son enfant dans le bain à un médecin, ou des adolescents partageant des images consenties — pourraient être signalés et envoyés automatiquement à la police. Cela pourrait saturer les forces de l'ordre avec du « bruit » tout en violant la vie privée de familles innocentes.
+
+    #### 4. Vulnérabilité des groupes à risque
+    Ironiquement, de nombreux critiques soulignent que la loi pourrait nuire aux personnes mêmes qu'elle vise à protéger.
+    *   **La critique :** La vie privée et le chiffrement sont vitaux pour les lanceurs d'alerte, les journalistes et les victimes de violences domestiques ou de persécutions politiques. Si la sécurité de ces applications est affaiblie, ces groupes vulnérables perdent leurs espaces sûrs pour communiquer et chercher de l'aide.
+
+    ### Résumé du conflit
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### État actuel (avril 2026)
+    Suite à l'[expiration des règles de scan volontaire](embed:stateofsurveillance.org-Nsm) en début de mois, des plateformes comme Meta et Google ne disposent actuellement d'aucune base légale pour scanner les messages privés au sein de l'UE. Le combat s'est maintenant déplacé vers **« Chat Control 2.0 »** — la tentative de rendre ce scan obligatoire. Les négociations se poursuivent entre les États membres de l'UE, beaucoup étant encore profondément divisés sur la question de savoir si la sécurité des enfants peut être assurée sans sacrifier le principe fondamental de la communication privée.
+
+    **Qu'en pensez-vous ?** Le droit à une communication privée et chiffrée doit-il être absolu, ou y a-t-il des circonstances spécifiques dans lesquelles vous estimez qu'il devrait être contourné pour la sécurité publique ?
+
+    Si vous souhaitez approfondir les arguments juridiques, vous pouvez consulter la [documentation officielle du Parlement européen](embed:europarl.europa.eu-xqu) ou explorer des sites de suivi des droits numériques comme [EDRi](https://edri.org).
+
+    **Souhaitez-vous en savoir plus sur :**
+    1. Comment fonctionne techniquement le **Scan côté client** ?
+    2. Quels pays de l'UE [soutiennent ou s'opposent](embed:reddit.com-sFU) actuellement à la loi obligatoire ?
+    ---
+    *⚠️ Il s'agit uniquement d'informations éducatives et non de conseils juridiques. Consultez un avocat pour des conseils juridiques.*
+
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    A proposta "Chat Control" (oficialmente o **Regulamento da UE sobre Abuso Sexual de Crianças (CSA)**) tornou-se uma das legislações digitais mais controversas da história europeia. Embora o objetivo declarado seja combater o abuso sexual infantil, os críticos argumentam que os métodos propostos destruiriam fundamentalmente a infraestrutura de segurança e privacidade da internet.
+
+    Em **abril de 2026**, o debate atingiu um ponto de viragem crítico. As regras temporárias que permitiam às empresas tecnológicas digitalizar mensagens voluntariamente (**Chat Control 1.0**) expiraram em **3 de abril de 2026**, depois de o [Parlamento Europeu ter rejeitado uma nova prorrogação](embed:stateofsurveillance.org-dRV) em março.
+
+    ### Por que as críticas são tão intensas
+
+    As fortes críticas resultam de vários conflitos fundamentais entre os objetivos de segurança e os direitos digitais:
+
+    #### 1. A "Porta dos Fundos" para a criptografia
+    A crítica mais significativa envolve a **Criptografia de Ponta a Ponta (E2EE)**. Serviços como Signal e WhatsApp utilizam E2EE para que apenas o remetente e o destinatário possam ler uma mensagem.
+    *   **O conflito:** Para analisar essas mensagens em busca de conteúdo ilegal, a UE propôs a **"Análise no Lado do Cliente"** — software no seu telemóvel que verifica as suas fotos e textos *antes* de serem criptografados e enviados.
+    *   **A crítica:** Especialistas em segurança e [defensores da privacidade](embed:globalencryption.org-83i) argumentam que isso cria efetivamente uma "porta dos fundos". Uma vez que tal mecanismo existe, pode ser explorado por hackers, serviços de inteligência estrangeiros ou futuros governos autoritários para monitorar qualquer tipo de comunicação.
+
+    #### 2. Transição para a vigilância em massa
+    Os críticos, incluindo as [organizações europeias de direitos digitais](embed:fightchatcontrol.eu-YsN), argumentam que a lei se afasta da "suspeita direcionada" (investigar criminosos específicos) para a "vigilância generalizada" (analisar a vida privada de toda a gente).
+    *   **A crítica:** Isso trata cada cidadão como um suspeito potencial. O [Tribunal Europeu dos Direitos do Homem](embed:globalencryption.org-83i) já decidiu em casos como *Podchasov v. Russia* que enfraquecer a criptografia para permitir a vigilância em massa é uma violação desproporcionada dos direitos fundamentais.
+
+    #### 3. Falta de fiabilidade técnica (O problema dos "Falsos Positivos")
+    A proposta depende fortemente da IA para detetar novos materiais de abuso infantil e "grooming" (comportamento predatório).
+    *   **A crítica:** A IA não é perfeita. [Estudos independentes destacaram altas taxas de erro](embed:en.wikipedia.org-Fav), em que conteúdo legal — como um pai enviando uma foto do filho na banheira a um médico, ou adolescentes partilhando imagens consensuais — poderia ser sinalizado e enviado automaticamente à polícia. Isto poderia sobrecarregar as forças de segurança com "ruído" enquanto viola a privacidade de famílias inocentes.
+
+    #### 4. Vulnerabilidade para grupos em risco
+    Ironicamente, muitos críticos apontam que a lei poderia prejudicar as próprias pessoas que pretende proteger.
+    *   **A crítica:** A privacidade e a criptografia são vitais para denunciantes, jornalistas e vítimas de violência doméstica ou perseguição política. Se a segurança destas aplicações for enfraquecida, estes grupos vulneráveis perdem os seus espaços seguros para comunicar e procurar ajuda.
+
+    ### Resumo do conflito
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Estado atual (abril de 2026)
+    Após a [expiração das regras de análise voluntária](embed:stateofsurveillance.org-Nsm) no início deste mês, plataformas como Meta e Google atualmente não têm base legal para analisar mensagens privadas dentro da UE. A batalha deslocou-se agora para **"Chat Control 2.0"** — a tentativa de tornar esta análise obrigatória. As negociações continuam entre os estados membros da UE, com muitos ainda profundamente divididos sobre se a segurança infantil pode ser alcançada sem sacrificar o princípio fundamental da comunicação privada.
+
+    **O que acha?** O direito à comunicação privada e criptografada deve ser absoluto, ou existem circunstâncias específicas em que considera que deve ser contornado por segurança pública?
+
+    Se quiser aprofundar os argumentos jurídicos, pode consultar a [documentação oficial do Parlamento Europeu](embed:europarl.europa.eu-xqu) ou explorar rastreadores de direitos digitais como o [EDRi](https://edri.org).
+
+    **Gostaria de saber mais sobre:**
+    1. Como funciona tecnicamente a **Análise no Lado do Cliente**?
+    2. Quais países da UE estão atualmente [a apoiar ou a opor-se](embed:reddit.com-sFU) à lei obrigatória?
+    ---
+    *⚠️ Esta é apenas informação educativa e não constitui aconselhamento jurídico. Consulte um advogado para aconselhamento jurídico.*
+
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Предложение «Chat Control» (официально — **Регламент ЕС о сексуальном насилии над детьми (CSA)**) стало одним из наиболее спорных актов цифрового законодательства в европейской истории. Несмотря на то что заявленная цель — борьба с сексуальным насилием над детьми, критики утверждают, что предложенные методы коренным образом разрушат инфраструктуру безопасности и конфиденциальности интернета.
+
+    По состоянию на **апрель 2026 года** дискуссия достигла критической точки. Временные правила, позволявшие технологическим компаниям добровольно сканировать сообщения (**Chat Control 1.0**), утратили силу **3 апреля 2026 года** после того, как в марте [Европейский парламент отклонил продление](embed:stateofsurveillance.org-dRV).
+
+    ### Почему критика столь интенсивна
+
+    Резкая критика обусловлена рядом принципиальных противоречий между целями безопасности и цифровыми правами:
+
+    #### 1. «Бэкдор» в шифровании
+    Наиболее существенная критика касается **сквозного шифрования (E2EE)**. Сервисы вроде Signal и WhatsApp используют E2EE, благодаря чему только отправитель и получатель могут прочитать сообщение.
+    *   **Конфликт:** Чтобы сканировать эти сообщения на предмет незаконного контента, ЕС предложил **«сканирование на стороне клиента»** — программное обеспечение на вашем телефоне, которое проверяет фото и тексты *до* их шифрования и отправки.
+    *   **Критика:** Эксперты по безопасности и [защитники конфиденциальности](embed:globalencryption.org-83i) утверждают, что это фактически создаёт «бэкдор». Как только подобный механизм существует, он может быть использован хакерами, иностранными спецслужбами или будущими авторитарными правительствами для слежки за любым типом коммуникаций.
+
+    #### 2. Переход к массовой слежке
+    Критики, в том числе [европейские организации по защите цифровых прав](embed:fightchatcontrol.eu-YsN), утверждают, что закон смещает акцент с «целенаправленного подозрения» (расследование конкретных преступников) к «обобщённой слежке» (сканирование личной жизни всех).
+    *   **Критика:** Это превращает каждого гражданина в потенциального подозреваемого. [Европейский суд по правам человека](embed:globalencryption.org-83i) ранее выносил решения по делам наподобие *Podchasov v. Russia*, констатируя, что ослабление шифрования в целях массовой слежки является несоразмерным нарушением основных прав.
+
+    #### 3. Техническая ненадёжность (Проблема «ложноположительных результатов»)
+    Предложение в значительной мере опирается на ИИ для выявления новых материалов, связанных с насилием над детьми, и «грумингом» (хищническое поведение).
+    *   **Критика:** ИИ несовершенен. Независимые [исследования зафиксировали высокий уровень ошибок](embed:en.wikipedia.org-Fav): легальный контент — например, родитель, отправляющий врачу фото ребёнка в ванной, или подростки, обменивающиеся фотографиями по взаимному согласию, — может быть помечен и автоматически направлен в полицию. Это способно захлестнуть правоохранительные органы «шумом», нарушая при этом конфиденциальность невиновных семей.
+
+    #### 4. Уязвимость групп риска
+    По иронии судьбы, многие критики указывают, что закон может навредить именно тем, кого он призван защищать.
+    *   **Критика:** Конфиденциальность и шифрование жизненно важны для информаторов, журналистов и жертв домашнего насилия или политических преследований. Если безопасность этих приложений будет ослаблена, уязвимые группы лишатся безопасного пространства для общения и обращения за помощью.
+
+    ### Краткое изложение конфликта
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Текущий статус (апрель 2026 года)
+    После [истечения срока действия правил добровольного сканирования](embed:stateofsurveillance.org-Nsm) в начале этого месяца такие платформы, как Meta и Google, в настоящее время не имеют правовых оснований для сканирования личных сообщений в ЕС. Теперь борьба переместилась в плоскость **«Chat Control 2.0»** — попытки сделать это сканирование обязательным. Переговоры между государствами — членами ЕС продолжаются: многие из них по-прежнему глубоко расходятся во мнениях о том, можно ли обеспечить безопасность детей, не жертвуя основным принципом частной коммуникации.
+
+    **Что вы думаете?** Должно ли право на частную зашифрованную переписку быть абсолютным, или существуют конкретные обстоятельства, при которых, по вашему мнению, оно может быть нарушено в интересах общественной безопасности?
+
+    Если вы хотите глубже изучить правовые аргументы, вы можете ознакомиться с [официальной документацией Европейского парламента](embed:europarl.europa.eu-xqu) или изучить правозащитные ресурсы вроде [EDRi](https://edri.org).
+
+    **Хотите узнать больше о:**
+    1. Как технически работает **сканирование на стороне клиента**?
+    2. Какие страны ЕС в настоящее время [поддерживают или выступают против](embed:reddit.com-sFU) обязательного закона?
+    ---
+    *⚠️ Это исключительно образовательная информация, а не юридическая консультация. Для получения юридической консультации обратитесь к адвокату.*
+
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    「Chat Control」提案（正式名称：**EU児童性的虐待（CSA）規則**）は、欧州史上最も論争的なデジタル立法の一つとなっています。表向きの目標は児童性的虐待への対処ですが、批判者たちは提案されている手法がインターネットのセキュリティとプライバシーの基盤を根本的に破壊すると主張しています。
+
+    **2026年4月**現在、この議論は重大な転換点に達しています。テクノロジー企業がメッセージを自発的にスキャンすることを許可していた一時的なルール（**Chat Control 1.0**）は、[欧州議会が3月に延長を拒否した](embed:stateofsurveillance.org-dRV)後、**2026年4月3日**に失効しました。
+
+    ### 批判がこれほど激しい理由
+
+    強い批判は、安全目標とデジタル権利の間にある根本的な対立から生じています：
+
+    #### 1. 暗号化への「バックドア」
+    最も重要な批判は**エンドツーエンド暗号化（E2EE）**に関するものです。SignalやWhatsAppのようなサービスはE2EEを使用し、送信者と受信者だけがメッセージを読めるようにしています。
+    *   **対立点：** これらのメッセージを違法コンテンツについてスキャンするため、EUは**「クライアントサイドスキャニング」**を提案しました——暗号化されて送信される*前*に写真やテキストを確認する、スマートフォン上のソフトウェアです。
+    *   **批判：** セキュリティ専門家や[プライバシー擁護者](embed:globalencryption.org-83i)は、これが事実上「バックドア」を作ることになると主張しています。このような仕組みが存在すれば、ハッカーや外国情報機関、または将来の権威主義的政府によってあらゆる種類の通信を監視するために悪用される可能性があります。
+
+    #### 2. 大規模監視への転換
+    [欧州のデジタル権利団体](embed:fightchatcontrol.eu-YsN)を含む批判者たちは、この法律が「標的を絞った疑惑」（特定の犯罪者を調査すること）から「一般化された監視」（全員のプライベートな生活をスキャンすること）へと移行していると主張しています。
+    *   **批判：** これはすべての市民を潜在的な容疑者として扱います。[欧州人権裁判所](embed:globalencryption.org-83i)は以前、*Podchasov v. Russia*のような事件において、大規模監視を可能にするための暗号化の弱体化は基本的権利の不均衡な侵害であると判決を下しています。
+
+    #### 3. 技術的信頼性の欠如（「誤検知」問題）
+    この提案は、新たな児童虐待素材と「グルーミング」（捕食的行動）の検出にAIを大きく依存しています。
+    *   **批判：** AIは完璧ではありません。独立した[研究では高いエラー率が指摘されており](embed:en.wikipedia.org-Fav)、医師に子どもの入浴写真を送る親や、合意のある画像を共有する十代の若者などの合法的なコンテンツがフラグを立てられて自動的に警察に送られる可能性があります。これは無実の家族のプライバシーを侵害しながら、法執行機関を「ノイズ」で圧倒することになりかねません。
+
+    #### 4. リスクグループの脆弱性
+    皮肉なことに、多くの批判者は、この法律が保護しようとしている人々そのものを傷つける可能性があると指摘しています。
+    *   **批判：** プライバシーと暗号化は、内部告発者、ジャーナリスト、家庭内暴力または政治的迫害の被害者にとって不可欠です。これらのアプリのセキュリティが弱体化されれば、脆弱なグループは連絡を取り合い助けを求めるための安全な場所を失います。
+
+    ### 対立の概要
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### 現在の状況（2026年4月）
+    今月初め[自発的スキャンルールが失効した](embed:stateofsurveillance.org-Nsm)後、MetaやGoogleのようなプラットフォームは現在EU内で個人メッセージをスキャンする法的根拠を持っていません。戦いは今、このスキャンを義務化しようとする試みである**「Chat Control 2.0」**へと移っています。EU加盟国間の交渉は続いており、多くの国がプライベートな通信の核心的原則を犠牲にせずに子どもの安全を達成できるかどうかについて、依然として深く分断されています。
+
+    **あなたはどう思いますか？** プライバシーが守られた暗号化通信の権利は絶対的であるべきでしょうか、それとも公共の安全のためにバイパスされるべき特定の状況があると思いますか？
+
+    法律上の議論をより深く調べたい場合は、[欧州議会の公式文書](embed:europarl.europa.eu-xqu)を確認するか、[EDRi](https://edri.org)のようなデジタル権利追跡機関を探索できます。
+
+    **次のことについてもっと知りたいですか：**
+    1. **クライアントサイドスキャニング**は技術的にどのように機能しますか？
+    2. 現在どのEU諸国が強制法を[支持または反対](embed:reddit.com-sFU)していますか？
+    ---
+    *⚠️ これは教育目的の情報であり、法的助言ではありません。法的助言については弁護士にご相談ください。*
+
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    "Chat Control" 제안(공식 명칭: **EU 아동 성적 학대(CSA) 규정**)은 유럽 역사상 가장 논란이 많은 디지털 입법 중 하나가 되었습니다. 표면적인 목표는 아동 성적 학대를 근절하는 것이지만, 비판론자들은 제안된 방법이 인터넷의 보안 및 개인정보 보호 인프라를 근본적으로 훼손할 것이라고 주장합니다.
+
+    **2026년 4월** 현재, 이 논쟁은 중요한 전환점에 도달했습니다. 기술 기업들이 자발적으로 메시지를 스캔할 수 있도록 허용했던 임시 규정(**Chat Control 1.0**)은 [유럽 의회가 3월에 추가 연장을 거부한](embed:stateofsurveillance.org-dRV) 후 **2026년 4월 3일**에 만료되었습니다.
+
+    ### 비판이 격렬한 이유
+
+    강도 높은 비판은 안전 목표와 디지털 권리 사이의 몇 가지 근본적인 충돌에서 비롯됩니다:
+
+    #### 1. 암호화의 "뒷문"
+    가장 중요한 비판은 **종단간 암호화(E2EE)**와 관련됩니다. Signal이나 WhatsApp 같은 서비스는 E2EE를 사용하여 발신자와 수신자만 메시지를 읽을 수 있게 합니다.
+    *   **갈등:** 이러한 메시지에서 불법 콘텐츠를 스캔하기 위해 EU는 **"클라이언트 측 스캔"**을 제안했습니다—메시지가 암호화되어 전송되기 *전에* 사진과 텍스트를 확인하는 휴대폰 소프트웨어입니다.
+    *   **비판:** 보안 전문가와 [개인정보 보호 옹호자들](embed:globalencryption.org-83i)은 이것이 사실상 "뒷문"을 만드는 것이라고 주장합니다. 이러한 메커니즘이 존재하면, 해커, 외국 정보기관 또는 미래의 권위주의 정부가 모든 유형의 발언을 감시하는 데 악용될 수 있습니다.
+
+    #### 2. 대규모 감시로의 전환
+    [유럽 디지털 권리 단체](embed:fightchatcontrol.eu-YsN)를 포함한 비판론자들은 이 법이 "표적 의심"(특정 범죄자 수사)에서 "일반화된 감시"(모든 사람의 사생활 스캔)로 이동하고 있다고 주장합니다.
+    *   **비판:** 이것은 모든 시민을 잠재적 용의자로 취급합니다. [유럽인권재판소](embed:globalencryption.org-83i)는 이전에 *Podchasov v. Russia* 같은 사건에서 대규모 감시를 가능하게 하기 위한 암호화 약화는 기본권의 불균형한 침해라고 판결한 바 있습니다.
+
+    #### 3. 기술적 불신뢰성 ("거짓 양성" 문제)
+    이 제안은 새로운 아동 학대 자료와 "그루밍"(포식적 행동)을 탐지하기 위해 AI에 크게 의존합니다.
+    *   **비판:** AI는 완벽하지 않습니다. 독립적인 [연구들은 높은 오류율을 지적했으며](embed:en.wikipedia.org-Fav), 의사에게 욕조에 있는 아이 사진을 보내는 부모나 서로 동의한 이미지를 공유하는 십 대 등 합법적인 콘텐츠가 신고되어 자동으로 경찰에 전송될 수 있습니다. 이는 무고한 가족의 사생활을 침해하면서 법 집행 기관을 "노이즈"로 압도할 수 있습니다.
+
+    #### 4. 취약 계층의 위험
+    아이러니하게도, 많은 비판론자들은 이 법이 보호하려는 바로 그 사람들에게 해를 끼칠 수 있다고 지적합니다.
+    *   **비판:** 개인정보 보호와 암호화는 내부 고발자, 언론인, 가정 폭력 피해자 또는 정치적 박해를 받는 사람들에게 필수적입니다. 이러한 앱의 보안이 약화되면, 이 취약 계층은 소통하고 도움을 구할 안전한 공간을 잃게 됩니다.
+
+    ### 갈등 요약
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### 현황 (2026년 4월)
+    이달 초 [자발적 스캔 규정이 만료된](embed:stateofsurveillance.org-Nsm) 후, Meta와 Google 같은 플랫폼은 현재 EU 내에서 개인 메시지를 스캔할 법적 근거가 없습니다. 전쟁은 이제 **"Chat Control 2.0"**—이 스캔을 의무화하려는 시도—으로 옮겨갔습니다. EU 회원국들 간의 협상은 계속되고 있으며, 아동 안전이 개인 통신의 핵심 원칙을 희생하지 않고 달성될 수 있는지에 대해 여전히 깊은 의견 차이를 보이고 있습니다.
+
+    **어떻게 생각하시나요?** 암호화된 사적 통신의 권리는 절대적이어야 할까요, 아니면 공공 안전을 위해 우회해야 하는 특정 상황이 있을까요?
+
+    법적 주장을 더 깊이 살펴보고 싶다면, [유럽 의회 공식 문서](embed:europarl.europa.eu-xqu)를 확인하거나 [EDRi](https://edri.org) 같은 디지털 권리 추적 단체를 살펴볼 수 있습니다.
+
+    **다음에 대해 더 알고 싶으신가요:**
+    1. **클라이언트 측 스캔**이 기술적으로 어떻게 작동하나요?
+    2. 현재 어떤 EU 국가들이 의무 법안을 [지지하거나 반대하고](embed:reddit.com-sFU) 있나요?
+    ---
+    *⚠️ 이것은 교육 목적의 정보일 뿐이며 법률 조언이 아닙니다. 법률 조언을 위해서는 변호사와 상담하세요.*
+
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    La proposta "Chat Control" (ufficialmente il **Regolamento UE sugli abusi sessuali su minori (CSA)**) è diventata una delle normative digitali più controverse della storia europea. Sebbene il suo obiettivo dichiarato sia combattere gli abusi sessuali su minori, i critici sostengono che i metodi proposti minerebbero fondamentalmente l'infrastruttura di sicurezza e privacy di Internet.
+
+    Ad **aprile 2026**, il dibattito ha raggiunto un punto di svolta critico. Le norme temporanee che permettevano alle aziende tecnologiche di scansionare volontariamente i messaggi (**Chat Control 1.0**) sono scadute il **3 aprile 2026**, dopo che il [Parlamento Europeo ha rifiutato un'ulteriore proroga](embed:stateofsurveillance.org-dRV) a marzo.
+
+    ### Perché le critiche sono così intense
+
+    Le forti critiche derivano da diversi conflitti fondamentali tra obiettivi di sicurezza e diritti digitali:
+
+    #### 1. La "porta sul retro" della crittografia
+    La critica più significativa riguarda la **crittografia End-to-End (E2EE)**. Servizi come Signal e WhatsApp usano E2EE affinché solo il mittente e il destinatario possano leggere un messaggio.
+    *   **Il conflitto:** Per scansionare questi messaggi alla ricerca di contenuti illegali, l'UE ha proposto lo **"scansionamento lato client"**—un software sul telefono che controlla foto e testi *prima* che vengano crittografati e inviati.
+    *   **La critica:** Esperti di sicurezza e [difensori della privacy](embed:globalencryption.org-83i) sostengono che questo crea di fatto una "porta sul retro". Una volta esistente tale meccanismo, può essere sfruttato da hacker, servizi di intelligence stranieri o futuri governi autoritari per monitorare qualsiasi tipo di comunicazione.
+
+    #### 2. Passaggio alla sorveglianza di massa
+    I critici, incluse le [organizzazioni europee per i diritti digitali](embed:fightchatcontrol.eu-YsN), sostengono che la legge si allontana dal "sospetto mirato" (investigazione su specifici criminali) verso la "sorveglianza generalizzata" (scansione della vita privata di tutti).
+    *   **La critica:** Questo tratta ogni cittadino come un potenziale sospettato. La [Corte Europea dei Diritti dell'Uomo](embed:globalencryption.org-83i) ha precedentemente stabilito in casi come *Podchasov v. Russia* che indebolire la crittografia per consentire la sorveglianza di massa è una violazione sproporzionata dei diritti fondamentali.
+
+    #### 3. Inaffidabilità tecnica (Il problema dei "falsi positivi")
+    La proposta fa molto affidamento sull'IA per rilevare nuovo materiale di abuso su minori e il "grooming" (comportamento predatorio).
+    *   **La critica:** L'IA non è perfetta. [Studi indipendenti hanno evidenziato alti tassi di errore](embed:en.wikipedia.org-Fav), dove contenuti legali—come un genitore che invia la foto del figlio nella vasca da bagno a un medico, o adolescenti che condividono immagini consensuali—potrebbero essere segnalati e inviati automaticamente alla polizia. Questo potrebbe sopraffare le forze dell'ordine con "rumore" violando al contempo la privacy di famiglie innocenti.
+
+    #### 4. Vulnerabilità per i gruppi a rischio
+    Paradossalmente, molti critici sottolineano che la legge potrebbe danneggiare le persone stesse che intende proteggere.
+    *   **La critica:** La privacy e la crittografia sono fondamentali per gli informatori, i giornalisti e le vittime di abusi domestici o persecuzioni politiche. Se la sicurezza di queste app viene indebolita, questi gruppi vulnerabili perdono i loro spazi sicuri per comunicare e cercare aiuto.
+
+    ### Riepilogo del conflitto
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Stato attuale (aprile 2026)
+    In seguito alla [scadenza delle norme di scansione volontaria](embed:stateofsurveillance.org-Nsm) all'inizio di questo mese, piattaforme come Meta e Google non dispongono attualmente della base giuridica per scansionare i messaggi privati nell'UE. La battaglia si è ora spostata su **"Chat Control 2.0"**—il tentativo di rendere obbligatoria questa scansione. I negoziati continuano tra gli Stati membri dell'UE, con molti ancora profondamente divisi sulla possibilità di garantire la sicurezza dei minori senza sacrificare il principio fondamentale della comunicazione privata.
+
+    **Cosa ne pensi?** Il diritto alla comunicazione privata e crittografata dovrebbe essere assoluto, o ci sono circostanze specifiche in cui ritieni che debba essere aggirato per la sicurezza pubblica?
+
+    Se vuoi approfondire gli argomenti legali, puoi consultare la [documentazione ufficiale del Parlamento Europeo](embed:europarl.europa.eu-xqu) o esplorare i tracker dei diritti digitali come [EDRi](https://edri.org).
+
+    **Vuoi saperne di più su:**
+    1. Come funziona tecnicamente lo **scansionamento lato client**?
+    2. Quali paesi UE sono attualmente [a favore o contrari](embed:reddit.com-sFU) alla legge obbligatoria?
+    ---
+    *⚠️ Queste sono informazioni a scopo educativo e non costituiscono consulenza legale. Consulta un avvocato per una consulenza legale.*
+
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    "Chat Control" önerisi (resmi adıyla **AB Çocuklara Yönelik Cinsel İstismar (CSA) Yönetmeliği**), Avrupa tarihinin en tartışmalı dijital mevzuatlarından biri haline gelmiştir. Açıklanan amacı çocuklara yönelik cinsel istismarla mücadele etmek olsa da eleştirmenler, önerilen yöntemlerin internetin güvenlik ve gizlilik altyapısını temelden bozacağını savunmaktadır.
+
+    **Nisan 2026** itibarıyla tartışma kritik bir dönüm noktasına ulaşmıştır. Teknoloji şirketlerinin mesajları gönüllü olarak taramasına izin veren geçici kurallar (**Chat Control 1.0**), [Avrupa Parlamentosu'nun Mart ayında ek uzatmayı reddetmesinin](embed:stateofsurveillance.org-dRV) ardından **3 Nisan 2026**'da sona ermiştir.
+
+    ### Eleştirilerin Bu Kadar Yoğun Olmasının Nedeni
+
+    Yoğun eleştiriler, güvenlik hedefleri ile dijital haklar arasındaki birkaç temel çatışmadan kaynaklanmaktadır:
+
+    #### 1. Şifrelemede "Arka Kapı"
+    En önemli eleştiri **Uçtan Uca Şifreleme (E2EE)** ile ilgilidir. Signal ve WhatsApp gibi hizmetler, E2EE kullanarak yalnızca gönderici ve alıcının mesajı okuyabilmesini sağlar.
+    *   **Çatışma:** AB, bu mesajları yasadışı içerik için taramak amacıyla **"İstemci Tarafı Tarama"** önermiştir—fotoğraflarınızı ve metinlerinizi şifrelenmeden ve gönderilmeden *önce* kontrol eden, telefonunuzdaki yazılım.
+    *   **Eleştiri:** Güvenlik uzmanları ve [gizlilik savunucuları](embed:globalencryption.org-83i), bunun fiilen bir "arka kapı" oluşturduğunu savunmaktadır. Böyle bir mekanizma var olduğunda, bilgisayar korsanları, yabancı istihbarat servisleri veya gelecekteki otoriter hükümetler tarafından her türlü konuşmayı izlemek için kötüye kullanılabilir.
+
+    #### 2. Toplu Gözetlemeye Geçiş
+    [Avrupa dijital haklar örgütleri](embed:fightchatcontrol.eu-YsN) de dahil olmak üzere eleştirmenler, yasanın "hedefli şüphe" (belirli suçluları soruşturma) yerine "genelleştirilmiş gözetleme"ye (herkesin özel hayatını tarama) doğru ilerlediğini savunmaktadır.
+    *   **Eleştiri:** Bu, her vatandaşı potansiyel bir şüpheli olarak ele almaktadır. [Avrupa İnsan Hakları Mahkemesi](embed:globalencryption.org-83i), daha önce *Podchasov v. Russia* gibi davalarda toplu gözetlemeyi sağlamak için şifrelemenin zayıflatılmasının temel hakların orantısız bir ihlali olduğuna hükmetmiştir.
+
+    #### 3. Teknik Güvenilmezlik ("Yanlış Pozitif" Sorunu)
+    Öneri, yeni çocuk istismarı materyallerini ve "gruplama" (yırtıcı davranış) tespiti için büyük ölçüde yapay zekaya dayanmaktadır.
+    *   **Eleştiri:** Yapay zeka mükemmel değildir. Bağımsız [çalışmalar yüksek hata oranlarını vurgulamıştır](embed:en.wikipedia.org-Fav): bir ebeveynin küvette oturan çocuğunun fotoğrafını doktora göndermesi ya da gençlerin rızaya dayalı görüntüler paylaşması gibi yasal içerikler işaretlenip otomatik olarak polise gönderilebilir. Bu, masum ailelerin gizliliğini ihlal ederken kolluk kuvvetlerini "gürültü" ile bunaltabilir.
+
+    #### 4. Risk Altındaki Grupların Savunmasızlığı
+    İronik biçimde, pek çok eleştirmen yasanın korumayı hedeflediği kişilere zarar verebileceğine dikkat çekmektedir.
+    *   **Eleştiri:** Gizlilik ve şifreleme, ihbarcılar, gazeteciler ve aile içi şiddet ya da siyasi zulüm mağdurları için hayati önem taşımaktadır. Bu uygulamaların güvenliği zayıflatılırsa, bu savunmasız gruplar iletişim kurmak ve yardım aramak için güvenli alanlarını kaybeder.
+
+    ### Çatışmanın Özeti
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Güncel Durum (Nisan 2026)
+    Bu ayın başındaki [gönüllü tarama kurallarının sona ermesinin](embed:stateofsurveillance.org-Nsm) ardından Meta ve Google gibi platformlar, AB içinde özel mesajları taramak için şu an geçerli bir hukuki dayanaktan yoksundur. Mücadele artık **"Chat Control 2.0"**'a—bu taramayı zorunlu kılma girişimine—kaymıştır. AB üye devletleri arasındaki müzakereler sürmekte olup pek çoğu, çocuk güvenliğinin özel iletişimin temel ilkesi feda edilmeden sağlanıp sağlanamayacağı konusunda hâlâ derin bir bölünme içindedir.
+
+    **Siz ne düşünüyorsunuz?** Özel, şifreli iletişim hakkı mutlak olmalı mı, yoksa kamu güvenliği için bu hakkın devre dışı bırakılması gerektiğini düşündüğünüz belirli durumlar var mı?
+
+    Hukuki argümanları daha derinlemesine incelemek istiyorsanız, [Avrupa Parlamentosu'nun resmi belgelerine](embed:europarl.europa.eu-xqu) bakabilir veya [EDRi](https://edri.org) gibi dijital haklar takip sitelerini keşfedebilirsiniz.
+
+    **Hakkında daha fazla bilgi almak ister misiniz:**
+    1. **İstemci Tarafı Tarama** teknik olarak nasıl çalışır?
+    2. Hangi AB ülkeleri zorunlu yasayı şu an [destekliyor veya karşı çıkıyor](embed:reddit.com-sFU)?
+    ---
+    *⚠️ Bu yalnızca eğitim amaçlı bilgidir ve hukuki tavsiye niteliği taşımamaktadır. Hukuki tavsiye için bir avukana danışın.*
+
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Đề xuất "Chat Control" (chính thức là **Quy định về Lạm dụng Tình dục Trẻ em (CSA) của EU**) đã trở thành một trong những văn bản pháp luật kỹ thuật số gây tranh cãi nhất trong lịch sử châu Âu. Mặc dù mục tiêu được tuyên bố là chống lạm dụng tình dục trẻ em, các nhà phê bình lập luận rằng các phương pháp được đề xuất sẽ phá vỡ căn bản cơ sở hạ tầng bảo mật và quyền riêng tư của internet.
+
+    Tính đến **tháng 4 năm 2026**, cuộc tranh luận đã đến một bước ngoặt quan trọng. Các quy tắc tạm thời cho phép các công ty công nghệ tự nguyện quét tin nhắn (**Chat Control 1.0**) đã hết hạn vào **ngày 3 tháng 4 năm 2026**, sau khi [Nghị viện Châu Âu từ chối gia hạn thêm](embed:stateofsurveillance.org-dRV) vào tháng Ba.
+
+    ### Tại sao sự chỉ trích lại gay gắt đến vậy
+
+    Sự chỉ trích mạnh mẽ xuất phát từ một số xung đột cơ bản giữa mục tiêu an toàn và quyền kỹ thuật số:
+
+    #### 1. "Cửa hậu" của mã hóa
+    Chỉ trích quan trọng nhất liên quan đến **Mã hóa Đầu cuối (E2EE)**. Các dịch vụ như Signal và WhatsApp sử dụng E2EE để chỉ người gửi và người nhận mới có thể đọc tin nhắn.
+    *   **Xung đột:** Để quét các tin nhắn này nhằm tìm nội dung bất hợp pháp, EU đã đề xuất **"Quét phía máy khách"**—phần mềm trên điện thoại kiểm tra ảnh và văn bản của bạn *trước khi* chúng được mã hóa và gửi đi.
+    *   **Chỉ trích:** Các chuyên gia bảo mật và [những người ủng hộ quyền riêng tư](embed:globalencryption.org-83i) lập luận rằng điều này thực sự tạo ra một "cửa hậu". Một khi cơ chế như vậy tồn tại, nó có thể bị tin tặc, các cơ quan tình báo nước ngoài hoặc các chính phủ độc tài trong tương lai khai thác để giám sát bất kỳ loại phát ngôn nào.
+
+    #### 2. Chuyển sang giám sát đại trà
+    Các nhà phê bình, bao gồm cả [các tổ chức quyền kỹ thuật số châu Âu](embed:fightchatcontrol.eu-YsN), lập luận rằng luật này đang chuyển từ "nghi ngờ có mục tiêu" (điều tra những tội phạm cụ thể) sang "giám sát tổng quát" (quét cuộc sống riêng tư của tất cả mọi người).
+    *   **Chỉ trích:** Điều này đối xử với mọi công dân như một nghi phạm tiềm năng. [Tòa án Nhân quyền Châu Âu](embed:globalencryption.org-83i) đã từng phán quyết trong các vụ như *Podchasov v. Russia* rằng việc làm suy yếu mã hóa để cho phép giám sát đại trà là vi phạm không cân xứng các quyền cơ bản.
+
+    #### 3. Độ tin cậy kỹ thuật thấp (Vấn đề "Dương tính giả")
+    Đề xuất phụ thuộc nhiều vào AI để phát hiện tài liệu lạm dụng trẻ em mới và hành vi "lôi kéo" (hành vi săn mồi).
+    *   **Chỉ trích:** AI không hoàn hảo. Các [nghiên cứu độc lập đã chỉ ra tỷ lệ lỗi cao](embed:en.wikipedia.org-Fav), trong đó nội dung hợp pháp—chẳng hạn như cha mẹ gửi ảnh con trong bồn tắm cho bác sĩ, hoặc thanh thiếu niên chia sẻ hình ảnh có sự đồng thuận—có thể bị gắn cờ và tự động gửi đến cảnh sát. Điều này có thể làm cơ quan thực thi pháp luật bị choáng ngợp bởi "nhiễu loạn" trong khi xâm phạm quyền riêng tư của những gia đình vô tội.
+
+    #### 4. Sự dễ tổn thương của các nhóm dễ bị tổn thương
+    Trớ trêu thay, nhiều nhà phê bình chỉ ra rằng luật này có thể gây hại cho chính những người mà nó nhằm bảo vệ.
+    *   **Chỉ trích:** Quyền riêng tư và mã hóa rất quan trọng đối với những người tố cáo, nhà báo và nạn nhân của bạo lực gia đình hoặc bị đàn áp chính trị. Nếu tính bảo mật của các ứng dụng này bị suy yếu, các nhóm dễ bị tổn thương này sẽ mất không gian an toàn để giao tiếp và tìm kiếm sự giúp đỡ.
+
+    ### Tóm tắt xung đột
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Tình trạng hiện tại (tháng 4 năm 2026)
+    Sau khi [các quy tắc quét tự nguyện hết hạn](embed:stateofsurveillance.org-Nsm) vào đầu tháng này, các nền tảng như Meta và Google hiện không có cơ sở pháp lý để quét tin nhắn riêng tư trong EU. Cuộc chiến giờ đây đã chuyển sang **"Chat Control 2.0"**—nỗ lực bắt buộc hóa việc quét này. Các cuộc đàm phán tiếp tục giữa các quốc gia thành viên EU, với nhiều nước vẫn bị chia rẽ sâu sắc về việc liệu an toàn trẻ em có thể đạt được mà không phải hy sinh nguyên tắc cốt lõi của truyền thông riêng tư hay không.
+
+    **Bạn nghĩ gì?** Quyền liên lạc riêng tư, được mã hóa có nên là tuyệt đối không, hay có những hoàn cảnh cụ thể mà bạn cho rằng nên bị bỏ qua vì an toàn công cộng?
+
+    Nếu bạn muốn tìm hiểu sâu hơn về các lập luận pháp lý, bạn có thể xem [tài liệu chính thức của Nghị viện Châu Âu](embed:europarl.europa.eu-xqu) hoặc khám phá các trình theo dõi quyền kỹ thuật số như [EDRi](https://edri.org).
+
+    **Bạn có muốn biết thêm về:**
+    1. Cách **Quét phía máy khách** hoạt động về mặt kỹ thuật?
+    2. Các quốc gia EU nào hiện đang [ủng hộ hoặc phản đối](embed:reddit.com-sFU) luật bắt buộc?
+    ---
+    *⚠️ Đây chỉ là thông tin giáo dục và không phải là tư vấn pháp lý. Hãy tham khảo ý kiến luật sư để được tư vấn pháp lý.*
+
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Proposal "Chat Control" (secara resmi disebut **Regulasi Pelecehan Seksual Anak (CSA) UE**) telah menjadi salah satu perundang-undangan digital paling kontroversial dalam sejarah Eropa. Meski tujuan yang dinyatakan adalah untuk memerangi pelecehan seksual anak, para pengkritik berpendapat bahwa metode yang diusulkan akan secara mendasar merusak infrastruktur keamanan dan privasi internet.
+
+    Pada **April 2026**, perdebatan telah mencapai titik kritis. Aturan sementara yang mengizinkan perusahaan teknologi untuk memindai pesan secara sukarela (**Chat Control 1.0**) berakhir pada **3 April 2026**, setelah [Parlemen Eropa menolak perpanjangan lebih lanjut](embed:stateofsurveillance.org-dRV) pada bulan Maret.
+
+    ### Mengapa Kritik Begitu Keras
+
+    Kritik keras berasal dari beberapa konflik mendasar antara tujuan keamanan dan hak-hak digital:
+
+    #### 1. "Pintu Belakang" Enkripsi
+    Kritik paling signifikan melibatkan **Enkripsi Ujung-ke-Ujung (E2EE)**. Layanan seperti Signal dan WhatsApp menggunakan E2EE sehingga hanya pengirim dan penerima yang dapat membaca pesan.
+    *   **Konflik:** Untuk memindai pesan-pesan ini mencari konten ilegal, UE mengusulkan **"Pemindaian Sisi Klien"**—perangkat lunak di ponsel Anda yang memeriksa foto dan teks *sebelum* dienkripsi dan dikirim.
+    *   **Kritik:** Para ahli keamanan dan [pendukung privasi](embed:globalencryption.org-83i) berpendapat bahwa ini secara efektif menciptakan "pintu belakang". Begitu mekanisme seperti itu ada, mekanisme tersebut dapat dieksploitasi oleh peretas, dinas intelijen asing, atau pemerintah otoriter di masa depan untuk memantau segala jenis pembicaraan.
+
+    #### 2. Beralih ke Pengawasan Massal
+    Para pengkritik, termasuk [organisasi hak digital Eropa](embed:fightchatcontrol.eu-YsN), berpendapat bahwa undang-undang ini bergeser dari "kecurigaan terarah" (menyelidiki penjahat tertentu) menuju "pengawasan umum" (memindai kehidupan pribadi semua orang).
+    *   **Kritik:** Ini memperlakukan setiap warga negara sebagai tersangka potensial. [Pengadilan Hak Asasi Manusia Eropa](embed:globalencryption.org-83i) sebelumnya telah memutuskan dalam kasus seperti *Podchasov v. Russia* bahwa melemahkan enkripsi untuk memungkinkan pengawasan massal adalah pelanggaran yang tidak proporsional terhadap hak-hak dasar.
+
+    #### 3. Ketidakandalan Teknis (Masalah "Positif Palsu")
+    Proposal ini sangat bergantung pada AI untuk mendeteksi materi pelecehan anak baru dan "grooming" (perilaku predator).
+    *   **Kritik:** AI tidak sempurna. [Studi independen telah menyoroti tingkat kesalahan yang tinggi](embed:en.wikipedia.org-Fav), di mana konten legal—seperti orang tua yang mengirim foto anak di bak mandi kepada dokter, atau remaja yang berbagi gambar dengan persetujuan—dapat ditandai dan secara otomatis dikirim ke polisi. Ini dapat membanjiri penegak hukum dengan "kebisingan" sembari melanggar privasi keluarga yang tidak bersalah.
+
+    #### 4. Kerentanan bagi Kelompok Berisiko
+    Ironisnya, banyak pengkritik menunjukkan bahwa undang-undang ini justru dapat merugikan orang-orang yang ingin dilindunginya.
+    *   **Kritik:** Privasi dan enkripsi sangat penting bagi pelapor, jurnalis, dan korban kekerasan dalam rumah tangga atau penganiayaan politik. Jika keamanan aplikasi-aplikasi ini dilemahkan, kelompok rentan ini kehilangan ruang aman untuk berkomunikasi dan mencari bantuan.
+
+    ### Ringkasan Konflik
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Status Terkini (April 2026)
+    Menyusul [berakhirnya aturan pemindaian sukarela](embed:stateofsurveillance.org-Nsm) awal bulan ini, platform seperti Meta dan Google saat ini tidak memiliki dasar hukum untuk memindai pesan pribadi di dalam UE. Pertempuran kini telah beralih ke **"Chat Control 2.0"**—upaya untuk mewajibkan pemindaian ini. Negosiasi terus berlanjut antara negara-negara anggota UE, dengan banyak yang masih sangat terpecah atas apakah keamanan anak dapat dicapai tanpa mengorbankan prinsip utama komunikasi pribadi.
+
+    **Apa pendapat Anda?** Apakah hak atas komunikasi pribadi yang terenkripsi harus bersifat mutlak, atau adakah keadaan tertentu di mana menurut Anda hal itu boleh dilewati demi keamanan publik?
+
+    Jika Anda ingin mendalami argumen hukumnya, Anda dapat memeriksa [dokumentasi resmi Parlemen Eropa](embed:europarl.europa.eu-xqu) atau menjelajahi pelacak hak digital seperti [EDRi](https://edri.org).
+
+    **Apakah Anda ingin tahu lebih banyak tentang:**
+    1. Cara kerja teknis **Pemindaian Sisi Klien**?
+    2. Negara-negara UE mana yang saat ini [mendukung atau menentang](embed:reddit.com-sFU) undang-undang wajib ini?
+    ---
+    *⚠️ Ini hanya informasi pendidikan dan bukan saran hukum. Konsultasikan dengan pengacara untuk saran hukum.*
+
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Propozycja „Chat Control" (oficjalnie **Rozporządzenie UE w sprawie nadużyć seksualnych wobec dzieci (CSA)**) stała się jednym z najbardziej kontrowersyjnych aktów prawnych dotyczących przestrzeni cyfrowej w historii Europy. Choć jej deklarowanym celem jest walka z seksualnym wykorzystywaniem dzieci, krytycy twierdzą, że proponowane metody fundamentalnie podważą bezpieczeństwo i prywatność internetu.
+
+    Na **kwiecień 2026 r.**, debata osiągnęła krytyczny punkt zwrotny. Tymczasowe przepisy pozwalające firmom technologicznym dobrowolnie skanować wiadomości (**Chat Control 1.0**) wygasły **3 kwietnia 2026 r.**, po tym jak [Parlament Europejski odrzucił dalsze przedłużenie](embed:stateofsurveillance.org-dRV) w marcu.
+
+    ### Dlaczego krytyka jest tak intensywna
+
+    Ostra krytyka wynika z kilku fundamentalnych sprzeczności między celami bezpieczeństwa a prawami cyfrowymi:
+
+    #### 1. „Backdoor" do szyfrowania
+    Najpoważniejsza krytyka dotyczy **szyfrowania End-to-End (E2EE)**. Usługi takie jak Signal i WhatsApp używają E2EE, dzięki czemu tylko nadawca i odbiorca mogą odczytać wiadomość.
+    *   **Konflikt:** Aby skanować te wiadomości w poszukiwaniu nielegalnych treści, UE zaproponowała **„skanowanie po stronie klienta"**—oprogramowanie na Twoim telefonie, które sprawdza zdjęcia i teksty *przed* ich zaszyfrowaniem i wysłaniem.
+    *   **Krytyka:** Eksperci ds. bezpieczeństwa i [obrońcy prywatności](embed:globalencryption.org-83i) twierdzą, że skutecznie tworzy to „tylne wejście". Kiedy taki mechanizm już istnieje, może zostać wykorzystany przez hakerów, zagraniczne służby wywiadowcze lub przyszłe autorytarne rządy do monitorowania wszelkich rodzajów wypowiedzi.
+
+    #### 2. Przejście do masowej inwigilacji
+    Krytycy, w tym [europejskie organizacje broniące praw cyfrowych](embed:fightchatcontrol.eu-YsN), twierdzą, że prawo odchodzi od „ukierunkowanego podejrzenia" (ścigania konkretnych przestępców) w kierunku „uogólnionej inwigilacji" (skanowania życia prywatnego wszystkich).
+    *   **Krytyka:** Traktuje to każdego obywatela jak potencjalnego podejrzanego. [Europejski Trybunał Praw Człowieka](embed:globalencryption.org-83i) orzekał wcześniej w sprawach takich jak *Podchasov v. Russia*, że osłabianie szyfrowania w celu umożliwienia masowej inwigilacji stanowi nieproporcjonalne naruszenie praw podstawowych.
+
+    #### 3. Zawodność techniczna (problem „fałszywych alarmów")
+    Propozycja w dużej mierze opiera się na AI do wykrywania nowych materiałów przedstawiających nadużycia wobec dzieci oraz „groomingu" (zachowań drapieżnych).
+    *   **Krytyka:** AI nie jest doskonała. Niezależne [badania wskazały na wysokie wskaźniki błędów](embed:en.wikipedia.org-Fav), gdzie legalne treści—takie jak rodzic wysyłający lekarzowi zdjęcie dziecka w wannie czy nastolatkowie udostępniający zdjęcia za obopólną zgodą—mogą zostać oflagowane i automatycznie wysłane na policję. Mogłoby to sparaliżować organy ścigania „szumem informacyjnym", jednocześnie naruszając prywatność niewinnych rodzin.
+
+    #### 4. Zagrożenie dla grup szczególnie narażonych
+    Ironicznie, wielu krytyków wskazuje, że prawo może zaszkodzić właśnie tym osobom, które ma chronić.
+    *   **Krytyka:** Prywatność i szyfrowanie są niezbędne dla sygnalistów, dziennikarzy oraz ofiar przemocy domowej lub prześladowań politycznych. Jeśli bezpieczeństwo tych aplikacji zostanie osłabione, te wrażliwe grupy stracą bezpieczną przestrzeń do komunikowania się i szukania pomocy.
+
+    ### Podsumowanie konfliktu
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Aktualny stan (kwiecień 2026)
+    Po [wygaśnięciu dobrowolnych przepisów dotyczących skanowania](embed:stateofsurveillance.org-Nsm) na początku tego miesiąca, platformy takie jak Meta i Google nie posiadają obecnie podstawy prawnej do skanowania prywatnych wiadomości na terenie UE. Bitwa przeniosła się teraz na **„Chat Control 2.0"**—próbę uczynienia tego skanowania obowiązkowym. Negocjacje między państwami członkowskimi UE trwają nadal, a wiele z nich jest nadal głęboko podzielonych co do tego, czy bezpieczeństwo dzieci można osiągnąć bez poświęcania podstawowej zasady prywatnej komunikacji.
+
+    **Co o tym sądzisz?** Czy prawo do prywatnej, zaszyfrowanej komunikacji powinno być absolutne, czy są szczególne okoliczności, w których uważasz, że powinno zostać ominięte ze względu na bezpieczeństwo publiczne?
+
+    Jeśli chcesz zgłębić argumenty prawne, możesz sprawdzić [oficjalną dokumentację Parlamentu Europejskiego](embed:europarl.europa.eu-xqu) lub przeglądać narzędzia śledzące prawa cyfrowe, takie jak [EDRi](https://edri.org).
+
+    **Czy chciałbyś wiedzieć więcej na temat:**
+    1. Jak technicznie działa **skanowanie po stronie klienta**?
+    2. Które kraje UE aktualnie [popierają lub sprzeciwiają się](embed:reddit.com-sFU) obowiązkowemu prawu?
+    ---
+    *⚠️ To wyłącznie informacje edukacyjne, a nie porada prawna. W celu uzyskania porady prawnej skonsultuj się z prawnikiem.*
+
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Het "Chat Control"-voorstel (officieel de **EU-verordening inzake seksueel misbruik van kinderen (CSA)**) is een van de meest controversiële digitale wetgeving in de Europese geschiedenis geworden. Hoewel het verklaarde doel is om seksueel misbruik van kinderen te bestrijden, stellen critici dat de voorgestelde methoden de beveiligings- en privacyinfrastructuur van het internet fundamenteel zullen aantasten.
+
+    Vanaf **april 2026** heeft het debat een kritiek keerpunt bereikt. De tijdelijke regels die techbedrijven toestonden berichten vrijwillig te scannen (**Chat Control 1.0**) zijn verlopen op **3 april 2026**, nadat het [Europees Parlement in maart een verdere verlenging verwierp](embed:stateofsurveillance.org-dRV).
+
+    ### Waarom de kritiek zo intens is
+
+    De felle kritiek vloeit voort uit een aantal fundamentele conflicten tussen veiligheidsdoelstellingen en digitale rechten:
+
+    #### 1. De "Achterdeur" naar versleuteling
+    De meest significante kritiek betreft **End-to-End-versleuteling (E2EE)**. Diensten zoals Signal en WhatsApp gebruiken E2EE zodat alleen de afzender en ontvanger een bericht kunnen lezen.
+    *   **Het conflict:** Om deze berichten op illegale inhoud te scannen, stelde de EU **"Client-Side Scanning"** voor—software op uw telefoon die uw foto's en teksten *voor* versleuteling en verzending controleert.
+    *   **De kritiek:** Beveiligingsexperts en [privacyadvocaten](embed:globalencryption.org-83i) stellen dat dit effectief een "achterdeur" creëert. Zodra een dergelijk mechanisme bestaat, kan het worden misbruikt door hackers, buitenlandse inlichtingendiensten of toekomstige autoritaire regeringen om elk type communicatie te monitoren.
+
+    #### 2. Verschuiving naar massatoezicht
+    Critici, waaronder [Europese digitale rechtenorganisaties](embed:fightchatcontrol.eu-YsN), stellen dat de wet afstapt van "gerichte verdenking" (onderzoek naar specifieke criminelen) naar "algemeen toezicht" (het scannen van ieders privéleven).
+    *   **De kritiek:** Dit behandelt elke burger als een potentiële verdachte. Het [Europees Hof voor de Rechten van de Mens](embed:globalencryption.org-83i) heeft eerder geoordeeld in zaken als *Podchasov v. Russia* dat het verzwakken van versleuteling om massatoezicht mogelijk te maken een onevenredige schending van fundamentele rechten is.
+
+    #### 3. Technische onbetrouwbaarheid (het "vals-positief"-probleem)
+    Het voorstel steunt sterk op AI om nieuw kindermisbruikmateriaal en "grooming" (roofdiergedrag) te detecteren.
+    *   **De kritiek:** AI is niet perfect. Onafhankelijke [studies hebben hoge foutpercentages aangetoond](embed:en.wikipedia.org-Fav), waarbij legale inhoud—zoals een ouder die een foto van hun kind in bad naar een arts stuurt, of tieners die met toestemming beelden delen—als verdacht kan worden gemarkeerd en automatisch naar de politie gestuurd. Dit kan rechtshandhaving overweldigen met "ruis" terwijl de privacy van onschuldige gezinnen wordt geschonden.
+
+    #### 4. Kwetsbaarheid voor risicogroepen
+    Ironisch genoeg wijzen veel critici erop dat de wet de mensen kan schaden die ze juist beoogt te beschermen.
+    *   **De kritiek:** Privacy en versleuteling zijn essentieel voor klokkenluiders, journalisten en slachtoffers van huiselijk geweld of politieke vervolging. Als de beveiliging van deze apps wordt verzwakt, verliezen deze kwetsbare groepen hun veilige ruimte om te communiceren en hulp te zoeken.
+
+    ### Samenvatting van het conflict
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Huidige status (april 2026)
+    Na het [verlopen van de vrijwillige scanregels](embed:stateofsurveillance.org-Nsm) eerder deze maand hebben platforms als Meta en Google momenteel geen wettelijke basis om privéberichten binnen de EU te scannen. De strijd is nu verschoven naar **"Chat Control 2.0"**—de poging om dit scannen verplicht te maken. Onderhandelingen tussen EU-lidstaten gaan door, waarbij velen nog steeds diep verdeeld zijn over de vraag of kinderveiligheid kan worden bereikt zonder het kernbeginsel van privécommunicatie op te offeren.
+
+    **Wat vindt u?** Moet het recht op privé, versleutelde communicatie absoluut zijn, of zijn er specifieke omstandigheden waaronder u vindt dat het omwille van de openbare veiligheid mag worden omzeild?
+
+    Als u dieper op de juridische argumenten wilt ingaan, kunt u de [officiële documentatie van het Europees Parlement](embed:europarl.europa.eu-xqu) raadplegen of digitale rechtenvolgers zoals [EDRi](https://edri.org) verkennen.
+
+    **Wilt u meer weten over:**
+    1. Hoe **Client-Side Scanning** technisch werkt?
+    2. Welke EU-landen momenteel [voor of tegen](embed:reddit.com-sFU) de verplichte wet zijn?
+    ---
+    *⚠️ Dit is uitsluitend educatieve informatie en geen juridisch advies. Raadpleeg een advocaat voor juridisch advies.*
+
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    أصبح مقترح "Chat Control" (رسمياً **لائحة الاتحاد الأوروبي بشأن الاعتداء الجنسي على الأطفال (CSA)**) أحد أكثر التشريعات الرقمية إثارةً للجدل في التاريخ الأوروبي. فرغم أن هدفه المُعلن هو مكافحة الاعتداء الجنسي على الأطفال، يرى المنتقدون أن الأساليب المقترحة ستُقوّض البنية التحتية للأمن والخصوصية على الإنترنت من جذورها.
+
+    وفي **أبريل 2026**، بلغ النقاش منعطفاً حاسماً؛ إذ انتهت القواعد المؤقتة التي كانت تُجيز لشركات التكنولوجيا إجراء عمليات المسح الطوعي للرسائل (**Chat Control 1.0**) في **3 أبريل 2026**، عقب [رفض البرلمان الأوروبي تمديداً إضافياً](embed:stateofsurveillance.org-dRV) في مارس.
+
+    ### لماذا الانتقادات بهذه الحدّة؟
+
+    تنبع الانتقادات الحادة من جملة تعارضات جوهرية بين أهداف السلامة والحقوق الرقمية:
+
+    #### 1. "الباب الخلفي" للتشفير
+    يتمحور أبرز الانتقادات حول **التشفير التام بين الطرفين (E2EE)**؛ فخدمات مثل Signal وWhatsApp تعتمد E2EE لضمان أن المرسِل والمستقبِل وحدهما يستطيعان قراءة الرسالة.
+    *   **التعارض:** لمسح هذه الرسائل بحثاً عن محتوى غير مشروع، اقترح الاتحاد الأوروبي **"المسح من جانب العميل"** — برنامج على هاتفك يفحص صورك ونصوصك *قبل* تشفيرها وإرسالها.
+    *   **الانتقاد:** يرى خبراء الأمن و[المدافعون عن الخصوصية](embed:globalencryption.org-83i) أن ذلك يُفضي فعلياً إلى خلق "باب خلفي"، وما إن يوجد هذا الآلية حتى يغدو هدفاً للقراصنة وأجهزة الاستخبارات الأجنبية والحكومات الاستبدادية المستقبلية لمراقبة أي نوع من أنواع التعبير.
+
+    #### 2. التحوّل نحو المراقبة الجماعية
+    يرى المنتقدون، ومنهم [منظمات الحقوق الرقمية الأوروبية](embed:fightchatcontrol.eu-YsN)، أن القانون يُحوّل التركيز من "الاشتباه الموجَّه" (التحقيق مع مجرمين بعينهم) إلى "المراقبة الشاملة" (مسح الحياة الخاصة للجميع).
+    *   **الانتقاد:** يعامل ذلك كل مواطن باعتباره مشتبهاً به محتملاً. وقد أصدرت [المحكمة الأوروبية لحقوق الإنسان](embed:globalencryption.org-83i) سابقاً أحكاماً في قضايا من قبيل *Podchasov v. Russia* تقرر أن إضعاف التشفير لتمكين المراقبة الجماعية يُعدّ انتهاكاً غير متناسب للحقوق الأساسية.
+
+    #### 3. عدم الموثوقية التقنية (مشكلة "الإيجابيات الكاذبة")
+    يعتمد المقترح اعتماداً كبيراً على الذكاء الاصطناعي للكشف عن مواد انتهاك جنسي جديدة للأطفال وعن "الاستدراج" (السلوك المفترس).
+    *   **الانتقاد:** الذكاء الاصطناعي ليس معصوماً من الخطأ؛ فقد [أبرزت دراسات مستقلة معدلات خطأ مرتفعة](embed:en.wikipedia.org-Fav)، إذ قد تُصنَّف محتويات مشروعة — كصورة طفل في الحوض يرسلها أحد الوالدين إلى طبيب، أو صور يتبادلها مراهقون بالتراضي — وتُحال تلقائياً إلى الشرطة، مما قد يُغرق جهات إنفاذ القانون بـ"الضوضاء" مع انتهاك خصوصية الأسر البريئة.
+
+    #### 4. هشاشة الفئات المعرّضة للخطر
+    من المفارقات أن كثيراً من المنتقدين يشيرون إلى أن القانون قد يضر بالأشخاص أنفسهم الذين يسعى إلى حمايتهم.
+    *   **الانتقاد:** تُعدّ الخصوصية والتشفير ركيزةً حيوية للمُبلِّغين عن المخالفات والصحفيين وضحايا العنف الأسري أو الاضطهاد السياسي. فإن أُضعف أمان هذه التطبيقات، فقدت هذه الفئات الهشة فضاءاتها الآمنة للتواصل وطلب المساعدة.
+
+    ### ملخّص النزاع
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### الوضع الراهن (أبريل 2026)
+    في أعقاب [انتهاء صلاحية قواعد المسح الطوعي](embed:stateofsurveillance.org-Nsm) في مطلع هذا الشهر، باتت منصات كـMeta وGoogle تفتقر حالياً إلى أي أساس قانوني يُخوّلها مسح الرسائل الخاصة داخل الاتحاد الأوروبي. وقد انتقل المعركة الآن إلى **"Chat Control 2.0"** — المحاولة الرامية إلى جعل هذا المسح إلزامياً. وتتواصل المفاوضات بين الدول الأعضاء في الاتحاد، في ظل خلافات عميقة لا تزال قائمة حول إمكانية تحقيق سلامة الأطفال دون التضحية بالمبدأ الجوهري للتواصل الخاص.
+
+    **ما رأيك؟** هل ينبغي أن يكون الحق في التواصل الخاص المشفّر حقاً مطلقاً، أم أن ثمة ظروفاً بعينها ترى معها أنه يجوز تجاوزه من أجل الأمن العام؟
+
+    إن أردت التعمق في الحجج القانونية، يمكنك الاطلاع على [الوثائق الرسمية للبرلمان الأوروبي](embed:europarl.europa.eu-xqu) أو استكشاف منظمات رصد الحقوق الرقمية كـ[EDRi](https://edri.org).
+
+    **هل تودّ الاستزادة حول:**
+    1. الآلية التقنية لعمل **المسح من جانب العميل**؟
+    2. الدول الأوروبية التي [تؤيد أو تعارض](embed:reddit.com-sFU) القانون الإلزامي حالياً؟
+    ---
+    *⚠️ هذه معلومات تعليمية فحسب وليست استشارة قانونية. استشر محامياً للحصول على المشورة القانونية.*
+
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    "Chat Control" प्रस्ताव (आधिकारिक रूप से **EU बाल यौन शोषण (CSA) विनियमन**) यूरोपीय इतिहास के सबसे विवादास्पद डिजिटल कानूनों में से एक बन गया है। हालांकि इसका घोषित लक्ष्य बाल यौन शोषण से लड़ना है, आलोचकों का तर्क है कि प्रस्तावित तरीके इंटरनेट की सुरक्षा और गोपनीयता बुनियादी ढांचे को मौलिक रूप से नष्ट कर देंगे।
+
+    **अप्रैल 2026** तक, यह बहस एक महत्वपूर्ण मोड़ पर पहुंच गई है। तकनीकी कंपनियों को स्वेच्छा से संदेश स्कैन करने की अनुमति देने वाले अस्थायी नियम (**Chat Control 1.0**) **3 अप्रैल 2026** को समाप्त हो गए, जब [यूरोपीय संसद ने मार्च में आगे के विस्तार को अस्वीकार कर दिया](embed:stateofsurveillance.org-dRV)।
+
+    ### आलोचना इतनी तीव्र क्यों है
+
+    तीखी आलोचना सुरक्षा लक्ष्यों और डिजिटल अधिकारों के बीच कई मौलिक टकरावों से उत्पन्न होती है:
+
+    #### 1. एन्क्रिप्शन में "बैकडोर"
+    सबसे महत्वपूर्ण आलोचना **एंड-टू-एंड एन्क्रिप्शन (E2EE)** से जुड़ी है। Signal और WhatsApp जैसी सेवाएं E2EE का उपयोग करती हैं ताकि केवल प्रेषक और प्राप्तकर्ता ही संदेश पढ़ सकें।
+    *   **टकराव:** इन संदेशों को अवैध सामग्री के लिए स्कैन करने के लिए, EU ने **"क्लाइंट-साइड स्कैनिंग"** प्रस्तावित किया — आपके फोन पर ऐसा सॉफ़्टवेयर जो आपकी तस्वीरों और टेक्स्ट की जांच *एन्क्रिप्ट और भेजे जाने से पहले* करता है।
+    *   **आलोचना:** सुरक्षा विशेषज्ञ और [गोपनीयता के समर्थक](embed:globalencryption.org-83i) तर्क देते हैं कि इससे प्रभावी रूप से एक "बैकडोर" बन जाता है। एक बार जब ऐसा तंत्र मौजूद हो जाता है, तो इसे हैकर्स, विदेशी खुफिया सेवाओं या भविष्य की तानाशाही सरकारों द्वारा किसी भी प्रकार के भाषण की निगरानी के लिए उपयोग किया जा सकता है।
+
+    #### 2. सामूहिक निगरानी की ओर बदलाव
+    [यूरोपीय डिजिटल अधिकार संगठनों](embed:fightchatcontrol.eu-YsN) सहित आलोचकों का तर्क है कि यह कानून "लक्षित संदेह" (विशिष्ट अपराधियों की जांच) से "सामान्यीकृत निगरानी" (सभी के निजी जीवन को स्कैन करना) की ओर बढ़ रहा है।
+    *   **आलोचना:** यह हर नागरिक को एक संभावित संदिग्ध के रूप में मानता है। [यूरोपीय मानवाधिकार न्यायालय](embed:globalencryption.org-83i) ने पहले *Podchasov v. Russia* जैसे मामलों में निर्णय सुनाया है कि सामूहिक निगरानी को सक्षम करने के लिए एन्क्रिप्शन को कमजोर करना मौलिक अधिकारों का अनुपातहीन उल्लंघन है।
+
+    #### 3. तकनीकी अविश्वसनीयता ("गलत सकारात्मक" समस्या)
+    यह प्रस्ताव नई बाल शोषण सामग्री और "ग्रूमिंग" (शिकारी व्यवहार) का पता लगाने के लिए AI पर बहुत अधिक निर्भर करता है।
+    *   **आलोचना:** AI सही नहीं है। स्वतंत्र [अध्ययनों ने उच्च त्रुटि दरों को उजागर किया है](embed:en.wikipedia.org-Fav), जहां कानूनी सामग्री — जैसे कोई माता-पिता बाथटब में बच्चे की फोटो डॉक्टर को भेजना, या किशोरों द्वारा सहमति से छवियां साझा करना — को चिह्नित किया जा सकता है और स्वचालित रूप से पुलिस को भेजा जा सकता है। यह निर्दोष परिवारों की गोपनीयता का उल्लंघन करते हुए कानून प्रवर्तन को "शोर" से अभिभूत कर सकता है।
+
+    #### 4. जोखिम वाले समूहों के लिए कमजोरी
+    विडंबना यह है कि कई आलोचक बताते हैं कि यह कानून उन्हीं लोगों को नुकसान पहुंचा सकता है जिनकी सुरक्षा करना इसका इरादा है।
+    *   **आलोचना:** गोपनीयता और एन्क्रिप्शन व्हिसलब्लोअर्स, पत्रकारों और घरेलू हिंसा या राजनीतिक उत्पीड़न के शिकार लोगों के लिए महत्वपूर्ण हैं। यदि इन ऐप्स की सुरक्षा कमजोर होती है, तो ये कमजोर समूह संवाद करने और मदद मांगने के लिए अपने सुरक्षित स्थान खो देते हैं।
+
+    ### संघर्ष का सारांश
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### वर्तमान स्थिति (अप्रैल 2026)
+    इस महीने की शुरुआत में [स्वैच्छिक स्कैनिंग नियमों की समाप्ति](embed:stateofsurveillance.org-Nsm) के बाद, Meta और Google जैसे प्लेटफार्मों के पास वर्तमान में EU के भीतर निजी संदेशों को स्कैन करने का कोई कानूनी आधार नहीं है। लड़ाई अब **"Chat Control 2.0"** — इस स्कैनिंग को अनिवार्य बनाने के प्रयास — में स्थानांतरित हो गई है। EU सदस्य देशों के बीच बातचीत जारी है, जिनमें से कई अभी भी इस बात पर गहराई से विभाजित हैं कि क्या निजी संचार के मूल सिद्धांत की बलि दिए बिना बाल सुरक्षा प्राप्त की जा सकती है।
+
+    **आप क्या सोचते हैं?** क्या निजी, एन्क्रिप्टेड संचार का अधिकार निरपेक्ष होना चाहिए, या कुछ विशिष्ट परिस्थितियां हैं जहां आप मानते हैं कि सार्वजनिक सुरक्षा के लिए इसे बाईपास किया जाना चाहिए?
+
+    यदि आप कानूनी तर्कों में गहराई से जाना चाहते हैं, तो आप [यूरोपीय संसद के आधिकारिक दस्तावेज](embed:europarl.europa.eu-xqu) देख सकते हैं या [EDRi](https://edri.org) जैसे डिजिटल अधिकार ट्रैकर्स का पता लगा सकते हैं।
+
+    **क्या आप इसके बारे में अधिक जानना चाहेंगे:**
+    1. **क्लाइंट-साइड स्कैनिंग** तकनीकी रूप से कैसे काम करती है?
+    2. वर्तमान में कौन से EU देश अनिवार्य कानून का [समर्थन या विरोध](embed:reddit.com-sFU) कर रहे हैं?
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और कानूनी सलाह नहीं है। कानूनी सलाह के लिए किसी वकील से परामर्श लें।*
+
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    ข้อเสนอ "Chat Control" (อย่างเป็นทางการคือ **กฎระเบียบการล่วงละเมิดทางเพศเด็ก (CSA) ของสหภาพยุโรป**) ได้กลายเป็นหนึ่งในกฎหมายดิจิทัลที่ก่อให้เกิดความขัดแย้งมากที่สุดในประวัติศาสตร์ยุโรป แม้ว่าเป้าหมายที่ประกาศไว้คือการต่อสู้กับการล่วงละเมิดทางเพศเด็ก แต่นักวิจารณ์โต้แย้งว่าวิธีการที่เสนอจะทำลายโครงสร้างพื้นฐานด้านความปลอดภัยและความเป็นส่วนตัวของอินเทอร์เน็ตอย่างสิ้นเชิง
+
+    ณ **เดือนเมษายน 2026** การถกเถียงได้ถึงจุดเปลี่ยนที่สำคัญ กฎชั่วคราวที่อนุญาตให้บริษัทเทคโนโลยีสแกนข้อความโดยสมัครใจ (**Chat Control 1.0**) หมดอายุในวันที่ **3 เมษายน 2026** หลังจากที่ [รัฐสภายุโรปปฏิเสธการขยายเวลาเพิ่มเติม](embed:stateofsurveillance.org-dRV) ในเดือนมีนาคม
+
+    ### ทำไมคำวิจารณ์จึงรุนแรงนัก
+
+    คำวิจารณ์อย่างหนักเกิดจากความขัดแย้งพื้นฐานหลายประการระหว่างเป้าหมายด้านความปลอดภัยและสิทธิ์ดิจิทัล:
+
+    #### 1. "ประตูหลัง" สู่การเข้ารหัส
+    คำวิจารณ์ที่สำคัญที่สุดเกี่ยวข้องกับ **การเข้ารหัสแบบ End-to-End (E2EE)** บริการอย่าง Signal และ WhatsApp ใช้ E2EE เพื่อให้เฉพาะผู้ส่งและผู้รับเท่านั้นที่สามารถอ่านข้อความได้
+    *   **ความขัดแย้ง:** เพื่อสแกนข้อความเหล่านี้หาเนื้อหาที่ผิดกฎหมาย สหภาพยุโรปเสนอ **"การสแกนฝั่งไคลเอนต์"** — ซอฟต์แวร์บนโทรศัพท์ของคุณที่ตรวจสอบรูปภาพและข้อความ*ก่อน*ที่จะถูกเข้ารหัสและส่ง
+    *   **คำวิจารณ์:** ผู้เชี่ยวชาญด้านความปลอดภัยและ[ผู้สนับสนุนความเป็นส่วนตัว](embed:globalencryption.org-83i) โต้แย้งว่านี่คือการสร้าง "ประตูหลัง" โดยพฤตินัย เมื่อมีกลไกดังกล่าวอยู่แล้ว ก็สามารถถูกแฮกเกอร์ หน่วยข่าวกรองต่างประเทศ หรือรัฐบาลอำนาจนิยมในอนาคตนำไปใช้เพื่อตรวจสอบการสื่อสารทุกประเภทได้
+
+    #### 2. การเปลี่ยนสู่การเฝ้าระวังมวลชน
+    นักวิจารณ์ รวมถึง[องค์กรสิทธิ์ดิจิทัลยุโรป](embed:fightchatcontrol.eu-YsN) โต้แย้งว่ากฎหมายนี้เปลี่ยนจาก "การสงสัยแบบมีเป้าหมาย" (การสืบสวนอาชญากรเฉพาะราย) ไปสู่ "การเฝ้าระวังทั่วไป" (การสแกนชีวิตส่วนตัวของทุกคน)
+    *   **คำวิจารณ์:** นี่คือการมองพลเมืองทุกคนเป็นผู้ต้องสงสัยที่อาจเป็นไปได้ [ศาลสิทธิมนุษยชนยุโรป](embed:globalencryption.org-83i) เคยตัดสินในคดีอย่าง *Podchasov v. Russia* ว่าการทำให้การเข้ารหัสอ่อนแอลงเพื่อให้การเฝ้าระวังมวลชนเป็นไปได้นั้น เป็นการละเมิดสิทธิ์พื้นฐานที่ไม่ได้สัดส่วน
+
+    #### 3. ความไม่น่าเชื่อถือทางเทคนิค (ปัญหา "ผลบวกลวง")
+    ข้อเสนอนี้พึ่งพา AI อย่างมากในการตรวจจับสื่อการล่วงละเมิดเด็กใหม่และ "การล่อลวง" (พฤติกรรมล่าเหยื่อ)
+    *   **คำวิจารณ์:** AI ไม่ได้สมบูรณ์แบบ [การศึกษาอิสระได้เน้นอัตราข้อผิดพลาดที่สูง](embed:en.wikipedia.org-Fav) โดยเนื้อหาที่ถูกกฎหมาย — เช่น พ่อแม่ที่ส่งรูปเด็กในอ่างอาบน้ำให้แพทย์ หรือวัยรุ่นที่แบ่งปันรูปภาพด้วยความยินยอม — อาจถูกตั้งค่าสถานะและส่งไปยังตำรวจโดยอัตโนมัติ ซึ่งอาจทำให้หน่วยงานบังคับใช้กฎหมายท่วมท้นด้วย "สัญญาณรบกวน" ขณะละเมิดความเป็นส่วนตัวของครอบครัวที่บริสุทธิ์
+
+    #### 4. ความเปราะบางสำหรับกลุ่มเสี่ยง
+    เป็นเรื่องประหลาดที่นักวิจารณ์หลายคนชี้ให้เห็นว่ากฎหมายนี้อาจเป็นอันตรายต่อผู้คนที่มันมุ่งหมายจะปกป้อง
+    *   **คำวิจารณ์:** ความเป็นส่วนตัวและการเข้ารหัสมีความสำคัญอย่างยิ่งต่อผู้เปิดโปง นักข่าว และเหยื่อของความรุนแรงในครอบครัวหรือการข่มเหงทางการเมือง หากความปลอดภัยของแอปเหล่านี้ถูกทำให้อ่อนแอลง กลุ่มเปราะบางเหล่านี้จะสูญเสียพื้นที่ปลอดภัยในการสื่อสารและขอความช่วยเหลือ
+
+    ### สรุปความขัดแย้ง
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### สถานะปัจจุบัน (เมษายน 2026)
+    หลังจาก[กฎการสแกนโดยสมัครใจหมดอายุ](embed:stateofsurveillance.org-Nsm)ในต้นเดือนนี้ แพลตฟอร์มอย่าง Meta และ Google ปัจจุบันไม่มีฐานทางกฎหมายในการสแกนข้อความส่วนตัวภายในสหภาพยุโรป การต่อสู้ได้เปลี่ยนไปสู่ **"Chat Control 2.0"** — ความพยายามที่จะทำให้การสแกนนี้เป็นสิ่งบังคับ การเจรจาระหว่างประเทศสมาชิกสหภาพยุโรปยังคงดำเนินต่อไป โดยหลายประเทศยังคงแตกแยกอย่างลึกซึ้งว่าความปลอดภัยของเด็กสามารถบรรลุได้โดยไม่ต้องเสียสละหลักการพื้นฐานของการสื่อสารส่วนตัวหรือไม่
+
+    **คุณคิดอย่างไร?** สิทธิ์ในการสื่อสารส่วนตัวที่เข้ารหัสควรเป็นสิทธิ์สัมบูรณ์หรือไม่ หรือมีสถานการณ์เฉพาะที่คุณเชื่อว่าควรถูกหลีกเลี่ยงเพื่อความปลอดภัยสาธารณะ?
+
+    หากคุณต้องการเจาะลึกข้อโต้แย้งทางกฎหมาย คุณสามารถตรวจสอบ[เอกสารอย่างเป็นทางการของรัฐสภายุโรป](embed:europarl.europa.eu-xqu) หรือสำรวจตัวติดตามสิทธิ์ดิจิทัลอย่าง [EDRi](https://edri.org)
+
+    **คุณต้องการทราบเพิ่มเติมเกี่ยวกับ:**
+    1. วิธีการทำงานทางเทคนิคของ **การสแกนฝั่งไคลเอนต์**?
+    2. ประเทศสหภาพยุโรปใดที่ปัจจุบัน[สนับสนุนหรือคัดค้าน](embed:reddit.com-sFU)กฎหมายบังคับ?
+    ---
+    *⚠️ นี่เป็นข้อมูลเพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำทางกฎหมาย ปรึกษาทนายความสำหรับคำแนะนำทางกฎหมาย*
+
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Návrh „Chat Control" (oficiálně **nařízení EU o sexuálním zneužívání dětí (CSA)**) se stal jedním z nejkontroverznějších digitálních právních předpisů v evropské historii. Přestože jeho deklarovaným cílem je boj se sexuálním zneužíváním dětí, kritici tvrdí, že navrhované metody by zásadně podkopaly bezpečnostní a soukromou infrastrukturu internetu.
+
+    K **dubnu 2026** debata dosáhla kritického bodu. Dočasná pravidla umožňující technologickým společnostem dobrovolně skenovat zprávy (**Chat Control 1.0**) vypršela **3. dubna 2026** poté, co [Evropský parlament v březnu odmítl další prodloužení](embed:stateofsurveillance.org-dRV).
+
+    ### Proč je kritika tak intenzivní
+
+    Silná kritika pramení z několika zásadních konfliktů mezi bezpečnostními cíli a digitálními právy:
+
+    #### 1. „Zadní vrátka" do šifrování
+    Nejvýznamnější kritika se týká **end-to-end šifrování (E2EE)**. Služby jako Signal a WhatsApp používají E2EE, takže zprávu může číst pouze odesílatel a příjemce.
+    *   **Konflikt:** Aby mohla EU tyto zprávy prohledávat na nelegální obsah, navrhla **„skenování na straně klienta"** — software v telefonu, který kontroluje fotografie a texty *před* jejich zašifrováním a odesláním.
+    *   **Kritika:** Bezpečnostní experti a [zastánci soukromí](embed:globalencryption.org-83i) tvrdí, že to de facto vytváří „zadní vrátka". Jakmile takový mechanismus existuje, mohou ho zneužít hackeři, zahraniční zpravodajské služby nebo budoucí autoritářské vlády k monitorování jakéhokoli druhu komunikace.
+
+    #### 2. Přechod k masovému sledování
+    Kritici, včetně [evropských organizací na ochranu digitálních práv](embed:fightchatcontrol.eu-YsN), tvrdí, že zákon se odklání od „cíleného podezření" (vyšetřování konkrétních zločinců) k „plošnému sledování" (skenování soukromého života všech).
+    *   **Kritika:** Tím je každý občan považován za potenciálního podezřelého. [Evropský soud pro lidská práva](embed:globalencryption.org-83i) dříve rozhodl v případech jako *Podchasov v. Russia*, že oslabování šifrování za účelem umožnění masového sledování představuje nepřiměřené porušení základních práv.
+
+    #### 3. Technická nespolehlivost (problém „falešně pozitivních výsledků")
+    Návrh se do značné míry spoléhá na umělou inteligenci k detekci nového materiálu sexuálního zneužívání dětí a „groomingu" (predátorského chování).
+    *   **Kritika:** Umělá inteligence není dokonalá. Nezávislé [studie poukázaly na vysokou míru chybovosti](embed:en.wikipedia.org-Fav), kdy legální obsah — jako rodič posílající lékaři fotografii dítěte ve vaně nebo teenageři sdílející snímky se souhlasem — by mohl být označen a automaticky odeslán policii. To by mohlo zahltit orgány činné v trestním řízení „šumem" a přitom porušovat soukromí nevinných rodin.
+
+    #### 4. Zranitelnost ohrožených skupin
+    Mnoho kritiků ironicky poukazuje na to, že zákon by mohl ublížit právě těm lidem, které má chránit.
+    *   **Kritika:** Soukromí a šifrování jsou zásadní pro whistleblowery, novináře a oběti domácího násilí nebo politického pronásledování. Pokud bude zabezpečení těchto aplikací oslabeno, tyto zranitelné skupiny ztratí svůj bezpečný prostor pro komunikaci a hledání pomoci.
+
+    ### Shrnutí konfliktu
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Aktuální stav (duben 2026)
+    Po [vypršení dobrovolných skenovacích pravidel](embed:stateofsurveillance.org-Nsm) na začátku tohoto měsíce nemají platformy jako Meta a Google v současné době žádný právní základ pro skenování soukromých zpráv v EU. Boj se nyní přesunul na **„Chat Control 2.0"** — pokus o to, aby se toto skenování stalo povinným. Jednání mezi členskými státy EU pokračují, přičemž mnohé jsou stále hluboce rozděleny v otázce, zda lze dosáhnout bezpečnosti dětí bez obětování základního principu soukromé komunikace.
+
+    **Co si myslíte?** Mělo by být právo na soukromou, šifrovanou komunikaci absolutní, nebo existují specifické okolnosti, za nichž by podle vás mělo být z důvodu veřejné bezpečnosti obejito?
+
+    Pokud se chcete hlouběji ponořit do právních argumentů, můžete si prohlédnout [oficiální dokumentaci Evropského parlamentu](embed:europarl.europa.eu-xqu) nebo prozkoumat sledovače digitálních práv jako [EDRi](https://edri.org).
+
+    **Chtěli byste se dozvědět více o:**
+    1. Jak technicky funguje **skenování na straně klienta**?
+    2. Které členské státy EU v současné době [podporují nebo se staví proti](embed:reddit.com-sFU) povinnému zákonu?
+    ---
+    *⚠️ Toto jsou pouze vzdělávací informace a nepředstavují právní poradenství. Pro právní poradenství se poraďte s právníkem.*
+
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    Förslaget "Chat Control" (officiellt **EU:s förordning om sexuella övergrepp mot barn (CSA)**) har blivit en av de mest kontroversiella digitala lagstiftningarna i europeisk historia. Trots att det uttalade målet är att bekämpa sexuella övergrepp mot barn hävdar kritiker att de föreslagna metoderna i grunden skulle förstöra internets säkerhets- och integritetsinfrastruktur.
+
+    I **april 2026** har debatten nått en kritisk vändpunkt. De tillfälliga reglerna som tillät teknikföretag att frivilligt skanna meddelanden (**Chat Control 1.0**) löpte ut den **3 april 2026**, efter att [Europaparlamentet i mars avvisade en ytterligare förlängning](embed:stateofsurveillance.org-dRV).
+
+    ### Varför kritiken är så intensiv
+
+    Den skarpa kritiken härrör från flera grundläggande konflikter mellan säkerhetsmål och digitala rättigheter:
+
+    #### 1. "Bakdörren" till kryptering
+    Den mest betydande kritiken rör **end-to-end-kryptering (E2EE)**. Tjänster som Signal och WhatsApp använder E2EE så att bara avsändaren och mottagaren kan läsa ett meddelande.
+    *   **Konflikten:** För att skanna dessa meddelanden efter olagligt innehåll föreslog EU **"klientsideskanning"** — programvara på din telefon som kontrollerar dina foton och texter *innan* de krypteras och skickas.
+    *   **Kritiken:** Säkerhetsexperter och [integritetsförespråkare](embed:globalencryption.org-83i) hävdar att detta i praktiken skapar en "bakdörr". När en sådan mekanism väl finns kan den utnyttjas av hackare, utländska underrättelsetjänster eller framtida auktoritära regeringar för att övervaka alla typer av kommunikation.
+
+    #### 2. Övergång till massövervakning
+    Kritiker, däribland [europeiska organisationer för digitala rättigheter](embed:fightchatcontrol.eu-YsN), hävdar att lagen rör sig bort från "riktad misstanke" (att utreda specifika brottslingar) mot "generaliserad övervakning" (att skanna allas privatliv).
+    *   **Kritiken:** Detta behandlar varje medborgare som en potentiell misstänkt. [Europeiska domstolen för de mänskliga rättigheterna](embed:globalencryption.org-83i) har tidigare dömt i fall som *Podchasov v. Ryssland* att försvagning av kryptering för att möjliggöra massövervakning är ett oproportionerligt brott mot grundläggande rättigheter.
+
+    #### 3. Teknisk opålitlighet (problemet med "falska positiva")
+    Förslaget förlitar sig i hög grad på AI för att upptäcka nytt material som rör sexuella övergrepp mot barn och "grooming" (rovdjursbeteende).
+    *   **Kritiken:** AI är inte perfekt. Oberoende [studier har lyft fram höga felfrekvenser](embed:en.wikipedia.org-Fav), där lagligt innehåll — som en förälder som skickar ett foto av sitt barn i badkaret till en läkare, eller tonåringar som delar bilder med samtycke — kan flaggas och automatiskt skickas till polisen. Detta kan överväldiga brottsbekämpningen med "brus" och samtidigt kränka oskyldigas familjeintegritet.
+
+    #### 4. Sårbarhet för riskgrupper
+    Ironiskt nog påpekar många kritiker att lagen kan skada just de personer den är avsedd att skydda.
+    *   **Kritiken:** Integritet och kryptering är avgörande för visselblåsare, journalister och offer för våld i hemmet eller politisk förföljelse. Om säkerheten i dessa appar försvagas förlorar dessa utsatta grupper sina trygga utrymmen för att kommunicera och söka hjälp.
+
+    ### Sammanfattning av konflikten
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### Nuläge (april 2026)
+    Efter att de [frivilliga skanningsreglerna löpte ut](embed:stateofsurveillance.org-Nsm) tidigare denna månad saknar plattformar som Meta och Google för närvarande rättslig grund för att skanna privata meddelanden inom EU. Striden har nu förflyttats till **"Chat Control 2.0"** — försöket att göra denna skanning obligatorisk. Förhandlingarna fortsätter mellan EU:s medlemsstater, och många är fortfarande djupt oeniga om huruvida barns säkerhet kan uppnås utan att offra grundprincipen om privat kommunikation.
+
+    **Vad tycker du?** Bör rätten till privat, krypterad kommunikation vara absolut, eller finns det specifika omständigheter där du anser att den bör kringgås av hänsyn till den allmänna säkerheten?
+
+    Om du vill fördjupa dig i de rättsliga argumenten kan du ta del av [Europaparlamentets officiella dokumentation](embed:europarl.europa.eu-xqu) eller utforska spårare för digitala rättigheter som [EDRi](https://edri.org).
+
+    **Vill du veta mer om:**
+    1. Hur **klientsideskanning** fungerar tekniskt?
+    2. Vilka EU-länder som för närvarande [stödjer eller motsätter sig](embed:reddit.com-sFU) den obligatoriska lagen?
+    ---
+    *⚠️ Detta är enbart utbildningsinformation och inte juridisk rådgivning. Konsultera en advokat för juridisk rådgivning.*
+
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "97185edd-fc4c-4a98-bb4c-54cda1417200", "app_id": "web", "skill_id": "search", "query": "EU Chat Control law criticisms and current status April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "860ffdf6-9732-467f-be1a-267076d132fc", "app_id": "web", "skill_id": "search", "query": "EU CSA Regulation encryption privacy concerns experts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5f5366cb-e519-4787-9536-2bf0785669cc", "app_id": "images", "skill_id": "search", "query": "EU Chat Control protest privacy", "provider": "Brave"}
+    ```
+
+    הצעת "Chat Control" (רשמית **תקנת האיחוד האירופי בנושא התעללות מינית בילדים (CSA)**) הפכה לאחד מחוקי הדיגיטל השנויים ביותר במחלוקת בהיסטוריה האירופית. למרות שמטרתה המוצהרת היא להילחם בניצול מיני של ילדים, טוענים המבקרים כי השיטות המוצעות יפגעו ביסודיות בתשתית האבטחה והפרטיות של האינטרנט.
+
+    נכון ל**אפריל 2026**, הוויכוח הגיע לנקודת מפנה קריטית. הכללים הזמניים שאפשרו לחברות טכנולוגיה לסרוק הודעות מרצון (**Chat Control 1.0**) פגו ב**3 באפריל 2026**, לאחר ש[הפרלמנט האירופי דחה הארכה נוספת](embed:stateofsurveillance.org-dRV) במרץ.
+
+    ### מדוע הביקורת כה עזה
+
+    הביקורת החריפה נובעת ממספר קונפליקטים יסודיים בין יעדי הבטיחות לזכויות הדיגיטליות:
+
+    #### 1. "הדלת האחורית" להצפנה
+    הביקורת המשמעותית ביותר נוגעת ל**הצפנה מקצה לקצה (E2EE)**. שירותים כמו Signal ו-WhatsApp משתמשים ב-E2EE כדי שרק השולח והמקבל יוכלו לקרוא הודעה.
+    *   **הקונפליקט:** כדי לסרוק הודעות אלה לתוכן בלתי חוקי, הציע האיחוד האירופי **"סריקה בצד הלקוח"** — תוכנה בטלפון שלך שבודקת את התמונות והטקסטים שלך *לפני* שהם מוצפנים ונשלחים.
+    *   **הביקורת:** מומחי אבטחה ו[תומכי פרטיות](embed:globalencryption.org-83i) טוענים שזה יוצר למעשה "דלת אחורית". ברגע שמנגנון כזה קיים, הוא עלול להיות מנוצל על ידי האקרים, שירותי מודיעין זרים או ממשלות אוטוריטריות עתידיות לניטור כל סוג של דיבור.
+
+    #### 2. מעבר לפיקוח המוני
+    מבקרים, כולל [ארגוני זכויות דיגיטליות אירופיים](embed:fightchatcontrol.eu-YsN), טוענים שהחוק מתרחק מ"חשד ממוקד" (חקירת פושעים ספציפיים) לכיוון "פיקוח כללי" (סריקת חיי הפרט של כולם).
+    *   **הביקורת:** זה מתייחס לכל אזרח כחשוד פוטנציאלי. [בית המשפט האירופי לזכויות אדם](embed:globalencryption.org-83i) פסק בעבר במקרים כמו *Podchasov נ' רוסיה* שהחלשת הצפנה לאפשר פיקוח המוני היא הפרה בלתי מידתית של זכויות יסוד.
+
+    #### 3. חוסר אמינות טכני (בעיית "החיוביים הכוזבים")
+    ההצעה מסתמכת במידה רבה על בינה מלאכותית לאיתור חומרי התעללות בילדים חדשים ו"גרומינג" (התנהגות טורפנית).
+    *   **הביקורת:** הבינה המלאכותית אינה מושלמת. [מחקרים עצמאיים הצביעו על שיעורי שגיאה גבוהים](embed:en.wikipedia.org-Fav), שבהם תוכן חוקי — כגון הורה ששולח לרופא תמונה של ילדו באמבטיה, או מתבגרים המשתפים תמונות בהסכמה — עלול להיות מסומן ולהישלח אוטומטית למשטרה. זה עלול להציף את רשויות האכיפה ב"רעש" תוך פגיעה בפרטיותן של משפחות חפות מפשע.
+
+    #### 4. פגיעות קבוצות בסיכון
+    באופן אירוני, מבקרים רבים מצביעים על כך שהחוק עלול לפגוע בדיוק באנשים שהוא מתיימר להגן עליהם.
+    *   **הביקורת:** פרטיות והצפנה חיוניים עבור מתריעים, עיתונאים וקורבנות אלימות במשפחה או רדיפה פוליטית. אם אבטחת האפליקציות הללו תוחלש, קבוצות פגיעות אלה יאבדו את המרחבים הבטוחים שלהן לתקשורת ולחיפוש עזרה.
+
+    ### סיכום הקונפליקט
+
+    ```json
+    {"type": "sheet", "embed_id": "2e2ef058-d786-4ca3-95f2-bf56bc2b9a4a"}
+    ```
+
+
+    [!](embed:reddit.com-exI)
+    [!](embed:atomicmail.io-wgi)
+    [!](embed:protectstar.com-2pG)
+
+    ### מצב נוכחי (אפריל 2026)
+    בעקבות [פקיעת כללי הסריקה הוולונטריים](embed:stateofsurveillance.org-Nsm) בתחילת החודש, לפלטפורמות כמו Meta ו-Google אין כרגע בסיס משפטי לסרוק הודעות פרטיות בתוך האיחוד האירופי. הקרב עבר כעת ל**"Chat Control 2.0"** — הניסיון להפוך סריקה זו לחובה. המשא ומתן בין מדינות החברות באיחוד האירופי נמשך, כאשר רבות מהן עדיין חלוקות עמוקות בשאלה האם ניתן להשיג בטיחות ילדים מבלי להקריב את עקרון התקשורת הפרטית.
+
+    **מה דעתך?** האם הזכות לתקשורת פרטית ומוצפנת צריכה להיות מוחלטת, או שיש נסיבות ספציפיות שבהן לדעתך היא צריכה להיות עוקפת למען ביטחון הציבור?
+
+    אם תרצה להעמיק בטיעונים המשפטיים, תוכל לעיין ב[תיעוד הרשמי של הפרלמנט האירופי](embed:europarl.europa.eu-xqu) או לחקור עוקבי זכויות דיגיטליות כמו [EDRi](https://edri.org).
+
+    **האם תרצה לדעת יותר על:**
+    1. איך **סריקה בצד הלקוח** עובדת מבחינה טכנית?
+    2. אילו מדינות האיחוד האירופי כרגע [תומכות או מתנגדות](embed:reddit.com-sFU) לחוק החובה?
+    ---
+    *⚠️ זוהי מידע חינוכי בלבד ואינו מהווה ייעוץ משפטי. התייעץ עם עורך דין לקבלת ייעוץ משפטי.*
+
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion with [ai] tag asking about client-side scanning technical details"
+  en: "[ai] Explain the technical details of client-side scanning"
+  de: "[ai] Erkläre die technischen Details des Client-Side Scannens"
+  zh: "[ai] 解释客户端扫描的技术细节"
+  es: "[ai] Explica los detalles técnicos del escaneo del lado del cliente"
+  fr: "[ai] Explique les détails techniques du scan côté client"
+  pt: "[ai] Explique os detalhes técnicos do escaneamento no lado do cliente"
+  ru: "[ai] Объясни технические детали сканирования на стороне клиента"
+  ja: "[ai] クライアントサイドスキャニングの技術的な詳細を説明して"
+  ko: "[ai] 클라이언트 측 스캔의 기술적 세부 사항 설명"
+  it: "[ai] Spiega i dettagli tecnici dello scansionamento lato client"
+  tr: "[ai] İstemci tarafı taramanın teknik ayrıntılarını açıkla"
+  vi: "[ai] Giải thích chi tiết kỹ thuật của quét phía máy khách"
+  id: "[ai] Jelaskan detail teknis pemindaian sisi klien"
+  pl: "[ai] Wyjaśnij techniczne szczegóły skanowania po stronie klienta"
+  nl: "[ai] Leg de technische details van client-side scanning uit"
+  ar: "[ai] اشرح التفاصيل التقنية للمسح على جهاز العميل"
+  hi: "[ai] क्लाइंट-साइड स्कैनिंग के तकनीकी विवरण समझाएँ"
+  th: "[ai] อธิบายรายละเอียดทางเทคนิคของการสแกนฝั่งลูกข่าย"
+  cs: "[ai] Vysvětli technické podrobnosti skenování na straně klienta"
+  sv: "[ai] Förklara de tekniska detaljerna kring klientsideskanning"
+  he: "[ai] הסבר את הפרטים הטכניים של סריקת צד לקוח"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion with [ai] tag asking to compare EU Chat Control with similar laws"
+  en: "[ai] Compare EU Chat Control with similar laws in other regions"
+  de: "[ai] Vergleiche EU Chat Control mit ähnlichen Gesetzen in anderen Regionen"
+  zh: "[ai] 将欧盟Chat Control与其他地区的类似法律进行比较"
+  es: "[ai] Compara EU Chat Control con leyes similares en otras regiones"
+  fr: "[ai] Compare EU Chat Control avec des lois similaires dans d'autres régions"
+  pt: "[ai] Compare o EU Chat Control com leis semelhantes em outras regiões"
+  ru: "[ai] Сравни EU Chat Control с аналогичными законами в других регионах"
+  ja: "[ai] EU Chat Controlを他地域の類似法と比較して"
+  ko: "[ai] EU Chat Control을 다른 지역의 유사 법률과 비교"
+  it: "[ai] Confronta EU Chat Control con leggi simili in altre regioni"
+  tr: "[ai] AB Chat Control'ü diğer bölgelerdeki benzer yasalarla karşılaştır"
+  vi: "[ai] So sánh Chat Control EU với các luật tương tự ở các khu vực khác"
+  id: "[ai] Bandingkan EU Chat Control dengan undang-undang serupa di wilayah lain"
+  pl: "[ai] Porównaj EU Chat Control z podobnymi prawami w innych regionach"
+  nl: "[ai] Vergelijk EU Chat Control met vergelijkbare wetten in andere regio's"
+  ar: "[ai] قارن بين قانون Chat Control الأوروبي وقوانين مماثلة في مناطق أخرى"
+  hi: "[ai] EU Chat Control की तुलना अन्य क्षेत्रों के समान कानूनों से करें"
+  th: "[ai] เปรียบเทียบ EU Chat Control กับกฎหมายที่คล้ายกันในภูมิภาคอื่น"
+  cs: "[ai] Porovnej EU Chat Control s podobnými zákony v jiných regionech"
+  sv: "[ai] Jämför EU Chat Control med liknande lagar i andra regioner"
+  he: "[ai] השווה את EU Chat Control לחוקים דומים באזורים אחרים"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion with [web-search] tag to find recent news"
+  en: "[web-search] Find recent news on EU Chat Control 2.0 negotiations"
+  de: "[web-search] Finde aktuelle Nachrichten zu den EU Chat Control 2.0 Verhandlungen"
+  zh: "[web-search] 查找欧盟Chat Control 2.0谈判的最新消息"
+  es: "[web-search] Encuentra noticias recientes sobre las negociaciones de EU Chat Control 2.0"
+  fr: "[web-search] Trouve les dernières actualités sur les négociations EU Chat Control 2.0"
+  pt: "[web-search] Encontre notícias recentes sobre as negociações do EU Chat Control 2.0"
+  ru: "[web-search] Найди последние новости о переговорах по EU Chat Control 2.0"
+  ja: "[web-search] EU Chat Control 2.0交渉に関する最新ニュースを検索して"
+  ko: "[web-search] EU Chat Control 2.0 협상에 관한 최신 뉴스 찾기"
+  it: "[web-search] Trova notizie recenti sui negoziati di EU Chat Control 2.0"
+  tr: "[web-search] AB Chat Control 2.0 müzakerelerine ilişkin son haberleri bul"
+  vi: "[web-search] Tìm tin tức mới nhất về các cuộc đàm phán Chat Control 2.0 của EU"
+  id: "[web-search] Temukan berita terbaru tentang negosiasi EU Chat Control 2.0"
+  pl: "[web-search] Znajdź najnowsze wiadomości na temat negocjacji EU Chat Control 2.0"
+  nl: "[web-search] Zoek recent nieuws over EU Chat Control 2.0-onderhandelingen"
+  ar: "[web-search] ابحث عن أحدث الأخبار حول مفاوضات Chat Control 2.0 الأوروبية"
+  hi: "[web-search] EU Chat Control 2.0 वार्ता पर हालिया समाचार खोजें"
+  th: "[web-search] ค้นหาข่าวล่าสุดเกี่ยวกับการเจรจา EU Chat Control 2.0"
+  cs: "[web-search] Najdi nejnovější zprávy o jednáních ohledně EU Chat Control 2.0"
+  sv: "[web-search] Hitta senaste nytt om EU Chat Control 2.0-förhandlingarna"
+  he: "[web-search] מצא חדשות אחרונות על משא ומתן EU Chat Control 2.0"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion with [ai] tag to summarize arguments"
+  en: "[ai] Summarize the arguments for and against mandatory scanning"
+  de: "[ai] Fasse die Argumente für und gegen das Pflicht-Scanning zusammen"
+  zh: "[ai] 总结支持和反对强制扫描的论点"
+  es: "[ai] Resume los argumentos a favor y en contra del escaneo obligatorio"
+  fr: "[ai] Résume les arguments pour et contre le scan obligatoire"
+  pt: "[ai] Resuma os argumentos a favor e contra o escaneamento obrigatório"
+  ru: "[ai] Подведи итог аргументам за и против обязательного сканирования"
+  ja: "[ai] 義務的スキャニングの賛否両論をまとめて"
+  ko: "[ai] 의무적 스캔에 대한 찬반 논거 요약"
+  it: "[ai] Riassumi gli argomenti a favore e contro la scansione obbligatoria"
+  tr: "[ai] Zorunlu tarama lehine ve aleyhine argümanları özetle"
+  vi: "[ai] Tóm tắt các lập luận ủng hộ và phản đối việc quét bắt buộc"
+  id: "[ai] Ringkas argumen untuk dan melawan pemindaian wajib"
+  pl: "[ai] Podsumuj argumenty za i przeciw obowiązkowemu skanowaniu"
+  nl: "[ai] Vat de argumenten voor en tegen verplicht scannen samen"
+  ar: "[ai] لخّص الحجج المؤيدة والمعارضة للفحص الإلزامي"
+  hi: "[ai] अनिवार्य स्कैनिंग के पक्ष और विपक्ष में तर्कों का सारांश दें"
+  th: "[ai] สรุปข้อโต้แย้งที่สนับสนุนและคัดค้านการสแกนภาคบังคับ"
+  cs: "[ai] Shrň argumenty pro a proti povinnému skenování"
+  sv: "[ai] Sammanfatta argumenten för och emot obligatorisk skanning"
+  he: "[ai] סכם את הטיעונים בעד ונגד סריקה חובה"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion with [images-search] tag to find protest images"
+  en: "[images-search] Show protest images against EU Chat Control"
+  de: "[images-search] Zeige Protestbilder gegen EU Chat Control"
+  zh: "[images-search] 显示反对欧盟Chat Control的抗议图片"
+  es: "[images-search] Muestra imágenes de protesta contra EU Chat Control"
+  fr: "[images-search] Montre des images de protestation contre EU Chat Control"
+  pt: "[images-search] Mostre imagens de protesto contra o EU Chat Control"
+  ru: "[images-search] Покажи фотографии протестов против EU Chat Control"
+  ja: "[images-search] EU Chat Controlへの抗議画像を表示して"
+  ko: "[images-search] EU Chat Control에 반대하는 시위 이미지 보기"
+  it: "[images-search] Mostra immagini di protesta contro EU Chat Control"
+  tr: "[images-search] AB Chat Control'e karşı protesto görsellerini göster"
+  vi: "[images-search] Hiển thị hình ảnh biểu tình chống lại Chat Control EU"
+  id: "[images-search] Tampilkan gambar protes terhadap EU Chat Control"
+  pl: "[images-search] Pokaż zdjęcia protestów przeciwko EU Chat Control"
+  nl: "[images-search] Toon protestbeelden tegen EU Chat Control"
+  ar: "[images-search] أظهر صور الاحتجاجات ضد قانون Chat Control الأوروبي"
+  hi: "[images-search] EU Chat Control के खिलाफ विरोध प्रदर्शन की छवियाँ दिखाएँ"
+  th: "[images-search] แสดงภาพการประท้วงต่อต้าน EU Chat Control"
+  cs: "[images-search] Ukaž protestní obrázky proti EU Chat Control"
+  sv: "[images-search] Visa protestbilder mot EU Chat Control"
+  he: "[images-search] הצג תמונות מחאה נגד EU Chat Control"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion with [ai] tag to analyze impacts"
+  en: "[ai] Analyze potential impacts on encryption and privacy"
+  de: "[ai] Analysiere potenzielle Auswirkungen auf Verschlüsselung und Privatsphäre"
+  zh: "[ai] 分析对加密和隐私的潜在影响"
+  es: "[ai] Analiza los posibles impactos en el cifrado y la privacidad"
+  fr: "[ai] Analyse les impacts potentiels sur le chiffrement et la vie privée"
+  pt: "[ai] Analise os potenciais impactos na criptografia e na privacidade"
+  ru: "[ai] Проанализируй потенциальное влияние на шифрование и конфиденциальность"
+  ja: "[ai] 暗号化とプライバシーへの潜在的な影響を分析して"
+  ko: "[ai] 암호화 및 개인정보 보호에 미치는 잠재적 영향 분석"
+  it: "[ai] Analizza i potenziali impatti sulla crittografia e la privacy"
+  tr: "[ai] Şifreleme ve gizlilik üzerindeki potansiyel etkileri analiz et"
+  vi: "[ai] Phân tích các tác động tiềm năng đối với mã hóa và quyền riêng tư"
+  id: "[ai] Analisis potensi dampak pada enkripsi dan privasi"
+  pl: "[ai] Przeanalizuj potencjalny wpływ na szyfrowanie i prywatność"
+  nl: "[ai] Analyseer de potentiële impact op encryptie en privacy"
+  ar: "[ai] حلّل التأثيرات المحتملة على التشفير والخصوصية"
+  hi: "[ai] एन्क्रिप्शन और गोपनीयता पर संभावित प्रभावों का विश्लेषण करें"
+  th: "[ai] วิเคราะห์ผลกระทบที่อาจเกิดขึ้นต่อการเข้ารหัสและความเป็นส่วนตัว"
+  cs: "[ai] Analyzuj potenciální dopady na šifrování a soukromí"
+  sv: "[ai] Analysera potentiella konsekvenser för kryptering och integritet"
+  he: "[ai] נתח השפעות פוטנציאליות על הצפנה ופרטיות"
+  verified_by_human: []
