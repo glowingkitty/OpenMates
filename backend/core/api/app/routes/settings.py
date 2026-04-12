@@ -3400,7 +3400,7 @@ async def request_action_verification(
             raise HTTPException(status_code=400, detail="No email on file")
 
         vault_key_id = user_profile.get("vault_key_id", "")
-        decrypted_email = await encryption_service.decrypt_field(
+        decrypted_email = await encryption_service.decrypt_with_user_key(
             encrypted_email, vault_key_id
         )
         if not decrypted_email:
