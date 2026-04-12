@@ -596,8 +596,22 @@ let _chatUpdatedFlushPending = false;
 		if (totalUserChats > visibleUserChatLimit) return true;
 		// Loading from server in progress
 		if (loadTier === 'loading_server') return true;
+		// Server reports more chats than we have locally (guards against metadata sync
+		// setting hasMoreOnServer=false while local IDB hasn't refreshed yet)
+		if (totalServerChatCount > 0 && totalUserChats < totalServerChatCount) return true;
 		// Server has more chats beyond what we've loaded locally
 		return hasMoreOnServer;
+	})());
+
+	// Number of remaining chats not yet visible (for "Show more (N)" button text)
+	let remainingChatsCount = $derived((() => {
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length;
+		const totalKnown = totalServerChatCount > 0
+			? Math.max(totalUserChats, totalServerChatCount)
+			: totalUserChats;
+		return Math.max(0, totalKnown - visibleUserChatLimit);
 	})());
 
 	// Group the chats intended for display using Svelte 5 runes
@@ -1151,16 +1165,28 @@ let _chatUpdatedFlushPending = false;
 			return;
 		}
 
-		// All local chats are shown — fetch more from server if available
-		if (hasMoreOnServer && !loadingMoreChats) {
+		// All local chats are shown — fetch more from server if available.
+		// Also fetch when totalServerChatCount exceeds local count (guards against
+		// metadata sync setting hasMoreOnServer=false before IDB refresh completes).
+		const serverHasMore = hasMoreOnServer || (totalServerChatCount > 0 && totalUserChats < totalServerChatCount);
+		if (serverHasMore && !loadingMoreChats) {
 			loadingMoreChats = true;
 			loadTier = 'loading_server';
 			console.debug(`[Chats] Show more: requesting older chats from server (offset=${serverPaginationOffset}).`);
 			try {
 				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, SHOW_MORE_INCREMENT);
+				// Safety timeout: reset loadingMoreChats if server never responds (10s)
+				setTimeout(() => {
+					if (loadingMoreChats) {
+						console.warn('[Chats] Show more: server response timeout — resetting loading state.');
+						loadingMoreChats = false;
+						loadTier = 'all_local';
+					}
+				}, 10000);
 			} catch (error) {
 				console.error('[Chats] Error requesting more chats:', error);
 				loadingMoreChats = false;
+				loadTier = 'all_local';
 			}
 		}
 	};
@@ -1182,7 +1208,7 @@ let _chatUpdatedFlushPending = false;
 			// Deduplicate against existing chats before appending
 			const existingIds = new Set(allChats.map(c => c.chat_id));
 			const newChats = chats.filter(c => !existingIds.has(c.chat_id));
-			
+
 			if (newChats.length > 0) {
 				olderChatsFromServer = [...olderChatsFromServer, ...newChats];
 				console.debug(`[Chats] Added ${newChats.length} new older chats (${chats.length - newChats.length} duplicates filtered).`);
@@ -1190,19 +1216,29 @@ let _chatUpdatedFlushPending = false;
 		}
 
 		// Update pagination state
-		hasMoreOnServer = has_more;
 		totalServerChatCount = total_count;
-		serverPaginationOffset = offset + chats.length;
+		// Advance offset — guard against stuck pagination when server returns 0 chats
+		serverPaginationOffset = offset + Math.max(chats.length, SHOW_MORE_INCREMENT);
 		loadingMoreChats = false;
 		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
 
-		// Increase visible limit to include the newly loaded server chats
-		const totalUserChats = sortedAllChatsFiltered.filter(
+		// Check how many user chats are now locally available (IDB + in-memory).
+		// sortedAllChatsFiltered already includes chats added to olderChatsFromServer above.
+		const totalLocalUserChats = sortedAllChatsFiltered.filter(
 			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
-		).length + (chats.length);
-		if (visibleUserChatLimit < totalUserChats) {
-			visibleUserChatLimit = totalUserChats;
+		).length;
+
+		// Only trust server's has_more if local chats don't already cover everything.
+		// Metadata sync may have loaded all chats into IDB while this fetch was in-flight,
+		// so the server's has_more can be stale.
+		if (totalLocalUserChats >= total_count) {
+			hasMoreOnServer = false;
+		} else {
+			hasMoreOnServer = has_more;
 		}
+
+		// Increase visible limit by one page to reveal the newly loaded chats
+		visibleUserChatLimit += SHOW_MORE_INCREMENT;
 	};
 
 	/**
@@ -3822,7 +3858,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{#if loadingMoreChats}
 								...
 							{:else}
-								{$text('chats.loadMore.button')}
+								{$text('chats.loadMore.button')}{#if remainingChatsCount > 0}&nbsp;({remainingChatsCount}){/if}
 							{/if}
 						</button>
 					</div>
