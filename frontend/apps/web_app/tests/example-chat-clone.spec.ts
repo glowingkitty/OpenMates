@@ -118,22 +118,21 @@ test.describe('Example chat clone-on-send', () => {
 		);
 
 		// ── Step 3: Send a message to trigger clone-on-send ────────────────────
-		// The send button should be visible for authenticated users
-		const sendButton = page.locator('[data-action="send-message"]');
-		await expect(sendButton).toBeVisible({ timeout: 10000 });
-
-		// Type a message in the editor
-		const editor = page.locator('[data-testid="message-input-editor"]');
+		// Type a message in the TipTap editor
+		const editor = page.getByTestId('message-editor');
 		await expect(editor).toBeVisible({ timeout: 10000 });
 		await editor.click();
-		await page.keyboard.type('Show me more flight options to Bangkok');
+		await page.keyboard.type('Show me more flight options');
 
-		// Check console for the conversion log before clicking send
+		// The send button only appears when the editor has content (hasContent reactive state).
+		const sendButton = page.locator('[data-action="send-message"]');
+		await expect(sendButton).toBeVisible({ timeout: 15000 });
+		await expect(sendButton).toBeEnabled({ timeout: 5000 });
 		await sendButton.click();
 		console.log('[clone-test] Sent message to example chat — clone-on-send should trigger');
 
 		// Wait for the clone operation and navigation to the new chat
-		await page.waitForTimeout(8000);
+		await page.waitForTimeout(10000);
 
 		// ── Step 4: Verify we're now in a new real chat (not example-*) ────────
 		const currentHash = await page.evaluate(() => window.location.hash);
