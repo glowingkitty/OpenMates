@@ -30,9 +30,10 @@
       - 0.4 opacity, entrance animation: fade up from +50px Y offset
       - overflow: hidden clips them at the banner edges
 
-  Dimensions match DailyInspirationBanner:
-    - Desktop: 240px height, 14px border-radius
-    - Mobile (≤730px): 190px height
+  Dimensions:
+    - Desktop: 50vh height (min 240px), 14px border-radius
+    - Mobile (≤730px): 50vh height (min 190px)
+    - When settings panel is open: reverts to fixed 240px / 190px
 
   Props:
     title          - decrypted/plaintext chat title
@@ -62,6 +63,7 @@
     /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
      *  and "Incognito Mode" as the title. Overrides all other visual states. */
     isIncognito = false,
+    settingsOpen = false,
   }: {
     title?: string;
     category?: string | null;
@@ -73,6 +75,7 @@
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
     isIncognito?: boolean;
+    settingsOpen?: boolean;
   } = $props();
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -291,6 +294,7 @@
 <div
   class="chat-header-banner"
   class:is-loaded={isLoaded}
+  class:settings-open={settingsOpen}
   style={bannerStyle}
 >
   <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
@@ -416,7 +420,8 @@
   .chat-header-banner {
     position: relative;
     width: 100%;
-    height: 240px;
+    height: 50vh;
+    min-height: 240px;
     /* Top corners are flush with the top of the scroll area — no top radius.
        Only bottom corners are rounded to separate the banner from messages below. */
     border-radius: 0 0 14px 14px;
@@ -424,12 +429,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Smooth background transition when switching from primary → category gradient */
-    transition: background 0.5s ease;
+    /* Smooth background + height transition when switching states */
+    transition: background 0.5s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
     /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
     pointer-events: none;
     user-select: none;
+  }
+
+  .chat-header-banner.settings-open {
+    height: 240px;
+    min-height: unset;
   }
 
   /* ─── Processing state ──────────────────────────────────────────────────── */
@@ -851,7 +861,13 @@
 
   @media (max-width: 730px) {
     .chat-header-banner {
+      height: 50vh;
+      min-height: 190px;
+    }
+
+    .chat-header-banner.settings-open {
       height: 190px;
+      min-height: unset;
     }
 
     .processing-ai-icon {

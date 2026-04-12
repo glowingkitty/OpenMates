@@ -46,6 +46,7 @@
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
+  import { isSettingsOpen } from '../stores/panelStateStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -1549,6 +1550,7 @@
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
+                settingsOpen={$isSettingsOpen}
             />
         </div>
     {/if}
