@@ -498,7 +498,7 @@
 
   {#snippet childFullscreen(nav)}
     <TravelConnectionEmbedFullscreen
-      data={{ decodedContent: nav.result }}
+      data={{ decodedContent: { ...nav.result, ...(data.decodedContent?.is_store_example ? { is_store_example: true } : {}) } }}
       onClose={nav.onClose}
       embedId={nav.result.embed_id}
       hasPreviousEmbed={nav.hasPrevious}

@@ -2626,6 +2626,10 @@ booking_link_failed:
   sv: Kunde inte ladda bokningslänk. Prova att söka på Google Flights istället.
   he: לא ניתן היה לטעון את קישור ההזמנה. כדאי לנסות לחפש ב-Google Flights במקום.
   verified_by_human: [en, de]
+booking_link_example_only:
+  context: Info notification shown when user clicks "Get booking link" on a store example embed
+  en: Booking links are only available for real flight searches. Sign up and start a new search to get live booking links.
+  de: Buchungslinks sind nur für echte Flugsuchen verfügbar. Melde dich an und starte eine neue Suche, um aktuelle Buchungslinks zu erhalten.
 stay:
   context: Singular label for a travel stay/accommodation result
   en: stay
