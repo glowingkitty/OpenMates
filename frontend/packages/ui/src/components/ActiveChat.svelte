@@ -1608,14 +1608,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // This ensures the next time an embed is opened, it uses the default layout based on screen size
         forceOverlayMode = false;
 
-        // Clear embed URL hash when embed is closed
+        // Clear embed store state — clearActiveEmbed() uses replaceState internally,
+        // which clears the entire hash (including the chat-id part) without firing hashchange.
         activeEmbedStore.clearActiveEmbed();
         console.debug('[ActiveChat] Cleared embed from URL hash');
-        
-        // If there's an active chat, restore the chat URL hash
-        // This ensures that when closing an embed while viewing a chat, the chat URL is restored
+
+        // Restore the chat-only URL hash (#chat-id=X).
+        // CRITICAL: Use history.replaceState instead of activeChatStore.setActiveChat to
+        // avoid firing a hashchange event. setActiveChat sets window.location.hash which
+        // triggers handleHashChange → loadChat → resetChatHeaderState, clearing the chat
+        // header (title + summary) until the chat is reopened. The activeChatStore value
+        // is already correct (set when the chat was opened), so we only need to restore
+        // the URL hash for bookmarkability.
         if (currentChat && currentChat.chat_id) {
-            activeChatStore.setActiveChat(currentChat.chat_id);
+            history.replaceState(null, '', `#chat-id=${currentChat.chat_id}`);
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
     }
