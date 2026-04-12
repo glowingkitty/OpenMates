@@ -184,7 +184,8 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
-	const signupUsername = signupEmail.split('@')[0];
+	const emailLocal = signupEmail.split('@')[0];
+	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'PolarTest!234';
 	logSignupCheckpoint('Initialized Polar signup identity.', { signupEmail });
 

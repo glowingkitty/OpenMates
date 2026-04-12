@@ -97,10 +97,25 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
-	const signupUsername = signupEmail.split('@')[0];
+	// For Gmail +alias emails (openmates.e2e+apr121910@gmail.com), extract only
+	// the time-based part after '+' as the username, since '+' may not be valid
+	// in usernames and the base part would collide across runs.
+	const emailLocal = signupEmail.split('@')[0];
+	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234Secure';
 
 	await page.goto(getE2EDebugUrl('/'));
+
+	// Dismiss "new version available" notification if present (service worker update)
+	const versionBanner = page.getByTestId('notification');
+	if (await versionBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
+		const dismissBtn = page.getByRole('button', { name: /dismiss notification/i });
+		if (await dismissBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await dismissBtn.click();
+			await page.waitForTimeout(500);
+		}
+	}
+
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginSignupButton = page.getByRole('button', {

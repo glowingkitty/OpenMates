@@ -175,7 +175,8 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Virtual authenticator configured for passkey flow.');
 
 		const signupEmail = buildSignupEmail(signupDomain);
-		const signupUsername = signupEmail.split('@')[0];
+		const emailLocal = signupEmail.split('@')[0];
+		const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 		logSignupCheckpoint('Initialized passkey signup identity.', { signupEmail });
 
 		// Open the login/signup dialog from the header.

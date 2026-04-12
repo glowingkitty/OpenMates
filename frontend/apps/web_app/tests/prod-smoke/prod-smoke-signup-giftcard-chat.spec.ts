@@ -128,7 +128,8 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
-	const signupUsername = signupEmail.split('@')[0];
+	const emailLocal = signupEmail.split('@')[0];
+	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'ProdSmoke!2345Secure';
 	logCheckpoint('Generated fresh signup email.', { signupEmail });
 

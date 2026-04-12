@@ -126,7 +126,8 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
-	const signupUsername = signupEmail.split('@')[0];
+	const emailLocal = signupEmail.split('@')[0];
+	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234';
 	logSignupCheckpoint('Initialized signup identity.', { signupEmail });
 
