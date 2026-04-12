@@ -26,16 +26,20 @@
   interface Props {
     /** Current chat ID to exclude from the list */
     excludeChatId?: string;
+    /** If set, only show chats matching these categories (e.g. ['software_development']) */
+    onlyCategories?: string[];
   }
 
   let {
     excludeChatId = 'demo-for-everyone',
+    onlyCategories,
   }: Props = $props();
 
-  // Get all example chats, excluding the current one.
+  // Get all example chats, excluding the current one and optionally filtering by category.
   // No reactivity needed — example chats are static data built at import time.
   const exampleChats = getAllExampleChats().filter(
     chat => chat.chat_id !== excludeChatId
+      && (!onlyCategories || onlyCategories.includes(chat.category ?? ''))
   );
   
   /**

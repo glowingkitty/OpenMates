@@ -52,6 +52,12 @@
    * Currently only the code app, but designed to be easily extended.
    */
   const DEVELOPER_APP_IDS = ['code'];
+
+  /**
+   * Coding-related mate categories for filtering example chats
+   * in the "for developers" intro chat.
+   */
+  const DEVELOPER_CATEGORIES = ['software_development'];
   
   // Placeholder constants
   // NOTE: Uses [[...]] instead of {...} to avoid ICU MessageFormat variable interpolation in svelte-i18n
@@ -156,7 +162,7 @@
       {:else if part.type === 'example_chats_group'}
         <ExampleChatsGroup excludeChatId={chatId} />
       {:else if part.type === 'dev_example_chats_group'}
-        <ExampleChatsGroup excludeChatId={chatId} />
+        <ExampleChatsGroup excludeChatId={chatId} onlyCategories={DEVELOPER_CATEGORIES} />
       {:else if part.type === 'app_store_group'}
         <!-- For-everyone: exclude developer-focused apps -->
         <AppStoreGroup excludeAppIds={DEVELOPER_APP_IDS} />
