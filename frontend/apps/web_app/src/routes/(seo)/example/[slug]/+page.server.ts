@@ -12,16 +12,8 @@
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getExampleChatBySlug, resolveI18nKey } from '@repo/ui';
+import { getExampleChatBySlug, resolveExampleChatI18nKey as t } from '@repo/ui';
 import { getSiteOrigin } from '$lib/backendUrl';
-// Import English locale JSON for server-side i18n resolution
-// @ts-expect-error — JSON import works at build time
-import enLocale from '../../../../../../packages/ui/src/i18n/locales/en.json';
-
-/** Resolve an i18n key to English text for SEO */
-function t(key: string): string {
-	return resolveI18nKey(key, enLocale);
-}
 
 export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	const { slug } = params;

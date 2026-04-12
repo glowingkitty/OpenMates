@@ -4,14 +4,8 @@
 // All data comes from static hardcoded example chats — no backend API calls needed.
 
 import type { PageServerLoad } from './$types';
-import { getAllExampleChatData, resolveI18nKey } from '@repo/ui';
+import { getAllExampleChatData, resolveExampleChatI18nKey as t } from '@repo/ui';
 import { getSiteOrigin } from '$lib/backendUrl';
-// @ts-expect-error — JSON import works at build time
-import enLocale from '../../../../../packages/ui/src/i18n/locales/en.json';
-
-function t(key: string): string {
-	return resolveI18nKey(key, enLocale);
-}
 
 export const load: PageServerLoad = async ({ setHeaders, url }) => {
 	const hostname = url.hostname;

@@ -173,24 +173,33 @@ export function getExampleChatCount(): number {
 }
 
 /**
- * Resolve an i18n key to English text using a provided locale JSON object.
- * Used by SEO server pages where the Svelte text store is not available.
- * Traverses the nested JSON structure using dot-separated key paths.
+ * Resolve an i18n key to English text for server-side SEO rendering.
+ * Imports the English locale JSON from the UI package and traverses
+ * the nested structure using dot-separated key paths.
  *
- * @param key - i18n key (e.g. "example_chats.gigantic_airplanes.title")
- * @param translations - The full locale JSON object (nested structure)
+ * Used by SEO server pages where the Svelte text store is not available.
  */
-export function resolveI18nKey(
-  key: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  translations: Record<string, any>,
-): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _enLocaleCache: Record<string, any> | null = null;
+
+export function resolveExampleChatI18nKey(key: string): string {
   if (!key.startsWith("example_chats.")) return key;
 
+  // Lazy-load the English locale (cached after first call)
+  if (!_enLocaleCache) {
+    try {
+      // Dynamic require to avoid bundling issues — this runs server-side only
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      _enLocaleCache = require("../i18n/locales/en.json");
+    } catch {
+      // Fallback: return key as-is if locale file can't be loaded
+      return key;
+    }
+  }
+
   // Traverse the nested JSON: "example_chats.gigantic_airplanes.title"
-  // → translations["example_chats"]["gigantic_airplanes"]["title"]
   const parts = key.split(".");
-  let current: unknown = translations;
+  let current: unknown = _enLocaleCache;
   for (const part of parts) {
     if (current == null || typeof current !== "object") return key;
     current = (current as Record<string, unknown>)[part];
