@@ -985,15 +985,21 @@ let _chatUpdatedFlushPending = false;
 		* Handles 'phase_2_last_20_chats_ready' events from Phase 2 of the new phased sync system.
 		* This means the last 20 updated chats are ready for quick access.
 		*/
-	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.debug(`[Chats] Phase 2 complete - chats ready: ${event.detail.chat_count} chats.`);
+	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number; total_chat_count?: number}>) => {
+		console.debug(`[Chats] Phase 2 complete - chats ready: ${event.detail.chat_count} chats, total on server: ${event.detail.total_chat_count || 'unknown'}.`);
+
+		// Set total chat count early so "Show more (N)" button shows the correct remaining
+		// count immediately — don't wait for Phase 3 which can take several seconds.
+		if (event.detail.total_chat_count && event.detail.total_chat_count > 0) {
+			totalServerChatCount = event.detail.total_chat_count;
+			hasMoreOnServer = event.detail.total_chat_count > 100;
+			serverPaginationOffset = 100;
+			console.info(`[Chats] Phase 2: totalServerChatCount=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
+		}
 
 		// PERF: Phase 2 sync handler incrementally upserts each chat into chatListCache.
 		// Non-forced read picks up the in-memory cache (no full IDB re-scan).
 		await updateChatListFromDB(false);
-
-		// Phase 2 stores metadata in IDB but tier 1 only displays 11 chats (Phase 1a set).
-		// No state change needed here; user clicks "Show more" to see the rest.
 
 		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
@@ -1005,10 +1011,13 @@ let _chatUpdatedFlushPending = false;
 	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number; total_chat_count?: number}>) => {
 		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats, total on server: ${event.detail.total_chat_count || 'unknown'}.`);
 
-		// PERF: Phase 3 sync handler (chatSyncServiceHandlersPhasedSync.ts) now
-		// incrementally upserts each chat into chatListCache during storage.
-		// We only need a non-forced read to pick up the cache (no full IDB re-scan).
-		await updateChatListFromDB(false);
+		// Phase 3 is the definitive chat load — force a full IDB re-read to ensure
+		// we pick up ALL chats. A non-forced read would use the cache, which can be
+		// stale if Phase 2 upserts were dropped during the cold-boot race (cacheReady
+		// is false while the initial IDB read is in progress, so upserts are silently
+		// skipped). The forced read guarantees the sidebar has the full set.
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 		
 		// Phase 3 complete — stay on current tier (user clicks "Show more" to expand).
 		// Only track server-side pagination metadata.
