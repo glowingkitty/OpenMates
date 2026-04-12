@@ -188,10 +188,9 @@ test('clicking an older chat loads its messages on demand', async ({
 	await targetChat.click();
 	await page.waitForTimeout(1000);
 
-	// Step 5: Wait for the chat area to render
-	const chatHistory = page.getByTestId('chat-history');
+	// Step 5: Wait for the chat area to render (message editor confirms the chat opened)
 	const messageEditor = page.getByTestId('message-editor');
-	await expect(chatHistory.or(messageEditor)).toBeVisible({ timeout: 15000 });
+	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 
 	// Step 6: Wait for messages to load (on-demand from server if needed)
 	const messageContainer = page.locator('[data-testid="message-container"], [data-testid="chat-message"]');
