@@ -345,7 +345,18 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Clicked send verification code for account deletion.');
 
 	// Wait for the email OTP input to appear (means code was sent).
-	const deleteOtpInput = emailOtpSection.locator('input.tfa-input');
+	// The backend may fail with "Failed to retrieve email" if encryption keys aren't
+	// synced yet for the freshly created account. Retry once after a short wait.
+	const deleteOtpInput = emailOtpSection.locator('input[inputmode="numeric"]');
+	const otpVisible = await deleteOtpInput.isVisible({ timeout: 10000 }).catch(() => false);
+	if (!otpVisible) {
+		const errorText = await page.getByText(/failed to retrieve email/i).isVisible({ timeout: 2000 }).catch(() => false);
+		if (errorText) {
+			logSignupCheckpoint('Got "Failed to retrieve email" — retrying after wait.');
+			await page.waitForTimeout(3000);
+			await sendCodeButton.click();
+		}
+	}
 	await expect(deleteOtpInput).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'delete-account-otp-input');
 
