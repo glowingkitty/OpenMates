@@ -1637,6 +1637,89 @@ async def _validate_paragraph_urls(
         # Don't raise - this is a background task, errors shouldn't break the stream
 
 
+# ---------------------------------------------------------------------------
+# Code block detection helpers (extracted for testability)
+# ---------------------------------------------------------------------------
+
+# Minimum number of non-whitespace characters for a code block to be converted
+# to an embed. Below this threshold, the code block is kept as-is in the response
+# (not converted to a code embed). Prevents broken/empty embeds from example code
+# fences or garbled output.
+MIN_CODE_EMBED_CONTENT_LENGTH = 20
+
+
+def _should_process_chunk_as_code_block(
+    chunk: str,
+    aggregated_so_far: str,
+    in_code_block: bool,
+) -> bool:
+    """Determine whether a streaming chunk should be treated as a code block opening.
+
+    Returns True only if:
+    - We are not already inside a code block
+    - The chunk starts with a code fence (```)
+    - The fence is NOT an embed reference (already processed)
+    - The fence is NOT inline (preceded by text on the same line)
+
+    The inline detection prevents false positives when the AI model writes
+    *examples* of markdown code fences like 'use ```json blocks' in prose.
+    """
+    if in_code_block:
+        return False
+
+    if not chunk.strip().startswith("```"):
+        return False
+
+    # Extract fence metadata
+    lines = chunk.split('\n')
+    fence_line = lines[0].strip()
+    fence_content = fence_line[3:].strip()  # Remove ```
+
+    # SKIP: JSON blocks that contain embed references (already processed by skills)
+    if fence_content.lower() in ('json', 'json_embed'):
+        remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
+        stripped_content = remaining_content.strip()
+        if (
+            '"embed_id"' in stripped_content
+            or '"embed_ids"' in stripped_content
+            or 'embed_id' in stripped_content
+        ):
+            return False
+
+    # SKIP: Inline code fences (preceded by text on the same line).
+    # Real code fences always start at the beginning of a line, optionally after
+    # blockquote markers ("> "). Inline fences like "use ```json blocks" are
+    # examples/instructional text and must NOT be converted to embeds.
+    # Fix for issue 6a948813.
+    if aggregated_so_far:
+        last_newline_idx = aggregated_so_far.rfind('\n')
+        line_prefix = (
+            aggregated_so_far[last_newline_idx + 1:]
+            if last_newline_idx >= 0
+            else aggregated_so_far
+        )
+        # Strip blockquote markers (">" with optional space) — real code blocks
+        # inside blockquotes like "> ```python" are valid.
+        stripped_prefix = line_prefix.lstrip()
+        while stripped_prefix.startswith('>'):
+            stripped_prefix = stripped_prefix[1:].lstrip()
+        # If there's remaining text before the ```, the fence is inline
+        if stripped_prefix:
+            return False
+
+    return True
+
+
+def _is_code_block_too_short_for_embed(code_content: str) -> bool:
+    """Return True if the code block content is too short to create an embed.
+
+    Prevents creating broken/empty embeds from example code fences or garbled
+    output. The threshold is MIN_CODE_EMBED_CONTENT_LENGTH (20 chars).
+    Fix for issue 6a948813.
+    """
+    return len(code_content.strip()) < MIN_CODE_EMBED_CONTENT_LENGTH
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -2074,41 +2157,21 @@ async def _consume_main_processing_stream(
                         continue
                 
                 # Code block detection and embed creation
-                # Detect code block opening: ```language or ```language:filename
-                # IMPORTANT: Skip JSON blocks that contain embed references - these are already processed embeds!
-                should_process_as_code_block = False
-                if not in_code_block and chunk.strip().startswith("```"):
-                    # Extract language and filename from opening fence
-                    # Format: ```language or ```language:filename
-                    lines = chunk.split('\n')
-                    fence_line = lines[0].strip()
-                    fence_content = fence_line[3:].strip()  # Remove ```
-                    
-                    # SKIP: JSON blocks that are embed references (already processed by skills)
-                    # These contain {"type": "...", "embed_id": "..."} or {"type": "...", "embed_ids": [...]}
-                    # FIX: Handle indented code blocks by stripping whitespace before checking
-                    is_embed_reference = False
-                    if fence_content.lower() in ('json', 'json_embed'):
-                        # Check if this is an embed reference JSON block
-                        remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
-                        # FIX: Strip whitespace from content to handle indented JSON blocks
-                        # This allows detection of embed references even when indented (e.g., "     ```json")
-                        stripped_content = remaining_content.strip()
-                        # Look for embed reference patterns in stripped content
-                        is_embed_reference = (
-                            '"embed_id"' in stripped_content or 
-                            '"embed_ids"' in stripped_content or
-                            'embed_id' in stripped_content
-                        )
-                        if is_embed_reference:
-                            logger.debug(f"{log_prefix} Skipping JSON embed reference block (not a code block to convert, indented={remaining_content != stripped_content})")
-                            # Don't process as code block - let it pass through as-is
-                    
-                    # Only process as code block if it's NOT an embed reference
-                    if not is_embed_reference:
-                        should_process_as_code_block = True
-                
-                # Process code block if detected and not an embed reference
+                # Uses extracted helper for testability (see _should_process_chunk_as_code_block).
+                # Checks: not already in code block, chunk starts with ```, not an embed reference,
+                # and not an inline fence preceded by prose text on the same line (fix for issue 6a948813).
+                aggregated_so_far = "".join(final_response_chunks)
+                should_process_as_code_block = _should_process_chunk_as_code_block(
+                    chunk, aggregated_so_far, in_code_block
+                )
+                if not should_process_as_code_block and not in_code_block and chunk.strip().startswith("```"):
+                    logger.info(
+                        f"{log_prefix} Skipping code fence (embed_ref or inline example). "
+                        f"Aggregated tail: ...{aggregated_so_far[-80:]!r}" if aggregated_so_far else
+                        f"{log_prefix} Skipping code fence (embed_ref or inline example)."
+                    )
+
+                # Process code block if detected
                 if should_process_as_code_block:
                     # Re-extract lines for processing (already extracted above but safer to re-extract)
                     lines = chunk.split('\n')
@@ -2439,45 +2502,59 @@ async def _consume_main_processing_stream(
                                         current_code_content = ""
                                         current_code_embed_id = None
                                 else:
-                                    # Create code embed placeholder
-                                    embed_data = await embed_service.create_code_embed_placeholder(
-                                        language=current_code_language,
-                                        chat_id=request_data.chat_id,
-                                        message_id=request_data.message_id,
-                                        user_id=request_data.user_id,
-                                        user_id_hash=request_data.user_id_hash,
-                                        user_vault_key_id=user_vault_key_id,
-                                        task_id=task_id,
-                                        filename=current_code_filename,
-                                        log_prefix=log_prefix
-                                    )
-                                    
-                                    if embed_data:
-                                        current_code_embed_id = embed_data["embed_id"]
-                                        
-                                        # Update with full content and finalize
-                                        await embed_service.update_code_embed_content(
-                                            embed_id=current_code_embed_id,
-                                            code_content=code_content,
-                                            chat_id=request_data.chat_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            status="finished",
-                                            log_prefix=log_prefix
+                                    # Skip tiny code blocks — keep as inline code, don't create embed
+                                    # (fix for issue 6a948813: broken embeds from example fences)
+                                    if _is_code_block_too_short_for_embed(code_content):
+                                        logger.info(
+                                            f"{log_prefix} Skipping code embed for short code block "
+                                            f"({len(code_content.strip())} chars < {MIN_CODE_EMBED_CONTENT_LENGTH})"
                                         )
-                                        
-                                        # Replace code block with embed reference in chunk
-                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
-                                        chunk = embed_reference_code
-                                        logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
-                                        
-                                        # Reset state
+                                        # Reset state — leave original chunk as-is
                                         in_code_block = False
                                         current_code_language = ""
                                         current_code_filename = None
                                         current_code_content = ""
                                         current_code_embed_id = None
+                                    else:
+                                        # Create code embed placeholder
+                                        embed_data = await embed_service.create_code_embed_placeholder(
+                                            language=current_code_language,
+                                            chat_id=request_data.chat_id,
+                                            message_id=request_data.message_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            task_id=task_id,
+                                            filename=current_code_filename,
+                                            log_prefix=log_prefix
+                                        )
+
+                                        if embed_data:
+                                            current_code_embed_id = embed_data["embed_id"]
+
+                                            # Update with full content and finalize
+                                            await embed_service.update_code_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                code_content=code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="finished",
+                                                log_prefix=log_prefix
+                                            )
+
+                                            # Replace code block with embed reference in chunk
+                                            embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                            chunk = embed_reference_code
+                                            logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+
+                                            # Reset state
+                                            in_code_block = False
+                                            current_code_language = ""
+                                            current_code_filename = None
+                                            current_code_content = ""
+                                            current_code_embed_id = None
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating embed for complete block: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
