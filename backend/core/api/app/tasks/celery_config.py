@@ -1009,6 +1009,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.recovery_email_task.send_account_recovery_email": "email",
     "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email": "email",
     "app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email": "email",
+    "app.tasks.email_tasks.action_verification_email_task.generate_and_send_action_verification_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload": "email",
     "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",

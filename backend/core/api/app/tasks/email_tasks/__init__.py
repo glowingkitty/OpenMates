@@ -18,6 +18,7 @@ from . import newsletter_email_task  # Import newsletter email task
 from . import issue_report_email_task  # Import issue report email task
 from . import support_contribution_email_task  # Import supporter contribution receipt task
 from . import account_created_email_task  # Import account created confirmation task
+from . import action_verification_email_task  # Import action verification OTP task (account deletion etc.)
 from . import reminder_notification_email_task  # Import reminder notification task
 from . import usecase_submitted_email_task  # Import use-case submission admin notification task
 from . import password_security_reminder_email_task  # Import periodic password-security reminder task
@@ -47,6 +48,7 @@ __all__ = [
     'issue_report_email_task',
     'support_contribution_email_task',
     'account_created_email_task',
+    'action_verification_email_task',
     'reminder_notification_email_task',
     'usecase_submitted_email_task',
     'password_security_reminder_email_task',
