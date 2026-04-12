@@ -26,11 +26,12 @@
    * This component uses Svelte 5 runes exclusively for its own state.
    */
 
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
+  import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
 
@@ -92,6 +93,26 @@
   });
 
   onDestroy(unsubscribe);
+
+  // ─── Reload inspirations on language change ─────────────────────────────────
+  // Default (non-personalized) inspirations are fetched from the server with a
+  // lang parameter. When the user switches language, we clear the store and
+  // re-fetch so the inspiration phrases match the new locale.
+  // Personalized inspirations (from WS/IndexedDB) are AI-generated content in the
+  // user's language at creation time — they cannot be retranslated, so we skip.
+  onMount(() => {
+    const handleLanguageChange = () => {
+      const state = get(dailyInspirationStore);
+      if (!state.isPersonalized) {
+        dailyInspirationStore.reset();
+        loadDefaultInspirations({ allowIndexedDB: false }).catch((err) => {
+          console.error('[DailyInspirationBanner] Failed to reload inspirations after language change:', err);
+        });
+      }
+    };
+    window.addEventListener('language-changed', handleLanguageChange);
+    return () => window.removeEventListener('language-changed', handleLanguageChange);
+  });
 
   // ─── Passive view tracking via IntersectionObserver ─────────────────────────
   //
@@ -236,7 +257,6 @@
    * Handle clicking on the banner body — start a chat from this inspiration.
    * Also marks the inspiration as viewed via WebSocket.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function handleStartChat(_e: MouseEvent) {
     if (!current) return;
 

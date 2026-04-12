@@ -2845,7 +2845,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
 
             // Normal path: use cleartext fields as fallback (demo chats have these set directly)
-            const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+            const displayTitle = chat.title || decryptedTitle || get(text)('common.untitled_chat');
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
             const displaySummary = chat.chat_summary || decryptedSummary || null;
@@ -2879,7 +2879,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isOgExample && isWelcome && !currentActiveChat) {
             const chat = getOgExampleResumeChat();
             resumeChatData = chat;
-            resumeChatTitle = chat.title || 'Untitled Chat';
+            resumeChatTitle = chat.title || $text('common.untitled_chat');
             resumeChatCategory = chat.category || 'general_knowledge';
             resumeChatIcon = chat.icon || 'sparkles';
             resumeChatSummary = chat.chat_summary || null;
@@ -9622,7 +9622,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title" data-testid="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                    <span class="resume-large-title" data-testid="resume-large-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
                                                     {#if resumeChatSummary}
                                                         <p class="resume-large-summary">{resumeChatSummary}</p>
                                                     {/if}
@@ -9663,7 +9663,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                         <CompactIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                     </div>
                                                     <div class="resume-chat-content">
-                                                        <span class="resume-chat-title" data-testid="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                        <span class="resume-chat-title" data-testid="resume-chat-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
                                                     </div>
                                                 {/if}
                                                 <div class="resume-chat-arrow">
