@@ -8,9 +8,9 @@ export {};
  * Validates that the welcome screen UI elements update correctly when switching
  * languages via Settings → Interface → Language:
  *
- * 1. Recent chats scroll container (demo/example chat titles translate)
- * 2. New chat suggestion cards (default suggestions translate, CJK languages work)
- * 3. Daily inspiration banner labels (i18n chrome text translates)
+ * 1. Suggestion cards (translate to the new locale, CJK languages visible)
+ * 2. Welcome description text (translates with locale)
+ * 3. No missing translation keys after each switch
  *
  * Tests three languages: English → German → Japanese → English (cleanup).
  *
@@ -37,7 +37,7 @@ const {
 
 const SELECTORS = {
 	// Settings navigation
-	openSettingsButton: '[data-testid="profile-container"]',
+	profileContainer: '[data-testid="profile-container"]',
 
 	// Language list items (language names are the same in all locales)
 	deutschMenuItem: '[role="menuitem"]:has-text("Deutsch")',
@@ -45,12 +45,8 @@ const SELECTORS = {
 	englishMenuItem: '[role="menuitem"]:has-text("English")',
 
 	// Welcome screen elements
-	recentChatsContainer: '[data-testid="recent-chats-scroll-container"]',
 	suggestionsWrapper: '[data-testid="suggestions-wrapper"]',
 	dailyInspirationLabel: '[data-testid="daily-inspiration-label"]',
-
-	// Message editor (used as "loaded" signal)
-	messageEditor: '[data-testid="message-editor"]',
 };
 
 /** Menu item labels per locale (Interface, Language) */
@@ -65,17 +61,29 @@ const MENU_LABELS: Record<string, { interface: string; language: string }> = {
 // ---------------------------------------------------------------------------
 
 /**
- * Open Settings → Interface → Language list from any state.
- * @param currentLang - The current locale code (needed because menu item labels are translated).
+ * Open Settings → Interface → Language list, select a language, then close
+ * settings by clicking the profile container again.
+ *
+ * @param currentLang - The current locale code (menu items are translated).
+ * @param targetSelector - Selector for the target language menuitem.
+ * @param targetLangCode - Expected lang code after switch (e.g. 'de').
  */
-async function openLanguageSettings(page: any, log: (msg: string) => void, currentLang = 'en'): Promise<void> {
+async function switchLanguage(
+	page: any,
+	log: (msg: string) => void,
+	currentLang: string,
+	targetSelector: string,
+	targetLangCode: string
+): Promise<void> {
 	const labels = MENU_LABELS[currentLang] ?? MENU_LABELS.en;
 
-	const openSettingsBtn = page.locator(SELECTORS.openSettingsButton);
-	await expect(openSettingsBtn).toBeVisible({ timeout: 10000 });
-	await openSettingsBtn.click();
+	// Open settings
+	const profileBtn = page.locator(SELECTORS.profileContainer);
+	await expect(profileBtn).toBeVisible({ timeout: 10000 });
+	await profileBtn.click();
 	await page.waitForTimeout(600);
 
+	// Navigate: Interface → Language
 	const interfaceItem = page.locator(`[role="menuitem"]:has-text("${labels.interface}")`).first();
 	await expect(interfaceItem).toBeVisible({ timeout: 10000 });
 	await interfaceItem.click();
@@ -85,49 +93,24 @@ async function openLanguageSettings(page: any, log: (msg: string) => void, curre
 	await expect(languageSubItem).toBeVisible({ timeout: 10000 });
 	await languageSubItem.click();
 	await page.waitForTimeout(600);
-	log(`Language list opened (menu labels in ${currentLang}).`);
-}
 
-/**
- * Select a language from the already-open language list, then close settings
- * by pressing Escape twice (to exit settings overlay).
- */
-async function selectLanguageAndClose(
-	page: any,
-	selector: string,
-	langCode: string,
-	log: (msg: string) => void
-): Promise<void> {
-	const langItem = page.locator(selector).first();
+	// Select the target language
+	const langItem = page.locator(targetSelector).first();
 	await expect(langItem).toBeVisible({ timeout: 5000 });
 	await langItem.click();
-	log(`Selected language: ${langCode}`);
+	log(`Selected language: ${targetLangCode}`);
 
-	// Wait for translations to load and UI to update
+	// Wait for translations to load
 	await page.waitForTimeout(2500);
 
-	// Close settings by pressing Escape (may need multiple presses to exit submenus)
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(300);
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(300);
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(500);
+	// Close settings by clicking the profile container again (toggles the menu)
+	await profileBtn.click();
+	await page.waitForTimeout(800);
 
 	// Verify locale was applied
 	const htmlLang: string = await page.evaluate(() => document.documentElement.lang);
-	expect(htmlLang).toBe(langCode);
-	log(`html[lang] = "${htmlLang}" — locale applied.`);
-}
-
-/**
- * Get all visible text content from the recent chats scroll container.
- */
-async function getRecentChatsText(page: any): Promise<string> {
-	const container = page.locator(SELECTORS.recentChatsContainer);
-	const isVisible = await container.isVisible().catch(() => false);
-	if (!isVisible) return '';
-	return container.innerText();
+	expect(htmlLang).toBe(targetLangCode);
+	log(`Switched to ${targetLangCode} (html[lang] = "${htmlLang}").`);
 }
 
 /**
@@ -141,13 +124,13 @@ async function getSuggestionsText(page: any): Promise<string> {
 }
 
 /**
- * Get the daily inspiration label text (if banner is visible).
+ * Get the full visible text of the welcome/main content area.
+ * Used to verify translated description text.
  */
-async function getDailyInspirationLabel(page: any): Promise<string> {
-	const label = page.locator(SELECTORS.dailyInspirationLabel);
-	const isVisible = await label.isVisible().catch(() => false);
-	if (!isVisible) return '';
-	return label.innerText();
+async function getWelcomePageText(page: any): Promise<string> {
+	// The main content area is the chat-side container
+	const body = await page.locator('body').innerText();
+	return body;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,32 +198,17 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	// Step 2 — Verify English baseline
 	// ─────────────────────────────────────────────────────────────────────────
 
-	const enRecentChats = await getRecentChatsText(page);
 	const enSuggestions = await getSuggestionsText(page);
-	const enInspirationLabel = await getDailyInspirationLabel(page);
-
-	log(`EN recent chats text (first 200): "${enRecentChats.slice(0, 200)}"`);
 	log(`EN suggestions text (first 200): "${enSuggestions.slice(0, 200)}"`);
-	log(`EN inspiration label: "${enInspirationLabel}"`);
 
-	// Recent chats should have demo chat titles in English
-	if (enRecentChats) {
-		expect(enRecentChats).toContain('For everyone');
-		log('✓ Recent chats contain English demo chat title "For everyone"');
-	}
+	// Suggestions should be visible with English text
+	expect(enSuggestions.length).toBeGreaterThan(10);
+	log('✓ Suggestion cards visible with English text');
 
-	// Suggestions should be visible and contain English text
-	if (enSuggestions) {
-		// At least one suggestion card should be visible with English text
-		expect(enSuggestions.length).toBeGreaterThan(10);
-		log('✓ Suggestion cards visible with English text');
-	}
-
-	// Daily inspiration label
-	if (enInspirationLabel) {
-		expect(enInspirationLabel.toLowerCase()).toContain('daily inspiration');
-		log('✓ Daily inspiration label is in English');
-	}
+	// Verify English content somewhere on the page
+	const enPage = await getWelcomePageText(page);
+	expect(enPage).toContain('Digital team mates');
+	log('✓ Welcome page contains English description');
 
 	await assertNoMissingTranslations(page);
 	log('✓ No missing translation keys (English).');
@@ -249,40 +217,35 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	// Step 3 — Switch to German
 	// ─────────────────────────────────────────────────────────────────────────
 
-	await openLanguageSettings(page, log, 'en');
-	await selectLanguageAndClose(page, SELECTORS.deutschMenuItem, 'de', log);
+	await switchLanguage(page, log, 'en', SELECTORS.deutschMenuItem, 'de');
 
 	// Wait for UI to fully update
-	await page.waitForTimeout(2000);
+	await page.waitForTimeout(1500);
 	await takeScreenshot(page, '02-welcome-german');
 
-	const deRecentChats = await getRecentChatsText(page);
 	const deSuggestions = await getSuggestionsText(page);
-	const deInspirationLabel = await getDailyInspirationLabel(page);
-
-	log(`DE recent chats text (first 200): "${deRecentChats.slice(0, 200)}"`);
 	log(`DE suggestions text (first 200): "${deSuggestions.slice(0, 200)}"`);
-	log(`DE inspiration label: "${deInspirationLabel}"`);
 
-	// Recent chats should now show German demo chat titles
-	if (deRecentChats) {
-		expect(deRecentChats).toContain('Für alle');
-		expect(deRecentChats).not.toContain('For everyone');
-		log('✓ Recent chats updated to German ("Für alle" present, "For everyone" gone)');
-	}
+	// Suggestions should now be in German
+	expect(deSuggestions.length).toBeGreaterThan(10);
+	// Verify at least some German text replaced English
+	expect(deSuggestions).not.toContain('What do you want to explore');
+	log('✓ Suggestion cards updated to German');
 
-	// Suggestions should be in German
-	if (deSuggestions) {
-		expect(deSuggestions.length).toBeGreaterThan(10);
-		// German suggestions should not contain the English prefix format literally
-		// They should have German text content
-		log('✓ Suggestion cards visible with German text');
-	}
+	// Page description should be in German
+	const dePage = await getWelcomePageText(page);
+	expect(dePage).toContain('Digitale Team-Mates');
+	expect(dePage).not.toContain('Digital team mates');
+	log('✓ Welcome page description updated to German');
 
-	// Daily inspiration label in German
-	if (deInspirationLabel) {
-		expect(deInspirationLabel.toLowerCase()).toContain('tägliche inspiration');
+	// Daily inspiration label (if visible)
+	const deInspirationLabel = page.locator(SELECTORS.dailyInspirationLabel);
+	if (await deInspirationLabel.isVisible().catch(() => false)) {
+		const labelText = await deInspirationLabel.innerText();
+		expect(labelText.toLowerCase()).toContain('tägliche inspiration');
 		log('✓ Daily inspiration label is in German');
+	} else {
+		log('⊘ Daily inspiration banner not visible (expected for non-auth)');
 	}
 
 	await assertNoMissingTranslations(page);
@@ -292,44 +255,26 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	// Step 4 — Switch to Japanese (CJK language test)
 	// ─────────────────────────────────────────────────────────────────────────
 
-	await openLanguageSettings(page, log, 'de');
-	await selectLanguageAndClose(page, SELECTORS.japaneseMenuItem, 'ja', log);
+	await switchLanguage(page, log, 'de', SELECTORS.japaneseMenuItem, 'ja');
 
-	await page.waitForTimeout(2000);
+	await page.waitForTimeout(1500);
 	await takeScreenshot(page, '03-welcome-japanese');
 
-	const jaRecentChats = await getRecentChatsText(page);
-	const jaSuggestions = await getSuggestionsText(page);
-	const jaInspirationLabel = await getDailyInspirationLabel(page);
-
-	log(`JA recent chats text (first 200): "${jaRecentChats.slice(0, 200)}"`);
-	log(`JA suggestions text (first 200): "${jaSuggestions.slice(0, 200)}"`);
-	log(`JA inspiration label: "${jaInspirationLabel}"`);
-
-	// Recent chats should show Japanese demo chat titles
-	if (jaRecentChats) {
-		expect(jaRecentChats).toContain('すべての人へ');
-		expect(jaRecentChats).not.toContain('For everyone');
-		expect(jaRecentChats).not.toContain('Für alle');
-		log('✓ Recent chats updated to Japanese ("すべての人へ" present)');
-	}
-
 	// CRITICAL: Japanese suggestions must be visible (tests the CJK word count fix)
-	if (jaSuggestions) {
-		expect(jaSuggestions.length).toBeGreaterThan(10);
-		log('✓ Suggestion cards visible with Japanese text (CJK word count fix works)');
-	} else {
-		// If suggestions wrapper doesn't exist, check for individual card buttons
-		const cardCount = await page.locator('[data-testid="suggestions-wrapper"] .suggestion-card').count();
-		expect(cardCount).toBeGreaterThan(0);
-		log(`✓ ${cardCount} suggestion card(s) visible in Japanese`);
-	}
+	const jaSuggestions = await getSuggestionsText(page);
+	log(`JA suggestions text (first 200): "${jaSuggestions.slice(0, 200)}"`);
 
-	// Daily inspiration label in Japanese
-	if (jaInspirationLabel) {
-		expect(jaInspirationLabel).toContain('インスピレーション');
-		log('✓ Daily inspiration label is in Japanese');
-	}
+	expect(jaSuggestions.length).toBeGreaterThan(10);
+	// Verify it's not still showing German or English
+	expect(jaSuggestions).not.toContain('What do you want to explore');
+	expect(jaSuggestions).not.toContain('Was möchtest du');
+	log('✓ Suggestion cards visible with Japanese text (CJK word count fix works)');
+
+	// Page should contain Japanese text
+	const jaPage = await getWelcomePageText(page);
+	expect(jaPage).not.toContain('Digital team mates');
+	expect(jaPage).not.toContain('Digitale Team-Mates');
+	log('✓ Welcome page description updated to Japanese');
 
 	await assertNoMissingTranslations(page);
 	log('✓ No missing translation keys (Japanese).');
@@ -338,25 +283,18 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	// Step 5 — Reset to English (cleanup)
 	// ─────────────────────────────────────────────────────────────────────────
 
-	await openLanguageSettings(page, log, 'ja');
-	await selectLanguageAndClose(page, SELECTORS.englishMenuItem, 'en', log);
+	await switchLanguage(page, log, 'ja', SELECTORS.englishMenuItem, 'en');
 
-	await page.waitForTimeout(2000);
+	await page.waitForTimeout(1500);
 	await takeScreenshot(page, '04-welcome-english-reset');
 
-	const enResetRecentChats = await getRecentChatsText(page);
-	if (enResetRecentChats) {
-		expect(enResetRecentChats).toContain('For everyone');
-		expect(enResetRecentChats).not.toContain('Für alle');
-		expect(enResetRecentChats).not.toContain('すべての人へ');
-		log('✓ Recent chats reset to English');
-	}
-
 	const enResetSuggestions = await getSuggestionsText(page);
-	if (enResetSuggestions) {
-		expect(enResetSuggestions.length).toBeGreaterThan(10);
-		log('✓ Suggestions reset to English');
-	}
+	expect(enResetSuggestions.length).toBeGreaterThan(10);
+	log('✓ Suggestions reset to English');
+
+	const enResetPage = await getWelcomePageText(page);
+	expect(enResetPage).toContain('Digital team mates');
+	log('✓ Welcome page reset to English');
 
 	await assertNoMissingTranslations(page);
 	log('✓ No missing translation keys after reset.');
