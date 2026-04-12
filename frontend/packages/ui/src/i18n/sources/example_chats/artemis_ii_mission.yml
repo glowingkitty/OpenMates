@@ -1,0 +1,93 @@
+title:
+  context: Title of example chat about Artemis II moon mission
+  en: Artemis II Mission Highlights and Exploration
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat about Artemis II mission details, crew, and photo highlights
+  en: Discussed Artemis II mission details, crew, milestones, and photo highlights. Explored significance of the mission and future Artemis plans.
+  verified_by_human: []
+
+user_message_1:
+  context: User asking about Artemis II mission and photo highlights
+  en: Tell me more about the Artemis II mission and some photo highlights
+  verified_by_human: []
+
+assistant_message_2:
+  context: "Assistant response about Artemis II with web search, image search results and detailed information. Contains JSON embed blocks (language-independent) and markdown prose."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+    
+    The **Artemis II** mission recently concluded as a historic success, marking the first time humans have traveled to the vicinity of the Moon in over 50 years. Following its launch on **April 1, 2026**, the mission reached its climax with a successful splashdown in the Pacific Ocean on **April 10, 2026**.
+    
+    As an [astronomy](/#settings/appstore/study) and physics enthusiast, I find this mission particularly exciting because it serves as the final "test drive" before the Artemis III mission, which aims to land the first woman and next man on the lunar surface.
+    
+    ### Mission Overview
+    Artemis II was a 10-day flight test designed to verify that the **Space Launch System (SLS)** rocket and **Orion** spacecraft (named *Integrity* by the crew) could safely transport, sustain, and return astronauts from deep space.
+    
+    *   **The Crew:** The four-person crew consisted of Commander **Reid Wiseman**, Pilot **Victor Glover**, Mission Specialist **Christina Koch** (NASA), and Mission Specialist **Jeremy Hansen** (CSA).
+    *   **The Record:** During the mission, the crew set a new record for the farthest distance from Earth ever traveled by a human-rated spacecraft, reaching **252,756 miles** from our home planet—surpassing the record set by [Apollo 13](embed:nasa.gov-haz) in 1970.
+    *   **The Trajectory:** Unlike the Apollo missions, Artemis II used a "hybrid free-return trajectory." After orbiting Earth to test systems, the spacecraft performed a lunar flyby, using the Moon's gravity to "slingshot" back toward Earth without needing a major engine burn to return.
+    
+    ### Photo Highlights from the Mission
+    Here are some of the most stunning visual moments captured during the mission, from the thunderous launch at Kennedy Space Center to the serene views of Earth and the Moon.
+    
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+    
+    ### Key Milestones
+    *   **Launch (Flight Day 1):** The SLS rocket, the most powerful rocket ever built, lifted off from Launch Complex 39B, delivering the Orion spacecraft into a high Earth orbit.
+    *   **Proximity Operations (Flight Day 2):** The crew practiced manual handling of the spacecraft, a critical skill for future missions that will require docking with the [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Lunar Flyby (Flight Day 6):** The crew passed behind the Moon, losing contact with Earth for a brief period before emerging to see the "Earthrise" over the lunar horizon.
+    *   **Splashdown (Flight Day 10):** Orion re-entered the atmosphere at roughly 25,000 mph, with its heat shield enduring temperatures of nearly 5,000°F before splashing down safely off the coast of San Diego.
+    
+    Now that the crew is back home, NASA will begin an intensive review of the flight data to prepare for **Artemis III**. 
+    
+    What part of the Artemis program interests you most—the [rocket technology](/#settings/appstore/web), the [lunar science](/#settings/appstore/books), or the future [Mars missions](/#settings/appstore/videos)?
+    
+    **Explore further:**
+    *   [NASA Artemis Mission Page](https://www.nasa.gov/specials/artemis/)
+    *   [European Space Agency - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion 1 for Artemis II chat
+  en: "[ai] Explain the significance of the hybrid free-return trajectory"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion 2 for Artemis II chat
+  en: "[web-search] Find more details about the Lunar Gateway"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion 3 for Artemis II chat
+  en: "[videos-search] Watch videos of the Artemis II launch"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion 4 for Artemis II chat
+  en: "[images-search] Show me more photos of the Orion spacecraft"
+  verified_by_human: []
