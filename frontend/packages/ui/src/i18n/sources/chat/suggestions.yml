@@ -46,6 +46,30 @@ filter_no_match:
   sv: "Inga matchande förslag — visar alla"
   he: "אין הצעות תואמות — מציג הכל"
   verified_by_human: []
+related_chats:
+  context: Header text above chat search result cards shown when typing in an open chat's message input
+  en: "Related chats"
+  de: "Ähnliche Chats"
+  zh: 相关聊天
+  es: "Chats relacionados"
+  fr: "Conversations liées"
+  pt: "Chats relacionados"
+  ru: "Похожие чаты"
+  ja: "関連チャット"
+  ko: "관련 대화"
+  it: "Chat correlate"
+  tr: "İlgili sohbetler"
+  vi: "Cuộc trò chuyện liên quan"
+  id: "Obrolan terkait"
+  pl: "Powiązane czaty"
+  nl: "Gerelateerde chats"
+  ar: "محادثات ذات صلة"
+  hi: "संबंधित चैट"
+  th: "แชทที่เกี่ยวข้อง"
+  cs: "Související chaty"
+  sv: "Relaterade chattar"
+  he: "צ'אטים קשורים"
+  verified_by_human: []
 header_click:
   context: Header text above the new chat suggestion cards on the welcome screen
   en: "OpenMates can help you with:"

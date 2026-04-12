@@ -3,6 +3,7 @@
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
+    import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
     // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
     // AppSettingsMemoriesPermissionDialog is now rendered inside ChatHistory.svelte
     // so it scrolls with the messages instead of being fixed at the bottom
@@ -10010,10 +10011,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
                         {/if}
 
+                        <!-- Chat search suggestions — shown when typing in an open chat's message input.
+                             Searches existing chats and shows matching results as horizontal cards.
+                             Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
+                        {#if !showWelcome && !messageInputMapsOpen}
+                            <ChatSearchSuggestions
+                                messageInputContent={liveInputText}
+                                onChatNavigate={handleChatNavigate}
+                                currentChatId={currentChat?.chat_id}
+                            />
+                        {/if}
+
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <!-- Only show message input if user owns the chat or is not authenticated -->
                         {#if chatOwnershipResolved || !$authStore.isAuthenticated}
-                            <MessageInput 
+                            <MessageInput
                                 bind:this={messageInputFieldRef}
                                 currentChatId={currentChat?.chat_id || temporaryChatId}
                                 showActionButtons={showActionButtons}
