@@ -19,6 +19,7 @@
   import ChatEmbedPreview from './ChatEmbedPreview.svelte';
   import { getAllExampleChats, getExampleChat, getExampleChatMessages } from '../../demo_chats/exampleChatStore';
   import { activeChatStore } from '../../stores/activeChatStore';
+  import { locale } from 'svelte-i18n';
 
   /**
    * Props interface for ExampleChatsGroup
@@ -36,11 +37,15 @@
   }: Props = $props();
 
   // Get all example chats, excluding the current one and optionally filtering by category.
-  // No reactivity needed — example chats are static data built at import time.
-  const exampleChats = getAllExampleChats().filter(
-    chat => chat.chat_id !== excludeChatId
-      && (!onlyCategories || onlyCategories.includes(chat.category ?? ''))
-  );
+  // Reactive to locale changes so card titles/summaries re-translate when the user
+  // switches language while viewing a demo chat that embeds [[example_chats_group]].
+  let exampleChats = $derived.by(() => {
+    void $locale; // reactive dependency — re-run when locale changes
+    return getAllExampleChats().filter(
+      chat => chat.chat_id !== excludeChatId
+        && (!onlyCategories || onlyCategories.includes(chat.category ?? ''))
+    );
+  });
   
   /**
    * Get the preview text for a chat embed card.

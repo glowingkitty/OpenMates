@@ -78,7 +78,7 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllExampleChats } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats'; // Import demo chat utilities
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
@@ -8336,6 +8336,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (isExampleChat(snapshotChat.chat_id)) {
                     console.debug('[ActiveChat] Language changed - reloading example chat:', snapshotChat.chat_id);
 
+                    // Update the chat header title to the new locale
+                    const { getExampleChat } = await import('../demo_chats');
+                    const translatedExampleChat = getExampleChat(snapshotChat.chat_id);
+                    if (translatedExampleChat?.title) {
+                        activeChatDecryptedTitle = translatedExampleChat.title;
+                    }
+
                     // Get the messages from the static example chat store (always available, no waiting needed)
                     const newMessages = getExampleChatMessages(snapshotChat.chat_id);
 
@@ -8379,6 +8386,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Also ensure each message object is new to force re-rendering
                     currentMessages = newMessages.map(msg => ({ ...msg }));
                     
+                    // Update the chat header title to the new locale
+                    activeChatDecryptedTitle = translatedChat.title;
+
                     // Reload follow-up suggestions with new translations
                     if (translatedChat.follow_up_suggestions) {
                         followUpSuggestions = translatedChat.follow_up_suggestions;
@@ -9906,6 +9916,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isNewChatCreditsError}
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
+                         isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
