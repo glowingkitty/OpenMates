@@ -14,7 +14,6 @@ changes to the documentation (to keep the documentation up to date).
     import { createEventDispatcher } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
-    import SettingsCommunitySuggestions from './server/SettingsCommunitySuggestions.svelte';
     import SettingsStats from './server/SettingsStats.svelte';
     import SettingsGiftCardGenerator from './server/SettingsGiftCardGenerator.svelte';
     import SettingsTests from './server/SettingsTests.svelte';
@@ -43,22 +42,6 @@ changes to the documentation (to keep the documentation up to date).
         scrollToTop();
     }
 
-    function showCommunitySuggestions(event = null) {
-        if (event) event.stopPropagation();
-
-        currentView = 'communitySuggestions';
-        childComponent = SettingsCommunitySuggestions;
-
-        dispatch('openSettings', {
-            settingsPath: 'server/community-suggestions',
-            direction: 'forward',
-            icon: 'users',
-            title: $text('settings.server.community_suggestions'),
-            translationKey: 'settings.server.community_suggestions'
-        });
-
-        scrollToTop();
-    }
 
     function showStatsSettings(event = null) {
         if (event) event.stopPropagation();
@@ -140,12 +123,6 @@ changes to the documentation (to keep the documentation up to date).
         onClick={() => showSoftwareUpdateSettings()}
     />
     <SettingsItem
-        icon="users"
-        title={$text('settings.server.community_suggestions')}
-        subtitleTop="Manage demo chats from community-shared conversations"
-        onClick={() => showCommunitySuggestions()}
-    />
-    <SettingsItem
         icon="usage"
         title={$text('settings.server.stats')}
         subtitleTop="View global server usage and growth metrics"
@@ -164,11 +141,6 @@ changes to the documentation (to keep the documentation up to date).
         onClick={() => showTestsSettings()}
     />
 {:else if currentView === 'softwareUpdate' && childComponent}
-    {@const Component = childComponent}
-    <Component
-        on:back={handleBack}
-    />
-{:else if currentView === 'communitySuggestions' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

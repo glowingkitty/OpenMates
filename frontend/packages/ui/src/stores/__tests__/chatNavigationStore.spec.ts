@@ -2,14 +2,14 @@
  * chatNavigationStore.spec.ts
  *
  * Tests that ChatHeader prev/next navigation can reach ALL available example
- * chats — static intro chats, community demo chats, and legal chats.
+ * chats — static intro chats, example chats, and legal chats.
  *
  * The store maintains an internal chat list and exposes hasPrev / hasNext
  * flags. navigatePrev() / navigateNext() walk that list sequentially.
  * These tests verify that every example chat is reachable by repeated
  * navigation from any starting position.
  *
- * Covers the bug where only a single community demo (demo-capital-of-spain)
+ * Covers the bug where only a single example chat (demo-capital-of-spain)
  * was navigable while the rest were silently skipped.
  *
  * @see docs/architecture/ (chat navigation)
@@ -26,7 +26,7 @@ import type { Chat } from "../../types/chat";
 // can read/write.
 
 const sharedState = {
-  communityDemoChats: [] as Chat[],
+  exampleChats: [] as Chat[],
 };
 
 // ─── Window stubs ───────────────────────────────────────────────────────────
@@ -95,103 +95,92 @@ vi.mock("../../demo_chats/convertToChat", () => ({
 }));
 
 // Mock the barrel export for demo_chats — inline the INTRO/LEGAL data
-vi.mock("../../demo_chats", async () => {
-  const svelteStore = await import("svelte/store");
-  const store = svelteStore.writable({ loaded: false, loading: false });
-  return {
-    INTRO_CHATS: [
-      {
-        chat_id: "demo-for-everyone",
-        title: "For Everyone",
-        slug: "for-everyone",
-        messages: [],
-        metadata: {
-          category: "general_knowledge",
-          icon_names: ["globe"],
-          featured: true,
-          order: 0,
-          lastUpdated: "2026-01-01",
-        },
+vi.mock("../../demo_chats", () => ({
+  INTRO_CHATS: [
+    {
+      chat_id: "demo-for-everyone",
+      title: "For Everyone",
+      slug: "for-everyone",
+      messages: [],
+      metadata: {
+        category: "general_knowledge",
+        icon_names: ["globe"],
+        featured: true,
+        order: 0,
+        lastUpdated: "2026-01-01",
       },
-      {
-        chat_id: "demo-for-developers",
-        title: "For Developers",
-        slug: "for-developers",
-        messages: [],
-        metadata: {
-          category: "software_development",
-          icon_names: ["code"],
-          featured: true,
-          order: 1,
-          lastUpdated: "2026-01-01",
-        },
-      },
-      {
-        chat_id: "demo-who-develops-openmates",
-        title: "Who Develops OpenMates",
-        slug: "who-develops-openmates",
-        messages: [],
-        metadata: {
-          category: "technology",
-          icon_names: ["cpu"],
-          featured: true,
-          order: 2,
-          lastUpdated: "2026-01-01",
-        },
-      },
-    ],
-    LEGAL_CHATS: [
-      {
-        chat_id: "legal-privacy",
-        title: "Privacy Policy",
-        slug: "privacy",
-        messages: [],
-        metadata: {
-          category: "legal",
-          icon_names: ["shield"],
-          featured: false,
-          order: 0,
-          lastUpdated: "2026-01-01",
-        },
-      },
-      {
-        chat_id: "legal-terms",
-        title: "Terms of Use",
-        slug: "terms",
-        messages: [],
-        metadata: {
-          category: "legal",
-          icon_names: ["file-text"],
-          featured: false,
-          order: 1,
-          lastUpdated: "2026-01-01",
-        },
-      },
-      {
-        chat_id: "legal-imprint",
-        title: "Imprint",
-        slug: "imprint",
-        messages: [],
-        metadata: {
-          category: "legal",
-          icon_names: ["info"],
-          featured: false,
-          order: 2,
-          lastUpdated: "2026-01-01",
-        },
-      },
-    ],
-    getUiVisibleCommunityDemoChats: () => sharedState.communityDemoChats,
-    communityDemoStore: {
-      subscribe: store.subscribe,
-      isLoaded: () => svelteStore.get(store).loaded,
-      isLoading: () => svelteStore.get(store).loading,
     },
-    __communityDemoStoreForTests: store,
-    loadCommunityDemos: vi.fn(async () => {}),
-    translateDemoChat: vi.fn((chat: any) => chat),
-  };
-});
+    {
+      chat_id: "demo-for-developers",
+      title: "For Developers",
+      slug: "for-developers",
+      messages: [],
+      metadata: {
+        category: "software_development",
+        icon_names: ["code"],
+        featured: true,
+        order: 1,
+        lastUpdated: "2026-01-01",
+      },
+    },
+    {
+      chat_id: "demo-who-develops-openmates",
+      title: "Who Develops OpenMates",
+      slug: "who-develops-openmates",
+      messages: [],
+      metadata: {
+        category: "technology",
+        icon_names: ["cpu"],
+        featured: true,
+        order: 2,
+        lastUpdated: "2026-01-01",
+      },
+    },
+  ],
+  LEGAL_CHATS: [
+    {
+      chat_id: "legal-privacy",
+      title: "Privacy Policy",
+      slug: "privacy",
+      messages: [],
+      metadata: {
+        category: "legal",
+        icon_names: ["shield"],
+        featured: false,
+        order: 0,
+        lastUpdated: "2026-01-01",
+      },
+    },
+    {
+      chat_id: "legal-terms",
+      title: "Terms of Use",
+      slug: "terms",
+      messages: [],
+      metadata: {
+        category: "legal",
+        icon_names: ["file-text"],
+        featured: false,
+        order: 1,
+        lastUpdated: "2026-01-01",
+      },
+    },
+    {
+      chat_id: "legal-imprint",
+      title: "Imprint",
+      slug: "imprint",
+      messages: [],
+      metadata: {
+        category: "legal",
+        icon_names: ["info"],
+        featured: false,
+        order: 2,
+        lastUpdated: "2026-01-01",
+      },
+    },
+  ],
+  getAllExampleChats: () => sharedState.exampleChats,
+  translateDemoChat: vi.fn((chat: any) => chat),
+}));
 
 // ─── Import module under test AFTER mocks ───────────────────────────────────
 
@@ -203,7 +192,6 @@ import {
   navigateNext,
   navigatePrev,
 } from "../chatNavigationStore";
-import { __communityDemoStoreForTests } from "../../demo_chats";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -223,8 +211,8 @@ function makeChat(id: string, opts: Partial<Chat> = {}): Chat {
   };
 }
 
-/** Build community demo Chat objects matching the 5 server demos. */
-function makeCommunityDemos(): Chat[] {
+/** Build example Chat objects matching the 5 example chats. */
+function makeExampleChats(): Chat[] {
   return [
     makeChat("demo-capital-of-spain", {
       title: "Capital of Spain",
@@ -283,7 +271,7 @@ function buildFullChatList(): Chat[] {
       last_edited_overall_timestamp: Date.now() - 200,
     }),
   ];
-  const communityChats = makeCommunityDemos().map((c) => ({
+  const exampleChats = makeExampleChats().map((c) => ({
     ...c,
     group_key: "examples" as const,
   }));
@@ -301,7 +289,7 @@ function buildFullChatList(): Chat[] {
       last_edited_overall_timestamp: Date.now() - 500,
     }),
   ];
-  return [...introChats, ...communityChats, ...legalChats];
+  return [...introChats, ...exampleChats, ...legalChats];
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -309,8 +297,7 @@ function buildFullChatList(): Chat[] {
 describe("chatNavigationStore — example chat navigation", () => {
   beforeEach(() => {
     resetChatNavigationList();
-    sharedState.communityDemoChats = [];
-    __communityDemoStoreForTests.set({ loaded: false, loading: false });
+    sharedState.exampleChats = [];
     vi.clearAllMocks();
     // Re-ensure window.dispatchEvent is available
     if (typeof window !== "undefined" && !window.dispatchEvent) {
@@ -386,7 +373,7 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(state.hasNext).toBe(true);
     });
 
-    it("every community demo is individually reachable", async () => {
+    it("every example chat is individually reachable", async () => {
       const fullList = buildFullChatList();
 
       // Start at first chat, navigate to end
@@ -405,16 +392,15 @@ describe("chatNavigationStore — example chat navigation", () => {
       }
 
       // The number of navigations should equal fullList.length - 1
-      // (we visited every chat including all 5 community demos)
+      // (we visited every chat including all 5 example chats)
       expect(safety).toBe(fullList.length - 1);
     });
   });
 
   describe("updateNavFromCache (cold boot, sidebar closed)", () => {
-    it("includes all community demos when already loaded at call time", async () => {
-      const demos = makeCommunityDemos();
-      sharedState.communityDemoChats = demos;
-      __communityDemoStoreForTests.set({ loaded: true, loading: false });
+    it("includes all example chats when available at call time", async () => {
+      const demos = makeExampleChats();
+      sharedState.exampleChats = demos;
 
       updateNavFromCache("demo-for-everyone");
 
@@ -435,24 +421,21 @@ describe("chatNavigationStore — example chat navigation", () => {
         safety++;
       }
 
-      // intro(3) + community(5) + legal(3) = 11
+      // intro(3) + example(5) + legal(3) = 11
       expect(count).toBe(11);
     });
 
-    it("community demos that stream in after initial call become navigable", async () => {
-      // Start with no community demos (cold boot, empty cache)
-      sharedState.communityDemoChats = [];
-      __communityDemoStoreForTests.set({ loaded: false, loading: true });
+    it("example chats added between updateNavFromCache calls become navigable", async () => {
+      // Start with no example chats
+      sharedState.exampleChats = [];
 
       updateNavFromCache("demo-for-everyone");
       await new Promise((r) => setTimeout(r, 150));
 
-      // Now community demos "arrive"
-      sharedState.communityDemoChats = makeCommunityDemos();
-      __communityDemoStoreForTests.set({ loaded: true, loading: false });
-      await new Promise((r) => setTimeout(r, 150));
+      // Now example chats become available (e.g. module loaded later)
+      sharedState.exampleChats = makeExampleChats();
 
-      // Re-trigger (as ActiveChat.loadChat would)
+      // Re-trigger (as ActiveChat.loadChat would on next chat switch)
       updateNavFromCache("demo-for-everyone");
 
       let count = 1;
@@ -469,15 +452,13 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(count).toBe(11);
     });
 
-    it("every community demo has navigable neighbors when set as active", async () => {
-      const demos = makeCommunityDemos();
-      sharedState.communityDemoChats = demos;
-      __communityDemoStoreForTests.set({ loaded: true, loading: false });
+    it("every example chat has navigable neighbors when set as active", async () => {
+      const demos = makeExampleChats();
+      sharedState.exampleChats = demos;
 
       for (const demo of demos) {
         resetChatNavigationList();
-        sharedState.communityDemoChats = demos;
-        __communityDemoStoreForTests.set({ loaded: true, loading: false });
+        sharedState.exampleChats = demos;
 
         updateNavFromCache(demo.chat_id);
         await new Promise((r) => setTimeout(r, 150));

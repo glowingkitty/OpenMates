@@ -1,0 +1,249 @@
+title:
+  context: Title of example chat about giant cargo aircraft used to transport rocket and airplane parts
+  en: Gigantic airplanes for transporting rocket and airplane parts
+  de: Riesige Flugzeuge für den Transport von Raketen- und Flugzeugteilen
+  zh: 用于运输火箭和飞机零件的巨型飞机
+  es: Aviones gigantes para transportar piezas de cohetes y aviones
+  fr: Avions géants pour le transport de pièces de fusées et d'avions
+  pt: Aviões gigantes para transportar peças de foguetes e aviões
+  ru: Гигантские самолёты для перевозки деталей ракет и самолётов
+  ja: ロケットや航空機の部品を輸送するための巨大な飛行機
+  ko: 로켓 및 항공기 부품 운송에 사용되는 거대한 비행기
+  it: Aerei giganti per il trasporto di parti di razzi e aerei
+  tr: Roket ve uçak parçalarını taşımak için kullanılan dev uçaklar
+  vi: Những chiếc máy bay khổng lồ dùng để vận chuyển bộ phận tên lửa và máy bay
+  id: Pesawat raksasa untuk mengangkut suku cadang roket dan pesawat
+  pl: Gigantyczne samoloty do transportu części rakiet i samolotów
+  nl: Gigantische vliegtuigen voor het vervoeren van raket- en vliegtuigonderdelen
+  ar: طائرات عملاقة لنقل أجزاء الصواريخ والطائرات
+  hi: रॉकेट और हवाई जहाज के पुर्जों के परिवहन के लिए विशाल विमान
+  th: เครื่องบินยักษ์สำหรับขนส่งชิ้นส่วนจรวดและเครื่องบิน
+  cs: Gigantická letadla pro přepravu součástí raket a letadel
+  sv: Gigantiska flygplan för transport av raket- och flygplansdelar
+  he: "מטוסים ענקיים להובלת חלקי טילים ומטוסים"
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat discussing specialized cargo aircraft like An-225, Super Guppy, and BelugaXL
+  en: Discussed specialized cargo aircraft like the An-225, Super Guppy, and BelugaXL used to transport rocket and airplane parts.
+  de: Besprochen wurden spezialisierte Frachtflugzeuge wie die An-225, Super Guppy und BelugaXL, die für den Transport von Raketen- und Flugzeugteilen eingesetzt werden.
+  zh: 讨论了用于运输火箭和飞机零件的专用货运飞机，如An-225、超级古比鱼和白鲸XL。
+  es: Se discutieron aviones de carga especializados como el An-225, Super Guppy y BelugaXL utilizados para transportar piezas de cohetes y aviones.
+  fr: Discussion sur les avions-cargos spécialisés comme l'An-225, le Super Guppy et le BelugaXL utilisés pour transporter des pièces de fusées et d'avions.
+  pt: Discutimos aeronaves de carga especializadas como o An-225, Super Guppy e BelugaXL usados para transportar peças de foguetes e aviões.
+  ru: Обсуждались специализированные грузовые самолёты, такие как Ан-225, Super Guppy и BelugaXL, используемые для перевозки деталей ракет и самолётов.
+  ja: An-225、スーパーグッピー、ベルーガXLなど、ロケットや航空機の部品輸送に使われる専用貨物機について話しました。
+  ko: An-225, 슈퍼 구피, 벨루가XL 등 로켓 및 항공기 부품 운송에 사용되는 특수 화물기에 대해 논의했습니다.
+  it: Discussi aerei cargo specializzati come l'An-225, il Super Guppy e il BelugaXL usati per trasportare parti di razzi e aerei.
+  tr: An-225, Super Guppy ve BelugaXL gibi roket ve uçak parçalarını taşımak için kullanılan özel kargo uçakları tartışıldı.
+  vi: Thảo luận về các máy bay chở hàng chuyên dụng như An-225, Super Guppy và BelugaXL được sử dụng để vận chuyển bộ phận tên lửa và máy bay.
+  id: Membahas pesawat kargo khusus seperti An-225, Super Guppy, dan BelugaXL yang digunakan untuk mengangkut suku cadang roket dan pesawat.
+  pl: Omówiono wyspecjalizowane samoloty transportowe takie jak An-225, Super Guppy i BelugaXL używane do transportu części rakiet i samolotów.
+  nl: Besproken werden gespecialiseerde vrachtvliegtuigen zoals de An-225, Super Guppy en BelugaXL die worden gebruikt om raket- en vliegtuigonderdelen te vervoeren.
+  ar: ناقشنا طائرات الشحن المتخصصة مثل An-225 وSuper Guppy وBelugaXL المستخدمة لنقل أجزاء الصواريخ والطائرات.
+  hi: An-225, सुपर गप्पी और बेलुगाXL जैसे विशेष कार्गो विमानों पर चर्चा की गई जो रॉकेट और हवाई जहाज के पुर्जों के परिवहन के लिए उपयोग किए जाते हैं।
+  th: พูดคุยเกี่ยวกับเครื่องบินขนส่งสินค้าพิเศษ เช่น An-225, Super Guppy และ BelugaXL ที่ใช้ขนส่งชิ้นส่วนจรวดและเครื่องบิน
+  cs: Diskutovali jsme o specializovaných nákladních letadlech jako An-225, Super Guppy a BelugaXL používaných k přepravě součástí raket a letadel.
+  sv: Vi diskuterade specialiserade fraktflygplan som An-225, Super Guppy och BelugaXL som används för att transportera raket- och flygplansdelar.
+  he: "דנו במטוסי מטען מיוחדים כמו An-225, סופר גאפי ו-BelugaXL המשמשים להובלת חלקי טילים ומטוסים."
+  verified_by_human: []
+
+user_message_1:
+  context: First user message asking about giant airplane for rocket transport
+  en: Name of the airplane that was used to transport rocket parts? The gigantic airplane?
+  de: Name des Flugzeugs, das für den Transport von Raketenteilen verwendet wurde? Das riesige Flugzeug?
+  zh: 用来运输火箭部件的那架飞机叫什么名字？那架巨大的飞机？
+  es: ¿Nombre del avión que se usaba para transportar partes de cohetes? ¿El avión gigante?
+  fr: Le nom de l'avion qui était utilisé pour transporter des pièces de fusée ? L'avion gigantesque ?
+  pt: Nome do avião que era usado para transportar peças de foguetes? O avião gigantesco?
+  ru: Как называется самолёт, который использовался для перевозки деталей ракет? Тот гигантский самолёт?
+  ja: ロケットの部品を運ぶのに使われていた飛行機の名前は？あの巨大な飛行機？
+  ko: 로켓 부품을 운반하는 데 사용된 비행기 이름이 뭐였죠? 그 거대한 비행기요?
+  it: Il nome dell'aereo che veniva usato per trasportare parti di razzi? Quell'aereo gigantesco?
+  tr: Roket parçalarını taşımak için kullanılan uçağın adı neydi? O devasa uçak?
+  vi: Tên chiếc máy bay được dùng để vận chuyển các bộ phận tên lửa là gì? Chiếc máy bay khổng lồ đó?
+  id: Apa nama pesawat yang digunakan untuk mengangkut bagian roket? Pesawat raksasa itu?
+  pl: Jak nazywał się samolot używany do transportu części rakiet? Ten gigantyczny samolot?
+  nl: Wat was de naam van het vliegtuig dat werd gebruikt om raketonderdelen te vervoeren? Dat gigantische vliegtuig?
+  ar: ما اسم الطائرة التي كانت تُستخدم لنقل أجزاء الصواريخ؟ تلك الطائرة العملاقة؟
+  hi: रॉकेट के पुर्जे ले जाने के लिए इस्तेमाल किए जाने वाले उस विमान का नाम क्या है? वह विशाल विमान?
+  th: ชื่อเครื่องบินที่ใช้ขนส่งชิ้นส่วนจรวดคืออะไร? เครื่องบินลำยักษ์นั่น?
+  cs: Jak se jmenuje to letadlo, které se používalo k přepravě součástí raket? To obrovské letadlo?
+  sv: Vad heter flygplanet som användes för att transportera raketdelar? Det gigantiska flygplanet?
+  he: "מה שם המטוס שהשתמשו בו להובלת חלקי טילים? המטוס הענק?"
+  verified_by_human: []
+
+user_message_2:
+  context: Second user message asking about Airbus Beluga/BelugaXL for airplane parts
+  en: Wasn't there a new version of the guppy or something similar that is used in Europe to transport airplane parts?
+  de: Gab es nicht eine neue Version des Guppy oder etwas Ähnliches, das in Europa zum Transport von Flugzeugteilen verwendet wird?
+  zh: 欧洲不是有一种古比鱼的新版本或类似的飞机用来运输飞机零件吗？
+  es: ¿No había una nueva versión del guppy o algo similar que se usa en Europa para transportar piezas de aviones?
+  fr: N'y avait-il pas une nouvelle version du guppy ou quelque chose de similaire utilisé en Europe pour transporter des pièces d'avion ?
+  pt: Não havia uma nova versão do guppy ou algo semelhante usado na Europa para transportar peças de avião?
+  ru: Разве не было новой версии Guppy или чего-то подобного, что используется в Европе для перевозки деталей самолётов?
+  ja: ヨーロッパで飛行機の部品を運ぶのに使われているグッピーの新しいバージョンか何か似たようなものがなかったっけ？
+  ko: 유럽에서 비행기 부품을 운반하는 데 사용되는 구피의 새로운 버전이나 비슷한 것이 있지 않았나요?
+  it: Non c'era una nuova versione del guppy o qualcosa di simile usato in Europa per trasportare parti di aerei?
+  tr: Avrupa'da uçak parçalarını taşımak için kullanılan guppy'nin yeni bir versiyonu veya benzeri bir şey yok muydu?
+  vi: Chẳng phải có một phiên bản mới của guppy hoặc thứ gì đó tương tự được sử dụng ở châu Âu để vận chuyển bộ phận máy bay sao?
+  id: Bukankah ada versi baru guppy atau sesuatu yang serupa yang digunakan di Eropa untuk mengangkut suku cadang pesawat?
+  pl: Czy nie było nowej wersji guppy'ego lub czegoś podobnego używanego w Europie do transportu części samolotów?
+  nl: Was er niet een nieuwe versie van de guppy of iets vergelijkbaars dat in Europa wordt gebruikt om vliegtuigonderdelen te vervoeren?
+  ar: ألم يكن هناك نسخة جديدة من الغوبي أو شيء مشابه يُستخدم في أوروبا لنقل أجزاء الطائرات؟
+  hi: क्या गप्पी का कोई नया संस्करण या ऐसा ही कुछ नहीं था जो यूरोप में हवाई जहाज के पुर्जों के परिवहन के लिए उपयोग किया जाता है?
+  th: ไม่ใช่มีเวอร์ชันใหม่ของ guppy หรืออะไรคล้ายๆ กันที่ใช้ในยุโรปเพื่อขนส่งชิ้นส่วนเครื่องบินหรือ?
+  cs: Nebyla tam nová verze guppy nebo něco podobného, co se v Evropě používá k přepravě dílů letadel?
+  sv: Fanns det inte en ny version av guppy eller något liknande som används i Europa för att transportera flygplansdelar?
+  he: "לא הייתה גרסה חדשה של הגאפי או משהו דומה שמשתמשים בו באירופה להובלת חלקי מטוסים?"
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion - compare BelugaXL to Dreamlifter
+  en: "[ai] Explain how the BelugaXL compares to Boeing's Dreamlifter"
+  de: "[ai] Erkläre, wie sich der BelugaXL mit Boeings Dreamlifter vergleicht"
+  zh: "[ai] 解释白鲸XL与波音梦想运输机的比较"
+  es: "[ai] Explica cómo se compara el BelugaXL con el Dreamlifter de Boeing"
+  fr: "[ai] Expliquez comment le BelugaXL se compare au Dreamlifter de Boeing"
+  pt: "[ai] Explique como o BelugaXL se compara ao Dreamlifter da Boeing"
+  ru: "[ai] Объясните, как BelugaXL сравнивается с Boeing Dreamlifter"
+  ja: "[ai] BelugaXLとボーイングのDreamlifterの比較を説明して"
+  ko: "[ai] BelugaXL이 보잉의 Dreamlifter와 어떻게 비교되는지 설명해 주세요"
+  it: "[ai] Spiega come il BelugaXL si confronta con il Dreamlifter di Boeing"
+  tr: "[ai] BelugaXL'in Boeing'in Dreamlifter'ı ile nasıl karşılaştırıldığını açıkla"
+  vi: "[ai] Giải thích BelugaXL so sánh với Dreamlifter của Boeing như thế nào"
+  id: "[ai] Jelaskan perbandingan BelugaXL dengan Dreamlifter Boeing"
+  pl: "[ai] Wyjaśnij, jak BelugaXL wypada w porównaniu z Dreamlifterem Boeinga"
+  nl: "[ai] Leg uit hoe de BelugaXL zich verhoudt tot Boeings Dreamlifter"
+  ar: "[ai] اشرح كيف يُقارن BelugaXL بطائرة Dreamlifter من بوينغ"
+  hi: "[ai] समझाइए कि BelugaXL की तुलना बोइंग के Dreamlifter से कैसे होती है"
+  th: "[ai] อธิบายว่า BelugaXL เปรียบเทียบกับ Dreamlifter ของ Boeing อย่างไร"
+  cs: "[ai] Vysvětlete, jak se BelugaXL srovnává s Dreamlifterem od Boeingu"
+  sv: "[ai] Förklara hur BelugaXL jämförs med Boeings Dreamlifter"
+  he: "[ai] הסבר כיצד ה-BelugaXL משתווה ל-Dreamlifter של בואינג"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion - search for images of BelugaXL loading
+  en: "[images-search] Show me images of the Airbus BelugaXL loading a wing"
+  de: "[images-search] Zeig mir Bilder vom Airbus BelugaXL beim Laden eines Flügels"
+  zh: "[images-search] 给我看空客白鲸XL装载机翼的图片"
+  es: "[images-search] Muéstrame imágenes del Airbus BelugaXL cargando un ala"
+  fr: "[images-search] Montre-moi des images de l'Airbus BelugaXL chargeant une aile"
+  pt: "[images-search] Mostre-me imagens do Airbus BelugaXL carregando uma asa"
+  ru: "[images-search] Покажи мне изображения Airbus BelugaXL при загрузке крыла"
+  ja: "[images-search] エアバス BelugaXL が翼を積み込んでいる画像を見せて"
+  ko: "[images-search] 에어버스 BelugaXL이 날개를 싣고 있는 이미지를 보여주세요"
+  it: "[images-search] Mostrami immagini dell'Airbus BelugaXL che carica un'ala"
+  tr: "[images-search] Airbus BelugaXL'in kanat yüklerken fotoğraflarını göster"
+  vi: "[images-search] Cho tôi xem hình ảnh Airbus BelugaXL đang chất cánh máy bay"
+  id: "[images-search] Tunjukkan gambar Airbus BelugaXL saat memuat sayap"
+  pl: "[images-search] Pokaż mi zdjęcia Airbusa BelugaXL ładującego skrzydło"
+  nl: "[images-search] Laat me afbeeldingen zien van de Airbus BelugaXL die een vleugel laadt"
+  ar: "[images-search] أرني صور طائرة Airbus BelugaXL وهي تحمل جناحاً"
+  hi: "[images-search] एयरबस BelugaXL को पंख लोड करते हुए दिखाओ"
+  th: "[images-search] แสดงรูปภาพ Airbus BelugaXL กำลังบรรทุกปีก"
+  cs: "[images-search] Ukaž mi obrázky Airbusu BelugaXL nakládajícího křídlo"
+  sv: "[images-search] Visa mig bilder på Airbus BelugaXL som lastar en vinge"
+  he: "[images-search] הראה לי תמונות של Airbus BelugaXL טוען כנף"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion - search for videos of BelugaXL
+  en: "[web-search] Find videos of the BelugaXL in action"
+  de: "[web-search] Finde Videos vom BelugaXL in Aktion"
+  zh: "[web-search] 查找白鲸XL的实际运作视频"
+  es: "[web-search] Busca videos del BelugaXL en acción"
+  fr: "[web-search] Trouve des vidéos du BelugaXL en action"
+  pt: "[web-search] Encontre vídeos do BelugaXL em ação"
+  ru: "[web-search] Найти видео BelugaXL в действии"
+  ja: "[web-search] BelugaXLの活動中の動画を探して"
+  ko: "[web-search] BelugaXL 실제 운용 영상을 찾아주세요"
+  it: "[web-search] Trova video del BelugaXL in azione"
+  tr: "[web-search] BelugaXL'in iş başında videolarını bul"
+  vi: "[web-search] Tìm video BelugaXL đang hoạt động"
+  id: "[web-search] Temukan video BelugaXL beraksi"
+  pl: "[web-search] Znajdź filmy z BelugaXL w akcji"
+  nl: "[web-search] Zoek video's van de BelugaXL in actie"
+  ar: "[web-search] ابحث عن فيديوهات BelugaXL أثناء العمل"
+  hi: "[web-search] BelugaXL के काम करते हुए वीडियो खोजें"
+  th: "[web-search] ค้นหาวิดีโอ BelugaXL ขณะปฏิบัติงาน"
+  cs: "[web-search] Najdi videa BelugaXL v akci"
+  sv: "[web-search] Hitta videor på BelugaXL i aktion"
+  he: "[web-search] מצא סרטונים של BelugaXL בפעולה"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion - engineering challenges of BelugaXL
+  en: "[ai] Describe the engineering challenges of designing the BelugaXL"
+  de: "[ai] Beschreibe die technischen Herausforderungen bei der Konstruktion des BelugaXL"
+  zh: "[ai] 描述设计白鲸XL的工程挑战"
+  es: "[ai] Describe los desafíos de ingeniería del diseño del BelugaXL"
+  fr: "[ai] Décris les défis d'ingénierie de la conception du BelugaXL"
+  pt: "[ai] Descreva os desafios de engenharia do projeto do BelugaXL"
+  ru: "[ai] Опишите инженерные сложности проектирования BelugaXL"
+  ja: "[ai] BelugaXLの設計における工学的な課題を説明して"
+  ko: "[ai] BelugaXL 설계의 엔지니어링 과제를 설명해 주세요"
+  it: "[ai] Descrivi le sfide ingegneristiche della progettazione del BelugaXL"
+  tr: "[ai] BelugaXL'in tasarımındaki mühendislik zorluklarını açıkla"
+  vi: "[ai] Mô tả những thách thức kỹ thuật trong thiết kế BelugaXL"
+  id: "[ai] Jelaskan tantangan rekayasa dalam merancang BelugaXL"
+  pl: "[ai] Opisz wyzwania inżynieryjne projektowania BelugaXL"
+  nl: "[ai] Beschrijf de technische uitdagingen bij het ontwerpen van de BelugaXL"
+  ar: "[ai] صف التحديات الهندسية في تصميم BelugaXL"
+  hi: "[ai] BelugaXL के डिज़ाइन की इंजीनियरिंग चुनौतियों का वर्णन करें"
+  th: "[ai] อธิบายความท้าทายด้านวิศวกรรมในการออกแบบ BelugaXL"
+  cs: "[ai] Popiš inženýrské výzvy při navrhování BelugaXL"
+  sv: "[ai] Beskriv de ingenjörsmässiga utmaningarna med att designa BelugaXL"
+  he: "[ai] תאר את אתגרי ההנדסה בתכנון ה-BelugaXL"
+  verified_by_human: []
+
+follow_up_5:
+  context: Follow-up suggestion - compare BelugaXL to original Super Guppy
+  en: "[ai] Compare the BelugaXL to the original Super Guppy"
+  de: "[ai] Vergleiche den BelugaXL mit dem originalen Super Guppy"
+  zh: "[ai] 将白鲸XL与原版超级古比鱼进行比较"
+  es: "[ai] Compara el BelugaXL con el Super Guppy original"
+  fr: "[ai] Compare le BelugaXL au Super Guppy original"
+  pt: "[ai] Compare o BelugaXL com o Super Guppy original"
+  ru: "[ai] Сравните BelugaXL с оригинальным Super Guppy"
+  ja: "[ai] BelugaXLとオリジナルのスーパーグッピーを比較して"
+  ko: "[ai] BelugaXL을 원래의 슈퍼 구피와 비교해 주세요"
+  it: "[ai] Confronta il BelugaXL con il Super Guppy originale"
+  tr: "[ai] BelugaXL'i orijinal Super Guppy ile karşılaştır"
+  vi: "[ai] So sánh BelugaXL với Super Guppy ban đầu"
+  id: "[ai] Bandingkan BelugaXL dengan Super Guppy asli"
+  pl: "[ai] Porównaj BelugaXL z oryginalnym Super Guppy"
+  nl: "[ai] Vergelijk de BelugaXL met de originele Super Guppy"
+  ar: "[ai] قارن بين BelugaXL و Super Guppy الأصلية"
+  hi: "[ai] BelugaXL की तुलना मूल सुपर गप्पी से करें"
+  th: "[ai] เปรียบเทียบ BelugaXL กับ Super Guppy ดั้งเดิม"
+  cs: "[ai] Porovnej BelugaXL s původním Super Guppy"
+  sv: "[ai] Jämför BelugaXL med den ursprungliga Super Guppy"
+  he: "[ai] השווה את ה-BelugaXL ל-Super Guppy המקורי"
+  verified_by_human: []
+
+follow_up_6:
+  context: Follow-up suggestion - list other specialized cargo aircraft
+  en: "[ai] List other specialized cargo aircraft used in aviation"
+  de: "[ai] Liste andere spezialisierte Frachtflugzeuge in der Luftfahrt auf"
+  zh: "[ai] 列出航空中使用的其他专用货运飞机"
+  es: "[ai] Lista otros aviones de carga especializados usados en aviación"
+  fr: "[ai] Liste d'autres avions-cargos spécialisés utilisés dans l'aviation"
+  pt: "[ai] Liste outras aeronaves de carga especializadas usadas na aviação"
+  ru: "[ai] Перечислите другие специализированные грузовые самолёты, используемые в авиации"
+  ja: "[ai] 航空で使用される他の特殊貨物機をリストアップして"
+  ko: "[ai] 항공에서 사용되는 다른 특수 화물기를 나열해 주세요"
+  it: "[ai] Elenca altri aerei cargo specializzati usati nell'aviazione"
+  tr: "[ai] Havacılıkta kullanılan diğer özel kargo uçaklarını listele"
+  vi: "[ai] Liệt kê các máy bay chở hàng chuyên dụng khác trong ngành hàng không"
+  id: "[ai] Sebutkan pesawat kargo khusus lainnya yang digunakan dalam penerbangan"
+  pl: "[ai] Wymień inne wyspecjalizowane samoloty transportowe używane w lotnictwie"
+  nl: "[ai] Noem andere gespecialiseerde vrachtvliegtuigen die in de luchtvaart worden gebruikt"
+  ar: "[ai] اذكر طائرات شحن متخصصة أخرى مستخدمة في مجال الطيران"
+  hi: "[ai] विमानन में उपयोग किए जाने वाले अन्य विशेष कार्गो विमानों की सूची दें"
+  th: "[ai] ระบุเครื่องบินขนส่งสินค้าพิเศษอื่นๆ ที่ใช้ในการบิน"
+  cs: "[ai] Vyjmenuj další specializovaná nákladní letadla používaná v letectví"
+  sv: "[ai] Lista andra specialiserade fraktflygplan som används inom flyget"
+  he: "[ai] רשום מטוסי מטען מיוחדים נוספים המשמשים בתעופה"
+  verified_by_human: []

@@ -77,7 +77,7 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllExampleChats } from '../demo_chats'; // Import demo chat utilities
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
@@ -2610,7 +2610,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /**
      * Build the scrollable intro list for non-authenticated users.
      * Combines static DEMO_CHATS (intro chats, excluding legal) with
-     * community demo chats loaded from the server, in that order.
+     * example chats (static, always available), in that order.
      * Returns Chat[] ready for rendering with the standard card components.
      */
     function loadNonAuthRecentChats(): RecentChatMeta[] {
@@ -2628,8 +2628,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             };
         });
 
-        // 2. Community demo chats (server-fetched, already Chat objects, no legal chats)
-        const communityMetas: RecentChatMeta[] = getAllCommunityDemoChats().map((chat) => ({
+        // 2. Example chats (static, always available, no legal chats)
+        const communityMetas: RecentChatMeta[] = getAllExampleChats().map((chat) => ({
             chat,
             title: chat.title ?? null,
             category: chat.category ?? null,
@@ -2667,8 +2667,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
-        // Subscribe to communityDemoStore so this effect re-runs when demos load
-        void $communityDemoStore;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
@@ -3976,7 +3974,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 (async () => {
                     try {
                         const freshChat = await chatDB.getChat(currentChat.chat_id);
-                        // Check for cleartext suggestions on fresh read (community demo chats)
+                        // Check for cleartext suggestions on fresh read (example chats)
                         if (freshChat?.follow_up_request_suggestions) {
                             try {
                                 const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
@@ -7229,13 +7227,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 followUpSuggestions = translatedChat.follow_up_suggestions || [];
                 console.debug('[ActiveChat] Loaded original public chat follow-up suggestions from static bundle:', $state.snapshot(followUpSuggestions));
             } else if (currentChat.follow_up_request_suggestions) {
-                // For community demo chats (from server), use cleartext suggestions stored on chat object
-                // ARCHITECTURE: Community demo chats use cleartext fields (not encrypted_* fields)
+                // For example chats, use cleartext suggestions stored on chat object
+                // ARCHITECTURE: Example chats use cleartext fields (not encrypted_* fields)
                 try {
                     followUpSuggestions = JSON.parse(currentChat.follow_up_request_suggestions);
-                    console.debug('[ActiveChat] Loaded community demo chat follow-up suggestions from cleartext:', $state.snapshot(followUpSuggestions));
+                    console.debug('[ActiveChat] Loaded example chat follow-up suggestions from cleartext:', $state.snapshot(followUpSuggestions));
                 } catch (error) {
-                    console.error('[ActiveChat] Failed to parse community demo follow-up suggestions:', error);
+                    console.error('[ActiveChat] Failed to parse example chat follow-up suggestions:', error);
                     followUpSuggestions = [];
                 }
             } else {
@@ -8295,7 +8293,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
         window.addEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked);
         
-        // Add language change listener to reload public chats (demo + legal + community demos) when language changes
+        // Add language change listener to reload public chats (demo + legal + example chats) when language changes
         const handleLanguageChange = async () => {
             try {
                 // CRITICAL: Use $state.snapshot to get current value in async context
@@ -8320,35 +8318,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const { _: translationStore } = await import('svelte-i18n');
                 get(translationStore); // Ensure translation store is updated
                 
-                // Import community demo store functions
-                const { getCommunityDemoMessages, communityDemoStore } = await import('../demo_chats');
-                
-                // Check if this is a community demo chat (demo-1, demo-2, etc.)
-                // Community demos are fetched from server with language-specific translations
-                // ARCHITECTURE: Community demos use a pattern-based ID check (startsWith 'demo-')
-                // but exclude static intro chats which are in DEMO_CHATS
-                const isStatic = DEMO_CHATS.some(c => c.chat_id === snapshotChat.chat_id);
-                if (snapshotChat.chat_id.startsWith('demo-') && !isStatic) {
-                    console.debug('[ActiveChat] Language changed - reloading community demo:', snapshotChat.chat_id);
-                    
-                    // ARCHITECTURE: Community demos are reloaded by Chats.svelte when language changes
-                    // The 'language-changed' event triggers loadDemoChatsFromServer(true) in Chats.svelte
-                    // which clears the cache and fetches demos in the new language
-                    // We need to wait for that reload to complete before we can get the new messages
-                    
-                    // Wait for Chats.svelte to finish reloading the community demos
-                    // We use waitForLoadingComplete() which waits for the store's loading flag to clear
-                    await communityDemoStore.waitForLoadingComplete();
-                    
-                    // Get the reloaded messages from communityDemoStore
-                    const newMessages = getCommunityDemoMessages(snapshotChat.chat_id);
-                    
+                // Import example chat functions (static data, always available)
+                const { getExampleChatMessages, isExampleChat } = await import('../demo_chats');
+
+                // Check if this is an example chat (static, always available)
+                if (isExampleChat(snapshotChat.chat_id)) {
+                    console.debug('[ActiveChat] Language changed - reloading example chat:', snapshotChat.chat_id);
+
+                    // Get the messages from the static example chat store (always available, no waiting needed)
+                    const newMessages = getExampleChatMessages(snapshotChat.chat_id);
+
                     if (newMessages.length > 0) {
-                        console.debug(`[ActiveChat] Reloaded ${newMessages.length} messages for community demo ${snapshotChat.chat_id}`);
-                        
+                        console.debug(`[ActiveChat] Reloaded ${newMessages.length} messages for example chat ${snapshotChat.chat_id}`);
+
                         // CRITICAL: Force new array reference to ensure reactivity
                         currentMessages = newMessages.map(msg => ({ ...msg }));
-                        
+
                         // Update chat history display
                         if (chatHistoryRef) {
                             chatHistoryRef.updateMessages(currentMessages);
@@ -8356,10 +8341,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.warn('[ActiveChat] chatHistoryRef is null - cannot update messages');
                         }
                     } else {
-                        console.warn('[ActiveChat] No messages found for community demo after language change:', snapshotChat.chat_id);
-                        console.debug('[ActiveChat] Community demos may still be loading - messages will update when available');
+                        console.warn('[ActiveChat] No messages found for example chat after language change:', snapshotChat.chat_id);
                     }
-                    
+
                     return;
                 }
                 

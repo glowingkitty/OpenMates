@@ -36,7 +36,6 @@ from backend.core.api.app.routes import auth, email, invoice, credit_note, setti
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
-from backend.core.api.app.routes import demo_chat  # noqa: E402 # Import demo chat router
 from backend.core.api.app.routes import admin  # noqa: E402 # Import admin router
 from backend.core.api.app.routes.push import router as push_router  # noqa: E402 # Push notification routes
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
@@ -906,171 +905,7 @@ async def lifespan(app: FastAPI):
         )
         logger.info(f"Initial health check task queued successfully. Task ID: {task_result.id}")
         
-        # --- NEW: Warm demo chats cache on startup ---
-        logger.info("Triggering demo chats cache warming...")
-        try:
-            # We can't easily call demo methods from here without re-initializing everything
-            # but we can trigger a task or just wait for first request.
-            # Actually, let's just trigger a small async task to warm it.
-            async def warm_demo_cache():
-                try:
-                    await asyncio.sleep(5) # Wait for other services to settle
-                    
-                    # IMPORTANT: Clear existing demo cache before warming to prevent stale data
-                    # This ensures that any old cache entries (e.g., from before a demo was fully published
-                    # or with missing fields like encrypted_category) are removed before we populate
-                    # fresh data from the database.
-                    logger.info("Clearing existing demo chats cache before warming...")
-                    await app.state.directus_service.cache.clear_demo_chats_cache()
-                    
-                    # Fetch all active demo chats to warm the cache for all languages
-                    from backend.core.api.app.tasks.demo_tasks import TARGET_LANGUAGES
-                    for lang in TARGET_LANGUAGES:
-                        # Fetch the list of published demo chats for this language
-                        params = {
-                            "filter": {
-                                "status": {"_eq": "published"},
-                                "is_active": {"_eq": True}
-                            },
-                            "sort": ["-created_at"]
-                        }
-                        demo_chats = await app.state.directus_service.get_items("demo_chats", params)
-                        
-                        if demo_chats:
-                            # This warms both the list and individual chat data caches.
-                            # ARCHITECTURE: Use the stored slug as the canonical demo ID
-                            # (e.g. 'demo-planning-a-trip'), matching the /v1/demo/chats route.
-                            # The old positional demo-1/demo-2 format has been replaced.
-                            import re as re_module
-
-                            def _slugify(text: str) -> str:
-                                text = text.lower().strip()
-                                text = re_module.sub(r'[^a-z0-9\s-]', '', text)
-                                text = re_module.sub(r'[\s_-]+', '-', text)
-                                text = text.strip('-')
-                                return f"demo-{text}"
-
-                            public_demo_chats = []
-                            for idx, demo in enumerate(demo_chats):
-                                demo_uuid = demo["id"]  # UUID from Directus
-
-                                # Use the stored slug as the stable ID (same logic as the API route).
-                                # Fall back to auto-generating from title for records without a slug.
-                                stored_slug = demo.get("slug") or ""
-                                if not stored_slug:
-                                    fallback_title = demo.get("title") or f"demo-chat-{idx + 1}"
-                                    stored_slug = _slugify(fallback_title)
-                                    logger.debug(f"Cache warm: demo {demo_uuid} has no slug — using generated fallback: {stored_slug}")
-                                display_id = stored_slug  # slug is the canonical display/chat ID
-                                
-                                # Warm translation cache using UUID
-                                translation = await app.state.directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, lang)
-                                if not translation and lang != "en":
-                                    translation = await app.state.directus_service.demo_chat.get_demo_chat_translation_by_uuid(demo_uuid, "en")
-                                
-                                if translation:
-                                    # Get translation metadata (stored as cleartext)
-                                    title = translation.get("title")
-                                    summary = translation.get("summary")
-                                    follow_up_suggestions = []
-
-                                    # Parse follow-up suggestions from cleartext
-                                    if translation.get("follow_up_suggestions"):
-                                        try:
-                                            import json as json_module
-                                            follow_up_suggestions = json_module.loads(translation["follow_up_suggestions"])
-                                        except Exception as followup_err:
-                                            logger.warning(f"Failed to parse follow_up_suggestions for demo {demo_uuid}: {followup_err}")
-
-                                    # Get category and icon from demo_chats table (stored as cleartext)
-                                    category = demo.get("category")
-                                    icon = demo.get("icon")
-
-                                    # Get demo_chat_category (target audience: for_everyone or for_developers)
-                                    demo_chat_category = demo.get("demo_chat_category", "for_everyone")
-
-                                    # Add to list with cleartext data.
-                                    # 'demo_id' equals the slug for backwards compat with frontend code.
-                                    public_demo_chats.append({
-                                        "demo_id": display_id,
-                                        "slug": display_id,
-                                        "uuid": demo_uuid,
-                                        "title": title or "Demo Chat",
-                                        "summary": summary,
-                                        "category": category,
-                                        "icon": icon,
-                                        "demo_chat_category": demo_chat_category,
-                                        "content_hash": demo.get("content_hash", ""),
-                                        "created_at": demo.get("created_at"),
-                                        "status": demo.get("status")
-                                    })
-                                    
-                                    # Warm individual chat data cache using UUID
-                                    messages = await app.state.directus_service.demo_chat.get_demo_messages_by_uuid(demo_uuid, lang)
-                                    if not messages and lang != "en":
-                                        messages = await app.state.directus_service.demo_chat.get_demo_messages_by_uuid(demo_uuid, "en")
-                                        
-                                    embeds = await app.state.directus_service.demo_chat.get_demo_embeds_by_uuid(demo_uuid, lang)
-                                    if not embeds and lang != "en":
-                                        embeds = await app.state.directus_service.demo_chat.get_demo_embeds_by_uuid(demo_uuid, "en")
-                                    
-                                    # Get messages (stored as cleartext)
-                                    cleartext_messages = []
-                                    for msg in (messages or []):
-                                        cleartext_messages.append({
-                                            "message_id": str(msg.get("id")),
-                                            "role": msg.get("role"),
-                                            "content": msg.get("content", ""),
-                                            "category": msg.get("category"),
-                                            "model_name": msg.get("model_name"),
-                                            "created_at": msg.get("original_created_at")  # Use original_created_at for ordering
-                                        })
-
-                                    # Get embeds (stored as cleartext)
-                                    cleartext_embeds = []
-                                    for emb in (embeds or []):
-                                        cleartext_embeds.append({
-                                            "embed_id": emb.get("original_embed_id"),
-                                            "type": emb.get("type"),
-                                            "content": emb.get("content", ""),
-                                            "created_at": emb.get("original_created_at")  # Use original_created_at for ordering
-                                        })
-
-                                    full_chat_data = {
-                                        "demo_id": display_id,
-                                        "slug": display_id,
-                                        "title": title,
-                                        "summary": summary,
-                                        "category": category,
-                                        "icon": icon,
-                                        "demo_chat_category": demo_chat_category,
-                                        "content_hash": demo.get("content_hash", ""),
-                                        "follow_up_suggestions": follow_up_suggestions,
-                                        "chat_data": {
-                                            "chat_id": display_id,  # slug is the stable chat_id for the client
-                                            "messages": cleartext_messages,
-                                            "embeds": cleartext_embeds,
-                                            "encryption_mode": "none"
-                                        }
-                                    }
-                                    
-                                    # Store in cache using slug as key
-                                    await app.state.directus_service.cache.set_demo_chat_data(display_id, lang, full_chat_data)
-
-                            # Store list in cache
-                            response_data = {
-                                "demo_chats": public_demo_chats,
-                                "count": len(public_demo_chats)
-                            }
-                            await app.state.directus_service.cache.set_demo_chats_list(lang, response_data)
-
-                    logger.info(f"✅ Demo chats cache warmed for {len(TARGET_LANGUAGES)} languages")
-                except Exception as e:
-                    logger.warning(f"Failed to warm demo chats cache: {e}", exc_info=True)
-            
-            asyncio.create_task(warm_demo_cache())
-        except Exception as demo_warm_err:
-            logger.warning(f"Error during demo cache warming setup: {demo_warm_err}")
+        # Demo chats are now hardcoded in the frontend — no backend cache warming needed.
 
         # Log task status after a short delay to verify it was accepted
         async def check_task_status():
@@ -1506,7 +1341,6 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
-    app.include_router(demo_chat.router, include_in_schema=False)  # Demo chat router - public access
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users

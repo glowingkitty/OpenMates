@@ -1,6 +1,6 @@
 {
   "name": "openmates",
-  "version": "0.8.0-alpha.2",
+  "version": "0.9.0-alpha.0",
   "description": "OpenMates CLI and SDK",
   "type": "module",
   "main": "dist/index.js",

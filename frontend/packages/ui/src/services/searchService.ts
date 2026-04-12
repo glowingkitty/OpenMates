@@ -26,8 +26,8 @@ import {
   getDemoMessages,
   isDemoChat,
   isLegalChat,
-  isCommunityDemo,
-  getCommunityDemoEmbed,
+  isExampleChat,
+  getExampleChatEmbed,
   INTRO_CHATS,
   LEGAL_CHATS,
 } from "../demo_chats";
@@ -640,10 +640,10 @@ async function resolveEmbedText(
           : undefined,
     });
 
-    // --- Community demo embed path (unauthenticated users) ---
-    // Community demo embeds live in communityDemoStore (cleartext, separate from embedStore).
+    // --- Example chat embed path (unauthenticated users) ---
+    // Example chat embeds live in exampleChatStore (cleartext, separate from embedStore).
     // They are not encrypted, so we parse the JSON content directly without TOON decoding.
-    const demoEmbed = getCommunityDemoEmbed(embedId);
+    const demoEmbed = getExampleChatEmbed(embedId);
     if (demoEmbed) {
       try {
         const decoded = JSON.parse(demoEmbed.content) as Record<
@@ -927,11 +927,11 @@ async function indexChatMessages(chatId: string): Promise<void> {
       }
 
       // 2. Extract embed references from the raw markdown and index their content.
-      //    Community demo chats have real embeds (cleartext, stored in communityDemoStore).
+      //    Example chats have real embeds (cleartext, stored in exampleChatStore).
       //    Static intro chats and legal chats only have inline text, no embed references.
       //    Authenticated user chats have encrypted embeds resolved via embedStore.
       const hasChatEmbeds =
-        isCommunityDemo(chatId) ||
+        isExampleChat(chatId) ||
         (!isDemoChat(chatId) && !isLegalChat(chatId));
       if (hasChatEmbeds) {
         const embedRefs = extractEmbedReferences(rawContent);

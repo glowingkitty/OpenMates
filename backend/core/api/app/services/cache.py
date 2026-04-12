@@ -9,7 +9,6 @@ from .cache_chat_mixin import ChatCacheMixin
 from .cache_order_mixin import OrderCacheMixin
 from .cache_legacy_mixin import LegacyChatCacheMixin
 from .cache_debug_mixin import DebugCacheMixin
-from .cache_demo_chat_mixin import DemoChatCacheMixin
 from .cache_stats_mixin import CacheStatsMixin
 from .cache_reminder_mixin import ReminderCacheMixin
 from .cache_inspiration_mixin import InspirationCacheMixin
@@ -42,7 +41,6 @@ class CacheService(
     OrderCacheMixin,
     LegacyChatCacheMixin,
     DebugCacheMixin,
-    DemoChatCacheMixin,
     CacheStatsMixin,
     ReminderCacheMixin,
     InspirationCacheMixin,

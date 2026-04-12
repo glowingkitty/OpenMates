@@ -49,7 +49,6 @@
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
-		loadCommunityDemos,
 		loadDefaultInspirations,
 		DevConsole,
 		openSearch,
@@ -962,11 +961,7 @@
 			}
 		}
 
-		// Load community demo chats (example chats) on page load so they appear in for-everyone
-		// and for-developers intro chats without requiring the sidebar (Chats) to be opened first.
-		loadCommunityDemos().catch((error) => {
-			console.error('[+page.svelte] Error loading community demos:', error);
-		});
+		// Example chats are now hardcoded — no loading needed.
 
 		// Load default Daily Inspirations from server (published entries curated by admin).
 		// Populates dailyInspirationStore only if it is still empty (personalized ones via

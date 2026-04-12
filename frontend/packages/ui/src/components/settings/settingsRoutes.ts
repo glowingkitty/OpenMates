@@ -111,7 +111,6 @@ import SettingsWebhooks from "./developers/SettingsWebhooks.svelte";
 // Server (admin only)
 import SettingsServer from "./SettingsServer.svelte";
 import SettingsSoftwareUpdate from "./server/SettingsSoftwareUpdate.svelte";
-import SettingsCommunitySuggestions from "./server/SettingsCommunitySuggestions.svelte";
 import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
 import SettingsTests from "./server/SettingsTests.svelte";
@@ -230,7 +229,6 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Server (admin only)
   server: SettingsServer,
   "server/software-update": SettingsSoftwareUpdate,
-  "server/community-suggestions": SettingsCommunitySuggestions,
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
   "server/tests": SettingsTests,

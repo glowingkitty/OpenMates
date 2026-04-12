@@ -187,7 +187,7 @@
    * 
    * NOTE: Uses resolveEmbed() which checks BOTH:
    * - Regular embedStore (for encrypted user embeds)
-   * - communityDemoStore (for cleartext demo chat embeds)
+   * - exampleChatStore (for cleartext demo chat embeds)
    * 
    * This is critical for demo chats where embeds are stored separately
    * in the community demo store and wouldn't be found by embedStore.get().
@@ -204,7 +204,7 @@
     }
     
     try {
-      // Use resolveEmbed() which checks both regular embedStore AND communityDemoStore
+      // Use resolveEmbed() which checks both regular embedStore AND exampleChatStore
       // This is essential for demo chats where embeds are stored in a separate store
       const embedData = await resolveEmbed(id);
       if (embedData) {

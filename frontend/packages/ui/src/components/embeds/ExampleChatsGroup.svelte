@@ -1,66 +1,42 @@
 <!--
   frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
-  
+
   A horizontal scrollable container displaying ChatEmbedPreview cards
-  for EXAMPLE CHATS (community demos fetched from server).
-  
+  for EXAMPLE CHATS (static hardcoded conversations from exampleChatStore).
+
   This component is rendered within demo chat messages when the
   [[example_chats_group]] placeholder is encountered.
-  
-  Only shows community demo chats (the "EXAMPLE CHATS" section in the sidebar),
-  NOT intro chats (which are the static "For everyone", "For developers", etc.).
-  
+
   Each card shows:
   - Chat summary (AI-generated description) in the center content area
   - Bottom bar with consistent chat icon + title + small category circle
-  
+
   Scrolling behavior matches the standard embed group layout used by
   other embed types (smooth horizontal scroll, no snap).
 -->
 
 <script lang="ts">
   import ChatEmbedPreview from './ChatEmbedPreview.svelte';
-  import { getAllCommunityDemoChats } from '../../demo_chats';
-  import { communityDemoStore } from '../../demo_chats/communityDemoStore';
+  import { getAllExampleChats, getExampleChat, getExampleChatMessages } from '../../demo_chats/exampleChatStore';
   import { activeChatStore } from '../../stores/activeChatStore';
-  import { getCommunityDemoChat, getCommunityDemoMessages } from '../../demo_chats/communityDemoStore';
-  
+
   /**
    * Props interface for ExampleChatsGroup
    */
   interface Props {
     /** Current chat ID to exclude from the list */
     excludeChatId?: string;
-    /** Filter by demo_chat_category - only show chats matching this audience */
-    demoChatCategory?: string;
   }
-  
+
   let {
     excludeChatId = 'demo-for-everyone',
-    demoChatCategory = 'for_everyone'
   }: Props = $props();
-  
-  // Reference communityDemoStore for reactivity
-  let _communityDemoStoreValue = $derived($communityDemoStore);
-  
-  // Get community demo chats (example chats) to display, filtered by demo_chat_category
-  // These are already Chat objects with cleartext fields (title, category, icon, chat_summary)
-  // IMPORTANT: Do NOT include INTRO_CHATS here - only community demos from the server
-  let exampleChats = $derived((() => {
-    // Ensure reactivity by referencing the store
-    void _communityDemoStoreValue;
-    
-    // Get community demo chats from the store
-    const communityChats = getAllCommunityDemoChats();
-    
-    // Filter by demo_chat_category and exclude the current chat
-    return communityChats.filter(chat => {
-      if (chat.chat_id === excludeChatId) return false;
-      // Filter by demo_chat_category if specified
-      const chatCategory = chat.demo_chat_category || 'for_everyone';
-      return chatCategory === demoChatCategory;
-    });
-  })());
+
+  // Get all example chats, excluding the current one.
+  // No reactivity needed — example chats are static data built at import time.
+  const exampleChats = getAllExampleChats().filter(
+    chat => chat.chat_id !== excludeChatId
+  );
   
   /**
    * Get the preview text for a chat embed card.
@@ -75,7 +51,7 @@
     }
     
     // Fall back to first user message if no summary available
-    const messages = getCommunityDemoMessages(chatId);
+    const messages = getExampleChatMessages(chatId);
     const firstUserMsg = messages.find(m => m.role === 'user');
     if (firstUserMsg && firstUserMsg.content) {
       return firstUserMsg.content;
@@ -92,10 +68,10 @@
   function handleChatClick(chatId: string) {
     console.debug('[ExampleChatsGroup] Chat clicked:', chatId);
     
-    // Get the full Chat object from the community demo store
-    const chat = getCommunityDemoChat(chatId);
+    // Get the full Chat object from the example chat store
+    const chat = getExampleChat(chatId);
     if (!chat) {
-      console.warn('[ExampleChatsGroup] Chat not found in community demo store:', chatId);
+      console.warn('[ExampleChatsGroup] Chat not found in example chat store:', chatId);
       return;
     }
     

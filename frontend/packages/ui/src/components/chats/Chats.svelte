@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllCommunityDemoChats, communityDemoStore, loadCommunityDemos } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -232,11 +232,11 @@ let _chatUpdatedFlushPending = false;
 
 	// --- Reactive Computations for Display ---
 
-	// Get filtered public chats (intro + community demos + legal) - exclude hidden ones for authenticated users
+	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
 	// 
 	// ARCHITECTURE:
 	// - INTRO_CHATS: Static intro chats bundled with the app (welcome, what-makes-different)
-	// - Community demos: Dynamic demo chats fetched from server, stored in communityDemoStore (in-memory)
+	// - Example chats: Static hardcoded example chats from exampleChatStore
 	// - Legal chats: Legal documents (privacy, terms, imprint) - only for non-self-hosted
 	//
 	// Legal chats are shown only for non-self-hosted instances - they're OpenMates-specific documents
@@ -251,10 +251,7 @@ let _chatUpdatedFlushPending = false;
 		// Reference the text store to ensure reactivity when translations are loaded
 		void $text;
 		
-		// Reference the communityDemoStore to trigger reactivity when community demos are loaded
-		void $communityDemoStore;
-		
-		console.debug('[Chats] Recalculating visiblePublicChats. Community demos count:', getAllCommunityDemoChats().length);
+		// Example chats are static — no store subscription needed
 		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
 		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
@@ -281,14 +278,13 @@ let _chatUpdatedFlushPending = false;
 				});
 		}
 		
-		// 2. Community demo chats (fetched from server, stored in-memory)
+		// 2. Example chats (hardcoded static data)
 		// These are shown for all users (authenticated and non-authenticated)
-		let communityChats: ChatType[] = [];
-		communityChats = getAllCommunityDemoChats()
+		const exampleChats: ChatType[] = getAllExampleChats()
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.map(chat => ({
 				...chat,
-				group_key: 'examples' // Community demos go in "Examples" group
+				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
 		// 3. Legal chats (ONLY for non-self-hosted instances)
@@ -310,10 +306,10 @@ let _chatUpdatedFlushPending = false;
 				});
 		}
 		
-		return [...introChats, ...communityChats, ...legalChats];
+		return [...introChats, ...exampleChats, ...legalChats];
 	})());
 
-	// Combine public chats (intro + community demos + legal) with real chats from IndexedDB
+	// Combine public chats (intro + example chats + legal) with real chats from IndexedDB
 	// Also include sessionStorage-only chats for non-authenticated users (new chats with drafts)
 	// Also include shared chats for non-authenticated users (loaded from IndexedDB but marked for cleanup)
 	// Also include incognito chats (stored in sessionStorage, not IndexedDB)
@@ -321,7 +317,7 @@ let _chatUpdatedFlushPending = false;
 	//
 	// ARCHITECTURE:
 	// - Intro chats: Static, bundled with app, stored in INTRO_CHATS array (in-memory)
-	// - Community demos: Dynamic, fetched from server, stored in communityDemoStore (in-memory)
+	// - Example chats: Static hardcoded example chats from exampleChatStore
 	// - Legal chats: Static, bundled with app, stored in LEGAL_CHATS array (in-memory)
 	// - Real chats: User's actual chats, stored in IndexedDB
 	// - Shared chats: Chats shared with user, stored in IndexedDB (temporary for viewing)
@@ -427,10 +423,10 @@ let _chatUpdatedFlushPending = false;
 			}
 		}
 		
-		// Final log for debugging community demo categorization
-		const communityDemoCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
-		if (communityDemoCount > 0) {
-			console.debug(`[Chats] Found ${communityDemoCount} community demo chat(s) in 'examples' group`);
+		// Final log for debugging example chat categorization
+		const exampleChatCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
+		if (exampleChatCount > 0) {
+			console.debug(`[Chats] Found ${exampleChatCount} example chat(s) in 'examples' group`);
 		}
 		
 		return deduplicatedChats;
@@ -658,7 +654,7 @@ let _chatUpdatedFlushPending = false;
 	//
 	// Problem: sortChats() orders entirely by timestamp, which mixes real user chats with
 	// intro/examples/legal chats wherever their timestamps happen to land. This means a
-	// community demo chat (server timestamp) or a legal chat (order 3-5 from 7-days-ago)
+	// example chat chat (server timestamp) or a legal chat (order 3-5 from 7-days-ago)
 	// can interleave with — or appear before — user chats and intro chats.
 	//
 	// Fix: always sort by section first, then by the existing timestamp sort within each section:
@@ -702,8 +698,6 @@ let _chatUpdatedFlushPending = false;
 	// --- Event Handlers & Lifecycle ---
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
-	let handleLanguageChangeForDemos: () => void; // For reloading demo chats on language change
-	let languageChangeDemoDebounceTimer: ReturnType<typeof setTimeout> | null = null; // Debounce timer for demo reload on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
 	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
@@ -1488,26 +1482,8 @@ let _chatUpdatedFlushPending = false;
 		};
 		window.addEventListener('language-changed', languageChangeHandler);
 
-		// Language change handler for demo chats - reload demos in new language
-		// DEBOUNCED: The 'language-changed' event fires multiple times in quick succession
-		// (once from updateNavigationAndBreadcrumbs, once from setTimeout in SettingsLanguage).
-		// Without debouncing, two concurrent loadCommunityDemos(true) calls race against
-		// each other - the second call's communityDemoStore.clear() can wipe data that the
-		// first call just added, causing demo chat titles to briefly disappear or stay stale.
-		handleLanguageChangeForDemos = () => {
-			// Clear any pending debounce timer (collapses multiple rapid events into one)
-			if (languageChangeDemoDebounceTimer) {
-				clearTimeout(languageChangeDemoDebounceTimer);
-			}
-			languageChangeDemoDebounceTimer = setTimeout(() => {
-				languageChangeDemoDebounceTimer = null;
-				console.debug('[Chats] Language changed (debounced) - reloading community demo chats');
-				loadCommunityDemos(true).catch(error => {
-					console.error('[Chats] Error reloading demo chats after language change:', error);
-				});
-			}, 100); // 100ms debounce - long enough to collapse double-dispatch, short enough to feel instant
-		};
-		window.addEventListener('language-changed', handleLanguageChangeForDemos);
+		// Example chats are static — no language-based reloading needed.
+		// Intro chats use i18n keys that auto-update via the $text store reactivity.
 
 		// Listen to local draft changes for immediate UI updates
 		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
@@ -1902,11 +1878,7 @@ let _chatUpdatedFlushPending = false;
 		// Don't use subscription to avoid reactive loops - just check on mount
 		await loadIncognitoChats();
 
-		// Ensure community demos are loaded (fallback if +page.svelte load hasn't completed yet).
-		// Primary load happens on page load in +page.svelte so example chats show in for-everyone/for-developers without opening sidebar.
-		loadCommunityDemos().catch(error => {
-			console.error('[Chats] Error loading demo chats from server:', error);
-		});
+		// Example chats are static — no loading needed.
 
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
@@ -2005,10 +1977,8 @@ let _chatUpdatedFlushPending = false;
 		chatListCache.notifySidebarDestroyed();
 
 		window.removeEventListener('language-changed', languageChangeHandler);
-		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		window.removeEventListener('userLoggingOut', handleLogoutEvent);
-		if (languageChangeDemoDebounceTimer) clearTimeout(languageChangeDemoDebounceTimer);
 		if (unsubscribeDraftState) unsubscribeDraftState();
 		if (unsubscribeAuth) unsubscribeAuth();
 		
@@ -2483,7 +2453,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// For authenticated users, load all chats normally
 		if (!$authStore.isAuthenticated) {
 			console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
-			// NOTE: Community demo chats are now stored in-memory (communityDemoStore), not IndexedDB
+			// NOTE: Community demo chats are now stored in-memory (exampleChatStore), not IndexedDB
 			// They're included via visiblePublicChats derived, so we only need to load shared chats here
 			
 			try {
@@ -3003,12 +2973,12 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
      * Handles public chats (demo/legal), regular chats, and incognito chats
      */
     async function getChatDataAndMessages(chatId: string): Promise<{ chat: ChatType | null; messages: Message[] }> {
-        // Check if this is a public chat (intro, community demo, or legal)
+        // Check if this is a public chat (intro, example chat, or legal)
         if (isPublicChat(chatId)) {
             // Find the chat in visiblePublicChats
             const chat = visiblePublicChats.find(c => c.chat_id === chatId);
             if (chat) {
-                // getDemoMessages checks INTRO_CHATS, LEGAL_CHATS, and communityDemoStore
+                // getDemoMessages checks INTRO_CHATS, LEGAL_CHATS, and exampleChatStore
                 const messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
                 return { chat, messages };
             }
