@@ -92,10 +92,6 @@ test.describe('Example chat clone-on-send', () => {
 		console.log('[clone-test] Found example chat in sidebar — clicking it');
 		await exampleChatItem.click();
 
-		// Close sidebar (tests should verify with sidebar closed per project rules)
-		await sidebarToggle.click();
-		await page.waitForTimeout(500);
-
 		// Wait for the example chat to load (messages + embeds)
 		const assistantMessage = page.getByTestId('message-assistant').first();
 		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
