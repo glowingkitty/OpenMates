@@ -1,14 +1,5 @@
 /**
- * App-store examples for the events skill.
- *
- * EU-focused everyday queries (farmers markets in Lyon, family weekend events in Vienna, summer concerts in Amsterdam).
- *
- * Names of specific businesses, doctors, venues and organisers are
- * hand-crafted and clearly fictional (most marked "(fictional)") so
- * the app store never promotes real-world entities. Geography and
- * street names are REAL (EU cities) so maps and addresses render
- * authentically. A "Sample data" banner is shown above the fullscreen
- * via the is_store_example flag set by SkillExamplesSection.
+ * Invented events with real venue coordinates across EU cities. Photos generated via Gemini and served as static assets under /store-examples/.
  */
 
 export interface EventsSearchStoreExample {
@@ -41,13 +32,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Place Sample",
           "city": "Lyon",
-          "country": "France"
+          "country": "France",
+          "lat": 45.764,
+          "lon": 4.8357
         },
         "organizer": {
           "name": "Marché Collective Sample"
         },
         "rsvp_count": 420,
-        "is_paid": false
+        "is_paid": false,
+        "image_url": "/store-examples/events-1.webp",
+        "cover_url": "/store-examples/events-1.webp"
       },
       {
         "id": "ev-1-2",
@@ -62,13 +57,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Parc Invented",
           "city": "Lyon",
-          "country": "France"
+          "country": "France",
+          "lat": 45.7715,
+          "lon": 4.8486
         },
         "organizer": {
           "name": "Terroir Sample"
         },
         "rsvp_count": 1120,
-        "is_paid": true
+        "is_paid": true,
+        "image_url": "/store-examples/events-1.webp",
+        "cover_url": "/store-examples/events-1.webp"
       },
       {
         "id": "ev-1-3",
@@ -83,13 +82,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Atelier Sample",
           "city": "Lyon",
-          "country": "France"
+          "country": "France",
+          "lat": 45.7578,
+          "lon": 4.832
         },
         "organizer": {
           "name": "Atelier Collective Sample"
         },
         "rsvp_count": 45,
-        "is_paid": true
+        "is_paid": true,
+        "image_url": "/store-examples/events-1.webp",
+        "cover_url": "/store-examples/events-1.webp"
       }
     ]
   },
@@ -113,13 +116,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Sample Park",
           "city": "Vienna",
-          "country": "Austria"
+          "country": "Austria",
+          "lat": 48.2047,
+          "lon": 16.4142
         },
         "organizer": {
           "name": "Sample Family Collective"
         },
         "rsvp_count": 520,
-        "is_paid": false
+        "is_paid": false,
+        "image_url": "/store-examples/events-2.webp",
+        "cover_url": "/store-examples/events-2.webp"
       },
       {
         "id": "ev-2-2",
@@ -134,13 +141,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Kleine Bühne Sample",
           "city": "Vienna",
-          "country": "Austria"
+          "country": "Austria",
+          "lat": 48.2092,
+          "lon": 16.3728
         },
         "organizer": {
           "name": "Kindertheater Sample"
         },
         "rsvp_count": 80,
-        "is_paid": true
+        "is_paid": true,
+        "image_url": "/store-examples/events-2.webp",
+        "cover_url": "/store-examples/events-2.webp"
       },
       {
         "id": "ev-2-3",
@@ -155,13 +166,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Donauinsel Sample",
           "city": "Vienna",
-          "country": "Austria"
+          "country": "Austria",
+          "lat": 48.2306,
+          "lon": 16.4128
         },
         "organizer": {
           "name": "Sample Running Club"
         },
         "rsvp_count": 720,
-        "is_paid": false
+        "is_paid": false,
+        "image_url": "/store-examples/events-2.webp",
+        "cover_url": "/store-examples/events-2.webp"
       }
     ]
   },
@@ -185,13 +200,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Sample Garden",
           "city": "Amsterdam",
-          "country": "Netherlands"
+          "country": "Netherlands",
+          "lat": 52.3676,
+          "lon": 4.8833
         },
         "organizer": {
           "name": "Sample Chamber"
         },
         "rsvp_count": 160,
-        "is_paid": true
+        "is_paid": true,
+        "image_url": "/store-examples/events-3.webp",
+        "cover_url": "/store-examples/events-3.webp"
       },
       {
         "id": "ev-3-2",
@@ -206,13 +225,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Invented Brug",
           "city": "Amsterdam",
-          "country": "Netherlands"
+          "country": "Netherlands",
+          "lat": 52.372,
+          "lon": 4.892
         },
         "organizer": {
           "name": "Jazz Collective Sample"
         },
         "rsvp_count": 340,
-        "is_paid": false
+        "is_paid": false,
+        "image_url": "/store-examples/events-3.webp",
+        "cover_url": "/store-examples/events-3.webp"
       },
       {
         "id": "ev-3-3",
@@ -227,13 +250,17 @@ const examples: EventsSearchStoreExample[] = [
         "venue": {
           "name": "Sample Kerk",
           "city": "Amsterdam",
-          "country": "Netherlands"
+          "country": "Netherlands",
+          "lat": 52.3738,
+          "lon": 4.891
         },
         "organizer": {
           "name": "Zomeravond Sample"
         },
         "rsvp_count": 180,
-        "is_paid": true
+        "is_paid": true,
+        "image_url": "/store-examples/events-3.webp",
+        "cover_url": "/store-examples/events-3.webp"
       }
     ]
   }

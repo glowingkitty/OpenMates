@@ -1,14 +1,5 @@
 /**
- * App-store examples for the travel skill.
- *
- * EU destinations only (Lisbon, Austrian Alps, Greek islands). Invented hotel names with real city/region coordinates.
- *
- * Names of specific businesses, doctors, venues and organisers are
- * hand-crafted and clearly fictional (most marked "(fictional)") so
- * the app store never promotes real-world entities. Geography and
- * street names are REAL (EU cities) so maps and addresses render
- * authentically. A "Sample data" banner is shown above the fullscreen
- * via the is_store_example flag set by SkillExamplesSection.
+ * EU destinations only. Invented hotel names with real coordinates. Photos generated once via Gemini image generation and served as static assets under /store-examples/.
  */
 
 export interface TravelStaysStoreExample {
@@ -50,7 +41,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": -9.137,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-1.webp",
+            "original_image": "/store-examples/travel-stays-1.webp"
+          }
+        ]
       },
       {
         "name": "Casa do Tejo Boutique (fictional)",
@@ -74,7 +70,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": -9.131,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-1.webp",
+            "original_image": "/store-examples/travel-stays-1.webp"
+          }
+        ]
       },
       {
         "name": "The Invented Grand Lisboa",
@@ -98,7 +99,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": -9.15,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-1.webp",
+            "original_image": "/store-examples/travel-stays-1.webp"
+          }
+        ]
       },
       {
         "name": "Sample Plaza Inn Lisbon",
@@ -121,7 +127,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": -9.141,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-1.webp",
+            "original_image": "/store-examples/travel-stays-1.webp"
+          }
+        ]
       }
     ]
   },
@@ -154,7 +165,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": 11.387,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-2.webp",
+            "original_image": "/store-examples/travel-stays-2.webp"
+          }
+        ]
       },
       {
         "name": "Silberhorn Berghaus (fictional)",
@@ -178,7 +194,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": 11.396,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-2.webp",
+            "original_image": "/store-examples/travel-stays-2.webp"
+          }
+        ]
       },
       {
         "name": "The Sample Hut",
@@ -201,7 +222,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": 11.376,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-2.webp",
+            "original_image": "/store-examples/travel-stays-2.webp"
+          }
+        ]
       },
       {
         "name": "Bergwald Retreat (fictional)",
@@ -226,7 +252,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": 11.42,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-2.webp",
+            "original_image": "/store-examples/travel-stays-2.webp"
+          }
+        ]
       }
     ]
   },
@@ -254,13 +285,18 @@ const examples: TravelStaysStoreExample[] = [
           "Breakfast included",
           "Family rooms"
         ],
-        "description": "Invited family-friendly resort with a shallow kids pool and invented private beach club.",
+        "description": "Invented family-friendly resort with a shallow kids pool and invented private beach club.",
         "link": "https://example.org/sample-hotel",
         "latitude": 36.395,
         "longitude": 25.461,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-3.webp",
+            "original_image": "/store-examples/travel-stays-3.webp"
+          }
+        ]
       },
       {
         "name": "Palm Cove Aegean Retreat (fictional)",
@@ -283,7 +319,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": 25.376,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-3.webp",
+            "original_image": "/store-examples/travel-stays-3.webp"
+          }
+        ]
       },
       {
         "name": "Sunset Lantern Villas",
@@ -306,7 +347,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": 25.329,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-3.webp",
+            "original_image": "/store-examples/travel-stays-3.webp"
+          }
+        ]
       },
       {
         "name": "The Sample Shoreline Rhodes",
@@ -329,7 +375,12 @@ const examples: TravelStaysStoreExample[] = [
         "longitude": 28.222,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
-        "images": []
+        "images": [
+          {
+            "thumbnail": "/store-examples/travel-stays-3.webp",
+            "original_image": "/store-examples/travel-stays-3.webp"
+          }
+        ]
       }
     ]
   }
