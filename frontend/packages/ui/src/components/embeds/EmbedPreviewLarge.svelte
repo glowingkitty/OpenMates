@@ -163,6 +163,11 @@
       shellHeightStore.set(measuredShellHeight || shellMinHeight);
     }
   });
+
+  // The LAST overlay in a carousel reserves space below for the floating
+  // pagination dots. Putting the reserve on the last overlay (not the shell)
+  // avoids cascading margin-top issues that compound across siblings.
+  let isLastOverlay = $derived(hasMultiple && carouselIndex === carouselTotal - 1);
 </script>
 
 {#if isFirstCard}
@@ -170,7 +175,6 @@
   <div
     bind:this={wrapperEl}
     class="embed-preview-large-wrapper"
-    class:embed-preview-large-wrapper--carousel={hasMultiple}
     style="min-height: {shellMinHeight}px;"
   >
     <div class="embed-preview-large-container">
@@ -221,6 +225,7 @@
   <div
     class="embed-preview-large-wrapper embed-preview-large-overlay"
     class:embed-preview-large-overlay--hidden={!isVisible}
+    class:embed-preview-large-overlay--last={isLastOverlay}
     style="margin-top: -{sharedShellHeight}px;"
   >
     <div class="embed-preview-large-container">
@@ -236,8 +241,11 @@
     width: 100%;
   }
 
-  /* Reserve space below the shell for the pagination dots that float at bottom: -8px. */
-  .embed-preview-large-wrapper--carousel {
+  /* The last overlay reserves space below the carousel for the floating
+     pagination dots. Putting the reserve here (instead of on the shell) keeps
+     the negative margin-top math simple — earlier overlays still align with
+     the shell, and only this one extends the carousel's flow height. */
+  .embed-preview-large-overlay--last {
     margin-bottom: 24px;
   }
 
