@@ -154,9 +154,9 @@
           {selectable}
         />
       {:else if part.type === 'example_chats_group'}
-        <ExampleChatsGroup excludeChatId={chatId} demoChatCategory="for_everyone" />
+        <ExampleChatsGroup excludeChatId={chatId} />
       {:else if part.type === 'dev_example_chats_group'}
-        <ExampleChatsGroup excludeChatId={chatId} demoChatCategory="for_developers" />
+        <ExampleChatsGroup excludeChatId={chatId} />
       {:else if part.type === 'app_store_group'}
         <!-- For-everyone: exclude developer-focused apps -->
         <AppStoreGroup excludeAppIds={DEVELOPER_APP_IDS} />

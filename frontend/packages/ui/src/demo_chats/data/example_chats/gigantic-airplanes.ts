@@ -39,51 +39,7 @@ export const giganticAirplanesChat: ExampleChat = {
     {
       id: "5f815be6-96ef-42c6-a4aa-1b07a2840a16",
       role: "assistant",
-      content: `\`\`\`json
-{"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
-\`\`\`
-
-\`\`\`json
-{"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
-\`\`\`
-
-\`\`\`json
-{"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
-\`\`\`
-
-\`\`\`json
-{"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
-\`\`\`
-
-There are a few "gigantic" airplanes famous for transporting rockets and their components. Depending on whether you mean a plane that carries parts inside it or one that carries a whole shuttle on its back, you are likely thinking of one of these:
-
-### 1. Antonov An-225 Mriya
-The **Antonov An-225 Mriya** was the heaviest aircraft ever built and had the largest wingspan of any aircraft in operational service. It was originally designed by the Soviet Union in the 1980s specifically to transport the **Buran space shuttle** and components of the **Energia rocket** on its back. 
-
-[!](embed:popularmechanics.com-kIm)
-[!](embed:britannica.com-f9U)
-[!](embed:space.com-EES)
-
-### 2. NASA Super Guppy
-If you mean the bulbous, strangely-shaped plane that "swallows" rocket parts, that is the **NASA Super Guppy**. It is used by NASA to transport oversized cargo, such as the **S-IVB stage of the Saturn V rocket** during the Apollo era and, more recently, components for the **Artemis** moon missions. Its nose hinges open to allow massive parts to be loaded directly into its fuselage.
-
-[!](embed:interestingengineering.com-fne)
-[!](embed:nasa.gov-IKy)
-[!](embed:reddit.com-eHx)
-
-### 3. Stratolaunch "Roc"
-The **Stratolaunch Roc** currently holds the record for the world's longest wingspan (385 feet). Unlike the others, it is designed as a **mobile launch platform** to carry rockets to high altitudes between its twin fuselages and release them into space.
-
-[!](embed:jetsprops.com-uun)
-[!](embed:cnet.com-ML7)
-[!](embed:jetsprops.com-opu)
-
-**Which one looks most like the one you saw?**
-- The **An-225** (Soviet/Ukrainian) is a massive six-engine jet.
-- The **Super Guppy** (NASA) looks like a giant, inflated whale.
-- The **Stratolaunch** has two separate bodies (twin-fuselage).
-
-Would you like to know more about the history of the [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) or how the [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) works?`,
+      content: "example_chats.gigantic_airplanes.assistant_message_1",
       created_at: 1775940854,
       category: "general_knowledge",
       model_name: "Gemini 3 Flash",
@@ -97,41 +53,7 @@ Would you like to know more about the history of the [An-225 Mriya](https://en.w
     {
       id: "8bc07ada-624f-4249-99c3-a4643f9b887f",
       role: "assistant",
-      content: `\`\`\`json
-{"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
-\`\`\`
-
-\`\`\`json
-{"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
-\`\`\`
-
-\`\`\`json
-{"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
-\`\`\`
-
-Yes, you're exactly right! Airbus used the original NASA-style **Super Guppies** until the 1990s, but they eventually built their own specialized versions to transport massive wings and fuselage sections between their factories across Europe.
-
-The aircraft you are thinking of is the **Airbus Beluga**. There are two generations:
-
-### 1. Airbus BelugaST (The Original)
-Introduced in 1995, the **BelugaST** (Super Transporter) was based on the Airbus A300-600. It was designed specifically to replace the aging Super Guppy fleet. For nearly 30 years, it was the workhorse that connected Airbus production sites in France, Germany, the UK, and Spain.
-
-[!](embed:airbus.com-lTo)
-[!](embed:aviationa2z.com-fNJ)
-
-### 2. Airbus BelugaXL (The New Version)
-The "new version" you mentioned is the **BelugaXL**, which entered service in 2020. Based on the much larger **Airbus A330**, it was built to keep up with the production of the A350 jetliner. 
-* **Capacity:** It can carry **two A350 wings** at once, whereas the original Beluga could only carry one.
-* **The "Smile":** It is famous for its "smiling whale" livery, which was chosen by Airbus employees in a company-wide vote.
-
-[!](embed:cnn.com-5jh)
-[!](embed:simpleflying.com-N3v)
-[!](embed:gettyimages.com-8Kw)
-
-### Why are they used?
-Airbus builds different parts of its planes in different countries (e.g., wings in the UK, tails in Spain, fuselages in Germany). Because these parts are too large to fit on trains or standard cargo planes, the Beluga "swallows" them through a massive front-opening door and flies them to final assembly lines in **Toulouse, France**, or **Hamburg, Germany**.
-
-Would you like to see a [video of how they load a wing](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) into the BelugaXL, or are you interested in how it compares to Boeing's version, the [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?`,
+      content: "example_chats.gigantic_airplanes.assistant_message_2",
       created_at: 1775947248,
       category: "general_knowledge",
       model_name: "Gemini 3 Flash",
