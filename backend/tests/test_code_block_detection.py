@@ -176,6 +176,33 @@ class TestCodeFenceEdgeCases:
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
         assert result is False
 
+    def test_chunk_has_newline_before_fence(self):
+        """Chunk with newline before ``` — fence is on its own line, should be detected.
+
+        This covers the case where the LLM streams "Here is the code:" in one
+        chunk and "\\n\\n```python\\ncode\\n```" in the next. The ``` is on its
+        own line within the chunk, so it's a real code block even though the
+        aggregated response ends with prose text.
+        """
+        chunk = "\n\n```python\nprint('hello')\n```"
+        aggregated = "Here is the solution:"
+        result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
+        assert result is True, "Chunk with newline before ``` should be treated as real code block"
+
+    def test_chunk_has_single_newline_before_fence(self):
+        """Single newline before ``` in chunk is still a real code block."""
+        chunk = "\n```bash\nls -la\n```"
+        aggregated = "Run this command:"
+        result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
+        assert result is True
+
+    def test_chunk_no_newline_before_fence_inline(self):
+        """No newline before ``` in chunk AND prose in aggregated → inline, skip."""
+        chunk = "```json\n{}\n```"
+        aggregated = "Use this format: "
+        result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
+        assert result is False
+
     def test_inline_fence_exact_production_case(self):
         """Exact reproduction of the production bug from issue 6a948813.
 

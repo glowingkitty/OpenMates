@@ -1691,7 +1691,17 @@ def _should_process_chunk_as_code_block(
     # blockquote markers ("> "). Inline fences like "use ```json blocks" are
     # examples/instructional text and must NOT be converted to embeds.
     # Fix for issue 6a948813.
-    if aggregated_so_far:
+    #
+    # IMPORTANT: If the chunk itself contains a newline before the ```, then the
+    # fence is on its own line regardless of what preceded it in the aggregated
+    # response. E.g., chunk = "\n\n```python\n..." — the ``` is on a new line
+    # even though aggregated_so_far may end with prose text.
+    fence_pos_in_chunk = chunk.find('```')
+    chunk_has_newline_before_fence = (
+        fence_pos_in_chunk > 0 and '\n' in chunk[:fence_pos_in_chunk]
+    )
+
+    if not chunk_has_newline_before_fence and aggregated_so_far:
         last_newline_idx = aggregated_so_far.rfind('\n')
         line_prefix = (
             aggregated_so_far[last_newline_idx + 1:]
