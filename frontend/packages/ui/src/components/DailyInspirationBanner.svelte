@@ -110,8 +110,10 @@
         });
       }
     };
-    window.addEventListener('language-changed', handleLanguageChange);
-    return () => window.removeEventListener('language-changed', handleLanguageChange);
+    // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
+    // to ensure the svelte-i18n locale store is fully settled before re-fetching.
+    window.addEventListener('language-changed-complete', handleLanguageChange);
+    return () => window.removeEventListener('language-changed-complete', handleLanguageChange);
   });
 
   // ─── Passive view tracking via IntersectionObserver ─────────────────────────
@@ -379,7 +381,7 @@
         <!-- ── Top label ── -->
         <div class="banner-label">
           <BookOpen size={14} color="rgba(255,255,255,0.85)" />
-          <span>{$text('daily_inspiration.label')}</span>
+          <span data-testid="daily-inspiration-label">{$text('daily_inspiration.label')}</span>
         </div>
 
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->

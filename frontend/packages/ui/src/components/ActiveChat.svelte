@@ -8303,9 +8303,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Add language change listener to reload public chats (demo + legal + example chats) when language changes
         const handleLanguageChange = async () => {
             try {
+                // Refresh the welcome-screen recent-chats carousel so demo/example
+                // chat titles re-translate to the new locale.
+                carouselInvalidationCounter++;
+
                 // CRITICAL: Use $state.snapshot to get current value in async context
                 const snapshotChat = $state.snapshot(currentChat);
-                
+
                 if (!snapshotChat || !isPublicChat(snapshotChat.chat_id)) {
                     return;
                 }
