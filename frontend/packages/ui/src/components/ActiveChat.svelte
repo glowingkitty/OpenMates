@@ -8336,11 +8336,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (isExampleChat(snapshotChat.chat_id)) {
                     console.debug('[ActiveChat] Language changed - reloading example chat:', snapshotChat.chat_id);
 
-                    // Update the chat header title to the new locale
+                    // Update the chat header title and summary to the new locale
                     const { getExampleChat } = await import('../demo_chats');
                     const translatedExampleChat = getExampleChat(snapshotChat.chat_id);
                     if (translatedExampleChat?.title) {
                         activeChatDecryptedTitle = translatedExampleChat.title;
+                        activeChatDecryptedSummary = translatedExampleChat.chat_summary ?? null;
                     }
 
                     // Get the messages from the static example chat store (always available, no waiting needed)
@@ -8386,8 +8387,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Also ensure each message object is new to force re-rendering
                     currentMessages = newMessages.map(msg => ({ ...msg }));
                     
-                    // Update the chat header title to the new locale
+                    // Update the chat header title and summary to the new locale
                     activeChatDecryptedTitle = translatedChat.title;
+                    activeChatDecryptedSummary = translatedChat.description ?? null;
 
                     // Reload follow-up suggestions with new translations
                     if (translatedChat.follow_up_suggestions) {
