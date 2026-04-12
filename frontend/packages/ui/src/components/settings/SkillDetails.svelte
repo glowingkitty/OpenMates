@@ -154,8 +154,8 @@
         for (let i = 1; i <= 3; i++) {
             const key = `${skill.name_translation_key}.how_to_use.${i}`;
             const translated = $text(key);
-            // Only add if translation exists (not returning the key itself)
-            if (translated && translated !== key) {
+            // Only add if translation exists (not a missing-key placeholder)
+            if (translated && translated !== key && !translated.startsWith('[T:')) {
                 examples.push(translated);
             }
         }

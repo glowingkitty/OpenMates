@@ -84,7 +84,7 @@
             // $text falls back to the raw key when no translation exists;
             // treat that as "no translation available" and use the
             // literal English `query` we captured at fixture time.
-            if (translated && translated !== key) return translated;
+            if (translated && translated !== key && !translated.startsWith('[T:')) return translated;
         }
         const raw = example.query;
         return typeof raw === 'string' ? raw : undefined;
