@@ -103,8 +103,12 @@ async function switchLanguage(
 	// Wait for translations to load
 	await page.waitForTimeout(2500);
 
-	// Close settings by clicking the profile container again (toggles the menu)
-	await profileBtn.click();
+	// Close settings via the close (X) button inside the settings panel.
+	// The close-icon-container overlaps the profile-container, making
+	// profileBtn.click() fail with "pointer events intercepted".
+	const closeBtn = page.locator('[data-testid="icon-button-close"]');
+	await expect(closeBtn).toBeVisible({ timeout: 5000 });
+	await closeBtn.click();
 	await page.waitForTimeout(800);
 
 	// Verify locale was applied
