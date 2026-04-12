@@ -172,43 +172,5 @@ export function getExampleChatCount(): number {
   return ALL_EXAMPLE_CHATS.length;
 }
 
-/**
- * Resolve an i18n key to English text for server-side SEO rendering.
- * Imports the English locale JSON from the UI package and traverses
- * the nested structure using dot-separated key paths.
- *
- * Used by SEO server pages where the Svelte text store is not available.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _enLocaleCache: Record<string, any> | null = null;
-
-export function resolveExampleChatI18nKey(key: string): string {
-  if (!key.startsWith("example_chats.")) return key;
-
-  // Lazy-load the English locale (cached after first call)
-  if (!_enLocaleCache) {
-    try {
-      // Dynamic require to avoid bundling issues — this runs server-side only
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      _enLocaleCache = require("../i18n/locales/en.json");
-    } catch {
-      // Fallback: return key as-is if locale file can't be loaded
-      return key;
-    }
-  }
-
-  // Traverse the nested JSON: "example_chats.gigantic_airplanes.title"
-  const parts = key.split(".");
-  let current: unknown = _enLocaleCache;
-  for (const part of parts) {
-    if (current == null || typeof current !== "object") return key;
-    current = (current as Record<string, unknown>)[part];
-  }
-
-  // Leaf value is { text: "..." } in the generated JSON
-  if (current && typeof current === "object" && "text" in current) {
-    return (current as { text: string }).text;
-  }
-  if (typeof current === "string") return current;
-  return key;
-}
+// resolveExampleChatI18nKey is in a separate server-only module to avoid
+// bundling en.json (400KB) into the client. See ./resolveI18nServer.ts

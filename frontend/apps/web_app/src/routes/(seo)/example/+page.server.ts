@@ -4,7 +4,8 @@
 // All data comes from static hardcoded example chats — no backend API calls needed.
 
 import type { PageServerLoad } from './$types';
-import { getAllExampleChatData, resolveExampleChatI18nKey as t } from '@repo/ui';
+import { getAllExampleChatData } from '@repo/ui';
+import { resolveExampleChatI18nKey as t } from '@repo/ui/src/demo_chats/resolveI18nServer';
 import { getSiteOrigin } from '$lib/backendUrl';
 
 export const load: PageServerLoad = async ({ setHeaders, url }) => {

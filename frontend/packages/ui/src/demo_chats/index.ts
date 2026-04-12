@@ -36,7 +36,6 @@ export {
   getExampleChatData,
   getAllExampleChatData,
   getExampleChatCount,
-  resolveExampleChatI18nKey,
 } from "./exampleChatStore";
 
 /** Load published default Daily Inspirations from server on page load. */
