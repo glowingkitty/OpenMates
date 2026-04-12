@@ -254,12 +254,28 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	});
 	await takeStepScreenshot(page, 'logged-out');
 
+	// Dismiss version banner again if it reappeared after logout
+	if (await versionBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
+		const dismissBtn2 = page.getByRole('button', { name: /dismiss notification/i });
+		if (await dismissBtn2.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await dismissBtn2.click();
+			await page.waitForTimeout(500);
+		}
+	}
+
 	// Login with password only (no OTP expected)
 	const loginButtonAfterLogout = page.getByRole('button', {
 		name: /login.*sign up|sign up/i
 	});
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
+
+	// Switch to Login tab (dialog may default to Sign up tab after a fresh signup)
+	const loginTab = page.getByTestId('tab-login');
+	if (await loginTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await loginTab.click();
+		await page.waitForTimeout(500);
+	}
 
 	// Use broader selector to handle both login dialog variants (name="username" or id="login-email-input").
 	const emailInputRelogin = page.locator('#login-email-input, input[type="email"][name="username"]').first();
