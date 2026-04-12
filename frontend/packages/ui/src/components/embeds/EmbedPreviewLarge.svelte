@@ -145,8 +145,12 @@
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         isExpanded = entry.contentRect.width > 400;
-        // entry.contentRect.height excludes border; offsetHeight includes it.
-        measuredShellHeight = (entry.target as HTMLElement).offsetHeight;
+        const el = entry.target as HTMLElement;
+        // Include margin-bottom in the measurement so overlay translateY
+        // accounts for the flow gap created by the dots spacing margin
+        // (which collapses through the TipTap node-view wrapper div).
+        const mb = parseFloat(getComputedStyle(el).marginBottom) || 0;
+        measuredShellHeight = el.offsetHeight + mb;
       }
     });
     ro.observe(wrapperEl);
