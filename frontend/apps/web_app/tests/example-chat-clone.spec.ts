@@ -32,9 +32,6 @@ const {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-// The example chat with embeds (flights — has 7 embeds including connections and a sheet)
-const EXAMPLE_CHAT_ID = 'example-flights-berlin-bangkok';
-
 test.describe('Example chat clone-on-send', () => {
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -82,16 +79,26 @@ test.describe('Example chat clone-on-send', () => {
 		await page.waitForTimeout(5000);
 
 		// ── Step 2: Navigate to the example chat ───────────────────────────────
-		await page.goto(getE2EDebugUrl(`/#${EXAMPLE_CHAT_ID}`));
-		await page.waitForTimeout(3000);
+		// After login we land on the welcome "for-everyone" intro chat which shows
+		// the ExampleChatsGroup carousel. Click the first example chat card to
+		// navigate into it — this dispatches a demoChatSelected event which
+		// +page.svelte handles reliably (unlike raw hash navigation).
+		const chatCards = page.getByTestId('example-chats-group').locator('[data-testid="chat-embed-card"]');
+		await expect(chatCards.first()).toBeVisible({ timeout: 30000 });
+		console.log('[clone-test] Example chat cards visible — clicking first card');
+		await chatCards.first().click();
 
-		// Verify example chat loaded — assistant message should be visible
+		// Wait for the example chat to load (messages + embeds)
 		const assistantMessage = page.getByTestId('message-assistant').first();
 		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
 		console.log('[clone-test] Example chat loaded with assistant message');
 
 		// Wait for embeds to render in the example chat
 		await page.waitForTimeout(5000);
+
+		// Capture which example chat we landed on (from URL hash)
+		const exampleChatHash = await page.evaluate(() => window.location.hash.replace('#', ''));
+		console.log(`[clone-test] Loaded example chat: ${exampleChatHash}`);
 
 		// Count embeds in the example chat BEFORE cloning
 		const embedsBeforeClone = await page.locator('[data-testid="embed-preview"]').count();
@@ -124,15 +131,15 @@ test.describe('Example chat clone-on-send', () => {
 		const currentHash = await page.evaluate(() => window.location.hash);
 		console.log(`[clone-test] Current URL hash after send: ${currentHash}`);
 
-		// The hash should contain a UUID (real chat), NOT the example chat ID
+		// The hash should contain a UUID (real chat), NOT an example-* prefixed chat
 		expect(
 			currentHash,
 			'After sending, URL should navigate away from the example chat'
-		).not.toContain(EXAMPLE_CHAT_ID);
+		).not.toContain('example-');
 
 		// Verify the clone conversion log appeared
 		const conversionLog = consoleLogs.find(
-			(l) => l.includes('Converting public chat') && l.includes(EXAMPLE_CHAT_ID)
+			(l) => l.includes('Converting public chat') && l.includes('example-')
 		);
 		console.log(`[clone-test] Conversion log found: ${!!conversionLog}`);
 		expect(
@@ -228,7 +235,7 @@ test.describe('Example chat clone-on-send', () => {
 		// ── Cleanup: delete the cloned chat ────────────────────────────────────
 		// Extract chat ID from URL hash for cleanup
 		const newChatId = currentHash.replace('#', '');
-		if (newChatId && newChatId !== EXAMPLE_CHAT_ID) {
+		if (newChatId && !newChatId.startsWith('example-')) {
 			console.log(`[clone-test] Cleanup: would delete cloned chat ${newChatId}`);
 			// Chat deletion is handled by the test infrastructure teardown
 		}
