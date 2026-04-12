@@ -40,6 +40,12 @@ export function proxyImage(
   if (url.startsWith(`${PREVIEW_BASE}/api/v1/image`) || url.startsWith("data:")) {
     return url;
   }
+  // Local / same-origin paths (e.g., /store-examples/home-1.webp) are served
+  // directly by the web app and must NOT be routed through the external image
+  // proxy — the proxy can't resolve relative URLs. Return them as-is.
+  if (url.startsWith("/")) {
+    return url;
+  }
   const params = new URLSearchParams({ url });
   if (maxWidth !== undefined) {
     params.set("max_width", maxWidth.toString());
