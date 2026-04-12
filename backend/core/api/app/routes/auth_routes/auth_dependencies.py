@@ -68,23 +68,17 @@ async def get_current_user(
     cached_data = await cache_service.get_user_by_token(refresh_token)
 
     if cached_data:
-        # CRITICAL: Validate required fields before creating User object - fail fast if missing
-        # These fields are required by the User model and must not be None
+        # Validate required fields before creating User object.
+        # If any are missing, evict the corrupt cache entry and fall through
+        # to the DB lookup below instead of returning a hard 500 error.
         cached_user_id = cached_data.get("user_id")
         cached_username = cached_data.get("username")
         cached_vault_key_id = cached_data.get("vault_key_id")
-        
-        if not cached_user_id:
-            logger.error("CRITICAL: user_id is missing from cached data for token")
-            raise HTTPException(status_code=500, detail="User data incomplete: missing user ID")
-        
-        if not cached_username:
-            logger.error(f"CRITICAL: username is missing from cached data for user {cached_user_id}")
-            raise HTTPException(status_code=500, detail="User data incomplete: missing username")
-        
-        if not cached_vault_key_id:
-            logger.error(f"CRITICAL: vault_key_id is missing from cached data for user {cached_user_id}")
-            raise HTTPException(status_code=500, detail="User data incomplete: missing encryption key")
+
+        if not cached_user_id or not cached_username or not cached_vault_key_id:
+            missing = [f for f, v in [("user_id", cached_user_id), ("username", cached_username), ("vault_key_id", cached_vault_key_id)] if not v]
+            logger.warning(f"Corrupt cached session data (missing: {missing}) — falling through to DB lookup")
+            cached_data = None
         
         # Ensure all fields expected by the User model are present, providing defaults if necessary
         return User(
