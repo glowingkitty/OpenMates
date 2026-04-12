@@ -79,14 +79,22 @@ test.describe('Example chat clone-on-send', () => {
 		await page.waitForTimeout(5000);
 
 		// ── Step 2: Navigate to the example chat ───────────────────────────────
-		// After login we land on the welcome "for-everyone" intro chat which shows
-		// the ExampleChatsGroup carousel. Click the first example chat card to
-		// navigate into it — this dispatches a demoChatSelected event which
-		// +page.svelte handles reliably (unlike raw hash navigation).
-		const chatCards = page.getByTestId('example-chats-group').locator('[data-testid="chat-embed-card"]');
-		await expect(chatCards.first()).toBeVisible({ timeout: 30000 });
-		console.log('[clone-test] Example chat cards visible — clicking first card');
-		await chatCards.first().click();
+		// Open sidebar, find an example chat entry and click it.
+		// Example chats appear in the sidebar's "Last 7 days" group.
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		await expect(sidebarToggle).toBeVisible({ timeout: 5000 });
+		await sidebarToggle.click();
+		await page.waitForTimeout(2000);
+
+		// Example chats have chat_id starting with "example-" — find one in the sidebar
+		const exampleChatItem = page.locator('[data-testid="chat-item-wrapper"][data-chat-id^="example-"]').first();
+		await expect(exampleChatItem).toBeVisible({ timeout: 15000 });
+		console.log('[clone-test] Found example chat in sidebar — clicking it');
+		await exampleChatItem.click();
+
+		// Close sidebar (tests should verify with sidebar closed per project rules)
+		await sidebarToggle.click();
+		await page.waitForTimeout(500);
 
 		// Wait for the example chat to load (messages + embeds)
 		const assistantMessage = page.getByTestId('message-assistant').first();
