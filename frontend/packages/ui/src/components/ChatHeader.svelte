@@ -49,6 +49,7 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import { isSettingsOpen } from '../stores/panelStateStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,6 @@
     /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
      *  and "Incognito Mode" as the title. Overrides all other visual states. */
     isIncognito = false,
-    settingsOpen = false,
   }: {
     title?: string;
     category?: string | null;
@@ -75,7 +75,6 @@
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
     isIncognito?: boolean;
-    settingsOpen?: boolean;
   } = $props();
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -294,7 +293,7 @@
 <div
   class="chat-header-banner"
   class:is-loaded={isLoaded}
-  class:settings-open={settingsOpen}
+  class:settings-open={$isSettingsOpen}
   style={bannerStyle}
 >
   <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
