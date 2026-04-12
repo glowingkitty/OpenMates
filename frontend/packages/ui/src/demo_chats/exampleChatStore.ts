@@ -11,6 +11,7 @@ import type { Chat, Message } from "../types/chat";
 import type { ExampleChat, ExampleChatEmbed } from "./types";
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
+import { embedStore } from "../services/embedStore";
 
 // Import all example chats
 import { giganticAirplanesChat } from "./data/example_chats/gigantic-airplanes";
@@ -103,6 +104,42 @@ for (const example of ALL_EXAMPLE_CHATS) {
   chatBySlug.set(example.slug, example);
   for (const embed of example.embeds) {
     embedById.set(embed.embed_id, { embed, chatId: example.chat_id });
+  }
+}
+
+// ============================================================================
+// EMBED REGISTRATION — register embed_ref → embed_id mappings
+// ============================================================================
+
+/** Regex to extract embed_ref from TOON content */
+const EMBED_REF_RE = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
+const APP_ID_RE = /^app_id:\s*"?([^\n"]+)"?\s*$/m;
+
+/**
+ * Register all example chat embed_ref → embed_id mappings in the embedStore.
+ * This must be called once so inline embed references in messages
+ * (e.g. [!](embed:popularmechanics.com-kIm)) can be resolved to embed UUIDs.
+ */
+export function registerExampleChatEmbedRefs(): void {
+  let registered = 0;
+  for (const example of ALL_EXAMPLE_CHATS) {
+    for (const embed of example.embeds) {
+      if (!embed.content || !embed.embed_id) continue;
+      const refMatch = embed.content.match(EMBED_REF_RE);
+      if (!refMatch) continue;
+      const appIdMatch = embed.content.match(APP_ID_RE);
+      embedStore.registerEmbedRef(
+        refMatch[1].trim(),
+        embed.embed_id,
+        appIdMatch ? appIdMatch[1].trim() : null,
+      );
+      registered++;
+    }
+  }
+  if (registered > 0) {
+    console.debug(
+      `[exampleChatStore] Registered ${registered} embed_ref mappings for example chats`,
+    );
   }
 }
 

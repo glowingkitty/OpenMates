@@ -50,6 +50,7 @@
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
 		loadDefaultInspirations,
+		registerExampleChatEmbedRefs,
 		DevConsole,
 		openSearch,
 		notFoundPathStore
@@ -204,6 +205,28 @@
 
 		// Update the activeChatStore so the Chats component highlights it when opened
 		activeChatStore.setActiveChat(chatId);
+
+		// Check if this is an example chat (hardcoded with embeds)
+		const { isExampleChat, getExampleChat } = await import('@repo/ui');
+		if (isExampleChat(chatId)) {
+			const exampleChatObj = getExampleChat(chatId);
+			if (exampleChatObj && activeChat) {
+				// Example chats are static — load directly (embed refs already registered on page load)
+				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse });
+
+				const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+					detail: { chat: exampleChatObj },
+					bubbles: true,
+					composed: true
+				});
+				window.dispatchEvent(globalChatSelectedEvent);
+
+				if (embedId) {
+					await handleEmbedDeepLink(embedId);
+				}
+				return;
+			}
+		}
 
 		// Check if this is a demo or legal chat (public chat)
 		const { getPublicChatById, convertDemoChatToChat, translateDemoChat } =
@@ -961,7 +984,9 @@
 			}
 		}
 
-		// Example chats are now hardcoded — no loading needed.
+		// Register example chat embed_ref → embed_id mappings so inline embed
+		// references in example chat messages resolve correctly.
+		registerExampleChatEmbedRefs();
 
 		// Load default Daily Inspirations from server (published entries curated by admin).
 		// Populates dailyInspirationStore only if it is still empty (personalized ones via
