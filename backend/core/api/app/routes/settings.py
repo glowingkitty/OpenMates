@@ -3391,11 +3391,11 @@ async def request_action_verification(
 
     # Get the user's decrypted email for sending the OTP
     try:
-        user_profile = await directus_service.get_user_profile(user_id)
-        if not user_profile:
+        success, user_profile, msg = await directus_service.get_user_profile(user_id)
+        if not success or not user_profile:
             raise HTTPException(status_code=404, detail="User profile not found")
 
-        encrypted_email = user_profile.get("encrypted_email")
+        encrypted_email = user_profile.get("encrypted_email_address")
         if not encrypted_email:
             raise HTTPException(status_code=400, detail="No email on file")
 
