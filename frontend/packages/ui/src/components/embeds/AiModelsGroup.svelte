@@ -72,6 +72,7 @@
       {#each aiAskModels as model (model.id)}
         <button
           class="model-card"
+          data-testid="ai-model-card"
           onclick={() => handleModelSelect(model)}
           type="button"
           aria-label={`${model.name} - ${model.provider_name}`}
