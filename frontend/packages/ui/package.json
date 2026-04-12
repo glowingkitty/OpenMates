@@ -14,6 +14,10 @@
       "svelte": "./src/demo_chats/index.ts",
       "default": "./src/demo_chats/index.ts"
     },
+    "./src/demo_chats/resolveI18nServer": {
+      "types": "./src/demo_chats/resolveI18nServer.ts",
+      "default": "./src/demo_chats/resolveI18nServer.ts"
+    },
     "./legal": {
       "types": "./src/legal/index.ts",
       "svelte": "./src/legal/index.ts",
