@@ -1932,12 +1932,14 @@ let _chatUpdatedFlushPending = false;
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
 		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
-		// If sync was already completed before this component mounted, ensure we have the latest data
-		// This handles the case where the sidebar was closed during sync (common on mobile)
-		// We intentionally stay on Tier 1 (11 chats) — user clicks "Show more" to see the rest
+		// If sync was already completed before this component mounted, do a FORCED full
+		// IDB read. The cold-boot load above used limit=20 (for fast first paint), and
+		// the Phase 2/3 events fired while the sidebar was closed — so the cache is stale
+		// with only 20 chats. A forced read bypasses the cache and loads ALL chats from IDB.
 		if ($phasedSyncState.initialSyncCompleted) {
-			await updateChatListFromDB();
-			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+			console.debug('[Chats] Sync was already complete on mount — forced full IDB read:', allChatsFromDB.length, 'chats loaded');
 		}
 
 		// SEARCH RESTORE: If the search store has an active query when this component mounts
