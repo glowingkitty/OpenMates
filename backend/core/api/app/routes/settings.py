@@ -3177,6 +3177,7 @@ ACTION_VERIFICATION_CODE_TTL = 600
 class RequestActionVerificationRequest(BaseModel):
     """Request model for sending an email OTP code for a sensitive action."""
     action: str  # The action being verified (e.g. "delete_account")
+    email_encryption_key: str  # Client-side NaCl key (base64) for decrypting encrypted_email_address
 
 
 class RequestActionVerificationResponse(BaseModel):
@@ -3389,7 +3390,9 @@ async def request_action_verification(
     if body.action not in ALLOWED_VERIFICATION_ACTIONS:
         raise HTTPException(status_code=400, detail=f"Unknown action: {body.action}")
 
-    # Get the user's decrypted email for sending the OTP
+    # Get the user's decrypted email for sending the OTP.
+    # encrypted_email_address is NaCl client-side encrypted (TweetNaCl secretbox),
+    # so we need the client-provided email_encryption_key to decrypt it.
     try:
         success, user_profile, msg = await directus_service.get_user_profile(user_id)
         if not success or not user_profile:
@@ -3399,9 +3402,8 @@ async def request_action_verification(
         if not encrypted_email:
             raise HTTPException(status_code=400, detail="No email on file")
 
-        vault_key_id = user_profile.get("vault_key_id", "")
-        decrypted_email = await encryption_service.decrypt_with_user_key(
-            encrypted_email, vault_key_id
+        decrypted_email = await encryption_service.decrypt_with_email_key(
+            encrypted_email, body.email_encryption_key
         )
         if not decrypted_email:
             raise HTTPException(status_code=500, detail="Could not decrypt email")
