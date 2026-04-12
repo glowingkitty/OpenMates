@@ -40,7 +40,7 @@
   // Carousel layout (for consecutive runs of highlighted embeds):
   //   - The FIRST card (carouselIndex === 0) is always rendered as the "shell"
   //     and holds the left/right navigation arrows.
-  //   - Non-first cards overlay on top using negative margin.
+  //   - Non-first cards overlay on top via position:absolute + translateY.
   //   - All cards stay mounted; visibility crossfades via opacity for smooth transitions.
   //
   // Architecture: See docs/architecture/embeds.md for rendering pipeline.
@@ -91,7 +91,7 @@
     return unsub;
   });
 
-  /** Shell height written by the first card, read by overlay cards for negative margin. */
+  /** Shell height written by the first card, read by overlay cards for translateY. */
   let sharedShellHeight = $state(215);
   $effect(() => {
     const unsub = shellHeightStore.subscribe((value) => {
@@ -136,9 +136,8 @@
   let wrapperEl = $state<HTMLElement | null>(null);
   let isExpanded = $state(false);
 
-  // First card's measured rendered height — published to overlays so their negative
-  // margin matches the actual rendered shell, not the static min-height (which can
-  // mismatch the rendered content and cause a vertical jump on carousel navigation).
+  // First card's measured rendered height — published to overlays so their
+  // translateY matches the actual rendered shell precisely.
   let measuredShellHeight = $state(0);
 
   onMount(() => {
@@ -157,7 +156,7 @@
   let shellMinHeight = $derived(isExpanded ? 365 : 215);
 
   // First card publishes its actual rendered height so overlay cards can match
-  // the negative margin precisely. Falls back to shellMinHeight before measurement.
+  // the translateY precisely. Falls back to shellMinHeight before measurement.
   $effect(() => {
     if (isFirstCard) {
       shellHeightStore.set(measuredShellHeight || shellMinHeight);
@@ -218,14 +217,18 @@
     {/if}
   </div>
 {:else if hasMultiple}
-  <!-- Non-first cards: absolute overlay -->
-  <div
-    class="embed-preview-large-wrapper embed-preview-large-overlay"
-    class:embed-preview-large-overlay--hidden={!isVisible}
-    style="margin-top: -{sharedShellHeight}px; min-height: {shellMinHeight}px;"
-  >
-    <div class="embed-preview-large-container">
-      <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+  <!-- Non-first cards: zero-height anchor keeps overlays out of document flow.
+       The overlay is position:absolute inside, painted over the shell via
+       transform, so it contributes 0px to the carousel's flow height. -->
+  <div class="embed-preview-large-overlay-anchor">
+    <div
+      class="embed-preview-large-overlay"
+      class:embed-preview-large-overlay--hidden={!isVisible}
+      style="transform: translateY(-{sharedShellHeight}px);"
+    >
+      <div class="embed-preview-large-container">
+        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+      </div>
     </div>
   </div>
 {/if}
@@ -268,10 +271,21 @@
     pointer-events: none;
   }
 
-  /* ── Non-first cards: overlay ────────────────────────────────────────────── */
-  /* margin-top is set dynamically via style binding based on isExpanded */
-  .embed-preview-large-overlay {
+  /* ── Non-first cards: out-of-flow overlay ─────────────────────────────────
+     The anchor is 0px tall in flow so overlays never affect the carousel's
+     flow height — only the shell does. The overlay is position:absolute
+     inside the anchor and uses transform to slide over the shell. */
+  .embed-preview-large-overlay-anchor {
+    height: 0;
+    overflow: visible;
     position: relative;
+  }
+
+  .embed-preview-large-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     z-index: var(--z-index-raised-2);
     opacity: 1;
     transition: opacity var(--duration-normal) var(--easing-default);
