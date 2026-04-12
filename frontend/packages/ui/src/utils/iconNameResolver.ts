@@ -48,6 +48,12 @@ export const ICON_NAME_MAP: Record<string, string> = {
     'key': 'security_key',
     'low_balance': 'coins',
     'secrets': 'lock',
+    // App IDs that differ from their SVG icon filenames
+    // (e.g. app ID "code" uses coding.svg → --icon-url-coding)
+    'books': 'book',
+    'code': 'coding',
+    'events': 'event',
+    'health': 'heart',
     // Icon names that don't match SVG filenames
     'api-keys': 'coding',
     'app-ai': 'ai',

@@ -81,6 +81,7 @@ changes to the documentation (to keep the documentation up to date).
         getLucideIcon,
         getValidIconName,
     } from '../utils/categoryUtils';
+    import { resolveIconName } from '../utils/iconNameResolver';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     
     // Import the normal store instead of the derived one that was causing the error
@@ -913,7 +914,7 @@ changes to the documentation (to keep the documentation up to date).
             const appMeta = appSkillsStore.getState().apps['reminder'];
             if (!appMeta) return null;
             const rawIcon = appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             return {
                 appId: 'reminder',
                 itemName: $text('reminder.settings.create_title'),
@@ -929,7 +930,7 @@ changes to the documentation (to keep the documentation up to date).
             const appMeta = appSkillsStore.getState().apps['reminder'];
             if (!appMeta) return null;
             const rawIcon = appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             const isEdit = activeSettingsView.endsWith('/edit');
             return {
                 appId: 'reminder',
@@ -957,7 +958,7 @@ changes to the documentation (to keep the documentation up to date).
             if (!skill) return null;
             // Derive icon name from skill's icon_image (strip .svg); fall back to app icon
             const rawIcon = skill.icon_image || appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             return {
                 appId,
                 itemName: skill.name_translation_key ? $text(skill.name_translation_key) : itemId,
@@ -975,7 +976,7 @@ changes to the documentation (to keep the documentation up to date).
             const focus = appMeta.focus_modes.find(f => f.id === itemId);
             if (!focus) return null;
             const rawIcon = focus.icon_image || appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             return {
                 appId,
                 itemName: focus.name_translation_key ? $text(focus.name_translation_key) : itemId,
@@ -993,7 +994,7 @@ changes to the documentation (to keep the documentation up to date).
             const cat = appMeta.settings_and_memories.find(c => c.id === itemId);
             if (!cat) return null;
             const rawIcon = cat.icon_image || appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             
             // Check for deeper sub-routes: create or entry detail
             const subRoute = activeSettingsView.replace(
