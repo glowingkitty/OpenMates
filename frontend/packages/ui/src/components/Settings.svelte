@@ -2346,7 +2346,13 @@ changes to the documentation (to keep the documentation up to date).
                     const translationKeyParts = cleanPath.split('/').map(segment => segment.replace(/-/g, '_'));
                     translationKey = `settings.${translationKeyParts.join('.')}`;
                 }
-                const title = $text(translationKey);
+
+                // For ai/model/* and ai/provider/* deep links, don't pass a title —
+                // handleOpenSettings resolves the name from modelsMetadata / providersMetadata.
+                // The auto-generated translation key (e.g. settings.ai.model.claude_opus_4_6)
+                // doesn't exist and would show a raw [T:...] placeholder.
+                const isAiDetailRoute = /^ai\/(model|provider)\//.test(cleanPath);
+                const title = isAiDetailRoute ? undefined : $text(translationKey);
 
                 handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {
