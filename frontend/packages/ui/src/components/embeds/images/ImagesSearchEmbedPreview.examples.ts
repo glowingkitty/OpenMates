@@ -1,139 +1,140 @@
 /**
  * App-store examples for the images skill.
  *
- * Captured from real Brave image search responses, trimmed to 4 images per query.
+ * Captured from real Brave image search. Includes one Artemis II space-mission example plus two everyday lifestyle queries.
  */
 
 export interface ImagesSearchStoreExample {
   id: string;
   query: string;
   query_translation_key?: string;
-  provider: string;
+  provider?: string;
   status: 'finished';
   results: Array<Record<string, unknown>>;
+  url?: string;
 }
 
 const examples: ImagesSearchStoreExample[] = [
   {
     "id": "store-example-images-search-1",
-    "query": "Golden Gate Bridge at sunset",
+    "query": "Artemis II mission",
     "query_translation_key": "settings.app_store_examples.images.search.1",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
       {
-        "title": "Golden gate bridge at sunset with a beautiful warm fog",
-        "source_page_url": "https://stock.adobe.com/search?k=golden+gate+bridge+sunset",
-        "image_url": "https://t3.ftcdn.net/jpg/16/21/48/10/360_F_1621481048_6D6tbExgmW4s0e3RL8e6FWHRVbEzAyZs.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/uarSor2VWylwjFcQDYFwq3QDSD1IelteH3RzPszjTI4/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly90My5m/dGNkbi5uZXQvanBn/LzE2LzIxLzQ4LzEw/LzM2MF9GXzE2MjE0/ODEwNDhfNkQ2dGJF/eGdtVzRzMGUzUkw4/ZTZGV0hSVmJFekF5/WnMuanBn",
-        "source": "stock.adobe.com",
-        "favicon_url": "https://imgs.search.brave.com/ZxIJGoK8dKjPx3r6T5VEe1HXg5wLOSkejXoCy5fIufQ/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTFhMDJkZGQ1/OWEwZTBhOGJjODU2/ZDcwNTQ1MzYyYmNm/NDlhYTY4Y2FhYjY4/MjYzNTgxMWUwM2Q3/YmJmZTQ2ZS9zdG9j/ay5hZG9iZS5jb20v"
+        "title": "At 12:40 p.m. EST, Dec. 11, 2022, NASA’s Orion spacecraft for the Artemis I mission splashed down in the Pacific Ocean after a 25.5 day mission to the Moon",
+        "source_page_url": "https://www.space.com/space-exploration/artemis/artemis-2-moon-astronauts-splashdown-what-to-expect-reentry-landing-timeline",
+        "image_url": "https://cdn.mos.cms.futurecdn.net/2NrqVWr8P5MiANHpgRsdh8.jpg",
+        "thumbnail_url": "https://imgs.search.brave.com/jmRnMoUhSHfPgE01gyxquQwj08Xe0haI7Bze6gcUji8/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jZG4u/bW9zLmNtcy5mdXR1/cmVjZG4ubmV0LzJO/cnFWV3I4UDVNaUFO/SHBnUnNkaDguanBn",
+        "source": "space.com",
+        "favicon_url": "https://imgs.search.brave.com/3XCWt_c3BOddJsusRhNQvWZ04Lxr1r3p5zwYi96n5Pw/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYjQ1NzY5OGQ2/YmQ3ODRkMDExMjg1/NzJhMTQyZWI3NmQ5/ZDhkNDkzNGZlNGJj/MGRmNmVhNTAyOWRm/ZmQxYWM3Mi93d3cu/c3BhY2UuY29tLw"
       },
       {
-        "title": "Waves crash near Fort Point beneath the Golden Gate Bridge at sunset.",
-        "source_page_url": "https://www.sftravel.com/things-to-do/attractions/iconic-sf/golden-gate-bridge",
-        "image_url": "https://www.sftravel.com/sites/default/files/styles/square_medium/public/2022-10/golden-gate-bridge-sunset-fort-point.jpg.webp?itok=8A1-xfpW",
-        "thumbnail_url": "https://imgs.search.brave.com/mSXvJpRFdNsIdipP8SNXkJ5Bi8JuiNnEX8psxqHW0mk/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly93d3cu/c2Z0cmF2ZWwuY29t/L3NpdGVzL2RlZmF1/bHQvZmlsZXMvc3R5/bGVzL3NxdWFyZV9t/ZWRpdW0vcHVibGlj/LzIwMjItMTAvZ29s/ZGVuLWdhdGUtYnJp/ZGdlLXN1bnNldC1m/b3J0LXBvaW50Lmpw/Zy53ZWJwP2l0b2s9/OEExLXhmcFc",
-        "source": "sftravel.com",
-        "favicon_url": "https://imgs.search.brave.com/QY6jgH2_jyWAbOVO_WeJMaJ4y7NroO9Qwq71N0dqGGQ/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOGY1ZmEwYWU5/ZTI3ZWRhZGFiMDIw/OGU4ODk4OGYxYzhm/OWY2NWNiMWMyN2M4/NTk1N2FhNzJlODMy/NTBlMWJmOC93d3cu/c2Z0cmF2ZWwuY29t/Lw"
+        "title": "The Artemis II mission crew in the Orion spacecraft",
+        "source_page_url": "https://www.bbc.com/news/articles/ce8jzr423p9o",
+        "image_url": "https://ichef.bbci.co.uk/news/480/cpsprodpb/ca4a/live/ae932730-3430-11f1-a207-8b959fccb503.jpg.webp",
+        "thumbnail_url": "https://imgs.search.brave.com/cMID9fZoKueMH5yWJxdax5gWSAKxcqwCz9_AuxbK8DI/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pY2hl/Zi5iYmNpLmNvLnVr/L25ld3MvNDgwL2Nw/c3Byb2RwYi9jYTRh/L2xpdmUvYWU5MzI3/MzAtMzQzMC0xMWYx/LWEyMDctOGI5NTlm/Y2NiNTAzLmpwZy53/ZWJw",
+        "source": "bbc.com",
+        "favicon_url": "https://imgs.search.brave.com/-9uoAONEhH31ac708C2NinDM9OjKbNcruJo3O1baQTM/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYTljMGQ4ZTFj/YzcwNTIyYTU4ZDk4/ZTg5NTQ0NGQyYjQy/NzU3NTMxNDRjZGFi/NjFkMmRiNGE1MGE5/ZDhhOWMyZS93d3cu/YmJjLmNvbS8"
       },
       {
-        "title": "a view of the golden gate bridge at sunset",
-        "source_page_url": "https://unsplash.com/photos/a-view-of-the-golden-gate-bridge-at-sunset-GDljLNvdY_w",
-        "image_url": "https://images.unsplash.com/photo-1643005842873-3855db918670?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA==",
-        "thumbnail_url": "https://imgs.search.brave.com/xbYXYOYo5xt7H0RaZTHvN03DYejDG-yKJh29wyikxfU/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pbWFn/ZXMudW5zcGxhc2gu/Y29tL3Bob3RvLTE2/NDMwMDU4NDI4NzMt/Mzg1NWRiOTE4Njcw/P2ZtPWpwZyZxPTYw/Jnc9MzAwMCZpeGxp/Yj1yYi00LjEuMCZp/eGlkPU0zd3hNakEz/ZkRCOE1IeHdhRzkw/Ynkxd1lXZGxmSHg4/ZkdWdWZEQjhmSHg4/ZkE9PQ",
-        "source": "unsplash.com",
-        "favicon_url": "https://imgs.search.brave.com/UFQasvzwLnO1phC8IRS6qXLb7mLVSbC00uaiLY8o2IQ/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZTgxODEwOTU5/NDQ5YzBjMmRhMmJk/Y2JmYzc1MDhlMDU5/MzI2ODYzMTlkYTRl/YzZjNWYwMjU2M2Y0/YzkxNDRkYS91bnNw/bGFzaC5jb20v"
+        "title": "Artemis 2 astronauts work inside the Orion spacecraft on Flight Day 3 of the mission on April 3, 2026.",
+        "source_page_url": "https://www.space.com/news/live/artemis-2-nasa-moon-mission-updates-april-10-2026",
+        "image_url": "https://cdn.mos.cms.futurecdn.net/D3A5oPJ4pnswpvQUveXKYB.jpg",
+        "thumbnail_url": "https://imgs.search.brave.com/M9kdaoqKupfeyyGhpEMWc41IieQh-FeLPqxz0svlNlw/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jZG4u/bW9zLmNtcy5mdXR1/cmVjZG4ubmV0L0Qz/QTVvUEo0cG5zd3B2/UVV2ZVhLWUIuanBn",
+        "source": "space.com",
+        "favicon_url": "https://imgs.search.brave.com/3XCWt_c3BOddJsusRhNQvWZ04Lxr1r3p5zwYi96n5Pw/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYjQ1NzY5OGQ2/YmQ3ODRkMDExMjg1/NzJhMTQyZWI3NmQ5/ZDhkNDkzNGZlNGJj/MGRmNmVhNTAyOWRm/ZmQxYWM3Mi93d3cu/c3BhY2UuY29tLw"
       },
       {
-        "title": "the golden gate bridge in san francisco at sunset",
-        "source_page_url": "https://www.pinterest.com/ideas/golden-gate-bridge-sunset/914165937413/",
-        "image_url": "https://i.pinimg.com/originals/fd/1f/1e/fd1f1ea6ff2d9325f9e454d3b877ae8e.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/QXcc1N027KAbHEd4aIW7_cJG6MoBjSQ8faH-GSg1Gho/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pLnBp/bmltZy5jb20vb3Jp/Z2luYWxzL2ZkLzFm/LzFlL2ZkMWYxZWE2/ZmYyZDkzMjVmOWU0/NTRkM2I4NzdhZThl/LmpwZw",
-        "source": "pinterest.com",
-        "favicon_url": "https://imgs.search.brave.com/-h42ysf4Z1TVzWXJ_OIFNE0ITzUbcR1EHzme8pM24s0/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvY2Y1ZmYzYzAx/ZTdjNDk1MTMwODVj/OWRlNTBlZTBmZWU5/Y2U1YzA2MGMwZmVj/ZWE5NmJjZjk2OGZi/MWZhNTY0Mi93d3cu/cGludGVyZXN0LmNv/bS8"
+        "title": "The finished Orion spacecraft for the Artemis II mission was officially handed over to NASA for launch processing on May 1, 2025 for a crewed mission to the Moon early next year.",
+        "source_page_url": "https://news.lockheedmartin.com/2025-05-01-Lockheed-Martin-Completes-Orion-Development-for-Artemis-II-Mission-to-the-Moon",
+        "image_url": "https://mma.prnewswire.com/media/2678180/Lockheed_Martin_Orion_Artemis_II.jpg",
+        "thumbnail_url": "https://imgs.search.brave.com/1ER9FN4zbwFgzFDFi8ADN_--ZmvGOti5J26WSz1II4o/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9tbWEu/cHJuZXdzd2lyZS5j/b20vbWVkaWEvMjY3/ODE4MC9Mb2NraGVl/ZF9NYXJ0aW5fT3Jp/b25fQXJ0ZW1pc19J/SS5qcGc",
+        "source": "news.lockheedmartin.com",
+        "favicon_url": "https://imgs.search.brave.com/x9jpU9Y7f5_aDutSAKQwucKRhXb49Ixh2s8RA7IqiBE/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNWE5Y2FiM2Rm/YWIxNzc2NWNkNGEz/ZmRiMjcxY2UwMjIx/MzMwOThhYjcwZDNh/YWU2NDRmNjA2ZmE4/YTQzYTdiMy9uZXdz/LmxvY2toZWVkbWFy/dGluLmNvbS8"
       }
     ]
   },
   {
     "id": "store-example-images-search-2",
-    "query": "Minimalist Scandinavian interior design",
+    "query": "Mediterranean coast village at sunset",
     "query_translation_key": "settings.app_store_examples.images.search.2",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
       {
-        "title": "Kitchen highlighting Scandinavian minimalist interior design",
-        "source_page_url": "https://www.carlfriedrik.com/magazine/scandinavian-minimalism",
-        "image_url": "https://cdn.builder.io/api/v1/image/assets/f908d2a4bd044e4d8f96b4ef79aa4d93/7862b86f4cae4ec3a50edb0370ddc27e?width=864",
-        "thumbnail_url": "https://imgs.search.brave.com/diuOXBldT0XGmJ2ejvXHicnR_0d43UZvW6WM8a3rUzE/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jZG4u/YnVpbGRlci5pby9h/cGkvdjEvaW1hZ2Uv/YXNzZXRzL2Y5MDhk/MmE0YmQwNDRlNGQ4/Zjk2YjRlZjc5YWE0/ZDkzLzc4NjJiODZm/NGNhZTRlYzNhNTBl/ZGIwMzcwZGRjMjdl/P3dpZHRoPTg2NA",
-        "source": "carlfriedrik.com",
-        "favicon_url": "https://imgs.search.brave.com/aSclx9Bmo24hI7gHPx0CGITBAjvEqYCW7CC7ZsVe_qY/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZmI5ZmNmZDAw/NWJhNGYwZmFkZjNj/OWYxZGVlYTVkMDE2/MTAwYjViMTA0ODAz/ZDM0YjM1OTE1MWU0/MGMyYzQ1Ni93d3cu/Y2FybGZyaWVkcmlr/LmNvbS8"
+        "title": "Antibes Juan les Pins Mediterranean Sea Coast during twilight, blue hour sunset",
+        "source_page_url": "https://dreamstime.com/photos-images/mediterranean-coast-city.html",
+        "image_url": "https://thumbs.dreamstime.com/b/antibes-juan-les-pins-mediterranean-sea-coast-twilight-blue-hour-sunset-water-sky-landscape-azur-riviera-cote-d-france-105938581.jpg",
+        "thumbnail_url": "https://imgs.search.brave.com/jLGmwMR3XFcbcEhbPzaVRNm5d9zxwS5NNKjSCeXe978/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly90aHVt/YnMuZHJlYW1zdGlt/ZS5jb20vYi9hbnRp/YmVzLWp1YW4tbGVz/LXBpbnMtbWVkaXRl/cnJhbmVhbi1zZWEt/Y29hc3QtdHdpbGln/aHQtYmx1ZS1ob3Vy/LXN1bnNldC13YXRl/ci1za3ktbGFuZHNj/YXBlLWF6dXItcml2/aWVyYS1jb3RlLWQt/ZnJhbmNlLTEwNTkz/ODU4MS5qcGc",
+        "source": "dreamstime.com",
+        "favicon_url": "https://imgs.search.brave.com/kI5ez8fDXyb9W59MbgBlMQXmM3OO2oHpiq9hM3348g8/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNDVmNDBkMDZi/NmI5Zjc3NTM5YmM3/OTU0YWU0MzNkNjk3/Yzk2NGE0MTM0Njc2/YmUwYmMzZDk4NjJm/NjVkNzliZi9kcmVh/bXN0aW1lLmNvbS8"
       },
       {
-        "title": "Minimalist style interior design",
-        "source_page_url": "https://sfd-craft.com/whats-the-difference-between-scandinavian-minimalist-design/",
-        "image_url": "https://sfd-craft.com/wp-content/uploads/2022/05/2_difference-between-Scandinavian-Minimalist-design-SFD-pic.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/BSsgas-7ORNgDRYbJHXOmyQEzLWWRFKoLrlNU7VhT5M/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9zZmQt/Y3JhZnQuY29tL3dw/LWNvbnRlbnQvdXBs/b2Fkcy8yMDIyLzA1/LzJfZGlmZmVyZW5j/ZS1iZXR3ZWVuLVNj/YW5kaW5hdmlhbi1N/aW5pbWFsaXN0LWRl/c2lnbi1TRkQtcGlj/LmpwZw",
-        "source": "sfd-craft.com",
-        "favicon_url": "https://imgs.search.brave.com/zwIt_vE6RXak3fI9G5lHMj27DWB-2ZdQ8zCLb7bnzTQ/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZTFkNTAyNmE3/YjNhMmMwZjg2ZGJi/YzE1MTg1ZTFlYjA1/NzJlZDUxNTRiOTAz/YWUzZGFkMzRlODY3/NmNjNTdjNy9zZmQt/Y3JhZnQuY29tLw"
+        "title": "historic village of bonifacio, corsica, france - mediterranean-sunset stock pictures, royalty-free photos & images",
+        "source_page_url": "https://gettyimages.com/photos/mediterranean-sea-sunset?page=3",
+        "image_url": "https://media.gettyimages.com/id/2220705311/photo/historic-village-of-bonifacio-corsica-france.jpg?s=612x612&w=0&k=20&c=hKWSYU-_xJIugkE3d_3Ww_5Tc3dLEuKQMlbt18QH2y0=",
+        "thumbnail_url": "https://imgs.search.brave.com/73qXkQyaU3lhYqBk-YIcnSNyz0ikiPiGyMeyKjPP-m0/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9tZWRp/YS5nZXR0eWltYWdl/cy5jb20vaWQvMjIy/MDcwNTMxMS9waG90/by9oaXN0b3JpYy12/aWxsYWdlLW9mLWJv/bmlmYWNpby1jb3Jz/aWNhLWZyYW5jZS5q/cGc_cz02MTJ4NjEy/Jnc9MCZrPTIwJmM9/aEtXU1lVLV94Skl1/Z2tFM2RfM1d3XzVU/YzNkTEV1S1FNbGJ0/MThRSDJ5MD0",
+        "source": "gettyimages.com",
+        "favicon_url": "https://imgs.search.brave.com/4vLg_GlfuZTnIziJ0Q3FNyfG6gQxf8DmM1nxb-fhCwM/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMWFmMTM1NDY2/YTFmZTAwYjIxY2Yx/YzIwNTAxYTZkYzAz/YmQ0ZjBkNGYxYzZm/NGNhNWM0NGIzMDk2/MzAzMTRhMS9nZXR0/eWltYWdlcy5jb20v"
       },
       {
-        "title": "",
-        "source_page_url": "https://www.designstudio210.com/interior-spaces/scandinavian-interior-design/scandinavian-minimalist-interior-design/",
-        "image_url": "https://www.designstudio210.com/wp-content/uploads/2023/08/scandinavian-minimalistic-interior-design-white-walls.jpeg",
-        "thumbnail_url": "https://imgs.search.brave.com/0SDHgntNqkUs6_HEwAXdQV5bOzfFQcGWKmsMn9tOGbA/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly93d3cu/ZGVzaWduc3R1ZGlv/MjEwLmNvbS93cC1j/b250ZW50L3VwbG9h/ZHMvMjAyMy8wOC9z/Y2FuZGluYXZpYW4t/bWluaW1hbGlzdGlj/LWludGVyaW9yLWRl/c2lnbi13aGl0ZS13/YWxscy5qcGVn",
-        "source": "designstudio210.com",
-        "favicon_url": "https://imgs.search.brave.com/DqZRilvlU3MYmYHsR5tefXjuqzok4RZ4N8rW2NCRRqs/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYTM2YWY4NWY3/ZjJlMjFkMDQxNTJk/YWViODc4ZDRlZjdk/MGIxMDE2Zjg1NzYy/YjlhMTI1ODgyMzE5/M2I1NjFkOC93d3cu/ZGVzaWduc3R1ZGlv/MjEwLmNvbS8"
+        "title": "Italian Coastline Church Print Mediterranean Sunset Art Coastal Town Seascape Pastel Sky Wall Decor",
+        "source_page_url": "https://www.etsy.com/market/mediterranean_sunset",
+        "image_url": "https://i.etsystatic.com/50196019/r/il/da62e1/5858597418/il_600x600.5858597418_o9v8.jpg",
+        "thumbnail_url": "https://imgs.search.brave.com/cQXqybbAK-Iy0PVRdfaHArZXqQVPQxV-gmXdyzdusn8/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pLmV0/c3lzdGF0aWMuY29t/LzUwMTk2MDE5L3Iv/aWwvZGE2MmUxLzU4/NTg1OTc0MTgvaWxf/NjAweDYwMC41ODU4/NTk3NDE4X285djgu/anBn",
+        "source": "etsy.com",
+        "favicon_url": "https://imgs.search.brave.com/VV6KUN1qWhB24EKDo1dIESK_1GyC0VpfAFwGmI97i6w/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYjcwZDg1MmI2/YTMzN2YwMThkMzVj/YmIwZmU4YTcwMTA3/ZjZhYzAzNGFmNjBm/NmZjNTVhNWNmNmFh/Zjc4MmMxZi93d3cu/ZXRzeS5jb20v"
       },
       {
-        "title": "Scandinavian Minimalist Interior Design Style by PhotoUp",
-        "source_page_url": "https://www.photoup.net/learn/what-is-scandinavian-minimalist-interior-design",
-        "image_url": "https://cdn-wp.photoup.net/wp-content/uploads/2022/07/04143353/Scandinavian-Minimalist-Interior-Design-Style-by-PhotoUp-Livingroom.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/FQjVd5Z1ZFk6Ni5H-7YmmlSlv-RoA0Yidl_Rx8Qf_5c/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9jZG4t/d3AucGhvdG91cC5u/ZXQvd3AtY29udGVu/dC91cGxvYWRzLzIw/MjIvMDcvMDQxNDMz/NTMvU2NhbmRpbmF2/aWFuLU1pbmltYWxp/c3QtSW50ZXJpb3It/RGVzaWduLVN0eWxl/LWJ5LVBob3RvVXAt/TGl2aW5ncm9vbS5q/cGc",
-        "source": "photoup.net",
-        "favicon_url": "https://imgs.search.brave.com/3B2XU2zOOmyZebHbPmqYC6B6-c_KgoO7IYMFasecKfA/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMWJjMWVkNmM2/YWVlZjgwZjRlY2M1/NWMxMmQ1ODUzZTg3/NjIyMWE2ODI2MjNh/MGJhMjg5OWRhZWY0/OWEyNjQ0OS93d3cu/cGhvdG91cC5uZXQv"
+        "title": "Mediterranean Sunset Painting Print, Tropical Bedroom Decor, Beach Home Art, Village Life Painting Print, Exotic House Ideas,Sunset Wall Art",
+        "source_page_url": "https://www.etsy.com/market/mediterranean_sunset",
+        "image_url": "https://i.etsystatic.com/28984245/c/1906/1906/146/0/il/c2e99e/4085529933/il_600x600.4085529933_232e.jpg",
+        "thumbnail_url": "https://imgs.search.brave.com/zVVKLBlMrbrTbeyNusZHIR-M65sDZ2dzDv88yfr0I0Y/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9pLmV0/c3lzdGF0aWMuY29t/LzI4OTg0MjQ1L2Mv/MTkwNi8xOTA2LzE0/Ni8wL2lsL2MyZTk5/ZS80MDg1NTI5OTMz/L2lsXzYwMHg2MDAu/NDA4NTUyOTkzM18y/MzJlLmpwZw",
+        "source": "etsy.com",
+        "favicon_url": "https://imgs.search.brave.com/VV6KUN1qWhB24EKDo1dIESK_1GyC0VpfAFwGmI97i6w/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYjcwZDg1MmI2/YTMzN2YwMThkMzVj/YmIwZmU4YTcwMTA3/ZjZhYzAzNGFmNjBm/NmZjNTVhNWNmNmFh/Zjc4MmMxZi93d3cu/ZXRzeS5jb20v"
       }
     ]
   },
   {
     "id": "store-example-images-search-3",
-    "query": "Black and white film photography portraits",
+    "query": "Cozy winter breakfast table",
     "query_translation_key": "settings.app_store_examples.images.search.3",
     "provider": "Brave Search",
     "status": "finished",
     "results": [
       {
-        "title": "Atmospheric portrait of a female model shot with black and white film",
-        "source_page_url": "https://expertphotography.com/shooting-on-black-and-white-film",
-        "image_url": "https://expertphotography.com/img/2018/02/black-and-white-film-photography-tips.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/APYLaiYD3AIINQs5SuLzjwQwFdnoxg1YCcNEMFYXNnI/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9leHBl/cnRwaG90b2dyYXBo/eS5jb20vaW1nLzIw/MTgvMDIvYmxhY2st/YW5kLXdoaXRlLWZp/bG0tcGhvdG9ncmFw/aHktdGlwcy5qcGc",
-        "source": "expertphotography.com",
-        "favicon_url": "https://imgs.search.brave.com/e1tCgskyPFkWus5tgxYKVNgCTV4iEIxLEnOt3KtcBIk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZDFmOGQ1NzJl/NTZhMWExNDYxY2Mw/N2Q0ZTk5Mzc1YTUw/NDk2YzBkYTJhYTA1/ODg5MzEwZDYxN2Ji/MjQxODg3MS9leHBl/cnRwaG90b2dyYXBo/eS5jb20v"
+        "title": "Get your breakfast room ready for wintertime with these cozy ideas from the walls to the tablescape!",
+        "source_page_url": "https://www.frenchcreekfarmhouse.com/2022/01/cozy-winter-breakfast-room.html",
+        "image_url": "https://www.frenchcreekfarmhouse.com/wp-content/uploads/2022/01/Cozy-Winter-Breakfast-Room-PIN-683x1024.png",
+        "thumbnail_url": "https://imgs.search.brave.com/4XSYg5TWMgn7WigRAAJZ4FiOPiLQATAcnROId_Y6yGI/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly93d3cu/ZnJlbmNoY3JlZWtm/YXJtaG91c2UuY29t/L3dwLWNvbnRlbnQv/dXBsb2Fkcy8yMDIy/LzAxL0NvenktV2lu/dGVyLUJyZWFrZmFz/dC1Sb29tLVBJTi02/ODN4MTAyNC5wbmc",
+        "source": "frenchcreekfarmhouse.com",
+        "favicon_url": "https://imgs.search.brave.com/6qdWBqB1Nt1pMDLK8_V6xaaFIQv-4zMMKf4mLuP_aDU/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjdkM2JhYThi/NmE3ZWMwYzBlZDFk/Nzg2MDYxMjI4MGRi/NzM1MTNlY2RlYmM5/MTc1YjYwOGZhZWVl/MGFlZjUzMC93d3cu/ZnJlbmNoY3JlZWtm/YXJtaG91c2UuY29t/Lw"
       },
       {
-        "title": "Atmospheric portrait of a female model shot with black and white film",
-        "source_page_url": "https://expertphotography.com/shooting-on-black-and-white-film",
-        "image_url": "https://expertphotography.com/img/2018/02/black-and-white-film-photography-tips-5.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/mAbgwhVpr_ujsmyxCmEBPR0bGF06JDU612maa7aRaHo/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9leHBl/cnRwaG90b2dyYXBo/eS5jb20vaW1nLzIw/MTgvMDIvYmxhY2st/YW5kLXdoaXRlLWZp/bG0tcGhvdG9ncmFw/aHktdGlwcy01Lmpw/Zw",
-        "source": "expertphotography.com",
-        "favicon_url": "https://imgs.search.brave.com/e1tCgskyPFkWus5tgxYKVNgCTV4iEIxLEnOt3KtcBIk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZDFmOGQ1NzJl/NTZhMWExNDYxY2Mw/N2Q0ZTk5Mzc1YTUw/NDk2YzBkYTJhYTA1/ODg5MzEwZDYxN2Ji/MjQxODg3MS9leHBl/cnRwaG90b2dyYXBo/eS5jb20v"
+        "title": "Place setting for a winter dinner party table with a round woven charger plate, white dishes, gold silverware and a sprig of greenery with a pinecone ornament accent",
+        "source_page_url": "https://www.midwestlifeandstyle.com/how-to-set-a-table-for-a-cozy-winter-dinner-party/",
+        "image_url": "https://www.midwestlifeandstyle.com/wp-content/uploads/2022/12/How-To-Style-A-Cozy-Winter-Tablescape-7-Midwest-Life-and-Style-Blog.jpg",
+        "thumbnail_url": "https://imgs.search.brave.com/K6olkp68b_BlKSOFIx2LIopCuxXUW_GvPds-EMvap4c/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly93d3cu/bWlkd2VzdGxpZmVh/bmRzdHlsZS5jb20v/d3AtY29udGVudC91/cGxvYWRzLzIwMjIv/MTIvSG93LVRvLVN0/eWxlLUEtQ296eS1X/aW50ZXItVGFibGVz/Y2FwZS03LU1pZHdl/c3QtTGlmZS1hbmQt/U3R5bGUtQmxvZy5q/cGc",
+        "source": "midwestlifeandstyle.com",
+        "favicon_url": "https://imgs.search.brave.com/vttf6_uuyTzQhzCxUxINn0iTAVIF73AaK_kLfIgcFsE/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMjgzZGU1ZWE5/M2FmZjcyMmMzNGJm/YjE5Yjg2ODYzOWQ5/Zjc3MGRhNjkxNjI1/MDM4OTA4YzRlNTky/OGMzZTViOC93d3cu/bWlkd2VzdGxpZmVh/bmRzdHlsZS5jb20v"
       },
       {
-        "title": "Atmospheric portrait of a female model shot with black and white film",
-        "source_page_url": "https://expertphotography.com/shooting-on-black-and-white-film",
-        "image_url": "https://expertphotography.com/img/2018/02/black-and-white-film-photography-tips-2.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/kcNtytGQf8eGGFwz1OYWmN9nG0S3qSo09wmkkCQdZ10/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9leHBl/cnRwaG90b2dyYXBo/eS5jb20vaW1nLzIw/MTgvMDIvYmxhY2st/YW5kLXdoaXRlLWZp/bG0tcGhvdG9ncmFw/aHktdGlwcy0yLmpw/Zw",
-        "source": "expertphotography.com",
-        "favicon_url": "https://imgs.search.brave.com/e1tCgskyPFkWus5tgxYKVNgCTV4iEIxLEnOt3KtcBIk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZDFmOGQ1NzJl/NTZhMWExNDYxY2Mw/N2Q0ZTk5Mzc1YTUw/NDk2YzBkYTJhYTA1/ODg5MzEwZDYxN2Ji/MjQxODg3MS9leHBl/cnRwaG90b2dyYXBo/eS5jb20v"
+        "title": "6 cozy winter dinner table and centerpiece ideas",
+        "source_page_url": "https://stacyling.com/6-cozy-winter-dining-table-and-centerpiece-ideas/",
+        "image_url": "https://stacyling.com/wp-content/uploads/2022/01/cozy-winter-dinner-table.jpeg",
+        "thumbnail_url": "https://imgs.search.brave.com/3NLVDm9I845373Meba2ycnJv06UGEB9SppBqMJDlVuI/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9zdGFj/eWxpbmcuY29tL3dw/LWNvbnRlbnQvdXBs/b2Fkcy8yMDIyLzAx/L2Nvenktd2ludGVy/LWRpbm5lci10YWJs/ZS5qcGVn",
+        "source": "stacyling.com",
+        "favicon_url": "https://imgs.search.brave.com/w9I754cEzRVO-ZLZb_XTKXHHhp9oNypVLmFUDF4lxY0/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjRmNGU5NTky/YjI4MjMxNjY1ZGY3/NDQ1ZWZkODcxZWE0/MjViMThkYjIxZWM4/MDkxNjJiZDBkNzhj/ZjU1N2E3NC9zdGFj/eWxpbmcuY29tLw"
       },
       {
-        "title": "A portrait of a man sitting in an outdoor cafe - tips for shooting with black and white film photography",
-        "source_page_url": "https://expertphotography.com/shooting-on-black-and-white-film",
-        "image_url": "https://expertphotography.com/img/2018/02/black-and-white-film-photography-tips-4.jpg",
-        "thumbnail_url": "https://imgs.search.brave.com/ONqOSQaEtqHrwPUTXYU0AoCCkTc5eNKyZ6aV7OkNnt8/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9leHBl/cnRwaG90b2dyYXBo/eS5jb20vaW1nLzIw/MTgvMDIvYmxhY2st/YW5kLXdoaXRlLWZp/bG0tcGhvdG9ncmFw/aHktdGlwcy00Lmpw/Zw",
-        "source": "expertphotography.com",
-        "favicon_url": "https://imgs.search.brave.com/e1tCgskyPFkWus5tgxYKVNgCTV4iEIxLEnOt3KtcBIk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZDFmOGQ1NzJl/NTZhMWExNDYxY2Mw/N2Q0ZTk5Mzc1YTUw/NDk2YzBkYTJhYTA1/ODg5MzEwZDYxN2Ji/MjQxODg3MS9leHBl/cnRwaG90b2dyYXBo/eS5jb20v"
+        "title": "Several vintage brass candlesticks lined up on pine table with greenery, pinecones, and vintage blue tea and toast plates in winter dining room ideas with ski lodge style.",
+        "source_page_url": "https://www.dabblinganddecorating.com/cozy-winter-dining-room-with-ski-lodge-decor-get-the-look/",
+        "image_url": "https://www.dabblinganddecorating.com/wp-content/uploads/2024/12/Simple-Winter-Table-Decorations-Cozy-Dining-Ideas2.jpeg",
+        "thumbnail_url": "https://imgs.search.brave.com/iOmeibKZUB5ugxFJ6QKwUhioP7HWyHkTyZYCoKpztHE/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly93d3cu/ZGFiYmxpbmdhbmRk/ZWNvcmF0aW5nLmNv/bS93cC1jb250ZW50/L3VwbG9hZHMvMjAy/NC8xMi9TaW1wbGUt/V2ludGVyLVRhYmxl/LURlY29yYXRpb25z/LUNvenktRGluaW5n/LUlkZWFzMi5qcGVn",
+        "source": "dabblinganddecorating.com",
+        "favicon_url": "https://imgs.search.brave.com/x8QW4J95SrwtEkfl4QP5aOzdDGUoL4EDI8hxcnVwyms/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNmY3MzQ4NTQz/NTAxMzE3YTM2MDVl/NzA0NWExOTc3OWVk/ZTZhODVmNDg1N2Fj/YzQ3MzIyNjVkYjZl/ZjRkMGFhOS93d3cu/ZGFiYmxpbmdhbmRk/ZWNvcmF0aW5nLmNv/bS8"
       }
     ]
   }

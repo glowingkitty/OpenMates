@@ -1,15 +1,14 @@
 /**
- * App-store examples for the maps search skill.
+ * App-store examples for the maps skill.
  *
- * Business names are hand-crafted and fictional (marked "(fictional)"),
- * so the app store never promotes a specific real-world café, restaurant
- * or bookstore. Coordinates and street names are REAL and spread across
- * recognisable neighbourhoods in each city so the map renders authentic
- * tiles + markers — that's what makes the preview useful to someone
- * deciding whether to install the maps skill.
+ * EU-focused everyday queries (bakeries in Paris, family parks in Berlin, tapas bars in Barcelona). Real coordinates and real street names so the map renders authentic neighbourhoods; only the business names are invented.
  *
- * A "Sample data" banner is rendered above the fullscreen via the
- * is_store_example flag on decodedContent.
+ * Names of specific businesses, doctors, venues and organisers are
+ * hand-crafted and clearly fictional (most marked "(fictional)") so
+ * the app store never promotes real-world entities. Geography and
+ * street names are REAL (EU cities) so maps and addresses render
+ * authentically. A "Sample data" banner is shown above the fullscreen
+ * via the is_store_example flag set by SkillExamplesSection.
  */
 
 export interface MapsSearchStoreExample {
@@ -24,50 +23,50 @@ export interface MapsSearchStoreExample {
 const examples: MapsSearchStoreExample[] = [
   {
     "id": "store-example-maps-search-1",
-    "query": "Best coffee shops in San Francisco",
+    "query": "Bakeries and cafés in central Paris",
     "query_translation_key": "settings.app_store_examples.maps.search.1",
     "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "displayName": "The Foggy Harbor Café (fictional)",
-        "formattedAddress": "Valencia Street, San Francisco, CA 94110",
+        "displayName": "Boulangerie des Roses (fictional)",
+        "formattedAddress": "Rue Vieille du Temple, 75003 Paris",
         "location": {
-          "latitude": 37.7599,
-          "longitude": -122.4214
+          "latitude": 48.8587,
+          "longitude": 2.3613
         },
         "rating": 4.7,
-        "userRatingCount": 1850,
-        "placeType": "cafe"
+        "userRatingCount": 1820,
+        "placeType": "bakery"
       },
       {
-        "displayName": "Morning Compass Coffee (fictional)",
-        "formattedAddress": "Columbus Avenue, San Francisco, CA 94133",
+        "displayName": "Café du Clocher (fictional)",
+        "formattedAddress": "Rue des Abbesses, 75018 Paris",
         "location": {
-          "latitude": 37.8024,
-          "longitude": -122.41
+          "latitude": 48.8841,
+          "longitude": 2.3379
         },
         "rating": 4.6,
-        "userRatingCount": 1240,
+        "userRatingCount": 1420,
         "placeType": "cafe"
       },
       {
-        "displayName": "Brightleaf Roasters (fictional)",
-        "formattedAddress": "Hayes Street, San Francisco, CA 94102",
+        "displayName": "Pâtisserie Petit Marin (fictional)",
+        "formattedAddress": "Rue de Buci, 75006 Paris",
         "location": {
-          "latitude": 37.776,
-          "longitude": -122.4234
+          "latitude": 48.853,
+          "longitude": 2.3373
         },
         "rating": 4.5,
         "userRatingCount": 980,
-        "placeType": "cafe"
+        "placeType": "bakery"
       },
       {
-        "displayName": "Linden Park Coffee House (fictional)",
-        "formattedAddress": "Clement Street, San Francisco, CA 94118",
+        "displayName": "Le Comptoir Noisette (fictional)",
+        "formattedAddress": "Quai de Valmy, 75010 Paris",
         "location": {
-          "latitude": 37.7825,
-          "longitude": -122.4647
+          "latitude": 48.8716,
+          "longitude": 2.366
         },
         "rating": 4.4,
         "userRatingCount": 760,
@@ -77,107 +76,107 @@ const examples: MapsSearchStoreExample[] = [
   },
   {
     "id": "store-example-maps-search-2",
-    "query": "Italian restaurants near Times Square, New York",
+    "query": "Family-friendly parks in Berlin",
     "query_translation_key": "settings.app_store_examples.maps.search.2",
     "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "displayName": "Trattoria del Sole (fictional)",
-        "formattedAddress": "West 46th Street, New York, NY 10036",
+        "displayName": "Lindenring Park (fictional)",
+        "formattedAddress": "Straße des 17. Juni, 10623 Berlin",
         "location": {
-          "latitude": 40.7598,
-          "longitude": -73.9873
+          "latitude": 52.5145,
+          "longitude": 13.3501
+        },
+        "rating": 4.8,
+        "userRatingCount": 2340,
+        "placeType": "park"
+      },
+      {
+        "displayName": "Morgenwiese Spielplatz (fictional)",
+        "formattedAddress": "Schönhauser Allee, 10437 Berlin",
+        "location": {
+          "latitude": 52.5407,
+          "longitude": 13.4108
+        },
+        "rating": 4.7,
+        "userRatingCount": 1520,
+        "placeType": "park"
+      },
+      {
+        "displayName": "Viktoriahain Family Garden (fictional)",
+        "formattedAddress": "Mehringdamm, 10965 Berlin",
+        "location": {
+          "latitude": 52.4921,
+          "longitude": 13.3871
         },
         "rating": 4.6,
-        "userRatingCount": 2140,
-        "placeType": "italian_restaurant"
+        "userRatingCount": 1240,
+        "placeType": "park"
       },
       {
-        "displayName": "Osteria Rosetta (fictional)",
-        "formattedAddress": "West 55th Street, New York, NY 10019",
+        "displayName": "Sonnenbogen Community Garden (fictional)",
+        "formattedAddress": "Boxhagener Straße, 10245 Berlin",
         "location": {
-          "latitude": 40.7646,
-          "longitude": -73.9837
+          "latitude": 52.5117,
+          "longitude": 13.4594
         },
         "rating": 4.5,
-        "userRatingCount": 1820,
-        "placeType": "italian_restaurant"
-      },
-      {
-        "displayName": "La Piazza Nova (fictional)",
-        "formattedAddress": "West 44th Street, New York, NY 10036",
-        "location": {
-          "latitude": 40.758,
-          "longitude": -73.9855
-        },
-        "rating": 4.4,
-        "userRatingCount": 1520,
-        "placeType": "italian_restaurant"
-      },
-      {
-        "displayName": "Vico's Tavola (fictional)",
-        "formattedAddress": "9th Avenue, New York, NY 10019",
-        "location": {
-          "latitude": 40.7628,
-          "longitude": -73.9914
-        },
-        "rating": 4.3,
-        "userRatingCount": 980,
-        "placeType": "italian_restaurant"
+        "userRatingCount": 890,
+        "placeType": "park"
       }
     ]
   },
   {
     "id": "store-example-maps-search-3",
-    "query": "Bookstores in central London",
+    "query": "Tapas bars in central Barcelona",
     "query_translation_key": "settings.app_store_examples.maps.search.3",
     "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "displayName": "The Inkwell Bookshop (fictional)",
-        "formattedAddress": "Great Russell Street, London WC1B",
+        "displayName": "La Plaza del Sol (fictional)",
+        "formattedAddress": "Passeig de Joan de Borbó, 08003 Barcelona",
         "location": {
-          "latitude": 51.5194,
-          "longitude": -0.127
-        },
-        "rating": 4.8,
-        "userRatingCount": 2340,
-        "placeType": "book_store"
-      },
-      {
-        "displayName": "Maple & Mortar Books (fictional)",
-        "formattedAddress": "Long Acre, London WC2E",
-        "location": {
-          "latitude": 51.5133,
-          "longitude": -0.124
+          "latitude": 41.3808,
+          "longitude": 2.1905
         },
         "rating": 4.7,
-        "userRatingCount": 1980,
-        "placeType": "book_store"
+        "userRatingCount": 2150,
+        "placeType": "tapas_bar"
       },
       {
-        "displayName": "The Reading Lantern (fictional)",
-        "formattedAddress": "Charing Cross Road, London WC2H",
+        "displayName": "Tapas Sant Jordi (fictional)",
+        "formattedAddress": "Carrer de la Mercè, 08002 Barcelona",
         "location": {
-          "latitude": 51.5148,
-          "longitude": -0.129
+          "latitude": 41.3817,
+          "longitude": 2.1793
         },
         "rating": 4.6,
-        "userRatingCount": 1520,
-        "placeType": "book_store"
+        "userRatingCount": 1680,
+        "placeType": "tapas_bar"
       },
       {
-        "displayName": "Westhaven Books & Tea (fictional)",
-        "formattedAddress": "Aldersgate Street, London EC1A",
+        "displayName": "Bodega del Born (fictional)",
+        "formattedAddress": "Passeig del Born, 08003 Barcelona",
         "location": {
-          "latitude": 51.5203,
-          "longitude": -0.0962
+          "latitude": 41.3841,
+          "longitude": 2.183
         },
         "rating": 4.5,
-        "userRatingCount": 1100,
-        "placeType": "book_store"
+        "userRatingCount": 1420,
+        "placeType": "tapas_bar"
+      },
+      {
+        "displayName": "Taverna Lluna (fictional)",
+        "formattedAddress": "Plaça del Sol, 08012 Barcelona",
+        "location": {
+          "latitude": 41.4033,
+          "longitude": 2.1547
+        },
+        "rating": 4.4,
+        "userRatingCount": 980,
+        "placeType": "tapas_bar"
       }
     ]
   }

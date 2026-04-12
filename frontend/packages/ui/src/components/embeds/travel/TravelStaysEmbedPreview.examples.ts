@@ -1,14 +1,14 @@
 /**
  * App-store examples for the travel skill.
  *
- * Invented hotel names, ratings and amenities so the app store never promotes specific real-world lodgings.
+ * EU destinations only (Lisbon, Austrian Alps, Greek islands). Invented hotel names with real city/region coordinates.
  *
- * These are hand-crafted synthetic fixtures. All names, addresses,
- * prices and ratings are invented so that the app store never promotes
- * specific real-world businesses, doctors, landlords or venues. The
- * shape matches the real provider response so the preview + fullscreen
- * render identically. A "Sample data" banner is shown at the top of
- * the fullscreen via the is_store_example flag set by SkillExamplesSection.
+ * Names of specific businesses, doctors, venues and organisers are
+ * hand-crafted and clearly fictional (most marked "(fictional)") so
+ * the app store never promotes real-world entities. Geography and
+ * street names are REAL (EU cities) so maps and addresses render
+ * authentically. A "Sample data" banner is shown above the fullscreen
+ * via the is_store_example flag set by SkillExamplesSection.
  */
 
 export interface TravelStaysStoreExample {
@@ -23,7 +23,7 @@ export interface TravelStaysStoreExample {
 const examples: TravelStaysStoreExample[] = [
   {
     "id": "store-example-travel-search-stays-1",
-    "query": "Hotels in Barcelona, Spain",
+    "query": "Hotels in central Lisbon",
     "query_translation_key": "settings.app_store_examples.travel.search_stays.1",
     "provider": "Sample Data",
     "status": "finished",
@@ -35,26 +35,25 @@ const examples: TravelStaysStoreExample[] = [
         "overall_rating": 4.6,
         "reviews": 1820,
         "currency": "EUR",
-        "rate_per_night": "185",
-        "extracted_rate_per_night": 185,
-        "total_rate": "555",
+        "rate_per_night": "145",
+        "extracted_rate_per_night": 145,
+        "total_rate": "435",
         "amenities": [
           "Free Wi-Fi",
           "Breakfast included",
-          "Pool",
-          "Air conditioning",
-          "Pet friendly"
+          "Rooftop terrace",
+          "Air conditioning"
         ],
-        "description": "Invented mid-range hotel on the fictional seafront with classic rooms and a small rooftop pool.",
+        "description": "Invented mid-range hotel near Praça do Comércio with classic tiled rooms and a small rooftop lounge.",
         "link": "https://example.org/sample-hotel",
-        "latitude": 41.383,
-        "longitude": 2.186,
+        "latitude": 38.708,
+        "longitude": -9.137,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
       },
       {
-        "name": "Casa Maréa Boutique (fictional)",
+        "name": "Casa do Tejo Boutique (fictional)",
         "property_type": "hotel",
         "hotel_class": 4,
         "overall_rating": 4.5,
@@ -66,61 +65,60 @@ const examples: TravelStaysStoreExample[] = [
         "amenities": [
           "Free Wi-Fi",
           "Breakfast included",
-          "Bar",
-          "Balcony"
+          "Balcony",
+          "Bar"
         ],
-        "description": "Invented boutique stay in the sample old-town quarter, hand-picked art in every room.",
+        "description": "Invented boutique hotel in Alfama with hand-picked furniture and a quiet inner garden.",
         "link": "https://example.org/sample-hotel",
-        "latitude": 41.379,
-        "longitude": 2.173,
+        "latitude": 38.711,
+        "longitude": -9.131,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
       },
       {
-        "name": "The Invented Grand",
+        "name": "The Invented Grand Lisboa",
         "property_type": "hotel",
         "hotel_class": 5,
         "overall_rating": 4.8,
         "reviews": 2650,
         "currency": "EUR",
-        "rate_per_night": "320",
-        "extracted_rate_per_night": 320,
-        "total_rate": "960",
+        "rate_per_night": "290",
+        "extracted_rate_per_night": 290,
+        "total_rate": "870",
         "amenities": [
           "Free Wi-Fi",
           "Spa",
           "Pool",
-          "Fine dining",
-          "Concierge"
+          "Fine dining"
         ],
-        "description": "Invented 5-star hotel with a fictional rooftop garden and spa suite.",
+        "description": "Invented 5-star hotel on an invented hillside with sweeping views over the Tagus river.",
         "link": "https://example.org/sample-hotel",
-        "latitude": 41.387,
-        "longitude": 2.17,
+        "latitude": 38.72,
+        "longitude": -9.15,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
       },
       {
-        "name": "Sample Plaza Inn",
+        "name": "Sample Plaza Inn Lisbon",
         "property_type": "hotel",
         "hotel_class": 3,
         "overall_rating": 4.3,
         "reviews": 620,
         "currency": "EUR",
-        "rate_per_night": "98",
-        "extracted_rate_per_night": 98,
-        "total_rate": "294",
+        "rate_per_night": "78",
+        "extracted_rate_per_night": 78,
+        "total_rate": "234",
         "amenities": [
           "Free Wi-Fi",
           "Breakfast ($)",
           "Family rooms"
         ],
-        "description": "Invented budget hotel close to the sample metro station, friendly for short stays.",
+        "description": "Invented budget hotel steps from a sample metro station, family-friendly.",
         "link": "https://example.org/sample-hotel",
-        "latitude": 41.39,
-        "longitude": 2.165,
+        "latitude": 38.714,
+        "longitude": -9.141,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
@@ -129,101 +127,103 @@ const examples: TravelStaysStoreExample[] = [
   },
   {
     "id": "store-example-travel-search-stays-2",
-    "query": "Boutique hotels in Paris, France",
+    "query": "Mountain cabins in the Austrian Alps",
     "query_translation_key": "settings.app_store_examples.travel.search_stays.2",
     "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "name": "Maison Northbridge (fictional)",
+        "name": "Alpenglow Chalet (fictional)",
         "property_type": "hotel",
         "hotel_class": 4,
         "overall_rating": 4.7,
-        "reviews": 2010,
+        "reviews": 950,
         "currency": "EUR",
-        "rate_per_night": "240",
-        "extracted_rate_per_night": 240,
-        "total_rate": "720",
+        "rate_per_night": "220",
+        "extracted_rate_per_night": 220,
+        "total_rate": "660",
         "amenities": [
+          "Mountain view",
+          "Sauna",
           "Free Wi-Fi",
-          "Breakfast included",
-          "Garden",
-          "Library"
+          "Breakfast included"
         ],
-        "description": "Invented boutique townhouse on an invented quiet street, each room with vintage furniture.",
+        "description": "Invented hand-built wooden chalet with a fireplace and private sauna, 10 minutes from the village centre.",
         "link": "https://example.org/sample-hotel",
-        "latitude": 48.856,
-        "longitude": 2.352,
+        "latitude": 47.253,
+        "longitude": 11.387,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
       },
       {
-        "name": "Le Petit Lantern (fictional)",
+        "name": "Silberhorn Berghaus (fictional)",
         "property_type": "hotel",
         "hotel_class": 4,
         "overall_rating": 4.6,
-        "reviews": 980,
+        "reviews": 780,
         "currency": "EUR",
-        "rate_per_night": "215",
-        "extracted_rate_per_night": 215,
-        "total_rate": "645",
+        "rate_per_night": "195",
+        "extracted_rate_per_night": 195,
+        "total_rate": "585",
         "amenities": [
-          "Free Wi-Fi",
-          "Bar",
-          "Spa ($)"
+          "Mountain view",
+          "Sauna",
+          "Ski storage",
+          "Restaurant"
         ],
-        "description": "Invented small hotel near the sample river with a cosy reading lounge.",
+        "description": "Invented ski-in cabin with hearty breakfasts and an invented on-site restaurant.",
         "link": "https://example.org/sample-hotel",
-        "latitude": 48.858,
-        "longitude": 2.342,
+        "latitude": 47.273,
+        "longitude": 11.396,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
       },
       {
-        "name": "Hôtel Westhaven",
-        "property_type": "hotel",
-        "hotel_class": 5,
-        "overall_rating": 4.9,
-        "reviews": 3120,
-        "currency": "EUR",
-        "rate_per_night": "420",
-        "extracted_rate_per_night": 420,
-        "total_rate": "1260",
-        "amenities": [
-          "Free Wi-Fi",
-          "Spa",
-          "Fine dining",
-          "Concierge",
-          "Fitness center"
-        ],
-        "description": "Invented luxury boutique with a fictional rooftop restaurant and personal concierge.",
-        "link": "https://example.org/sample-hotel",
-        "latitude": 48.87,
-        "longitude": 2.325,
-        "check_in_time": "3:00 PM",
-        "check_out_time": "11:00 AM",
-        "images": []
-      },
-      {
-        "name": "The Sample Atelier",
+        "name": "The Sample Hut",
         "property_type": "hotel",
         "hotel_class": 3,
         "overall_rating": 4.4,
-        "reviews": 540,
+        "reviews": 420,
         "currency": "EUR",
-        "rate_per_night": "135",
-        "extracted_rate_per_night": 135,
-        "total_rate": "405",
+        "rate_per_night": "110",
+        "extracted_rate_per_night": 110,
+        "total_rate": "330",
         "amenities": [
+          "Mountain view",
           "Free Wi-Fi",
-          "Breakfast ($)"
+          "Shared kitchen"
         ],
-        "description": "Invented artsy budget hotel in the sample Marais district.",
+        "description": "Invented rustic cabin for small groups, with wood-fired stove and valley views.",
         "link": "https://example.org/sample-hotel",
-        "latitude": 48.862,
-        "longitude": 2.361,
+        "latitude": 47.245,
+        "longitude": 11.376,
+        "check_in_time": "3:00 PM",
+        "check_out_time": "11:00 AM",
+        "images": []
+      },
+      {
+        "name": "Bergwald Retreat (fictional)",
+        "property_type": "hotel",
+        "hotel_class": 5,
+        "overall_rating": 4.9,
+        "reviews": 1340,
+        "currency": "EUR",
+        "rate_per_night": "340",
+        "extracted_rate_per_night": 340,
+        "total_rate": "1020",
+        "amenities": [
+          "Mountain view",
+          "Spa",
+          "Pool",
+          "Fine dining",
+          "Concierge"
+        ],
+        "description": "Invented luxury Alpine retreat with a heated outdoor pool and invented fine-dining restaurant.",
+        "link": "https://example.org/sample-hotel",
+        "latitude": 47.265,
+        "longitude": 11.42,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
@@ -232,56 +232,55 @@ const examples: TravelStaysStoreExample[] = [
   },
   {
     "id": "store-example-travel-search-stays-3",
-    "query": "Beach resorts in Bali, Indonesia",
+    "query": "Family hotels in the Greek islands",
     "query_translation_key": "settings.app_store_examples.travel.search_stays.3",
     "provider": "Sample Data",
     "status": "finished",
     "results": [
       {
-        "name": "Coral Horizon Beach Resort (fictional)",
+        "name": "Coral Horizon Seaside (fictional)",
         "property_type": "hotel",
         "hotel_class": 5,
         "overall_rating": 4.8,
         "reviews": 2450,
         "currency": "EUR",
-        "rate_per_night": "310",
-        "extracted_rate_per_night": 310,
-        "total_rate": "930",
+        "rate_per_night": "245",
+        "extracted_rate_per_night": 245,
+        "total_rate": "735",
         "amenities": [
           "Beach access",
           "Pool",
-          "Spa",
+          "Kids club",
           "Breakfast included",
-          "Water sports"
+          "Family rooms"
         ],
-        "description": "Invented 5-star resort with private beach huts and a fictional coral-reef snorkel spot.",
+        "description": "Invited family-friendly resort with a shallow kids pool and invented private beach club.",
         "link": "https://example.org/sample-hotel",
-        "latitude": -8.723,
-        "longitude": 115.169,
+        "latitude": 36.395,
+        "longitude": 25.461,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
       },
       {
-        "name": "Palm Cove Retreat (fictional)",
+        "name": "Palm Cove Aegean Retreat (fictional)",
         "property_type": "hotel",
         "hotel_class": 4,
         "overall_rating": 4.6,
         "reviews": 1580,
         "currency": "EUR",
-        "rate_per_night": "195",
-        "extracted_rate_per_night": 195,
-        "total_rate": "585",
+        "rate_per_night": "185",
+        "extracted_rate_per_night": 185,
+        "total_rate": "555",
         "amenities": [
           "Beach access",
           "Pool",
-          "Yoga deck",
           "Breakfast included"
         ],
-        "description": "Invented yoga-friendly resort with 12 bungalows around a shared sample lagoon.",
+        "description": "Invented whitewashed hotel with family rooms and a small shaded terrace.",
         "link": "https://example.org/sample-hotel",
-        "latitude": -8.68,
-        "longitude": 115.239,
+        "latitude": 36.408,
+        "longitude": 25.376,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
@@ -293,41 +292,41 @@ const examples: TravelStaysStoreExample[] = [
         "overall_rating": 4.5,
         "reviews": 860,
         "currency": "EUR",
-        "rate_per_night": "170",
-        "extracted_rate_per_night": 170,
-        "total_rate": "510",
+        "rate_per_night": "160",
+        "extracted_rate_per_night": 160,
+        "total_rate": "480",
         "amenities": [
           "Pool",
           "Breakfast ($)",
           "Free Wi-Fi"
         ],
-        "description": "Invented villa cluster a short walk from an invented quiet beach.",
+        "description": "Invented cluster of invented villas a few minutes from a quiet beach.",
         "link": "https://example.org/sample-hotel",
-        "latitude": -8.672,
-        "longitude": 115.263,
+        "latitude": 37.45,
+        "longitude": 25.329,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []
       },
       {
-        "name": "The Sample Shoreline",
+        "name": "The Sample Shoreline Rhodes",
         "property_type": "hotel",
         "hotel_class": 3,
         "overall_rating": 4.3,
         "reviews": 420,
         "currency": "EUR",
-        "rate_per_night": "110",
-        "extracted_rate_per_night": 110,
-        "total_rate": "330",
+        "rate_per_night": "95",
+        "extracted_rate_per_night": 95,
+        "total_rate": "285",
         "amenities": [
           "Pool",
           "Free Wi-Fi",
           "Restaurant"
         ],
-        "description": "Invented budget beach stay with friendly service and a palm-shaded lounging area.",
+        "description": "Invented family-run budget hotel with a palm-shaded lounging area and daily breakfast buffet.",
         "link": "https://example.org/sample-hotel",
-        "latitude": -8.71,
-        "longitude": 115.175,
+        "latitude": 36.437,
+        "longitude": 28.222,
         "check_in_time": "3:00 PM",
         "check_out_time": "11:00 AM",
         "images": []

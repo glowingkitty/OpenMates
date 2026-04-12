@@ -1,14 +1,14 @@
 /**
  * App-store examples for the events skill.
  *
- * Invented events, venues and organisers so the app store never endorses specific real organisations.
+ * EU-focused everyday queries (farmers markets in Lyon, family weekend events in Vienna, summer concerts in Amsterdam).
  *
- * These are hand-crafted synthetic fixtures. All names, addresses,
- * prices and ratings are invented so that the app store never promotes
- * specific real-world businesses, doctors, landlords or venues. The
- * shape matches the real provider response so the preview + fullscreen
- * render identically. A "Sample data" banner is shown at the top of
- * the fullscreen via the is_store_example flag set by SkillExamplesSection.
+ * Names of specific businesses, doctors, venues and organisers are
+ * hand-crafted and clearly fictional (most marked "(fictional)") so
+ * the app store never promotes real-world entities. Geography and
+ * street names are REAL (EU cities) so maps and addresses render
+ * authentically. A "Sample data" banner is shown above the fullscreen
+ * via the is_store_example flag set by SkillExamplesSection.
  */
 
 export interface EventsSearchStoreExample {
@@ -23,7 +23,7 @@ export interface EventsSearchStoreExample {
 const examples: EventsSearchStoreExample[] = [
   {
     "id": "store-example-events-search-1",
-    "query": "Tech conferences in San Francisco",
+    "query": "Farmers markets and food festivals in Lyon",
     "query_translation_key": "settings.app_store_examples.events.search.1",
     "provider": "Sample Data",
     "status": "finished",
@@ -31,71 +31,71 @@ const examples: EventsSearchStoreExample[] = [
       {
         "id": "ev-1-1",
         "provider": "Sample Data",
-        "title": "Foundry AI Summit (Sample)",
-        "description": "Invented two-day conference on applied AI for startups, with talks by fictional industry speakers.",
+        "title": "Marché du Printemps (fictional)",
+        "description": "Invented weekly farmers market with local produce, cheeses and charcuterie from small regional farms.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-06-12T09:00:00",
-        "date_end": "2026-06-13T18:00:00",
+        "date_start": "2026-05-09T08:00:00",
+        "date_end": "2026-05-09T14:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Harbor Tech Pavilion",
-          "city": "Sample City",
-          "country": "USA"
+          "name": "Place Sample",
+          "city": "Lyon",
+          "country": "France"
         },
         "organizer": {
-          "name": "Sample Tech Community"
+          "name": "Marché Collective Sample"
         },
-        "rsvp_count": 320,
-        "is_paid": true
+        "rsvp_count": 420,
+        "is_paid": false
       },
       {
         "id": "ev-1-2",
         "provider": "Sample Data",
-        "title": "Open Source Weekend (Sample)",
-        "description": "Invented community hackathon focused on open-source tooling and documentation sprints.",
+        "title": "Festival du Terroir (fictional)",
+        "description": "Invented two-day food festival celebrating invented regional specialities with tastings and cooking workshops.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-06-20T10:00:00",
-        "date_end": "2026-06-21T18:00:00",
+        "date_start": "2026-05-16T10:00:00",
+        "date_end": "2026-05-17T22:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Maker Barn Hall",
-          "city": "Sample City",
-          "country": "USA"
+          "name": "Parc Invented",
+          "city": "Lyon",
+          "country": "France"
         },
         "organizer": {
-          "name": "Open Source Collective Sample"
+          "name": "Terroir Sample"
         },
-        "rsvp_count": 180,
-        "is_paid": false
+        "rsvp_count": 1120,
+        "is_paid": true
       },
       {
         "id": "ev-1-3",
         "provider": "Sample Data",
-        "title": "Women in Data Meetup (Sample)",
-        "description": "Invented monthly meetup covering data engineering career paths and technical talks.",
+        "title": "Atelier Pain & Pâtisserie (fictional)",
+        "description": "Invented beginner-friendly bread and pastry workshop run by a fictional local baker.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-06-25T18:30:00",
-        "date_end": "2026-06-25T21:00:00",
+        "date_start": "2026-05-23T10:00:00",
+        "date_end": "2026-05-23T13:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Lantern Studios",
-          "city": "Sample City",
-          "country": "USA"
+          "name": "Atelier Sample",
+          "city": "Lyon",
+          "country": "France"
         },
         "organizer": {
-          "name": "Women in Data Sample Chapter"
+          "name": "Atelier Collective Sample"
         },
-        "rsvp_count": 95,
-        "is_paid": false
+        "rsvp_count": 45,
+        "is_paid": true
       }
     ]
   },
   {
     "id": "store-example-events-search-2",
-    "query": "Live music concerts in Berlin",
+    "query": "Family weekend events in Vienna",
     "query_translation_key": "settings.app_store_examples.events.search.2",
     "provider": "Sample Data",
     "status": "finished",
@@ -103,71 +103,71 @@ const examples: EventsSearchStoreExample[] = [
       {
         "id": "ev-2-1",
         "provider": "Sample Data",
-        "title": "Midnight Glow Live (Sample)",
-        "description": "Invented indie band performing original songs plus a string quartet opener.",
+        "title": "Familienfest am Invented Park (fictional)",
+        "description": "Invented outdoor family day with games, face painting and a small petting zoo.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-07-04T20:00:00",
-        "date_end": "2026-07-04T23:00:00",
+        "date_start": "2026-06-06T11:00:00",
+        "date_end": "2026-06-06T17:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Echo Garden Hall",
-          "city": "Sample City",
-          "country": "Germany"
+          "name": "Sample Park",
+          "city": "Vienna",
+          "country": "Austria"
         },
         "organizer": {
-          "name": "Sample Concerts"
+          "name": "Sample Family Collective"
         },
-        "rsvp_count": 450,
-        "is_paid": true
+        "rsvp_count": 520,
+        "is_paid": false
       },
       {
         "id": "ev-2-2",
         "provider": "Sample Data",
-        "title": "Kleine Nacht Jazz (Sample)",
-        "description": "Invented jazz trio evening featuring standards and original compositions.",
+        "title": "Kindertheater: Der Goldene Stern (fictional)",
+        "description": "Invented live puppet theatre show for children aged 4-10, runs every Saturday in June.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-07-11T19:30:00",
-        "date_end": "2026-07-11T22:30:00",
+        "date_start": "2026-06-13T15:00:00",
+        "date_end": "2026-06-13T16:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Blue Lantern Club",
-          "city": "Sample City",
-          "country": "Germany"
+          "name": "Kleine Bühne Sample",
+          "city": "Vienna",
+          "country": "Austria"
         },
         "organizer": {
-          "name": "Nachtklang Sample"
+          "name": "Kindertheater Sample"
         },
-        "rsvp_count": 140,
+        "rsvp_count": 80,
         "is_paid": true
       },
       {
         "id": "ev-2-3",
         "provider": "Sample Data",
-        "title": "Electronic Horizons Open Air (Sample)",
-        "description": "Invented open-air electronic music event with invented local DJs.",
+        "title": "Donauinsel Sommerlauf (fictional)",
+        "description": "Invented 5 km family fun run along the Donauinsel with a small afterparty.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-07-18T16:00:00",
-        "date_end": "2026-07-18T23:59:00",
+        "date_start": "2026-06-20T09:00:00",
+        "date_end": "2026-06-20T12:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Riverside Field",
-          "city": "Sample City",
-          "country": "Germany"
+          "name": "Donauinsel Sample",
+          "city": "Vienna",
+          "country": "Austria"
         },
         "organizer": {
-          "name": "Horizons Sample Collective"
+          "name": "Sample Running Club"
         },
-        "rsvp_count": 2100,
-        "is_paid": true
+        "rsvp_count": 720,
+        "is_paid": false
       }
     ]
   },
   {
     "id": "store-example-events-search-3",
-    "query": "Art exhibitions in London",
+    "query": "Summer concerts in Amsterdam",
     "query_translation_key": "settings.app_store_examples.events.search.3",
     "provider": "Sample Data",
     "status": "finished",
@@ -175,65 +175,65 @@ const examples: EventsSearchStoreExample[] = [
       {
         "id": "ev-3-1",
         "provider": "Sample Data",
-        "title": "Light & Shadow: Contemporary Portraits (Sample)",
-        "description": "Invented exhibition of fictional contemporary photographers exploring natural light.",
+        "title": "Canal Garden Concert (fictional)",
+        "description": "Invented open-air string quartet performance in an invented canal-side garden.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-08-01T10:00:00",
-        "date_end": "2026-08-30T18:00:00",
+        "date_start": "2026-07-04T19:30:00",
+        "date_end": "2026-07-04T21:30:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Northfield Gallery",
-          "city": "Sample City",
-          "country": "United Kingdom"
+          "name": "Sample Garden",
+          "city": "Amsterdam",
+          "country": "Netherlands"
         },
         "organizer": {
-          "name": "Northfield Sample Trust"
+          "name": "Sample Chamber"
         },
-        "rsvp_count": 0,
+        "rsvp_count": 160,
         "is_paid": true
       },
       {
         "id": "ev-3-2",
         "provider": "Sample Data",
-        "title": "Invented Colour Festival (Sample)",
-        "description": "Invented modern art retrospective featuring invented mixed-media sculptors.",
+        "title": "Jazz op de Gracht (fictional)",
+        "description": "Invented free outdoor jazz afternoon featuring three fictional local jazz trios.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-08-05T11:00:00",
-        "date_end": "2026-08-18T19:00:00",
+        "date_start": "2026-07-11T14:00:00",
+        "date_end": "2026-07-11T18:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "The Atrium Hall",
-          "city": "Sample City",
-          "country": "United Kingdom"
+          "name": "Invented Brug",
+          "city": "Amsterdam",
+          "country": "Netherlands"
         },
         "organizer": {
-          "name": "Atrium Sample"
+          "name": "Jazz Collective Sample"
         },
-        "rsvp_count": 0,
+        "rsvp_count": 340,
         "is_paid": false
       },
       {
         "id": "ev-3-3",
         "provider": "Sample Data",
-        "title": "Printmakers in Residence (Sample)",
-        "description": "Invented live printmaking demonstrations with a small fictional artist collective.",
+        "title": "Zomeravond Choir Night (fictional)",
+        "description": "Invented choir evening in an invented historic church with a small candlelight reception.",
         "url": "https://example.org/sample-event",
-        "date_start": "2026-08-10T10:00:00",
-        "date_end": "2026-08-12T17:00:00",
+        "date_start": "2026-07-18T20:00:00",
+        "date_end": "2026-07-18T22:00:00",
         "timezone": "Europe/Berlin",
         "event_type": "PHYSICAL",
         "venue": {
-          "name": "Westhaven Print Studio",
-          "city": "Sample City",
-          "country": "United Kingdom"
+          "name": "Sample Kerk",
+          "city": "Amsterdam",
+          "country": "Netherlands"
         },
         "organizer": {
-          "name": "Westhaven Sample"
+          "name": "Zomeravond Sample"
         },
-        "rsvp_count": 0,
-        "is_paid": false
+        "rsvp_count": 180,
+        "is_paid": true
       }
     ]
   }

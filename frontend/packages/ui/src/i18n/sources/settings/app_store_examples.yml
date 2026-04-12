@@ -15,295 +15,283 @@
 # via scripts/auto_translate.py.
 
 web.search.1:
-  context: Query label for the first web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set for how to get started learning the Rust programming language.
-  en: How to learn Rust programming as a beginner
-  de: Rust-Programmierung für Anfänger lernen
-  zh: 初学者如何学习 Rust 编程
-  es: Cómo aprender programación en Rust para principiantes
-  fr: Comment apprendre la programmation Rust pour débutants
-  pt: Como aprender programação Rust como iniciante
-  ru: Как выучить программирование на Rust новичку
-  ja: 初心者のためのRustプログラミング学習法
-  ko: 초보자를 위한 Rust 프로그래밍 학습 방법
-  it: Come imparare a programmare in Rust da principiante
-  tr: Yeni başlayanlar için Rust programlama nasıl öğrenilir
-  vi: Cách học lập trình Rust cho người mới bắt đầu
-  id: Cara belajar pemrograman Rust untuk pemula
-  pl: Jak nauczyć się programowania w Rust jako początkujący
-  nl: Rust leren programmeren voor beginners
-  ar: كيفية تعلم برمجة Rust للمبتدئين
-  hi: शुरुआती के तौर पर Rust प्रोग्रामिंग कैसे सीखें
-  th: วิธีเรียนเขียนโปรแกรมภาษา Rust สำหรับมือใหม่
-  cs: Jak se naučit programovat v Rustu jako začátečník
-  sv: Hur man lär sig Rust-programmering som nybörjare
-  he: איך ללמוד תכנות ב-Rust למתחילים
+  context: Query label for the first web search example in the app store. Shown on a preview card that opens a real Brave Search result set for quick and healthy everyday dinner recipes.
+  en: Quick healthy dinner recipes under 30 minutes
+  de: Schnelle gesunde Abendessen-Rezepte unter 30 Minuten
+  zh: 30分钟内快速健康晚餐食谱
+  es: Recetas de cenas saludables y rápidas en menos de 30 minutos
+  fr: Recettes de dîners sains et rapides en moins de 30 min
+  pt: Receitas de jantar rápidas e saudáveis em menos de 30 minutos
+  ru: Быстрые и полезные ужины до 30 минут
+  ja: 30分以内で作れる健康的な夕食レシピ
+  ko: 30분 이내의 빠르고 건강한 저녁 레시피
+  tr: 30 dakikadan kısa hızlı ve sağlıklı akşam yemeği tarifleri
+  vi: Công thức bữa tối lành mạnh nhanh dưới 30 phút
+  id: Resep makan malam sehat cepat di bawah 30 menit
+  pl: Szybkie zdrowe przepisy na kolację w mniej niż 30 minut
+  nl: Snelle gezonde dinerrecepten binnen 30 minuten
+  ar: وصفات عشاء صحية وسريعة في أقل من 30 دقيقة
+  hi: 30 मिनट से कम की झटपट और सेहतमंद डिनर रेसिपी
+  th: สูตรอาหารเย็นเพื่อสุขภาพใน 30 นาที
+  cs: Rychlé a zdravé recepty na večeři do 30 minut
+  sv: Snabba hälsosamma middagsrecept under 30 minuter
+  he: מתכוני ארוחת ערב בריאים ומהירים בפחות מ-30 דקות
   verified_by_human: [en]
 web.search.2:
-  context: Query label for the second web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set comparing consumer noise-cancelling headphones for 2026.
-  en: Best noise cancelling headphones 2026
-  de: Beste Noise-Cancelling-Kopfhörer 2026
-  zh: 2026 年最佳降噪耳机
-  es: Mejores auriculares con cancelación de ruido 2026
-  fr: Meilleurs casques à réduction de bruit 2026
-  pt: Melhores fones de ouvido com cancelamento de ruído 2026
-  ru: Лучшие наушники с шумоподавлением 2026
-  ja: 2026年おすすめのノイズキャンセリングヘッドホン
-  ko: 2026년 최고의 노이즈 캔슬링 헤드폰
-  it: Migliori cuffie con cancellazione del rumore 2026
-  tr: En iyi gürültü engelleyici kulaklıklar 2026
-  vi: Tai nghe chống ồn tốt nhất 2026
-  id: Headphone noise cancelling terbaik 2026
-  pl: Najlepsze słuchawki z redukcją szumów 2026
-  nl: Beste noise-cancelling koptelefoons 2026
-  ar: أفضل سماعات إلغاء الضجيج لعام 2026
-  hi: सबसे अच्छे नॉइज़ कैंसिलिंग हेडफ़ोन 2026
-  th: หูฟังตัดเสียงรบกวนที่ดีที่สุดปี 2026
-  cs: Nejlepší sluchátka s potlačením hluku 2026
-  sv: Bästa brusreducerande hörlurarna 2026
-  he: האוזניות הטובות ביותר לביטול רעשים 2026
+  context: Query label for the second web search example in the app store. Shown on a preview card that opens a real Brave Search result set for family-friendly beaches across southern Europe.
+  en: Best family-friendly beaches in southern Europe
+  de: Beste familienfreundliche Strände in Südeuropa
+  zh: 南欧最佳亲子海滩
+  es: Mejores playas familiares en el sur de Europa
+  fr: Meilleures plages familiales en Europe du Sud
+  pt: Melhores praias para famílias no sul da Europa
+  ru: Лучшие пляжи для отдыха с детьми в Южной Европе
+  ja: 南欧で家族連れにおすすめのビーチ
+  ko: 남유럽 최고의 가족 친화적 해변
+  tr: "Güney Avrupa'nın en iyi aile dostu plajları"
+  vi: Những bãi biển thân thiện với gia đình nhất ở Nam Âu
+  id: Pantai ramah keluarga terbaik di Eropa selatan
+  pl: Najlepsze plaże dla rodzin w Europie Południowej
+  nl: Beste gezinsvriendelijke stranden in Zuid-Europa
+  ar: أفضل الشواطئ المناسبة للعائلات في جنوب أوروبا
+  hi: दक्षिणी यूरोप में परिवारों के लिए सबसे अच्छे समुद्र तट
+  th: ชายหาดสำหรับครอบครัวที่ดีที่สุดในยุโรปตอนใต้
+  cs: Nejlepší pláže pro rodiny v jižní Evropě
+  sv: Bästa familjevänliga stränderna i södra Europa
+  he: החופים הטובים ביותר למשפחות בדרום אירופה
   verified_by_human: [en]
 web.search.3:
-  context: Query label for the third web search example in the app store. Shown as the main text on a preview card that opens a real Brave Search result set about recent discoveries made by the James Webb Space Telescope.
-  en: Latest James Webb Space Telescope discoveries
-  de: Neueste Entdeckungen des James-Webb-Weltraumteleskops
-  zh: 詹姆斯·韦伯空间望远镜的最新发现
-  es: Últimos descubrimientos del telescopio espacial James Webb
-  fr: Dernières découvertes du télescope spatial James Webb
-  pt: Últimas descobertas do Telescópio Espacial James Webb
-  ru: Последние открытия телескопа «Джеймс Уэбб»
-  ja: ジェイムズ・ウェッブ宇宙望遠鏡の最新の発見
-  ko: 제임스 웹 우주 망원경의 최신 발견
-  it: Ultime scoperte del telescopio spaziale James Webb
-  tr: En son James Webb Uzay Teleskobu keşifleri
-  vi: Những khám phá mới nhất của Kính viễn vọng James Webb
-  id: Penemuan terbaru Teleskop Luar Angkasa James Webb
-  pl: Najnowsze odkrycia Kosmicznego Teleskopu Jamesa Webba
-  nl: Nieuwste ontdekkingen James Webb-ruimtetelescoop
-  ar: أحدث اكتشافات تلسكوب جيمس ويب الفضائي
-  hi: जेम्स वेब स्पेस टेलीस्कोप की ताज़ा खोजें
-  th: การค้นพบล่าสุดจากกล้องโทรทรรศน์อวกาศเจมส์ เวบบ์
-  cs: Nejnovější objevy teleskopu Jamese Webba
-  sv: Senaste upptäckterna från rymdteleskopet James Webb
-  he: "התגליות האחרונות של טלסקופ החלל ג'יימס וב"
+  context: Query label for the third web search example in the app store. Shown on a preview card that opens a real Brave Search result set for everyday, non-medical tips to improve your sleep naturally.
+  en: Natural ways to improve your sleep
+  de: Natürliche Wege, deinen Schlaf zu verbessern
+  zh: 改善睡眠的自然方法
+  es: Formas naturales de mejorar el sueño
+  fr: Moyens naturels pour améliorer ton sommeil
+  pt: Formas naturais de melhorar o teu sono
+  ru: Естественные способы улучшить сон
+  ja: 睡眠を自然に改善する方法
+  ko: 수면을 개선하는 자연스러운 방법
+  tr: Uykunu iyileştirmenin doğal yolları
+  vi: Các cách tự nhiên để cải thiện giấc ngủ của bạn
+  id: Cara alami meningkatkan kualitas tidur
+  pl: Naturalne sposoby na poprawę snu
+  nl: Natuurlijke manieren om je slaap te verbeteren
+  ar: طرق طبيعية لتحسين نومك
+  hi: अपनी नींद सुधारने के प्राकृतिक तरीके
+  th: วิธีธรรมชาติช่วยให้หลับสบายขึ้น
+  cs: Přírodní způsoby, jak zlepšit spánek
+  sv: Naturliga sätt att förbättra din sömn
+  he: דרכים טבעיות לשיפור השינה
   verified_by_human: [en]
 
 news.search.1:
-  context: Query label for the first news search example in the app store. Shown on a preview card that opens a real Brave news search result set covering notable artificial intelligence breakthroughs in 2026.
-  en: AI breakthroughs in 2026
-  de: KI-Durchbrüche 2026
-  zh: 2026 年人工智能突破
-  es: Avances en IA en 2026
-  fr: "Avancées de l'IA en 2026"
-  pt: Avanços em IA em 2026
-  ru: Прорывы в области ИИ в 2026 году
-  ja: 2026年のAIのブレイクスルー
-  ko: 2026년 AI 기술의 획기적 발전
-  it: "Svolte dell'IA nel 2026"
-  tr: "2026'daki yapay zeka atılımları"
-  vi: Đột phá AI năm 2026
-  id: Terobosan AI di tahun 2026
-  pl: Przełomy w AI w 2026 roku
-  nl: AI-doorbraken in 2026
-  ar: إنجازات الذكاء الاصطناعي في عام 2026
-  hi: 2026 में AI की बड़ी उपलब्धियां
-  th: ความก้าวหน้าของ AI ในปี 2026
-  cs: Průlomy v AI v roce 2026
-  sv: AI-genombrott 2026
-  he: פריצות דרך בבינה מלאכותית ב-2026
+  context: Query label for the first news search example in the app store. Shown on a preview card that opens a real Brave news result set about European travel trends for summer 2026.
+  en: European travel trends for summer 2026
+  de: Europäische Reisetrends für den Sommer 2026
+  zh: 2026年夏季欧洲旅游趋势
+  es: Tendencias de viajes en Europa para el verano de 2026
+  fr: "Tendances de voyage en Europe pour l'été 2026"
+  pt: Tendências de viagens na Europa para o verão de 2026
+  ru: Тренды туризма в Европе на лето 2026
+  ja: 2026年夏の欧州旅行トレンド
+  ko: 2026년 여름 유럽 여행 트렌드
+  tr: 2026 yazı Avrupa seyahat trendleri
+  vi: Xu hướng du lịch châu Âu mùa hè năm 2026
+  id: Tren wisata Eropa untuk musim panas 2026
+  pl: Europejskie trendy turystyczne na lato 2026
+  nl: Europese reistrends voor zomer 2026
+  ar: اتجاهات السفر في أوروبا لصيف 2026
+  hi: गर्मियों 2026 के लिए यूरोपीय यात्रा रुझान
+  th: เทรนด์การท่องเที่ยวยุโรป ฤดูร้อนปี 2026
+  cs: Evropské cestovní trendy pro léto 2026
+  sv: Europeiska resetrender för sommaren 2026
+  he: מגמות תיירות באירופה לקיץ 2026
   verified_by_human: [en]
 news.search.2:
-  context: Query label for the second news search example in the app store. Shown on a preview card that opens a real Brave news search result set about recent European climate policy developments.
-  en: European climate policy updates
-  de: Updates zur europäischen Klimapolitik
-  zh: 欧洲气候政策动态
-  es: Novedades sobre la política climática europea
-  fr: Actualités de la politique climatique européenne
-  pt: Atualizações da política climática europeia
-  ru: Новости климатической политики Европы
-  ja: 欧州の気候政策の最新ニュース
-  ko: 유럽 기후 정책 업데이트
-  it: Aggiornamenti sulle politiche climatiche europee
-  tr: Avrupa iklim politikası güncellemeleri
-  vi: Cập nhật chính sách khí hậu châu Âu
-  id: Pembaruan kebijakan iklim Eropa
-  pl: Aktualności o europejskiej polityce klimatycznej
-  nl: Updates Europees klimaatbeleid
-  ar: تحديثات سياسة المناخ الأوروبية
-  hi: यूरोपीय जलवायु नीति अपडेट
-  th: อัปเดตนโยบายสภาพภูมิอากาศของยุโรป
-  cs: Aktuality o evropské klimatické politice
-  sv: Uppdateringar om europeisk klimatpolitik
-  he: עדכונים במדיניות האקלים האירופית
+  context: Query label for the second news search example in the app store. Shown on a preview card that opens a real Brave news result set about healthy eating recommendations and dietary guidance across Europe.
+  en: Healthy eating recommendations in Europe
+  de: Empfehlungen für gesunde Ernährung in Europa
+  zh: 欧洲健康饮食建议
+  es: Recomendaciones de alimentación saludable en Europa
+  fr: Recommandations pour une alimentation saine en Europe
+  pt: Recomendações de alimentação saudável na Europa
+  ru: Рекомендации по здоровому питанию в Европе
+  ja: 欧州の健康的な食事に関する推奨事項
+  ko: 유럽의 건강한 식생활 권장 사항
+  tr: "Avrupa'da sağlıklı beslenme önerileri"
+  vi: Khuyến nghị ăn uống lành mạnh ở châu Âu
+  id: Rekomendasi makan sehat di Eropa
+  pl: Zalecenia dotyczące zdrowego odżywiania w Europie
+  nl: Aanbevelingen voor gezonde voeding in Europa
+  ar: توصيات الأكل الصحي في أوروبا
+  hi: यूरोप में स्वस्थ खान-पान की सिफारिशें
+  th: คำแนะนำการกินเพื่อสุขภาพในยุโรป
+  cs: Doporučení pro zdravé stravování v Evropě
+  sv: Rekommendationer för hälsosam kost i Europa
+  he: המלצות לתזונה בריאה באירופה
   verified_by_human: [en]
 news.search.3:
-  context: Query label for the third news search example in the app store. Shown on a preview card that opens a real Brave news search result set about SpaceX's Mars mission plans.
-  en: SpaceX Mars mission news
-  de: Neuigkeiten zur SpaceX-Marsmission
-  zh: SpaceX 火星任务新闻
-  es: Noticias sobre la misión a Marte de SpaceX
-  fr: Actualités de la mission SpaceX vers Mars
-  pt: Notícias da missão da SpaceX a Marte
-  ru: Новости марсианской миссии SpaceX
-  ja: SpaceXの火星ミッションに関するニュース
-  ko: 스페이스X 화성 탐사 뉴스
-  it: Novità sulla missione SpaceX su Marte
-  tr: SpaceX Mars görevi haberleri
-  vi: Tin tức sứ mệnh sao Hỏa của SpaceX
-  id: Berita misi Mars SpaceX
-  pl: Wiadomości o misji SpaceX na Marsa
-  nl: Nieuws over SpaceX Mars-missie
-  ar: أخبار مهمة سبيس إكس إلى المريخ
-  hi: SpaceX मार्स मिशन की खबरें
-  th: ข่าวภารกิจดาวอังคารของ SpaceX
-  cs: Novinky o misi SpaceX na Mars
-  sv: Nyheter om SpaceX Mars-uppdrag
-  he: חדשות על משימת SpaceX למאדים
+  context: Query label for the third news search example in the app store. Shown on a preview card that opens a real Brave news result set about cultural festivals happening across Europe this summer.
+  en: Cultural festivals in Europe this summer
+  de: Kulturfestivals in Europa diesen Sommer
+  zh: 今年夏天欧洲的文化节
+  es: Festivales culturales en Europa este verano
+  fr: Festivals culturels en Europe cet été
+  pt: Festivais culturais na Europa este verão
+  ru: Культурные фестивали в Европе этим летом
+  ja: 今年の夏に欧州で開催される文化フェスティバル
+  ko: 이번 여름 유럽의 문화 축제
+  tr: "Bu yaz Avrupa'daki kültürel festivaller"
+  vi: Các lễ hội văn hóa ở châu Âu mùa hè này
+  id: Festival budaya di Eropa musim panas ini
+  pl: Festiwale kulturalne w Europie tego lata
+  nl: Culturele festivals in Europa deze zomer
+  ar: المهرجانات الثقافية في أوروبا هذا الصيف
+  hi: इस गर्मी यूरोप में सांस्कृतिक उत्सव
+  th: เทศกาลทางวัฒนธรรมในยุโรปฤดูร้อนนี้
+  cs: Kulturní festivaly v Evropě toto léto
+  sv: Kulturfestivaler i Europa i sommar
+  he: פסטיבלי תרבות באירופה הקיץ
   verified_by_human: [en]
 
 videos.search.1:
-  context: Query label for the first videos search example in the app store. Shown on a preview card that opens a real Brave video search result set about using Svelte 5 runes in tutorials.
-  en: Svelte 5 runes tutorial
-  de: Svelte 5 Runes Tutorial
-  zh: Svelte 5 runes 教程
-  es: Tutorial de runes de Svelte 5
-  fr: Tutoriel sur les runes Svelte 5
-  pt: Tutorial de runes do Svelte 5
-  ru: Туториал по рунам в Svelte 5
-  ja: Svelte 5 Runes チュートリアル
-  ko: Svelte 5 룬 튜토리얼
-  it: Tutorial sulle rune di Svelte 5
-  tr: Svelte 5 runes eğitimi
-  vi: Hướng dẫn Svelte 5 runes
-  id: Tutorial rune Svelte 5
-  pl: Tutorial Svelte 5 runes
-  nl: Svelte 5 runes-tutorial
-  ar: شرح Svelte 5 runes
-  hi: Svelte 5 रून्स ट्यूटोरियल
-  th: สอนใช้งาน Svelte 5 runes
-  cs: Tutoriál na Svelte 5 runes
-  sv: Svelte 5 runes-guide
-  he: מדריך Svelte 5 runes
+  context: Query label for the first videos search example in the app store. Shown on a preview card that opens real Brave video results for videos about NASA's Artemis II Moon mission.
+  en: Artemis II mission videos
+  de: Videos zur Artemis-II-Mission
+  zh: 阿耳忒弥斯2号任务视频
+  es: Vídeos de la misión Artemis II
+  fr: Vidéos de la mission Artemis II
+  pt: Vídeos da missão Artemis II
+  ru: Видео миссии «Артемида-2»
+  ja: アルテミス2号ミッションの動画
+  ko: 아르테미스 2호 미션 영상
+  tr: Artemis II görevi videoları
+  vi: Video về sứ mệnh Artemis II
+  id: Video misi Artemis II
+  pl: Filmy z misji Artemis II
+  nl: "Video's van de Artemis II-missie"
+  ar: فيديوهات مهمة أرتيميس 2
+  hi: आर्टेमिस II मिशन के वीडियो
+  th: วิดีโอภารกิจ Artemis II
+  cs: Videa z mise Artemis II
+  sv: Videor från Artemis II-uppdraget
+  he: סרטונים של משימת ארטמיס 2
   verified_by_human: [en]
 videos.search.2:
-  context: Query label for the second videos search example in the app store. Shown on a preview card that opens a real Brave video search result set about cooking an authentic pasta carbonara.
-  en: How to cook authentic pasta carbonara
-  de: Authentische Pasta Carbonara kochen
-  zh: 如何烹饪正宗的培根蛋酱意面
-  es: Cómo cocinar una auténtica pasta carbonara
-  fr: "Comment cuisiner d'authentiques pâtes carbonara"
-  pt: Como fazer massa carbonara autêntica
-  ru: Как приготовить настоящую пасту карбонара
-  ja: 本場のカルボナーラの作り方
-  ko: 정통 파스타 카르보나라 요리법
-  it: "Come cucinare l'autentica pasta alla carbonara"
-  tr: Orijinal pasta carbonara nasıl yapılır
-  vi: Cách nấu mì Ý carbonara đúng chuẩn
-  id: Cara memasak pasta carbonara autentik
-  pl: Jak ugotować autentyczną pastę carbonara
-  nl: Hoe maak je authentieke pasta carbonara
-  ar: كيفية طهي باستا كاربونارا الأصلية
-  hi: असली पास्ता कार्बोनारा कैसे बनाएं
-  th: วิธีทำพาสต้าคาโบนาร่าสูตรต้นตำรับ
-  cs: Jak uvařit pravé těstoviny carbonara
-  sv: Hur man lagar äkta pasta carbonara
-  he: איך להכין פסטה קרבונרה אותנטית
+  context: Query label for the second videos search example in the app store. Shown on a preview card that opens real Brave video results for easy weeknight pasta recipe tutorials.
+  en: Easy weeknight pasta recipes
+  de: Einfache Pasta-Rezepte für unter der Woche
+  zh: 简单的工作日意面食谱
+  es: Recetas fáciles de pasta para entre semana
+  fr: Recettes de pâtes faciles pour les soirs de semaine
+  pt: Receitas fáceis de massa para os dias de semana
+  ru: Простые рецепты пасты на ужин
+  ja: 平日の夜にぴったりの簡単パスタレシピ
+  ko: 평일 저녁에 하기 쉬운 파스타 레시피
+  tr: Hafta içi için kolay makarna tarifleri
+  vi: Công thức mì Ý dễ làm cho tối trong tuần
+  id: Resep pasta praktis untuk hari kerja
+  pl: Łatwe przepisy na makaron w tygodniu
+  nl: Makkelijke doordeweekse pastarecepten
+  ar: وصفات باستا سهلة للعشاء خلال الأسبوع
+  hi: रात के खाने के लिए पास्ता की आसान रेसिपी
+  th: สูตรพาสต้าทำง่ายสำหรับมื้อค่ำ
+  cs: Snadné recepty na těstoviny k večeři
+  sv: Enkla pastarecept för vardagskvällar
+  he: מתכוני פסטה קלים לאמצע השבוע
   verified_by_human: [en]
 videos.search.3:
-  context: Query label for the third videos search example in the app store. Shown on a preview card that opens a real Brave video search result set explaining how black holes work.
-  en: How black holes work explained
-  de: Funktionsweise von Schwarzen Löchern erklärt
-  zh: 黑洞原理详解
-  es: Explicación de cómo funcionan los agujeros negros
-  fr: Le fonctionnement des trous noirs expliqué
-  pt: Como funcionam os buracos negros (explicado)
-  ru: "Как работают черные дыры: объяснение"
-  ja: ブラックホールの仕組みを解説
-  ko: 블랙홀의 원리 설명
-  it: Come funzionano i buchi neri
-  tr: Kara deliklerin çalışma prensibi anlatımı
-  vi: Giải thích về hố đen vũ trụ
-  id: Penjelasan cara kerja lubang hitam
-  pl: Jak działają czarne dziury – wyjaśnienie
-  nl: Werking van zwarte gaten uitgelegd
-  ar: شرح كيفية عمل الثقوب السوداء
-  hi: ब्लैक होल कैसे काम करते हैं - जानकारी
-  th: อธิบายการทำงานของหลุมดำ
-  cs: Vysvětlení, jak fungují černé díry
-  sv: Så fungerar svarta hål
-  he: הסבר על איך חורים שחורים עובדים
+  context: Query label for the third videos search example in the app store. Shown on a preview card that opens real Brave video results for a beginner morning yoga routine.
+  en: Beginner morning yoga routine
+  de: Morgenyoga-Routine für Anfänger
+  zh: 初学者晨间瑜伽练习
+  es: Rutina de yoga matutino para principiantes
+  fr: Routine de yoga matinal pour débutants
+  pt: Rotina de ioga matinal para iniciantes
+  ru: Утренняя йога для начинающих
+  ja: 初心者向けの朝ヨガルーティン
+  ko: 초보자를 위한 아침 요가 루틴
+  tr: Yeni başlayanlar için sabah yogası rutini
+  vi: Bài tập yoga buổi sáng cho người mới bắt đầu
+  id: Rutinitas yoga pagi untuk pemula
+  pl: Poranna joga dla początkujących
+  nl: Ochtendyoga-routine voor beginners
+  ar: روتين يوغا صباحي للمبتدئين
+  hi: शुरुआती लोगों के लिए सुबह का योग रूटीन
+  th: โยคะยามเช้าสำหรับผู้เริ่มต้น
+  cs: Ranní jóga pro začátečníky
+  sv: Morgonyoga för nybörjare
+  he: שגרת יוגה בוקר למתחילים
   verified_by_human: [en]
 
 maps.search.1:
-  context: Query label for the first maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for the best coffee shops in San Francisco, USA.
-  en: Best coffee shops in San Francisco
-  de: Beste Cafés in San Francisco
-  zh: 旧金山最佳咖啡馆
-  es: Mejores cafeterías en San Francisco
-  fr: Meilleurs cafés à San Francisco
-  pt: Melhores cafeterias em San Francisco
-  ru: Лучшие кофейни в Сан-Франциско
-  ja: サンフランシスコのおすすめカフェ
-  ko: 샌프란시스코 최고의 커피숍
-  it: Migliori caffetterie a San Francisco
-  tr: "San Francisco'daki en iyi kahve dükkanları"
-  vi: Quán cà phê tốt nhất ở San Francisco
-  id: Kedai kopi terbaik di San Francisco
-  pl: Najlepsze kawiarnie w San Francisco
-  nl: Beste koffietentjes in San Francisco
-  ar: أفضل المقاهي في سان فرانسيسكو
-  hi: सैन फ्रांसिस्को में सबसे अच्छी कॉफी शॉप्स
-  th: ร้านกาแฟที่ดีที่สุดในซานฟรานซิสโก
-  cs: Nejlepší kavárny v San Franciscu
-  sv: Bästa kaféerna i San Francisco
-  he: בתי הקפה הטובים ביותר בסן פרנסיסקו
+  context: Query label for the first maps search example in the app store. Shown on a preview card that opens a map of bakeries and cafés across central Paris.
+  en: Bakeries and cafés in central Paris
+  de: Bäckereien und Cafés im Zentrum von Paris
+  zh: 巴黎市中心的烘焙店和咖啡馆
+  es: Panaderías y cafeterías en el centro de París
+  fr: Boulangeries et cafés dans le centre de Paris
+  pt: Padarias e cafés no centro de Paris
+  ru: Пекарни и кафе в центре Парижа
+  ja: パリ中心部のベーカリーとカフェ
+  ko: 파리 중심가의 베이커리 및 카페
+  tr: Paris merkezindeki fırınlar ve kafeler
+  vi: Tiệm bánh và quán cà phê ở trung tâm Paris
+  id: Toko roti dan kafe di pusat Paris
+  pl: Piekarnie i kawiarnie w centrum Paryża
+  nl: Bakkerijen en cafés in het centrum van Parijs
+  ar: مخابز ومقاهٍ في وسط باريس
+  hi: मध्य पेरिस में बेकरी और कैफे
+  th: ร้านเบเกอรี่และคาเฟ่ในใจกลางปารีส
+  cs: Pekárny a kavárny v centru Paříže
+  sv: Bagerier och kaféer i centrala Paris
+  he: מאפיות ובתי קפה במרכז פריז
   verified_by_human: [en]
 maps.search.2:
-  context: Query label for the second maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for Italian restaurants near Times Square in New York City, USA.
-  en: Italian restaurants near Times Square, New York
-  de: Italienische Restaurants in der Nähe des Times Square, New York
-  zh: 纽约时代广场附近的意大利餐厅
-  es: Restaurantes italianos cerca de Times Square, Nueva York
-  fr: Restaurants italiens près de Times Square, New York
-  pt: Restaurantes italianos perto da Times Square, Nova York
-  ru: Итальянские рестораны рядом с Таймс-сквер, Нью-Йорк
-  ja: ニューヨーク、タイムズスクエア近くのイタリアンレストラン
-  ko: 뉴욕 타임스퀘어 근처 이탈리안 레스토랑
-  it: Ristoranti italiani vicino a Times Square, New York
-  tr: Times Square, New York yakınlarındaki İtalyan restoranları
-  vi: Nhà hàng Ý gần Quảng trường Thời đại, New York
-  id: Restoran Italia dekat Times Square, New York
-  pl: Włoskie restauracje blisko Times Square, Nowy Jork
-  nl: Italiaanse restaurants nabij Times Square, New York
-  ar: مطاعم إيطالية بالقرب من تايمز سكوير، نيويورك
-  hi: टाइम्स स्क्वायर, न्यूयॉर्क के पास इटालियन रेस्टोरेंट्स
-  th: ร้านอาหารอิตาเลียนใกล้ไทม์สแควร์ นิวยอร์ก
-  cs: Italské restaurace u Times Square v New Yorku
-  sv: Italienska restauranger nära Times Square, New York
-  he: מסעדות איטלקיות ליד טיימס סקוור, ניו יורק
+  context: Query label for the second maps search example in the app store. Shown on a preview card that opens a map of family-friendly parks across Berlin.
+  en: Family-friendly parks in Berlin
+  de: Familienfreundliche Parks in Berlin
+  zh: 柏林的亲子公园
+  es: Parques familiares en Berlín
+  fr: Parcs familiaux à Berlin
+  pt: Parques para famílias em Berlim
+  ru: Парки для отдыха с детьми в Берлине
+  ja: ベルリンの家族連れに優しい公園
+  ko: 베를린의 가족 친화적 공원
+  tr: "Berlin'deki aile dostu parklar"
+  vi: Công viên thân thiện với gia đình ở Berlin
+  id: Taman ramah keluarga di Berlin
+  pl: Parki przyjazne rodzinom w Berlinie
+  nl: Gezinsvriendelijke parken in Berlijn
+  ar: منتزهات مناسبة للعائلات في برلين
+  hi: बर्लिन में परिवारों के लिए उपयुक्त पार्क
+  th: สวนสาธารณะสำหรับครอบครัวในเบอร์ลิน
+  cs: Parky pro rodiny v Berlíně
+  sv: Familjevänliga parker i Berlin
+  he: פארקים למשפחות בברלין
   verified_by_human: [en]
 maps.search.3:
-  context: Query label for the third maps search example in the app store. Shown on a preview card that opens real Google Maps Places results for bookstores in central London, UK.
-  en: Bookstores in central London
-  de: Buchhandlungen im Zentrum von London
-  zh: 伦敦市中心书店
-  es: Librerías en el centro de Londres
-  fr: Librairies dans le centre de Londres
-  pt: Livrarias no centro de Londres
-  ru: Книжные магазины в центре Лондона
-  ja: ロンドン中心部の書店
-  ko: 런던 중심가의 서점
-  it: Librerie nel centro di Londra
-  tr: Londra merkezindeki kitapçılar
-  vi: Hiệu sách ở trung tâm London
-  id: Toko buku di pusat London
-  pl: Księgarnie w centrum Londynu
-  nl: Boekwinkels in het centrum van Londen
-  ar: مكتبات في وسط لندن
-  hi: सेंट्रल लंदन में बुकस्टोर्स
-  th: ร้านหนังสือในใจกลางลอนดอน
-  cs: Knihkupectví v centru Londýna
-  sv: Bokhandlar i centrala London
-  he: חנויות ספרים במרכז לונדון
+  context: Query label for the third maps search example in the app store. Shown on a preview card that opens a map of tapas bars in central Barcelona.
+  en: Tapas bars in central Barcelona
+  de: Tapas-Bars im Zentrum von Barcelona
+  zh: 巴塞罗那市中心的塔帕斯酒吧
+  es: Bares de tapas en el centro de Barcelona
+  fr: Bars à tapas dans le centre de Barcelone
+  pt: Bares de tapas no centro de Barcelona
+  ru: Тапас-бары в центре Барселоны
+  ja: バルセロナ中心部のタパスバー
+  ko: 바르셀로나 중심가의 타파스 바
+  tr: Barselona merkezindeki tapas barlar
+  vi: Quán bar tapas ở trung tâm Barcelona
+  id: Bar tapas di pusat Barcelona
+  pl: Bary tapas w centrum Barcelony
+  nl: Tapasbars in het centrum van Barcelona
+  ar: حانات التاباس في وسط برشلونة
+  hi: मध्य बार्सिलोना में तापस बार
+  th: ทาปาสบาร์ในใจกลางบาร์เซโลนา
+  cs: Tapas bary v centru Barcelony
+  sv: Tapasbarer i centrala Barcelona
+  he: טאפאס ברים במרכז ברצלונה
   verified_by_human: [en]
 
 shopping.search_products.1:
@@ -380,222 +368,213 @@ shopping.search_products.3:
   verified_by_human: [en]
 
 travel.search_stays.1:
-  context: Query label for the first travel stays example in the app store. Shown on a preview card that opens real Google Hotels results for hotels in Barcelona, Spain.
-  en: Hotels in Barcelona, Spain
-  de: Hotels in Barcelona, Spanien
-  zh: 西班牙巴塞罗那酒店
-  es: Hoteles en Barcelona, España
-  fr: Hôtels à Barcelone, Espagne
-  pt: Hotéis em Barcelona, Espanha
-  ru: Отели в Барселоне, Испания
-  ja: スペイン、バルセロナのホテル
-  ko: 스페인 바르셀로나 호텔
-  it: Hotel a Barcellona, Spagna
-  tr: "Barselona, İspanya'daki oteller"
-  vi: Khách sạn tại Barcelona, Tây Ban Nha
-  id: Hotel di Barcelona, Spanyol
-  pl: Hotele w Barcelonie, Hiszpania
-  nl: Hotels in Barcelona, Spanje
-  ar: فنادق في برشلونة، إسبانيا
-  hi: बार्सिलोना, स्पेन में होटल
-  th: โรงแรมในบาร์เซโลนา ประเทศสเปน
-  cs: Hotely v Barceloně, Španělsko
-  sv: Hotell i Barcelona, Spanien
-  he: מלונות בברצלונה, ספרד
+  context: Query label for the first travel stays example in the app store. Shown on a preview card that opens hotel options in central Lisbon, Portugal.
+  en: Hotels in central Lisbon
+  de: Hotels im Zentrum von Lissabon
+  zh: 里斯本市中心的酒店
+  es: Hoteles en el centro de Lisboa
+  fr: Hôtels dans le centre de Lisbonne
+  pt: Hotéis no centro de Lisboa
+  ru: Отели в центре Лиссабона
+  ja: リスボン中心部のホテル
+  ko: 리스본 중심가의 호텔
+  tr: Lizbon merkezindeki oteller
+  vi: Khách sạn ở trung tâm Lisbon
+  id: Hotel di pusat Lisbon
+  pl: Hotele w centrum Lizbony
+  nl: Hotels in het centrum van Lissabon
+  ar: فنادق في وسط لشبونة
+  hi: मध्य लिस्बन में होटल
+  th: โรงแรมในใจกลางลิสบอน
+  cs: Hotely v centru Lisabonu
+  sv: Hotell i centrala Lissabon
+  he: מלונות במרכז ליסבון
   verified_by_human: [en]
 travel.search_stays.2:
-  context: Query label for the second travel stays example in the app store. Shown on a preview card that opens real Google Hotels results for boutique hotels in Paris, France.
-  en: Boutique hotels in Paris, France
-  de: Boutique-Hotels in Paris, Frankreich
-  zh: 法国巴黎精品酒店
-  es: Hoteles boutique en París, Francia
-  fr: Boutique-hôtels à Paris, France
-  pt: Hotéis boutique em Paris, França
-  ru: Бутик-отели в Париже, Франция
-  ja: フランス、パリのブティックホテル
-  ko: 프랑스 파리 부티크 호텔
-  it: Boutique hotel a Parigi, Francia
-  tr: "Paris, Fransa'daki butik oteller"
-  vi: Khách sạn boutique tại Paris, Pháp
-  id: Hotel butik di Paris, Prancis
-  pl: Hotele butikowe w Paryżu, Francja
-  nl: Boutique hotels in Parijs, Frankrijk
-  ar: فنادق بوتيك في باريس، فرنسا
-  hi: पेरिस, फ्रांस में बुटीक होटल
-  th: บูติกโฮเทลในปารีส ประเทศฝรั่งเศส
-  cs: Boutique hotely v Paříži, Francie
-  sv: Boutiquehotell i Paris, Frankrike
-  he: מלונות בוטיק בפריז, צרפת
+  context: Query label for the second travel stays example in the app store. Shown on a preview card that opens mountain cabin options in the Austrian Alps.
+  en: Mountain cabins in the Austrian Alps
+  de: Berghütten in den österreichischen Alpen
+  zh: 奥地利阿尔卑斯山脉的山间木屋
+  es: Cabañas de montaña en los Alpes austríacos
+  fr: Chalets de montagne dans les Alpes autrichiennes
+  pt: Cabanas de montanha nos Alpes austríacos
+  ru: Горные хижины в Австрийских Альпах
+  ja: オーストリア・アルプスの山小屋
+  ko: 오스트리아 알프스의 산장
+  tr: "Avusturya Alpleri'ndeki dağ kulübeleri"
+  vi: Nhà gỗ trên núi ở dãy Alps của Áo
+  id: Kabin gunung di Pegunungan Alpen Austria
+  pl: Górskie chaty w Alpach Austriackich
+  nl: Berghutten in de Oostenrijkse Alpen
+  ar: أكواخ جبلية في جبال الألب النمساوية
+  hi: ऑस्ट्रियाई आल्प्स में माउंटेन केबिन
+  th: กระท่อมบนเขาในเทือกเขาแอลป์ ออสเตรีย
+  cs: Horské chaty v rakouských Alpách
+  sv: Bergsstugor i de österrikiska Alperna
+  he: בקתות הרים באלפים האוסטריים
   verified_by_human: [en]
 travel.search_stays.3:
-  context: Query label for the third travel stays example in the app store. Shown on a preview card that opens real Google Hotels results for beach resorts in Bali, Indonesia.
-  en: Beach resorts in Bali, Indonesia
-  de: Strandresorts in Bali, Indonesien
-  zh: 印度尼西亚巴厘岛海滨度假村
-  es: Resorts de playa en Bali, Indonesia
-  fr: Resorts de plage à Bali, Indonésie
-  pt: Resorts de praia em Bali, Indonésia
-  ru: Пляжные курорты на Бали, Индонезия
-  ja: インドネシア、バリ島のビーチリゾート
-  ko: 인도네시아 발리 비치 리조트
-  it: Resort sulla spiaggia a Bali, Indonesia
-  tr: "Bali, Endonezya'daki sahil tatil köyleri"
-  vi: Khu nghỉ dưỡng ven biển tại Bali, Indonesia
-  id: Resor pantai di Bali, Indonesia
-  pl: Kurorty nadmorskie na Bali, Indonezja
-  nl: Strandresorts in Bali, Indonesië
-  ar: منتجعات شاطئية في بالي، إندونيسيا
-  hi: बाली, इंडोनेशिया में बीच रिसॉर्ट्स
-  th: รีสอร์ตริมหาดในบาหลี ประเทศอินโดนีเซีย
-  cs: Plážové resorty na Bali, Indonésie
-  sv: Strandresorter på Bali, Indonesien
-  he: אתרי נופש על החוף בבאלי, אינדונזיה
+  context: Query label for the third travel stays example in the app store. Shown on a preview card that opens family-friendly hotel options across the Greek islands.
+  en: Family hotels in the Greek islands
+  de: Familienhotels auf den griechischen Inseln
+  zh: 希腊群岛的亲子酒店
+  es: Hoteles familiares en las islas griegas
+  fr: Hôtels familiaux dans les îles grecques
+  pt: Hotéis para famílias nas ilhas gregas
+  ru: Семейные отели на греческих островах
+  ja: ギリシャ諸島のファミリーホテル
+  ko: 그리스 제도의 가족 호텔
+  tr: Yunan adalarındaki aile otelleri
+  vi: Khách sạn gia đình ở các hòn đảo Hy Lạp
+  id: Hotel keluarga di kepulauan Yunani
+  pl: Hotele rodzinne na greckich wyspach
+  nl: Familiehotels op de Griekse eilanden
+  ar: فنادق عائلية في الجزر اليونانية
+  hi: ग्रीक द्वीपों में फैमिली होटल
+  th: โรงแรมสำหรับครอบครัวในหมู่เกาะกรีซ
+  cs: Rodinné hotely na řeckých ostrovech
+  sv: Familjehotell på de grekiska öarna
+  he: מלונות למשפחות באיי יוון
   verified_by_human: [en]
 
 events.search.1:
-  context: Query label for the first events search example in the app store. Shown on a preview card that opens real event search results for technology conferences happening in San Francisco, USA.
-  en: Tech conferences in San Francisco
-  de: Tech-Konferenzen in San Francisco
-  zh: 旧金山科技会议
-  es: Conferencias de tecnología en San Francisco
-  fr: Conférences tech à San Francisco
-  pt: Conferências de tecnologia em San Francisco
-  ru: Технологические конференции в Сан-Франциско
-  ja: サンフランシスコのテックカンファレンス
-  ko: 샌프란시스코 테크 컨퍼런스
-  it: Conferenze tech a San Francisco
-  tr: "San Francisco'daki teknoloji konferansları"
-  vi: Hội nghị công nghệ tại San Francisco
-  id: Konferensi teknologi di San Francisco
-  pl: Konferencje technologiczne w San Francisco
-  nl: Tech-conferenties in San Francisco
-  ar: مؤتمرات تقنية في سان فرانسيسكو
-  hi: सैन फ्रांसिस्को में टेक कॉन्फ्रेंस
-  th: งานประชุมเทคโนโลยีในซานฟรานซิสโก
-  cs: Technologické konference v San Franciscu
-  sv: Teknikkonferenser i San Francisco
-  he: כנסי טכנולוגיה בסן פרנסיסקו
+  context: Query label for the first events search example in the app store. Shown on a preview card that opens results for farmers markets and food festivals in Lyon, France.
+  en: Farmers markets and food festivals in Lyon
+  de: Wochenmärkte und Food-Festivals in Lyon
+  zh: 里昂的农贸市场和美食节
+  es: Mercados locales y festivales gastronómicos en Lyon
+  fr: Marchés de producteurs et festivals culinaires à Lyon
+  pt: Mercados de produtores e festivais gastronômicos em Lyon
+  ru: Фермерские рынки и гастрофестивали в Лионе
+  ja: リヨンのファーマーズマーケットとフードフェスティバル
+  ko: 리옹의 파머스 마켓 및 푸드 페스티벌
+  tr: "Lyon'daki üretici pazarları ve yemek festivalleri"
+  vi: Chợ nông sản và lễ hội ẩm thực ở Lyon
+  id: Pasar tani dan festival makanan di Lyon
+  pl: Targi rolne i festiwale kulinarne w Lyonie
+  nl: Boerenmarkten en foodfestivals in Lyon
+  ar: أسواق المزارعين ومهرجانات الطعام في ليون
+  hi: ल्यों में फार्मर्स मार्केट और फूड फेस्टिवल
+  th: ตลาดเกษตรกรและเทศกาลอาหารในลียง
+  cs: Farmářské trhy a gastrofestivaly v Lyonu
+  sv: Bondens marknad och matfestivaler i Lyon
+  he: שוקי איכרים ופסטיבלי אוכל בליון
   verified_by_human: [en]
 events.search.2:
-  context: Query label for the second events search example in the app store. Shown on a preview card that opens real event search results for live music concerts happening in Berlin, Germany.
-  en: Live music concerts in Berlin
-  de: Live-Musikkonzerte in Berlin
-  zh: 柏林现场音乐会
-  es: Conciertos de música en vivo en Berlín
-  fr: Concerts de musique live à Berlin
-  pt: Concertos de música ao vivo em Berlim
-  ru: Концерты живой музыки в Берлине
-  ja: ベルリンのライブコンサート
-  ko: 베를린 라이브 음악 콘서트
-  it: Concerti di musica dal vivo a Berlino
-  tr: "Berlin'deki canlı müzik konserleri"
-  vi: Buổi hòa nhạc trực tiếp tại Berlin
-  id: Konser musik langsung di Berlin
-  pl: Koncerty muzyki na żywo w Berlinie
-  nl: Live muziekconcerten in Berlijn
-  ar: حفلات موسيقية حية في برلين
-  hi: बर्लिन में लाइव म्यूजिक कॉन्सर्ट
-  th: คอนเสิร์ตดนตรีสดในเบอร์ลิน
-  cs: Koncerty živé hudby v Berlíně
-  sv: Livekonserter i Berlin
-  he: הופעות מוזיקה חיה בברלין
+  context: Query label for the second events search example in the app store. Shown on a preview card that opens results for family-friendly weekend events in Vienna, Austria.
+  en: Family weekend events in Vienna
+  de: Wochenend-Events für Familien in Wien
+  zh: 维也纳的家庭周末活动
+  es: Eventos familiares de fin de semana en Viena
+  fr: Événements familiaux du week-end à Vienne
+  pt: Eventos de fim de semana para famílias em Viena
+  ru: Семейные мероприятия на выходные в Вене
+  ja: ウィーンの家族向け週末イベント
+  ko: 빈의 가족 주말 이벤트
+  tr: "Viyana'da aileler için hafta sonu etkinlikleri"
+  vi: Sự kiện cuối tuần cho gia đình ở Vienna
+  id: Acara akhir pekan keluarga di Wina
+  pl: Rodzinne wydarzenia weekendowe w Wiedniu
+  nl: Weekendactiviteiten voor gezinnen in Wenen
+  ar: فعاليات عائلية في عطلة نهاية الأسبوع في فيينا
+  hi: वियना में फैमिली वीकेंड इवेंट्स
+  th: กิจกรรมครอบครัวช่วงสุดสัปดาห์ในเวียนนา
+  cs: Víkendové akce pro rodiny ve Vídni
+  sv: Familjeevenemang i Wien i helgen
+  he: אירועי סוף שבוע למשפחות בווינה
   verified_by_human: [en]
 events.search.3:
-  context: Query label for the third events search example in the app store. Shown on a preview card that opens real event search results for art exhibitions happening in London, UK.
-  en: Art exhibitions in London
-  de: Kunstausstellungen in London
-  zh: 伦敦艺术展
-  es: Exposiciones de arte en Londres
-  fr: "Expositions d'art à Londres"
-  pt: Exposições de arte em Londres
-  ru: Художественные выставки в Лондоне
-  ja: ロンドンの美術展
-  ko: 런던 미술 전시회
-  it: "Mostre d'arte a Londra"
-  tr: "Londra'daki sanat sergileri"
-  vi: Triển lãm nghệ thuật tại London
-  id: Pameran seni di London
-  pl: Wystawy sztuki w Londynie
-  nl: Kunsttentoonstellingen in Londen
-  ar: معارض فنية في لندن
-  hi: लंदन में कला प्रदर्शनियां
-  th: นิทรรศการศิลปะในลอนดอน
-  cs: Umělecké výstavy v Londýně
-  sv: Konstutställningar i London
-  he: תערוכות אמנות בלונדון
+  context: Query label for the third events search example in the app store. Shown on a preview card that opens results for outdoor summer concerts in Amsterdam, Netherlands.
+  en: Summer concerts in Amsterdam
+  de: Sommerkonzerte in Amsterdam
+  zh: 阿姆斯特丹的夏季音乐会
+  es: Conciertos de verano en Ámsterdam
+  fr: "Concerts d'été à Amsterdam"
+  pt: Concertos de verão em Amsterdã
+  ru: Летние концерты в Амстердаме
+  ja: アムステルダムのサマーコンサート
+  ko: 암스테르담의 여름 콘서트
+  tr: "Amsterdam'daki yaz konserleri"
+  vi: Các buổi hòa nhạc mùa hè ở Amsterdam
+  id: Konser musim panas di Amsterdam
+  pl: Letnie koncerty w Amsterdamie
+  nl: Zomerconcerten in Amsterdam
+  ar: حفلات موسيقية صيفية في أمستردام
+  hi: एम्स्टर्डम में समर कॉन्सर्ट
+  th: คอนเสิร์ตฤดูร้อนในอัมสเตอร์ดัม
+  cs: Letní koncerty v Amsterdamu
+  sv: Sommarkonserter i Amsterdam
+  he: הופעות קיץ באמסטרדם
   verified_by_human: [en]
 
 images.search.1:
-  context: Query label for the first images search example in the app store. Shown on a preview card that opens real Brave image search results for photos of the Golden Gate Bridge at sunset.
-  en: Golden Gate Bridge at sunset
-  de: Golden Gate Bridge bei Sonnenuntergang
-  zh: 日落时分的金门大桥
-  es: Puente Golden Gate al atardecer
-  fr: Golden Gate Bridge au coucher du soleil
-  pt: Ponte Golden Gate ao pôr do sol
-  ru: Мост Золотые Ворота на закате
-  ja: 夕暮れ時のゴールデンゲートブリッジ
-  ko: 일몰 무렵의 금문교
-  it: Golden Gate Bridge al tramonto
-  tr: Gün batımında Golden Gate Köprüsü
-  vi: Cầu Cổng Vàng lúc hoàng hôn
-  id: Jembatan Golden Gate saat matahari terbenam
-  pl: Most Golden Gate o zachodzie słońca
-  nl: Golden Gate Bridge bij zonsondergang
-  ar: جسر غولدن غيت عند الغروب
-  hi: सूर्यास्त के समय गोल्डन गेट ब्रिज
-  th: สะพานโกลเดนเกตยามพระอาทิตย์ตก
-  cs: Golden Gate Bridge při západu slunce
-  sv: Golden Gate-bron i solnedgången
-  he: גשר הזהב בשקיעה
+  context: Query label for the first images search example in the app store. Shown on a preview card that opens real Brave image results for the Artemis II Moon mission.
+  en: Artemis II mission
+  de: Artemis-II-Mission
+  zh: 阿耳忒弥斯2号任务
+  es: Misión Artemis II
+  fr: Mission Artemis II
+  pt: Missão Artemis II
+  ru: Миссия «Артемида-2»
+  ja: アルテミス2号ミッション
+  ko: 아르테미스 2호 미션
+  tr: Artemis II görevi
+  vi: Sứ mệnh Artemis II
+  id: Misi Artemis II
+  pl: Misja Artemis II
+  nl: Artemis II-missie
+  ar: مهمة أرتيميس 2
+  hi: आर्टेमिस II मिशन
+  th: ภารกิจ Artemis II
+  cs: Mise Artemis II
+  sv: Artemis II-uppdraget
+  he: משימת ארטמיס 2
   verified_by_human: [en]
 images.search.2:
-  context: Query label for the second images search example in the app store. Shown on a preview card that opens real Brave image search results for minimalist Scandinavian interior design photography.
-  en: Minimalist Scandinavian interior design
-  de: Minimalistisches skandinavisches Innendesign
-  zh: 极简北欧风室内设计
-  es: Diseño de interiores escandinavo minimalista
-  fr: "Design d'intérieur scandinave minimaliste"
-  pt: Design de interiores escandinavo minimalista
-  ru: Минималистичный скандинавский дизайн интерьера
-  ja: ミニマルな北欧インテリアデザイン
-  ko: 미니멀한 북유럽 인테리어 디자인
-  it: "Design d'interni scandinavo minimalista"
-  tr: Minimalist İskandinav iç mekan tasarımı
-  vi: Thiết kế nội thất Scandinavian tối giản
-  id: Desain interior Skandinavia minimalis
-  pl: Minimalistyczny skandynawski wystrój wnętrz
-  nl: Minimalistisch Scandinavisch interieurontwerp
-  ar: تصميم داخلي اسكندنافي بسيط
-  hi: मिनिमलिस्ट स्कैंडिनेवियाई इंटीरियर डिजाइन
-  th: การตกแต่งภายในสไตล์สแกนดิเนเวียนแบบมินิมอล
-  cs: Minimalistický skandinávský interiérový design
-  sv: Minimalistisk skandinavisk inredning
-  he: עיצוב פנים סקנדינבי מינימליסטי
+  context: Query label for the second images search example in the app store. Shown on a preview card that opens real Brave image results for a Mediterranean coastal village at sunset.
+  en: Mediterranean coast village at sunset
+  de: Dorf an der Mittelmeerküste bei Sonnenuntergang
+  zh: 日落时分的地中海沿岸村庄
+  es: Pueblo costero del Mediterráneo al atardecer
+  fr: Village côtier méditerranéen au coucher du soleil
+  pt: Vila na costa mediterrânea ao pôr do sol
+  ru: Деревня на средиземноморском побережье на закате
+  ja: 夕暮れ時の地中海沿岸の村
+  ko: 일몰 무렵의 지중해 연안 마을
+  tr: Gün batımında Akdeniz kıyı köyü
+  vi: Ngôi làng ven biển Địa Trung Hải lúc hoàng hôn
+  id: Desa pesisir Mediterania saat matahari terbenam
+  pl: Śródziemnomorska wioska nadmorska o zachodzie słońca
+  nl: Mediterraan kustdorpje bij zonsondergang
+  ar: قرية على ساحل البحر المتوسط عند الغروب
+  hi: सूर्यास्त के समय भूमध्यसागरीय तटीय गाँव
+  th: หมู่บ้านชายฝั่งเมดิเตอร์เรเนียนยามพระอาทิตย์ตก
+  cs: Vesnice na středomořském pobřeží při západu slunce
+  sv: Medelhavsby vid solnedgången
+  he: כפר בחוף הים התיכון בשקיעה
   verified_by_human: [en]
 images.search.3:
-  context: Query label for the third images search example in the app store. Shown on a preview card that opens real Brave image search results for black and white film photography portraits.
-  en: Black and white film photography portraits
-  de: Schwarz-Weiß-Filmporträts
-  zh: 黑白胶片摄影人像
-  es: Retratos de fotografía analógica en blanco y negro
-  fr: Portraits photo argentique noir et blanc
-  pt: Retratos de fotografia analógica em preto e branco
-  ru: Черно-белые пленочные портреты
-  ja: モノクロフィルム写真のポートレート
-  ko: 흑백 필름 인물 사진
-  it: Ritratti fotografici in bianco e nero su pellicola
-  tr: Siyah beyaz film fotoğrafçılığı portreleri
-  vi: Ảnh chân dung chụp phim đen trắng
-  id: Potret fotografi film hitam putih
-  pl: Czarno-białe portrety z fotografii analogowej
-  nl: Zwart-wit filmfotografie portretten
-  ar: صور بورتريه فوتوغرافية بالأبيض والأسود
-  hi: ब्लैक एंड व्हाइट फिल्म फोटोग्राफी पोर्ट्रेट
-  th: ภาพถ่ายพอร์ตเทรตฟิล์มขาวดำ
-  cs: Černobílé filmové portrétní fotografie
-  sv: Svartvita porträtt på film
-  he: פורטרטים בצילום פילם שחור-לבן
+  context: Query label for the third images search example in the app store. Shown on a preview card that opens real Brave image results for a cozy winter breakfast table setting.
+  en: Cozy winter breakfast table
+  de: Gemütlicher Frühstückstisch im Winter
+  zh: 温馨的冬季早餐桌
+  es: Mesa de desayuno de invierno acogedora
+  fr: "Table de petit-déjeuner d'hiver chaleureuse"
+  pt: Mesa de café da manhã de inverno acolhedora
+  ru: Уютный зимний завтрак
+  ja: 冬の心地よい朝食のテーブル
+  ko: 아늑한 겨울 아침 식탁
+  tr: Sıcak bir kış kahvaltısı sofrası
+  vi: Bàn ăn sáng mùa đông ấm cúng
+  id: Meja sarapan musim dingin yang nyaman
+  pl: Przytulny zimowy stół śniadaniowy
+  nl: Gezellige winterse ontbijttafel
+  ar: مائدة إفطار شتوية دافئة
+  hi: सर्दियों के नाश्ते की आरामदायक मेज
+  th: โต๊ะอาหารเช้าฤดูหนาวที่แสนอบอุ่น
+  cs: Útulný zimní snídaňový stůl
+  sv: Mysigt frukostbord på vintern
+  he: שולחן ארוחת בוקר חורפי ונעים
   verified_by_human: [en]
 
 health.search_appointments.1:
@@ -891,76 +870,73 @@ travel.price_calendar.3:
   verified_by_human: [en]
 
 videos.get_transcript.1:
-  context: Query label for the first video transcript example in the app store. Shown on a preview card that opens a real YouTube transcript from a neural networks tutorial video.
-  en: Learning neural networks on YouTube
-  de: Neuronale Netze lernen auf YouTube
-  zh: 在 YouTube 上学习神经网络
-  es: Aprender sobre redes neuronales en YouTube
-  fr: Apprendre les réseaux de neurones sur YouTube
-  pt: Aprender redes neurais no YouTube
-  ru: Изучение нейросетей на YouTube
-  ja: YouTubeでニューラルネットワークを学ぶ
-  ko: 유튜브에서 신경망 배우기
-  it: Imparare le reti neurali su YouTube
-  tr: "YouTube'da yapay sinir ağlarını öğrenme"
-  vi: Học về mạng nơ-ron trên YouTube
-  id: Belajar neural network di YouTube
-  pl: Nauka sieci neuronowych na YouTube
-  nl: Neurale netwerken leren op YouTube
-  ar: تعلم الشبكات العصبية على يوتيوب
-  hi: YouTube पर न्यूरल नेटवर्क सीखना
-  th: เรียนรู้เรื่องโครงข่ายประสาทเทียมบน YouTube
-  cs: Učení neuronových sítí na YouTube
-  sv: Lär dig neurala nätverk på YouTube
-  he: למידת רשתות נוירונים ב-YouTube
+  context: Query label for the first video transcript example in the app store. Shown on a preview card that opens the transcript of a famous life-advice commencement speech on YouTube.
+  en: A famous life-advice speech
+  de: Eine berühmte Rede mit Lebensweisheiten
+  zh: 一场著名的生活建议演讲
+  es: Un discurso famoso sobre consejos de vida
+  fr: Un célèbre discours de conseils de vie
+  pt: Um discurso famoso com conselhos de vida
+  ru: Знаменитая речь с жизненными советами
+  ja: 人生のアドバイスに関する有名なスピーチ
+  ko: 유명한 인생 조언 연설
+  tr: Ünlü bir yaşam tavsiyesi konuşması
+  vi: Một bài diễn thuyết nổi tiếng về lời khuyên cuộc sống
+  id: Pidato nasihat hidup yang terkenal
+  pl: Słynne przemówienie z radami życiowymi
+  nl: Een beroemde toespraak met levensadvies
+  ar: خطاب شهير عن نصائح للحياة
+  hi: जीवन की सलाह पर एक प्रसिद्ध भाषण
+  th: สุนทรพจน์แนะนำการใช้ชีวิตที่มีชื่อเสียง
+  cs: Slavný projev s radami do života
+  sv: Ett känt tal om livsråd
+  he: נאום מפורסם עם עצות לחיים
   verified_by_human: [en]
 videos.get_transcript.2:
-  context: Query label for the second video transcript example in the app store. Shown on a preview card that opens a real YouTube transcript from a tutorial video about building a GPT language model from scratch.
-  en: Building GPT from scratch tutorial
-  de: "Tutorial: GPT von Grund auf bauen"
-  zh: 从零开始构建 GPT 教程
-  es: Tutorial para crear GPT desde cero
-  fr: "Tutoriel : créer un GPT de zéro"
-  pt: Tutorial de como criar um GPT do zero
-  ru: "Создание GPT с нуля: туториал"
-  ja: ゼロから作るGPTチュートリアル
-  ko: GPT 처음부터 만들기 튜토리얼
-  it: "Tutorial: creare GPT da zero"
-  tr: Sıfırdan GPT oluşturma eğitimi
-  vi: Hướng dẫn xây dựng GPT từ đầu
-  id: Tutorial membangun GPT dari nol
-  pl: "Poradnik: budowanie GPT od podstaw"
-  nl: GPT bouwen vanaf nul tutorial
-  ar: درس تعليمي لبناء GPT من الصفر
-  hi: शुरू से GPT बनाने का ट्यूटोरियल
-  th: บทเรียนการสร้าง GPT ตั้งแต่เริ่มต้น
-  cs: "Tutoriál: Tvorba GPT od nuly"
-  sv: "Tutorial: Bygg GPT från grunden"
-  he: מדריך לבניית GPT מאפס
+  context: Query label for the second video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about body language.
+  en: A popular TED talk on body language
+  de: Ein beliebter TED-Talk über Körpersprache
+  zh: 关于肢体语言的热门 TED 演讲
+  es: Una charla TED popular sobre lenguaje corporal
+  fr: Une conférence TED populaire sur le langage corporel
+  pt: Uma palestra TED popular sobre linguagem corporal
+  ru: Популярное выступление TED о языке тела
+  ja: ボディランゲージに関する人気のTEDトーク
+  ko: 바디 랭귀지에 관한 인기 TED 강연
+  tr: Beden dili üzerine popüler bir TED konuşması
+  vi: Một bài diễn thuyết TED phổ biến về ngôn ngữ cơ thể
+  id: TED talk populer tentang bahasa tubuh
+  pl: Popularna prelekcja TED o mowie ciała
+  nl: Een populaire TED-talk over lichaamstaal
+  ar: خطاب تيد شهير عن لغة الجسد
+  hi: बॉडी लैंग्वेज पर एक लोकप्रिय टेड टॉक
+  th: TED Talk ยอดนิยมเกี่ยวกับภาษากาย
+  cs: Populární TED talk o řeči těla
+  sv: Ett populärt TED-tal om kroppsspråk
+  he: הרצאת TED פופולרית על שפת גוף
   verified_by_human: [en]
 videos.get_transcript.3:
-  context: Query label for the third video transcript example in the app store. Shown on a preview card that opens a real YouTube transcript from a full Python programming course.
-  en: Python programming full course
-  de: Python-Programmierung Komplettkurs
-  zh: Python 编程完整课程
-  es: Curso completo de programación en Python
-  fr: Cours complet de programmation Python
-  pt: Curso completo de programação Python
-  ru: Полный курс программирования на Python
-  ja: Pythonプログラミング完全コース
-  ko: 파이썬 프로그래밍 전체 강의
-  it: Corso completo di programmazione Python
-  tr: Python programlama tam kursu
-  vi: Khóa học lập trình Python đầy đủ
-  id: Kursus lengkap pemrograman Python
-  pl: Pełny kurs programowania w Pythonie
-  nl: Volledige cursus Python programmeren
-  ar: دورة برمجة بايثون كاملة
-  hi: पायथन प्रोग्रामिंग का पूरा कोर्स
-  th: คอร์สเรียนเขียนโปรแกรม Python ฉบับเต็ม
-  cs: Kompletní kurz programování v Pythonu
-  sv: Komplett kurs i Python-programmering
-  he: קורס תכנות פייתון מלא
+  context: Query label for the third video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about human connection and vulnerability.
+  en: A popular TED talk on connection
+  de: Ein beliebter TED-Talk über Verbundenheit
+  zh: 关于人际连接的热门 TED 演讲
+  es: Una charla TED popular sobre la conexión
+  fr: Une conférence TED populaire sur la connexion humaine
+  pt: Uma palestra TED popular sobre conexão
+  ru: Популярное выступление TED об отношениях
+  ja: つながりに関する人気のTEDトーク
+  ko: 유대감에 관한 인기 TED 강연
+  tr: Bağ kurma üzerine popüler bir TED konuşması
+  vi: Một bài diễn thuyết TED phổ biến về sự kết nối
+  id: TED talk populer tentang koneksi
+  pl: Popularna prelekcja TED o więziach
+  nl: Een populaire TED-talk over verbinding
+  ar: خطاب تيد شهير عن التواصل الإنساني
+  hi: मानवीय जुड़ाव पर एक लोकप्रिय टेड टॉक
+  th: TED Talk ยอดนิยมเกี่ยวกับความสัมพันธ์
+  cs: Populární TED talk o lidském spojení
+  sv: Ett populärt TED-tal om mänsklig kontakt
+  he: הרצאת TED פופולרית על חיבור אנושי
   verified_by_human: [en]
 
 banner.sample_data:
