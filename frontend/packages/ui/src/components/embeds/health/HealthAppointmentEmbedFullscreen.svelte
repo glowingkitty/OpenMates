@@ -187,20 +187,12 @@
     }
   }
 
-  /** Map accessibility flag keys to short German/English labels. */
+  /** Map accessibility flag keys to translated labels. */
   function accessibilityLabel(flag: string): string {
-    switch (flag) {
-      case 'wheelchair_entrance':
-        return 'Wheelchair entrance';
-      case 'wheelchair_parking':
-        return 'Wheelchair parking';
-      case 'wheelchair_seating':
-        return 'Wheelchair seating';
-      case 'wheelchair_restroom':
-        return 'Wheelchair restroom';
-      default:
-        return flag;
-    }
+    const key = `embeds.health.${flag}`;
+    const translated = $text(key);
+    // If the key isn't found, $text returns the key itself — fall back to the raw flag
+    return translated !== key ? translated : flag;
   }
 
   function getAddressLines(value: unknown): string[] {
@@ -250,7 +242,7 @@
   /** Header title: formatted appointment date/time (most important info at a glance) */
   let headerTitle = $derived.by(() => {
     if (effectiveSlotDatetime) return formatSlot(effectiveSlotDatetime);
-    return activeAppointment?.name || activeAppointment?.speciality || 'Appointment';
+    return activeAppointment?.name || activeAppointment?.speciality || $text('embeds.health.appointment');
   });
 
   /** Header subtitle: doctor name + speciality (secondary context) */
@@ -332,10 +324,10 @@
         <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
       {/if}
       {#if activeAppointment.insurance === 'unknown'}
-        <!-- Jameda doesn't expose per-doctor insurance sector info — warn
-             the user that they need to verify it on Jameda before booking -->
-        <span class="badge insurance-unknown-badge" title="Insurance requirement not available — verify on Jameda before booking">
-          Insurance: verify on Jameda
+        <!-- Some providers don't expose per-doctor insurance sector info — warn
+             the user that they need to verify it on the provider before booking -->
+        <span class="badge insurance-unknown-badge" title={$text('embeds.health.insurance_verify_tooltip').replace('{provider}', providerName)}>
+          {$text('embeds.health.insurance_verify_on_provider').replace('{provider}', providerName)}
         </span>
       {:else if activeAppointment.insurance}
         <span class="badge insurance-badge">{activeAppointment.insurance}</span>
@@ -350,7 +342,7 @@
     <!-- Alternate slot times for the same doctor (from _group_slots_by_doctor) -->
     {#if activeAppointment.additional_slot_datetimes && activeAppointment.additional_slot_datetimes.length > 0}
       <div class="alternate-slots">
-        <div class="section-title">Also available</div>
+        <div class="section-title">{$text('embeds.health.also_available')}</div>
         <div class="alternate-slots-list">
           {#each activeAppointment.additional_slot_datetimes as altIso}
             <span class="alternate-slot">{formatAlternateSlot(altIso)}</span>
@@ -367,7 +359,7 @@
     <!-- Opening hours from Google Places -->
     {#if activeAppointment.opening_hours && activeAppointment.opening_hours.length > 0}
       <div class="opening-hours">
-        <div class="section-title">Opening hours</div>
+        <div class="section-title">{$text('embeds.health.opening_hours')}</div>
         <ul class="opening-hours-list">
           {#each activeAppointment.opening_hours as line}
             <li>{line}</li>
@@ -379,7 +371,7 @@
     <!-- Patient reviews from Google Places (up to 5) -->
     {#if activeAppointment.google_reviews && activeAppointment.google_reviews.length > 0}
       <div class="reviews">
-        <div class="section-title">Patient reviews</div>
+        <div class="section-title">{$text('embeds.health.patient_reviews')}</div>
         {#each activeAppointment.google_reviews as review}
           <div class="review-card">
             <div class="review-header">
@@ -408,10 +400,10 @@
           <a class="external-link" href={`tel:${activeAppointment.phone}`}>{activeAppointment.phone}</a>
         {/if}
         {#if activeAppointment.website}
-          <a class="external-link" href={activeAppointment.website} target="_blank" rel="noopener noreferrer">Website</a>
+          <a class="external-link" href={activeAppointment.website} target="_blank" rel="noopener noreferrer">{$text('embeds.health.website')}</a>
         {/if}
         {#if activeAppointment.google_maps_uri}
-          <a class="external-link" href={activeAppointment.google_maps_uri} target="_blank" rel="noopener noreferrer">View on Google Maps</a>
+          <a class="external-link" href={activeAppointment.google_maps_uri} target="_blank" rel="noopener noreferrer">{$text('embeds.health.view_on_google_maps')}</a>
         {/if}
       </div>
     {/if}

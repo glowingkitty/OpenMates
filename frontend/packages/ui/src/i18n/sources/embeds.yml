@@ -3656,6 +3656,306 @@ health.reviews:
   he: ביקורות
   verified_by_human: []
 
+health.insurance_verify_on_provider:
+  context: Badge text shown when insurance info is unknown for a doctor. {provider} is the booking platform name (e.g. Doctolib, Jameda).
+  en: "Insurance: verify on {provider}"
+  de: "Versicherung: auf {provider} prüfen"
+  zh: 保险：请在{provider}上核实
+  es: "Seguro: verificar en {provider}"
+  fr: "Assurance : vérifier sur {provider}"
+  pt: "Seguro: verificar no {provider}"
+  ru: "Страховка: уточните на {provider}"
+  ja: "保険：{provider}で確認"
+  ko: "보험: {provider}에서 확인"
+  it: "Assicurazione: verifica su {provider}"
+  tr: "Sigorta: {provider} üzerinden doğrulayın"
+  vi: "Bảo hiểm: xác minh trên {provider}"
+  id: "Asuransi: verifikasi di {provider}"
+  pl: "Ubezpieczenie: sprawdź na {provider}"
+  nl: "Verzekering: controleer op {provider}"
+  ar: "التأمين: تحقق على {provider}"
+  hi: "बीमा: {provider} पर सत्यापित करें"
+  th: "ประกัน: ตรวจสอบบน {provider}"
+  cs: "Pojištění: ověřte na {provider}"
+  sv: "Försäkring: verifiera på {provider}"
+  he: "ביטוח: בדוק ב-{provider}"
+  verified_by_human: []
+
+health.insurance_verify_tooltip:
+  context: Tooltip for the insurance-unknown badge. {provider} is the booking platform name.
+  en: Insurance requirement not available — verify on {provider} before booking
+  de: Versicherungsinformation nicht verfügbar — vor der Buchung auf {provider} prüfen
+  zh: 保险要求不可用——预约前请在{provider}上核实
+  es: Requisito de seguro no disponible — verificar en {provider} antes de reservar
+  fr: Information d'assurance non disponible — vérifier sur {provider} avant de réserver
+  pt: Requisito de seguro não disponível — verificar no {provider} antes de agendar
+  ru: Информация о страховке недоступна — проверьте на {provider} перед записью
+  ja: 保険情報なし — 予約前に{provider}でご確認ください
+  ko: 보험 정보 없음 — 예약 전 {provider}에서 확인하세요
+  it: Requisito assicurativo non disponibile — verificare su {provider} prima della prenotazione
+  tr: Sigorta bilgisi mevcut değil — rezervasyon öncesi {provider} üzerinden doğrulayın
+  vi: Yêu cầu bảo hiểm không có sẵn — xác minh trên {provider} trước khi đặt lịch
+  id: Persyaratan asuransi tidak tersedia — verifikasi di {provider} sebelum memesan
+  pl: Informacja o ubezpieczeniu niedostępna — sprawdź na {provider} przed rezerwacją
+  nl: Verzekeringsvereiste niet beschikbaar — controleer op {provider} voor het boeken
+  ar: متطلبات التأمين غير متوفرة — تحقق على {provider} قبل الحجز
+  hi: बीमा आवश्यकता उपलब्ध नहीं — बुकिंग से पहले {provider} पर सत्यापित करें
+  th: ข้อมูลประกันไม่พร้อมใช้งาน — ตรวจสอบบน {provider} ก่อนจอง
+  cs: Informace o pojištění nejsou k dispozici — před rezervací ověřte na {provider}
+  sv: Försäkringskrav ej tillgängligt — verifiera på {provider} före bokning
+  he: דרישת ביטוח לא זמינה — בדוק ב-{provider} לפני הזמנה
+  verified_by_human: []
+
+health.also_available:
+  context: Section title for alternate appointment time slots for the same doctor
+  en: Also available
+  de: Auch verfügbar
+  zh: 其他可用时间
+  es: También disponible
+  fr: Également disponible
+  pt: Também disponível
+  ru: Также доступно
+  ja: 他の空き時間
+  ko: 다른 가능한 시간
+  it: Anche disponibile
+  tr: Ayrıca müsait
+  vi: Cũng có sẵn
+  id: Juga tersedia
+  pl: Również dostępne
+  nl: Ook beschikbaar
+  ar: متاح أيضاً
+  hi: अन्य उपलब्ध समय
+  th: เวลาอื่นที่ว่าง
+  cs: Také k dispozici
+  sv: Även tillgänglig
+  he: זמין גם
+  verified_by_human: []
+
+health.opening_hours:
+  context: Section title for practice opening hours from Google Places
+  en: Opening hours
+  de: Öffnungszeiten
+  zh: 营业时间
+  es: Horario de apertura
+  fr: Horaires d'ouverture
+  pt: Horário de funcionamento
+  ru: Часы работы
+  ja: 診療時間
+  ko: 진료 시간
+  it: Orari di apertura
+  tr: Çalışma saatleri
+  vi: Giờ mở cửa
+  id: Jam buka
+  pl: Godziny otwarcia
+  nl: Openingstijden
+  ar: ساعات العمل
+  hi: खुलने का समय
+  th: เวลาทำการ
+  cs: Otevírací doba
+  sv: Öppettider
+  he: שעות פתיחה
+  verified_by_human: []
+
+health.patient_reviews:
+  context: Section title for patient reviews from Google Places
+  en: Patient reviews
+  de: Patientenbewertungen
+  zh: 患者评价
+  es: Opiniones de pacientes
+  fr: Avis de patients
+  pt: Avaliações de pacientes
+  ru: Отзывы пациентов
+  ja: 患者レビュー
+  ko: 환자 리뷰
+  it: Recensioni dei pazienti
+  tr: Hasta yorumları
+  vi: Đánh giá bệnh nhân
+  id: Ulasan pasien
+  pl: Opinie pacjentów
+  nl: Patiëntbeoordelingen
+  ar: تقييمات المرضى
+  hi: रोगी समीक्षाएं
+  th: รีวิวจากผู้ป่วย
+  cs: Hodnocení pacientů
+  sv: Patientomdömen
+  he: ביקורות מטופלים
+  verified_by_human: []
+
+health.website:
+  context: Link label for a doctor's website
+  en: Website
+  de: Webseite
+  zh: 网站
+  es: Sitio web
+  fr: Site web
+  pt: Site
+  ru: Сайт
+  ja: ウェブサイト
+  ko: 웹사이트
+  it: Sito web
+  tr: Web sitesi
+  vi: Trang web
+  id: Situs web
+  pl: Strona internetowa
+  nl: Website
+  ar: الموقع الإلكتروني
+  hi: वेबसाइट
+  th: เว็บไซต์
+  cs: Webové stránky
+  sv: Webbplats
+  he: אתר אינטרנט
+  verified_by_human: []
+
+health.view_on_google_maps:
+  context: Link label to open the practice location in Google Maps
+  en: View on Google Maps
+  de: In Google Maps ansehen
+  zh: 在Google地图查看
+  es: Ver en Google Maps
+  fr: Voir sur Google Maps
+  pt: Ver no Google Maps
+  ru: Посмотреть на Google Maps
+  ja: Google マップで見る
+  ko: Google 지도에서 보기
+  it: Vedi su Google Maps
+  tr: Google Haritalar'da görüntüle
+  vi: Xem trên Google Maps
+  id: Lihat di Google Maps
+  pl: Zobacz w Mapach Google
+  nl: Bekijken op Google Maps
+  ar: عرض على خرائط Google
+  hi: Google Maps पर देखें
+  th: ดูบน Google Maps
+  cs: Zobrazit na Google Maps
+  sv: Visa på Google Maps
+  he: הצג ב-Google Maps
+  verified_by_human: []
+
+health.appointment:
+  context: Fallback header title when no appointment datetime or doctor name is available
+  en: Appointment
+  de: Termin
+  zh: 预约
+  es: Cita
+  fr: Rendez-vous
+  pt: Consulta
+  ru: Запись
+  ja: 予約
+  ko: 예약
+  it: Appuntamento
+  tr: Randevu
+  vi: Lịch hẹn
+  id: Janji temu
+  pl: Wizyta
+  nl: Afspraak
+  ar: موعد
+  hi: अपॉइंटमेंट
+  th: นัดหมาย
+  cs: Schůzka
+  sv: Bokad tid
+  he: תור
+  verified_by_human: []
+
+health.wheelchair_entrance:
+  context: Accessibility badge — practice has wheelchair-accessible entrance
+  en: Wheelchair entrance
+  de: Rollstuhlgerechter Eingang
+  zh: 轮椅入口
+  es: Entrada para sillas de ruedas
+  fr: Entrée accessible en fauteuil roulant
+  pt: Entrada para cadeira de rodas
+  ru: Вход для инвалидных колясок
+  ja: 車椅子対応入口
+  ko: 휠체어 입구
+  it: Ingresso per sedie a rotelle
+  tr: Tekerlekli sandalye girişi
+  vi: Lối vào xe lăn
+  id: Akses masuk kursi roda
+  pl: Wejście dla wózków inwalidzkich
+  nl: Rolstoeltoegankelijke ingang
+  ar: مدخل كراسي متحركة
+  hi: व्हीलचेयर प्रवेश
+  th: ทางเข้าสำหรับรถเข็น
+  cs: Bezbariérový vchod
+  sv: Rullstolsanpassad ingång
+  he: כניסה לכיסא גלגלים
+  verified_by_human: []
+
+health.wheelchair_parking:
+  context: Accessibility badge — practice has wheelchair-accessible parking
+  en: Wheelchair parking
+  de: Rollstuhlgerechter Parkplatz
+  zh: 轮椅停车位
+  es: Estacionamiento para sillas de ruedas
+  fr: Parking accessible en fauteuil roulant
+  pt: Estacionamento para cadeira de rodas
+  ru: Парковка для инвалидных колясок
+  ja: 車椅子対応駐車場
+  ko: 휠체어 주차
+  it: Parcheggio per sedie a rotelle
+  tr: Tekerlekli sandalye parkı
+  vi: Bãi đỗ xe lăn
+  id: Parkir kursi roda
+  pl: Parking dla wózków inwalidzkich
+  nl: Rolstoeltoegankelijke parkeerplaats
+  ar: موقف كراسي متحركة
+  hi: व्हीलचेयर पार्किंग
+  th: ที่จอดรถเข็น
+  cs: Bezbariérové parkování
+  sv: Rullstolsanpassad parkering
+  he: חניה לכיסא גלגלים
+  verified_by_human: []
+
+health.wheelchair_seating:
+  context: Accessibility badge — practice has wheelchair-accessible seating
+  en: Wheelchair seating
+  de: Rollstuhlgerechte Sitzplätze
+  zh: 轮椅座位
+  es: Asientos para sillas de ruedas
+  fr: Places assises accessibles en fauteuil roulant
+  pt: Assentos para cadeira de rodas
+  ru: Места для инвалидных колясок
+  ja: 車椅子対応座席
+  ko: 휠체어 좌석
+  it: Posti a sedere per sedie a rotelle
+  tr: Tekerlekli sandalye oturma alanı
+  vi: Chỗ ngồi xe lăn
+  id: Tempat duduk kursi roda
+  pl: Miejsca dla wózków inwalidzkich
+  nl: Rolstoeltoegankelijke zitplaatsen
+  ar: مقاعد كراسي متحركة
+  hi: व्हीलचेयर बैठक
+  th: ที่นั่งสำหรับรถเข็น
+  cs: Bezbariérové sezení
+  sv: Rullstolsanpassade sittplatser
+  he: ישיבה לכיסא גלגלים
+  verified_by_human: []
+
+health.wheelchair_restroom:
+  context: Accessibility badge — practice has wheelchair-accessible restroom
+  en: Wheelchair restroom
+  de: Rollstuhlgerechte Toilette
+  zh: 轮椅卫生间
+  es: Baño para sillas de ruedas
+  fr: Toilettes accessibles en fauteuil roulant
+  pt: Banheiro para cadeira de rodas
+  ru: Туалет для инвалидных колясок
+  ja: 車椅子対応トイレ
+  ko: 휠체어 화장실
+  it: Bagno per sedie a rotelle
+  tr: Tekerlekli sandalye tuvaleti
+  vi: Phòng vệ sinh xe lăn
+  id: Toilet kursi roda
+  pl: Toaleta dla wózków inwalidzkich
+  nl: Rolstoeltoegankelijk toilet
+  ar: دورة مياه كراسي متحركة
+  hi: व्हीलचेयर शौचालय
+  th: ห้องน้ำสำหรับรถเข็น
+  cs: Bezbariérové toalety
+  sv: Rullstolsanpassad toalett
+  he: שירותים לכיסא גלגלים
+  verified_by_human: []
+
 shopping.product:
   context: Singular label for a shopping product result
   en: product
