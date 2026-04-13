@@ -226,19 +226,30 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await switchToStripeBtn.click();
 		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
-		// After switching, wait for Stripe to initialize (consent was already given,
-		// so the Stripe form should load directly without the consent overlay).
-		await expect(stripeIframe).toBeAttached({ timeout: 60000 });
-		logSignupCheckpoint('Stripe payment iframe loaded after provider switch.');
 	}
+
+	// Wait for Stripe Payment Element card input to be visible inside the iframe.
+	// switchProvider() tears down Polar, fetches config, loads Stripe.js, creates
+	// a PaymentIntent, and mounts the Payment Element — all async.
+	const stripeFrameLocator = page.frameLocator('iframe[title="Secure payment input frame"]');
+	const cardInputWait = stripeFrameLocator
+		.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
+		.first();
+	await cardInputWait.waitFor({ state: 'visible', timeout: 60000 });
+	logSignupCheckpoint('Stripe Payment Element loaded.');
+
 	await takeStepScreenshot(page, 'payment-form');
 
 	// Fill Stripe payment element with the test card.
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
 	logSignupCheckpoint('Filled Stripe card details.');
 
+	// Wait for Stripe to validate the card (buy button enabled).
+	const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
+	await expect(buyButton).toBeEnabled({ timeout: 15000 });
+
 	// Submit payment and wait for success.
-	await page.getByTestId('payment-form').getByTestId('buy-button').click();
+	await buyButton.click();
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
 	logSignupCheckpoint('Stripe payment completed successfully.');
 

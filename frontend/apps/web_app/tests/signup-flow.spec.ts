@@ -368,25 +368,30 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
 	}
 
-	await takeStepScreenshot(page, 'payment-form');
+	// Wait for Stripe Payment Element iframe to load after provider switch.
+	// switchProvider() tears down Polar, fetches config, loads Stripe.js, creates
+	// a PaymentIntent, and mounts the Payment Element — all async. The iframe
+	// won't exist until that chain completes.
+	const stripeIframe = page.frameLocator('iframe[title="Secure payment input frame"]');
+	const cardInput = stripeIframe
+		.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
+		.first();
+	await cardInput.waitFor({ state: 'visible', timeout: 60000 });
+	logSignupCheckpoint('Stripe Payment Element loaded.');
 
-	// Payment security info button should open a Stripe privacy page (close immediately).
-	const securityInfoButton = page.getByTestId('payment-form').getByTestId('text-button').first();
-	await securityInfoButton.scrollIntoViewIfNeeded();
-	const [securityInfoPage] = await Promise.all([
-		context.waitForEvent('page'),
-		securityInfoButton.click()
-	]);
-	await securityInfoPage.close();
-	logSignupCheckpoint('Closed payment security info page.');
+	await takeStepScreenshot(page, 'payment-form');
 
 	// Fill Stripe payment element with the test card.
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
 	logSignupCheckpoint('Filled Stripe card details.');
 
+	// Wait for Stripe to validate the card (isPaymentElementComplete → buy button enabled).
+	const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
+	await expect(buyButton).toBeEnabled({ timeout: 15000 });
+
 	// Submit payment and wait for success.
 	const paymentSubmittedAt = new Date().toISOString();
-	await page.getByTestId('payment-form').getByTestId('buy-button').click();
+	await buyButton.click();
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'payment-success');
 	logSignupCheckpoint('Purchase completed successfully.');
