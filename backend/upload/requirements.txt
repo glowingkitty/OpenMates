@@ -22,7 +22,7 @@ toon-format @ git+https://github.com/toon-format/toon-python.git
 
 # --- Uploads-specific ---
 # Image processing (resizing, WEBP conversion, preview generation)
-Pillow==12.1.1
+Pillow==12.2.0
 # SVG rasterization — converts user-uploaded SVGs to JPEG/WEBP for AI vision.
 # Requires system libs: libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf-2.0-0
 # (installed in Dockerfile via apt-get).
