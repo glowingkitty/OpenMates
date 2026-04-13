@@ -196,7 +196,19 @@ test.describe('Unauthenticated app load', () => {
 		await expect(assistantMessage).toBeVisible({ timeout: 10000 });
 		console.log('[unauthenticated-load] Assistant message content visible');
 
-		// ─── 4. Verify Wikipedia inline links are rendered ──────────────
+		// ─── 4. Scroll down to reveal the prose text (below embed preview cards) ──
+		// The assistant message starts with large embed previews (search cards).
+		// The prose text with wiki-linkable topics is below them.
+		// The TipTap editor is lazy-initialized via IntersectionObserver, so the
+		// text must scroll near the viewport before wiki inline nodes are created.
+		await assistantMessage.evaluate((el: HTMLElement) => {
+			el.scrollIntoView({ block: 'end', behavior: 'instant' });
+		});
+		// Give the IntersectionObserver + TipTap editor time to initialize
+		await page.waitForTimeout(3000);
+		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
+
+		// ─── 5. Verify Wikipedia inline links are rendered ──────────────
 		// The Artemis II example chat has wikipedia_topics defined.
 		// The parse_message pipeline should inject wikiInline TipTap nodes,
 		// which render as WikiInlineLink.svelte with data-testid="wiki-inline-link".
