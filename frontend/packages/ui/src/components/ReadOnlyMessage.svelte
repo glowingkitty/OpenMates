@@ -1094,11 +1094,15 @@
         // Include $locale in the effect to trigger re-processing on language change
         const currentLocale = $locale || 'en';
         const localeChanged = currentLocale !== previousLocale;
-        
+
         // CRITICAL: Track embed update timestamp to force re-render when embed data arrives
         // This handles the race condition where embeds are initially unreadable (keys not cached)
         // but become decryptable after send_embed_data finishes processing
         const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
+
+        // Track wikipediaTopics so the effect re-runs when topics arrive
+        // (e.g. post-processing completes after editor was already created)
+        const hasWikiTopics = wikipediaTopics && wikipediaTopics.length > 0;
         
         if (localeChanged) {
             previousLocale = currentLocale;
@@ -1165,13 +1169,13 @@
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
             
-            if (contentChanged || localeChanged || hasEmbedUpdate) {
+            if (contentChanged || localeChanged || hasEmbedUpdate || hasWikiTopics) {
                 if (hasEmbedUpdate) {
                     logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
                 }
-                
-                // During streaming but with locale/embed update: use full replacement
-                const forceFullReplace = localeChanged || !!hasEmbedUpdate;
+
+                // During streaming but with locale/embed/wiki update: use full replacement
+                const forceFullReplace = localeChanged || !!hasEmbedUpdate || !!hasWikiTopics;
                 applyContentUpdate(newProcessedContent, isStreaming, forceFullReplace);
             }
         } else if (editor && !content) {
