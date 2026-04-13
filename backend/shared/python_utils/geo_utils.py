@@ -5,21 +5,27 @@
 # Used by event providers (Meetup, Luma) to attach lat/lon to venue data so
 # the frontend can render an interactive map in EventEmbedFullscreen.
 #
-# Geocoding strategy (cheapest-first):
-#   1. CITY_COORDS local table — zero network cost, covers ~60 major cities.
-#   2. Nominatim (OpenStreetMap) free geocoding API — for full street addresses
-#      that include a city we don't have in CITY_COORDS.
-#   3. Returns None on failure — callers must handle gracefully (no map shown).
+# Geocoding strategy (precision-first when address available):
+#   1. Address provided → Nominatim (OpenStreetMap) for street-level precision.
+#   2. No address / Nominatim fails → CITY_COORDS local table (zero network cost).
+#   3. City not in local table → Nominatim with city name only.
+#   4. Returns None on failure — callers must handle gracefully (no map shown).
 #
 # See docs/architecture/embeds.md
 
+import asyncio
 import logging
+import time
 import urllib.parse
 from typing import Optional, Tuple
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# Nominatim rate-limit: 1 request per second. Track last request time to
+# throttle automatically when geocoding multiple addresses in sequence.
+_last_nominatim_request: float = 0.0
 
 # ---------------------------------------------------------------------------
 # Local city lookup table
@@ -130,22 +136,18 @@ async def geocode_address(
     Resolve a street address (or city) to (lat, lon).
 
     Strategy:
-    1. If city is provided, try the local CITY_COORDS table first (zero cost).
-    2. If address is provided, query Nominatim with the full address string.
-    3. If that fails, fall back to querying Nominatim with just the city name.
+    1. If address is provided, query Nominatim for address-level precision.
+    2. If no address or Nominatim fails, try the local CITY_COORDS table (zero cost).
+    3. If city isn't in the local table, query Nominatim with just the city name.
     4. Returns None on any failure — callers should degrade gracefully.
 
     This function is I/O-bound so it must be awaited. Never call it in a
     tight loop — Nominatim enforces a 1 req/s rate limit per IP.
     """
-    # Step 1: fast local city lookup
-    if city:
-        coords = lookup_city(city)
-        if coords:
-            logger.debug("geo_utils: local city hit for %r → %s", city, coords)
-            return coords
-
-    # Step 2: full address via Nominatim
+    # Step 1: if a street address is provided, try Nominatim for address-level
+    # precision first. Only fall back to city-level coords when no address is
+    # given or Nominatim fails — otherwise the map always shows the city center
+    # instead of the actual listing/venue location.
     if address:
         query_parts = [address]
         if city:
@@ -157,7 +159,14 @@ async def geocode_address(
         if coords:
             return coords
 
-    # Step 3: city-only Nominatim fallback (if city lookup above failed)
+    # Step 2: fast local city lookup (no address, or Nominatim failed)
+    if city:
+        coords = lookup_city(city)
+        if coords:
+            logger.debug("geo_utils: local city hit for %r → %s", city, coords)
+            return coords
+
+    # Step 3: city-only Nominatim fallback (city not in local table)
     if city:
         city_query = city
         if country:
@@ -178,7 +187,14 @@ async def _nominatim_query(query: str) -> Optional[Tuple[float, float]]:
     """
     Query Nominatim (OpenStreetMap) geocoding API.
     Returns (lat, lon) of the first result, or None on failure.
+    Automatically throttles to respect Nominatim's 1 req/s rate limit.
     """
+    global _last_nominatim_request
+    elapsed = time.monotonic() - _last_nominatim_request
+    if elapsed < 1.0:
+        await asyncio.sleep(1.0 - elapsed)
+    _last_nominatim_request = time.monotonic()
+
     params = {
         "q": query,
         "format": "json",
