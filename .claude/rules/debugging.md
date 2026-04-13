@@ -35,6 +35,7 @@ All commands support `--production` and `--json` flags.
 - **`issue-forensics`** — for any user-reported issue ID. Runs `debug.py issue --timeline`, correlates browser↔backend events, git-blames suspects, returns root-cause hypothesis + suspect files. Use via `/debug-issue` skill or spawn directly.
 - **`encryption-flow-tracer`** — for any symptom involving "content decryption failed", key mismatch, cross-device sync bugs, or the `multi-tab-encryption` / `multi-session-encryption` specs. Pre-loaded with the 5 encryption architecture docs. Spawn alongside `issue-forensics` when symptoms point at E2EE.
 - **`test-failure-triager`** — for any failing Playwright/vitest/pytest run. Reads all failure reports and returns ranked root-cause groups. Use via `/fix-tests` or `/fix-next-test`.
+- **`e2e-test-investigator`** — for deep investigation of a **specific** failing E2E spec. Reads screenshots (ground truth — error messages often lie), queries OpenObserve client+backend logs, traces spec code through frontend components, identifies root cause, and proposes or applies a fix. Use when `test-failure-triager` has identified the failing spec but you need to understand *why* it fails. Spawn one per failing spec for parallel investigation.
 
 Only fall back to running these commands yourself if the subagents are unavailable:
 

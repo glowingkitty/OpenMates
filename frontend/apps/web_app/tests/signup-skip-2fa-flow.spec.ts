@@ -204,19 +204,13 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await takeStepScreenshot(page, 'payment-consent');
 	logSignupCheckpoint('Reached payment consent step.');
 
-	// GHA runners are in the US, so Polar is auto-selected. Switch to Stripe for this test.
-	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
-	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await switchToStripeBtn.click();
-		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
-	}
-
-	// After switching to Stripe, the consent toggle may or may not appear depending on
-	// whether Stripe uses the hosted invoice path or inline elements. Handle both cases.
+	// The consent overlay appears on top of the payment form regardless of provider.
+	// It must be dismissed BEFORE clicking provider-switch buttons, because the overlay
+	// has pointer-events:all and blocks clicks to elements underneath (like switch-to-stripe).
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
 	const stripeIframe = page.locator('iframe[title="Secure payment input frame"]');
 
-	// Wait for either consent toggle or Stripe iframe to appear
+	// Wait for the consent toggle or Stripe iframe to appear (payment step loaded)
 	await expect(consentToggle.or(stripeIframe)).toBeAttached({ timeout: 60000 });
 
 	if (await consentToggle.isVisible().catch(() => false)) {
@@ -224,6 +218,18 @@ test('completes signup with skipped 2FA, login with password, and delete account
 		logSignupCheckpoint('Payment consent accepted.');
 	} else {
 		logSignupCheckpoint('No consent toggle — Stripe loaded directly (hosted invoice path).');
+	}
+
+	// GHA runners are in the US, so Polar is auto-selected. Switch to Stripe for this test.
+	// Now that consent overlay is dismissed, the switch button is clickable.
+	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
+	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await switchToStripeBtn.click();
+		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+		// After switching, wait for Stripe to initialize (consent was already given,
+		// so the Stripe form should load directly without the consent overlay).
+		await expect(stripeIframe).toBeAttached({ timeout: 60000 });
+		logSignupCheckpoint('Stripe payment iframe loaded after provider switch.');
 	}
 	await takeStepScreenshot(page, 'payment-form');
 

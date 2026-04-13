@@ -354,10 +354,21 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	logSignupCheckpoint('Reached payment consent step.');
 
 	// Payment step: consent to limited refund to reveal payment form.
+	// The consent overlay must be dismissed BEFORE switching providers, because
+	// it covers the payment area with pointer-events:all.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
 	await setToggleChecked(consentToggle, true);
-	await takeStepScreenshot(page, 'payment-form');
 	logSignupCheckpoint('Payment consent accepted.');
+
+	// GHA runners are in the US, so Polar is auto-selected (non-EU IP).
+	// Switch to Stripe for this test — it specifically tests the Stripe payment flow.
+	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
+	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await switchToStripeBtn.click();
+		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+	}
+
+	await takeStepScreenshot(page, 'payment-form');
 
 	// Payment security info button should open a Stripe privacy page (close immediately).
 	const securityInfoButton = page.getByTestId('payment-form').getByTestId('text-button').first();

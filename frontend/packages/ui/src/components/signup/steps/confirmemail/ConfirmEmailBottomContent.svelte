@@ -25,59 +25,110 @@
         }
     });
 
+    /** Maximum number of verification attempts for transient "code not found" errors. */
+    const MAX_VERIFY_ATTEMPTS = 3;
+    /** Delay (ms) between retry attempts — gives the Celery email task time to
+     *  finish writing the verification code to cache. */
+    const VERIFY_RETRY_DELAY_MS = 2000;
+
+    /**
+     * Verify the email confirmation code against the backend.
+     *
+     * Architecture note: The signup flow dispatches a Celery task to generate
+     * the code, store it in Redis, and send the email. Because the API returns
+     * "success" *before* the Celery task completes, there is a short window
+     * where the code is not yet in cache. If the user (or a Playwright test)
+     * enters the code very quickly, the verification can fail with
+     * "No verification code requested for this email or code expired."
+     *
+     * To handle this race condition we retry up to MAX_VERIFY_ATTEMPTS times
+     * with a short delay, but ONLY for that specific transient error. Wrong
+     * codes and other errors surface immediately without retry.
+     */
     async function verifyCode(code: string) {
         if (isVerifying) return; // Prevent re-execution if already verifying
         if (code.length !== 6) return;
-        
-        try {
-            isVerifying = true;
-            errorMessage = '';
-            showError = false;
 
-            const storeData = get(signupStore);
-            
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.check_confirm_email_code), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    code: code,
-                    email: storeData.email,
-                    username: storeData.username,
-                    invite_code: storeData.inviteCode,
-                    language: storeData.language,
-                    darkmode: storeData.darkmode
-                }),
-                credentials: 'include'
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-                // In the new architecture, email verification doesn't create a user yet
-                // It just verifies the email and stores verification status in cache
-                
-                // Make sure we stay in signup flow and move to secure account step
-                currentSignupStep.set('secure_account');
-                isInSignupProcess.set(true);
-                
-                // Proceed to next step on success
-                dispatch('step', { step: 'secure_account' });
-            } else {
-                // Show error message
+        isVerifying = true;
+        errorMessage = '';
+        showError = false;
+
+        const storeData = get(signupStore);
+
+        for (let attempt = 1; attempt <= MAX_VERIFY_ATTEMPTS; attempt++) {
+            try {
+                const response = await fetch(getApiEndpoint(apiEndpoints.auth.check_confirm_email_code), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        email: storeData.email,
+                        username: storeData.username,
+                        invite_code: storeData.inviteCode,
+                        language: storeData.language,
+                        darkmode: storeData.darkmode
+                    }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // In the new architecture, email verification doesn't create a user yet
+                    // It just verifies the email and stores verification status in cache
+
+                    // Make sure we stay in signup flow and move to secure account step
+                    currentSignupStep.set('secure_account');
+                    isInSignupProcess.set(true);
+
+                    // Proceed to next step on success
+                    dispatch('step', { step: 'secure_account' });
+                    isVerifying = false;
+                    return;
+                }
+
+                // Transient "code not yet in cache" error — retry after a short delay.
+                // The Celery task that stores the code may still be in flight.
+                const isCodeNotFound = typeof data.message === 'string' &&
+                    data.message.toLowerCase().includes('no verification code');
+
+                if (isCodeNotFound && attempt < MAX_VERIFY_ATTEMPTS) {
+                    console.debug(
+                        `[ConfirmEmail] Code not in cache yet (attempt ${attempt}/${MAX_VERIFY_ATTEMPTS}), retrying in ${VERIFY_RETRY_DELAY_MS}ms...`
+                    );
+                    await new Promise(resolve => setTimeout(resolve, VERIFY_RETRY_DELAY_MS));
+                    continue;
+                }
+
+                // Final attempt or non-transient error — show to user
                 errorMessage = data.message || 'Invalid verification code. Please try again.';
                 showError = true;
                 otpCode = ''; // Clear the input
+                isVerifying = false;
+                return;
+            } catch (error) {
+                console.error('Error verifying code:', error);
+
+                // Network errors on non-final attempts get a retry
+                if (attempt < MAX_VERIFY_ATTEMPTS) {
+                    console.debug(
+                        `[ConfirmEmail] Network error (attempt ${attempt}/${MAX_VERIFY_ATTEMPTS}), retrying in ${VERIFY_RETRY_DELAY_MS}ms...`
+                    );
+                    await new Promise(resolve => setTimeout(resolve, VERIFY_RETRY_DELAY_MS));
+                    continue;
+                }
+
+                errorMessage = 'Error verifying code. Please try again.';
+                showError = true;
+                otpCode = ''; // Clear the input
+                isVerifying = false;
+                return;
             }
-        } catch (error) {
-            console.error('Error verifying code:', error);
-            errorMessage = 'Error verifying code. Please try again.';
-            showError = true;
-            otpCode = ''; // Clear the input
-        } finally {
-            isVerifying = false;
         }
+
+        isVerifying = false;
     }
 
     function handleInput(event: Event) {
