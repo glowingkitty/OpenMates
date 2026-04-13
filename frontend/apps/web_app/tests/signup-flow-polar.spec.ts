@@ -557,9 +557,9 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Submit the Polar checkout form.
 	// The "Pay now" button is in the Polar iframe but may be below the iframe's scroll
 	// viewport after filling billing fields. Scroll the iframe body to the bottom first,
-	// then click the button.
-	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
-	if (polarFrame) {
+	// then click the button. (polarFrame was already obtained above for billing fields.)
+	const polarFrameForSubmit = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
+	if (polarFrameForSubmit) {
 		await polarFrame.evaluate(() => {
 			const scrollable = document.querySelector('[class*="checkout"]') ||
 				document.querySelector('form') || document.scrollingElement || document.body;
