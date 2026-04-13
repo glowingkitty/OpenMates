@@ -2,7 +2,7 @@
 """
 scripts/_daily_meeting_helper.py
 
-Daily standup meeting orchestrator — gathers data from 10 sources and launches
+Daily standup meeting orchestrator — gathers data from 14 sources and launches
 the main meeting session with the data injected directly into the prompt.
 
 No subagents: the meeting session reads nightly reports and live data directly,
@@ -28,6 +28,7 @@ Data sources:
     I. Linear tasks                     — queried live by meeting session (MCP)
     J. Milestone state                  — file read (.planning/)
     K. Server stats                     — docker exec server_stats_query.py
+    N. SEO health                       — HTTP requests to production sitemap + pages
 
 Importable from other helpers:
     gather_all_data(project_root: str, yesterday: str) → dict
@@ -553,6 +554,62 @@ def gather_pii_leak_audit() -> str:
     return "✅ No PII patterns detected in ephemeral log streams (last 24h)."
 
 
+def gather_seo_health() -> str:
+    """Source N: SEO health check — sitemap, meta tags, and OG image coverage.
+
+    Fetches the production sitemap and a sample of key pages to verify
+    that essential SEO elements (title, description, OG tags, canonical)
+    are present in the server-rendered HTML. Lightweight: ~3 HTTP requests.
+    """
+    issues = []
+    stats = {}
+    base = "https://openmates.org"
+
+    # 1. Check sitemap
+    try:
+        req = urllib.request.Request(f"{base}/sitemap.xml", headers={"User-Agent": "OpenMates-SEO-Check/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            sitemap = resp.read().decode("utf-8")
+        url_count = sitemap.count("<loc>")
+        stats["sitemap_urls"] = url_count
+        if url_count == 0:
+            issues.append("🔴 Sitemap is empty (0 URLs)")
+        # Check homepage is in sitemap
+        if f"{base}/</loc>" not in sitemap and f"{base}</loc>" not in sitemap:
+            issues.append("⚠️ Homepage (/) missing from sitemap")
+    except Exception as e:
+        issues.append(f"🔴 Sitemap fetch failed: {e}")
+        stats["sitemap_urls"] = "?"
+
+    # 2. Check key pages for meta tags in SSR HTML
+    check_pages = [
+        ("/", "Homepage"),
+        ("/intro/for-everyone", "Intro page"),
+        ("/docs", "Docs index"),
+    ]
+    required_tags = ["og:title", "og:description", "og:image", "twitter:card"]
+
+    for path, label in check_pages:
+        try:
+            req = urllib.request.Request(f"{base}{path}", headers={"User-Agent": "OpenMates-SEO-Check/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                html = resp.read().decode("utf-8", errors="replace")
+            missing = [tag for tag in required_tags if f'"{tag}"' not in html and f"'{tag}'" not in html]
+            if missing:
+                issues.append(f"⚠️ {label} ({path}) missing SSR meta tags: {', '.join(missing)}")
+            # Check for title tag
+            if "<title>" not in html and "<title " not in html:
+                issues.append(f"⚠️ {label} ({path}) has no <title> in SSR HTML")
+        except Exception as e:
+            issues.append(f"⚠️ {label} ({path}) unreachable: {e}")
+
+    # 3. Format report
+    summary = f"Sitemap: {stats.get('sitemap_urls', '?')} URLs"
+    if not issues:
+        return f"✅ SEO health OK — {summary}, all key pages have meta tags in SSR HTML."
+    return f"📊 {summary}\n" + "\n".join(issues)
+
+
 def gather_all_data(project_root: str, yesterday: str) -> dict:
     """Gather all data sources in parallel where possible.
 
@@ -561,7 +618,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     data = {}
     failures = []
 
-    print(f"{LOG_PREFIX} Gathering data from 13 sources...")
+    print(f"{LOG_PREFIX} Gathering data from 14 sources...")
 
     with ThreadPoolExecutor(max_workers=9) as pool:
         futures = {
@@ -576,6 +633,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
             pool.submit(gather_server_stats): "server_stats",
             pool.submit(gather_ephemeral_error_context): "ephemeral_error_context",
             pool.submit(gather_pii_leak_audit): "pii_leak_audit",
+            pool.submit(gather_seo_health): "seo_health",
         }
 
         for future in as_completed(futures):
@@ -669,6 +727,7 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
         .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
         .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
         .replace("{{MILESTONE_STATE}}", data.get("milestone_state", "N/A"))
+        .replace("{{SEO_HEALTH}}", data.get("seo_health", "N/A"))
         .replace("{{DATA_FAILURES}}", failures_text)
     )
 
