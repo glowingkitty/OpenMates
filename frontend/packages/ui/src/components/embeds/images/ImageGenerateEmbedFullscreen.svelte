@@ -90,12 +90,14 @@
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as ImageFiles : undefined);
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : undefined);
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined);
-  let status = typeof ed?.status === 'string' ? ed.status : 'finished';
+  let status = $derived(typeof ed?.status === 'string' ? ed.status : 'finished');
   let error = $derived(typeof dc.error === 'string' ? dc.error : undefined);
-  let skillIdProp: 'generate' | 'generate_draft' = typeof dc.skill_id === 'string' && dc.skill_id === 'generate_draft' ? 'generate_draft' : 'generate';
+  let skillIdProp = $derived<'generate' | 'generate_draft'>(typeof dc.skill_id === 'string' && dc.skill_id === 'generate_draft' ? 'generate_draft' : 'generate');
   let generatedAt = $derived(typeof dc.generated_at === 'string' ? dc.generated_at : undefined);
   let inputEmbedIds = $derived(Array.isArray(dc.input_embed_ids) ? dc.input_embed_ids as string[] : undefined);
-  
+  // Direct preview image URL for store examples — bypasses S3 decrypt
+  let directPreviewImageUrl = $derived(typeof dc.previewImageUrl === 'string' ? dc.previewImageUrl : undefined);
+
   // Image state
   // Progressive loading: show the preview image instantly while the full-res version loads.
   // The preview is typically already cached from the inline embed, so it appears immediately.
@@ -205,10 +207,15 @@
     }
   }
   
-  // Auto-load full image on mount
+  // Auto-load full image on mount.
+  // Store examples provide a direct URL — skip S3 decrypt entirely.
   $effect(() => {
     if (status === 'finished' && !fullImageUrl && !isLoadingImage) {
-      loadFullImage();
+      if (directPreviewImageUrl) {
+        fullImageUrl = directPreviewImageUrl;
+      } else {
+        loadFullImage();
+      }
     }
   });
   

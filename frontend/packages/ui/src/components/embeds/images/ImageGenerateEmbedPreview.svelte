@@ -601,7 +601,7 @@
   /* Model badge shown over finished images */
   .image-model-badge {
     position: absolute;
-    bottom: 8px;
+    top: 8px;
     left: 8px;
     background: rgba(0, 0, 0, 0.6);
     color: white;
