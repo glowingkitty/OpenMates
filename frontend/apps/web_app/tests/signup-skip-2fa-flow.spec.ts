@@ -376,19 +376,14 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await deleteOtpInput.fill(deleteVerificationCode);
 	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
-	// Wait for success message indicating account was deleted.
-	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 60000
-	});
-	await takeStepScreenshot(page, 'delete-account-success');
-	logSignupCheckpoint('Account deletion confirmed via email OTP.');
-
-	// Confirm logout redirect to demo chat after deletion.
+	// Wait for redirect to demo chat after account deletion.
+	// The deletion flow sets a brief success message then navigates away,
+	// so we wait for the redirect rather than the transient success message.
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 		timeout: 60000
 	});
 	await takeStepScreenshot(page, 'delete-account-redirected');
-	logSignupCheckpoint('Returned to demo chat after account deletion.');
+	logSignupCheckpoint('Account deleted and redirected to demo chat.');
 
 	logSignupCheckpoint(
 		'Skip-2FA signup + password login + email OTP account deletion flow completed successfully.',
