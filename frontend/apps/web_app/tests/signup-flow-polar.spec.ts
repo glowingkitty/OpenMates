@@ -474,75 +474,24 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 		logSignupCheckpoint('WARNING: Billing address field not found — payment may fail.');
 	}
 
-	// Scroll down within the Polar iframe to reveal city/state/zip fields below the fold.
-	// The checkout form is taller than the viewport, so fields after "Billing address" may
-	// be hidden. Scroll the form container or body inside the iframe.
-	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
-	if (polarFrame) {
-		await polarFrame.evaluate(() => {
-			const scrollable = document.querySelector('form') || document.scrollingElement || document.body;
-			scrollable.scrollTop = scrollable.scrollHeight;
-		});
-		await page.waitForTimeout(500);
-		logSignupCheckpoint('Scrolled Polar iframe to reveal remaining billing fields.');
-	}
+	// After filling address line 1, use Tab key to navigate through the remaining
+	// billing fields (address line 2, city, state, zip). This is more reliable than
+	// guessing locators for Polar's cross-origin iframe fields.
+	// Focus the address field first, then Tab through.
+	await billingAddress.click();
+	await page.keyboard.press('Tab'); // → address line 2 (apartment/suite)
+	await page.keyboard.press('Tab'); // → city
+	await page.keyboard.type('New York');
+	logSignupCheckpoint('Filled billing city via Tab navigation.');
 
-	// City — try label, placeholder, name, then fall back to positional input discovery
-	const billingCity = polarIframe.getByLabel(/city/i).first()
-		.or(polarIframe.locator('input[placeholder*="city" i], input[placeholder*="City"]').first())
-		.or(polarIframe.locator('input[name*="city"]').first());
-	if (await billingCity.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await billingCity.fill('New York');
-		logSignupCheckpoint('Filled billing city.');
-	} else {
-		// Fallback: find empty text inputs in the billing section by position.
-		// After filling address, remaining empty inputs are likely city/state/zip.
-		logSignupCheckpoint('City field not found by label/name — trying positional fallback.');
-		const emptyInputs = polarIframe.locator('input[type="text"]:not([readonly])');
-		const count = await emptyInputs.count();
-		for (let i = 0; i < count; i++) {
-			const val = await emptyInputs.nth(i).inputValue().catch(() => '');
-			if (!val) {
-				await emptyInputs.nth(i).fill('New York');
-				logSignupCheckpoint(`Filled first empty input (index ${i}) with city.`);
-				break;
-			}
-		}
-	}
+	await page.keyboard.press('Tab'); // → state or zip
+	// Polar US checkout shows state + zip side by side. Type state abbreviation.
+	await page.keyboard.type('NY');
+	logSignupCheckpoint('Filled billing state via Tab navigation.');
 
-	// State — can be input or select
-	const billingStateSelect = polarIframe.locator('select[name*="state"], select[autocomplete*="address-level1"]').first();
-	const billingStateInput = polarIframe.getByLabel(/state|province|region/i).first()
-		.or(polarIframe.locator('input[placeholder*="state" i], input[name*="state"]').first());
-	if (await billingStateSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await billingStateSelect.selectOption('NY');
-		logSignupCheckpoint('Selected billing state (dropdown).');
-	} else if (await billingStateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await billingStateInput.fill('NY');
-		logSignupCheckpoint('Filled billing state (input).');
-	}
-
-	// ZIP / Postal code
-	const billingZip = polarIframe.getByLabel(/zip|postal/i).first()
-		.or(polarIframe.locator('input[placeholder*="zip" i], input[placeholder*="postal" i], input[placeholder*="ZIP"]').first())
-		.or(polarIframe.locator('input[name*="postal"], input[name*="zip"]').first());
-	if (await billingZip.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await billingZip.fill('10001');
-		logSignupCheckpoint('Filled billing ZIP code.');
-	} else {
-		// Fallback: find remaining empty text inputs
-		logSignupCheckpoint('ZIP field not found by label/name — trying positional fallback.');
-		const emptyInputs = polarIframe.locator('input[type="text"]:not([readonly])');
-		const count = await emptyInputs.count();
-		for (let i = 0; i < count; i++) {
-			const val = await emptyInputs.nth(i).inputValue().catch(() => '');
-			if (!val) {
-				await emptyInputs.nth(i).fill('10001');
-				logSignupCheckpoint(`Filled next empty input (index ${i}) with ZIP.`);
-				break;
-			}
-		}
-	}
+	await page.keyboard.press('Tab'); // → zip
+	await page.keyboard.type('10001');
+	logSignupCheckpoint('Filled billing ZIP via Tab navigation.');
 
 	await takeStepScreenshot(page, 'polar-billing-filled');
 
