@@ -501,24 +501,27 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Filled Polar sandbox card details.');
 
 	// Submit the Polar checkout form.
-	// The "Pay now" button is in the Polar iframe. After Tab-navigating billing fields,
-	// focus is still inside the iframe. Click the button with force:true to bypass any
-	// overlay/visibility issues, and fall back to keyboard Enter if click doesn't work.
+	// The "Pay now" button is in the Polar iframe but may be below the iframe's scroll
+	// viewport after filling billing fields. Scroll the iframe body to the bottom first,
+	// then click the button.
+	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
+	if (polarFrame) {
+		await polarFrame.evaluate(() => {
+			const scrollable = document.querySelector('[class*="checkout"]') ||
+				document.querySelector('form') || document.scrollingElement || document.body;
+			scrollable.scrollTop = scrollable.scrollHeight;
+		});
+		await page.waitForTimeout(1000);
+		logSignupCheckpoint('Scrolled Polar iframe to bottom for Pay now button.');
+	}
+
+	await takeStepScreenshot(page, 'polar-before-submit');
+
 	const polarSubmitButton = polarIframe
 		.getByRole('button', { name: /pay now/i })
 		.or(polarIframe.getByRole('button', { name: /pay|subscribe|complete/i }).last());
 	await expect(polarSubmitButton).toBeVisible({ timeout: 30000 });
-	await takeStepScreenshot(page, 'polar-before-submit');
-	await polarSubmitButton.click({ force: true });
-	logSignupCheckpoint('Clicked Polar Pay now button.');
-
-	// If the click didn't trigger (cross-origin iframe quirk), try focusing + Enter
-	const stillVisible = await polarSubmitButton.isVisible({ timeout: 3000 }).catch(() => false);
-	if (stillVisible) {
-		logSignupCheckpoint('Pay now button still visible after click — retrying with focus + Enter.');
-		await polarSubmitButton.focus();
-		await page.keyboard.press('Enter');
-	}
+	await polarSubmitButton.click();
 	logSignupCheckpoint('Submitted Polar checkout form.');
 
 	// After Polar processes the payment, the overlay fires a 'success' event and our
