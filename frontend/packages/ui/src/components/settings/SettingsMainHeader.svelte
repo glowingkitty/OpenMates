@@ -197,7 +197,7 @@
                         aria-label={$text('settings.billing')}
                     >
                         <span class="credits-coin-icon" class:credits-coin-icon-collapsed={isCollapsed}></span>
-                        <span class="credits-amount" class:credits-amount-collapsed={isCollapsed}>{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</span>
+                        <span class="credits-amount" class:credits-amount-collapsed={isCollapsed} data-testid="credits-amount">{$text('settings.credits_amount').replace('{credits_amount}', formattedCredits)}</span>
                     </button>
                 </div>
             {/if}

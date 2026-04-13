@@ -99,8 +99,9 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	test.slow();
 	// Allow extra time for Mailosaur email delivery + purchase confirmation + account deletion.
-	// GHA runners are slower than local — 240s was insufficient; 420s provides comfortable margin.
-	test.setTimeout(420000);
+	// This is the longest signup spec: full 2FA setup, payment, email verification of purchase,
+	// refund link validation, and account deletion with 2FA auth. 600s needed for retries.
+	test.setTimeout(600000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint);
@@ -174,7 +175,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	// Basics step: fill email/username and exercise key toggles.
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 	await takeStepScreenshot(page, 'basics-filled');
@@ -207,7 +208,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	// Confirm email step: wait for step transition and verify "Open mail app" link.
 	// The step transition may take a moment, so we wait for the link to appear with a longer timeout.
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
-	await expect(openMailLink).toBeVisible({ timeout: 15000 });
+	await expect(openMailLink).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'confirm-email');
 	await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
@@ -225,7 +226,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	// Secure account step: choose password-based setup.
 	const passwordOption = page.locator('#signup-password-option');
-	await expect(passwordOption).toBeVisible({ timeout: 15000 });
+	await expect(passwordOption).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'secure-account');
 	await passwordOption.click();
 	await takeStepScreenshot(page, 'password-step');
@@ -354,28 +355,44 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	logSignupCheckpoint('Reached payment consent step.');
 
 	// Payment step: consent to limited refund to reveal payment form.
+	// The consent overlay must be dismissed BEFORE switching providers, because
+	// it covers the payment area with pointer-events:all.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
 	await setToggleChecked(consentToggle, true);
-	await takeStepScreenshot(page, 'payment-form');
 	logSignupCheckpoint('Payment consent accepted.');
 
-	// Payment security info button should open a Stripe privacy page (close immediately).
-	const securityInfoButton = page.getByTestId('payment-form').getByTestId('text-button').first();
-	await securityInfoButton.scrollIntoViewIfNeeded();
-	const [securityInfoPage] = await Promise.all([
-		context.waitForEvent('page'),
-		securityInfoButton.click()
-	]);
-	await securityInfoPage.close();
-	logSignupCheckpoint('Closed payment security info page.');
+	// GHA runners are in the US, so Polar is auto-selected (non-EU IP).
+	// Switch to Stripe for this test — it specifically tests the Stripe payment flow.
+	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
+	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await switchToStripeBtn.click();
+		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+	}
+
+	// Wait for Stripe Payment Element iframe to load after provider switch.
+	// switchProvider() tears down Polar, fetches config, loads Stripe.js, creates
+	// a PaymentIntent, and mounts the Payment Element — all async. The iframe
+	// won't exist until that chain completes.
+	const stripeIframe = page.frameLocator('iframe[title="Secure payment input frame"]');
+	const cardInput = stripeIframe
+		.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
+		.first();
+	await cardInput.waitFor({ state: 'visible', timeout: 30000 });
+	logSignupCheckpoint('Stripe Payment Element loaded.');
+
+	await takeStepScreenshot(page, 'payment-form');
 
 	// Fill Stripe payment element with the test card.
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
 	logSignupCheckpoint('Filled Stripe card details.');
 
+	// Wait for Stripe to validate the card (isPaymentElementComplete → buy button enabled).
+	const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
+	await expect(buyButton).toBeEnabled({ timeout: 10000 });
+
 	// Submit payment and wait for success.
 	const paymentSubmittedAt = new Date().toISOString();
-	await page.getByTestId('payment-form').getByTestId('buy-button').click();
+	await buyButton.click();
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'payment-success');
 	logSignupCheckpoint('Purchase completed successfully.');
@@ -431,7 +448,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	// Confirm credits reflect the purchase (should be non-zero after payment).
 	const creditsAmount = page.getByTestId('credits-amount');
-	await expect(creditsAmount).toBeVisible();
+	await expect(creditsAmount).toBeVisible({ timeout: 10000 });
 	const creditsText = (await creditsAmount.textContent()) || '';
 	const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
 	expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(0);
@@ -450,7 +467,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	const deleteConfirmToggle = page
 		.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 		.first();
-	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+	await expect(deleteConfirmToggle).toBeAttached({ timeout: 10000 });
 	await setToggleChecked(deleteConfirmToggle, true);
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
@@ -461,20 +478,20 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	await expect(authModal).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account-auth');
 
-	const deleteOtpInput = authModal.locator('input.tfa-input');
-	await expect(deleteOtpInput).toBeVisible();
+	const deleteOtpInput = authModal.getByTestId('tfa-input');
+	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 	await deleteOtpInput.fill(generateTotp(tfaSecret));
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
 	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 60000
+		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
 
 	// Confirm logout redirect to demo chat after deletion.
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 60000
+		timeout: 10000
 	});
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
 });

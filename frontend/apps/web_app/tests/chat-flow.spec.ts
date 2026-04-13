@@ -143,6 +143,72 @@ async function inspectChatClientSide(
 }
 
 /**
+ * Extract the chat key fingerprint from an inspectChat report string.
+ * The report line looks like: "Key: abcdef1234567890 (16 bytes, source: cache)"
+ * or "Key: abcdef1234567890 [pass hideKeys:false to show full key]"
+ * Returns the fingerprint (first 8-16 hex chars) or null if not found.
+ */
+function extractKeyFingerprint(inspectReport: string): string | null {
+	const keyLine = inspectReport.split('\n').find(l => l.startsWith('Key:'));
+	if (!keyLine) return null;
+	// Extract the hex fingerprint after "Key: "
+	const match = keyLine.match(/^Key:\s+([0-9a-f]+)/i);
+	return match ? match[1] : null;
+}
+
+/**
+ * Assert zero encryption-related errors in captured console logs.
+ * Checks for CLIENT_DECRYPT failures, spurious key creation during sync,
+ * and SYNC GUARD errors (which indicate missing keys during sync).
+ *
+ * IMPORTANT: Pass only the logs from the CURRENT phase (use logStartIndex to slice).
+ * The full consoleLogs buffer accumulates across all phases, and Phase 1 legitimately
+ * calls createKeyForNewChat for genuinely new chats.
+ */
+function assertNoEncryptionErrors(
+	logs: string[],
+	chatId: string,
+	logCheckpoint: (...args: any[]) => void,
+	phase: string
+): void {
+	// 1. No CLIENT_DECRYPT failures — these mean messages could not be decrypted
+	const decryptErrors = logs.filter(l => l.includes('CLIENT_DECRYPT') && l.includes('Failed'));
+	if (decryptErrors.length > 0) {
+		logCheckpoint(`[${phase}] ❌ Found ${decryptErrors.length} CLIENT_DECRYPT failure(s):`);
+		decryptErrors.slice(0, 3).forEach(e => logCheckpoint(`  ${e.substring(0, 200)}`));
+	}
+	expect(decryptErrors.length).toBe(0);
+
+	// 2. No createKeyForNewChat for the test chat — this would mean the sync
+	//    created a NEW random key, corrupting existing messages
+	const spuriousKeyCreation = logs.filter(
+		l => l.includes('Created new chat key for originator chat') && l.includes(chatId)
+	);
+	if (spuriousKeyCreation.length > 0) {
+		logCheckpoint(
+			`[${phase}] ❌ Sync created a NEW key for existing chat ${chatId} — ` +
+			`this would corrupt all existing messages!`
+		);
+	}
+	expect(spuriousKeyCreation.length).toBe(0);
+
+	// 3. No SYNC GUARD errors — these indicate a chat was synced without a key
+	const syncGuardErrors = logs.filter(l => l.includes('SYNC GUARD'));
+	if (syncGuardErrors.length > 0) {
+		logCheckpoint(
+			`[${phase}] ⚠️ Found ${syncGuardErrors.length} SYNC GUARD error(s) — ` +
+			`chats were synced without encryption keys`
+		);
+		syncGuardErrors.slice(0, 3).forEach(e => logCheckpoint(`  ${e.substring(0, 200)}`));
+	}
+	// SYNC GUARD for OTHER chats is a warning, not a failure — only fail if it's our test chat
+	const syncGuardForTestChat = syncGuardErrors.filter(l => l.includes(chatId));
+	expect(syncGuardForTestChat.length).toBe(0);
+
+	logCheckpoint(`[${phase}] ✅ No encryption errors detected.`);
+}
+
+/**
  * Ensure the sidebar (chats panel) is open.
  * The sidebar defaults to CLOSED — this helper clicks the menu toggle to open it
  * and waits for the Chats component to mount and render.
@@ -600,6 +666,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// PHASE 3: Client-side data check via window.inspectChat
 	// =========================================================================
 	logChatCheckpoint('Phase 3: Inspecting client-side data via window.inspectChat...');
+	// Track key fingerprint across phases to detect key corruption
+	let initialKeyFingerprint: string | null = null;
 	const inspectResult = await inspectChatClientSide(page, chatId);
 	if (inspectResult) {
 		if (inspectResult.error) {
@@ -617,6 +685,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 			const messageMatches = (rawReport.match(/\[(assistant|user\s*)\]/g) || []).length;
 			logChatCheckpoint(`Message count in inspectChat report: ${messageMatches}`);
 			expect(messageMatches).toBeGreaterThanOrEqual(2);
+
+			// Capture key fingerprint for cross-phase consistency check
+			initialKeyFingerprint = extractKeyFingerprint(rawReport);
+			logChatCheckpoint(`Key fingerprint (initial): ${initialKeyFingerprint}`);
+			expect(initialKeyFingerprint).toBeTruthy();
+			expect(initialKeyFingerprint).not.toBe('N/A');
 		}
 	} else {
 		logChatCheckpoint('window.inspectChat not available — skipping client-side data check.');
@@ -628,17 +702,25 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// NOTE: assertChatDecryptedCorrectly opens the sidebar, checks it, then closes it.
 	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'initial');
 
-	// Capture the chat title from the ChatHeader component for later comparison
-	// (the header is always visible regardless of sidebar state).
+	// Verify ChatHeader is fully loaded with title, summary, and icon.
+	// These are populated by the AI after processing the first message.
 	const chatHeaderTitle = page.getByTestId('chat-header-title');
 	let headerTitleText = '';
-	try {
-		await expect(chatHeaderTitle).toBeVisible({ timeout: 5000 });
-		headerTitleText = (await chatHeaderTitle.textContent())?.trim() || '';
-		logChatCheckpoint(`ChatHeader title captured: "${headerTitleText}"`);
-	} catch {
-		logChatCheckpoint('ChatHeader title not visible — skipping capture.');
-	}
+	await expect(chatHeaderTitle).toBeVisible({ timeout: 15000 });
+	headerTitleText = (await chatHeaderTitle.textContent())?.trim() || '';
+	logChatCheckpoint(`ChatHeader title: "${headerTitleText}"`);
+	expect(headerTitleText).toBeTruthy();
+	expect(headerTitleText.toLowerCase()).not.toContain('untitled');
+
+	const chatHeaderIcon = page.getByTestId('chat-header-icon');
+	await expect(chatHeaderIcon).toBeVisible({ timeout: 10000 });
+	logChatCheckpoint('ChatHeader icon visible.');
+
+	const chatHeaderSummary = page.getByTestId('chat-header-summary');
+	await expect(chatHeaderSummary).toBeVisible({ timeout: 10000 });
+	const summaryText = (await chatHeaderSummary.textContent())?.trim() || '';
+	logChatCheckpoint(`ChatHeader summary: "${summaryText}"`);
+	expect(summaryText).toBeTruthy();
 
 	// Verify no missing translations on the chat page
 	await assertNoMissingTranslations(page);
@@ -730,6 +812,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Phase 5: Reloading tab...');
 	// Reset warn/error buffer so we only capture errors from the reload phase
 	warnErrorLogs.length = 0;
+	// Capture log offset — encryption assertions should only check logs from THIS phase
+	const phase5LogStart = consoleLogs.length;
 
 	// Navigate to the chat URL and reload to ensure a fresh startup with the hash.
 	// After Phase 4.5 we're on the home page; a plain reload would reload `/`
@@ -755,7 +839,18 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 		const messageMatches = (rawReport.match(/\[(assistant|user\s*)\]/g) || []).length;
 		logChatCheckpoint(`Message count in inspectChat after reload: ${messageMatches}`);
 		expect(messageMatches).toBeGreaterThanOrEqual(2);
+
+		// Key fingerprint must match the initial phase — reload must not change the key
+		const reloadFingerprint = extractKeyFingerprint(rawReport);
+		logChatCheckpoint(`Key fingerprint (after reload): ${reloadFingerprint}`);
+		if (initialKeyFingerprint && reloadFingerprint) {
+			expect(reloadFingerprint).toBe(initialKeyFingerprint);
+			logChatCheckpoint('✅ Key fingerprint matches initial phase after reload.');
+		}
 	}
+
+	// Assert no encryption errors during the reload phase (only logs from Phase 5 onward)
+	assertNoEncryptionErrors(consoleLogs.slice(phase5LogStart), chatId, logChatCheckpoint, 'after_reload');
 
 	// Save any warn/error logs from the reload phase
 	if (warnErrorLogs.length > 0) {
@@ -800,21 +895,48 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// PHASE 7: Login again + navigate to the same chat
 	// =========================================================================
 	logChatCheckpoint('Phase 7: Logging in again...');
+	// Capture log offset — encryption assertions should only check logs from THIS phase
+	const phase7LogStart = consoleLogs.length;
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08');
 
-	// Navigate directly to the test chat.
-	// After login the app is on `/` (home). Setting the hash via page.goto()
-	// triggers the deep-link handler in +page.svelte, but the activeChatStore
-	// may already hold the chat ID from a previous phase, causing it to skip
-	// re-loading. A full page reload ensures a clean app startup with the hash.
+	// Wait for phased sync to complete before navigating to the test chat.
+	// After a fresh login, phased sync re-downloads all chat data via WebSocket.
+	// The deep-link handler in +page.svelte waits for phasedSyncComplete before
+	// loading a user chat from IndexedDB. If we navigate too early (before sync),
+	// the chat isn't in IDB yet and the deep-link handler either gives up or
+	// gets blocked by canAutoNavigate() after Phase 1a loads a different chat.
+	logChatCheckpoint('Waiting for phased sync to complete after re-login...');
+	const syncCompleted = await page.waitForEvent('console', {
+		predicate: (msg: any) =>
+			msg.text().includes('Phase 1 complete') ||
+			msg.text().includes('phasedSyncComplete') ||
+			msg.text().includes('Phase 1a: decrypted'),
+		timeout: 30000
+	}).then(() => true).catch(() => false);
+	logChatCheckpoint(`Phased sync signal detected: ${syncCompleted}`);
+
+	// Navigate to the test chat via hash change (no reload — preserves sync state)
 	logChatCheckpoint(`Navigating to chat ${chatId} after re-login...`);
-	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-	await page.reload({ waitUntil: 'networkidle' });
-	logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
+	await page.evaluate((cid: string) => {
+		window.location.hash = `chat-id=${cid}`;
+	}, chatId);
+	// Give the hashchange handler time to process and load the chat
+	await page.waitForTimeout(3000);
+
+	// If the chat didn't load via hashchange (e.g., activeChatStore already had a
+	// different chat), fall back to a full page load with the hash
+	let userMsgAfterRelogin = page.getByTestId('message-user').first();
+	const chatLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
+	if (!chatLoaded) {
+		logChatCheckpoint('Chat not loaded via hashchange, falling back to page.goto + reload...');
+		await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+		await page.reload({ waitUntil: 'networkidle' });
+		logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
+	}
 
 	// Wait for the chat to actually load — the user message must be visible.
 	// This can take longer after a fresh login (key derivation + phased sync).
-	const userMsgAfterRelogin = page.getByTestId('message-user').first();
+	userMsgAfterRelogin = page.getByTestId('message-user').first();
 	await expect(userMsgAfterRelogin).toBeVisible({ timeout: 30000 });
 
 	await takeStepScreenshot(page, '09-after-relogin');
@@ -830,7 +952,23 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 		const messageMatches = (rawReport.match(/\[(assistant|user\s*)\]/g) || []).length;
 		logChatCheckpoint(`Message count in inspectChat after re-login: ${messageMatches}`);
 		expect(messageMatches).toBeGreaterThanOrEqual(2);
+
+		// CRITICAL: Key fingerprint must be identical after logout/login cycle.
+		// If this fails, the sync created a new key and corrupted the chat.
+		const reloginFingerprint = extractKeyFingerprint(rawReport);
+		logChatCheckpoint(`Key fingerprint (after re-login): ${reloginFingerprint}`);
+		if (initialKeyFingerprint && reloginFingerprint) {
+			expect(reloginFingerprint).toBe(initialKeyFingerprint);
+			logChatCheckpoint(
+				'✅ Key fingerprint matches initial phase after logout/login — no key corruption.'
+			);
+		}
 	}
+
+	// CRITICAL: Assert no encryption errors after re-login (only logs from Phase 7 onward).
+	// This catches the exact bug where encryptChatForStorage created new keys
+	// during phased sync after logout/login, corrupting existing messages.
+	assertNoEncryptionErrors(consoleLogs.slice(phase7LogStart), chatId, logChatCheckpoint, 'after_relogin');
 
 	// Verify no missing translations on the chat page after re-login
 	await assertNoMissingTranslations(page);

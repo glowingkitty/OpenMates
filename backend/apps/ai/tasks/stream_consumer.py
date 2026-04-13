@@ -3783,8 +3783,9 @@ async def _consume_main_processing_stream(
     # Handle the case where we're awaiting focus mode confirmation (deferred activation).
     # Unlike app_settings, the focus mode case has embed content (the focus mode activation
     # embed reference) that we need to finalize so the client can persist the message.
-    # The continuation task (auto-confirm or rejection) will reuse the same message_id
-    # (via continuation_message_id) and append the LLM response to this message.
+    # The continuation task (auto-confirm or rejection) creates a SEPARATE assistant message
+    # with its own task_id. The client renders both messages but visually merges them
+    # into one bubble for display continuity.
     if awaiting_focus_mode_confirmation:
         logger.info(
             f"{log_prefix} Task completing with embed content only — awaiting focus mode confirmation. "
@@ -3794,7 +3795,6 @@ async def _consume_main_processing_stream(
         # Publish a final chunk with the embed content so the client:
         # 1. Transitions the message from 'streaming' to 'synced'
         # 2. Persists it to IndexedDB (embed survives page reload)
-        # The continuation task will target the same message_id and append the LLM response.
         if cache_service and aggregated_response:
             focus_final_payload = _create_redis_payload(
                 task_id, request_data, aggregated_response, stream_chunk_count + 1,
@@ -3804,6 +3804,38 @@ async def _consume_main_processing_stream(
                 cache_service, redis_channel_name, focus_final_payload, log_prefix,
                 f"Published focus-mode final marker (seq: {stream_chunk_count + 1}, content: {len(aggregated_response)} chars) to '{redis_channel_name}'"
             )
+
+        # Increment messages_v and save to AI cache — this IS a real persisted assistant
+        # message (the focus activation embed). Without this, messages_v drifts: the
+        # continuation task increments for its own message, but this one was skipped,
+        # causing the health check to report "messages_v (N) != actual count (N+1)".
+        if not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
+            category = preprocessing_result.category or "general_knowledge"
+            timestamp = int(time.time())
+            try:
+                await _update_chat_metadata(
+                    request_data=request_data,
+                    category=category,
+                    timestamp=timestamp,
+                    content_markdown=aggregated_response,
+                    content_tiptap=aggregated_response,
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                    model_name=stream_model_name
+                )
+                logger.info(
+                    f"{log_prefix} Focus mode activation message saved to AI cache and messages_v incremented."
+                )
+            except Exception as e_save:
+                logger.error(
+                    f"{log_prefix} CRITICAL: Failed to save focus mode activation message: {e_save}",
+                    exc_info=True
+                )
+
         return aggregated_response, False, False, [], debug_metadata
     
     # IMPROVED LOGGING: metadata-only stream completion details.

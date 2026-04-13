@@ -43,7 +43,7 @@ const MESSAGES_STORE_NAME = "messages";
 /**
  * Extract title from TipTap JSON content (first line of text)
  */
-function extractTitleFromContent(content: TiptapJSON): string {
+function _extractTitleFromContent(content: TiptapJSON): string {
   if (!content) return "";
   try {
     const firstTextNode = content.content?.[0]?.content?.[0];
@@ -77,6 +77,7 @@ function extractTitleFromContent(content: TiptapJSON): string {
 export async function encryptChatForStorage(
   dbInstance: ChatDatabaseInstance,
   chat: Chat,
+  options?: { isFromSync?: boolean },
 ): Promise<Chat> {
   // Skip encryption entirely for public chats (demo + legal) - they're public content
   // Add null check to prevent TypeError when chat.chat_id is undefined
@@ -153,7 +154,23 @@ export async function encryptChatForStorage(
   }
 
   // Step 4: genuinely new chat — create key through ChatKeyManager (single source of truth)
+  // CRITICAL GUARD: During sync (isFromSync=true), NEVER create a new key for a chat.
+  // Creating a new random key for a synced chat overwrites the original key and makes
+  // all existing messages permanently undecryptable (the original key is lost).
+  // This was the root cause of OPE-314-class decryption failures after logout/login.
   if (!chatKey) {
+    if (options?.isFromSync) {
+      console.error(
+        `[ChatDatabase] ⚠️ SYNC GUARD: No chat key available for synced chat ${chat.chat_id}. ` +
+          `Refusing to create a new key — this would corrupt existing messages. ` +
+          `The chat will be stored without a key; it will be decryptable once the ` +
+          `correct key is loaded via receiveKeyFromServer().`,
+      );
+      // Store the chat without a key — it will be populated later when
+      // the correct key arrives via Phase 1a receiveKeyFromServer() or
+      // a subsequent sync that includes encrypted_chat_key.
+      return encryptedChat;
+    }
     console.log(
       `[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`,
     );
@@ -292,6 +309,7 @@ export async function addChat(
   dbInstance: ChatDatabaseInstance,
   chat: Chat,
   transaction?: IDBTransaction,
+  options?: { isFromSync?: boolean },
 ): Promise<void> {
   console.debug(
     `[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`,
@@ -337,7 +355,7 @@ export async function addChat(
 
   // CRITICAL FIX: Do async encryption work BEFORE using the transaction
   // This ensures the transaction is still active when we try to use it
-  const chatToSave = await encryptChatForStorage(dbInstance, chatWithDefaults);
+  const chatToSave = await encryptChatForStorage(dbInstance, chatWithDefaults, options);
   delete chatToSave.messages;
 
   return new Promise<void>((resolve, reject) => {

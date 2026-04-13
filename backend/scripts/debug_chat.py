@@ -2019,7 +2019,38 @@ async def main():
                 )
             
             print(output)
-            
+
+            # ---- AUTO CROSS-CHECK: production server ----
+            # After local inspection, also check if the chat exists on the
+            # production server. This prevents confusion when investigating
+            # issues reported from production while running debug.py on dev.
+            try:
+                prod_response = await fetch_chat_from_production_api(
+                    args.chat_id, use_dev=False
+                )
+                prod_data = prod_response.get("data", {}) if prod_response else {}
+                prod_chat = prod_data.get("chat_metadata")
+                prod_found = prod_chat and prod_chat.get("chat_id")
+
+                print("\n" + "─" * 50)
+                print("🌐 PRODUCTION CROSS-CHECK")
+                if prod_found:
+                    prod_msgs = prod_data.get("messages", {})
+                    prod_embeds = prod_data.get("embeds", {})
+                    prod_msg_count = prod_msgs.get("total", len(prod_msgs.get("items", [])))
+                    prod_embed_count = prod_embeds.get("total", len(prod_embeds.get("items", [])))
+                    prod_msgs_v = prod_chat.get("messages_v", "?")
+                    print(f"  🟢 FOUND on production  messages={prod_msg_count}  "
+                          f"embeds={prod_embed_count}  messages_v={prod_msgs_v}")
+                else:
+                    print("  🔴 NOT FOUND on production")
+                print("─" * 50)
+            except (Exception, SystemExit) as prod_err:
+                print("\n" + "─" * 50)
+                print("🌐 PRODUCTION CROSS-CHECK")
+                print(f"  ⚠ Could not check production: {prod_err}")
+                print("─" * 50)
+
         except Exception as e:
             script_logger.error(f"Error during inspection: {e}", exc_info=True)
             raise

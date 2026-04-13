@@ -360,9 +360,15 @@ function buildSignupEmail(domain: string): string {
 	const day = String(now.getDate()).padStart(2, '0');
 	const hour = String(now.getHours()).padStart(2, '0');
 	const minute = String(now.getMinutes()).padStart(2, '0');
-	const timePart = `${month}${day}${hour}${minute}`;
+	const second = String(now.getSeconds()).padStart(2, '0');
+	// Add seconds + 3-char random suffix so concurrent signup specs (dispatched in
+	// the same batch) never generate the same email address.  Without this, all
+	// signup tests in a daily run share one email and their verification codes
+	// collide in the cache — only the last to verify succeeds.
+	const rand = Math.random().toString(36).slice(2, 5);
+	const timePart = `${month}${day}${hour}${minute}${second}${rand}`;
 
-	// Gmail +alias mode: openmates-e2e+jan151333@gmail.com
+	// Gmail +alias mode: openmates-e2e+jan15133342abc@gmail.com
 	const gmailTestAddress = process.env.GMAIL_TEST_ADDRESS;
 	if (gmailTestAddress && gmailTestAddress.includes('@')) {
 		const [localPart, gmailDomain] = gmailTestAddress.split('@');

@@ -366,7 +366,7 @@
     <div class="loaded-content">
       <!-- Category icon (38×38px) -->
       {#if IconComponent}
-        <div class="loaded-icon">
+        <div class="loaded-icon" data-testid="chat-header-icon">
           <IconComponent size={38} color="white" />
         </div>
       {/if}
@@ -384,7 +384,7 @@
 
       <!-- Summary: fades in with max-height expand when available -->
       {#if showSummary}
-        <p class="loaded-summary">{summary}</p>
+        <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
       {/if}
 
       <!-- Creation time -->

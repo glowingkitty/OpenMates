@@ -207,7 +207,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		// Basics step: fill email/username and exercise key toggles.
 		const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 		const usernameInput = page.locator('input[autocomplete="username"]');
-		await expect(emailInput).toBeVisible({ timeout: 15000 });
+		await expect(emailInput).toBeVisible({ timeout: 10000 });
 		await emailInput.fill(signupEmail);
 		await usernameInput.fill(signupUsername);
 		await takeStepScreenshot(page, 'basics-filled');
@@ -240,7 +240,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		// Confirm email step: wait for step transition and verify "Open mail app" link.
 		// The step transition may take a moment, so we wait for the link to appear with a longer timeout.
 		const openMailLink = page.getByRole('link', { name: /open mail app/i });
-		await expect(openMailLink).toBeVisible({ timeout: 15000 });
+		await expect(openMailLink).toBeVisible({ timeout: 10000 });
 		await takeStepScreenshot(page, 'confirm-email');
 		await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
@@ -260,14 +260,14 @@ test('completes passkey signup flow with email + purchase', async ({
 
 		// Secure account step: choose passkey-based setup.
 		const passkeyOption = page.locator('#signup-passkey-option');
-		await expect(passkeyOption).toBeVisible({ timeout: 15000 });
+		await expect(passkeyOption).toBeVisible({ timeout: 10000 });
 		await takeStepScreenshot(page, 'secure-account');
 		await passkeyOption.click();
 		logSignupCheckpoint('Selected passkey signup path.');
 
 		// Recovery key step: wait for passkey registration to complete and the next step to appear.
 		const recoveryDownloadButton = page.locator('#signup-recovery-key-download');
-		await expect(recoveryDownloadButton).toBeVisible({ timeout: 60000 });
+		await expect(recoveryDownloadButton).toBeVisible({ timeout: 10000 });
 		await takeStepScreenshot(page, 'recovery-key');
 		logSignupCheckpoint('Reached recovery key step after passkey registration.');
 
@@ -319,28 +319,40 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Reached payment consent step.');
 
 		// Payment step: consent to limited refund to reveal payment form.
+		// Dismiss consent overlay BEFORE switching providers (it blocks pointer events).
 		const consentToggle = page.locator('#limited-refund-consent-toggle');
 		await setToggleChecked(consentToggle, true);
-		await takeStepScreenshot(page, 'payment-form');
 		logSignupCheckpoint('Payment consent accepted.');
 
-		// Payment security info button should open a Stripe privacy page (close immediately).
-		const securityInfoButton = page.getByTestId('payment-form').getByTestId('text-button').first();
-		await securityInfoButton.scrollIntoViewIfNeeded();
-		const [securityInfoPage] = await Promise.all([
-			context.waitForEvent('page'),
-			securityInfoButton.click()
-		]);
-		await securityInfoPage.close();
-		logSignupCheckpoint('Closed payment security info page.');
+		// GHA runners are in the US, so Polar is auto-selected (non-EU IP).
+		// Switch to Stripe for this test — it specifically tests the Stripe payment flow.
+		const switchToStripeBtn = page.getByTestId('switch-to-stripe');
+		if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await switchToStripeBtn.click();
+			logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+		}
+
+		// Wait for Stripe Payment Element iframe to load after provider switch.
+		const stripeIframe = page.frameLocator('iframe[title="Secure payment input frame"]');
+		const cardInputWait = stripeIframe
+			.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
+			.first();
+		await cardInputWait.waitFor({ state: 'visible', timeout: 30000 });
+		logSignupCheckpoint('Stripe Payment Element loaded.');
+
+		await takeStepScreenshot(page, 'payment-form');
 
 		// Fill Stripe payment element with the test card.
 		await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
 		logSignupCheckpoint('Filled Stripe card details.');
 
+		// Wait for Stripe to validate the card (buy button enabled).
+		const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
+		await expect(buyButton).toBeEnabled({ timeout: 10000 });
+
 		// Submit payment and wait for success.
 		const paymentSubmittedAt = new Date().toISOString();
-		await page.getByTestId('payment-form').getByTestId('buy-button').click();
+		await buyButton.click();
 		await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 		await takeStepScreenshot(page, 'payment-success');
 		logSignupCheckpoint('Purchase completed successfully.');
@@ -396,7 +408,7 @@ test('completes passkey signup flow with email + purchase', async ({
 
 		// Confirm credits reflect the purchase (should be non-zero after payment).
 		const creditsAmount = page.getByTestId('credits-amount');
-		await expect(creditsAmount).toBeVisible();
+		await expect(creditsAmount).toBeVisible({ timeout: 10000 });
 		const creditsText = (await creditsAmount.textContent()) || '';
 		const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
 		expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(
@@ -416,7 +428,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		const deleteConfirmToggle = page
 			.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 			.first();
-		await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+		await expect(deleteConfirmToggle).toBeAttached({ timeout: 10000 });
 		await setToggleChecked(deleteConfirmToggle, true);
 		await takeStepScreenshot(page, 'delete-account-confirmed');
 		logSignupCheckpoint('Confirmed delete account data warning.');
@@ -430,14 +442,14 @@ test('completes passkey signup flow with email + purchase', async ({
 
 		// Wait for deletion success after passkey authentication completes.
 		await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-			timeout: 60000
+			timeout: 10000
 		});
 		await takeStepScreenshot(page, 'delete-account-success');
 		logSignupCheckpoint('Account deletion confirmed via passkey.');
 
 		// Confirm logout redirect to demo chat after deletion.
 		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 60000
+			timeout: 10000
 		});
 		logSignupCheckpoint('Returned to demo chat after account deletion.');
 	} finally {

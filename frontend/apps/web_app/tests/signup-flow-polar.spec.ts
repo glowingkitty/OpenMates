@@ -225,7 +225,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 	await takeStepScreenshot(page, 'basics-filled');
@@ -248,7 +248,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// ─── Email confirmation ───────────────────────────────────────────────────────
 
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
-	await expect(openMailLink).toBeVisible({ timeout: 15000 });
+	await expect(openMailLink).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'confirm-email');
 
 	logSignupCheckpoint('Polling Mailosaur for confirmation email.');
@@ -266,7 +266,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// ─── Password setup ───────────────────────────────────────────────────────────
 
 	const passwordOption = page.locator('#signup-password-option');
-	await expect(passwordOption).toBeVisible({ timeout: 15000 });
+	await expect(passwordOption).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'secure-account');
 	await passwordOption.click();
 	await takeStepScreenshot(page, 'password-step');
@@ -369,7 +369,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// The consent overlay appears regardless of whether the initial provider is Stripe or Polar.
 
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await expect(consentToggle).toBeAttached({ timeout: 15000 });
+	await expect(consentToggle).toBeAttached({ timeout: 10000 });
 	await setToggleChecked(consentToggle, true);
 	await takeStepScreenshot(page, 'payment-consent-accepted');
 	logSignupCheckpoint('Payment consent accepted.');
@@ -418,7 +418,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Wait for the Polar iframe to load by checking for a visible element inside it.
 	// Polar's checkout page renders a submit button — use that as the load indicator.
 	await expect(polarIframe.getByRole('button', { name: /pay|subscribe|complete/i }).first())
-		.toBeVisible({ timeout: 60000 });
+		.toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'polar-checkout-overlay');
 	logSignupCheckpoint('Polar checkout overlay visible.');
 
@@ -450,12 +450,62 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Polar's checkout requires cardholder name and billing country.
 	// These fields are in the Polar iframe directly (not the nested Stripe iframe).
 	const cardholderNameInput = polarIframe.locator('input[name="customer_name"]');
-	await expect(cardholderNameInput).toBeVisible({ timeout: 5000 });
+	await expect(cardholderNameInput).toBeVisible({ timeout: 10000 });
 	await cardholderNameInput.fill('Test User');
 
 	const billingCountrySelect = polarIframe.locator('select[autocomplete="billing country"]');
-	await expect(billingCountrySelect).toBeVisible({ timeout: 5000 });
+	await expect(billingCountrySelect).toBeVisible({ timeout: 10000 });
 	await billingCountrySelect.selectOption('US');
+
+	// US billing requires address, city, state, and ZIP — fill them after selecting country.
+	// Polar renders these fields in the checkout iframe. Use broad locator strategies:
+	// label text, placeholder text, and common name/autocomplete attributes.
+	// Wait longer (10s) since fields may render after country selection.
+	await page.waitForTimeout(2000); // Let Polar render address fields after country change
+
+	// Billing address line 1 — try label, placeholder, then name attribute patterns
+	const billingAddress = polarIframe.getByLabel(/billing address|address line 1|street address/i).first()
+		.or(polarIframe.locator('input[placeholder*="address" i]').first())
+		.or(polarIframe.locator('input[name*="address_line1"], input[name*="billing_address"], input[name*="address1"]').first());
+	if (await billingAddress.isVisible({ timeout: 10000 }).catch(() => false)) {
+		await billingAddress.fill('123 Test Street');
+		logSignupCheckpoint('Filled billing address line 1.');
+	} else {
+		logSignupCheckpoint('WARNING: Billing address field not found — payment may fail.');
+	}
+
+	// City
+	const billingCity = polarIframe.getByLabel(/city/i).first()
+		.or(polarIframe.locator('input[placeholder*="city" i]').first())
+		.or(polarIframe.locator('input[name*="city"]').first());
+	if (await billingCity.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await billingCity.fill('New York');
+		logSignupCheckpoint('Filled billing city.');
+	}
+
+	// State — can be input or select
+	const billingStateInput = polarIframe.getByLabel(/state|province|region/i).first()
+		.or(polarIframe.locator('input[placeholder*="state" i], input[name*="state"]').first());
+	const billingStateSelect = polarIframe.locator('select[name*="state"], select[autocomplete*="address-level1"]').first();
+	if (await billingStateSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await billingStateSelect.selectOption('NY');
+		logSignupCheckpoint('Selected billing state (dropdown).');
+	} else if (await billingStateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await billingStateInput.fill('NY');
+		logSignupCheckpoint('Filled billing state (input).');
+	}
+
+	// ZIP / Postal code
+	const billingZip = polarIframe.getByLabel(/zip|postal/i).first()
+		.or(polarIframe.locator('input[placeholder*="zip" i], input[placeholder*="postal" i]').first())
+		.or(polarIframe.locator('input[name*="postal"], input[name*="zip"]').first());
+	if (await billingZip.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await billingZip.fill('10001');
+		logSignupCheckpoint('Filled billing ZIP code.');
+	}
+
+	await takeStepScreenshot(page, 'polar-billing-filled');
+
 	logSignupCheckpoint('Filled cardholder name and billing country.');
 
 	await takeStepScreenshot(page, 'polar-card-filled');
@@ -466,14 +516,14 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	const polarSubmitButton = polarIframe
 		.getByRole('button', { name: /pay|subscribe|complete/i })
 		.first();
-	await expect(polarSubmitButton).toBeVisible({ timeout: 15000 });
+	await expect(polarSubmitButton).toBeVisible({ timeout: 30000 });
 	await polarSubmitButton.click();
 	logSignupCheckpoint('Submitted Polar checkout form.');
 
 	// After Polar processes the payment, the overlay fires a 'success' event and our
 	// Payment.svelte transitions to the ProcessingPayment / success state.
 	// Wait for "purchase successful" to appear in the main page (not inside the iframe).
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'polar-payment-success');
 	logSignupCheckpoint('Polar purchase completed successfully.');
 
@@ -538,7 +588,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Opened settings menu for credit verification.');
 
 	const creditsAmount = page.getByTestId('credits-amount');
-	await expect(creditsAmount).toBeVisible();
+	await expect(creditsAmount).toBeVisible({ timeout: 10000 });
 	const creditsText = (await creditsAmount.textContent()) || '';
 	const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
 	expect(
@@ -561,7 +611,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	const deleteConfirmToggle = page
 		.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 		.first();
-	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+	await expect(deleteConfirmToggle).toBeAttached({ timeout: 10000 });
 	await setToggleChecked(deleteConfirmToggle, true);
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
@@ -571,19 +621,19 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await expect(authModal).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account-auth');
 
-	const deleteOtpInput = authModal.locator('input.tfa-input');
+	const deleteOtpInput = authModal.getByTestId('tfa-input');
 	await expect(deleteOtpInput).toBeVisible();
 	await deleteOtpInput.fill(generateTotp(tfaSecret));
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
 	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 60000
+		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
 
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 60000
+		timeout: 10000
 	});
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
 });

@@ -209,14 +209,13 @@ class SearchSkill(BaseSkill):
         """
         Attach latitude/longitude to each listing by geocoding its address.
 
-        Uses geocode_address() from geo_utils which tries a local city table
-        first (zero cost), then falls back to Nominatim (OSM). Listings without
-        a resolvable address are left without coordinates — the frontend will
-        simply hide the map for those.
+        Uses geocode_address() from geo_utils which tries Nominatim first for
+        address-level precision, then falls back to the local city table. Listings
+        without a resolvable address are left without coordinates — the frontend
+        will simply hide the map for those.
 
-        Geocoding is done sequentially to respect Nominatim's 1 req/s rate limit.
-        The local city table handles the common case (city-level addresses) with
-        zero network calls, so most listings resolve instantly.
+        Geocoding is done sequentially; _nominatim_query auto-throttles to
+        respect Nominatim's 1 req/s rate limit.
 
         Args:
             listings: Mutable list of listing dicts — latitude/longitude keys

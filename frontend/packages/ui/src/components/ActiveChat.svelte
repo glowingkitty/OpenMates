@@ -6468,6 +6468,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // SAFETY NET: messagesUpdated flag is set (e.g. by batch sync) but no inline
             // messages were provided in the event.  Reload from IndexedDB so the display
             // never goes stale after a sync writes new/updated messages to the DB.
+            //
+            // Guard: skip IDB reload if in-flight messages are active (demo→real conversion).
+            // The IDB contains demo history alongside the new message — reloading would cause
+            // demo messages to bleed into the real conversation. The streaming path will handle
+            // message updates until all messages settle to 'synced'.
+            const hasActiveInFlight = currentMessages.some(m =>
+                m.chat_id === currentChat?.chat_id && (
+                    m.status === 'streaming' ||
+                    m.status === 'sending' ||
+                    m.status === 'processing'
+                )
+            );
+            if (hasActiveInFlight) {
+                console.debug(`[ActiveChat] handleChatUpdated: messagesUpdated=true but ${currentMessages.filter(m => m.status === 'streaming' || m.status === 'sending' || m.status === 'processing').length} in-flight message(s) present — skipping IDB reload to prevent demo history bleed-through.`);
+                // Still update chat metadata if provided
+                if (detail.chat) {
+                    currentChat = { ...currentChat, ...detail.chat } as typeof currentChat;
+                }
+                return;
+            }
             console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading from IndexedDB for chat:', currentChat.chat_id);
             try {
                 const freshMessages: ChatMessageModel[] = await chatDB.getMessagesForChat(currentChat.chat_id);
@@ -7058,25 +7078,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isReloadingSameChat && existingInFlightMessages.length > 0) {
             console.debug(`[ActiveChat] loadChat: Preserving ${existingInFlightMessages.length} in-flight message(s) during reload of same chat ${chat.chat_id} (statuses: ${existingInFlightMessages.map(m => m.status).join(', ')})`);
             
-            // CRITICAL: If currentMessages consists ONLY of in-flight messages for this chat, it means
-            // handleSendMessage just initialised the view (e.g. after converting a demo chat to a real
-            // chat).  At this point sendHandlers has already copied the demo history into IndexedDB so
-            // any DB read would return demo messages + the new user message — making them appear as
-            // "follow-up" messages to the demo conversation in the UI.
+            // CRITICAL: If currentMessages were set by handleSendMessage (demo→real chat conversion),
+            // skip the DB reload. The DB now contains demo history messages alongside the new user
+            // message, which would cause demo messages to bleed into the real conversation UI.
             //
-            // In this case we skip the DB reload entirely: the in-memory currentMessages set by
-            // handleSendMessage is already correct (only the new user message), and subsequent server
-            // events (ai_response_storage_confirmed, chatUpdated with newMessage, etc.) will append
-            // the AI reply through the normal streaming path.  On reload the DB is the source of
-            // truth and loadChat is called with a clean slate, which is correct behaviour.
-            const allCurrentMessagesAreInFlight = currentMessages.length > 0 &&
-                currentMessages.every(m => m.chat_id === chat.chat_id && (
-                    m.status === 'streaming' ||
-                    m.status === 'sending' ||
-                    m.status === 'processing'
-                ));
-            if (allCurrentMessagesAreInFlight) {
-                console.info(`[ActiveChat] loadChat: currentMessages contains ONLY in-flight message(s) for ${chat.chat_id} — skipping DB reload to prevent demo history bleed-through. Keeping handleSendMessage-initialised view.`);
+            // Detection: currentMessages has only messages for THIS chat and at least one is still
+            // in-flight (streaming/sending/processing). The original guard only fired when ALL messages
+            // were in-flight, but after chat_message_confirmed the user message transitions to 'synced'
+            // while the AI message is still 'streaming' — broadened to catch that race too.
+            const allMessagesForThisChat = currentMessages.length > 0 &&
+                currentMessages.every(m => m.chat_id === chat.chat_id);
+            const hasAnyInFlight = currentMessages.some(m =>
+                m.status === 'streaming' ||
+                m.status === 'sending' ||
+                m.status === 'processing'
+            );
+            // Only skip DB reload when messages are exclusively for this chat AND at least one
+            // is still in-flight (the conversation is actively being created/streamed). This
+            // prevents demo history bleed-through while allowing normal reloads of settled chats.
+            if (allMessagesForThisChat && hasAnyInFlight) {
+                console.info(`[ActiveChat] loadChat: currentMessages for ${chat.chat_id} has in-flight message(s) — skipping DB reload to prevent demo history bleed-through. Keeping handleSendMessage-initialised view.`);
                 // Return early — skip currentMessages = newMessages below.
                 // We still need to update currentChat metadata so the header/title are correct.
                 currentChat = freshChat ?? chat;

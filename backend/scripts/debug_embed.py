@@ -636,11 +636,11 @@ def format_output_text(
     # ===================== EMBED DATA =====================
     lines.append("")
     lines.append("-" * 100)
-    lines.append("EMBED DATA (from Directus)")
+    lines.append("EMBED DATA (from local dev Directus)")
     lines.append("-" * 100)
 
     if not embed:
-        lines.append("❌ Embed NOT FOUND in Directus")
+        lines.append("❌ Embed NOT FOUND in local dev Directus")
     else:
         # Core metadata
         lines.append(f"  Directus ID:                 {embed.get('id', 'N/A')}")
@@ -730,7 +730,7 @@ def format_output_text(
     # ===================== EMBED KEYS =====================
     lines.append("")
     lines.append("-" * 100)
-    lines.append(f"EMBED KEYS (from Directus) - Total: {len(embed_keys)}")
+    lines.append(f"EMBED KEYS (from local dev Directus) - Total: {len(embed_keys)}")
     lines.append("-" * 100)
 
     if not embed_keys:
@@ -845,7 +845,7 @@ def format_output_text(
     if child_embeds:
         lines.append("")
         lines.append("-" * 100)
-        lines.append(f"CHILD EMBEDS (from Directus) - Total: {len(child_embeds)}")
+        lines.append(f"CHILD EMBEDS (from local dev Directus) - Total: {len(child_embeds)}")
         lines.append("-" * 100)
 
         display_children = child_embeds[:MAX_CHILD_EMBEDS_DISPLAY]
@@ -1444,6 +1444,35 @@ async def main():
                 )
 
             print(output)
+
+            # ---- AUTO CROSS-CHECK: production server ----
+            # After local inspection, also check if the embed exists on the
+            # production server. This prevents confusion when investigating
+            # issues reported from production while running debug.py on dev.
+            try:
+                prod_response = await fetch_embed_from_production_api(
+                    args.embed_id, use_dev=False
+                )
+                prod_mapped = map_production_embed_response(prod_response) if prod_response else {}
+                prod_embed = prod_mapped.get("embed")
+                prod_found = prod_embed and prod_embed.get("embed_id")
+
+                print("\n" + "─" * 50)
+                print("🌐 PRODUCTION CROSS-CHECK")
+                if prod_found:
+                    prod_status = prod_embed.get("status", "?")
+                    prod_keys = prod_mapped.get("embed_keys", [])
+                    prod_children = prod_mapped.get("child_embeds", [])
+                    print(f"  🟢 FOUND on production  status={prod_status}  "
+                          f"keys={len(prod_keys)}  children={len(prod_children)}")
+                else:
+                    print("  🔴 NOT FOUND on production")
+                print("─" * 50)
+            except (Exception, SystemExit) as prod_err:
+                print("\n" + "─" * 50)
+                print("🌐 PRODUCTION CROSS-CHECK")
+                print(f"  ⚠ Could not check production: {prod_err}")
+                print("─" * 50)
 
         except Exception as e:
             script_logger.error(f"Error during inspection: {e}", exc_info=True)

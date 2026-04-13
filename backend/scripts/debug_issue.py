@@ -2579,7 +2579,11 @@ async def main():
                 if args.timeline:
                     # --timeline: query OpenObserve directly, no S3 needed
                     if not issue:
-                        script_logger.error(f"Issue not found: {args.issue_id}")
+                        script_logger.error(
+                            f"Issue not found: {args.issue_id}\n"
+                            "    ℹ️  This issue may have been submitted on production.\n"
+                            "    Try: debug.py issue <id> --production"
+                        )
                         sys.exit(1)
                     print(
                         f"{_C_DIM}Querying OpenObserve timeline "

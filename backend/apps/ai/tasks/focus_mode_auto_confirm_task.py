@@ -233,11 +233,11 @@ async def _async_focus_mode_auto_confirm(
             "is_incognito": is_incognito,
             "mate_id": mate_id,
             "active_focus_id": focus_id,  # Focus mode is NOW active for this continuation
-            # Signal that this is a continuation after focus mode activation
-            # The task should NOT re-persist the user message (it's already persisted)
+            # Signal that this is a continuation after focus mode activation.
+            # The task should NOT re-persist the user message (it's already persisted).
+            # This continuation creates a SEPARATE assistant message (new task_id = new message_id).
+            # The client renders both messages but visually merges them into one bubble.
             "is_focus_mode_continuation": True,
-            # Continuation creates its own assistant message (new task_id = new message_id).
-            # Client merges focus activation + continuation into one bubble for display.
         }
         
         task = process_ai_skill_ask_task.apply_async(
