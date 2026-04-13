@@ -891,19 +891,44 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const phase7LogStart = consoleLogs.length;
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08');
 
-	// Navigate directly to the test chat.
-	// After login the app is on `/` (home). Setting the hash via page.goto()
-	// triggers the deep-link handler in +page.svelte, but the activeChatStore
-	// may already hold the chat ID from a previous phase, causing it to skip
-	// re-loading. A full page reload ensures a clean app startup with the hash.
+	// Wait for phased sync to complete before navigating to the test chat.
+	// After a fresh login, phased sync re-downloads all chat data via WebSocket.
+	// The deep-link handler in +page.svelte waits for phasedSyncComplete before
+	// loading a user chat from IndexedDB. If we navigate too early (before sync),
+	// the chat isn't in IDB yet and the deep-link handler either gives up or
+	// gets blocked by canAutoNavigate() after Phase 1a loads a different chat.
+	logChatCheckpoint('Waiting for phased sync to complete after re-login...');
+	const syncCompleted = await page.waitForEvent('console', {
+		predicate: (msg: any) =>
+			msg.text().includes('Phase 1 complete') ||
+			msg.text().includes('phasedSyncComplete') ||
+			msg.text().includes('Phase 1a: decrypted'),
+		timeout: 30000
+	}).then(() => true).catch(() => false);
+	logChatCheckpoint(`Phased sync signal detected: ${syncCompleted}`);
+
+	// Navigate to the test chat via hash change (no reload — preserves sync state)
 	logChatCheckpoint(`Navigating to chat ${chatId} after re-login...`);
-	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-	await page.reload({ waitUntil: 'networkidle' });
-	logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
+	await page.evaluate((cid: string) => {
+		window.location.hash = `chat-id=${cid}`;
+	}, chatId);
+	// Give the hashchange handler time to process and load the chat
+	await page.waitForTimeout(3000);
+
+	// If the chat didn't load via hashchange (e.g., activeChatStore already had a
+	// different chat), fall back to a full page load with the hash
+	let userMsgAfterRelogin = page.getByTestId('message-user').first();
+	const chatLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
+	if (!chatLoaded) {
+		logChatCheckpoint('Chat not loaded via hashchange, falling back to page.goto + reload...');
+		await page.goto(`${baseUrl}/#chat-id=${chatId}`);
+		await page.reload({ waitUntil: 'networkidle' });
+		logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
+	}
 
 	// Wait for the chat to actually load — the user message must be visible.
 	// This can take longer after a fresh login (key derivation + phased sync).
-	const userMsgAfterRelogin = page.getByTestId('message-user').first();
+	userMsgAfterRelogin = page.getByTestId('message-user').first();
 	await expect(userMsgAfterRelogin).toBeVisible({ timeout: 30000 });
 
 	await takeStepScreenshot(page, '09-after-relogin');
