@@ -479,19 +479,20 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// guessing locators for Polar's cross-origin iframe fields.
 	// Focus the address field first, then Tab through.
 	await billingAddress.click();
-	await page.keyboard.press('Tab'); // → address line 2 (apartment/suite)
+	await page.keyboard.press('Tab'); // → address line 2 (apartment/suite) — skip it
 	await page.keyboard.press('Tab'); // → city
 	await page.keyboard.type('New York');
 	logSignupCheckpoint('Filled billing city via Tab navigation.');
 
-	await page.keyboard.press('Tab'); // → state or zip
-	// Polar US checkout shows state + zip side by side. Type state abbreviation.
-	await page.keyboard.type('NY');
-	logSignupCheckpoint('Filled billing state via Tab navigation.');
-
-	await page.keyboard.press('Tab'); // → zip
+	// Polar US layout: City and Zip are side-by-side, then State is below.
+	// Tab order: City → Zip → State (not City → State → Zip).
+	await page.keyboard.press('Tab'); // → zip (next to city, same row)
 	await page.keyboard.type('10001');
 	logSignupCheckpoint('Filled billing ZIP via Tab navigation.');
+
+	await page.keyboard.press('Tab'); // → state (below city/zip row)
+	await page.keyboard.type('NY');
+	logSignupCheckpoint('Filled billing state via Tab navigation.');
 
 	await takeStepScreenshot(page, 'polar-billing-filled');
 

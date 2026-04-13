@@ -1197,29 +1197,15 @@ export async function handleSend(
             // Ensure we have a chat key for encryption (this device is creating the chat)
             chatKeyManager.createKeyForNewChat(chatIdToUse);
 
-            for (const demoMsg of demoMessages) {
-              // Format: message_id={last_10_chars_of_chat_id}-{uuid_v4}
-              const newMsgId = `${chatIdToUse.substring(chatIdToUse.length - 10)}-${crypto.randomUUID()}`;
+            // NOTE: Demo messages are NOT saved to IndexedDB. They were previously
+            // copied as AI "context", but the backend receives full conversation context
+            // via the API call — storing them in IDB caused demo messages to bleed into
+            // the real chat view when IDB was reloaded after streaming completed.
+            // The demo greeting ("Digital team mates for everyone...") is not meaningful
+            // context for the AI response to the user's actual question.
 
-              // Create message object (cleartext version)
-              const messageToSave: import("../../../types/chat").Message = {
-                ...demoMsg,
-                message_id: newMsgId,
-                chat_id: chatIdToUse,
-                status: "synced", // Mark as synced since it's from a demo
-                created_at: demoMsg.created_at || now,
-                content:
-                  typeof demoMsg.content === "string"
-                    ? demoMsg.content
-                    : JSON.stringify(demoMsg.content),
-              };
-
-              // Save to DB (this will automatically encrypt fields using chat key)
-              await chatDB.saveMessage(messageToSave);
-            }
-
-            // Update messages_v count (existing demo messages + the new message being sent)
-            newChatData.messages_v = demoMessages.length + 1;
+            // Update messages_v count (only the new user message being sent)
+            newChatData.messages_v = 1;
           }
 
           // Clone example chat embeds into the embedStore (IndexedDB)

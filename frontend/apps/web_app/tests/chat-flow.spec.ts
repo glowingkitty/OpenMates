@@ -640,6 +640,17 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
 
+	// CRITICAL: Verify exactly 2 messages in the DOM (1 user + 1 assistant).
+	// This catches the "for-everyone" demo message bleed-through bug where the
+	// demo intro message leaks into the real chat after demo→real conversion.
+	const userMessages = page.getByTestId('message-user');
+	const assistantMessages = page.getByTestId('message-assistant');
+	const userCount = await userMessages.count();
+	const assistantCount = await assistantMessages.count();
+	logChatCheckpoint(`Message count: ${userCount} user, ${assistantCount} assistant`);
+	expect(userCount, 'Expected exactly 1 user message — no demo messages should be present').toBe(1);
+	expect(assistantCount, 'Expected exactly 1 assistant message — no demo intro should bleed through').toBe(1);
+
 	// =========================================================================
 	// PHASE 2: Console warn/error check — save logs if any occurred during send
 	// =========================================================================
