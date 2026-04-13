@@ -490,13 +490,31 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await page.keyboard.type('10001');
 	logSignupCheckpoint('Filled billing ZIP via Tab navigation.');
 
-	await page.keyboard.press('Tab'); // → state (below city/zip row, autocomplete dropdown)
-	// Type full state name to match exactly — abbreviations and partial matches
-	// pick wrong states (NY→Nebraska, "New Y"→New Hampshire).
-	await page.keyboard.type('New York', { delay: 50 });
-	await page.waitForTimeout(500); // Let autocomplete narrow to exact match
-	await page.keyboard.press('Enter'); // Confirm selection
-	logSignupCheckpoint('Filled billing state via Tab navigation.');
+	// State field: Polar uses a <select> or custom dropdown. Tab navigation types into it
+	// but autocomplete picks wrong states ("NY"→Nebraska, "New York"→"New Hampshire").
+	// Use the Polar iframe's locator to directly set the select/input value instead.
+	const stateSelect = polarIframe.locator('select[name*="state"], select[autocomplete*="address-level1"]').first();
+	const stateInput = polarIframe.locator('input[name*="state"]').first();
+	if (await stateSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await stateSelect.selectOption({ label: 'New York' });
+		logSignupCheckpoint('Selected billing state via select dropdown.');
+	} else if (await stateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+		// Clear any existing value and set via JS to bypass autocomplete
+		await stateInput.fill('');
+		await stateInput.evaluate((el: HTMLInputElement) => {
+			el.value = 'NY';
+			el.dispatchEvent(new Event('input', { bubbles: true }));
+			el.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+		logSignupCheckpoint('Set billing state via JS input.');
+	} else {
+		// Fallback: Tab and type, accepting autocomplete risk
+		await page.keyboard.press('Tab');
+		await page.keyboard.type('New York', { delay: 50 });
+		await page.waitForTimeout(500);
+		await page.keyboard.press('Enter');
+		logSignupCheckpoint('Filled billing state via Tab fallback.');
+	}
 
 	await takeStepScreenshot(page, 'polar-billing-filled');
 
