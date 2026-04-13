@@ -965,6 +965,7 @@ const WIKI_SKIP_NODE_TYPES = new Set([
  * with wikiInline atom nodes. Only the first occurrence of each topic is linked.
  */
 function convertWikiTopicLinks(doc: any, topics: WikipediaTopic[]): any {
+  console.debug(`[convertWikiTopicLinks] Called with ${topics?.length || 0} topics, doc has ${doc?.content?.length || 0} nodes`);
   if (!doc || !doc.content || !topics.length) return doc;
 
   // Sort by phrase length descending (longest match first)
@@ -1067,6 +1068,9 @@ export function parse_message(
   mode: "write" | "read",
   opts: ParseMessageOptions = {},
 ): any {
+  if (opts.wikipediaTopics) {
+    console.debug(`[parse_message] wikipediaTopics: ${opts.wikipediaTopics.length} topics, mode=${mode}, content preview: ${markdown?.substring(0, 80)}`);
+  }
   // If unified parsing is not enabled, fallback to existing behavior
   if (!opts.unifiedParsingEnabled) {
     const doc = markdownToTipTap(markdown);
