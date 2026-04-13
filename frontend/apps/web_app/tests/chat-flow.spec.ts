@@ -160,6 +160,10 @@ function extractKeyFingerprint(inspectReport: string): string | null {
  * Assert zero encryption-related errors in captured console logs.
  * Checks for CLIENT_DECRYPT failures, spurious key creation during sync,
  * and SYNC GUARD errors (which indicate missing keys during sync).
+ *
+ * IMPORTANT: Pass only the logs from the CURRENT phase (use logStartIndex to slice).
+ * The full consoleLogs buffer accumulates across all phases, and Phase 1 legitimately
+ * calls createKeyForNewChat for genuinely new chats.
  */
 function assertNoEncryptionErrors(
 	logs: string[],
@@ -800,6 +804,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Phase 5: Reloading tab...');
 	// Reset warn/error buffer so we only capture errors from the reload phase
 	warnErrorLogs.length = 0;
+	// Capture log offset — encryption assertions should only check logs from THIS phase
+	const phase5LogStart = consoleLogs.length;
 
 	// Navigate to the chat URL and reload to ensure a fresh startup with the hash.
 	// After Phase 4.5 we're on the home page; a plain reload would reload `/`
@@ -835,8 +841,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 		}
 	}
 
-	// Assert no encryption errors during the reload phase
-	assertNoEncryptionErrors(consoleLogs, chatId, logChatCheckpoint, 'after_reload');
+	// Assert no encryption errors during the reload phase (only logs from Phase 5 onward)
+	assertNoEncryptionErrors(consoleLogs.slice(phase5LogStart), chatId, logChatCheckpoint, 'after_reload');
 
 	// Save any warn/error logs from the reload phase
 	if (warnErrorLogs.length > 0) {
@@ -881,6 +887,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// PHASE 7: Login again + navigate to the same chat
 	// =========================================================================
 	logChatCheckpoint('Phase 7: Logging in again...');
+	// Capture log offset — encryption assertions should only check logs from THIS phase
+	const phase7LogStart = consoleLogs.length;
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08');
 
 	// Navigate directly to the test chat.
@@ -924,10 +932,10 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 		}
 	}
 
-	// CRITICAL: Assert no encryption errors after re-login.
+	// CRITICAL: Assert no encryption errors after re-login (only logs from Phase 7 onward).
 	// This catches the exact bug where encryptChatForStorage created new keys
 	// during phased sync after logout/login, corrupting existing messages.
-	assertNoEncryptionErrors(consoleLogs, chatId, logChatCheckpoint, 'after_relogin');
+	assertNoEncryptionErrors(consoleLogs.slice(phase7LogStart), chatId, logChatCheckpoint, 'after_relogin');
 
 	// Verify no missing translations on the chat page after re-login
 	await assertNoMissingTranslations(page);
