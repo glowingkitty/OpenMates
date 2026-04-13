@@ -2378,9 +2378,10 @@ export async function inspectChat(
   const syncResp = await fetchServerSyncStatus([chatId]);
   const serverStatus = syncResp?.chats?.[0];
   const syncLines = formatServerChatSync(serverStatus);
+  const serverLabel = getServerLabel();
   const serverSyncBlock =
     "\n\n─────────────────────────────────────────────\n" +
-    "🌐 SERVER SYNC\n" +
+    `🌐 SERVER SYNC (${serverLabel})\n` +
     syncLines.join("\n");
 
   const fullReport = report + serverSyncBlock;
@@ -2731,9 +2732,10 @@ export async function inspectEmbed(
   const embedSyncResp = await fetchServerSyncStatus(undefined, [embedId]);
   const embedServerStatus = embedSyncResp?.embeds?.[0];
   const embedSyncLines = formatServerEmbedSync(embedServerStatus);
+  const embedServerLabel = getServerLabel();
   const embedServerSyncBlock =
     "\n\n─────────────────────────────────────────────\n" +
-    "🌐 SERVER SYNC\n" +
+    `🌐 SERVER SYNC (${embedServerLabel})\n` +
     embedSyncLines.join("\n");
 
   const fullReport = report + embedServerSyncBlock;
@@ -3695,6 +3697,7 @@ async function runClientHealthCheck(): Promise<void> {
   // 10. Server sync status — batch check all local chats against server
   // We collect all local chat IDs, then send them in batches of SERVER_SYNC_BATCH_SIZE.
   // Any chat that is found locally but missing on the server (or has version mismatch) is flagged.
+  const batchServerLabel = getServerLabel();
   const serverSyncIssues: string[] = [];
   try {
     const db6 = await openDB();
@@ -3799,13 +3802,13 @@ async function runClientHealthCheck(): Promise<void> {
 
       if (checkedCount > 0) {
         if (driftCount === 0 && missingCount === 0) {
-          allOk.push(`Server sync: all ${checkedCount} chats in sync`);
+          allOk.push(`Server sync (${batchServerLabel}): all ${checkedCount} chats in sync`);
         } else {
           const parts: string[] = [];
           if (driftCount > 0) parts.push(`${driftCount} drift`);
           if (missingCount > 0) parts.push(`${missingCount} missing`);
           allIssues.push(
-            `Server sync: ${parts.join(", ")} (of ${checkedCount} checked)`,
+            `Server sync (${batchServerLabel}): ${parts.join(", ")} (of ${checkedCount} checked)`,
           );
           for (const detail of driftDetails.slice(0, 10)) {
             serverSyncIssues.push(detail);
@@ -3928,6 +3931,7 @@ function showDebugHelp(): void {
       "  window.debug()                            — quick client health check\n" +
       "  window.debug.help()                       — show this help\n\n" +
       "  Chat / Message:\n" +
+      "  await window.debug.chat()                 — inspect active chat (auto-detected from URL)\n" +
       '  await window.debug.chat("id")             — concise report (full details if issues found)\n' +
       '  await window.debug.chat("id", {verbose: true})   — always show full details\n' +
       '  await window.debug.chat("id", {download: true})  — download report as .txt\n' +
@@ -3936,6 +3940,7 @@ function showDebugHelp(): void {
       '  await window.debug.message("id")          — message health check & decrypted fields\n' +
       '  await window.debug.message("id", {verbose: true})  — full details with content\n\n' +
       "  Embeds:\n" +
+      "  await window.debug.embed()                — inspect embed (auto-detected from URL)\n" +
       '  await window.debug.embed("id")            — embed inspection report\n' +
       '  await window.debug.embed("id", {full: true})      — show all fields untruncated\n' +
       '  await window.debug.embed("id", {download: true})  — download embed report\n' +
@@ -4175,6 +4180,22 @@ interface ServerSyncResponse {
 const SERVER_SYNC_BATCH_SIZE = 20;
 
 /**
+ * Return a human-readable label for the server the app is connected to.
+ * Derived from the current hostname (runtime) rather than build-time VITE_ENV
+ * so it accurately reflects which API the debug sync check hit.
+ */
+function getServerLabel(): string {
+  if (typeof window === "undefined") return "unknown";
+  const host = window.location.hostname;
+  if (host.includes("dev.")) return `dev — ${host}`;
+  if (host === "openmates.org" || host === "www.openmates.org")
+    return `production — ${host}`;
+  if (host === "localhost" || host === "127.0.0.1")
+    return `local dev — ${host}`;
+  return host; // self-hosted or other
+}
+
+/**
  * Fetch server-side sync status for a batch of chat IDs or embed IDs.
  *
  * Uses the JWT session cookie (same as all other user-facing API calls).
@@ -4313,6 +4334,45 @@ function formatServerEmbedSync(
   return lines;
 }
 
+/**
+ * Auto-detect the active chat ID from the URL hash or activeChatStore.
+ * Checks URL hash first (#chat-id=...) since it's synchronous and reliable,
+ * then falls back to the in-memory store.
+ */
+function getActiveChatIdFromContext(): string | null {
+  if (typeof window === "undefined") return null;
+
+  // 1. URL hash: #chat-id=<uuid> (may have additional params like &messageid=...)
+  const hash = window.location.hash;
+  const chatIdMatch = hash.match(/chat-id=([a-f0-9-]{36})/i);
+  if (chatIdMatch) return chatIdMatch[1];
+
+  // 2. Share page URL: /share/chat/<uuid>
+  const pathMatch = window.location.pathname.match(/\/share\/chat\/([a-f0-9-]{36})/i);
+  if (pathMatch) return pathMatch[1];
+
+  return null;
+}
+
+/**
+ * Auto-detect an embed ID from the URL context.
+ * Checks share embed pages (/share/embed/<uuid>) and URL hash (#embed-id=...).
+ */
+function getEmbedIdFromContext(): string | null {
+  if (typeof window === "undefined") return null;
+
+  // 1. Share embed page: /share/embed/<uuid>
+  const pathMatch = window.location.pathname.match(/\/share\/embed\/([a-f0-9-]{36})/i);
+  if (pathMatch) return pathMatch[1];
+
+  // 2. URL hash: #embed-id=<uuid>
+  const hash = window.location.hash;
+  const embedIdMatch = hash.match(/embed-id=([a-f0-9-]{36})/i);
+  if (embedIdMatch) return embedIdMatch[1];
+
+  return null;
+}
+
 export function initDebugUtils(): void {
   if (typeof window === "undefined") return;
 
@@ -4324,14 +4384,28 @@ export function initDebugUtils(): void {
     /** Show all available commands */
     help: showDebugHelp,
 
-    /** Generate a copyable chat inspection report */
+    /** Generate a copyable chat inspection report (auto-detects active chat if no ID given) */
     chat: (
-      chatId: string,
+      chatId?: string,
       opts: { download?: boolean; verbose?: boolean } = {},
-    ) => inspectChat(chatId, opts),
+    ) => {
+      const resolvedId = chatId || getActiveChatIdFromContext();
+      if (!resolvedId) {
+        console.error("[debug.chat] No chat ID provided and no active chat detected.\n  Usage: debug.chat('chat-id-here')");
+        return Promise.resolve();
+      }
+      return inspectChat(resolvedId, opts);
+    },
 
     /** Verbose console dump of a chat (all messages, all fields) */
-    chatVerbose: (chatId: string) => debugChat(chatId),
+    chatVerbose: (chatId?: string) => {
+      const resolvedId = chatId || getActiveChatIdFromContext();
+      if (!resolvedId) {
+        console.error("[debug.chatVerbose] No chat ID provided and no active chat detected.");
+        return Promise.resolve();
+      }
+      return debugChat(resolvedId);
+    },
 
     /** List all chats with consistency check */
     chats: () => debugAllChats(),
@@ -4342,9 +4416,15 @@ export function initDebugUtils(): void {
       opts: { download?: boolean; verbose?: boolean; hideKeys?: boolean } = {},
     ) => inspectMessage(messageId, opts),
 
-    /** Generate a copyable embed inspection report */
-    embed: (embedId: string, opts: { download?: boolean; full?: boolean } = {}) =>
-      inspectEmbed(embedId, opts),
+    /** Generate a copyable embed inspection report (auto-detects from URL if no ID given) */
+    embed: (embedId?: string, opts: { download?: boolean; full?: boolean } = {}) => {
+      const resolvedId = embedId || getEmbedIdFromContext();
+      if (!resolvedId) {
+        console.error("[debug.embed] No embed ID provided and none detected from URL.\n  Usage: debug.embed('embed-id-here')");
+        return Promise.resolve();
+      }
+      return inspectEmbed(resolvedId, opts);
+    },
 
     /** Decrypt and show raw embed content */
     decrypt: async (embedId: string) => {
@@ -4353,9 +4433,17 @@ export function initDebugUtils(): void {
     },
 
     /** Shorthand: download a chat or embed report as .txt */
-    download: (type: "chat" | "embed", id: string) => {
-      if (type === "chat") return inspectChat(id, { download: true });
-      if (type === "embed") return inspectEmbed(id, { download: true });
+    download: (type: "chat" | "embed", id?: string) => {
+      if (type === "chat") {
+        const resolvedId = id || getActiveChatIdFromContext();
+        if (!resolvedId) { console.error("[debug.download] No chat ID — open a chat first or pass an ID."); return; }
+        return inspectChat(resolvedId, { download: true });
+      }
+      if (type === "embed") {
+        const resolvedId = id || getEmbedIdFromContext();
+        if (!resolvedId) { console.error("[debug.download] No embed ID provided."); return; }
+        return inspectEmbed(resolvedId, { download: true });
+      }
       console.error(`Unknown type "${type}". Use "chat" or "embed".`);
     },
 
