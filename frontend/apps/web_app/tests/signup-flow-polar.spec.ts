@@ -137,9 +137,10 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	});
 
 	test.slow();
-	// Allow extra time: Polar checkout overlay + purchase confirmation email + account deletion.
-	// GHA runners are slower — 300s was insufficient; 480s provides comfortable margin.
-	test.setTimeout(480000);
+	// Allow extra time: Polar checkout overlay + billing field filling + purchase confirmation
+	// email + account deletion. GHA runners are slower — 480s was insufficient after adding
+	// billing address fields (cross-origin iframe interactions are slow). 600s provides margin.
+	test.setTimeout(600000);
 
 	const logSignupCheckpoint = createSignupLogger('POLAR_SIGNUP_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
@@ -461,7 +462,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Polar renders these fields in the checkout iframe. Use broad locator strategies:
 	// label text, placeholder text, and common name/autocomplete attributes.
 	// Wait longer (10s) since fields may render after country selection.
-	await page.waitForTimeout(2000); // Let Polar render address fields after country change
+	await page.waitForTimeout(1000); // Let Polar render address fields after country change
 
 	// Billing address line 1 — try label, placeholder, then name attribute patterns
 	const billingAddress = polarIframe.getByLabel(/billing address|address line 1|street address/i).first()
@@ -606,7 +607,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 		sentTo: signupEmail,
 		subjectContains: 'Purchase confirmation',
 		receivedAfter: paymentSubmittedAt,
-		timeoutMs: 180000
+		timeoutMs: 120000
 	});
 	logSignupCheckpoint('Received Polar purchase confirmation email.');
 

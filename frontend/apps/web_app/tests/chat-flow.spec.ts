@@ -466,7 +466,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	});
 
 	test.slow();
-	test.setTimeout(300000); // 5 minutes: covers send + reload + logout + relogin + delete
+	// 7 minutes: covers send + message count check + header check + reload + logout + relogin + delete.
+	// 300s was insufficient — Phase 7 (re-login) consistently timed out on GHA runners.
+	test.setTimeout(420000);
 
 	const logChatCheckpoint = createSignupLogger('CHAT_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logChatCheckpoint);
