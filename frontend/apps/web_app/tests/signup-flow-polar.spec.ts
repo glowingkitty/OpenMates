@@ -225,7 +225,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 	await takeStepScreenshot(page, 'basics-filled');
@@ -248,7 +248,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// ─── Email confirmation ───────────────────────────────────────────────────────
 
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
-	await expect(openMailLink).toBeVisible({ timeout: 15000 });
+	await expect(openMailLink).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'confirm-email');
 
 	logSignupCheckpoint('Polling Mailosaur for confirmation email.');
@@ -266,7 +266,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// ─── Password setup ───────────────────────────────────────────────────────────
 
 	const passwordOption = page.locator('#signup-password-option');
-	await expect(passwordOption).toBeVisible({ timeout: 15000 });
+	await expect(passwordOption).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'secure-account');
 	await passwordOption.click();
 	await takeStepScreenshot(page, 'password-step');
@@ -369,7 +369,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// The consent overlay appears regardless of whether the initial provider is Stripe or Polar.
 
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await expect(consentToggle).toBeAttached({ timeout: 15000 });
+	await expect(consentToggle).toBeAttached({ timeout: 10000 });
 	await setToggleChecked(consentToggle, true);
 	await takeStepScreenshot(page, 'payment-consent-accepted');
 	logSignupCheckpoint('Payment consent accepted.');
@@ -418,7 +418,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Wait for the Polar iframe to load by checking for a visible element inside it.
 	// Polar's checkout page renders a submit button — use that as the load indicator.
 	await expect(polarIframe.getByRole('button', { name: /pay|subscribe|complete/i }).first())
-		.toBeVisible({ timeout: 60000 });
+		.toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'polar-checkout-overlay');
 	logSignupCheckpoint('Polar checkout overlay visible.');
 
@@ -450,11 +450,11 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Polar's checkout requires cardholder name and billing country.
 	// These fields are in the Polar iframe directly (not the nested Stripe iframe).
 	const cardholderNameInput = polarIframe.locator('input[name="customer_name"]');
-	await expect(cardholderNameInput).toBeVisible({ timeout: 5000 });
+	await expect(cardholderNameInput).toBeVisible({ timeout: 10000 });
 	await cardholderNameInput.fill('Test User');
 
 	const billingCountrySelect = polarIframe.locator('select[autocomplete="billing country"]');
-	await expect(billingCountrySelect).toBeVisible({ timeout: 5000 });
+	await expect(billingCountrySelect).toBeVisible({ timeout: 10000 });
 	await billingCountrySelect.selectOption('US');
 	logSignupCheckpoint('Filled cardholder name and billing country.');
 
@@ -466,14 +466,14 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	const polarSubmitButton = polarIframe
 		.getByRole('button', { name: /pay|subscribe|complete/i })
 		.first();
-	await expect(polarSubmitButton).toBeVisible({ timeout: 15000 });
+	await expect(polarSubmitButton).toBeVisible({ timeout: 30000 });
 	await polarSubmitButton.click();
 	logSignupCheckpoint('Submitted Polar checkout form.');
 
 	// After Polar processes the payment, the overlay fires a 'success' event and our
 	// Payment.svelte transitions to the ProcessingPayment / success state.
 	// Wait for "purchase successful" to appear in the main page (not inside the iframe).
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'polar-payment-success');
 	logSignupCheckpoint('Polar purchase completed successfully.');
 
@@ -561,7 +561,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	const deleteConfirmToggle = page
 		.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 		.first();
-	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+	await expect(deleteConfirmToggle).toBeAttached({ timeout: 10000 });
 	await setToggleChecked(deleteConfirmToggle, true);
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
@@ -577,13 +577,13 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
 	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 60000
+		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
 
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 60000
+		timeout: 10000
 	});
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
 });
