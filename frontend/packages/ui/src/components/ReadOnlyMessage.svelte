@@ -33,6 +33,7 @@
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
     // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
     import type { WikipediaTopic } from '../message_parsing/types';
+    import { wikiTopicsStore } from '../stores/wikiTopicsStore';
 
     let {
         content,
@@ -53,6 +54,13 @@
         role?: "user" | "assistant" | "system"; // Message role — passed to parse_message for single-embed large promotion
         wikipediaTopics?: WikipediaTopic[]; // Validated Wikipedia topics for inline link injection
     } = $props(); // The message content from Tiptap JSON
+
+    // Resolve wikipedia topics: prefer prop (if explicitly passed) → fall back to global store.
+    // The store approach bypasses the prop chain timing issue where the IntersectionObserver
+    // fires createEditor() before the prop has propagated through 4 component levels.
+    let effectiveWikiTopics = $derived(
+        (wikipediaTopics && wikipediaTopics.length > 0) ? wikipediaTopics : ($wikiTopicsStore.length > 0 ? $wikiTopicsStore as WikipediaTopic[] : undefined)
+    );
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
@@ -530,7 +538,7 @@
                 // Handle special translation keys
                 if (inputContent === 'chat.an_error_occured') {
                     const translatedText = $text('chat.an_error_occured');
-                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
+                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
                 }
 
                 // Performance optimization: Check cache before parsing
@@ -539,7 +547,7 @@
                 // This handles the case where embed data becomes available after initial render
                 // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
-                const wikiCacheFragment = wikipediaTopics?.length ? `:wiki${wikipediaTopics.length}` : '';
+                const wikiCacheFragment = effectiveWikiTopics?.length ? `:wiki${effectiveWikiTopics.length}` : '';
                 const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}${wikiCacheFragment}:${inputContent}`;
                 
                 // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
@@ -558,7 +566,7 @@
                 }
 
                 // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
-                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
+                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
                 
                 // Only cache if not bypassing (avoid polluting cache with stale embed state)
                 if (!bypassCache) {
@@ -583,7 +591,7 @@
                     } else if (isMarkdownContent(textContent)) {
                         // If the text content looks like markdown, parse it with unified parsing
                         logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');
-                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
+                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
                     }
                 }
                 
@@ -599,7 +607,7 @@
             const stringContent = String(inputContent);
             if (isMarkdownContent(stringContent)) {
                 logger.debug('Converting unknown content type to markdown');
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
             }
             
             // Fallback: return content as-is (should already be processed)
@@ -611,7 +619,7 @@
             // Final fallback: try to parse as markdown text
             try {
                 const stringContent = typeof inputContent === 'string' ? inputContent : String(inputContent);
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
             } catch (markdownError) {
                 logger.debug("Markdown parsing also failed, returning simple paragraph", markdownError);
                 
@@ -1100,9 +1108,9 @@
         // but become decryptable after send_embed_data finishes processing
         const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
 
-        // Track wikipediaTopics so the effect re-runs when topics arrive
-        // (e.g. post-processing completes after editor was already created)
-        const hasWikiTopics = wikipediaTopics && wikipediaTopics.length > 0;
+        // Track effectiveWikiTopics so the effect re-runs when topics arrive
+        // (e.g. post-processing completes after editor was already created, or store updates)
+        const hasWikiTopics = effectiveWikiTopics && effectiveWikiTopics.length > 0;
         
         if (localeChanged) {
             previousLocale = currentLocale;

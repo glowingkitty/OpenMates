@@ -454,11 +454,12 @@
         lineCount: 0
     });
 
-    // DEBUG: trace wikipedia_topics on currentChat
+    // Keep the wikiTopicsStore in sync with the current chat's wikipedia_topics.
+    // ReadOnlyMessage reads from this store directly (bypasses the prop chain which
+    // has timing issues with lazy IntersectionObserver-based TipTap editor init).
+    import { wikiTopicsStore } from '../stores/wikiTopicsStore';
     $effect(() => {
-        if (currentChat) {
-            console.debug(`[ActiveChat:wiki-debug] currentChat=${currentChat.chat_id} wikipedia_topics=${currentChat.wikipedia_topics?.length ?? 'undefined'} keys=${Object.keys(currentChat).filter(k => k.includes('wiki')).join(',')}`);
-        }
+        wikiTopicsStore.set(currentChat?.wikipedia_topics ?? []);
     });
 
     // Wikipedia fullscreen — triggered by clicking a wiki inline link in an assistant message
