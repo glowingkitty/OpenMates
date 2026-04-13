@@ -85,11 +85,36 @@
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
 
+  // ─── Crossfade when data source changes ─────────────────────────────────────
+  // When hardcoded inspirations are replaced by real data (IndexedDB / server /
+  // WS), the banner crossfades: the old content fades out, then the new content
+  // fades in. This avoids a jarring instant swap.
+  const HARDCODED_ID_PREFIX = "hardcoded-";
+  let isCrossfading = $state(false);
+
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
   const unsubscribe = dailyInspirationStore.subscribe((state) => {
-    inspirations = state.inspirations;
-    currentIndex = state.currentIndex;
+    const wasHardcoded = inspirations.length > 0 &&
+      inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
+    const isNowReal = state.inspirations.length > 0 &&
+      !state.inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
+
+    if (wasHardcoded && isNowReal) {
+      // Trigger crossfade: fade out, swap data, fade in
+      isCrossfading = true;
+      setTimeout(() => {
+        inspirations = state.inspirations;
+        currentIndex = state.currentIndex;
+        // Allow a frame for the DOM to update with new data before fading in
+        requestAnimationFrame(() => {
+          isCrossfading = false;
+        });
+      }, 200); // Match the CSS fade-out duration
+    } else {
+      inspirations = state.inspirations;
+      currentIndex = state.currentIndex;
+    }
   });
 
   onDestroy(unsubscribe);
@@ -335,7 +360,7 @@
   <!-- Outer wrapper for fade-in animation and full-width layout.
        bind:this lets the IntersectionObserver target this element to detect
        when the banner enters the viewport for passive view tracking. -->
-  <div class="daily-inspiration-wrapper" bind:this={bannerWrapperEl}>
+  <div class="daily-inspiration-wrapper" class:crossfading={isCrossfading} bind:this={bannerWrapperEl}>
 
     <!--
       Banner card: div[role=button] avoids nested-button HTML validation errors
@@ -484,6 +509,17 @@
   @keyframes inspirationFadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0);   }
+  }
+
+  /* Crossfade transition: when hardcoded data is replaced by real data,
+     the banner fades out (200ms), data swaps, then fades back in (300ms). */
+  .daily-inspiration-wrapper {
+    transition: opacity 300ms ease-in;
+  }
+
+  .daily-inspiration-wrapper.crossfading {
+    opacity: 0;
+    transition: opacity 200ms ease-out;
   }
 
   /* ── Banner card ──
