@@ -448,18 +448,49 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await polarCvcInput.fill('123');
 
 	// Polar's Stripe checkout also requires cardholder name and billing country.
-	const cardholderInput = stripeFrame
-		.locator('input[name="billingName"], input[id="Field-nameInput"], input[autocomplete="cc-name"]')
-		.first();
-	if (await cardholderInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await cardholderInput.fill('Test User');
-	}
+	// Dump iframe structure to debug which iframe holds these fields.
+	const iframeCount = await polarIframe.locator('iframe').count();
+	logSignupCheckpoint(`DEBUG: Polar iframe contains ${iframeCount} nested iframe(s).`);
 
-	const countrySelect = stripeFrame
-		.locator('select[name="billingCountry"], select[id="Field-countryInput"], select[autocomplete="country"]')
-		.first();
-	if (await countrySelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await countrySelect.selectOption('US');
+	// Dump all inputs/selects visible in the Stripe frame
+	const stripeInputs = await stripeFrame.locator('input, select').evaluateAll(
+		(els: Element[]) => els.map(el => ({
+			tag: el.tagName,
+			name: el.getAttribute('name'),
+			id: el.id,
+			type: el.getAttribute('type'),
+			autocomplete: el.getAttribute('autocomplete'),
+			placeholder: el.getAttribute('placeholder'),
+		}))
+	).catch(() => []);
+	logSignupCheckpoint(`DEBUG: Stripe frame fields: ${JSON.stringify(stripeInputs)}`);
+
+	// Dump all inputs/selects directly in the Polar iframe (not nested)
+	const polarInputs = await polarIframe.locator('input, select').evaluateAll(
+		(els: Element[]) => els.map(el => ({
+			tag: el.tagName,
+			name: el.getAttribute('name'),
+			id: el.id,
+			type: el.getAttribute('type'),
+			autocomplete: el.getAttribute('autocomplete'),
+			placeholder: el.getAttribute('placeholder'),
+		}))
+	).catch(() => []);
+	logSignupCheckpoint(`DEBUG: Polar frame fields: ${JSON.stringify(polarInputs)}`);
+
+	// Try each nested iframe if there are multiple
+	for (let i = 0; i < iframeCount; i++) {
+		const frame = polarIframe.frameLocator('iframe').nth(i);
+		const fields = await frame.locator('input, select').evaluateAll(
+			(els: Element[]) => els.map(el => ({
+				tag: el.tagName,
+				name: el.getAttribute('name'),
+				id: el.id,
+			}))
+		).catch(() => []);
+		if (fields.length > 0) {
+			logSignupCheckpoint(`DEBUG: Polar nested iframe[${i}] fields: ${JSON.stringify(fields)}`);
+		}
 	}
 
 	await takeStepScreenshot(page, 'polar-card-filled');
