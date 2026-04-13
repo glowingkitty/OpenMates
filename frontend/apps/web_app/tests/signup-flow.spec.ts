@@ -99,8 +99,9 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	test.slow();
 	// Allow extra time for Mailosaur email delivery + purchase confirmation + account deletion.
-	// GHA runners are slower than local — 240s was insufficient; 420s provides comfortable margin.
-	test.setTimeout(420000);
+	// This is the longest signup spec: full 2FA setup, payment, email verification of purchase,
+	// refund link validation, and account deletion with 2FA auth. 600s needed for retries.
+	test.setTimeout(600000);
 
 	const logSignupCheckpoint = createSignupLogger('SIGNUP_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint);
