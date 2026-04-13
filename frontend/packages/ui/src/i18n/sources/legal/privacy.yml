@@ -3899,6 +3899,111 @@ protection.observability_without_tracking.description:
   pt: Nosso pipeline de rastreamento interno (OpenTelemetry) substitui seu ID de usuário por um hash que muda a cada 24 horas, remove cabeçalhos de autenticação e cookies de cada span e oculta o conteúdo do chat antes que qualquer rastro saia do backend. Nossas análises web utilizam um beacon do lado do servidor sem cookies e sem identificadores individuais armazenados. Não utilizamos Google Analytics, Plausible, PostHog ou qualquer plataforma de análise de terceiros.
   fr: "Notre pipeline de traçage interne (OpenTelemetry) remplace ton identifiant utilisateur par un hachage qui change toutes les 24 heures, supprime les en-têtes d'authentification et les cookies de chaque segment (span), et occulte le contenu du chat avant que toute trace ne quitte le backend. Nos analyses web utilisent une balise côté serveur sans cookies et sans identifiants individuels stockés. Nous n'utilisons pas Google Analytics, Plausible, PostHog ou toute autre plateforme d'analyse tierce."
   verified_by_human: []
+# ─────────────────────────────────────────────────────────────────────────────
+# Privacy Promises — user-facing claims surfaced in Section 2 of the policy.
+# Source of truth: shared/docs/privacy_promises.yml.
+# Regenerated translations are produced by the auto-rebuild-translations hook.
+# ─────────────────────────────────────────────────────────────────────────────
+promises.intro:
+  context: Intro paragraph for the Privacy Promises section
+  en: Below are the privacy promises we make to every user. Each one is backed by code in our open-source repository and verified by automated tests. When the enforcing code changes, a registry-linked check reminds us to rerun those tests before release.
+  verified_by_human: []
+promises.client_side_chat_encryption.heading:
+  context: Privacy promise heading — client-side chat encryption
+  en: Client-side chat encryption
+  verified_by_human: []
+promises.client_side_chat_encryption.description:
+  context: Privacy promise description — client-side chat encryption
+  en: "Your chats, settings, and memories are encrypted on your device with AES-256-GCM before they leave your browser. The server stores only ciphertext on disk, in caches, and in backups. This is not end-to-end encryption: when a server-side task needs to read content (to run an AI response, render an invoice, or deliver a reminder), it decrypts in memory via HashiCorp Vault and discards the plaintext immediately after use."
+  verified_by_human: []
+promises.email_encryption_at_rest.heading:
+  context: Privacy promise heading — email encryption at rest
+  en: Email addresses encrypted at rest
+  verified_by_human: []
+promises.email_encryption_at_rest.description:
+  context: Privacy promise description — email encryption at rest
+  en: Your email address is stored only as ciphertext. The server decrypts it transiently in memory during login, billing, and notification delivery, and never writes plaintext to disk or logs.
+  verified_by_human: []
+promises.no_third_party_tracking.heading:
+  context: Privacy promise heading — no third-party tracking
+  en: No third-party tracking cookies or analytics
+  verified_by_human: []
+promises.no_third_party_tracking.description:
+  context: Privacy promise description — no third-party tracking
+  en: We do not use Google Analytics, Plausible, PostHog, Mixpanel, Amplitude, Segment, or any other third-party analytics platform. Our telemetry is server-side, cookie-free, and contains no individually stored identifiers. A pre-edit check in our repository blocks the introduction of analytics SDKs.
+  verified_by_human: []
+promises.pii_placeholder_substitution.heading:
+  context: Privacy promise heading — PII placeholder substitution
+  en: Personal information never reaches AI providers
+  verified_by_human: []
+promises.pii_placeholder_substitution.description:
+  context: Privacy promise description — PII placeholder substitution
+  en: Before any message is sent to an AI provider, your browser detects 32 categories of personal data — emails, phone numbers, credit card numbers, API keys, and more — and replaces them with placeholders like `[EMAIL_com]`. The substitution map is encrypted with your chat key so only your devices can restore the original values.
+  verified_by_human: []
+promises.telemetry_privacy_filter.heading:
+  context: Privacy promise heading — telemetry privacy filter
+  en: Telemetry stripped of sensitive data
+  verified_by_human: []
+promises.telemetry_privacy_filter.description:
+  context: Privacy promise description — telemetry privacy filter
+  en: Our internal tracing pipeline (OpenTelemetry) strips authentication headers, cookies, and database statements from every span, and pseudonymises your user ID with a salt that rotates every 24 hours. Regular users never have their raw identifiers in telemetry.
+  verified_by_human: []
+promises.cryptographic_erasure.heading:
+  context: Privacy promise heading — cryptographic erasure
+  en: Deleted accounts are cryptographically erased
+  verified_by_human: []
+promises.cryptographic_erasure.description:
+  context: Privacy promise description — cryptographic erasure
+  en: When you delete your account, the first step destroys your encryption keys. Any residual ciphertext in backups, caches, or audit logs is rendered permanently unreadable — no key, no content.
+  verified_by_human: []
+promises.argon2_password_hashing.heading:
+  context: Privacy promise heading — Argon2 password hashing
+  en: Passwords stored as Argon2 hashes
+  verified_by_human: []
+promises.argon2_password_hashing.description:
+  context: Privacy promise description — Argon2 password hashing
+  en: We store password and backup-code verifiers as Argon2 hashes. Plaintext passwords are never persisted to disk, never written to logs, and never recoverable — even by us.
+  verified_by_human: []
+promises.payment_data_minimization.heading:
+  context: Privacy promise heading — payment data minimization
+  en: No card numbers ever touch our servers
+  verified_by_human: []
+promises.payment_data_minimization.description:
+  context: Privacy promise description — payment data minimization
+  en: Payments flow directly from your browser to Stripe or Polar. We store only their provider tokens and customer identifiers. We never see, receive, or persist full card numbers, security codes, or bank account details.
+  verified_by_human: []
+promises.logging_redaction.heading:
+  context: Privacy promise heading — logging redaction
+  en: Logs are scrubbed of sensitive data
+  verified_by_human: []
+promises.logging_redaction.description:
+  context: Privacy promise description — logging redaction
+  en: Every log line passes through a redaction filter that strips email addresses, IP addresses, bearer tokens, and password values. Compliance logs preserve pseudonymous user IDs but remove all other personal data.
+  verified_by_human: []
+promises.prompt_injection_defense.heading:
+  context: Privacy promise heading — prompt injection defense
+  en: Defense against prompt injection
+  verified_by_human: []
+promises.prompt_injection_defense.description:
+  context: Privacy promise description — prompt injection defense
+  en: Two layers protect your conversations from malicious content in web pages, files, and URLs you reference. Invisible Unicode characters are stripped first, then a dedicated safety model detects semantic injection attempts and blocks or replaces high-risk content before it reaches your assistant.
+  verified_by_human: []
+promises.no_training_on_user_data.heading:
+  context: Privacy promise heading — no training on user data
+  en: Your conversations are not used to train AI models
+  verified_by_human: []
+promises.no_training_on_user_data.description:
+  context: Privacy promise description — no training on user data
+  en: Our contracts with AI providers such as Anthropic, OpenAI, and Mistral include explicit no-training clauses. Your chats are never used to fine-tune, evaluate, or otherwise train the underlying models.
+  verified_by_human: []
+promises.open_source_transparency.heading:
+  context: Privacy promise heading — open source transparency
+  en: Every claim on this page is independently auditable
+  verified_by_human: []
+promises.open_source_transparency.description:
+  context: Privacy promise description — open source transparency
+  en: OpenMates is open source. Every promise above is backed by code you can read, tests you can run, and architecture documents you can audit in our public repository. Our privacy-promises registry links each claim to the exact files that enforce it.
+  verified_by_human: []
 providers.heading:
   context: Section heading for the conditional provider list
   en: When each provider is used

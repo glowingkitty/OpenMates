@@ -10,6 +10,7 @@
  */
 
 import { privacyPolicyLinks } from "../config/links";
+import { SURFACED_PRIVACY_PROMISES } from "./privacyPromises.generated";
 
 /**
  * Type for translation function (compatible with svelte-i18n's _ store)
@@ -121,25 +122,21 @@ export function buildPrivacyPolicyContent(
   lines.push("");
 
   // ──────────────────────────────────────────────────────────────
-  // Section 2 — How we protect your data (six technical measures)
+  // Section 2 — Privacy Promises (auto-generated from
+  // shared/docs/privacy_promises.yml via SURFACED_PRIVACY_PROMISES).
+  // Every promise is backed by code + tests; see
+  // docs/architecture/compliance/ and the registry for the full chain of
+  // enforcement.
   // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.protection.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.protection.intro"));
+  lines.push(t("legal.privacy.promises.intro"));
   lines.push("");
 
-  const protectionMeasures = [
-    "client_side_encryption",
-    "pii_placeholder_substitution",
-    "encrypted_at_rest",
-    "hashed_identifiers",
-    "cryptographic_erasure",
-    "observability_without_tracking",
-  ];
-  for (const measure of protectionMeasures) {
-    lines.push(`### ${t(`legal.privacy.protection.${measure}.heading`)}`);
+  for (const promise of SURFACED_PRIVACY_PROMISES) {
+    lines.push(`### ${t(`${promise.i18n_key}.heading`)}`);
     lines.push("");
-    lines.push(t(`legal.privacy.protection.${measure}.description`));
+    lines.push(t(`${promise.i18n_key}.description`));
     lines.push("");
   }
 
