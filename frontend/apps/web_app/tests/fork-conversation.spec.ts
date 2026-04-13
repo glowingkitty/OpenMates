@@ -109,6 +109,11 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await passwordInput.fill(TEST_PASSWORD);
 	await screenshot(page, 'password-entered');
 
+	// Submit password first — OTP field appears after backend confirms 2FA required
+	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(submitLoginButton).toBeVisible();
+	await submitLoginButton.click();
+
 	// ── 5. Handle 2FA OTP ────────────────────────────────────────────────────
 	const otpCode = generateTotp(TEST_OTP_KEY);
 	const otpInput = page.locator('#login-otp-input');
@@ -118,8 +123,6 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await screenshot(page, 'otp-entered');
 
 	// ── 6. Submit login ──────────────────────────────────────────────────────
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
 	log('Submitted login form.');
 

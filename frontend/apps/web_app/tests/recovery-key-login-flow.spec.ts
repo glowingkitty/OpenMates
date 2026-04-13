@@ -133,15 +133,19 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for lookup.');
 
-	// Enter password — password+TFA is a single combined form.
-	// Since tfa_enabled=true from lookup, the TFA input is already visible.
+	// Enter password and submit — OTP field appears after backend confirms 2FA required
 	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput.first()).toBeVisible({ timeout: 15000 });
 	await passwordInput.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
-	// Handle 2FA - enter OTP code (TFA input is already visible alongside password)
+	// Submit password first to trigger 2FA prompt
+	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(submitLoginButton).toBeVisible();
+	await submitLoginButton.click();
+
+	// Handle 2FA - enter OTP code (appears after backend confirms 2FA required)
 	const tfaInput = page.locator('#login-otp-input');
 	await expect(tfaInput.first()).toBeVisible({ timeout: 15000 });
 	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
@@ -149,9 +153,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'otp-entered');
 	logCheckpoint('Entered OTP code.');
 
-	// Submit login (password + OTP together in one click)
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
+	// Submit login with OTP
 	await submitLoginButton.click();
 
 	// Wait for successful login - redirect to chat
@@ -322,19 +324,21 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for re-login.');
 
-	// Enter password — the password+TFA form is a single combined step.
-	// Since the account has tfa_enabled=true from /lookup, the TFA input is already
-	// visible alongside the password field. We do NOT need to click login first.
+	// Enter password and submit to trigger 2FA prompt
 	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
 
-	// The TFA input should already be visible (tfa_enabled=true from lookup)
+	// Submit password first — OTP field appears after backend confirms 2FA required
+	const reloginSubmitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await reloginSubmitBtn.click();
+
+	// TFA input appears after backend confirms 2FA required
 	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin.first()).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
-	logCheckpoint('TFA input visible alongside password (combined form).');
+	logCheckpoint('TFA input visible after password submission.');
 
 	// Click "Login with recovery key" to switch to recovery key mode
 	const recoveryKeyButton = page.locator('#login-with-recoverykey button');

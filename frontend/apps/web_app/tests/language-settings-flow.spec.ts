@@ -220,10 +220,12 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
+	// Submit password first — OTP field appears after backend confirms 2FA required
+	const submitButton = page.locator(SELECTORS.submitLoginButton);
+	await submitButton.click();
+
 	const otpInput = page.locator(SELECTORS.otpInput);
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitButton = page.locator(SELECTORS.submitLoginButton);
 
 	// Allow up to 3 TOTP attempts (30s window per attempt)
 	let loginSuccess = false;

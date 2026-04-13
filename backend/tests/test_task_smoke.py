@@ -60,11 +60,6 @@ TASK_MODULES = [
         "constants": {},
     },
     {
-        "module": "backend.core.api.app.tasks.demo_tasks",
-        "tasks": [],
-        "constants": {},
-    },
-    {
         "module": "backend.core.api.app.tasks.user_cache_tasks",
         "tasks": [],
         "constants": {},

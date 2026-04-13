@@ -137,32 +137,34 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for lookup.');
 
-	// Wait for password+TFA form to appear
+	// Wait for password form to appear
 	const passwordInput = page.locator('#login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	const tfaInput = page.locator('#login-otp-input');
-	await expect(tfaInput).toBeVisible({ timeout: 15000 });
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 
 	// .chat-container.authenticated is the ONLY reliable DOM indicator of a truly
 	// logged-in state. The .profile-container exists on the demo page too.
 	const authIndicator = page.locator('[data-authenticated="true"]');
 
+	// Submit password first — OTP field appears after backend confirms 2FA required
+	await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+	await expect(submitLoginButton).toBeVisible();
+	await submitLoginButton.click();
+
+	const tfaInput = page.locator('#login-otp-input');
+	await expect(tfaInput).toBeVisible({ timeout: 15000 });
+
 	// Retry login up to 3 times to handle OTP timing boundary failures
 	let loginSuccess = false;
 	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
 		logCheckpoint(`Login attempt ${attempt}/3.`);
 
-		// Fill password (may have been cleared by previous failed attempt)
-		await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-
 		// Generate a fresh OTP for each attempt
 		const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
 		await tfaInput.fill(otpCode);
-		logCheckpoint(`Filled password + OTP (attempt ${attempt}).`);
+		logCheckpoint(`Filled OTP (attempt ${attempt}).`);
 
 		// Submit
-		await expect(submitLoginButton).toBeVisible();
 		await submitLoginButton.click();
 
 		// Check if login succeeded by waiting for authenticated container
@@ -349,13 +351,17 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Submitted email for re-login.');
 
-	// Enter password
+	// Enter password and submit to trigger 2FA prompt
 	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
 
-	// The TFA input should already be visible (tfa_enabled=true from lookup)
+	// Submit password first — OTP field appears after backend confirms 2FA required
+	const reloginSubmitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await reloginSubmitBtn.click();
+
+	// TFA input appears after backend confirms 2FA required
 	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
