@@ -539,7 +539,8 @@
                 // This handles the case where embed data becomes available after initial render
                 // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
-                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}:${inputContent}`;
+                const wikiCacheFragment = wikipediaTopics?.length ? `:wiki${wikipediaTopics.length}` : '';
+                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}${wikiCacheFragment}:${inputContent}`;
                 
                 // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
                 // This is necessary because embed NodeViews need to call resolveEmbed() again
