@@ -1063,6 +1063,15 @@ function convertWikiTopicLinks(doc: any, topics: WikipediaTopic[]): any {
   return walkNode(doc);
 }
 
+/**
+ * Apply wiki topic link conversion directly to a pre-parsed TipTap JSON document.
+ * Used by ReadOnlyMessage when content arrives as TipTap JSON (already parsed by
+ * ChatHistory's G_mapToInternalMessage) and was never run through parse_message.
+ */
+export function convertWikiTopicLinksOnDoc(doc: any, topics: WikipediaTopic[]): any {
+  return convertWikiTopicLinks(doc, topics);
+}
+
 export function parse_message(
   markdown: string,
   mode: "write" | "read",

@@ -14,7 +14,7 @@
     import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
-    import { parse_message } from '../message_parsing/parse_message';
+    import { parse_message, convertWikiTopicLinksOnDoc } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
@@ -606,6 +606,13 @@
                 // Instead, we rely on ChatHistory to re-process messages from original_message when locale changes
                 // Content is already processed by ChatHistory, don't double-process
                 // NOTE: For locale changes, ChatHistory should provide new content with updated translations
+
+                // Apply Wikipedia inline link conversion to pre-parsed TipTap JSON docs.
+                // This handles the case where content arrives as TipTap JSON (e.g. from
+                // ChatHistory's G_mapToInternalMessage) and was never run through parse_message.
+                if (effectiveWikiTopics?.length && role === 'assistant') {
+                    return convertWikiTopicLinksOnDoc(newContent, effectiveWikiTopics);
+                }
                 return newContent;
             }
             
