@@ -447,51 +447,16 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 		.first();
 	await polarCvcInput.fill('123');
 
-	// Polar's Stripe checkout also requires cardholder name and billing country.
-	// Dump iframe structure to debug which iframe holds these fields.
-	const iframeCount = await polarIframe.locator('iframe').count();
-	logSignupCheckpoint(`DEBUG: Polar iframe contains ${iframeCount} nested iframe(s).`);
+	// Polar's checkout requires cardholder name and billing country.
+	// These fields are in the Polar iframe directly (not the nested Stripe iframe).
+	const cardholderNameInput = polarIframe.locator('input[name="customer_name"]');
+	await expect(cardholderNameInput).toBeVisible({ timeout: 5000 });
+	await cardholderNameInput.fill('Test User');
 
-	// Dump all inputs/selects visible in the Stripe frame
-	const stripeInputs = await stripeFrame.locator('input, select').evaluateAll(
-		(els: Element[]) => els.map(el => ({
-			tag: el.tagName,
-			name: el.getAttribute('name'),
-			id: el.id,
-			type: el.getAttribute('type'),
-			autocomplete: el.getAttribute('autocomplete'),
-			placeholder: el.getAttribute('placeholder'),
-		}))
-	).catch(() => []);
-	logSignupCheckpoint(`DEBUG: Stripe frame fields: ${JSON.stringify(stripeInputs)}`);
-
-	// Dump all inputs/selects directly in the Polar iframe (not nested)
-	const polarInputs = await polarIframe.locator('input, select').evaluateAll(
-		(els: Element[]) => els.map(el => ({
-			tag: el.tagName,
-			name: el.getAttribute('name'),
-			id: el.id,
-			type: el.getAttribute('type'),
-			autocomplete: el.getAttribute('autocomplete'),
-			placeholder: el.getAttribute('placeholder'),
-		}))
-	).catch(() => []);
-	logSignupCheckpoint(`DEBUG: Polar frame fields: ${JSON.stringify(polarInputs)}`);
-
-	// Try each nested iframe if there are multiple
-	for (let i = 0; i < iframeCount; i++) {
-		const frame = polarIframe.frameLocator('iframe').nth(i);
-		const fields = await frame.locator('input, select').evaluateAll(
-			(els: Element[]) => els.map(el => ({
-				tag: el.tagName,
-				name: el.getAttribute('name'),
-				id: el.id,
-			}))
-		).catch(() => []);
-		if (fields.length > 0) {
-			logSignupCheckpoint(`DEBUG: Polar nested iframe[${i}] fields: ${JSON.stringify(fields)}`);
-		}
-	}
+	const billingCountrySelect = polarIframe.locator('select[autocomplete="billing country"]');
+	await expect(billingCountrySelect).toBeVisible({ timeout: 5000 });
+	await billingCountrySelect.selectOption('US');
+	logSignupCheckpoint('Filled cardholder name and billing country.');
 
 	await takeStepScreenshot(page, 'polar-card-filled');
 	logSignupCheckpoint('Filled Polar sandbox card details.');
