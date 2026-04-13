@@ -208,38 +208,15 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForTimeout(3000);
 		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
 
-		// ─── 5. Diagnostics: check wiki data in DOM ───────────────────
-		// Collect wiki-related console warnings from the browser
-		const wikiWarns = consoleLogs.filter(l => l.includes('ReadOnlyMessage:processContent') || l.includes('convertWikiTopicLinks') || l.includes('parse_message'));
-
-		const diagInfo = await page.evaluate(() => {
-			const wikiNodes = document.querySelectorAll('[data-type="wiki-inline"]');
-			const wikiTestIds = document.querySelectorAll('[data-testid="wiki-inline-link"]');
-			const bodyText = document.body.innerText;
-			const hasReidWiseman = bodyText.includes('Reid Wiseman');
-			const hasArtemis = bodyText.includes('Artemis');
-			return {
-				wikiNodeCount: wikiNodes.length,
-				wikiTestIdCount: wikiTestIds.length,
-				hasReidWiseman,
-				hasArtemis,
-				bodyTextLength: bodyText.length,
-				hash: window.location.hash,
-			};
-		});
-		// Append wiki console warns to diagnostics
-		const fullDiag = { ...diagInfo, wikiWarns: wikiWarns.slice(-10) };
-		console.log('[unauthenticated-load] Wiki diagnostics:', JSON.stringify(diagInfo));
-
-		// ─── 6. Verify Wikipedia inline links are rendered ──────────────
-		// The Artemis II example chat has wikipedia_topics defined.
-		// The parse_message pipeline should inject wikiInline TipTap nodes,
-		// which render as WikiInlineLink.svelte with data-testid="wiki-inline-link".
+		// ─── 5. Verify Wikipedia inline links are rendered ──────────────
+		// The Artemis II example chat has wikipedia_topics defined (10 topics).
+		// convertWikiTopicLinksOnDoc applies wiki links to the TipTap JSON doc,
+		// rendering as WikiInlineLink.svelte with data-testid="wiki-inline-link".
 		const wikiLinks = page.getByTestId('wiki-inline-link');
 		const wikiLinkCount = await wikiLinks.count();
 		expect(
 			wikiLinkCount,
-			`Expected wiki links but found ${wikiLinkCount}. Diagnostics: ${JSON.stringify(fullDiag)}`
+			`Expected at least one Wikipedia inline link in the Artemis II example chat, found ${wikiLinkCount}`
 		).toBeGreaterThan(0);
 		console.log(
 			`[unauthenticated-load] Found ${wikiLinkCount} Wikipedia inline link(s)`
