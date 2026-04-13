@@ -26,7 +26,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -69,7 +69,7 @@ test.describe('App: Events / Skill: search', () => {
 			45_000
 		);
 
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
@@ -95,7 +95,7 @@ test.describe('App: Events / Skill: search', () => {
 
 		const message = withLiveMockMarker('Find tech events in Berlin this week', 'events_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
-		expect(result.code).toBe(0);
+		expectCliSuccess(result);
 
 		const parsed = parseCliJson(result);
 		expect(parsed).toBeTruthy();

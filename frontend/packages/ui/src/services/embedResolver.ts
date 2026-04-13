@@ -3,17 +3,14 @@
  * Resolves embed references (embed_id) to actual embed content from ContentStore or Directus.
  * Handles TOON-encoded content decoding when needed.
  *
- * For community demo chats, embeds are stored in the communityDemoStore (cleartext).
- * This resolver checks both the regular embedStore and the community demo store.
+ * For example chats, embeds are stored in the exampleChatStore (cleartext).
+ * This resolver checks both the regular embedStore and the example chat store.
  */
 
 import { embedStore } from "./embedStore";
 import {
-  getCommunityDemoEmbed,
-  isCacheLoaded,
-  loadFromCache,
-  waitForLoadingComplete,
-} from "../demo_chats/communityDemoStore";
+  getExampleChatEmbed,
+} from "../demo_chats/exampleChatStore";
 import { EmbedNodeAttributes } from "../message_parsing/types";
 import { generateUUID } from "../message_parsing/utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
@@ -105,7 +102,7 @@ export interface EmbedData {
 
 /**
  * Resolve an embed by embed_id
- * Checks both the regular embedStore and the community demo store for cleartext embeds
+ * Checks both the regular embedStore and the example chat store for cleartext embeds
  * @param embed_id - The embed identifier
  * @returns Embed data or null if not found
  */
@@ -115,42 +112,6 @@ export async function resolveEmbed(
   try {
     // Initialize TOON decoder
     await initToonDecoder();
-
-    // CRITICAL FIX: Check community demo store FIRST for demo embeds
-    // Demo embeds are stored as cleartext and should be resolved before regular encrypted embeds
-    // IMPORTANT: Wait for the demo store to load from cache first to avoid race conditions
-    // where the embed component tries to render before the demo chat data is available
-    if (!isCacheLoaded()) {
-      console.debug(
-        "[embedResolver] Waiting for community demo store cache to load...",
-      );
-      try {
-        // Ensure the cache is loaded from IndexedDB
-        await loadFromCache();
-        // Also wait for any server fetch in progress, but with a timeout.
-        // When offline, the server fetch may hang indefinitely — a 3s timeout
-        // prevents the entire embed resolution pipeline from blocking.
-        // If the timeout fires, we continue without the demo store; user's own
-        // embeds are resolved from IndexedDB regardless.
-        const DEMO_STORE_LOAD_TIMEOUT_MS = 3000;
-        await Promise.race([
-          waitForLoadingComplete(),
-          new Promise<void>((resolve) =>
-            setTimeout(() => {
-              console.warn(
-                `[embedResolver] Demo store loading timed out after ${DEMO_STORE_LOAD_TIMEOUT_MS}ms (possibly offline), continuing without it`,
-              );
-              resolve();
-            }, DEMO_STORE_LOAD_TIMEOUT_MS),
-          ),
-        ]);
-      } catch (error) {
-        console.warn(
-          "[embedResolver] Error waiting for demo store cache:",
-          error,
-        );
-      }
-    }
 
     // Normalize the embed_id: callers may pass either a bare UUID ("bec138d0-...")
     // or a prefixed form ("embed:bec138d0-..."). Strip the prefix here so all
@@ -162,20 +123,20 @@ export async function resolveEmbed(
       ? embed_id.slice("embed:".length)
       : embed_id;
 
-    const demoEmbed = getCommunityDemoEmbed(bareId);
+    const demoEmbed = getExampleChatEmbed(bareId);
     if (demoEmbed) {
       console.debug(
-        "[embedResolver] Found embed in community demo store:",
+        "[embedResolver] Found embed in example chat store:",
         bareId,
       );
-      // Convert DemoEmbed to EmbedData format
+      // Convert ExampleChatEmbed to EmbedData format
       return {
         embed_id: demoEmbed.embed_id,
         type: demoEmbed.type,
         status: "finished" as const,
-        content: demoEmbed.content, // Already cleartext (JSON string)
-        createdAt: demoEmbed.created_at,
-        updatedAt: demoEmbed.created_at,
+        content: demoEmbed.content, // Already cleartext (TOON string)
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
     }
 
@@ -218,7 +179,7 @@ export async function resolveEmbed(
     //
     // IMPORTANT: Only request via WebSocket if user is authenticated.
     // For unauthenticated users viewing demo chats, embeds will be available
-    // once the community demo store finishes loading from server.
+    // once the example chat store finishes loading from server.
     const isAuthenticated = get(authStore).isAuthenticated;
     if (!isAuthenticated) {
       console.debug(

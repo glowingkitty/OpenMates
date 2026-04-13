@@ -146,7 +146,6 @@ TASK_CONFIG = [
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.server_stats_tasks'},  # Server stats
-    {'name': 'demo',        'module': 'backend.core.api.app.tasks.demo_tasks'},  # Demo chat tasks
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
@@ -1010,6 +1009,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.email_tasks.recovery_email_task.send_account_recovery_email": "email",
     "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email": "email",
     "app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email": "email",
+    "app.tasks.email_tasks.action_verification_email_task.generate_and_send_action_verification_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
     "app.tasks.email_tasks.issue_report_email_task.retry_issue_report_s3_upload": "email",
     "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",
@@ -1225,6 +1225,15 @@ app.conf.beat_schedule = {
     'password-security-reminders-daily': {
         'task': 'app.tasks.email_tasks.password_security_reminder_email_task.process_password_security_reminders',
         'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
+        'options': {'queue': 'email'},
+    },
+    # Webhook rate-limit digest — one email per affected user listing every
+    # webhook of theirs that hit its rate limit in the last 24h. Runs at 07:00
+    # UTC, slightly before the other daily email sweeps so the user sees
+    # credit-protection signal first.
+    'webhook-rate-limit-digest-daily': {
+        'task': 'app.tasks.email_tasks.webhook_rate_limit_digest_email_task.process_webhook_rate_limit_digest',
+        'schedule': crontab(hour=7, minute=0),  # Daily at 07:00 UTC
         'options': {'queue': 'email'},
     },
     # Unified daily notification dispatcher — single sweep that dispatches all per-user

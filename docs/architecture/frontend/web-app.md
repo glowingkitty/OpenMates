@@ -56,8 +56,15 @@ On signup completion, demo chats are kept and the user receives a message explai
 
 See [Onboarding Architecture](onboarding.md) for planned user onboarding features.
 
+## Native Apps
+
+The web app is the primary client and ships new features first. Fully
+native Apple clients (iPhone, iPad, Mac, Apple Watch) are planned and
+tracked separately in [Native Apps Architecture](./native-apps.md).
+
 ## Related Docs
 
+- [Native Apps](./native-apps.md) -- Apple-first native app strategy
 - [Accessibility](./accessibility.md) -- WCAG compliance patterns
 - [Daily Inspiration](./daily-inspiration.md) -- content generation pipeline
 - [Docs Web App](./docs-web-app.md) -- documentation rendering at `/docs`

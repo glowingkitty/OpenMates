@@ -5,7 +5,7 @@ import { whoDevelopsOpenmatesChat } from "./data/who_develops_openmates";
 import { LEGAL_CHATS } from "../legal";
 
 // Export types
-export type { DemoChat, DemoMessage } from "./types";
+export type { DemoChat, DemoMessage, ExampleChat, ExampleChatEmbed, ExampleChatMessage } from "./types";
 
 // Export conversion utilities
 export {
@@ -23,26 +23,21 @@ export { translateDemoChat, translateDemoChats } from "./translateDemoChat";
 // Export legal chats for use in components
 export { LEGAL_CHATS, getLegalChatBySlug, getLegalChatById } from "../legal";
 
-// Export community demo store for in-memory storage of server-fetched demo chats
-// ARCHITECTURE: Community demos are stored in-memory AND IndexedDB for offline support
+// Export example chat store — static hardcoded example chats (replaces old communityDemoStore)
 export {
-  communityDemoStore,
-  addCommunityDemo,
-  getCommunityDemoChat,
-  getCommunityDemoMessages,
-  getCommunityDemoEmbeds,
-  getCommunityDemoEmbed,
-  getAllCommunityDemoChats,
-  getUiVisibleCommunityDemoChats,
-  getUiVisibleCommunityDemoChatsByCategory,
-  COMMUNITY_DEMO_UI_LIMITS,
-  isCommunityDemo,
-  clearCommunityDemos,
-  getLocalContentHashes,
-} from "./communityDemoStore";
-
-/** Load community demo chats (example chats) on page load or language change. */
-export { loadCommunityDemos } from "./loadCommunityDemos";
+  isExampleChat,
+  getExampleChat,
+  getExampleChatBySlug,
+  getExampleChatMessages,
+  getExampleChatEmbeds,
+  getExampleChatEmbed,
+  getAllExampleChats,
+  getFeaturedExampleChats,
+  getExampleChatData,
+  getAllExampleChatData,
+  getExampleChatCount,
+  registerExampleChatEmbedRefs,
+} from "./exampleChatStore";
 
 /** Load published default Daily Inspirations from server on page load. */
 export { loadDefaultInspirations } from "./loadDefaultInspirations";
@@ -53,7 +48,7 @@ export { loadDefaultInspirations } from "./loadDefaultInspirations";
  *
  * NAMING CONVENTION:
  * - INTRO_CHATS: Static intro chats bundled with the app (welcome, what-makes-different, etc.)
- * - Community demos: Dynamic demo chats fetched from server, stored in communityDemoStore
+ * - Example chats: Static example chats reproduced from real conversations (in exampleChatStore)
  *
  * IMPORTANT: ALL intro chats use translation keys from i18n/locales/{locale}.json
  * You MUST use translateDemoChat() or translateDemoChats() to resolve translations at runtime.
@@ -63,8 +58,6 @@ export const INTRO_CHATS: DemoChat[] = [
   forDevelopersChat,
   whoDevelopsOpenmatesChat,
   // Privacy, Terms, Imprint are NOT intro chats - they're accessed via /privacy, /terms, /imprint routes
-  // More will be added: october-2025-updates, example-learn-something, stay-up-to-date
-  // Apps feature: example-power-of-apps (coming soon when Apps are implemented)
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Legacy alias for backwards compatibility - prefer using INTRO_CHATS

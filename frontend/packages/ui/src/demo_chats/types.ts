@@ -26,3 +26,59 @@ export interface DemoChat {
 		lastUpdated: string;
 	};
 }
+
+// ============================================================================
+// Example Chats — Real conversations hardcoded in frontend
+// ============================================================================
+
+/**
+ * A single embed in an example chat.
+ * Content is TOON-encoded (key: value lines), matching the format
+ * used by the embed rendering pipeline.
+ */
+export interface ExampleChatEmbed {
+	embed_id: string;
+	type: string; // e.g., 'image_result', 'website', 'app_skill_use'
+	content: string; // TOON-encoded content (cleartext)
+	parent_embed_id: string | null;
+	embed_ids: string[] | null; // child embed IDs for parent embeds
+}
+
+/**
+ * A message in an example chat.
+ * Uses actual content strings (not i18n keys), since example chats
+ * are reproduced 1:1 from real shared conversations.
+ */
+export interface ExampleChatMessage {
+	id: string;
+	role: 'user' | 'assistant';
+	content: string; // Actual message content (markdown with embed references)
+	created_at: number; // Unix timestamp
+	category?: string; // Mate category for assistant messages
+	model_name?: string;
+}
+
+/**
+ * A hardcoded example chat reproduced from a real shared conversation.
+ * Includes full message content and embed data for 1:1 reproduction.
+ *
+ * Unlike DemoChat (which uses i18n keys), ExampleChat stores actual
+ * conversation content — messages, embeds, and metadata.
+ * Each example chat has a natural language slug for SEO-friendly URLs.
+ */
+export interface ExampleChat {
+	chat_id: string; // e.g., "example-gigantic-airplanes"
+	slug: string; // SEO slug, e.g., "gigantic-airplanes-transporting-rocket-parts"
+	title: string; // Actual title (not i18n key)
+	summary: string; // Actual summary
+	icon: string; // Lucide icon name
+	category: string; // Mate category
+	keywords: string[]; // SEO keywords
+	follow_up_suggestions: string[];
+	messages: ExampleChatMessage[];
+	embeds: ExampleChatEmbed[];
+	metadata: {
+		featured: boolean; // Show in default 10 on homepage
+		order: number; // Display order
+	};
+}

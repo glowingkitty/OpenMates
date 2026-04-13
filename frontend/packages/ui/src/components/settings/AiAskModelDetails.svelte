@@ -157,12 +157,12 @@
     }
     
     function goBack() {
-        // Navigate back to AI Ask skill settings page
+        // Navigate back to top-level AI settings page
         dispatch('openSettings', {
-            settingsPath: 'app_store/ai/skill/ask',
+            settingsPath: 'ai',
             direction: 'back',
             icon: 'ai',
-            title: 'Ask' // Simple title - the breadcrumb will show the full path
+            title: 'AI'
         });
     }
     

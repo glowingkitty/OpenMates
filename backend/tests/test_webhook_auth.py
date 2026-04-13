@@ -8,9 +8,8 @@
 # Run: python -m pytest backend/tests/test_webhook_auth.py -v
 
 import hashlib
-import time
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -29,9 +28,11 @@ try:
         WebhookRateLimitError,
         WebhookDuplicateRequestError,
         WebhookPermissionError,
-        WEBHOOK_KEY_PREFIX,
-        WEBHOOK_RATE_LIMIT_MAX_REQUESTS,
     )
+    # Per-key rate limits replaced the old module constant. These tests
+    # construct webhook records with explicit rate_limit_count / period so
+    # they don't need to import the old WEBHOOK_RATE_LIMIT_MAX_REQUESTS.
+    _DEFAULT_TEST_RATE_LIMIT = 3
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
@@ -96,6 +97,10 @@ def valid_webhook_record():
         "is_active": True,
         "expires_at": None,
         "last_used_at": None,
+        # Per-key rate limit fields (added in the webhook redesign)
+        "rate_limit_count": _DEFAULT_TEST_RATE_LIMIT,
+        "rate_limit_period": "hour",
+        "message_template": "{{payload_json}}",
     }
 
 
@@ -249,25 +254,43 @@ def _make_mock_client(**overrides):
 
 class TestRateLimiting:
     @pytest.mark.asyncio
-    async def test_allows_within_limit(self, service, mock_cache, valid_webhook_record):
+    async def test_allows_within_per_key_limit(self, service, mock_cache, valid_webhook_record):
+        valid_webhook_record["rate_limit_count"] = 5
+        valid_webhook_record["rate_limit_period"] = "hour"
         mock_cache.get = AsyncMock(return_value=valid_webhook_record)
-        mock_client = _make_mock_client(get_return="5")
+        # 2 prior invocations recorded in the counter — under the 5 limit.
+        mock_client = _make_mock_client(get_return="2")
         type(mock_cache).client = property(lambda self: _acoro(mock_client))
 
         result = await service.authenticate_webhook_key("wh-testkey12345")
         assert result["webhook_id"] == "test-webhook-id"
+        assert result["rate_limit_count"] == 5
+        assert result["rate_limit_period"] == "hour"
 
     @pytest.mark.asyncio
-    async def test_rejects_over_limit(self, service, mock_cache, valid_webhook_record):
+    async def test_rejects_over_per_key_limit(self, service, mock_cache, valid_webhook_record):
+        valid_webhook_record["rate_limit_count"] = 3
+        valid_webhook_record["rate_limit_period"] = "hour"
         mock_cache.get = AsyncMock(return_value=valid_webhook_record)
-        mock_client = _make_mock_client(
-            get_return=str(WEBHOOK_RATE_LIMIT_MAX_REQUESTS + 1),
-            ttl_return=1800,
-        )
+        # Counter at 5 already — over the per-key limit of 3.
+        mock_client = _make_mock_client(get_return="5", ttl_return=1800)
         type(mock_cache).client = property(lambda self: _acoro(mock_client))
 
         with pytest.raises(WebhookRateLimitError):
             await service.authenticate_webhook_key("wh-testkey12345")
+
+    @pytest.mark.asyncio
+    async def test_unlimited_skips_rate_limit_check(self, service, mock_cache, valid_webhook_record):
+        """rate_limit_count=None means unlimited — rate-limit code path is skipped entirely."""
+        valid_webhook_record["rate_limit_count"] = None
+        mock_cache.get = AsyncMock(return_value=valid_webhook_record)
+        # Counter is irrelevant — never read — but set it over any plausible limit anyway.
+        mock_client = _make_mock_client(get_return="9999")
+        type(mock_cache).client = property(lambda self: _acoro(mock_client))
+
+        result = await service.authenticate_webhook_key("wh-testkey12345")
+        assert result["webhook_id"] == "test-webhook-id"
+        assert result["rate_limit_count"] is None
 
 
 # ---------------------------------------------------------------------------

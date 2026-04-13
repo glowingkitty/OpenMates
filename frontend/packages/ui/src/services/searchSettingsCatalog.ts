@@ -97,20 +97,24 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     access: "authenticated",
     keywords: ["usage", "statistics", "stats", "nutzung"],
   },
-  // Chat — requires authentication (per-account chat settings)
+  // AI — visible to all users (browse models/pricing; toggles require auth)
   {
-    path: "chat",
-    translationKey: "settings.chat",
-    icon: "icon_chat",
-    access: "authenticated",
-    keywords: ["chat", "conversation", "message"],
-  },
-  {
-    path: "chat/notifications",
-    translationKey: "settings.notifications",
-    icon: "icon_bell",
-    access: "authenticated",
-    keywords: ["notifications", "alerts", "sounds", "benachrichtigungen"],
+    path: "ai",
+    translationKey: "settings.ai",
+    icon: "icon_ai",
+    access: "public",
+    keywords: [
+      "ai",
+      "model",
+      "models",
+      "chat",
+      "ask",
+      "pricing",
+      "memories",
+      "settings",
+      "ki",
+      "modelle",
+    ],
   },
   // Billing — requires authentication (payment information)
   {
@@ -400,6 +404,9 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
   const entries: AppCatalogEntry[] = [];
 
   for (const app of Object.values(appsMetadata)) {
+    // Skip the AI app — its settings are now under the top-level "AI" settings menu,
+    // not the app store. The AI app still exists in the backend API for developers.
+    if (app.id === "ai") continue;
     // Collect app-level provider names as lowercase keywords (e.g. ["anthropic", "google"])
     // so users can find apps by typing a provider name like "Anthropic" or "OpenAI".
     const appProviderKeywords = (app.providers || []).map((p) =>

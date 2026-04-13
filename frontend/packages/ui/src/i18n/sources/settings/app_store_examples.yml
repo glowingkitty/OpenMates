@@ -1,0 +1,1398 @@
+# frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+#
+# Localised query labels for the app-store "Examples" section shown
+# beneath each skill detail page. Referenced from the fixture files at
+# frontend/packages/ui/src/components/embeds/<app>/<Name>EmbedPreview.examples.ts
+# via the `query_translation_key` field on each example. The Svelte
+# renderer (SkillExamplesSection.svelte) resolves the key through the
+# $text() store so the card label matches the user's UI language while
+# the underlying provider results (titles, URLs, snippets) stay in
+# whatever language the real web returned.
+#
+# Convention: `app_store_examples.<app>.<skill>.<n>` where n is 1..3 and
+# matches the ordinal of the example inside its fixture file. Every key
+# ships English up-front; the other locales are filled in automatically
+# via scripts/auto_translate.py.
+
+web.search.1:
+  context: Query label for the first web search example in the app store. Shown on a preview card that opens a real Brave Search result set for quick and healthy everyday dinner recipes.
+  en: Quick healthy dinner recipes under 30 minutes
+  de: Schnelle gesunde Abendessen-Rezepte unter 30 Minuten
+  zh: 30分钟内快速健康晚餐食谱
+  es: Recetas de cenas saludables y rápidas en menos de 30 minutos
+  fr: Recettes de dîners sains et rapides en moins de 30 min
+  pt: Receitas de jantar rápidas e saudáveis em menos de 30 minutos
+  ru: Быстрые и полезные ужины до 30 минут
+  ja: 30分以内で作れる健康的な夕食レシピ
+  ko: 30분 이내의 빠르고 건강한 저녁 레시피
+  tr: 30 dakikadan kısa hızlı ve sağlıklı akşam yemeği tarifleri
+  vi: Công thức bữa tối lành mạnh nhanh dưới 30 phút
+  id: Resep makan malam sehat cepat di bawah 30 menit
+  pl: Szybkie zdrowe przepisy na kolację w mniej niż 30 minut
+  nl: Snelle gezonde dinerrecepten binnen 30 minuten
+  ar: وصفات عشاء صحية وسريعة في أقل من 30 دقيقة
+  hi: 30 मिनट से कम की झटपट और सेहतमंद डिनर रेसिपी
+  th: สูตรอาหารเย็นเพื่อสุขภาพใน 30 นาที
+  cs: Rychlé a zdravé recepty na večeři do 30 minut
+  sv: Snabba hälsosamma middagsrecept under 30 minuter
+  he: מתכוני ארוחת ערב בריאים ומהירים בפחות מ-30 דקות
+  verified_by_human: [en]
+web.search.2:
+  context: Query label for the second web search example in the app store. Shown on a preview card that opens a real Brave Search result set for family-friendly beaches across southern Europe.
+  en: Best family-friendly beaches in southern Europe
+  de: Beste familienfreundliche Strände in Südeuropa
+  zh: 南欧最佳亲子海滩
+  es: Mejores playas familiares en el sur de Europa
+  fr: Meilleures plages familiales en Europe du Sud
+  pt: Melhores praias para famílias no sul da Europa
+  ru: Лучшие пляжи для отдыха с детьми в Южной Европе
+  ja: 南欧で家族連れにおすすめのビーチ
+  ko: 남유럽 최고의 가족 친화적 해변
+  tr: "Güney Avrupa'nın en iyi aile dostu plajları"
+  vi: Những bãi biển thân thiện với gia đình nhất ở Nam Âu
+  id: Pantai ramah keluarga terbaik di Eropa selatan
+  pl: Najlepsze plaże dla rodzin w Europie Południowej
+  nl: Beste gezinsvriendelijke stranden in Zuid-Europa
+  ar: أفضل الشواطئ المناسبة للعائلات في جنوب أوروبا
+  hi: दक्षिणी यूरोप में परिवारों के लिए सबसे अच्छे समुद्र तट
+  th: ชายหาดสำหรับครอบครัวที่ดีที่สุดในยุโรปตอนใต้
+  cs: Nejlepší pláže pro rodiny v jižní Evropě
+  sv: Bästa familjevänliga stränderna i södra Europa
+  he: החופים הטובים ביותר למשפחות בדרום אירופה
+  verified_by_human: [en]
+web.search.3:
+  context: Query label for the third web search example in the app store. Shown on a preview card that opens a real Brave Search result set for everyday, non-medical tips to improve your sleep naturally.
+  en: Natural ways to improve your sleep
+  de: Natürliche Wege, deinen Schlaf zu verbessern
+  zh: 改善睡眠的自然方法
+  es: Formas naturales de mejorar el sueño
+  fr: Moyens naturels pour améliorer ton sommeil
+  pt: Formas naturais de melhorar o teu sono
+  ru: Естественные способы улучшить сон
+  ja: 睡眠を自然に改善する方法
+  ko: 수면을 개선하는 자연스러운 방법
+  tr: Uykunu iyileştirmenin doğal yolları
+  vi: Các cách tự nhiên để cải thiện giấc ngủ của bạn
+  id: Cara alami meningkatkan kualitas tidur
+  pl: Naturalne sposoby na poprawę snu
+  nl: Natuurlijke manieren om je slaap te verbeteren
+  ar: طرق طبيعية لتحسين نومك
+  hi: अपनी नींद सुधारने के प्राकृतिक तरीके
+  th: วิธีธรรมชาติช่วยให้หลับสบายขึ้น
+  cs: Přírodní způsoby, jak zlepšit spánek
+  sv: Naturliga sätt att förbättra din sömn
+  he: דרכים טבעיות לשיפור השינה
+  verified_by_human: [en]
+
+news.search.1:
+  context: Query label for the first news search example in the app store. Shown on a preview card that opens a real Brave news result set about European travel trends for summer 2026.
+  en: European travel trends for summer 2026
+  de: Europäische Reisetrends für den Sommer 2026
+  zh: 2026年夏季欧洲旅游趋势
+  es: Tendencias de viajes en Europa para el verano de 2026
+  fr: "Tendances de voyage en Europe pour l'été 2026"
+  pt: Tendências de viagens na Europa para o verão de 2026
+  ru: Тренды туризма в Европе на лето 2026
+  ja: 2026年夏の欧州旅行トレンド
+  ko: 2026년 여름 유럽 여행 트렌드
+  tr: 2026 yazı Avrupa seyahat trendleri
+  vi: Xu hướng du lịch châu Âu mùa hè năm 2026
+  id: Tren wisata Eropa untuk musim panas 2026
+  pl: Europejskie trendy turystyczne na lato 2026
+  nl: Europese reistrends voor zomer 2026
+  ar: اتجاهات السفر في أوروبا لصيف 2026
+  hi: गर्मियों 2026 के लिए यूरोपीय यात्रा रुझान
+  th: เทรนด์การท่องเที่ยวยุโรป ฤดูร้อนปี 2026
+  cs: Evropské cestovní trendy pro léto 2026
+  sv: Europeiska resetrender för sommaren 2026
+  he: מגמות תיירות באירופה לקיץ 2026
+  verified_by_human: [en]
+news.search.2:
+  context: Query label for the second news search example in the app store. Shown on a preview card that opens a real Brave news result set about healthy eating recommendations and dietary guidance across Europe.
+  en: Healthy eating recommendations in Europe
+  de: Empfehlungen für gesunde Ernährung in Europa
+  zh: 欧洲健康饮食建议
+  es: Recomendaciones de alimentación saludable en Europa
+  fr: Recommandations pour une alimentation saine en Europe
+  pt: Recomendações de alimentação saudável na Europa
+  ru: Рекомендации по здоровому питанию в Европе
+  ja: 欧州の健康的な食事に関する推奨事項
+  ko: 유럽의 건강한 식생활 권장 사항
+  tr: "Avrupa'da sağlıklı beslenme önerileri"
+  vi: Khuyến nghị ăn uống lành mạnh ở châu Âu
+  id: Rekomendasi makan sehat di Eropa
+  pl: Zalecenia dotyczące zdrowego odżywiania w Europie
+  nl: Aanbevelingen voor gezonde voeding in Europa
+  ar: توصيات الأكل الصحي في أوروبا
+  hi: यूरोप में स्वस्थ खान-पान की सिफारिशें
+  th: คำแนะนำการกินเพื่อสุขภาพในยุโรป
+  cs: Doporučení pro zdravé stravování v Evropě
+  sv: Rekommendationer för hälsosam kost i Europa
+  he: המלצות לתזונה בריאה באירופה
+  verified_by_human: [en]
+news.search.3:
+  context: Query label for the third news search example in the app store. Shown on a preview card that opens a real Brave news result set about cultural festivals happening across Europe this summer.
+  en: Cultural festivals in Europe this summer
+  de: Kulturfestivals in Europa diesen Sommer
+  zh: 今年夏天欧洲的文化节
+  es: Festivales culturales en Europa este verano
+  fr: Festivals culturels en Europe cet été
+  pt: Festivais culturais na Europa este verão
+  ru: Культурные фестивали в Европе этим летом
+  ja: 今年の夏に欧州で開催される文化フェスティバル
+  ko: 이번 여름 유럽의 문화 축제
+  tr: "Bu yaz Avrupa'daki kültürel festivaller"
+  vi: Các lễ hội văn hóa ở châu Âu mùa hè này
+  id: Festival budaya di Eropa musim panas ini
+  pl: Festiwale kulturalne w Europie tego lata
+  nl: Culturele festivals in Europa deze zomer
+  ar: المهرجانات الثقافية في أوروبا هذا الصيف
+  hi: इस गर्मी यूरोप में सांस्कृतिक उत्सव
+  th: เทศกาลทางวัฒนธรรมในยุโรปฤดูร้อนนี้
+  cs: Kulturní festivaly v Evropě toto léto
+  sv: Kulturfestivaler i Europa i sommar
+  he: פסטיבלי תרבות באירופה הקיץ
+  verified_by_human: [en]
+
+videos.search.1:
+  context: Query label for the first videos search example in the app store. Shown on a preview card that opens real Brave video results for videos about NASA's Artemis II Moon mission.
+  en: Artemis II mission videos
+  de: Videos zur Artemis-II-Mission
+  zh: 阿耳忒弥斯2号任务视频
+  es: Vídeos de la misión Artemis II
+  fr: Vidéos de la mission Artemis II
+  pt: Vídeos da missão Artemis II
+  ru: Видео миссии «Артемида-2»
+  ja: アルテミス2号ミッションの動画
+  ko: 아르테미스 2호 미션 영상
+  tr: Artemis II görevi videoları
+  vi: Video về sứ mệnh Artemis II
+  id: Video misi Artemis II
+  pl: Filmy z misji Artemis II
+  nl: "Video's van de Artemis II-missie"
+  ar: فيديوهات مهمة أرتيميس 2
+  hi: आर्टेमिस II मिशन के वीडियो
+  th: วิดีโอภารกิจ Artemis II
+  cs: Videa z mise Artemis II
+  sv: Videor från Artemis II-uppdraget
+  he: סרטונים של משימת ארטמיס 2
+  verified_by_human: [en]
+videos.search.2:
+  context: Query label for the second videos search example in the app store. Shown on a preview card that opens real Brave video results for easy weeknight pasta recipe tutorials.
+  en: Easy weeknight pasta recipes
+  de: Einfache Pasta-Rezepte für unter der Woche
+  zh: 简单的工作日意面食谱
+  es: Recetas fáciles de pasta para entre semana
+  fr: Recettes de pâtes faciles pour les soirs de semaine
+  pt: Receitas fáceis de massa para os dias de semana
+  ru: Простые рецепты пасты на ужин
+  ja: 平日の夜にぴったりの簡単パスタレシピ
+  ko: 평일 저녁에 하기 쉬운 파스타 레시피
+  tr: Hafta içi için kolay makarna tarifleri
+  vi: Công thức mì Ý dễ làm cho tối trong tuần
+  id: Resep pasta praktis untuk hari kerja
+  pl: Łatwe przepisy na makaron w tygodniu
+  nl: Makkelijke doordeweekse pastarecepten
+  ar: وصفات باستا سهلة للعشاء خلال الأسبوع
+  hi: रात के खाने के लिए पास्ता की आसान रेसिपी
+  th: สูตรพาสต้าทำง่ายสำหรับมื้อค่ำ
+  cs: Snadné recepty na těstoviny k večeři
+  sv: Enkla pastarecept för vardagskvällar
+  he: מתכוני פסטה קלים לאמצע השבוע
+  verified_by_human: [en]
+videos.search.3:
+  context: Query label for the third videos search example in the app store. Shown on a preview card that opens real Brave video results for a beginner morning yoga routine.
+  en: Beginner morning yoga routine
+  de: Morgenyoga-Routine für Anfänger
+  zh: 初学者晨间瑜伽练习
+  es: Rutina de yoga matutino para principiantes
+  fr: Routine de yoga matinal pour débutants
+  pt: Rotina de ioga matinal para iniciantes
+  ru: Утренняя йога для начинающих
+  ja: 初心者向けの朝ヨガルーティン
+  ko: 초보자를 위한 아침 요가 루틴
+  tr: Yeni başlayanlar için sabah yogası rutini
+  vi: Bài tập yoga buổi sáng cho người mới bắt đầu
+  id: Rutinitas yoga pagi untuk pemula
+  pl: Poranna joga dla początkujących
+  nl: Ochtendyoga-routine voor beginners
+  ar: روتين يوغا صباحي للمبتدئين
+  hi: शुरुआती लोगों के लिए सुबह का योग रूटीन
+  th: โยคะยามเช้าสำหรับผู้เริ่มต้น
+  cs: Ranní jóga pro začátečníky
+  sv: Morgonyoga för nybörjare
+  he: שגרת יוגה בוקר למתחילים
+  verified_by_human: [en]
+
+maps.search.1:
+  context: Query label for the first maps search example in the app store. Shown on a preview card that opens a map of bakeries and cafés across central Paris.
+  en: Bakeries and cafés in central Paris
+  de: Bäckereien und Cafés im Zentrum von Paris
+  zh: 巴黎市中心的烘焙店和咖啡馆
+  es: Panaderías y cafeterías en el centro de París
+  fr: Boulangeries et cafés dans le centre de Paris
+  pt: Padarias e cafés no centro de Paris
+  ru: Пекарни и кафе в центре Парижа
+  ja: パリ中心部のベーカリーとカフェ
+  ko: 파리 중심가의 베이커리 및 카페
+  tr: Paris merkezindeki fırınlar ve kafeler
+  vi: Tiệm bánh và quán cà phê ở trung tâm Paris
+  id: Toko roti dan kafe di pusat Paris
+  pl: Piekarnie i kawiarnie w centrum Paryża
+  nl: Bakkerijen en cafés in het centrum van Parijs
+  ar: مخابز ومقاهٍ في وسط باريس
+  hi: मध्य पेरिस में बेकरी और कैफे
+  th: ร้านเบเกอรี่และคาเฟ่ในใจกลางปารีส
+  cs: Pekárny a kavárny v centru Paříže
+  sv: Bagerier och kaféer i centrala Paris
+  he: מאפיות ובתי קפה במרכז פריז
+  verified_by_human: [en]
+maps.search.2:
+  context: Query label for the second maps search example in the app store. Shown on a preview card that opens a map of family-friendly parks across Berlin.
+  en: Family-friendly parks in Berlin
+  de: Familienfreundliche Parks in Berlin
+  zh: 柏林的亲子公园
+  es: Parques familiares en Berlín
+  fr: Parcs familiaux à Berlin
+  pt: Parques para famílias em Berlim
+  ru: Парки для отдыха с детьми в Берлине
+  ja: ベルリンの家族連れに優しい公園
+  ko: 베를린의 가족 친화적 공원
+  tr: "Berlin'deki aile dostu parklar"
+  vi: Công viên thân thiện với gia đình ở Berlin
+  id: Taman ramah keluarga di Berlin
+  pl: Parki przyjazne rodzinom w Berlinie
+  nl: Gezinsvriendelijke parken in Berlijn
+  ar: منتزهات مناسبة للعائلات في برلين
+  hi: बर्लिन में परिवारों के लिए उपयुक्त पार्क
+  th: สวนสาธารณะสำหรับครอบครัวในเบอร์ลิน
+  cs: Parky pro rodiny v Berlíně
+  sv: Familjevänliga parker i Berlin
+  he: פארקים למשפחות בברלין
+  verified_by_human: [en]
+maps.search.3:
+  context: Query label for the third maps search example in the app store. Shown on a preview card that opens a map of tapas bars in central Barcelona.
+  en: Tapas bars in central Barcelona
+  de: Tapas-Bars im Zentrum von Barcelona
+  zh: 巴塞罗那市中心的塔帕斯酒吧
+  es: Bares de tapas en el centro de Barcelona
+  fr: Bars à tapas dans le centre de Barcelone
+  pt: Bares de tapas no centro de Barcelona
+  ru: Тапас-бары в центре Барселоны
+  ja: バルセロナ中心部のタパスバー
+  ko: 바르셀로나 중심가의 타파스 바
+  tr: Barselona merkezindeki tapas barlar
+  vi: Quán bar tapas ở trung tâm Barcelona
+  id: Bar tapas di pusat Barcelona
+  pl: Bary tapas w centrum Barcelony
+  nl: Tapasbars in het centrum van Barcelona
+  ar: حانات التاباس في وسط برشلونة
+  hi: मध्य बार्सिलोना में तापस बार
+  th: ทาปาสบาร์ในใจกลางบาร์เซโลนา
+  cs: Tapas bary v centru Barcelony
+  sv: Tapasbarer i centrala Barcelona
+  he: טאפאס ברים במרכז ברצלונה
+  verified_by_human: [en]
+
+shopping.search_products.1:
+  context: Query label for the first shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for organic dark chocolate bars.
+  en: Organic dark chocolate
+  de: Bio-Zartbitterschokolade
+  zh: 有机黑巧克力
+  es: Chocolate negro orgánico
+  fr: Chocolat noir bio
+  pt: Chocolate amargo orgânico
+  ru: Органический темный шоколад
+  ja: オーガニック ダークチョコレート
+  ko: 유기농 다크 초콜릿
+  it: Cioccolato fondente biologico
+  tr: Organik bitter çikolata
+  vi: Sô-cô-la đen hữu cơ
+  id: Cokelat hitam organik
+  pl: Ekologiczna gorzka czekolada
+  nl: Biologische pure chocolade
+  ar: شوكولاتة داكنة عضوية
+  hi: ऑर्गेनिक डार्क चॉकलेट
+  th: ดาร์กช็อกโกแลตออร์แกนิก
+  cs: Bio hořká čokoláda
+  sv: Ekologisk mörk choklad
+  he: שוקולד מריר אורגני
+  verified_by_human: [en]
+shopping.search_products.2:
+  context: Query label for the second shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for extra virgin olive oil.
+  en: Extra virgin olive oil
+  de: Natives Olivenöl extra
+  zh: 特级初榨橄榄油
+  es: Aceite de oliva virgen extra
+  fr: "Huile d'olive extra vierge"
+  pt: Azeite de oliva extra virgem
+  ru: Оливковое масло Extra Virgin
+  ja: エキストラバージン オリーブオイル
+  ko: 엑스트라 버진 올리브 오일
+  it: Olio extravergine di oliva
+  tr: Sızma zeytinyağı
+  vi: Dầu ô liu nguyên chất
+  id: Minyak zaitun extra virgin
+  pl: Oliwa z oliwek extra virgin
+  nl: Extra vierge olijfolie
+  ar: زيت زيتون بكر ممتاز
+  hi: एक्स्ट्रा वर्जिन जैतून का तेल
+  th: น้ำมันมะกอกเอ็กซ์ตร้าเวอร์จิ้น
+  cs: Extra panenský olivový olej
+  sv: Extra jungfruolivolja
+  he: שמן זית כתית מעולה
+  verified_by_human: [en]
+shopping.search_products.3:
+  context: Query label for the third shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for spaghetti pasta.
+  en: Spaghetti pasta
+  de: Spaghetti
+  zh: 意大利面
+  es: Pasta de espaguetis
+  fr: Pâtes spaghetti
+  pt: Espaguete
+  ru: Паста спагетти
+  ja: スパゲッティ パスタ
+  ko: 스파게티 파스타
+  it: Spaghetti
+  tr: Spagetti makarna
+  vi: Mì Ý spaghetti
+  id: Pasta spageti
+  pl: Makaron spaghetti
+  nl: Spaghetti pasta
+  ar: مكرونة سباغيتي
+  hi: स्पैगेटी पास्ता
+  th: พาสต้าสปาเกตตี
+  cs: Těstoviny špagety
+  sv: Spagetti
+  he: פסטה ספגטי
+  verified_by_human: [en]
+
+travel.search_stays.1:
+  context: Query label for the first travel stays example in the app store. Shown on a preview card that opens hotel options in central Lisbon, Portugal.
+  en: Hotels in central Lisbon
+  de: Hotels im Zentrum von Lissabon
+  zh: 里斯本市中心的酒店
+  es: Hoteles en el centro de Lisboa
+  fr: Hôtels dans le centre de Lisbonne
+  pt: Hotéis no centro de Lisboa
+  ru: Отели в центре Лиссабона
+  ja: リスボン中心部のホテル
+  ko: 리스본 중심가의 호텔
+  tr: Lizbon merkezindeki oteller
+  vi: Khách sạn ở trung tâm Lisbon
+  id: Hotel di pusat Lisbon
+  pl: Hotele w centrum Lizbony
+  nl: Hotels in het centrum van Lissabon
+  ar: فنادق في وسط لشبونة
+  hi: मध्य लिस्बन में होटल
+  th: โรงแรมในใจกลางลิสบอน
+  cs: Hotely v centru Lisabonu
+  sv: Hotell i centrala Lissabon
+  he: מלונות במרכז ליסבון
+  verified_by_human: [en]
+travel.search_stays.2:
+  context: Query label for the second travel stays example in the app store. Shown on a preview card that opens mountain cabin options in the Austrian Alps.
+  en: Mountain cabins in the Austrian Alps
+  de: Berghütten in den österreichischen Alpen
+  zh: 奥地利阿尔卑斯山脉的山间木屋
+  es: Cabañas de montaña en los Alpes austríacos
+  fr: Chalets de montagne dans les Alpes autrichiennes
+  pt: Cabanas de montanha nos Alpes austríacos
+  ru: Горные хижины в Австрийских Альпах
+  ja: オーストリア・アルプスの山小屋
+  ko: 오스트리아 알프스의 산장
+  tr: "Avusturya Alpleri'ndeki dağ kulübeleri"
+  vi: Nhà gỗ trên núi ở dãy Alps của Áo
+  id: Kabin gunung di Pegunungan Alpen Austria
+  pl: Górskie chaty w Alpach Austriackich
+  nl: Berghutten in de Oostenrijkse Alpen
+  ar: أكواخ جبلية في جبال الألب النمساوية
+  hi: ऑस्ट्रियाई आल्प्स में माउंटेन केबिन
+  th: กระท่อมบนเขาในเทือกเขาแอลป์ ออสเตรีย
+  cs: Horské chaty v rakouských Alpách
+  sv: Bergsstugor i de österrikiska Alperna
+  he: בקתות הרים באלפים האוסטריים
+  verified_by_human: [en]
+travel.search_stays.3:
+  context: Query label for the third travel stays example in the app store. Shown on a preview card that opens family-friendly hotel options across the Greek islands.
+  en: Family hotels in the Greek islands
+  de: Familienhotels auf den griechischen Inseln
+  zh: 希腊群岛的亲子酒店
+  es: Hoteles familiares en las islas griegas
+  fr: Hôtels familiaux dans les îles grecques
+  pt: Hotéis para famílias nas ilhas gregas
+  ru: Семейные отели на греческих островах
+  ja: ギリシャ諸島のファミリーホテル
+  ko: 그리스 제도의 가족 호텔
+  tr: Yunan adalarındaki aile otelleri
+  vi: Khách sạn gia đình ở các hòn đảo Hy Lạp
+  id: Hotel keluarga di kepulauan Yunani
+  pl: Hotele rodzinne na greckich wyspach
+  nl: Familiehotels op de Griekse eilanden
+  ar: فنادق عائلية في الجزر اليونانية
+  hi: ग्रीक द्वीपों में फैमिली होटल
+  th: โรงแรมสำหรับครอบครัวในหมู่เกาะกรีซ
+  cs: Rodinné hotely na řeckých ostrovech
+  sv: Familjehotell på de grekiska öarna
+  he: מלונות למשפחות באיי יוון
+  verified_by_human: [en]
+
+events.search.1:
+  context: Query label for the first events search example in the app store. Shown on a preview card that opens results for farmers markets and food festivals in Lyon, France.
+  en: Farmers markets and food festivals in Lyon
+  de: Wochenmärkte und Food-Festivals in Lyon
+  zh: 里昂的农贸市场和美食节
+  es: Mercados locales y festivales gastronómicos en Lyon
+  fr: Marchés de producteurs et festivals culinaires à Lyon
+  pt: Mercados de produtores e festivais gastronômicos em Lyon
+  ru: Фермерские рынки и гастрофестивали в Лионе
+  ja: リヨンのファーマーズマーケットとフードフェスティバル
+  ko: 리옹의 파머스 마켓 및 푸드 페스티벌
+  tr: "Lyon'daki üretici pazarları ve yemek festivalleri"
+  vi: Chợ nông sản và lễ hội ẩm thực ở Lyon
+  id: Pasar tani dan festival makanan di Lyon
+  pl: Targi rolne i festiwale kulinarne w Lyonie
+  nl: Boerenmarkten en foodfestivals in Lyon
+  ar: أسواق المزارعين ومهرجانات الطعام في ليون
+  hi: ल्यों में फार्मर्स मार्केट और फूड फेस्टिवल
+  th: ตลาดเกษตรกรและเทศกาลอาหารในลียง
+  cs: Farmářské trhy a gastrofestivaly v Lyonu
+  sv: Bondens marknad och matfestivaler i Lyon
+  he: שוקי איכרים ופסטיבלי אוכל בליון
+  verified_by_human: [en]
+events.search.2:
+  context: Query label for the second events search example in the app store. Shown on a preview card that opens results for family-friendly weekend events in Vienna, Austria.
+  en: Family weekend events in Vienna
+  de: Wochenend-Events für Familien in Wien
+  zh: 维也纳的家庭周末活动
+  es: Eventos familiares de fin de semana en Viena
+  fr: Événements familiaux du week-end à Vienne
+  pt: Eventos de fim de semana para famílias em Viena
+  ru: Семейные мероприятия на выходные в Вене
+  ja: ウィーンの家族向け週末イベント
+  ko: 빈의 가족 주말 이벤트
+  tr: "Viyana'da aileler için hafta sonu etkinlikleri"
+  vi: Sự kiện cuối tuần cho gia đình ở Vienna
+  id: Acara akhir pekan keluarga di Wina
+  pl: Rodzinne wydarzenia weekendowe w Wiedniu
+  nl: Weekendactiviteiten voor gezinnen in Wenen
+  ar: فعاليات عائلية في عطلة نهاية الأسبوع في فيينا
+  hi: वियना में फैमिली वीकेंड इवेंट्स
+  th: กิจกรรมครอบครัวช่วงสุดสัปดาห์ในเวียนนา
+  cs: Víkendové akce pro rodiny ve Vídni
+  sv: Familjeevenemang i Wien i helgen
+  he: אירועי סוף שבוע למשפחות בווינה
+  verified_by_human: [en]
+events.search.3:
+  context: Query label for the third events search example in the app store. Shown on a preview card that opens results for outdoor summer concerts in Amsterdam, Netherlands.
+  en: Summer concerts in Amsterdam
+  de: Sommerkonzerte in Amsterdam
+  zh: 阿姆斯特丹的夏季音乐会
+  es: Conciertos de verano en Ámsterdam
+  fr: "Concerts d'été à Amsterdam"
+  pt: Concertos de verão em Amsterdã
+  ru: Летние концерты в Амстердаме
+  ja: アムステルダムのサマーコンサート
+  ko: 암스테르담의 여름 콘서트
+  tr: "Amsterdam'daki yaz konserleri"
+  vi: Các buổi hòa nhạc mùa hè ở Amsterdam
+  id: Konser musim panas di Amsterdam
+  pl: Letnie koncerty w Amsterdamie
+  nl: Zomerconcerten in Amsterdam
+  ar: حفلات موسيقية صيفية في أمستردام
+  hi: एम्स्टर्डम में समर कॉन्सर्ट
+  th: คอนเสิร์ตฤดูร้อนในอัมสเตอร์ดัม
+  cs: Letní koncerty v Amsterdamu
+  sv: Sommarkonserter i Amsterdam
+  he: הופעות קיץ באמסטרדם
+  verified_by_human: [en]
+
+images.search.1:
+  context: Query label for the first images search example in the app store. Shown on a preview card that opens real Brave image results for the Artemis II Moon mission.
+  en: Artemis II mission
+  de: Artemis-II-Mission
+  zh: 阿耳忒弥斯2号任务
+  es: Misión Artemis II
+  fr: Mission Artemis II
+  pt: Missão Artemis II
+  ru: Миссия «Артемида-2»
+  ja: アルテミス2号ミッション
+  ko: 아르테미스 2호 미션
+  tr: Artemis II görevi
+  vi: Sứ mệnh Artemis II
+  id: Misi Artemis II
+  pl: Misja Artemis II
+  nl: Artemis II-missie
+  ar: مهمة أرتيميس 2
+  hi: आर्टेमिस II मिशन
+  th: ภารกิจ Artemis II
+  cs: Mise Artemis II
+  sv: Artemis II-uppdraget
+  he: משימת ארטמיס 2
+  verified_by_human: [en]
+images.search.2:
+  context: Query label for the second images search example in the app store. Shown on a preview card that opens real Brave image results for a Mediterranean coastal village at sunset.
+  en: Mediterranean coast village at sunset
+  de: Dorf an der Mittelmeerküste bei Sonnenuntergang
+  zh: 日落时分的地中海沿岸村庄
+  es: Pueblo costero del Mediterráneo al atardecer
+  fr: Village côtier méditerranéen au coucher du soleil
+  pt: Vila na costa mediterrânea ao pôr do sol
+  ru: Деревня на средиземноморском побережье на закате
+  ja: 夕暮れ時の地中海沿岸の村
+  ko: 일몰 무렵의 지중해 연안 마을
+  tr: Gün batımında Akdeniz kıyı köyü
+  vi: Ngôi làng ven biển Địa Trung Hải lúc hoàng hôn
+  id: Desa pesisir Mediterania saat matahari terbenam
+  pl: Śródziemnomorska wioska nadmorska o zachodzie słońca
+  nl: Mediterraan kustdorpje bij zonsondergang
+  ar: قرية على ساحل البحر المتوسط عند الغروب
+  hi: सूर्यास्त के समय भूमध्यसागरीय तटीय गाँव
+  th: หมู่บ้านชายฝั่งเมดิเตอร์เรเนียนยามพระอาทิตย์ตก
+  cs: Vesnice na středomořském pobřeží při západu slunce
+  sv: Medelhavsby vid solnedgången
+  he: כפר בחוף הים התיכון בשקיעה
+  verified_by_human: [en]
+images.search.3:
+  context: Query label for the third images search example in the app store. Shown on a preview card that opens real Brave image results for a cozy winter breakfast table setting.
+  en: Cozy winter breakfast table
+  de: Gemütlicher Frühstückstisch im Winter
+  zh: 温馨的冬季早餐桌
+  es: Mesa de desayuno de invierno acogedora
+  fr: "Table de petit-déjeuner d'hiver chaleureuse"
+  pt: Mesa de café da manhã de inverno acolhedora
+  ru: Уютный зимний завтрак
+  ja: 冬の心地よい朝食のテーブル
+  ko: 아늑한 겨울 아침 식탁
+  tr: Sıcak bir kış kahvaltısı sofrası
+  vi: Bàn ăn sáng mùa đông ấm cúng
+  id: Meja sarapan musim dingin yang nyaman
+  pl: Przytulny zimowy stół śniadaniowy
+  nl: Gezellige winterse ontbijttafel
+  ar: مائدة إفطار شتوية دافئة
+  hi: सर्दियों के नाश्ते की आरामदायक मेज
+  th: โต๊ะอาหารเช้าฤดูหนาวที่แสนอบอุ่น
+  cs: Útulný zimní snídaňový stůl
+  sv: Mysigt frukostbord på vintern
+  he: שולחן ארוחת בוקר חורפי ונעים
+  verified_by_human: [en]
+
+code.get_docs.1:
+  context: Query label for the first code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for the Svelte 5 $state rune.
+  en: Svelte 5 $state rune
+  de: Svelte 5 $state-Rune
+  zh: Svelte 5 $state 符文
+  es: Runa $state de Svelte 5
+  fr: Rune $state de Svelte 5
+  pt: Runa $state do Svelte 5
+  ru: Руна $state в Svelte 5
+  ja: Svelte 5 $state ルーン
+  ko: Svelte 5 $state 룬
+  it: Runa $state di Svelte 5
+  tr: Svelte 5 $state rünü
+  vi: Svelte 5 rune $state
+  id: Rune $state Svelte 5
+  pl: Runa $state w Svelte 5
+  nl: Svelte 5 $state-rune
+  ar: رمز $state في Svelte 5
+  hi: Svelte 5 $state रून
+  th: Svelte 5 รูน $state
+  cs: Runa $state v Svelte 5
+  sv: Svelte 5 $state-runan
+  he: רון $state ב-Svelte 5
+  verified_by_human: [en]
+code.get_docs.2:
+  context: Query label for the second code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for the React useState hook.
+  en: React useState hook
+  de: React useState-Hook
+  zh: React useState 钩子
+  es: Hook useState de React
+  fr: Hook useState de React
+  pt: Hook useState do React
+  ru: Хук useState в React
+  ja: React useState フック
+  ko: React useState 훅
+  it: Hook useState di React
+  tr: React useState kancası
+  vi: React hook useState
+  id: Hook useState React
+  pl: Hook useState w React
+  nl: React useState-hook
+  ar: خطاف useState في React
+  hi: React useState हुक
+  th: React hook useState
+  cs: Hook useState v Reactu
+  sv: React useState-hook
+  he: הוק useState ב-React
+  verified_by_human: [en]
+code.get_docs.3:
+  context: Query label for the third code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for FastAPI path parameters.
+  en: FastAPI path parameters
+  de: FastAPI-Pfadparameter
+  zh: FastAPI 路径参数
+  es: Parámetros de ruta de FastAPI
+  fr: Paramètres de chemin FastAPI
+  pt: Parâmetros de caminho do FastAPI
+  ru: Параметры пути в FastAPI
+  ja: FastAPI パスパラメータ
+  ko: FastAPI 경로 매개변수
+  it: Parametri di percorso di FastAPI
+  tr: FastAPI yol parametreleri
+  vi: Tham số đường dẫn FastAPI
+  id: Parameter path FastAPI
+  pl: Parametry ścieżki FastAPI
+  nl: FastAPI-padparameters
+  ar: معلمات المسار في FastAPI
+  hi: FastAPI पथ पैरामीटर
+  th: พารามิเตอร์พาธ FastAPI
+  cs: Parametry cesty ve FastAPI
+  sv: FastAPI-vägparametrar
+  he: פרמטרי נתיב ב-FastAPI
+  verified_by_human: [en]
+
+health.search_appointments.1:
+  context: Query label for the first health appointments example in the app store. Shown on a preview card that opens real Doctolib appointment results for ophthalmologists (eye doctors) in Berlin, Germany.
+  en: Eye doctor in Berlin
+  de: Augenarzt in Berlin
+  zh: 柏林的眼科医生
+  es: Oftalmólogo en Berlín
+  fr: Ophtalmologue à Berlin
+  pt: Oftalmologista em Berlim
+  ru: Офтальмолог в Берлине
+  ja: ベルリンの眼科医
+  ko: 베를린의 안과 의사
+  it: Oculista a Berlino
+  tr: "Berlin'de göz doktoru"
+  vi: Bác sĩ mắt ở Berlin
+  id: Dokter mata di Berlin
+  pl: Okulista w Berlinie
+  nl: Oogarts in Berlijn
+  ar: طبيب عيون في برلين
+  hi: बर्लिन में आँखों के डॉक्टर
+  th: จักษุแพทย์ในเบอร์ลิน
+  cs: Oční lékař v Berlíně
+  sv: Ögonläkare i Berlin
+  he: רופא עיניים בברלין
+  verified_by_human: [en]
+health.search_appointments.2:
+  context: Query label for the second health appointments example in the app store. Shown on a preview card that opens real appointment results for dermatologists (skin doctors) in Munich, Germany.
+  en: Dermatologist in Munich
+  de: Hautarzt in München
+  zh: 慕尼黑的皮肤科医生
+  es: Dermatólogo en Múnich
+  fr: Dermatologue à Munich
+  pt: Dermatologista em Munique
+  ru: Дерматолог в Мюнхене
+  ja: ミュンヘンの皮膚科医
+  ko: 뮌헨의 피부과 의사
+  it: Dermatologo a Monaco
+  tr: "Münih'te dermatolog"
+  vi: Bác sĩ da liễu ở Munich
+  id: Dokter kulit di Munich
+  pl: Dermatolog w Monachium
+  nl: Dermatoloog in München
+  ar: طبيب جلدية في ميونخ
+  hi: म्यूनिख में त्वचा विशेषज्ञ
+  th: แพทย์ผิวหนังในมิวนิก
+  cs: Dermatolog v Mnichově
+  sv: Hudläkare i München
+  he: רופא עור במינכן
+  verified_by_human: [en]
+health.search_appointments.3:
+  context: Query label for the third health appointments example in the app store. Shown on a preview card that opens real appointment results for gynecologists in Hamburg, Germany.
+  en: Gynecologist in Hamburg
+  de: Frauenarzt in Hamburg
+  zh: 汉堡的妇科医生
+  es: Ginecólogo en Hamburgo
+  fr: Gynécologue à Hambourg
+  pt: Ginecologista em Hamburgo
+  ru: Гинеколог в Гамбурге
+  ja: ハンブルクの産婦人科医
+  ko: 함부르크의 산부인과 의사
+  it: Ginecologo ad Amburgo
+  tr: "Hamburg'da jinekolog"
+  vi: Bác sĩ phụ khoa ở Hamburg
+  id: Dokter kandungan di Hamburg
+  pl: Ginekolog w Hamburgu
+  nl: Gynaecoloog in Hamburg
+  ar: طبيب نساء في هامبورغ
+  hi: हैम्बर्ग में स्त्री रोग विशेषज्ञ
+  th: สูตินรีแพทย์ในฮัมบูร์ก
+  cs: Gynekolog v Hamburku
+  sv: Gynekolog i Hamburg
+  he: רופא נשים בהמבורג
+  verified_by_human: [en]
+
+home.search.1:
+  context: Query label for the first home listings example in the app store. Shown on a preview card that opens real rental listings for apartments in Berlin, Germany.
+  en: Apartments for rent in Berlin
+  de: Mietwohnungen in Berlin
+  zh: 柏林的待租公寓
+  es: Apartamentos en alquiler en Berlín
+  fr: Appartements à louer à Berlin
+  pt: Apartamentos para alugar em Berlim
+  ru: Аренда квартир в Берлине
+  ja: ベルリンの賃貸アパート
+  ko: 베를린의 아파트 임대
+  it: Appartamenti in affitto a Berlino
+  tr: "Berlin'de kiralık daireler"
+  vi: Căn hộ cho thuê ở Berlin
+  id: Apartemen disewakan di Berlin
+  pl: Mieszkania na wynajem w Berlinie
+  nl: Appartementen te huur in Berlijn
+  ar: شقق للإيجار في برلين
+  hi: बर्लिन में किराए के लिए अपार्टमेंट
+  th: อพาร์ตเมนต์ให้เช่าในเบอร์ลิน
+  cs: Byty k pronájmu v Berlíně
+  sv: Lägenheter att hyra i Berlin
+  he: דירות להשכרה בברלין
+  verified_by_human: [en]
+home.search.2:
+  context: Query label for the second home listings example in the app store. Shown on a preview card that opens real purchase listings for apartments in Munich, Germany.
+  en: Apartments to buy in Munich
+  de: Eigentumswohnungen in München
+  zh: 慕尼黑的待售公寓
+  es: Apartamentos en venta en Múnich
+  fr: Appartements à acheter à Munich
+  pt: Apartamentos para comprar em Munique
+  ru: Купить квартиру в Мюнхене
+  ja: ミュンヘンの購入用アパート
+  ko: 뮌헨의 아파트 매매
+  it: Appartamenti in vendita a Monaco
+  tr: "Münih'te satılık daireler"
+  vi: Mua căn hộ ở Munich
+  id: Apartemen dijual di Munich
+  pl: Mieszkania na sprzedaż w Monachium
+  nl: Appartementen te koop in München
+  ar: شقق للبيع في ميونخ
+  hi: म्यूनिख में खरीदने के लिए अपार्टमेंट
+  th: อพาร์ตเมนต์สำหรับซื้อในมิวนิก
+  cs: Byty ke koupi v Mnichově
+  sv: Lägenheter att köpa i München
+  he: דירות לקנייה במינכן
+  verified_by_human: [en]
+home.search.3:
+  context: Query label for the third home listings example in the app store. Shown on a preview card that opens real listings for homes in the old town district of Hamburg, Germany.
+  en: Homes in Hamburg Altstadt
+  de: Häuser in Hamburg Altstadt
+  zh: 汉堡老城区的住宅
+  es: Casas en Hamburg Altstadt
+  fr: Maisons à Hambourg Altstadt
+  pt: Casas em Hamburgo Altstadt
+  ru: Дома в Альтштадте, Гамбург
+  ja: ハンブルク旧市街の住宅
+  ko: 함부르크 알트슈타트의 주택
+  it: Case ad Amburgo Altstadt
+  tr: "Hamburg Altstadt'ta evler"
+  vi: Nhà ở Hamburg Altstadt
+  id: Rumah di Hamburg Altstadt
+  pl: Domy w Hamburg Altstadt
+  nl: Woningen in Hamburg Altstadt
+  ar: منازل في بلدة هامبورغ القديمة
+  hi: हैम्बर्ग अल्टस्टाड में घर
+  th: บ้านในย่านเมืองเก่าฮัมบูร์ก
+  cs: Domy v Hamburg Altstadt
+  sv: Bostäder i Hamburg Altstadt
+  he: בתים בהמבורג אלטשטאדט
+  verified_by_human: [en]
+
+travel.search_connections.1:
+  context: Query label for the first travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Munich, Germany to London, United Kingdom.
+  en: Flights from Munich to London
+  de: Flüge von München nach London
+  zh: 慕尼黑飞往伦敦的航班
+  es: Vuelos de Múnich a Londres
+  fr: Vols de Munich à Londres
+  pt: Voos de Munique para Londres
+  ru: Авиабилеты Мюнхен — Лондон
+  ja: ミュンヘン発ロンドン行きのフライト
+  ko: 뮌헨발 런던행 항공권
+  it: Voli da Monaco a Londra
+  tr: Münih - Londra uçuşları
+  vi: Chuyến bay từ Munich đến London
+  id: Penerbangan dari Munich ke London
+  pl: Loty z Monachium do Londynu
+  nl: Vluchten van München naar Londen
+  ar: رحلات طيران من ميونخ إلى لندن
+  hi: म्यूनिख से लंदन के लिए उड़ानें
+  th: เที่ยวบินจากมิวนิกไปลอนดอน
+  cs: Lety z Mnichova do Londýna
+  sv: Flyg från München till London
+  he: טיסות ממינכן ללונדון
+  verified_by_human: [en]
+travel.search_connections.2:
+  context: Query label for the second travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Berlin, Germany to Barcelona, Spain.
+  en: Flights from Berlin to Barcelona
+  de: Flüge von Berlin nach Barcelona
+  zh: 柏林飞往巴塞罗那的航班
+  es: Vuelos de Berlín a Barcelona
+  fr: Vols de Berlin à Barcelone
+  pt: Voos de Berlim para Barcelona
+  ru: Авиабилеты Берлин — Барселона
+  ja: ベルリン発バルセロナ行きのフライト
+  ko: 베를린발 바르셀로나행 항공권
+  it: Voli da Berlino a Barcellona
+  tr: Berlin - Barselona uçuşları
+  vi: Chuyến bay từ Berlin đến Barcelona
+  id: Penerbangan dari Berlin ke Barcelona
+  pl: Loty z Berlina do Barcelony
+  nl: Vluchten van Berlijn naar Barcelona
+  ar: رحلات طيران من برلين إلى برشلونة
+  hi: बर्लिन से बार्सिलोना के लिए उड़ानें
+  th: เที่ยวบินจากเบอร์ลินไปบาร์เซโลนา
+  cs: Lety z Berlína do Barcelony
+  sv: Flyg från Berlin till Barcelona
+  he: טיסות מברלין לברצלונה
+  verified_by_human: [en]
+travel.search_connections.3:
+  context: Query label for the third travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Frankfurt, Germany to Paris, France.
+  en: Flights from Frankfurt to Paris
+  de: Flüge von Frankfurt nach Paris
+  zh: 法兰克福飞往巴黎的航班
+  es: Vuelos de Fráncfort a París
+  fr: Vols de Francfort à Paris
+  pt: Voos de Frankfurt para Paris
+  ru: Авиабилеты Франкфурт — Париж
+  ja: フランクフルト発パリ行きのフライト
+  ko: 프랑크푸르트발 파리행 항공권
+  it: Voli da Francoforte a Parigi
+  tr: Frankfurt - Paris uçuşları
+  vi: Chuyến bay từ Frankfurt đến Paris
+  id: Penerbangan dari Frankfurt ke Paris
+  pl: Loty z Frankfurtu do Paryża
+  nl: Vluchten van Frankfurt naar Parijs
+  ar: رحلات طيران من فرانكفورت إلى باريس
+  hi: फ्रैंकफर्ट से पेरिस के लिए उड़ानें
+  th: เที่ยวบินจากแฟรงก์เฟิร์ตไปปารีส
+  cs: Lety z Frankfurtu do Paříže
+  sv: Flyg från Frankfurt till Paris
+  he: טיסות מפרנקפורט לפריז
+  verified_by_human: [en]
+
+travel.price_calendar.1:
+  context: Query label for the first travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Munich, Germany to London, United Kingdom in May 2026.
+  en: Munich → London, May 2026
+  de: München → London, Mai 2026
+  zh: 慕尼黑 → 伦敦，2026年5月
+  es: Múnich → Londres, mayo de 2026
+  fr: Munich → Londres, mai 2026
+  pt: Munique → Londres, maio de 2026
+  ru: Мюнхен → Лондон, май 2026
+  ja: ミュンヘン → ロンドン、2026年5月
+  ko: 뮌헨 → 런던, 2026년 5월
+  it: Monaco → Londra, maggio 2026
+  tr: Münih → Londra, Mayıs 2026
+  vi: Munich → London, tháng 5 năm 2026
+  id: Munich → London, Mei 2026
+  pl: Monachium → Londyn, maj 2026
+  nl: München → Londen, mei 2026
+  ar: ميونخ ← لندن، مايو 2026
+  hi: म्यूनिख → लंदन, मई 2026
+  th: มิวนิก → ลอนดอน พฤษภาคม 2026
+  cs: Mnichov → Londýn, květen 2026
+  sv: München → London, maj 2026
+  he: מינכן ← לונדון, מאי 2026
+  verified_by_human: [en]
+travel.price_calendar.2:
+  context: Query label for the second travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Berlin, Germany to Barcelona, Spain in June 2026.
+  en: Berlin → Barcelona, June 2026
+  de: Berlin → Barcelona, Juni 2026
+  zh: 柏林 → 巴塞罗那，2026年6月
+  es: Berlín → Barcelona, junio de 2026
+  fr: Berlin → Barcelone, juin 2026
+  pt: Berlim → Barcelona, junho de 2026
+  ru: Берлин → Барселона, июнь 2026
+  ja: ベルリン → バルセロナ、2026年6月
+  ko: 베를린 → 바르셀로나, 2026년 6월
+  it: Berlino → Barcellona, giugno 2026
+  tr: Berlin → Barselona, Haziran 2026
+  vi: Berlin → Barcelona, tháng 6 năm 2026
+  id: Berlin → Barcelona, Juni 2026
+  pl: Berlin → Barcelona, czerwiec 2026
+  nl: Berlijn → Barcelona, juni 2026
+  ar: برلين ← برشلونة، يونيو 2026
+  hi: बर्लिन → बार्सिलोना, जून 2026
+  th: เบอร์ลิน → บาร์เซโลนา มิถุนายน 2026
+  cs: Berlín → Barcelona, červen 2026
+  sv: Berlin → Barcelona, juni 2026
+  he: ברלין ← ברצלונה, יוני 2026
+  verified_by_human: [en]
+travel.price_calendar.3:
+  context: Query label for the third travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Frankfurt, Germany to Paris, France in July 2026.
+  en: Frankfurt → Paris, July 2026
+  de: Frankfurt → Paris, Juli 2026
+  zh: 法兰克福 → 巴黎，2026年7月
+  es: Fráncfort → París, julio de 2026
+  fr: Francfort → Paris, juillet 2026
+  pt: Frankfurt → Paris, julho de 2026
+  ru: Франкфурт → Париж, июль 2026
+  ja: フランクフルト → パリ、2026年7月
+  ko: 프랑크푸르트 → 파리, 2026년 7월
+  it: Francoforte → Parigi, luglio 2026
+  tr: Frankfurt → Paris, Temmuz 2026
+  vi: Frankfurt → Paris, tháng 7 năm 2026
+  id: Frankfurt → Paris, Juli 2026
+  pl: Frankfurt → Paryż, lipiec 2026
+  nl: Frankfurt → Parijs, juli 2026
+  ar: فرانكفورت ← باريس، يوليو 2026
+  hi: फ्रैंकफर्ट → पेरिस, जुलाई 2026
+  th: แฟรงก์เฟิร์ต → ปารีส กรกฎาคม 2026
+  cs: Frankfurt → Paříž, červenec 2026
+  sv: Frankfurt → Paris, juli 2026
+  he: פרנקפורט ← פריז, יולי 2026
+  verified_by_human: [en]
+
+videos.get_transcript.1:
+  context: Query label for the first video transcript example in the app store. Shown on a preview card that opens the transcript of a famous life-advice commencement speech on YouTube.
+  en: A famous life-advice speech
+  de: Eine berühmte Rede mit Lebensweisheiten
+  zh: 一场著名的生活建议演讲
+  es: Un discurso famoso sobre consejos de vida
+  fr: Un célèbre discours de conseils de vie
+  pt: Um discurso famoso com conselhos de vida
+  ru: Знаменитая речь с жизненными советами
+  ja: 人生のアドバイスに関する有名なスピーチ
+  ko: 유명한 인생 조언 연설
+  tr: Ünlü bir yaşam tavsiyesi konuşması
+  vi: Một bài diễn thuyết nổi tiếng về lời khuyên cuộc sống
+  id: Pidato nasihat hidup yang terkenal
+  pl: Słynne przemówienie z radami życiowymi
+  nl: Een beroemde toespraak met levensadvies
+  ar: خطاب شهير عن نصائح للحياة
+  hi: जीवन की सलाह पर एक प्रसिद्ध भाषण
+  th: สุนทรพจน์แนะนำการใช้ชีวิตที่มีชื่อเสียง
+  cs: Slavný projev s radami do života
+  sv: Ett känt tal om livsråd
+  he: נאום מפורסם עם עצות לחיים
+  verified_by_human: [en]
+videos.get_transcript.2:
+  context: Query label for the second video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about body language.
+  en: A popular TED talk on body language
+  de: Ein beliebter TED-Talk über Körpersprache
+  zh: 关于肢体语言的热门 TED 演讲
+  es: Una charla TED popular sobre lenguaje corporal
+  fr: Une conférence TED populaire sur le langage corporel
+  pt: Uma palestra TED popular sobre linguagem corporal
+  ru: Популярное выступление TED о языке тела
+  ja: ボディランゲージに関する人気のTEDトーク
+  ko: 바디 랭귀지에 관한 인기 TED 강연
+  tr: Beden dili üzerine popüler bir TED konuşması
+  vi: Một bài diễn thuyết TED phổ biến về ngôn ngữ cơ thể
+  id: TED talk populer tentang bahasa tubuh
+  pl: Popularna prelekcja TED o mowie ciała
+  nl: Een populaire TED-talk over lichaamstaal
+  ar: خطاب تيد شهير عن لغة الجسد
+  hi: बॉडी लैंग्वेज पर एक लोकप्रिय टेड टॉक
+  th: TED Talk ยอดนิยมเกี่ยวกับภาษากาย
+  cs: Populární TED talk o řeči těla
+  sv: Ett populärt TED-tal om kroppsspråk
+  he: הרצאת TED פופולרית על שפת גוף
+  verified_by_human: [en]
+videos.get_transcript.3:
+  context: Query label for the third video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about human connection and vulnerability.
+  en: A popular TED talk on connection
+  de: Ein beliebter TED-Talk über Verbundenheit
+  zh: 关于人际连接的热门 TED 演讲
+  es: Una charla TED popular sobre la conexión
+  fr: Une conférence TED populaire sur la connexion humaine
+  pt: Uma palestra TED popular sobre conexão
+  ru: Популярное выступление TED об отношениях
+  ja: つながりに関する人気のTEDトーク
+  ko: 유대감에 관한 인기 TED 강연
+  tr: Bağ kurma üzerine popüler bir TED konuşması
+  vi: Một bài diễn thuyết TED phổ biến về sự kết nối
+  id: TED talk populer tentang koneksi
+  pl: Popularna prelekcja TED o więziach
+  nl: Een populaire TED-talk over verbinding
+  ar: خطاب تيد شهير عن التواصل الإنساني
+  hi: मानवीय जुड़ाव पर एक लोकप्रिय टेड टॉक
+  th: TED Talk ยอดนิยมเกี่ยวกับความสัมพันธ์
+  cs: Populární TED talk o lidském spojení
+  sv: Ett populärt TED-tal om mänsklig kontakt
+  he: הרצאת TED פופולרית על חיבור אנושי
+  verified_by_human: [en]
+
+nutrition.search_recipes.1:
+  context: Query label for the first nutrition recipe search example in the app store. Shown on a preview card that displays vegetarian pasta recipes from the REWE search skill.
+  en: Vegetarian pasta recipes
+  de: Vegetarische Pasta-Rezepte
+  zh: 素食意面食谱
+  es: Recetas de pasta vegetariana
+  fr: Recettes de pâtes végétariennes
+  pt: Receitas de massa vegetariana
+  ru: Рецепты вегетарианской пасты
+  ja: ベジタリアンパスタレシピ
+  ko: 채식 파스타 레시피
+  tr: Vejetaryen makarna tarifleri
+  vi: Công thức mì ý chay
+  id: Resep pasta vegetarian
+  pl: Przepisy na wegetariański makaron
+  nl: Vegetarische pastarecepten
+  ar: وصفات معكرونة نباتية
+  hi: शाकाहारी पास्ता रेसिपी
+  th: สูตรพาสต้ามังสวิรัติ
+  cs: Vegetariánské recepty na těstoviny
+  sv: Vegetariska pastarecept
+  he: מתכוני פסטה צמחונית
+  verified_by_human: [en]
+
+nutrition.search_recipes.2:
+  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays quick bowl recipes from the REWE search skill.
+  en: Quick bowl recipes
+  de: Schnelle Bowl-Rezepte
+  zh: 快速碗食谱
+  es: Recetas rápidas de bowls
+  fr: Recettes de bowls rapides
+  pt: Receitas rápidas de bowls
+  ru: Быстрые рецепты боулов
+  ja: 簡単ボウルレシピ
+  ko: 빠른 볼 레시피
+  tr: Hızlı kase tarifleri
+  vi: Công thức bowl nhanh
+  id: Resep bowl cepat
+  pl: Szybkie przepisy na bowle
+  nl: Snelle bowl-recepten
+  ar: وصفات أطباق سريعة
+  hi: झटपट बाउल रेसिपी
+  th: สูตรโบว์ลเร็ว
+  cs: Rychlé recepty na misky
+  sv: Snabba bowlrecept
+  he: מתכוני קערות מהירים
+  verified_by_human: [en]
+
+nutrition.search_recipes.3:
+  context: Query label for the third nutrition recipe search example in the app store. Shown on a preview card that displays low-carb dinner recipes from the REWE search skill.
+  en: Low carb dinner recipes
+  de: Low-Carb-Abendessen-Rezepte
+  zh: 低碳晚餐食谱
+  es: Recetas de cenas bajas en carbohidratos
+  fr: Recettes de dîners faibles en glucides
+  pt: Receitas de jantar low carb
+  ru: Низкоуглеводные ужины
+  ja: ローカーボディナーレシピ
+  ko: 저탄수화물 저녁 레시피
+  tr: Düşük karbonhidratlı akşam yemeği tarifleri
+  vi: Công thức bữa tối ít tinh bột
+  id: Resep makan malam rendah karbohidrat
+  pl: Przepisy na kolację low carb
+  nl: Low-carb dinerrecepten
+  ar: وصفات عشاء منخفضة الكربوهيدرات
+  hi: लो कार्ब डिनर रेसिपी
+  th: สูตรอาหารเย็นคาร์โบต่ำ
+  cs: Recepty na nízkosacharidové večeře
+  sv: Lågkolhydratmiddagsrecept
+  he: מתכוני ארוחת ערב דלת פחמימות
+  verified_by_human: [en]
+
+math.calculate.1:
+  context: Expression label for the first math calculate example in the app store. Shows a square root and exponent calculation.
+  en: "sqrt(144) + 3^4"
+  de: "sqrt(144) + 3^4"
+  zh: "sqrt(144) + 3^4"
+  es: "sqrt(144) + 3^4"
+  fr: "sqrt(144) + 3^4"
+  pt: "sqrt(144) + 3^4"
+  ru: "sqrt(144) + 3^4"
+  ja: "sqrt(144) + 3^4"
+  ko: "sqrt(144) + 3^4"
+  tr: "sqrt(144) + 3^4"
+  vi: "sqrt(144) + 3^4"
+  id: "sqrt(144) + 3^4"
+  pl: "sqrt(144) + 3^4"
+  nl: "sqrt(144) + 3^4"
+  ar: "sqrt(144) + 3^4"
+  hi: "sqrt(144) + 3^4"
+  th: "sqrt(144) + 3^4"
+  cs: "sqrt(144) + 3^4"
+  sv: "sqrt(144) + 3^4"
+  he: "sqrt(144) + 3^4"
+  verified_by_human: [en]
+
+math.calculate.2:
+  context: Expression label for the second math calculate example in the app store. Shows a unit conversion from km/h to mph.
+  en: 150 km/h to mph
+  de: 150 km/h in mph
+  zh: 150 km/h 转换为 mph
+  es: 150 km/h a mph
+  fr: 150 km/h en mph
+  pt: 150 km/h para mph
+  ru: 150 км/ч в мили/ч
+  ja: 150 km/hをmphに変換
+  ko: 150 km/h를 mph로
+  tr: 150 km/s'den mph'ye
+  vi: 150 km/h sang mph
+  id: 150 km/j ke mph
+  pl: 150 km/h na mph
+  nl: 150 km/u naar mph
+  ar: 150 كم/س إلى ميل/س
+  hi: 150 km/h को mph में
+  th: 150 km/h เป็น mph
+  cs: 150 km/h na mph
+  sv: 150 km/h till mph
+  he: 150 קמ"ש ל-mph
+  verified_by_human: [en]
+
+math.calculate.3:
+  context: Expression label for the third math calculate example in the app store. Shows a trigonometric calculation.
+  en: "sin(π/4) × cos(π/4)"
+  de: "sin(π/4) × cos(π/4)"
+  zh: "sin(π/4) × cos(π/4)"
+  es: "sin(π/4) × cos(π/4)"
+  fr: "sin(π/4) × cos(π/4)"
+  pt: "sin(π/4) × cos(π/4)"
+  ru: "sin(π/4) × cos(π/4)"
+  ja: "sin(π/4) × cos(π/4)"
+  ko: "sin(π/4) × cos(π/4)"
+  tr: "sin(π/4) × cos(π/4)"
+  vi: "sin(π/4) × cos(π/4)"
+  id: "sin(π/4) × cos(π/4)"
+  pl: "sin(π/4) × cos(π/4)"
+  nl: "sin(π/4) × cos(π/4)"
+  ar: "sin(π/4) × cos(π/4)"
+  hi: "sin(π/4) × cos(π/4)"
+  th: "sin(π/4) × cos(π/4)"
+  cs: "sin(π/4) × cos(π/4)"
+  sv: "sin(π/4) × cos(π/4)"
+  he: "sin(π/4) × cos(π/4)"
+  verified_by_human: [en]
+
+travel.get_flight.1:
+  context: Query label for the first flight tracking example in the app store. Shows a Lufthansa flight from Munich to London.
+  en: Flight LH2472 Munich → London
+  de: Flug LH2472 München → London
+  zh: LH2472航班 慕尼黑→伦敦
+  es: Vuelo LH2472 Múnich → Londres
+  fr: Vol LH2472 Munich → Londres
+  pt: Voo LH2472 Munique → Londres
+  ru: Рейс LH2472 Мюнхен → Лондон
+  ja: LH2472便 ミュンヘン→ロンドン
+  ko: LH2472편 뮌헨→런던
+  tr: LH2472 sefer Münih → Londra
+  vi: Chuyến bay LH2472 Munich → London
+  id: Penerbangan LH2472 Munich → London
+  pl: Lot LH2472 Monachium → Londyn
+  nl: Vlucht LH2472 München → Londen
+  ar: رحلة LH2472 ميونيخ ← لندن
+  hi: फ्लाइट LH2472 म्यूनिख → लंदन
+  th: เที่ยวบิน LH2472 มิวนิก → ลอนดอน
+  cs: Let LH2472 Mnichov → Londýn
+  sv: Flyg LH2472 München → London
+  he: טיסה LH2472 מינכן → לונדון
+  verified_by_human: [en]
+
+travel.get_flight.2:
+  context: Query label for the second flight tracking example in the app store. Shows a British Airways flight from London to Rome.
+  en: Flight BA918 London → Rome
+  de: Flug BA918 London → Rom
+  zh: BA918航班 伦敦→罗马
+  es: Vuelo BA918 Londres → Roma
+  fr: Vol BA918 Londres → Rome
+  pt: Voo BA918 Londres → Roma
+  ru: Рейс BA918 Лондон → Рим
+  ja: BA918便 ロンドン→ローマ
+  ko: BA918편 런던→로마
+  tr: BA918 sefer Londra → Roma
+  vi: Chuyến bay BA918 London → Roma
+  id: Penerbangan BA918 London → Roma
+  pl: Lot BA918 Londyn → Rzym
+  nl: Vlucht BA918 Londen → Rome
+  ar: رحلة BA918 لندن ← روما
+  hi: फ्लाइट BA918 लंदन → रोम
+  th: เที่ยวบิน BA918 ลอนดอน → โรม
+  cs: Let BA918 Londýn → Řím
+  sv: Flyg BA918 London → Rom
+  he: טיסה BA918 לונדון → רומא
+  verified_by_human: [en]
+
+travel.get_flight.3:
+  context: Query label for the third flight tracking example in the app store. Shows a Eurowings flight from Berlin to Barcelona.
+  en: Flight EW8614 Berlin → Barcelona
+  de: Flug EW8614 Berlin → Barcelona
+  zh: EW8614航班 柏林→巴塞罗那
+  es: Vuelo EW8614 Berlín → Barcelona
+  fr: Vol EW8614 Berlin → Barcelone
+  pt: Voo EW8614 Berlim → Barcelona
+  ru: Рейс EW8614 Берлин → Барселона
+  ja: EW8614便 ベルリン→バルセロナ
+  ko: EW8614편 베를린→바르셀로나
+  tr: EW8614 sefer Berlin → Barselona
+  vi: Chuyến bay EW8614 Berlin → Barcelona
+  id: Penerbangan EW8614 Berlin → Barcelona
+  pl: Lot EW8614 Berlin → Barcelona
+  nl: Vlucht EW8614 Berlijn → Barcelona
+  ar: رحلة EW8614 برلين ← برشلونة
+  hi: फ्लाइट EW8614 बर्लिन → बार्सिलोना
+  th: เที่ยวบิน EW8614 เบอร์ลิน → บาร์เซโลนา
+  cs: Let EW8614 Berlín → Barcelona
+  sv: Flyg EW8614 Berlin → Barcelona
+  he: טיסה EW8614 ברלין → ברצלונה
+  verified_by_human: [en]
+
+images.generate.1:
+  context: Query label for the first image generate example in the app store. Shows a product photography result generated by Google Gemini.
+  en: Ceramic bowls with berries
+  de: Keramikschalen mit Beeren
+  zh: 陶瓷碗与浆果
+  es: Cuencos de cerámica con bayas
+  fr: Bols en céramique avec des baies
+  pt: Tigelas de cerâmica com frutas vermelhas
+  ru: Керамические миски с ягодами
+  ja: ベリーの入った陶器のボウル
+  ko: 베리가 담긴 도자기 그릇
+  tr: Meyveli seramik kaseler
+  vi: Bát gốm với quả mọng
+  id: Mangkuk keramik dengan buah beri
+  pl: Ceramiczne miski z owocami
+  nl: Keramische kommen met bessen
+  ar: أطباق سيراميك مع توت
+  hi: बेरी के साथ सिरेमिक कटोरे
+  th: ชามเซรามิกกับเบอร์รี
+  cs: Keramické misky s bobulemi
+  sv: Keramikskålar med bär
+  he: קערות קרמיקה עם פירות יער
+  verified_by_human: [en]
+
+images.generate.2:
+  context: Query label for the second image generate example in the app store. Shows an architectural photograph generated by Google Gemini.
+  en: Concrete house with mountain view
+  de: Betonhaus mit Bergblick
+  zh: 混凝土房屋与山景
+  es: Casa de concreto con vista a la montaña
+  fr: Maison en béton avec vue sur la montagne
+  pt: Casa de concreto com vista para as montanhas
+  ru: Бетонный дом с видом на горы
+  ja: 山の景色が見えるコンクリートの家
+  ko: 산이 보이는 콘크리트 집
+  tr: Dağ manzaralı beton ev
+  vi: Nhà bê tông với tầm nhìn ra núi
+  id: Rumah beton dengan pemandangan gunung
+  pl: Betonowy dom z widokiem na góry
+  nl: Betonnen huis met bergzicht
+  ar: منزل خرساني بإطلالة جبلية
+  hi: पहाड़ी दृश्य वाला कंक्रीट का घर
+  th: บ้านคอนกรีตวิวภูเขา
+  cs: Betonový dům s výhledem na hory
+  sv: Betonghus med bergsvy
+  he: בית בטון עם נוף הרים
+  verified_by_human: [en]
+
+images.generate.3:
+  context: Query label for the third image generate example in the app store. Shows a macro photograph generated by Google Gemini.
+  en: Morning dew on spider web
+  de: Morgentau auf Spinnennetz
+  zh: 蜘蛛网上的晨露
+  es: Rocío matutino en tela de araña
+  fr: Rosée du matin sur toile d'araignée
+  pt: Orvalho da manhã em teia de aranha
+  ru: Утренняя роса на паутине
+  ja: クモの巣の朝露
+  ko: 거미줄의 아침 이슬
+  tr: Örümcek ağında sabah çiyi
+  vi: Sương sớm trên mạng nhện
+  id: Embun pagi di sarang laba-laba
+  pl: Poranna rosa na pajęczynie
+  nl: Ochtenddauw op spinnenweb
+  ar: ندى الصباح على خيوط العنكبوت
+  hi: मकड़ी के जाले पर सुबह की ओस
+  th: น้ำค้างเช้าบนใยแมงมุม
+  cs: Ranní rosa na pavučině
+  sv: Morgondagg på spindelnät
+  he: טל בוקר על קורי עכביש
+  verified_by_human: [en]
+
+images.generate_draft.1:
+  context: Query label for the first image generate draft example in the app store. Shows a flat illustration generated by Flux.
+  en: Weekly meal planner illustration
+  de: Wochenplan-Illustration für Mahlzeiten
+  zh: 每周膳食计划插图
+  es: Ilustración de planificador de comidas semanal
+  fr: Illustration de planificateur de repas hebdomadaire
+  pt: Ilustração de planejador de refeições semanal
+  ru: Иллюстрация недельного планировщика питания
+  ja: 週間食事プランのイラスト
+  ko: 주간 식단 계획 일러스트
+  tr: Haftalık yemek planlayıcı çizimi
+  vi: Minh họa kế hoạch bữa ăn tuần
+  id: Ilustrasi perencana makanan mingguan
+  pl: Ilustracja tygodniowego planera posiłków
+  nl: Weekmenu-planner illustratie
+  ar: رسم توضيحي لمخطط وجبات أسبوعي
+  hi: साप्ताहिक भोजन योजना चित्रण
+  th: ภาพประกอบตารางอาหารประจำสัปดาห์
+  cs: Ilustrace týdenního jídelníčku
+  sv: Illustration av veckomatsplanerare
+  he: איור של תכנון ארוחות שבועי
+  verified_by_human: [en]
+
+images.generate_draft.2:
+  context: Query label for the second image generate draft example in the app store. Shows a desk workspace photo generated by Flux.
+  en: Organized desk workspace
+  de: Aufgeräumter Schreibtisch-Arbeitsplatz
+  zh: 整洁的办公桌工作区
+  es: Escritorio de trabajo organizado
+  fr: Bureau de travail organisé
+  pt: Mesa de trabalho organizada
+  ru: Организованное рабочее место
+  ja: 整理されたデスクワークスペース
+  ko: 정돈된 책상 작업 공간
+  tr: Düzenli çalışma masası
+  vi: Không gian bàn làm việc gọn gàng
+  id: Meja kerja yang tertata rapi
+  pl: Zorganizowane biurko
+  nl: Georganiseerde bureauruimte
+  ar: مساحة عمل مكتبية منظمة
+  hi: व्यवस्थित डेस्क कार्यक्षेत्र
+  th: โต๊ะทำงานที่จัดระเบียบ
+  cs: Organizovaný pracovní stůl
+  sv: Organiserad skrivbordsarbetsplats
+  he: שולחן עבודה מסודר
+  verified_by_human: [en]
+
+images.generate_draft.3:
+  context: Query label for the third image generate draft example in the app store. Shows a watercolor street scene generated by Flux.
+  en: European cobblestone street at dusk
+  de: Europäische Kopfsteinpflasterstraße in der Abenddämmerung
+  zh: 黄昏时分的欧洲鹅卵石街道
+  es: Calle adoquinada europea al atardecer
+  fr: Rue pavée européenne au crépuscule
+  pt: Rua de paralelepípedos europeia ao entardecer
+  ru: Европейская мощёная улица в сумерках
+  ja: 夕暮れのヨーロッパの石畳の通り
+  ko: 황혼의 유럽 자갈 거리
+  tr: Alacakaranlıkta Avrupa arnavut kaldırımı sokağı
+  vi: Phố đá cuội châu Âu lúc hoàng hôn
+  id: Jalan batu Eropa saat senja
+  pl: Europejska brukowana uliczka o zmierzchu
+  nl: Europese keistraat in de schemering
+  ar: شارع أوروبي مرصوف بالحصى عند الغسق
+  hi: गोधूलि में यूरोपीय पत्थर की सड़क
+  th: ถนนหินยุโรปยามพลบค่ำ
+  cs: Evropská dlážděná ulička za soumraku
+  sv: Europeisk kullerstensgata i skymningen
+  he: רחוב אבן אירופי בין ערביים
+  verified_by_human: [en]
+
+banner.sample_data:
+  context: Banner text shown at the top of the fullscreen view when the user is previewing a hand-crafted app-store example with synthetic data. Makes it clear the people, places, prices or listings on the card are not real. Stays short — a single line.
+  en: Sample data — this is what real results from this skill look like.
+  de: Beispieldaten — so sehen echte Ergebnisse dieses Skills aus.
+  zh: 示例数据 — 这就是此技能真实结果的样子。
+  es: Datos de ejemplo — así se ven los resultados reales de esta skill.
+  fr: "Données d'exemple — voici à quoi ressemblent les résultats réels de cette skill."
+  pt: Dados de exemplo — é assim que os resultados reais desta skill se parecem.
+  ru: Пример данных — так выглядят реальные результаты этого навыка.
+  ja: サンプルデータ — このスキルの実際の結果は、このように表示されます。
+  ko: 샘플 데이터 — 이 스킬의 실제 결과는 이와 같습니다.
+  it: Dati di esempio — ecco come appaiono i risultati reali di questa skill.
+  tr: Örnek veriler — bu yeteneğin gerçek sonuçları böyle görünür.
+  vi: Dữ liệu mẫu — đây là giao diện kết quả thực tế từ kỹ năng này.
+  id: Data contoh — beginilah tampilan hasil asli dari skill ini.
+  pl: Przykładowe dane — tak wyglądają rzeczywiste wyniki tej umiejętności.
+  nl: Voorbeeldgegevens — zo zien echte resultaten van deze skill eruit.
+  ar: بيانات تجريبية — هكذا تبدو النتائج الحقيقية لهذه المهارة.
+  hi: सैंपल डेटा — इस स्किल के वास्तविक परिणाम ऐसे ही दिखते हैं।
+  th: ข้อมูลตัวอย่าง — นี่คือลักษณะของผลลัพธ์จริงจากสกิลนี้
+  cs: Ukázková data — takto vypadají skutečné výsledky této dovednosti.
+  sv: Exempeldata — så här ser riktiga resultat från den här färdigheten ut.
+  he: נתוני דוגמה — כך נראות תוצאות אמיתיות מהמיומנות הזו.
+  verified_by_human: [en]

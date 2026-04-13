@@ -1,10 +1,13 @@
 // frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
 //
 // Loads Daily Inspiration entries for the DailyInspirationBanner on page load.
-/* eslint-disable no-console */
 //
-// PRIORITY ORDER (highest to lowest):
-//   1. IndexedDB — persisted personalised inspirations from previous WS delivery
+// LOADING STRATEGY (instant → real):
+//   0. Hardcoded defaults — loaded SYNCHRONOUSLY before any async work.
+//      These are 3 hand-picked inspirations with full 21-language translations
+//      embedded in hardcodedInspirations.ts. The banner is visible from the
+//      very first frame — no blank state, no loading flash.
+//   1. IndexedDB — persisted personalised inspirations from previous WS delivery.
 //      These survive page reloads and are preferred over server defaults.
 //      Only used when master key is present (i.e. user is logged in or
 //      'stay logged in' is enabled).
@@ -12,9 +15,12 @@
 //      Public endpoint, no auth required. Used as a fallback for new sessions
 //      or logged-out users.
 //
+// Steps 1 and 2 REPLACE the hardcoded defaults when they arrive. The banner
+// component handles the crossfade via CSS transition (inspirationCrossfade).
+//
 // This function is called once on page load (+page.svelte) alongside
-// loadCommunityDemos(). It returns immediately (no loading gate) — the banner
-// simply stays hidden until data arrives (store starts as empty array).
+// loadCommunityDemos(). The hardcoded step is synchronous so the banner
+// appears immediately; the async steps upgrade the data in the background.
 //
 // ARCHITECTURE:
 // - Personalized WS inspirations still take priority. If the WS delivers new
@@ -29,8 +35,12 @@ import {
   dailyInspirationStore,
   type DailyInspiration,
 } from "../stores/dailyInspirationStore";
+import { getHardcodedInspirations } from "./hardcodedInspirations";
 
 const LOG_PREFIX = "[loadDefaultInspirations]";
+
+/** Prefix used by hardcoded inspiration IDs — lets us detect and replace them. */
+const HARDCODED_ID_PREFIX = "hardcoded-";
 
 const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = "shared_chat_cuttlefish";
 
@@ -116,13 +126,31 @@ function getOgExampleInspirations(exampleId: string): DailyInspiration[] {
 }
 
 /**
+ * Check if the store currently holds only hardcoded placeholder inspirations.
+ * Hardcoded items use IDs prefixed with "hardcoded-" — any real data (IndexedDB,
+ * server, WS) will have different IDs and should replace them.
+ */
+function storeHasOnlyHardcoded(): boolean {
+  const state = get(dailyInspirationStore);
+  if (state.inspirations.length === 0) return false;
+  return state.inspirations.every((i) =>
+    i.inspiration_id.startsWith(HARDCODED_ID_PREFIX),
+  );
+}
+
+/**
  * Populate the daily inspiration store on page load.
  *
- * Tries IndexedDB first (persisted personalised inspirations from previous
- * WebSocket delivery), then falls back to the public server defaults endpoint.
+ * STEP 0 (synchronous): Immediately loads hardcoded inspirations so the banner
+ * is visible from the first frame — no blank state, no loading flash.
  *
- * Only populates the store if it is currently empty — personalized inspirations
- * delivered via WebSocket earlier in the same session take precedence.
+ * STEP 1 (async): Tries IndexedDB (persisted personalised inspirations from
+ * previous WebSocket delivery).
+ *
+ * STEP 2 (async): Falls back to the public server defaults endpoint.
+ *
+ * Steps 1 and 2 REPLACE hardcoded data when they arrive. Personalized
+ * inspirations delivered via WebSocket always take ultimate priority.
  */
 export async function loadDefaultInspirations(
   options: { allowIndexedDB?: boolean } = {},
@@ -173,14 +201,28 @@ export async function loadDefaultInspirations(
       }
     }
 
-    // Skip immediately if the store is already populated by a WS delivery
-    // that raced ahead of us (e.g. fast reconnect).
+    // Skip if the store is already populated with REAL data (not hardcoded).
+    // WS delivery or Phase 1 sync may have raced ahead of us.
     const current = get(dailyInspirationStore);
-    if (current.inspirations.length > 0) {
+    if (current.inspirations.length > 0 && !storeHasOnlyHardcoded()) {
       console.debug(
-        `${LOG_PREFIX} Store already populated (${current.inspirations.length} items) — skipping`,
+        `${LOG_PREFIX} Store already populated with real data (${current.inspirations.length} items) — skipping`,
       );
       return;
+    }
+
+    // ── Step 0: Load hardcoded defaults immediately ───────────────────────────
+    // Show the banner from the very first frame with hand-picked inspirations.
+    // These will be replaced by IndexedDB / server / WS data when it arrives.
+    if (current.inspirations.length === 0) {
+      const currentLangSync = get(svelteLocaleStore) || "en";
+      const hardcoded = getHardcodedInspirations(currentLangSync);
+      dailyInspirationStore.setInspirations(hardcoded, {
+        personalized: false,
+      });
+      console.debug(
+        `${LOG_PREFIX} Loaded ${hardcoded.length} hardcoded inspiration(s) for lang=${currentLangSync}`,
+      );
     }
 
     // ── Step 1: Try IndexedDB ─────────────────────────────────────────────────
@@ -204,14 +246,15 @@ export async function loadDefaultInspirations(
             );
             return;
           }
-          if (currentNow.inspirations.length === 0) {
+          // Replace hardcoded or empty store with IndexedDB data.
+          if (storeHasOnlyHardcoded() || currentNow.inspirations.length === 0) {
             // IndexedDB data is from a prior authenticated session — it IS personalized
             // (it was written by processInspirationRecordsFromSync with is_opened state).
             dailyInspirationStore.setInspirations(persisted, {
               personalized: true,
             });
             console.debug(
-              `${LOG_PREFIX} Loaded ${persisted.length} personalised inspiration(s) from IndexedDB`,
+              `${LOG_PREFIX} Loaded ${persisted.length} personalised inspiration(s) from IndexedDB (replaced hardcoded)`,
             );
             // Return — IndexedDB wins over server defaults
             return;
@@ -255,7 +298,7 @@ export async function loadDefaultInspirations(
 
     if (!response.ok) {
       console.error(
-        `${LOG_PREFIX} Server returned ${response.status} fetching default inspirations — no banner will be shown`,
+        `${LOG_PREFIX} Server returned ${response.status} fetching default inspirations — hardcoded will remain`,
       );
       return;
     }
@@ -265,14 +308,13 @@ export async function loadDefaultInspirations(
 
     if (inspirations.length === 0) {
       console.debug(
-        `${LOG_PREFIX} No default inspirations available from server`,
+        `${LOG_PREFIX} No default inspirations available from server — hardcoded will remain`,
       );
       return;
     }
 
-    // Only populate the store if it is still empty and does not already hold
-    // personalized data — personalized inspirations (with is_opened / opened_chat_id
-    // state) delivered via Phase 1 WS sync, WS event, or IndexedDB have priority.
+    // Replace hardcoded or empty store with server defaults, but never overwrite
+    // personalized data (Phase 1 WS sync, WS event, or IndexedDB).
     const currentFinal = get(dailyInspirationStore);
     if (currentFinal.isPersonalized) {
       console.debug(
@@ -280,9 +322,9 @@ export async function loadDefaultInspirations(
       );
       return;
     }
-    if (currentFinal.inspirations.length > 0) {
+    if (currentFinal.inspirations.length > 0 && !storeHasOnlyHardcoded()) {
       console.debug(
-        `${LOG_PREFIX} Store populated while fetching defaults — skipping server defaults`,
+        `${LOG_PREFIX} Store populated with real data while fetching defaults — skipping server defaults`,
       );
       return;
     }
@@ -293,10 +335,10 @@ export async function loadDefaultInspirations(
       personalized: false,
     });
     console.debug(
-      `${LOG_PREFIX} Loaded ${inspirations.length} server default inspiration(s) into store`,
+      `${LOG_PREFIX} Loaded ${inspirations.length} server default inspiration(s) into store (replaced hardcoded)`,
     );
   } catch (error) {
-    // Non-fatal: banner simply remains hidden until personalized ones arrive
+    // Non-fatal: hardcoded defaults remain visible, or banner stays hidden
     console.error(`${LOG_PREFIX} Failed to load inspirations:`, error);
   }
 }

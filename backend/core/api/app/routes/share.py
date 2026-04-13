@@ -57,10 +57,8 @@ class ShareChatMetadataUpdate(BaseModel):
     icon: Optional[str] = None
     follow_up_suggestions: Optional[List[str]] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
-    share_with_community: Optional[bool] = None  # Whether the chat is shared with the community
-    # For community sharing: client sends decrypted messages and embeds (zero-knowledge architecture)
-    decrypted_messages: Optional[List[Dict[str, Any]]] = None  # [{role, content, category?, model_name?, created_at}]
-    decrypted_embeds: Optional[List[Dict[str, Any]]] = None  # [{embed_id, type, content, created_at}]
+    share_with_community: Optional[bool] = None  # Whether to email the share link to admin for community consideration
+    share_link: Optional[str] = None  # Full share link with encryption key (for community sharing email)
 
 class UnshareChatRequest(BaseModel):
     """Request model for unsharing a chat"""
@@ -405,11 +403,6 @@ async def update_share_metadata(
         if payload.share_with_community is not None:
             updates["share_with_community"] = payload.share_with_community
         
-        # Note: When sharing with community, the client decrypts messages/embeds locally
-        # and sends plaintext to the server (zero-knowledge architecture).
-        # The share_link with encryption key is NOT sent to the server.
-        # The server creates a separate demo_chats entry encrypted with Vault.
-        
         # Update chat in database
         if updates:
             # Log what we're about to update (but not the encrypted values for security)
@@ -499,81 +492,33 @@ async def update_share_metadata(
             except Exception as e:
                 logger.error(f"Error verifying update for chat {chat_id}: {e}", exc_info=True)
         
-        # If chat is shared with community, create a pending demo_chat entry with messages/embeds
-        # Zero-knowledge architecture: Client decrypts and sends plaintext, server stores encrypted with Vault
-        if payload.share_with_community and payload.decrypted_messages:
-            demo_chat_id = None
-            try:
-                # GUARD: Validate that messages referencing embeds have matching embed data.
-                # Without this, demo chats get published with empty embed cards (embed references
-                # in message content but no actual embed data in demo_embeds table).
-                import re as _re
-                _embed_ref_pattern = _re.compile(r'"embed_id"\s*:\s*"([a-f0-9-]{36})"')
-                _referenced_ids = set()
-                for _msg in payload.decrypted_messages:
-                    _content = _msg.get("content", "")
-                    if isinstance(_content, str):
-                        _referenced_ids.update(_embed_ref_pattern.findall(_content))
-                _provided_ids = {e.get("embed_id") for e in (payload.decrypted_embeds or []) if e.get("embed_id")}
-                _missing_ids = _referenced_ids - _provided_ids
-
-                demo_chat = None
-                if _missing_ids:
-                    logger.warning(
-                        f"Community share for chat {chat_id} blocked: messages reference "
-                        f"{len(_referenced_ids)} embed(s) but {len(_missing_ids)} are missing from "
-                        f"decrypted_embeds. Missing: {_missing_ids}"
-                    )
-                    # Don't create demo chat — it would have broken embeds.
-                    # Regular sharing still proceeds (only community sharing is skipped).
-                else:
-                    # All referenced embeds are present — proceed with demo chat creation
-                    # Create a pending demo_chat entry with status='pending_approval'
-                    # Store messages and embeds encrypted with Vault (not the user's chat key)
-                    demo_chat = await directus_service.demo_chat.create_pending_demo_chat_with_content(
-                        chat_id=chat_id,
-                        title=payload.title,
-                        summary=payload.summary,
-                        category=payload.category,
-                        icon=payload.icon,
-                        follow_up_suggestions=payload.follow_up_suggestions,
-                        decrypted_messages=payload.decrypted_messages,  # [{role, content, created_at}]
-                        decrypted_embeds=payload.decrypted_embeds or []  # [{embed_id, type, content, created_at}]
-                    )
-                if demo_chat:
-                    demo_chat_id = demo_chat.get("id")  # UUID, not demo_id string
-                    logger.info(f"Created pending demo chat {demo_chat_id} for community-shared chat {chat_id}")
-                else:
-                    logger.warning(f"Failed to create pending demo chat for chat {chat_id}")
-            except Exception as e:
-                # Log error but don't fail the request - demo chat creation is secondary
-                logger.error(f"Failed to create pending demo chat for chat {chat_id}: {e}", exc_info=True)
-            
-            # Send notification email to admin
+        # If user wants to share with community, send an email to admin with the share link
+        # (including the encryption key). No demo_chat creation or approval pipeline needed.
+        if payload.share_with_community and payload.share_link:
             try:
                 admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
-                
-                # Dispatch email task to notify admin about community share
-                # Note: We don't send share_link because it contains the encryption key (zero-knowledge)
-                # The admin will approve the demo chat and view it through the admin interface
+
                 from backend.core.api.app.tasks.celery_config import app
                 app.send_task(
-                    name='app.tasks.email_tasks.community_share_email_task.send_community_share_notification',
+                    name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email',
                     kwargs={
                         "admin_email": admin_email,
-                        "chat_title": payload.title or "Untitled Chat",
-                        "chat_summary": payload.summary or "",
-                        "category": payload.category,
-                        "icon": payload.icon,
-                        "chat_id": chat_id,
-                        "demo_chat_id": demo_chat_id  # UUID of the demo_chat entry
+                        "issue_id": f"community-share-{chat_id[:8]}",
+                        "issue_title": f"Community chat suggestion: {payload.title or 'Untitled'}",
+                        "issue_description": (
+                            f"A user wants to share this chat with the community.\n\n"
+                            f"**Title:** {payload.title or 'Untitled'}\n"
+                            f"**Summary:** {payload.summary or 'No summary'}\n"
+                            f"**Category:** {payload.category or 'N/A'}\n\n"
+                            f"**Share link (with encryption key):**\n{payload.share_link}"
+                        ),
+                        "language": "en",
                     },
                     queue='email'
                 )
-                logger.info(f"Dispatched community share notification email task for chat {chat_id} to admin {admin_email}")
+                logger.info(f"Dispatched community share email for chat {chat_id}")
             except Exception as e:
-                # Log error but don't fail the request if email dispatch fails
-                logger.error(f"Failed to dispatch community share notification email for chat {chat_id}: {e}", exc_info=True)
+                logger.error(f"Failed to dispatch community share email for chat {chat_id}: {e}")
         
         return {"success": True, "chat_id": chat_id}
         

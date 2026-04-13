@@ -50,8 +50,27 @@
     booking_url?: string;
     rating?: number;
     rating_count?: number;
+    rating_sources?: string[];
     price?: number;
     service_name?: string;
+    // Alternate slot information (from _group_slots_by_doctor in the backend)
+    additional_slot_datetimes?: string[];
+    additional_slot_count?: number;
+    // Google Places enrichment
+    google_reviews?: Array<{
+      author?: string;
+      rating?: number;
+      text?: string;
+      language?: string;
+      relative_time?: string;
+    }>;
+    opening_hours?: string[];
+    phone?: string;
+    website?: string;
+    description?: string;
+    google_maps_uri?: string;
+    business_status?: string;
+    accessibility?: string[];
   }
 
   interface Props {
@@ -95,13 +114,32 @@
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let storeResolved = $state(false);
   let localErrorMessage = $state('');
+  // Search parameters — used to render "{speciality} in {city}" as the header subtitle.
+  // The health skill passes these as separate fields rather than a combined query string.
+  let localQuery = $state<string>('');
+  let localSpeciality = $state<string>('');
+  let localCity = $state<string>('');
 
   $effect(() => {
     if (!storeResolved) {
       localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
+      if (typeof data.decodedContent?.query === 'string') localQuery = data.decodedContent.query as string;
+      if (typeof data.decodedContent?.speciality === 'string') localSpeciality = data.decodedContent.speciality as string;
+      if (typeof data.decodedContent?.city === 'string') localCity = data.decodedContent.city as string;
     }
+  });
+
+  // Summary line: prefer explicit "query" field; fall back to speciality + city.
+  let searchSummary = $derived.by(() => {
+    if (localQuery) return localQuery;
+    if (localSpeciality && localCity) {
+      const spec = localSpeciality.charAt(0).toUpperCase() + localSpeciality.slice(1);
+      const city = localCity.charAt(0).toUpperCase() + localCity.slice(1);
+      return `${spec} in ${city}`;
+    }
+    return localSpeciality || localCity || '';
   });
 
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
@@ -151,6 +189,33 @@
     return undefined;
   }
 
+  function asStringArray(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const out: string[] = [];
+    for (const v of value) {
+      if (typeof v === 'string' && v.trim().length > 0) out.push(v);
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
+  function parseGoogleReviews(value: unknown): AppointmentResult['google_reviews'] {
+    if (!Array.isArray(value)) return undefined;
+    const out: NonNullable<AppointmentResult['google_reviews']> = [];
+    for (const entry of value) {
+      if (entry && typeof entry === 'object') {
+        const r = entry as Record<string, unknown>;
+        out.push({
+          author: asString(r.author),
+          rating: asNumber(r.rating),
+          text: asString(r.text),
+          language: asString(r.language),
+          relative_time: asString(r.relative_time),
+        });
+      }
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
   function transformToAppointmentResult(embedId: string, content: Record<string, unknown>): AppointmentResult {
     return {
       embed_id: asString(content.embed_id) || embedId,
@@ -168,8 +233,19 @@
       booking_url: asString(content.booking_url),
       rating: asNumber(content.rating),
       rating_count: asNumber(content.rating_count),
+      rating_sources: asStringArray(content.rating_sources),
       price: asNumber(content.price),
       service_name: asString(content.service_name),
+      additional_slot_datetimes: asStringArray(content.additional_slot_datetimes),
+      additional_slot_count: asNumber(content.additional_slot_count),
+      google_reviews: parseGoogleReviews(content.google_reviews),
+      opening_hours: asStringArray(content.opening_hours),
+      phone: asString(content.phone),
+      website: asString(content.website),
+      description: asString(content.description),
+      google_maps_uri: asString(content.google_maps_uri),
+      business_status: asString(content.business_status),
+      accessibility: asStringArray(content.accessibility),
     };
   }
 
@@ -214,6 +290,9 @@
     if (content.embed_ids) embedIdsOverride = content.embed_ids as string | string[];
     if (Array.isArray(content.results)) localResults = content.results as unknown[];
     if (typeof content.error === 'string') localErrorMessage = content.error;
+    if (typeof content.query === 'string') localQuery = content.query;
+    if (typeof content.speciality === 'string') localSpeciality = content.speciality;
+    if (typeof content.city === 'string') localCity = content.city;
   }
 </script>
 
@@ -221,6 +300,7 @@
   appId="health"
   skillId="search_appointments"
   embedHeaderTitle={$text('app_skills.health.search_appointments')}
+  embedHeaderSubtitle={searchSummary}
   skillIconName="health"
   showSkillIcon={true}
   {onClose}
@@ -232,7 +312,6 @@
   status={localStatus}
   errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
-  minCardWidth="260px"
   {initialChildEmbedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -252,8 +331,10 @@
       insurance={result.insurance}
       telehealth={result.telehealth}
       rating={result.rating}
+      ratingCount={result.rating_count}
       price={result.price}
       providerPlatform={result.provider_platform}
+      additionalSlotCount={result.additional_slot_count ?? 0}
       status="finished"
       isMobile={false}
       onFullscreen={onSelect}

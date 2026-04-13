@@ -153,14 +153,15 @@ function convertEmbedLinksInNode(
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = _parseLineFragment(rawRef);
-        const appId =
-          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
+        const resolvedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
+        const resolvedAppId =
+          _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
         return {
           type: "embedPreviewLarge",
           attrs: {
             embedRef: cleanRef,
-            embedId: null,
-            appId,
+            embedId: resolvedId,
+            appId: resolvedAppId ?? fallbackAppId,
             carouselIndex: 0, // will be overwritten by _hoistBlockEmbedPreviews Phase B
             carouselTotal: 1,
           },
@@ -189,14 +190,17 @@ function convertEmbedLinksInNode(
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
       //   always available on first parse, even on page reload, with no async work.
-      const appId =
-        _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? fallbackAppId;
+      const resolvedEmbedId =
+        _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
+      const resolvedLiveAppId =
+        _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
+      const appId = resolvedLiveAppId ?? fallbackAppId;
 
       return {
         type: "embedInline",
         attrs: {
           embedRef: cleanRef,
-          embedId: null, // resolved lazily at click time via embedStore.resolveByRef()
+          embedId: resolvedEmbedId, // resolved synchronously when available
           displayText: resolvedDisplayText,
           appId,
           focusLineStart: lineStart,

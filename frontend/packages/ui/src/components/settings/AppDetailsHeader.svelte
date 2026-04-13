@@ -198,17 +198,15 @@
   /**
    * Normalise icon_image filename → CSS variable name.
    */
+  /**
+   * Resolve icon_image filename → CSS variable name for --icon-url-{name}.
+   * Uses resolveIconName() (ICON_NAME_MAP) to handle app-ID-to-SVG-filename
+   * mismatches (e.g. app "code" uses coding.svg → --icon-url-coding).
+   */
   let iconName = $derived.by(() => {
-    if (!app?.icon_image) return appId;
-    let n = app.icon_image.replace(/\.svg$/, '');
-    if (n === 'coding') n = 'code';
-    if (n === 'heart')  n = 'health';
-    if (n === 'email')  n = 'mail';
-    if (n === 'book')   n = 'books';
-    // Note: "image" is intentionally NOT mapped to "images" here.
-    // Icon.svelte's getAppIdForCssVariable() already maps "image" → "images" for the
-    // gradient background, and --icon-url-image is the correct CSS variable for the SVG.
-    return n;
+    if (!app?.icon_image) return resolveIconName(appId);
+    const n = app.icon_image.replace(/\.svg$/, '').trim();
+    return resolveIconName(n);
   });
 
   let skillCount  = $derived(app?.skills?.length ?? 0);
@@ -257,6 +255,7 @@
   <!-- ── Nav row: back arrow + breadcrumb (entire row is clickable) ── -->
   <button
     class="nav-row"
+    data-testid="banner-back-button"
     onclick={onBack}
     aria-label={$text('common.back')}
     type="button"

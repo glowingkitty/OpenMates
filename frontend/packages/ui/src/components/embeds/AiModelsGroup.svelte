@@ -61,8 +61,8 @@
     await tick();
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Navigate to the AI Ask skill's model detail page
-    settingsDeepLink.set(`app_store/ai/skill/ask/model/${model.id}`);
+    // Navigate to the model detail page in AI settings
+    settingsDeepLink.set(`ai/model/${model.id}`);
   }
 </script>
 
@@ -72,6 +72,7 @@
       {#each aiAskModels as model (model.id)}
         <button
           class="model-card"
+          data-testid="ai-model-card"
           onclick={() => handleModelSelect(model)}
           type="button"
           aria-label={`${model.name} - ${model.provider_name}`}

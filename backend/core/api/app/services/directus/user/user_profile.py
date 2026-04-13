@@ -20,15 +20,27 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         cached_profile = await self.cache.get(cache_key)
         
         if cached_profile:
-            # Validate the cached profile has required fields before using it.
-            # If vault_key_id or username is missing, the cache contains stale/raw data
-            # from a different code path — evict it and re-fetch from Directus.
-            if cached_profile.get("vault_key_id") and cached_profile.get("username"):
+            # Validate the cached profile has all fields required for auth flows.
+            # vault_key_id + username = basic profile integrity.
+            # encrypted_email_with_master_key + hashed_email = passkey login.
+            # A cache entry missing any of these was written by a partial code path
+            # (billing, payments, etc.) and must be evicted to prevent login failures.
+            _required = (
+                cached_profile.get("vault_key_id")
+                and cached_profile.get("username")
+                and cached_profile.get("encrypted_email_with_master_key")
+                and cached_profile.get("hashed_email")
+            )
+            if _required:
                 logger.info(f"Using cached user profile for user {user_id}")
                 return True, cached_profile, "Profile retrieved from cache"
             else:
+                _missing = [
+                    f for f in ("vault_key_id", "username", "encrypted_email_with_master_key", "hashed_email")
+                    if not cached_profile.get(f)
+                ]
                 logger.warning(
-                    f"Cached user profile for {user_id} is missing vault_key_id or username "
+                    f"Cached user profile for {user_id} is missing {_missing} "
                     "(stale/incomplete cache entry). Evicting and re-fetching from Directus."
                 )
                 try:

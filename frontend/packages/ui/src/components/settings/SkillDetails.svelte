@@ -24,8 +24,8 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { findProviderByName } from '../../data/providersMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
+    import SkillExamplesSection from './SkillExamplesSection.svelte';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
@@ -154,8 +154,8 @@
         for (let i = 1; i <= 3; i++) {
             const key = `${skill.name_translation_key}.how_to_use.${i}`;
             const translated = $text(key);
-            // Only add if translation exists (not returning the key itself)
-            if (translated && translated !== key) {
+            // Only add if translation exists (not a missing-key placeholder)
+            if (translated && translated !== key && !translated.startsWith('[T:')) {
                 examples.push(translated);
             }
         }
@@ -324,7 +324,10 @@
                 </div>
             </div>
 
-            <!-- How to use section (after pricing) -->
+            <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
+            <SkillExamplesSection {appId} {skillId} />
+
+            <!-- How to use section (after examples) -->
             {#if howToUseExamples.length > 0}
                 <div class="section how-to-use-section">
                     <SettingsSectionHeading title={$text('settings.app_store.skills.how_to_use')} icon="skill" />
@@ -354,7 +357,7 @@
                 </div>
             {/if}
 
-            <!-- Models list (below pricing and how-to-use) -->
+            <!-- Models list (below pricing, examples and how-to-use) -->
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.skills.models')} icon="skill" />
                 <div class="models-list">
@@ -405,7 +408,10 @@
                 </div>
             </div>
 
-            <!-- How to use section (after pricing) - horizontal scrollable example instructions -->
+            <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
+            <SkillExamplesSection {appId} {skillId} />
+
+            <!-- How to use section (after examples) - horizontal scrollable example instructions -->
             {#if howToUseExamples.length > 0}
                 <div class="section how-to-use-section">
                     <SettingsSectionHeading title={$text('settings.app_store.skills.how_to_use')} icon="skill" />
@@ -443,7 +449,7 @@
                 </div>
             {/if}
 
-            <!-- Providers section (below pricing and how-to-use) -->
+            <!-- Providers section (below pricing, examples and how-to-use) -->
             {#if skill.providers && skill.providers.length > 0}
                 <div class="section">
                     <SettingsSectionHeading title={$text('settings.app_store.skills.providers')} icon="provider" />

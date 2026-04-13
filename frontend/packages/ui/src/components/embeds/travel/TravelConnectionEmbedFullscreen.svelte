@@ -165,6 +165,10 @@
   // The decodedContent fields map directly to ConnectionData since ActiveChat
   // previously passed the whole decodedContent as-is to construct the connection prop
   let dc = $derived(data.decodedContent);
+
+  // Store example flag — set by SkillExamplesSection when browsing app-store examples.
+  // When true, interactive actions like booking link lookup are disabled with a notification.
+  let isStoreExample = $derived(dc.is_store_example === true);
   let connection: ConnectionData = {
     embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
     type: typeof dc.type === 'string' ? dc.type : undefined,
@@ -678,6 +682,13 @@
    */
   async function handleLoadBookingLink() {
     if (!connection.booking_token || bookingState === 'loading') return;
+
+    // Store examples: show info notification instead of making the API call.
+    // The button stays in 'idle' state so the user can keep browsing.
+    if (isStoreExample) {
+      notificationStore.info($text('embeds.booking_link_example_only'));
+      return;
+    }
 
     // Debug: trace booking state
     console.debug('[TravelConnectionEmbedFullscreen] handleLoadBookingLink:', {

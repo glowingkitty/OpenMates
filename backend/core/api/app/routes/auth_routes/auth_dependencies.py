@@ -68,64 +68,54 @@ async def get_current_user(
     cached_data = await cache_service.get_user_by_token(refresh_token)
 
     if cached_data:
-        # CRITICAL: Validate required fields before creating User object - fail fast if missing
-        # These fields are required by the User model and must not be None
+        # Validate required fields before creating User object.
+        # If any are missing, evict the corrupt cache entry and fall through
+        # to the DB lookup below instead of returning a hard 500 error.
         cached_user_id = cached_data.get("user_id")
         cached_username = cached_data.get("username")
         cached_vault_key_id = cached_data.get("vault_key_id")
-        
-        if not cached_user_id:
-            logger.error("CRITICAL: user_id is missing from cached data for token")
-            raise HTTPException(status_code=500, detail="User data incomplete: missing user ID")
-        
-        if not cached_username:
-            logger.error(f"CRITICAL: username is missing from cached data for user {cached_user_id}")
-            raise HTTPException(status_code=500, detail="User data incomplete: missing username")
-        
-        if not cached_vault_key_id:
-            logger.error(f"CRITICAL: vault_key_id is missing from cached data for user {cached_user_id}")
-            raise HTTPException(status_code=500, detail="User data incomplete: missing encryption key")
-        
-        # Ensure all fields expected by the User model are present, providing defaults if necessary
-        return User(
-            id=cached_user_id,
-            username=cached_username,
-            # Handle None values for boolean fields - default to False if None
-            is_admin=cached_data.get("is_admin") or False,
-            credits=cached_data.get("credits", 0),
-            profile_image_url=cached_data.get("profile_image_url"),
-            tfa_app_name=cached_data.get("tfa_app_name"),
-            last_opened=cached_data.get("last_opened"),
-            vault_key_id=cached_vault_key_id,
-            consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
-            consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
-            language=cached_data.get("language", 'en'),
-            darkmode=cached_data.get("darkmode") or False,
-            gifted_credits_for_signup=cached_data.get("gifted_credits_for_signup"),
-            encrypted_email_address=cached_data.get("encrypted_email_address"),
-            encrypted_key=cached_data.get("encrypted_key"),
-            salt=cached_data.get("salt"),
-            user_email_salt=cached_data.get("user_email_salt"),
-            lookup_hashes=cached_data.get("lookup_hashes"),
-            account_id=cached_data.get("account_id"),
-            invoice_counter=cached_data.get("invoice_counter"),
-            # Monthly subscription fields
-            encrypted_payment_method_id=cached_data.get("encrypted_payment_method_id"),
-            stripe_customer_id=cached_data.get("stripe_customer_id"),
-            stripe_subscription_id=cached_data.get("stripe_subscription_id"),
-            subscription_status=cached_data.get("subscription_status"),
-            subscription_credits=cached_data.get("subscription_credits"),
-            subscription_currency=cached_data.get("subscription_currency"),
-            next_billing_date=cached_data.get("next_billing_date"),
-            subscription_billing_day_preference=cached_data.get("subscription_billing_day_preference"),
-            # Low balance auto top-up fields
-            # Handle None values explicitly - if field is None in DB, default to False
-            auto_topup_low_balance_enabled=cached_data.get("auto_topup_low_balance_enabled") or False,
-            auto_topup_low_balance_threshold=cached_data.get("auto_topup_low_balance_threshold"),
-            auto_topup_low_balance_amount=cached_data.get("auto_topup_low_balance_amount"),
-            auto_topup_low_balance_currency=cached_data.get("auto_topup_low_balance_currency"),
-            encrypted_auto_topup_last_triggered=cached_data.get("encrypted_auto_topup_last_triggered")
-        )
+
+        if not cached_user_id or not cached_username or not cached_vault_key_id:
+            missing = [f for f, v in [("user_id", cached_user_id), ("username", cached_username), ("vault_key_id", cached_vault_key_id)] if not v]
+            logger.warning(f"Corrupt cached session data (missing: {missing}) — falling through to DB lookup")
+            cached_data = None
+        else:
+            # Ensure all fields expected by the User model are present, providing defaults if necessary
+            return User(
+                id=cached_user_id,
+                username=cached_username,
+                is_admin=cached_data.get("is_admin") or False,
+                credits=cached_data.get("credits", 0),
+                profile_image_url=cached_data.get("profile_image_url"),
+                tfa_app_name=cached_data.get("tfa_app_name"),
+                last_opened=cached_data.get("last_opened"),
+                vault_key_id=cached_vault_key_id,
+                consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
+                consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
+                language=cached_data.get("language", 'en'),
+                darkmode=cached_data.get("darkmode") or False,
+                gifted_credits_for_signup=cached_data.get("gifted_credits_for_signup"),
+                encrypted_email_address=cached_data.get("encrypted_email_address"),
+                encrypted_key=cached_data.get("encrypted_key"),
+                salt=cached_data.get("salt"),
+                user_email_salt=cached_data.get("user_email_salt"),
+                lookup_hashes=cached_data.get("lookup_hashes"),
+                account_id=cached_data.get("account_id"),
+                invoice_counter=cached_data.get("invoice_counter"),
+                encrypted_payment_method_id=cached_data.get("encrypted_payment_method_id"),
+                stripe_customer_id=cached_data.get("stripe_customer_id"),
+                stripe_subscription_id=cached_data.get("stripe_subscription_id"),
+                subscription_status=cached_data.get("subscription_status"),
+                subscription_credits=cached_data.get("subscription_credits"),
+                subscription_currency=cached_data.get("subscription_currency"),
+                next_billing_date=cached_data.get("next_billing_date"),
+                subscription_billing_day_preference=cached_data.get("subscription_billing_day_preference"),
+                auto_topup_low_balance_enabled=cached_data.get("auto_topup_low_balance_enabled") or False,
+                auto_topup_low_balance_threshold=cached_data.get("auto_topup_low_balance_threshold"),
+                auto_topup_low_balance_amount=cached_data.get("auto_topup_low_balance_amount"),
+                auto_topup_low_balance_currency=cached_data.get("auto_topup_low_balance_currency"),
+                encrypted_auto_topup_last_triggered=cached_data.get("encrypted_auto_topup_last_triggered")
+            )
     
     # If no cache hit, refresh token with Directus and rebuild cache.
     # The cookie contains a refresh token (not an access token), so we must call

@@ -1,0 +1,17 @@
+# backend/providers/jameda.yml
+#
+# Configuration for Jameda provider.
+# Used by the Health app for searching doctor appointments and ratings in Germany.
+
+provider_id: "jameda"
+name: "Jameda"
+description: "Germany's largest doctor review and appointment booking platform."
+logo_svg: "icons/jameda.svg"
+region: "EU" # Jameda HQ is in Munich, Germany
+
+# No API key required — uses web scraping
+no_api_key: true
+
+# Pricing information
+pricing:
+  per_request_credits: 10 # 10 credits per appointment search request (set in app.yml)

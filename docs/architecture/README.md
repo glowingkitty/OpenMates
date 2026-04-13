@@ -72,6 +72,7 @@ Technical implementation details for the apps system. For user-facing app guides
 ## Frontend
 
 - [Web App](frontend/web-app.md) - SvelteKit application architecture
+- [Native Apps](frontend/native-apps.md) - Apple-first native app strategy (iPhone, iPad, Mac, Watch)
 - [Docs Web App](frontend/docs-web-app.md) - Documentation rendering system
 - [Daily Inspiration](frontend/daily-inspiration.md) - Curated daily prompts system
 - [Accessibility](frontend/accessibility.md) - WCAG compliance and a11y patterns

@@ -140,7 +140,6 @@
     border-radius 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   will-change: padding-bottom, max-height, height, top, right, bottom, left;
   /* Show text cursor for the input field */
   cursor: text;
@@ -168,11 +167,11 @@
   /* RecordAudio now uses an absolute inset overlay — no extra padding needed */
 }
 
-/* When a focus pill is visible, add top padding so typed text doesn't collide with the pill.
-   The pill is 36px tall + 8px gap = 44px. Rounded up to 48px with a little breathing room.
+/* When a focus pill is visible, add top padding so the pill partially overlaps the field top.
+   The pill overflows above the field (top: -20px) and is not clipped (no overflow:hidden).
    transition matches .message-field to keep the expansion smooth. */
 .message-field.has-focus-pill {
-  padding-top: 48px;
+  padding-top: 15px;
 }
 
 /* Focus mode pill: floating pill anchored to the top of .message-field.
@@ -181,7 +180,7 @@
    Right side (toggle wrapper) = 1-second deactivation with undo. */
 .focus-pill {
   position: absolute;
-  top: 8px;
+  top: -20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;

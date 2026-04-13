@@ -36,15 +36,13 @@ const {
 	setToggleChecked,
 	fillStripeCardDetails,
 	getSignupTestDomain,
-	getMailosaurServerId,
 	buildSignupEmail,
-	createMailosaurClient,
+	createEmailClient,
+	checkEmailQuota,
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
-const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
@@ -83,30 +81,41 @@ test('completes signup with skipped 2FA, login with password, and delete account
 
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
-	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required for email validation.');
+
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+	const quota = await checkEmailQuota();
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
+
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
 	}
 
-	const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
-	if (!mailosaurServerId) {
-		throw new Error(
-			'MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.'
-		);
-	}
-
-	const { waitForMailosaurMessage, extractSixDigitCode } = createMailosaurClient({
-		apiKey: MAILOSAUR_API_KEY,
-		serverId: mailosaurServerId
-	});
+	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
 
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
-	const signupUsername = signupEmail.split('@')[0];
+	// For Gmail +alias emails (openmates.e2e+apr121910@gmail.com), extract only
+	// the time-based part after '+' as the username, since '+' may not be valid
+	// in usernames and the base part would collide across runs.
+	const emailLocal = signupEmail.split('@')[0];
+	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234Secure';
 
 	await page.goto(getE2EDebugUrl('/'));
+
+	// Dismiss "new version available" notification if present (service worker update)
+	const versionBanner = page.getByTestId('notification');
+	if (await versionBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
+		const dismissBtn = page.getByRole('button', { name: /dismiss notification/i });
+		if (await dismissBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await dismissBtn.click();
+			await page.waitForTimeout(500);
+		}
+	}
+
 	await takeStepScreenshot(page, 'home');
 
 	const headerLoginSignupButton = page.getByRole('button', {
@@ -195,13 +204,28 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await takeStepScreenshot(page, 'payment-consent');
 	logSignupCheckpoint('Reached payment consent step.');
 
-	// Payment step: consent to limited refund to reveal payment form.
-	// Wait for the consent toggle to appear — Stripe Elements must initialize first.
+	// GHA runners are in the US, so Polar is auto-selected. Switch to Stripe for this test.
+	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
+	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await switchToStripeBtn.click();
+		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+	}
+
+	// After switching to Stripe, the consent toggle may or may not appear depending on
+	// whether Stripe uses the hosted invoice path or inline elements. Handle both cases.
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	await expect(consentToggle).toBeAttached({ timeout: 60000 });
-	await setToggleChecked(consentToggle, true);
+	const stripeIframe = page.locator('iframe[title="Secure payment input frame"]');
+
+	// Wait for either consent toggle or Stripe iframe to appear
+	await expect(consentToggle.or(stripeIframe)).toBeAttached({ timeout: 60000 });
+
+	if (await consentToggle.isVisible().catch(() => false)) {
+		await setToggleChecked(consentToggle, true);
+		logSignupCheckpoint('Payment consent accepted.');
+	} else {
+		logSignupCheckpoint('No consent toggle — Stripe loaded directly (hosted invoice path).');
+	}
 	await takeStepScreenshot(page, 'payment-form');
-	logSignupCheckpoint('Payment consent accepted.');
 
 	// Fill Stripe payment element with the test card.
 	await fillStripeCardDetails(page, STRIPE_TEST_CARD_NUMBER);
@@ -230,12 +254,28 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	});
 	await takeStepScreenshot(page, 'logged-out');
 
+	// Dismiss version banner again if it reappeared after logout
+	if (await versionBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
+		const dismissBtn2 = page.getByRole('button', { name: /dismiss notification/i });
+		if (await dismissBtn2.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await dismissBtn2.click();
+			await page.waitForTimeout(500);
+		}
+	}
+
 	// Login with password only (no OTP expected)
 	const loginButtonAfterLogout = page.getByRole('button', {
 		name: /login.*sign up|sign up/i
 	});
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
+
+	// Switch to Login tab (dialog may default to Sign up tab after a fresh signup)
+	const loginTab = page.getByTestId('tab-login');
+	if (await loginTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await loginTab.click();
+		await page.waitForTimeout(500);
+	}
 
 	// Use broader selector to handle both login dialog variants (name="username" or id="login-email-input").
 	const emailInputRelogin = page.locator('#login-email-input, input[type="email"][name="username"]').first();
@@ -305,7 +345,18 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Clicked send verification code for account deletion.');
 
 	// Wait for the email OTP input to appear (means code was sent).
-	const deleteOtpInput = emailOtpSection.locator('input.tfa-input');
+	// The backend may fail with "Failed to retrieve email" if encryption keys aren't
+	// synced yet for the freshly created account. Retry once after a short wait.
+	const deleteOtpInput = emailOtpSection.locator('input[inputmode="numeric"]');
+	const otpVisible = await deleteOtpInput.isVisible({ timeout: 10000 }).catch(() => false);
+	if (!otpVisible) {
+		const errorText = await page.getByText(/failed to retrieve email/i).isVisible({ timeout: 2000 }).catch(() => false);
+		if (errorText) {
+			logSignupCheckpoint('Got "Failed to retrieve email" — retrying after wait.');
+			await page.waitForTimeout(3000);
+			await sendCodeButton.click();
+		}
+	}
 	await expect(deleteOtpInput).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'delete-account-otp-input');
 
@@ -325,19 +376,14 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await deleteOtpInput.fill(deleteVerificationCode);
 	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
-	// Wait for success message indicating account was deleted.
-	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 60000
-	});
-	await takeStepScreenshot(page, 'delete-account-success');
-	logSignupCheckpoint('Account deletion confirmed via email OTP.');
-
-	// Confirm logout redirect to demo chat after deletion.
+	// Wait for redirect to demo chat after account deletion.
+	// The deletion flow sets a brief success message then navigates away,
+	// so we wait for the redirect rather than the transient success message.
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 		timeout: 60000
 	});
 	await takeStepScreenshot(page, 'delete-account-redirected');
-	logSignupCheckpoint('Returned to demo chat after account deletion.');
+	logSignupCheckpoint('Account deleted and redirected to demo chat.');
 
 	logSignupCheckpoint(
 		'Skip-2FA signup + password login + email OTP account deletion flow completed successfully.',

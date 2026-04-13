@@ -38,6 +38,27 @@
    *  Suggestions with fewer words are too vague and get filtered out. */
   const MIN_BODY_WORDS = 4;
 
+  /** Minimum character count for CJK text (Chinese, Japanese, Korean).
+   *  CJK languages don't use spaces between words, so word-splitting is meaningless.
+   *  A 4-word English suggestion is roughly 4+ CJK characters. */
+  const MIN_CJK_CHARS = 4;
+
+  /** Regex matching CJK Unified Ideographs, Hiragana, Katakana, and Hangul blocks. */
+  const CJK_REGEX = /[\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]/;
+
+  /**
+   * Check if a suggestion body has enough content to be meaningful.
+   * For CJK text (no spaces), counts characters instead of words.
+   */
+  function hasEnoughWords(body: string): boolean {
+    if (CJK_REGEX.test(body)) {
+      // Count actual CJK + non-whitespace characters (ignore brackets, spaces)
+      const stripped = body.replace(/\s+/g, '');
+      return stripped.length >= MIN_CJK_CHARS;
+    }
+    return body.split(/\s+/).filter(Boolean).length >= MIN_BODY_WORDS;
+  }
+
   /** Maximum number of existing chat results to show in the suggestion row */
   const MAX_CHAT_RESULTS = 5;
 
@@ -479,9 +500,7 @@
 
     const handleLanguageChange = () => {
       currentLocale = $locale;
-      if (!$authStore.isAuthenticated) {
-        loadSuggestions();
-      }
+      loadSuggestions();
     };
     window.addEventListener('language-changed', handleLanguageChange);
 
@@ -522,7 +541,7 @@
         };
       })
       // Filter out suggestions with too few words in the body text
-      .filter(s => s.body.split(/\s+/).filter(Boolean).length >= MIN_BODY_WORDS);
+      .filter(s => hasEnoughWords(s.body));
 
     // Apply search filter when query is active
     const filtered = filterQuery

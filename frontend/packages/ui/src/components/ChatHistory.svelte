@@ -29,6 +29,7 @@
     
   // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
   import ChatHeader from './ChatHeader.svelte';
+  import WebhookPendingBanner from './WebhookPendingBanner.svelte';
   // Note: Icon was previously used for preprocessing step cards (now removed).
   // If Icon is needed elsewhere in future, re-import it.
 
@@ -291,10 +292,6 @@
   let appSettingsMemoriesRequestMap = $derived.by(() => {
     const map = new Map<string, AppSettingsMemoriesRequestContent>();
     
-    // Debug: count system messages to understand what we're working with
-    const systemMessages = messages.filter(m => m.role === 'system');
-
-    
     for (const msg of messages) {
       if (msg.role === 'system') {
         const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
@@ -482,6 +479,7 @@
     isCreditsRestored = false,
     onResend = undefined,
     isIncognito = false,
+    isExampleChat = false,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
   }: {
@@ -516,6 +514,9 @@
     /** True when the active chat is an incognito chat.
      *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
     isIncognito?: boolean;
+    /** True when the active chat is a pre-made example chat.
+     *  Shows an "Example chat" badge in the ChatHeader. */
+    isExampleChat?: boolean;
     /** Follow-up suggestions to display below the last assistant message.
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
@@ -1548,9 +1549,15 @@
                 isLoading={isNewChatGeneratingTitle}
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
+                {isExampleChat}
             />
         </div>
     {/if}
+
+    <!-- Pending webhook approval banner. Visible only when the active chat
+         originates from a webhook key with require_confirmation=true and the
+         user has not yet clicked Process or Reject. -->
+    <WebhookPendingBanner />
 
     {#if showMessages}
         <div class="chat-history-content" 

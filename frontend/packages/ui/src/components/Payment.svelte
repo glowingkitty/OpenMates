@@ -1078,6 +1078,16 @@
              2. polarCheckoutUrl is set → inline iframe fills the panel
              3. errorMessage (URL null, not loading) → retry button shown -->
         <div class="polar-checkout-wrapper">
+            <!-- Switch to EU / Stripe — always visible above the Polar form -->
+            <div class="provider-switch-container">
+                <button
+                    class="provider-switch-btn"
+                    data-testid="switch-to-stripe"
+                    onclick={() => switchProvider('stripe')}
+                >
+                    {$text('signup.switch_to_eu_card')}
+                </button>
+            </div>
             {#if polarCheckoutUrl}
                 <!-- Inline Polar checkout iframe — full width, no border, tall enough
                      to show all fields without internal scroll. Settings menu scrolls. -->
@@ -1088,16 +1098,6 @@
                         title="Polar Checkout"
                         allow="payment 'self' https://polar.sh https://sandbox.polar.sh; publickey-credentials-get 'self' https://polar.sh https://sandbox.polar.sh"
                     ></iframe>
-                </div>
-                <!-- Switch to EU / Stripe — always visible below the iframe so users
-                     with an EU card can switch without losing the form. -->
-                <div class="provider-switch-container">
-                    <button
-                        class="provider-switch-btn"
-                        onclick={() => switchProvider('stripe')}
-                    >
-                        {$text('signup.switch_to_eu_card')}
-                    </button>
                 </div>
             {:else if isPolarLoading || isLoading}
                 <!-- Loading state while create-order is in flight -->
@@ -1120,15 +1120,16 @@
                         .replace('{currency}', currency)
                         .replace('{amount}', (purchasePrice / 100).toString())}
                 </button>
-
-                <!-- Switch to EU / Stripe -->
-                <div class="provider-switch-container">
-                    <button
-                        class="provider-switch-btn"
-                        onclick={() => switchProvider('stripe')}
-                    >
-                        {$text('signup.switch_to_eu_card')}
-                    </button>
+            {/if}
+            {#if requireConsent && !hasConsentedToLimitedRefund}
+                <div class="consent-overlay" transition:fade>
+                    <LimitedRefundConsent
+                        bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                        on:consentChanged={(event) => {
+                            hasConsentedToLimitedRefund = event.detail.consented;
+                            dispatch('consentGiven', event.detail);
+                        }}
+                    />
                 </div>
             {/if}
         </div>
@@ -1167,6 +1168,17 @@
                     clientSecret={clientSecret}
                     darkmode={darkmode}
                 />
+                {#if requireConsent && !hasConsentedToLimitedRefund}
+                    <div class="consent-overlay" transition:fade>
+                        <LimitedRefundConsent
+                            bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                            on:consentChanged={(event) => {
+                                hasConsentedToLimitedRefund = event.detail.consented;
+                                dispatch('consentGiven', event.detail);
+                            }}
+                        />
+                    </div>
+                {/if}
             </div>
         {:else}
         <div class="payment-form-overlay-wrapper">
@@ -1287,6 +1299,7 @@
 
     /* Polar checkout wrapper — full width, no extra padding */
     .polar-checkout-wrapper {
+        position: relative;
         width: 100%;
     }
 

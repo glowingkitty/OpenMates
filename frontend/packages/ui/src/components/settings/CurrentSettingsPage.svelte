@@ -185,18 +185,21 @@
             measuredContentHeight = null;
             return;
         }
-        
+
         let resizeObserver: ResizeObserver | null = null;
         let isActive = true; // Track if this effect instance is still active
-        
+        // Capture element ref before async boundary — during page teardown,
+        // the bind:this prop may become null before the tick() microtask resolves.
+        const slider = sliderElement;
+
         // Wait for DOM to update
         tick().then(() => {
             // Check if effect is still active (not cleaned up)
-            if (!isActive || !sliderElement) {
+            if (!isActive || !slider?.isConnected) {
                 return;
             }
-            
-            const activeContent = sliderElement.querySelector('.settings-items.active, .settings-submenu-content.active');
+
+            const activeContent = slider.querySelector('.settings-items.active, .settings-submenu-content.active');
             if (!activeContent) {
                 measuredContentHeight = null;
                 return;

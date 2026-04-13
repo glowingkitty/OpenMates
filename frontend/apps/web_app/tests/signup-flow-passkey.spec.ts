@@ -34,9 +34,9 @@ const {
 	setToggleChecked,
 	fillStripeCardDetails,
 	getSignupTestDomain,
-	getMailosaurServerId,
 	buildSignupEmail,
-	createMailosaurClient,
+	createEmailClient,
+	checkEmailQuota,
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
@@ -52,12 +52,10 @@ const {
  *
  * REQUIRED ENV VARS:
  * - SIGNUP_TEST_EMAIL_DOMAINS: Comma-separated list of allowed test domains.
- * - MAILOSAUR_API_KEY: Mailosaur API key for test mailbox access.
- * - MAILOSAUR_SERVER_ID: Mailosaur server ID used by the test domain.
+ * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
+ * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
  */
 
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
-const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
@@ -152,21 +150,18 @@ test('completes passkey signup flow with email + purchase', async ({
 
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
-	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required for email validation.');
+
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+	const quota = await checkEmailQuota();
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
+
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
 	}
-	const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
-	if (!mailosaurServerId) {
-		throw new Error(
-			'MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.'
-		);
-	}
 	const { waitForMailosaurMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
-		createMailosaurClient({
-			apiKey: MAILOSAUR_API_KEY,
-			serverId: mailosaurServerId
-		});
+		emailClient!;
 
 	// Grant clipboard permissions so "Copy" actions can be exercised reliably.
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -180,7 +175,8 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Virtual authenticator configured for passkey flow.');
 
 		const signupEmail = buildSignupEmail(signupDomain);
-		const signupUsername = signupEmail.split('@')[0];
+		const emailLocal = signupEmail.split('@')[0];
+		const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 		logSignupCheckpoint('Initialized passkey signup identity.', { signupEmail });
 
 		// Open the login/signup dialog from the header.

@@ -1,0 +1,51 @@
+{
+  "fixture_id": "focus_career_1",
+  "recorded_at": "2026-04-11T12:31:46.554372+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": " I've been feeling really frustrated and stuck in my current job for the past year. I don't feel like I'm growing anymore and I'm not sure what direction to take my career. Can you help me figure out ",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "life_coach_psychology",
+    "title": "Career Frustration and Growth",
+    "icon_names": [
+      "briefcase",
+      "lightbulb",
+      "heart"
+    ],
+    "selected_model_id": "google/gemini-3.1-pro-preview",
+    "selected_model_name": "Gemini 3.1 Pro",
+    "mate_id": "lisa",
+    "chat_summary": "User seeks career guidance due to job frustration.",
+    "chat_tags": [
+      "career",
+      "frustration",
+      "career change",
+      "career direction",
+      "career growth"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "complex",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "life_coach_psychology",
+    "model_name": "Gemini 3.1 Pro",
+    "provider_name": "Google AI Studio",
+    "server_region": "US",
+    "icon_names": [
+      "briefcase",
+      "lightbulb",
+      "heart"
+    ]
+  },
+  "response": "```json\n{\"type\": \"focus_mode_activation\", \"embed_id\": \"de9ab569-0e14-4e82-8a47-2301a2facdf9\", \"focus_id\": \"jobs-career_insights\", \"app_id\": \"jobs\", \"focus_mode_name\": \"jobs.career_insights\"}\n```\n\n",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Gemini 3.1 Pro"
+  }
+}

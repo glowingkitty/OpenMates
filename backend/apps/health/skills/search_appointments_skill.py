@@ -38,7 +38,7 @@ import json
 import logging
 import re
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlencode
 
@@ -68,6 +68,8 @@ DOCTOLIB_SPECIALITY_SLUGS: Dict[str, str] = {
     "augenarzt":                    "augenheilkunde",
     "augenheilkunde":               "augenheilkunde",
     "allgemeinmedizin":             "allgemeinmedizin",
+    "allgemeinmediziner":           "allgemeinmedizin",
+    "allgemeinarzt":                "allgemeinmedizin",
     "hausarzt":                     "allgemeinmedizin",
     "general_practitioner":         "allgemeinmedizin",
     "hautarzt":                     "hautarzt",
@@ -75,6 +77,11 @@ DOCTOLIB_SPECIALITY_SLUGS: Dict[str, str] = {
     "dermatologist":                "hautarzt",
     "frauenarzt":                   "frauenarzt",
     "gynäkologie":                  "frauenarzt",
+    "gynaekologie":                 "frauenarzt",
+    "gynakologie":                  "frauenarzt",
+    "gynäkologe":                   "frauenarzt",
+    "gynaekologe":                  "frauenarzt",
+    "gynakologe":                   "frauenarzt",
     "gynecologist":                 "frauenarzt",
     "hno":                          "facharzt-fur-hno",
     "hno-arzt":                     "facharzt-fur-hno",
@@ -100,7 +107,38 @@ DOCTOLIB_SPECIALITY_SLUGS: Dict[str, str] = {
     "psychiatrist":                 "psychiatrie-und-psychotherapie",
     "psychotherapist":              "psychologischer-psychotherapeut-psychotherapeutin",
     "radiologe":                    "radiologe",
+    "radiologin":                   "radiologe",
     "radiologist":                  "radiologe",
+    # LLMs commonly pass "radiologie" (the German field name, not the
+    # profession) — Doctolib serves the URL under "radiologe", not "radiologie".
+    "radiologie":                   "radiologe",
+    "radiology":                    "radiologe",
+    "diagnostische-radiologie":     "radiologe",
+    "radiologische-diagnostik":     "radiologe",
+    # MRT/MRI/CT/Röntgen/Ultraschall are imaging procedures performed by
+    # radiologists — route them all to the radiologe speciality so the LLM
+    # can pass the procedure name verbatim without us returning 404.
+    "mrt":                          "radiologe",
+    "mri":                          "radiologe",
+    "magnetresonanztomographie":    "radiologe",
+    "magnetresonanz":               "radiologe",
+    "kernspintomographie":          "radiologe",
+    "kernspin":                     "radiologe",
+    "ct":                           "radiologe",
+    "computertomographie":          "radiologe",
+    "computertomografie":           "radiologe",
+    "röntgen":                      "radiologe",
+    "rontgen":                      "radiologe",
+    "roentgen":                     "radiologe",
+    "x-ray":                        "radiologe",
+    "xray":                         "radiologe",
+    "ultraschall":                  "radiologe",
+    "ultrasound":                   "radiologe",
+    "sonographie":                  "radiologe",
+    "sonografie":                   "radiologe",
+    "mammographie":                 "radiologe",
+    "mammografie":                  "radiologe",
+    "mammogram":                    "radiologe",
     "rheumatologie":                "rheumatologie",
     "rheumatologe":                 "rheumatologie",
     "rheumatologist":               "rheumatologie",
@@ -177,8 +215,19 @@ DOCTOLIB_CITY_SLUGS: Dict[str, str] = {
     "darmstadt":            "darmstadt",
 }
 
-# Max total appointment slots to return per request (soonest first)
-DEFAULT_MAX_SLOTS = 10
+# Max total appointment slots to return per request (soonest first).
+# Used as the per-provider cap BEFORE grouping by doctor.
+DEFAULT_MAX_SLOTS = 100  # 10 doctors × ~10 slots each worst case
+
+# Max doctors to return per request after grouping slots by doctor.
+# Each returned doctor card shows one primary slot + up to 5 additional slots.
+DEFAULT_MAX_DOCTORS_RETURNED = 10
+# When insurance_sector is NOT set, split the 10 slots between public and
+# private (soonest-first within each bucket) then backfill unknown.
+DEFAULT_INSURANCE_BUCKET_SIZE = 5
+
+# Max alternate slot datetimes to attach to each doctor card.
+DEFAULT_MAX_ADDITIONAL_SLOTS = 5
 
 # Max doctors to check per request when not specified
 DEFAULT_MAX_DOCTORS = 10
@@ -191,6 +240,8 @@ FILTERED_SEARCH_MAX_DOCTORS = 30
 # rate limits). Each retry uses a fresh proxy IP via Webshare's rotating pool.
 DOCTOLIB_MAX_RETRIES = 5
 DOCTOLIB_RETRY_DELAY_SECONDS = 2
+# /search/availabilities.json enforces limit <= 7 days (2026-Q1 change).
+DOCTOLIB_MAX_LIMIT_DAYS = 7
 
 # ---------------------------------------------------------------------------
 # Jameda (DocPlanner) constants
@@ -250,7 +301,26 @@ JAMEDA_SPECIALITY_SLUGS: Dict[str, str] = {
     "chirurg":                      "chirurg",
     "surgeon":                      "chirurg",
     "radiologe":                    "radiologe",
+    "radiologin":                   "radiologe",
     "radiologist":                  "radiologe",
+    "radiologie":                   "radiologe",
+    "radiology":                    "radiologe",
+    # MRT/CT/Röntgen/Ultraschall are procedures done by radiologists.
+    "mrt":                          "radiologe",
+    "mri":                          "radiologe",
+    "magnetresonanztomographie":    "radiologe",
+    "kernspintomographie":          "radiologe",
+    "kernspin":                     "radiologe",
+    "ct":                           "radiologe",
+    "computertomographie":          "radiologe",
+    "röntgen":                      "radiologe",
+    "rontgen":                      "radiologe",
+    "roentgen":                     "radiologe",
+    "x-ray":                        "radiologe",
+    "ultraschall":                  "radiologe",
+    "ultrasound":                   "radiologe",
+    "sonographie":                  "radiologe",
+    "mammographie":                 "radiologe",
     "rheumatologie":                "rheumatologe",
     "rheumatologe":                 "rheumatologe",
     "rheumatologist":               "rheumatologe",
@@ -591,7 +661,7 @@ async def _search_doctors(
 
     Returns up to max_doctors provider dicts. Each provider includes:
     - name, firstName, title, gender, type (PERSON/ORGANIZATION)
-    - location: {address, city, zipcode, gpsPoint}
+    - location: {address, city, zipcode, lat, lng} (older responses used gpsPoint)
     - link: relative URL for the practice page
     - onlineBooking: {agendaIds, telehealth}
     - matchedVisitMotive: {visitMotiveId, name, insuranceSector, allowNewPatients}
@@ -669,12 +739,18 @@ async def _fetch_availability(
       - total: total slot count across all days
       - next_slot: ISO datetime of nearest available slot
     """
-    start_date = date.today().isoformat()
+    # Doctolib's /search/availabilities.json contract changed in 2026-Q1:
+    #   • `start_date` (date-only) → `start_date_time` (ISO8601 with time zone)
+    #   • `insurance_sector` must be lowercase "public" / "private" / "none"
+    #   • `limit` is now capped at <= 7 days (400 "limit: must be less than
+    #     or equal to 7" otherwise) — previously 14 was accepted.
+    start_dt = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     agenda_str = "-".join(str(aid) for aid in agenda_ids)
+    clamped_limit = min(max(1, days_ahead), DOCTOLIB_MAX_LIMIT_DAYS)
     params = urlencode({
         "telehealth": str(telehealth).lower(),
-        "limit": days_ahead,
-        "start_date": start_date,
+        "limit": clamped_limit,
+        "start_date_time": start_dt,
         "visit_motive_id": visit_motive_id,
         "agenda_ids": agenda_str,
         "insurance_sector": insurance_sector,
@@ -687,10 +763,18 @@ async def _fetch_availability(
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPStatusError as exc:
-        logger.debug(
-            "[health:search_appointments] Availability HTTP %d for practice %d",
+        # Log at WARNING so contract drift (e.g. the 2026-Q1 start_date →
+        # start_date_time rename) is visible without changing log levels.
+        body_preview = ""
+        try:
+            body_preview = exc.response.text[:200]
+        except Exception:
+            pass
+        logger.warning(
+            "[health:search_appointments] Availability HTTP %d for practice %d: %s",
             exc.response.status_code,
             practice_id,
+            body_preview,
         )
         return {"availabilities": [], "total": 0, "next_slot": None}
     except Exception as exc:
@@ -731,24 +815,165 @@ def _extract_gps(loc: Dict[str, Any]) -> Optional[Dict[str, float]]:
     """Extract GPS coordinates from a Doctolib location dict.
 
     Returns {latitude, longitude} or None if coordinates are unavailable.
-    The Doctolib API provides a gpsPoint string like "lat,lon".
+
+    As of 2026-Q1 the phs_proxy/raw response exposes coordinates as numeric
+    `lat`/`lng` fields directly on the location object. Older responses used
+    a comma-separated `gpsPoint` string — kept as a fallback in case the API
+    shape flips back.
     """
+    lat_raw = loc.get("lat")
+    lon_raw = loc.get("lng")
+    if isinstance(lat_raw, (int, float)) and isinstance(lon_raw, (int, float)):
+        return {"latitude": float(lat_raw), "longitude": float(lon_raw)}
+
     gps_point = loc.get("gpsPoint", "")
-    if not gps_point or "," not in str(gps_point):
-        return None
-    try:
-        parts = str(gps_point).split(",")
-        lat = float(parts[0].strip())
-        lon = float(parts[1].strip())
-        return {"latitude": lat, "longitude": lon}
-    except (ValueError, IndexError):
-        return None
+    if gps_point and "," in str(gps_point):
+        try:
+            parts = str(gps_point).split(",")
+            return {
+                "latitude": float(parts[0].strip()),
+                "longitude": float(parts[1].strip()),
+            }
+        except (ValueError, IndexError):
+            pass
+    return None
 
 
 def _result_hash(practice_id: int, visit_motive_id: int, slot_datetime: str = "") -> str:
     """Generate a stable short hash for a result item."""
     key = f"{practice_id}:{visit_motive_id}:{slot_datetime}"
     return hashlib.sha256(key.encode()).hexdigest()[:16]
+
+
+# ---------------------------------------------------------------------------
+# Post-processing helpers — past-slot filter, grouping, Google Places enrichment
+# ---------------------------------------------------------------------------
+
+
+def _filter_past_slots(slot_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Drop any slot whose datetime is already in the past.
+
+    Some provider APIs (notably Jameda) occasionally return stale cached slots
+    that have already been booked or passed. Filtering them up front prevents
+    cards that point at expired appointments.
+    """
+    now = datetime.now(timezone.utc)
+    fresh: List[Dict[str, Any]] = []
+    for item in slot_items:
+        raw_dt = item.get("slot_datetime", "")
+        if not raw_dt:
+            continue
+        try:
+            # Accept ISO 8601 with or without tz; assume UTC if naive.
+            parsed = datetime.fromisoformat(str(raw_dt).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            if parsed >= now:
+                fresh.append(item)
+        except (ValueError, TypeError):
+            # Keep items with unparseable timestamps — safer than dropping them
+            fresh.append(item)
+    return fresh
+
+
+def _group_slots_by_doctor(
+    slot_items: List[Dict[str, Any]],
+    max_additional: int = DEFAULT_MAX_ADDITIONAL_SLOTS,
+) -> List[Dict[str, Any]]:
+    """Collapse per-slot results into one result per doctor.
+
+    Each returned item keeps the earliest slot as `slot_datetime` and adds:
+      - `additional_slot_datetimes`: list of up to `max_additional` next slot ISOs
+      - `additional_slot_count`: total number of additional slots beyond the primary
+
+    The doctor key combines `practice_id` and `visit_motive_id` so that a
+    doctor with multiple motives still produces one card per motive (matching
+    what the appointment search was actually for).
+
+    Preserves input order for the primary slot assignment: the first slot seen
+    for each doctor wins, so upstream sorting (earliest first) is honored.
+    """
+    seen_keys: Dict[Tuple[Any, Any], Dict[str, Any]] = {}
+    extras_by_key: Dict[Tuple[Any, Any], List[str]] = {}
+
+    for item in slot_items:
+        practice_id = item.get("practice_id")
+        visit_motive_id = item.get("visit_motive_id")
+        # Fall back to (name, address) when IDs are missing — defensive.
+        key: Tuple[Any, Any] = (
+            practice_id if practice_id is not None else item.get("name", ""),
+            visit_motive_id if visit_motive_id is not None else item.get("address", ""),
+        )
+
+        if key not in seen_keys:
+            seen_keys[key] = dict(item)  # Copy so we can mutate without affecting input
+            extras_by_key[key] = []
+        else:
+            extras_by_key[key].append(item.get("slot_datetime", ""))
+
+    grouped: List[Dict[str, Any]] = []
+    for key, primary in seen_keys.items():
+        extras = [dt for dt in extras_by_key[key] if dt]
+        primary["additional_slot_datetimes"] = extras[:max_additional]
+        primary["additional_slot_count"] = len(extras)
+        grouped.append(primary)
+
+    # Preserve earliest-slot ordering
+    grouped.sort(key=lambda r: r.get("slot_datetime", ""))
+    return grouped
+
+
+def _apply_insurance_policy(
+    grouped: List[Dict[str, Any]],
+    requested_sector: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Ordering + capping rules for insurance handling.
+
+    Every input item is already grouped by doctor and sorted by
+    `slot_datetime` ascending (earliest first). Each item carries an
+    `insurance` field set to one of:
+      - "public"    — Doctolib motive restricted to gesetzliche KV
+      - "private"   — Doctolib motive restricted to private KV
+      - "unknown"   — Jameda results (v3 API has no insurance info) or
+                      Doctolib motives with insuranceSector=null
+
+    Rules:
+
+      insurance_sector SET (e.g. "public"):
+        1. All matching-sector items first (earliest-first order preserved)
+        2. All "unknown" items next
+        3. DROP the opposite sector entirely
+        Capped at DEFAULT_MAX_DOCTORS_RETURNED.
+
+      insurance_sector NOT set:
+        1. Up to DEFAULT_INSURANCE_BUCKET_SIZE public items
+        2. Up to DEFAULT_INSURANCE_BUCKET_SIZE private items
+        3. Backfill from "unknown" until we reach DEFAULT_MAX_DOCTORS_RETURNED
+        Always capped at DEFAULT_MAX_DOCTORS_RETURNED.
+
+    Within every bucket we preserve the incoming earliest-first order.
+    """
+    if not grouped:
+        return grouped
+
+    public = [r for r in grouped if r.get("insurance") == "public"]
+    private = [r for r in grouped if r.get("insurance") == "private"]
+    unknown = [r for r in grouped if r.get("insurance") not in ("public", "private")]
+
+    if requested_sector in ("public", "private"):
+        matched = public if requested_sector == "public" else private
+        ordered = matched + unknown
+        return ordered[:DEFAULT_MAX_DOCTORS_RETURNED]
+
+    # No sector requested — split 5 + 5, backfill from unknown.
+    ordered = (
+        public[:DEFAULT_INSURANCE_BUCKET_SIZE]
+        + private[:DEFAULT_INSURANCE_BUCKET_SIZE]
+    )
+    remaining = DEFAULT_MAX_DOCTORS_RETURNED - len(ordered)
+    if remaining > 0:
+        ordered.extend(unknown[:remaining])
+    return ordered[:DEFAULT_MAX_DOCTORS_RETURNED]
 
 
 async def _process_single_doctolib_request(
@@ -800,8 +1025,21 @@ async def _process_single_doctolib_request(
             f"Supported: {', '.join(sorted(VISIT_MOTIVE_CATEGORIES.keys()))}"
         )
 
-    # Resolve speciality slug
-    speciality_slug = DOCTOLIB_SPECIALITY_SLUGS.get(speciality_raw, speciality_raw)
+    # Resolve speciality slug — warn loudly when the LLM passes an unknown
+    # term so we can add the mapping. Without the warning, an unknown
+    # speciality silently falls through and Doctolib returns 404 for every
+    # request (seen in issue 0d5b2385 where "mrt" and "radiologie" both hit
+    # the fallback path and produced zero results).
+    speciality_slug = DOCTOLIB_SPECIALITY_SLUGS.get(speciality_raw)
+    if speciality_slug is None:
+        speciality_slug = speciality_raw
+        logger.warning(
+            "[health:search_appointments] Doctolib speciality '%s' not in "
+            "DOCTOLIB_SPECIALITY_SLUGS map. Using raw value as slug — this "
+            "will likely 404. Add a mapping in search_appointments_skill.py "
+            "DOCTOLIB_SPECIALITY_SLUGS dict.",
+            speciality_raw,
+        )
 
     # Resolve city slug
     city_slug = DOCTOLIB_CITY_SLUGS.get(city_raw, city_raw.replace(" ", "-"))
@@ -930,10 +1168,22 @@ async def _process_single_doctolib_request(
             agenda_ids = online_booking.get("agendaIds", [])
             practice_id = references.get("practiceId")
 
-            # Collect all available slots from availability response
+            # Collect all available slots from availability response.
+            # Doctolib returns two shapes depending on the visit motive:
+            #   - plain ISO8601 strings for single-step motives
+            #   - dicts {agenda_id, start_date, end_date, master_step, steps}
+            #     for multi-step procedures (e.g. laser treatments at a
+            #     Hautarzt). Normalise both to the start ISO string and drop
+            #     anything we can't recognise.
             slot_datetimes: List[str] = []
             for day in avail.get("availabilities", []):
-                slot_datetimes.extend(day.get("slots", []))
+                for slot in day.get("slots", []):
+                    if isinstance(slot, str):
+                        slot_datetimes.append(slot)
+                    elif isinstance(slot, dict):
+                        start_iso = slot.get("start_date")
+                        if isinstance(start_iso, str):
+                            slot_datetimes.append(start_iso)
 
             if not slot_datetimes:
                 continue
@@ -954,7 +1204,14 @@ async def _process_single_doctolib_request(
                 "languages": provider.get("languages", []),
                 "telehealth": online_booking.get("telehealth", False),
                 "visit_motive": visit_motive.get("name", ""),
-                "insurance": ins_sector_obj.get("type", ""),
+                # Doctolib returns insuranceSector.type as "PUBLIC"/"PRIVATE"
+                # for motives that restrict by insurance, and null/missing for
+                # motives that accept any. We normalise to lowercase strings
+                # and fall back to "unknown" so the UI can show the same
+                # "verify on booking" badge we use for Jameda.
+                "insurance": (
+                    (ins_sector_obj.get("type") or "").lower() or "unknown"
+                ),
                 "allows_new_patients": visit_motive.get("allowNewPatients", True),
                 "practice_url": _practice_url(provider),
                 "provider_platform": "Doctolib",
@@ -1256,15 +1513,37 @@ async def _process_single_jameda_request(
         ]
         all_addresses = await asyncio.gather(*address_tasks, return_exceptions=True)
 
-        # Build list of (doctor_info, address) pairs to fetch slots for
+        # Build list of (doctor_info, address) pairs to fetch slots for.
+        #
+        # CITY FILTER: The Algolia index does a full-text search on
+        # "{speciality_slug} {city_slug}" which returns the best text matches
+        # globally — it does NOT restrict to the requested city. A doctor in
+        # Leipzig whose name/specialization happens to match the query can
+        # outrank Berlin doctors. We therefore filter addresses by city_name
+        # here so the returned appointments are actually in the requested city.
+        city_slug_lc = city_slug.lower().strip()
         doctor_address_pairs: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+        dropped_wrong_city = 0
         for doc_info, addrs in zip(doctor_infos, all_addresses):
             if isinstance(addrs, Exception):
                 logger.warning("[health:jameda] Address fetch error for doctor %s: %s", doc_info["doctor_id"], addrs)
                 continue
+            matched_addr: Optional[Dict[str, Any]] = None
             for addr in addrs:
-                doctor_address_pairs.append((doc_info, addr))
-                break  # Use first valid address per doctor
+                addr_city = str(addr.get("city_name", "")).lower().strip()
+                if addr_city and addr_city == city_slug_lc:
+                    matched_addr = addr
+                    break
+            if matched_addr is not None:
+                doctor_address_pairs.append((doc_info, matched_addr))
+            else:
+                dropped_wrong_city += 1
+
+        if dropped_wrong_city:
+            logger.info(
+                "[health:jameda] Dropped %d doctor(s) whose addresses were not in city '%s'",
+                dropped_wrong_city, city_slug,
+            )
 
         if not doctor_address_pairs:
             return request_id, [], None
@@ -1362,7 +1641,15 @@ async def _process_single_jameda_request(
                 "languages": [],
                 "telehealth": False,
                 "visit_motive": service_name,
-                "insurance": "",
+                # Jameda's public API does not expose per-doctor insurance
+                # sector info (neither addresses nor services endpoint return
+                # it — verified by reverse-engineering the v3 API). We mark
+                # the sector as "unknown" so the LLM (and UI) can warn the
+                # user that Jameda results may include both public and
+                # private practices. When the user requires a specific
+                # insurance sector, the orchestrator skips Jameda entirely
+                # and relies only on Doctolib, which has a real filter.
+                "insurance": "unknown",
                 "allows_new_patients": True,
                 "practice_url": f"{JAMEDA_BASE_URL}/{speciality_slug}/{city_slug}",
                 "provider_platform": "Jameda",
@@ -1464,6 +1751,20 @@ class SearchAppointmentsSkill(BaseSkill):
             SearchAppointmentsResponse with grouped results, provider info, and
             follow-up suggestions.
         """
+        # Lazily instantiate the SecretsManager when the dispatcher did not
+        # inject one. Needed so the Google Places enrichment pass (and
+        # Webshare proxy credentials) can actually read secrets from Vault.
+        # Without this, base_app.dispatch_skill passes secrets_manager=None
+        # and enrichment silently no-ops.
+        secrets_manager, error_response = await self._get_or_create_secrets_manager(
+            secrets_manager=secrets_manager,
+            skill_name="SearchAppointmentsSkill",
+            error_response_factory=lambda msg: SearchAppointmentsResponse(error=msg),
+            logger=logger,
+        )
+        if error_response:
+            return error_response
+
         # Validate and normalise the requests array
         validated, err = self._validate_requests_array(
             requests=requests,
@@ -1502,6 +1803,15 @@ class SearchAppointmentsSkill(BaseSkill):
                     "Proceeding without proxy.",
                     exc,
                 )
+
+        # Note on Jameda + insurance: Jameda's public API does not expose
+        # per-doctor insurance info (verified by reverse-engineering the v3
+        # API — neither /addresses nor /services returns an insurance
+        # sector). We still include Jameda results when the user specifies
+        # insurance_sector, but mark them with insurance="unknown" so the
+        # UI can surface a badge telling the user to verify on Jameda
+        # before booking. Doctolib results continue to honour the
+        # insuranceSector filter via _fetch_availability.
 
         # Process all requests in parallel
         # Each request gets its own httpx.AsyncClient so different requests
@@ -1631,9 +1941,9 @@ class SearchAppointmentsSkill(BaseSkill):
                     error_summary = "; ".join(errors_list) if errors_list else None
                     return request_id, [], error_summary
 
-                # Sort combined results by slot_datetime, cap at DEFAULT_MAX_SLOTS
+                # Sort combined results by slot_datetime (soonest first)
                 merged.sort(key=lambda r: r.get("slot_datetime", ""))
-                results = merged[:DEFAULT_MAX_SLOTS]
+                results = merged
                 error = None
 
             elif provider_platform == "jameda":
@@ -1641,6 +1951,26 @@ class SearchAppointmentsSkill(BaseSkill):
 
             else:
                 request_id, results, error = await _run_doctolib(req)
+
+            if not error and results:
+                # 1. Drop any slot whose datetime is already in the past (stale
+                #    cached slots from provider APIs). Keeps the user-facing
+                #    result set fresh.
+                results = _filter_past_slots(results)
+
+                # 2. Collapse per-slot rows into one card per doctor, with up to
+                #    DEFAULT_MAX_ADDITIONAL_SLOTS alternate times attached. This
+                #    replaces the old "10 slots from the same doctor" output
+                #    with "6 different doctors, each with their soonest slot
+                #    plus their next N alternate slots".
+                results = _group_slots_by_doctor(results)
+
+                # 3. Apply the insurance selection policy (see _apply_insurance_policy
+                #    docstring) and cap at DEFAULT_MAX_DOCTORS_RETURNED.
+                results = _apply_insurance_policy(
+                    results,
+                    requested_sector=req.get("insurance_sector"),
+                )
 
             if error or not results:
                 return request_id, results, error

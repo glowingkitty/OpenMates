@@ -473,11 +473,17 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         isEmailOtpSending = true;
         errorMessage = null;
         try {
+            const emailKey = cryptoService.getEmailEncryptionKeyForApi();
+            if (!emailKey) {
+                errorMessage = 'Email encryption key not available. Please log in again.';
+                isEmailOtpSending = false;
+                return;
+            }
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.requestActionVerification), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ action: verificationAction })
+                body: JSON.stringify({ action: verificationAction, email_encryption_key: emailKey })
             });
             const data = await response.json();
             if (response.ok && data.success) {

@@ -37,6 +37,10 @@
     address?: string;
     insurance?: string;
     telehealth?: boolean;
+    /** Combined Jameda + Google Places rating (weighted average) */
+    rating?: number;
+    /** Combined review count across rating sources */
+    rating_count?: number;
   }
 
   interface Props {
@@ -44,6 +48,10 @@
     id: string;
     /** Human-readable search summary, e.g. "Augenarzt in Berlin" */
     query?: string;
+    /** Speciality slug from the skill args (e.g. "radiologie") */
+    speciality?: string;
+    /** City name from the skill args (e.g. "Berlin") */
+    city?: string;
     /** Provider platform name, e.g. "Doctolib" */
     provider?: string;
     /** Current processing status */
@@ -63,6 +71,8 @@
   let {
     id,
     query: queryProp,
+    speciality: specialityProp,
+    city: cityProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -73,6 +83,8 @@
 
   // Local reactive state — updated by handleEmbedDataUpdated during streaming
   let localQuery = $state<string>('');
+  let localSpeciality = $state<string>('');
+  let localCity = $state<string>('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<AppointmentResult[]>([]);
@@ -84,6 +96,8 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || '';
+      localSpeciality = specialityProp || '';
+      localCity = cityProp || '';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -125,6 +139,11 @@
     const content = data.decodedContent;
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
+      // Fallback: the health skill passes speciality + city as separate fields
+      // (not a single "query" field like web/travel search). Capture them so we
+      // can synthesize a display query in the template.
+      if (typeof content.speciality === 'string') localSpeciality = content.speciality;
+      if (typeof content.city === 'string') localCity = content.city;
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
@@ -176,6 +195,8 @@
             address: (c.address as string) || undefined,
             insurance: (c.insurance as string) || undefined,
             telehealth: (c.telehealth as boolean) || false,
+            rating: typeof c.rating === 'number' ? c.rating : undefined,
+            rating_count: typeof c.rating_count === 'number' ? c.rating_count : undefined,
           } as AppointmentResult;
         }));
 
@@ -208,8 +229,18 @@
 
   let flatResults = $derived(flattenResults(results));
 
-  // Summary line: "Augenarzt in Berlin" or raw query
-  let searchSummary = $derived(query || '');
+  // Summary line: prefer explicit "query" field; fall back to speciality + city
+  // (the health skill passes those as separate fields, not a combined query string).
+  let searchSummary = $derived.by(() => {
+    if (query) return query;
+    if (localSpeciality && localCity) {
+      // Capitalize first letter of each for display
+      const spec = localSpeciality.charAt(0).toUpperCase() + localSpeciality.slice(1);
+      const city = localCity.charAt(0).toUpperCase() + localCity.slice(1);
+      return `${spec} in ${city}`;
+    }
+    return localSpeciality || localCity || '';
+  });
 
   // Total appointment slots found
   let totalAppointments = $derived(flatResults.length);
@@ -222,6 +253,12 @@
       .sort();
     return slots[0] || null;
   });
+
+  // Rating display intentionally lives on the per-doctor appointment card
+  // (HealthAppointmentEmbedPreview), not on the search summary — aggregate
+  // "best rating" is misleading because it doesn't tell you which doctor
+  // scored it, and the per-doctor ratings are the actionable info when
+  // choosing an appointment.
 
   // Format earliest slot as human-readable date
   let earliestSlotDisplay = $derived.by(() => {
@@ -398,6 +435,7 @@
   .health-search-details.mobile .earliest-slot {
     font-size: var(--font-size-xxs);
   }
+
 
   /* Error state */
   .search-error {

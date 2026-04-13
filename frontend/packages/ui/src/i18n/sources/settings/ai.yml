@@ -1,0 +1,154 @@
+# AI settings translations
+# Used in Settings > AI menu (top-level)
+# Namespace: settings, key prefix: ai (from filename)
+# Keys should NOT include "ai." prefix - the build script adds it automatically
+description:
+  context: Short description shown in the AI settings page gradient banner header
+  en: Models, pricing, and AI preferences
+  de: Modelle, Preise und KI-Einstellungen
+  zh: 模型、定价和 AI 偏好设置
+  es: Modelos, precios y preferencias de IA
+  fr: Modèles, tarifs et préférences d'IA
+  pt: Modelos, preços e preferências de IA
+  ru: Модели, цены и настройки ИИ
+  ja: モデル、料金、AI設定
+  ko: 모델, 가격 및 AI 환경설정
+  it: Modelli, prezzi e preferenze IA
+  tr: Modeller, fiyatlandırma ve yapay zeka tercihleri
+  vi: Mô hình, giá cả và tùy chọn AI
+  id: Model, harga, dan preferensi AI
+  pl: Modele, ceny i preferencje AI
+  nl: Modellen, prijzen en AI-voorkeuren
+  ar: النماذج والأسعار وتفضيلات الذكاء الاصطناعي
+  hi: मॉडल, मूल्य निर्धारण और AI प्राथमिकताएं
+  th: โมเดล ราคา และการตั้งค่า AI
+  cs: Modely, ceny a nastavení AI
+  sv: Modeller, priser och AI-inställningar
+  he: מודלים, תמחור והעדפות AI
+  verified_by_human: []
+
+# Settings > AI menu item (becomes settings.ai.text)
+ai:
+  context: AI settings menu title
+  en: AI
+  de: KI
+  zh: AI
+  es: IA
+  fr: IA
+  pt: IA
+  ru: ИИ
+  ja: AI
+  ko: AI
+  it: IA
+  tr: Yapay Zeka
+  vi: AI
+  id: AI
+  pl: AI
+  nl: AI
+  ar: الذكاء الاصطناعي
+  hi: AI
+  th: AI
+  cs: AI
+  sv: AI
+  he: AI
+  verified_by_human: []
+
+available_providers:
+  context: Section heading for the server providers toggle list
+  en: Available providers
+  de: Verfügbare Anbieter
+  zh: 可用提供商
+  es: Proveedores disponibles
+  fr: Fournisseurs disponibles
+  pt: Provedores disponíveis
+  ru: Доступные провайдеры
+  ja: 利用可能なプロバイダー
+  ko: 사용 가능한 공급자
+  it: Fornitori disponibili
+  tr: Mevcut sağlayıcılar
+  vi: Nhà cung cấp khả dụng
+  id: Penyedia yang tersedia
+  pl: Dostępni dostawcy
+  nl: Beschikbare aanbieders
+  ar: مزودو الخدمة المتاحون
+  hi: उपलब्ध प्रदाता
+  th: ผู้ให้บริการที่พร้อมใช้งาน
+  cs: Dostupní poskytovatelé
+  sv: Tillgängliga leverantörer
+  he: ספקים זמינים
+  verified_by_human: []
+
+provider_models_heading:
+  context: Heading on the AI provider detail page listing models available on that provider. '{provider}' is replaced with the provider name.
+  en: Models available on {provider}
+  de: Auf {provider} verfügbare Modelle
+  zh: "{provider} 上可用的模型"
+  es: Modelos disponibles en {provider}
+  fr: Modèles disponibles sur {provider}
+  pt: Modelos disponíveis em {provider}
+  ru: Модели, доступные на {provider}
+  ja: "{provider} で利用可能なモデル"
+  ko: "{provider}에서 사용 가능한 모델"
+  it: Modelli disponibili su {provider}
+  tr: "{provider} üzerinde mevcut modeller"
+  vi: Các mô hình có sẵn trên {provider}
+  id: Model yang tersedia di {provider}
+  pl: Modele dostępne u {provider}
+  nl: Modellen beschikbaar op {provider}
+  ar: النماذج المتاحة على {provider}
+  hi: "{provider} पर उपलब्ध मॉडल"
+  th: "โมเดลที่พร้อมใช้งานบน {provider}"
+  cs: Modely dostupné u {provider}
+  sv: Modeller tillgängliga på {provider}
+  he: "מודלים הזמינים ב-{provider}"
+  verified_by_human: []
+
+provider_models_description:
+  context: Description on the AI provider detail page explaining that the listed models are informational. '{provider}' is replaced with the provider name.
+  en: These AI models are hosted by {provider}. This is an informational list — to enable, disable, or configure a model, open it from the Available models section.
+  de: Diese KI-Modelle werden von {provider} gehostet. Dies ist eine informative Liste — um ein Modell zu aktivieren, zu deaktivieren oder zu konfigurieren, öffnen Sie es im Abschnitt Verfügbare Modelle.
+  zh: 这些 AI 模型由 {provider} 托管。这是一份信息列表 — 若要启用、停用或配置模型，请在“可用模型”部分中打开它。
+  es: Estos modelos de IA están alojados por {provider}. Esta es una lista informativa — para habilitar, deshabilitar o configurar un modelo, ábrelo desde la sección Modelos disponibles.
+  fr: Ces modèles d'IA sont hébergés par {provider}. Il s'agit d'une liste informative — pour activer, désactiver ou configurer un modèle, ouvrez-le depuis la section Modèles disponibles.
+  pt: Esses modelos de IA são hospedados por {provider}. Esta é uma lista informativa — para habilitar, desabilitar ou configurar um modelo, abra-o na seção Modelos disponíveis.
+  ru: Эти модели ИИ размещены у {provider}. Это информационный список — чтобы включить, отключить или настроить модель, откройте её в разделе «Доступные модели».
+  ja: "これらの AI モデルは {provider} によってホストされています。これは情報リストです。モデルを有効化、無効化、または構成するには、「利用可能なモデル」セクションから開いてください。"
+  ko: "이 AI 모델은 {provider}에서 호스팅됩니다. 이는 정보 목록입니다. 모델을 활성화, 비활성화 또는 구성하려면 사용 가능한 모델 섹션에서 여세요."
+  it: Questi modelli di IA sono ospitati da {provider}. Questo è un elenco informativo — per abilitare, disabilitare o configurare un modello, aprilo dalla sezione Modelli disponibili.
+  tr: "Bu yapay zeka modelleri {provider} tarafından barındırılmaktadır. Bu bilgilendirme amaçlı bir listedir — bir modeli etkinleştirmek, devre dışı bırakmak veya yapılandırmak için Mevcut modeller bölümünden açın."
+  vi: "Các mô hình AI này được lưu trữ bởi {provider}. Đây là danh sách thông tin — để bật, tắt hoặc cấu hình mô hình, hãy mở nó từ mục Mô hình khả dụng."
+  id: Model AI ini dihosting oleh {provider}. Ini adalah daftar informasi — untuk mengaktifkan, menonaktifkan, atau mengonfigurasi model, buka dari bagian Model yang tersedia.
+  pl: "Te modele AI są hostowane przez {provider}. To lista informacyjna — aby włączyć, wyłączyć lub skonfigurować model, otwórz go w sekcji Dostępne modele."
+  nl: Deze AI-modellen worden gehost door {provider}. Dit is een informatieve lijst — om een model in te schakelen, uit te schakelen of te configureren, open het vanuit de sectie Beschikbare modellen.
+  ar: "تتم استضافة نماذج الذكاء الاصطناعي هذه بواسطة {provider}. هذه قائمة إعلامية — لتفعيل أو تعطيل أو تكوين نموذج، افتحه من قسم النماذج المتاحة."
+  hi: "ये AI मॉडल {provider} द्वारा होस्ट किए गए हैं। यह एक सूचनात्मक सूची है — किसी मॉडल को सक्षम, अक्षम या कॉन्फ़िगर करने के लिए, उसे उपलब्ध मॉडल अनुभाग से खोलें।"
+  th: "โมเดล AI เหล่านี้โฮสต์โดย {provider} นี่คือรายการข้อมูล — หากต้องการเปิด ปิด หรือกำหนดค่าโมเดล ให้เปิดจากส่วนโมเดลที่พร้อมใช้งาน"
+  cs: "Tyto modely AI jsou hostovány u {provider}. Toto je informativní seznam — k povolení, zakázání nebo nastavení modelu jej otevřete v sekci Dostupné modely."
+  sv: "Dessa AI-modeller hostas av {provider}. Detta är en informativ lista — för att aktivera, inaktivera eller konfigurera en modell, öppna den från avsnittet Tillgängliga modeller."
+  he: "מודלים אלה של בינה מלאכותית מתארחים על-ידי {provider}. זוהי רשימה להודעה בלבד — כדי להפעיל, לבטל או להגדיר מודל, פתחו אותו מתוך הקטע מודלים זמינים."
+  verified_by_human: []
+
+available_providers_description:
+  context: Description text under Available providers heading explaining server selection
+  en: Here you can limit which server providers you want to allow to process your requests. Keep in mind, this can reduce the selection of available models and impact your response quality. EU servers are selected by default if available for a model.
+  de: Hier können Sie einschränken, welche Server-Anbieter Ihre Anfragen verarbeiten dürfen. Beachten Sie, dass dies die Auswahl verfügbarer Modelle reduzieren und die Antwortqualität beeinflussen kann. EU-Server werden standardmäßig ausgewählt, wenn sie für ein Modell verfügbar sind.
+  zh: 您可以在此限制允许处理您请求的服务器提供商。请注意，这可能会减少可用模型的选择并影响响应质量。如果模型有EU服务器可用，将默认选择EU服务器。
+  es: Aquí puedes limitar qué proveedores de servidores pueden procesar tus solicitudes. Ten en cuenta que esto puede reducir la selección de modelos disponibles e impactar la calidad de las respuestas. Los servidores de la UE se seleccionan por defecto si están disponibles para un modelo.
+  fr: Ici, vous pouvez limiter les fournisseurs de serveurs autorisés à traiter vos requêtes. Gardez à l'esprit que cela peut réduire la sélection de modèles disponibles et impacter la qualité des réponses. Les serveurs UE sont sélectionnés par défaut s'ils sont disponibles pour un modèle.
+  pt: Aqui você pode limitar quais provedores de servidor podem processar suas solicitações. Lembre-se de que isso pode reduzir a seleção de modelos disponíveis e impactar a qualidade das respostas. Servidores da UE são selecionados por padrão quando disponíveis para um modelo.
+  ru: Здесь вы можете ограничить, какие серверные провайдеры могут обрабатывать ваши запросы. Имейте в виду, что это может сократить выбор доступных моделей и повлиять на качество ответов. Серверы ЕС выбираются по умолчанию, если они доступны для модели.
+  ja: ここでリクエストを処理するサーバープロバイダーを制限できます。利用可能なモデルの選択肢が減り、応答品質に影響する可能性があることに注意してください。モデルで利用可能な場合、EUサーバーがデフォルトで選択されます。
+  ko: 여기에서 요청을 처리할 서버 공급자를 제한할 수 있습니다. 이렇게 하면 사용 가능한 모델 선택이 줄어들고 응답 품질에 영향을 줄 수 있습니다. 모델에 사용 가능한 경우 EU 서버가 기본적으로 선택됩니다.
+  it: Qui puoi limitare quali fornitori di server possono elaborare le tue richieste. Tieni presente che questo può ridurre la selezione dei modelli disponibili e influire sulla qualità delle risposte. I server UE vengono selezionati per impostazione predefinita se disponibili per un modello.
+  tr: Burada isteklerinizi hangi sunucu sağlayıcıların işleyeceğini sınırlayabilirsiniz. Bunun mevcut model seçimini azaltabileceğini ve yanıt kalitenizi etkileyebileceğini unutmayın. Bir model için mevcutsa AB sunucuları varsayılan olarak seçilir.
+  vi: Tại đây bạn có thể giới hạn nhà cung cấp máy chủ nào được phép xử lý yêu cầu của bạn. Lưu ý rằng điều này có thể giảm lựa chọn mô hình có sẵn và ảnh hưởng đến chất lượng phản hồi. Máy chủ EU được chọn mặc định nếu có sẵn cho một mô hình.
+  id: Di sini Anda dapat membatasi penyedia server mana yang diizinkan memproses permintaan Anda. Perlu diingat, ini dapat mengurangi pilihan model yang tersedia dan memengaruhi kualitas respons. Server EU dipilih secara default jika tersedia untuk suatu model.
+  pl: Tutaj możesz ograniczyć, którzy dostawcy serwerów mogą przetwarzać Twoje żądania. Pamiętaj, że może to zmniejszyć wybór dostępnych modeli i wpłynąć na jakość odpowiedzi. Serwery UE są wybierane domyślnie, jeśli są dostępne dla modelu.
+  nl: Hier kunt u beperken welke serverproviders uw verzoeken mogen verwerken. Houd er rekening mee dat dit de selectie van beschikbare modellen kan beperken en de kwaliteit van antwoorden kan beïnvloeden. EU-servers worden standaard geselecteerd als ze beschikbaar zijn voor een model.
+  ar: هنا يمكنك تحديد مزودي الخوادم المسموح لهم بمعالجة طلباتك. ضع في اعتبارك أن هذا قد يقلل من اختيار النماذج المتاحة ويؤثر على جودة الاستجابة. يتم تحديد خوادم الاتحاد الأوروبي افتراضيًا إذا كانت متاحة لنموذج ما.
+  hi: यहां आप सीमित कर सकते हैं कि कौन से सर्वर प्रदाता आपके अनुरोधों को संसाधित कर सकते हैं। ध्यान रखें, यह उपलब्ध मॉडल की चयन को कम कर सकता है और आपकी प्रतिक्रिया गुणवत्ता को प्रभावित कर सकता है। यदि किसी मॉडल के लिए उपलब्ध हो तो EU सर्वर डिफ़ॉल्ट रूप से चुने जाते हैं।
+  th: ที่นี่คุณสามารถจำกัดผู้ให้บริการเซิร์ฟเวอร์ที่อนุญาตให้ประมวลผลคำขอของคุณ โปรดทราบว่าสิ่งนี้อาจลดตัวเลือกโมเดลที่มีอยู่และส่งผลต่อคุณภาพการตอบสนอง เซิร์ฟเวอร์ EU จะถูกเลือกเป็นค่าเริ่มต้นหากมีให้สำหรับโมเดล
+  cs: Zde můžete omezit, kteří poskytovatelé serverů mohou zpracovávat vaše požadavky. Mějte na paměti, že to může snížit výběr dostupných modelů a ovlivnit kvalitu odpovědí. Servery v EU jsou vybrány jako výchozí, pokud jsou pro model k dispozici.
+  sv: Här kan du begränsa vilka serverleverantörer som får hantera dina förfrågningar. Tänk på att detta kan minska urvalet av tillgängliga modeller och påverka svarskvaliteten. EU-servrar väljs som standard om de är tillgängliga för en modell.
+  he: כאן תוכלו להגביל אילו ספקי שרתים יכולים לעבד את הבקשות שלכם. זכרו שזה עשוי לצמצם את הבחירה של מודלים זמינים ולהשפיע על איכות התשובות. שרתי EU נבחרים כברירת מחדל אם זמינים עבור מודל.
+  verified_by_human: []

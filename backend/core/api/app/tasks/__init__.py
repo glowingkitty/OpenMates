@@ -18,7 +18,6 @@ from .email_tasks import signup_milestone_email_task as signup_milestone_email_t
 from .email_tasks import recovery_key_email_task as recovery_key_email_task
 from .email_tasks import recovery_account_email_task as recovery_account_email_task
 from .email_tasks import newsletter_email_task as newsletter_email_task
-from .email_tasks import community_share_email_task as community_share_email_task
 from .email_tasks import usecase_submitted_email_task as usecase_submitted_email_task
 from . import user_metrics as user_metrics
 from . import user_cache_tasks as user_cache_tasks

@@ -47,6 +47,11 @@
     available_from?: string;
     deposit?: number;
     furnished?: boolean;
+    /** Geocoded coordinates — forwarded to HomeListingEmbedFullscreen so
+     *  each child listing can render its own Leaflet map. Read directly
+     *  as flat fields (dc.latitude / dc.longitude). */
+    latitude?: number;
+    longitude?: number;
   }
 
   interface Props {
@@ -137,7 +142,9 @@
       listing_type: content.listing_type as string | undefined,
       available_from: content.available_from as string | undefined,
       deposit: typeof content.deposit === 'number' ? content.deposit : undefined,
-      furnished: typeof content.furnished === 'boolean' ? content.furnished : undefined
+      furnished: typeof content.furnished === 'boolean' ? content.furnished : undefined,
+      latitude: typeof content.latitude === 'number' ? content.latitude : undefined,
+      longitude: typeof content.longitude === 'number' ? content.longitude : undefined
     };
   }
 
@@ -158,7 +165,9 @@
       listing_type: r.listing_type as string | undefined,
       available_from: r.available_from as string | undefined,
       deposit: typeof r.deposit === 'number' ? r.deposit : undefined,
-      furnished: typeof r.furnished === 'boolean' ? r.furnished : undefined
+      furnished: typeof r.furnished === 'boolean' ? r.furnished : undefined,
+      latitude: typeof r.latitude === 'number' ? r.latitude : undefined,
+      longitude: typeof r.longitude === 'number' ? r.longitude : undefined
     }));
   }
 
@@ -185,7 +194,6 @@
 <SearchResultsTemplate
   appId="home"
   skillId="search"
-  minCardWidth="280px"
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}
   skillIconName="search"

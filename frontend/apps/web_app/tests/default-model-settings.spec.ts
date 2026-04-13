@@ -2,10 +2,10 @@
 /**
  * Default model settings E2E test.
  *
- * Tests the AI Ask default model settings flow:
+ * Tests the AI default model settings flow:
  *
  * 1. Login with test account + 2FA
- * 2. Navigate to Settings → App Store → AI → Ask
+ * 2. Navigate to Settings → AI
  * 3. Toggle auto-select OFF → select "Mistral Small 3.2 3.2" for Simple requests
  * 4. Close settings, send "Capital of Germany?" and verify Mistral Small 3.2 3.2 is used
  * 5. Re-open settings, toggle auto-select back ON
@@ -19,7 +19,7 @@
  * - Notifications appear only for real value changes and include descriptive change text
  *
  * Architecture context: docs/architecture/ai_model_selection.md
- * Component: frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte
+ * Component: frontend/packages/ui/src/components/settings/SettingsAI.svelte
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -54,10 +54,10 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Navigate to AI Ask skill settings via the settings menu.
- * Path: Settings → App Store → AI → Ask
+ * Navigate to AI settings via the settings menu.
+ * Path: Settings → AI (top-level)
  */
-async function navigateToAiAskSettings(
+async function navigateToAiSettings(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
 	takeStepScreenshot: (page: any, label: string) => Promise<void>,
@@ -74,64 +74,18 @@ async function navigateToAiAskSettings(
 	await page.waitForTimeout(800);
 	await takeStepScreenshot(page, `${stepLabel}-settings-open`);
 
-	// 2. Click "App Store" menu item
-	const appStoreItem = settingsMenu.getByRole('menuitem', { name: /app store/i }).first();
-	await expect(appStoreItem).toBeVisible({ timeout: 5000 });
-	await appStoreItem.click();
-	logCheckpoint('Clicked App Store menu item.');
-	await page.waitForTimeout(800);
-	await takeStepScreenshot(page, `${stepLabel}-app-store`);
-
-	// 3. Click the "AI" app
-	// The AI app might be a card or a menu item depending on the layout.
-	// Try finding it by text matching "AI" within the settings menu.
-	const aiAppItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
-	const aiAppVisible = await aiAppItem.isVisible({ timeout: 3000 }).catch(() => false);
-
-	if (aiAppVisible) {
-		await aiAppItem.click();
-		logCheckpoint('Clicked AI app menu item.');
-	} else {
-		// Try the app card approach
-		const aiCard = settingsMenu.getByTestId('app-card-name').filter({ hasText: /^AI$/i }).first();
-		const aiCardVisible = await aiCard.isVisible({ timeout: 3000 }).catch(() => false);
-		if (aiCardVisible) {
-			await aiCard.click();
-			logCheckpoint('Clicked AI app card.');
-		} else {
-			// Try "Show all apps" first
-			const showAllApps = settingsMenu
-				.getByRole('menuitem', { name: /show all|all apps/i })
-				.first();
-			const showAllVisible = await showAllApps.isVisible({ timeout: 3000 }).catch(() => false);
-			if (showAllVisible) {
-				await showAllApps.click();
-				logCheckpoint('Clicked "Show all apps".');
-				await page.waitForTimeout(800);
-			}
-			// Now find AI
-			const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
-			await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
-			await aiMenuItem.click();
-			logCheckpoint('Clicked AI menu item after showing all apps.');
-		}
-	}
-
-	await page.waitForTimeout(800);
-	await takeStepScreenshot(page, `${stepLabel}-ai-app`);
-
-	// 4. Click "Ask" skill
-	const askSkillItem = settingsMenu.getByRole('menuitem', { name: /ask/i }).first();
-	await expect(askSkillItem).toBeVisible({ timeout: 5000 });
-	await askSkillItem.click();
-	logCheckpoint('Clicked Ask skill menu item.');
+	// 2. Click "AI" top-level menu item
+	const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
+	await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
+	await aiMenuItem.click();
+	logCheckpoint('Clicked AI menu item.');
 	await page.waitForTimeout(800);
 
-	// 5. Verify AI Ask Settings page loaded
-	const aiAskSettings = page.getByTestId('ai-ask-settings');
-	await expect(aiAskSettings).toBeVisible({ timeout: 8000 });
-	logCheckpoint('AI Ask Settings page loaded.');
-	await takeStepScreenshot(page, `${stepLabel}-ai-ask-settings`);
+	// 3. Verify AI Settings page loaded
+	const aiSettings = page.getByTestId('ai-settings');
+	await expect(aiSettings).toBeVisible({ timeout: 8000 });
+	logCheckpoint('AI Settings page loaded.');
+	await takeStepScreenshot(page, `${stepLabel}-ai-settings`);
 }
 
 /**
@@ -141,13 +95,16 @@ async function closeSettings(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
 ): Promise<void> {
-	const settingsToggle = page.locator('#settings-menu-toggle');
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	const settingsMenu = page.getByTestId('settings-menu');
 	const isSettingsOpen = await settingsMenu.isVisible().catch(() => false);
 
 	if (isSettingsOpen) {
-		await settingsToggle.click();
-		logCheckpoint('Clicked settings toggle to close settings.');
+		// Click the close button (data-testid="icon-button-close") inside the settings toggle.
+		// Clicking #settings-menu-toggle directly fails because the close-icon-container
+		// intercepts pointer events when settings are open.
+		const closeButton = page.getByTestId('icon-button-close');
+		await closeButton.click({ timeout: 5000 });
+		logCheckpoint('Closed settings.');
 		await page.waitForTimeout(500);
 	} else {
 		logCheckpoint('Settings already closed.');
@@ -242,18 +199,18 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	// =========================================================================
 	// PHASE 2: Navigate to AI Ask settings and set Mistral Small 3.2 as default
 	// =========================================================================
-	logCheckpoint('Phase 2: Navigating to AI Ask settings...');
-	await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '02');
+	logCheckpoint('Phase 2: Navigating to AI settings...');
+	await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '02');
 
-	// Find the auto-select toggle in the AI Ask settings page.
+	// Find the auto-select toggle in the AI settings page.
 	// The toggle wrapper is inside the settings-content of the Default Models section.
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	const aiAskSettings = settingsMenu.getByTestId('ai-ask-settings');
+	const aiSettings = settingsMenu.getByTestId('ai-settings');
 
 	// The auto-select toggle is a Toggle component wrapped in a clickable div.
 	// The toggle's aria-label is the i18n text for "Auto-select model".
 	// We target the outer clickable wrapper div (parent of the pointer-events:none div).
-	const autoSelectRow = aiAskSettings.getByTestId('setting-row').first();
+	const autoSelectRow = aiSettings.getByTestId('setting-row').first();
 	await expect(autoSelectRow).toBeVisible({ timeout: 5000 });
 
 	// Check if auto-select is currently ON (toggle is checked)
@@ -352,10 +309,10 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	// PHASE 4: Switch back to auto-select
 	// =========================================================================
 	logCheckpoint('Phase 4: Switching back to auto-select...');
-	await navigateToAiAskSettings(page, logCheckpoint, takeStepScreenshot, '04');
+	await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '04');
 
 	// The auto-select toggle should be OFF now. Toggle it back ON.
-	const autoSelectRow2 = aiAskSettings.getByTestId('setting-row').first();
+	const autoSelectRow2 = aiSettings.getByTestId('setting-row').first();
 	await expect(autoSelectRow2).toBeVisible({ timeout: 5000 });
 
 	const toggleInput2 = autoSelectRow2.locator('input[type="checkbox"]');
@@ -383,7 +340,7 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	await page.waitForTimeout(3000);
 
 	// Verify the dropdowns are no longer visible (auto-select is ON)
-	const simpleDropdown2 = aiAskSettings.locator('#default-simple-select');
+	const simpleDropdown2 = aiSettings.locator('#default-simple-select');
 	await expect(simpleDropdown2).not.toBeVisible({ timeout: 3000 });
 	logCheckpoint('Dropdowns hidden - auto-select is ON.');
 

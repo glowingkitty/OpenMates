@@ -387,7 +387,7 @@
       try {
         // Fetch embed using resolveEmbed which checks BOTH:
         // - Regular embedStore (for encrypted user embeds)
-        // - communityDemoStore (for cleartext demo chat embeds)
+        // - exampleChatStore (for cleartext demo chat embeds)
         // This is critical for demo chats where embeds are stored separately.
         const embedData = await resolveEmbed(childEmbedId);
         if (!embedData) {
@@ -521,7 +521,7 @@
    * 
    * NOTE: Uses resolveEmbed() which checks BOTH:
    * - Regular embedStore (for encrypted user embeds)
-   * - communityDemoStore (for cleartext demo chat embeds)
+   * - exampleChatStore (for cleartext demo chat embeds)
    * This is critical for demo chats where embeds are stored separately.
    */
   async function refetchCurrentEmbed() {

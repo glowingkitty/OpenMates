@@ -34,9 +34,9 @@ const {
 	createStepScreenshotter,
 	setToggleChecked,
 	getSignupTestDomain,
-	getMailosaurServerId,
 	buildSignupEmail,
-	createMailosaurClient,
+	createEmailClient,
+	checkEmailQuota,
 	generateTotp,
 	assertNoMissingTranslations,
 	getE2EDebugUrl
@@ -65,8 +65,8 @@ const {
  *
  * REQUIRED ENV VARS:
  * - SIGNUP_TEST_EMAIL_DOMAINS: Comma-separated list of allowed test domains.
- * - MAILOSAUR_API_KEY: Mailosaur API key for test mailbox access.
- * - MAILOSAUR_SERVER_ID: Mailosaur server ID used by the test domain.
+ * - GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN: Gmail API credentials (preferred).
+ * - MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID: Mailosaur credentials (fallback).
  * - PLAYWRIGHT_TEST_BASE_URL: Base URL of the deployed dev web app.
  *
  * POLAR VAULT PREREQUISITE:
@@ -76,8 +76,6 @@ const {
  * - Without these, ?provider_override=polar falls back to 'stripe' and this test skips.
  */
 
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
-const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const PLAYWRIGHT_TEST_BASE_URL =
 	process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
@@ -154,15 +152,15 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
-	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required for email validation.');
+
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+	const quota = await checkEmailQuota();
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
+
 	if (!signupDomain) {
 		throw new Error('Missing signup test domain after skip guard.');
-	}
-	const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
-	if (!mailosaurServerId) {
-		throw new Error(
-			'MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.'
-		);
 	}
 
 	// Skip if Polar is not yet configured in Vault on this environment.
@@ -180,16 +178,14 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Polar provider confirmed active in environment.');
 
 	const { waitForMailosaurMessage, extractSixDigitCode, extractRefundLink, extractMessageLinks } =
-		createMailosaurClient({
-			apiKey: MAILOSAUR_API_KEY,
-			serverId: mailosaurServerId
-		});
+		emailClient!;
 
 	// Grant clipboard permissions so "Copy" actions can be exercised reliably.
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
-	const signupUsername = signupEmail.split('@')[0];
+	const emailLocal = signupEmail.split('@')[0];
+	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'PolarTest!234';
 	logSignupCheckpoint('Initialized Polar signup identity.', { signupEmail });
 
@@ -370,78 +366,103 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Reached payment consent step.');
 
 	// ─── Payment consent ─────────────────────────────────────────────────────────
+	// The consent overlay appears regardless of whether the initial provider is Stripe or Polar.
 
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
+	await expect(consentToggle).toBeAttached({ timeout: 15000 });
 	await setToggleChecked(consentToggle, true);
-	await takeStepScreenshot(page, 'payment-form-stripe');
-	logSignupCheckpoint('Payment consent accepted — Stripe payment form visible.');
+	await takeStepScreenshot(page, 'payment-consent-accepted');
+	logSignupCheckpoint('Payment consent accepted.');
 
-	// ─── Switch from Stripe to Polar ─────────────────────────────────────────────
-	// The payment form defaults to Stripe (because the test machine is detected as EU or
-	// we can't control IP). We click the "Pay with a non-EU card" switch button to
-	// activate the Polar checkout overlay.
-	//
-	// The switch button renders as a text button under the Stripe payment form.
-	// Text (EN): "Pay with a non-EU card"
+	// ─── Ensure Polar is the active provider ─────────────────────────────────────
+	// The initial provider depends on geo-detection (EU IP → Stripe, non-EU → Polar).
+	// If we landed on Stripe, switch to Polar. If already on Polar, proceed directly.
 
 	const switchToPolarButton = page.getByRole('button', { name: /pay with a non-eu card/i });
-	await expect(switchToPolarButton).toBeVisible({ timeout: 15000 });
-	await switchToPolarButton.click();
-	await takeStepScreenshot(page, 'polar-switch-clicked');
-	logSignupCheckpoint(
-		'Clicked "Pay with a non-EU card" switch button — waiting for Polar overlay.'
-	);
+	const alreadyOnPolar = !(await switchToPolarButton.isVisible({ timeout: 5000 }).catch(() => false));
 
-	// ─── Polar checkout overlay ───────────────────────────────────────────────────
-	// After clicking the Polar pay button (or switch), PolarEmbedCheckout.create()
-	// appends a full-screen fixed iframe to document.body.
-	// The iframe does not have a stable title — we locate it by the polar.sh URL pattern.
+	if (!alreadyOnPolar) {
+		await switchToPolarButton.click();
+		await takeStepScreenshot(page, 'polar-switch-clicked');
+		logSignupCheckpoint('Switched from Stripe to Polar.');
+	} else {
+		logSignupCheckpoint('Already on Polar provider (non-EU IP detected).');
+	}
 
-	// First click the Polar "Buy" button to trigger the overlay (switch just sets the provider).
-	// The Polar section renders a .polar-pay-button — wait for it and click.
+	// ─── Polar checkout ──────────────────────────────────────────────────────────
+	// Polar renders an inline iframe for checkout. If auto-trigger succeeded, the iframe
+	// is already visible. If not, a retry "Buy" button is shown — click it to trigger.
+
+	const polarIframeLocator = page.locator('iframe[src*="polar.sh"], iframe[src*="sandbox.polar.sh"]');
 	const polarBuyButton = page.getByTestId('polar-pay-button');
-	await expect(polarBuyButton).toBeVisible({ timeout: 15000 });
-	await takeStepScreenshot(page, 'polar-payment-form');
-	logSignupCheckpoint('Polar payment form visible.');
+
+	// Wait for either the iframe or the retry button to appear
+	await expect(polarIframeLocator.or(polarBuyButton)).toBeVisible({ timeout: 30000 });
+
+	// If the retry button is visible (auto-trigger failed), click it to start checkout
+	if (await polarBuyButton.isVisible()) {
+		await takeStepScreenshot(page, 'polar-payment-form');
+		logSignupCheckpoint('Polar payment form visible (retry button).');
+		await polarBuyButton.click();
+		logSignupCheckpoint('Clicked Polar buy button.');
+	} else {
+		logSignupCheckpoint('Polar checkout auto-triggered — iframe already loading.');
+	}
 
 	const paymentSubmittedAt = new Date().toISOString();
-	await polarBuyButton.click();
-	logSignupCheckpoint('Clicked Polar buy button — waiting for Polar checkout overlay.');
 
 	// Wait for the Polar embed iframe to appear in the DOM.
-	// Polar's embed appends an iframe to body; the src is a polar.sh checkout URL.
+	// Polar renders an inline iframe with the checkout form; the src is a polar.sh URL.
 	const polarIframe = page.frameLocator('iframe[src*="polar.sh"], iframe[src*="sandbox.polar.sh"]');
 
-	// Wait for the iframe to load by checking for a card input inside it.
-	// Polar uses Stripe's payment form internally in sandbox, so the card input
-	// is a standard Stripe card number field.
-	const polarCardInput = polarIframe
-		.locator('input[name="cardNumber"], input[autocomplete="cc-number"], [placeholder*="1234"]')
-		.first();
-	await expect(polarCardInput).toBeVisible({ timeout: 60000 });
+	// Wait for the Polar iframe to load by checking for a visible element inside it.
+	// Polar's checkout page renders a submit button — use that as the load indicator.
+	await expect(polarIframe.getByRole('button', { name: /pay|subscribe|complete/i }).first())
+		.toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'polar-checkout-overlay');
-	logSignupCheckpoint('Polar checkout overlay visible with card input.');
+	logSignupCheckpoint('Polar checkout overlay visible.');
 
-	// Fill Polar's (Stripe-backed) card form in the overlay iframe.
+	// Polar uses Stripe Payment Element internally, which renders card inputs inside
+	// a NESTED iframe within the Polar checkout iframe. We need two levels of frameLocator:
+	//   page → iframe[src*="polar.sh"] → iframe (Stripe Payment Element) → inputs
+	const stripeFrame = polarIframe.frameLocator('iframe').first();
+
+	// Stripe Payment Element uses input[name="number"] for card number.
+	const polarCardInput = stripeFrame
+		.locator('input[name="number"], input[autocomplete="cc-number"], input[id="Field-numberInput"]')
+		.first();
+	await expect(polarCardInput).toBeVisible({ timeout: 30000 });
+	logSignupCheckpoint('Stripe Payment Element card input visible inside Polar checkout.');
+
+	// Fill card details inside the nested Stripe iframe.
 	await polarCardInput.fill(POLAR_SANDBOX_TEST_CARD);
 
-	const polarExpiryInput = polarIframe
-		.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"], [placeholder*="MM"]')
+	const polarExpiryInput = stripeFrame
+		.locator('input[name="expiry"], input[autocomplete="cc-exp"], input[id="Field-expiryInput"]')
 		.first();
 	await polarExpiryInput.fill('12/34');
 
-	const polarCvcInput = polarIframe
-		.locator(
-			'input[name="cardCvc"], input[autocomplete="cc-csc"], [placeholder*="CVC"], [placeholder*="123"]'
-		)
+	const polarCvcInput = stripeFrame
+		.locator('input[name="cvc"], input[autocomplete="cc-csc"], input[id="Field-cvcInput"]')
 		.first();
 	await polarCvcInput.fill('123');
+
+	// Polar's checkout requires cardholder name and billing country.
+	// These fields are in the Polar iframe directly (not the nested Stripe iframe).
+	const cardholderNameInput = polarIframe.locator('input[name="customer_name"]');
+	await expect(cardholderNameInput).toBeVisible({ timeout: 5000 });
+	await cardholderNameInput.fill('Test User');
+
+	const billingCountrySelect = polarIframe.locator('select[autocomplete="billing country"]');
+	await expect(billingCountrySelect).toBeVisible({ timeout: 5000 });
+	await billingCountrySelect.selectOption('US');
+	logSignupCheckpoint('Filled cardholder name and billing country.');
 
 	await takeStepScreenshot(page, 'polar-card-filled');
 	logSignupCheckpoint('Filled Polar sandbox card details.');
 
 	// Submit the Polar checkout form.
-	// The submit button in Polar's checkout overlay should be labeled "Pay" or similar.
+	// The submit button is in the Polar iframe (not inside the Stripe iframe).
 	const polarSubmitButton = polarIframe
 		.getByRole('button', { name: /pay|subscribe|complete/i })
 		.first();

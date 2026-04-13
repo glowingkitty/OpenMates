@@ -206,13 +206,17 @@ skills:
     description_translation_key: app_skills.health.search_appointments.description
     icon_image: calendar.svg
     preprocessor_hint: >
-      Search for available doctor/specialist appointments by speciality and city.
-       Returns real-time availability with direct booking links. Costs 10 credits per search.
+      Search available medical appointments at German doctors/specialists by speciality and city.
+      Covers any medical booking — general practitioners, specialists (e.g. dentist, dermatologist,
+      gynecologist), scans and imaging (e.g. MRT/MRI, CT, Röntgen, Ultraschall), vaccinations,
+      check-ups, blood tests, and other examinations.
+      Note: "Termin" in a medical context means appointment, not event — route here instead of events-search.
+      Sources: Doctolib, Jameda (Germany only).
     stage: production
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
       per_unit:
-        credits: 10
+        credits: 20
         unit_name: request
     providers:
       - name: Doctolib
@@ -295,12 +299,12 @@ skills:
                 type: integer
                 description: >
                   How many days ahead to search for appointments. Must be one of
-                  1, 3, 7, or 14 (Doctolib API constraint). Defaults to 7.
+                  1, 3, or 7 (Doctolib API caps availability queries at 7 days).
+                  Defaults to 7.
                 enum:
                   - 1
                   - 3
                   - 7
-                  - 14
                 default: 7
               max_doctors:
                 type: integer

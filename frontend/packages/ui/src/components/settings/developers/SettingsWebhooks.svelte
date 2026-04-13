@@ -34,6 +34,9 @@
     direction: string;
     permissions: string[];
     require_confirmation: boolean;
+    message_template: string;
+    rate_limit_count: number | null;
+    rate_limit_period: string;
     is_active: boolean;
     created_at: string | null;
     last_used_at: string | null;
@@ -41,6 +44,28 @@
 
   const MAX_WEBHOOKS = 10;
   const WEBHOOK_KEY_PREFIX = 'wh-';
+  const DEFAULT_MESSAGE_TEMPLATE = '{{payload_json}}';
+  const DEFAULT_RATE_LIMIT_COUNT: number | null = 3;
+  const DEFAULT_RATE_LIMIT_PERIOD = 'hour';
+  const RATE_LIMIT_COUNT_OPTIONS: Array<{ value: number | null; label: string }> = [
+    { value: 1, label: '1' },
+    { value: 2, label: '2' },
+    { value: 3, label: '3' },
+    { value: 4, label: '4' },
+    { value: 5, label: '5' },
+    { value: 6, label: '6' },
+    { value: 7, label: '7' },
+    { value: 8, label: '8' },
+    { value: 9, label: '9' },
+    { value: 10, label: '10' },
+    { value: null, label: 'Unlimited' },
+  ];
+  const RATE_LIMIT_PERIOD_OPTIONS = [
+    { value: 'minute', label: 'per minute' },
+    { value: 'hour', label: 'per hour' },
+    { value: 'day', label: 'per day' },
+    { value: 'week', label: 'per week' },
+  ];
 
   // State
   let webhooks = $state<WebhookKey[]>([]);
@@ -48,6 +73,9 @@
   let error = $state('');
   let showCreateForm = $state(false);
   let newKeyName = $state('');
+  let newMessageTemplate = $state(DEFAULT_MESSAGE_TEMPLATE);
+  let newRateLimitCount = $state<number | null>(DEFAULT_RATE_LIMIT_COUNT);
+  let newRateLimitPeriod = $state<string>(DEFAULT_RATE_LIMIT_PERIOD);
   let requireConfirmation = $state(false);
   let createdKey = $state('');
   let showCreatedKey = $state(false);
@@ -91,6 +119,9 @@
             direction: (wh.direction as string) || 'incoming',
             permissions: (wh.permissions as string[]) || [],
             require_confirmation: !!(wh.require_confirmation),
+            message_template: (wh.message_template as string) || DEFAULT_MESSAGE_TEMPLATE,
+            rate_limit_count: (wh.rate_limit_count as number | null) ?? DEFAULT_RATE_LIMIT_COUNT,
+            rate_limit_period: (wh.rate_limit_period as string) || DEFAULT_RATE_LIMIT_PERIOD,
             is_active: wh.is_active !== false,
             created_at: (wh.created_at as string) || null,
             last_used_at: (wh.last_used_at as string) || null,
@@ -146,6 +177,9 @@
           direction: 'incoming',
           permissions: ['trigger_chat'],
           require_confirmation: requireConfirmation,
+          message_template: newMessageTemplate.trim() || DEFAULT_MESSAGE_TEMPLATE,
+          rate_limit_count: newRateLimitCount,
+          rate_limit_period: newRateLimitPeriod,
         }),
       });
 
@@ -158,6 +192,9 @@
       showCreatedKey = true;
       await loadWebhooks();
       newKeyName = '';
+      newMessageTemplate = DEFAULT_MESSAGE_TEMPLATE;
+      newRateLimitCount = DEFAULT_RATE_LIMIT_COUNT;
+      newRateLimitPeriod = DEFAULT_RATE_LIMIT_PERIOD;
       requireConfirmation = false;
       showCreateForm = false;
     } catch (err: unknown) {
@@ -255,6 +292,9 @@
               {:else}
                 <span>Never used</span>
               {/if}
+              <span>
+                Rate limit: {wh.rate_limit_count === null ? 'Unlimited' : `${wh.rate_limit_count} per ${wh.rate_limit_period}`}
+              </span>
             </div>
           </div>
           <div class="wh-actions">
@@ -304,6 +344,58 @@
         maxlength={100}
         dataTestid="webhook-name-input"
       />
+
+      <!-- Message template -->
+      <div class="field-group">
+        <label for="webhook-message-template" class="field-label">
+          Message template
+        </label>
+        <p class="field-help">
+          Jinja2 template rendered with the incoming JSON body. Use <code>&#123;&#123;payload_json&#125;&#125;</code>
+          for the whole body, or dotted paths like <code>&#123;&#123;payload.pull_request.title&#125;&#125;</code>
+          for specific fields. Missing paths render as empty strings.
+        </p>
+        <textarea
+          id="webhook-message-template"
+          class="template-textarea"
+          data-testid="webhook-message-template-input"
+          bind:value={newMessageTemplate}
+          rows="5"
+          maxlength="4000"
+          placeholder={DEFAULT_MESSAGE_TEMPLATE}
+        ></textarea>
+      </div>
+
+      <!-- Rate limit -->
+      <div class="field-group">
+        <label for="webhook-rate-limit-count" class="field-label">Rate limit</label>
+        <p class="field-help">
+          Caps how often this webhook can fire and consume credits. Requests over the limit return
+          HTTP 429 and are counted in a daily digest email.
+        </p>
+        <div class="rate-limit-row">
+          <select
+            id="webhook-rate-limit-count"
+            class="rate-limit-select"
+            data-testid="webhook-rate-limit-count"
+            bind:value={newRateLimitCount}
+          >
+            {#each RATE_LIMIT_COUNT_OPTIONS as opt}
+              <option value={opt.value}>{opt.label}</option>
+            {/each}
+          </select>
+          <select
+            class="rate-limit-select"
+            data-testid="webhook-rate-limit-period"
+            bind:value={newRateLimitPeriod}
+            disabled={newRateLimitCount === null}
+          >
+            {#each RATE_LIMIT_PERIOD_OPTIONS as opt}
+              <option value={opt.value}>{opt.label}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
 
       <!-- Require confirmation toggle -->
       <div class="confirmation-toggle">
@@ -573,6 +665,67 @@
 
   .confirmation-toggle {
     margin: 0.75rem 0;
+  }
+
+  .field-group {
+    margin: 1rem 0;
+  }
+
+  .field-label {
+    display: block;
+    font-size: var(--font-size-p);
+    font-weight: 600;
+    color: var(--color-font-primary);
+    margin-bottom: 0.25rem;
+  }
+
+  .field-help {
+    font-size: var(--processing-details-font-size);
+    color: var(--color-font-secondary);
+    margin: 0 0 0.5rem;
+    line-height: 1.4;
+  }
+
+  .field-help code {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: calc(var(--processing-details-font-size) * 0.95);
+    background: var(--color-grey-10);
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.2rem;
+  }
+
+  .template-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.625rem 0.75rem;
+    background: var(--color-grey-10);
+    border: 1px solid var(--color-grey-25);
+    border-radius: 0.4rem;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: var(--processing-details-font-size);
+    color: var(--color-font-primary);
+    resize: vertical;
+    min-height: 5rem;
+  }
+
+  .rate-limit-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .rate-limit-select {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-grey-10);
+    border: 1px solid var(--color-grey-25);
+    border-radius: 0.4rem;
+    font-size: var(--font-size-p);
+    color: var(--color-font-primary);
+  }
+
+  .rate-limit-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .modal-actions {

@@ -47,3 +47,78 @@ search.description:
   sv: Sok i din Proton Mail-inkorg.
   he: חפש בתיבת הדואר הנכנס של Proton Mail שלך.
   verified_by_human: [en, de]
+
+search.how_to_use.1:
+  context: Example instruction for mail search skill - find emails
+  en: "**Find emails** from my bank in the last week"
+  de: Finde E-Mails von meiner Bank in der letzten Woche
+  zh: 查找上周来自银行的邮件
+  es: Busca correos de mi banco en la última semana
+  fr: Trouve les e-mails de ma banque de la semaine dernière
+  pt: Encontre e-mails do meu banco na última semana
+  ru: Найдите письма от банка за последнюю неделю
+  ja: 先週の銀行からのメールを検索
+  ko: 지난 주 은행에서 온 이메일 찾기
+  it: Trova e-mail dalla mia banca nell'ultima settimana
+  tr: Son haftaki bankamdan gelen e-postaları bul
+  vi: Tìm email từ ngân hàng trong tuần qua
+  id: Cari email dari bank saya minggu lalu
+  pl: Znajdź e-maile z mojego banku z ostatniego tygodnia
+  nl: Vind e-mails van mijn bank van afgelopen week
+  ar: ابحث عن رسائل من بنكي في الأسبوع الماضي
+  hi: पिछले हफ्ते बैंक से आए ईमेल खोजें
+  th: ค้นหาอีเมลจากธนาคารในสัปดาห์ที่ผ่านมา
+  cs: Najděte e-maily od mé banky za poslední týden
+  sv: Hitta e-post från min bank den senaste veckan
+  he: "**חפש מיילים** מהבנק שלי בשבוע האחרון"
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example instruction for mail search skill - search attachments
+  en: "**Search** for emails with PDF attachments"
+  de: Suche E-Mails mit PDF-Anhängen
+  zh: 搜索带有 PDF 附件的邮件
+  es: Busca correos con archivos PDF adjuntos
+  fr: Recherche les e-mails avec des pièces jointes PDF
+  pt: Pesquise e-mails com anexos PDF
+  ru: Найдите письма с PDF-вложениями
+  ja: PDF添付ファイル付きのメールを検索
+  ko: PDF 첨부파일이 있는 이메일 검색
+  it: Cerca e-mail con allegati PDF
+  tr: PDF eki olan e-postaları ara
+  vi: Tìm email có tệp đính kèm PDF
+  id: Cari email dengan lampiran PDF
+  pl: Szukaj e-maili z załącznikami PDF
+  nl: Zoek e-mails met PDF-bijlagen
+  ar: ابحث عن رسائل بها مرفقات PDF
+  hi: PDF अटैचमेंट वाले ईमेल खोजें
+  th: ค้นหาอีเมลที่มีไฟล์แนบ PDF
+  cs: Hledejte e-maily s přílohami PDF
+  sv: Sök e-post med PDF-bilagor
+  he: "**חפש** מיילים עם קבצי PDF מצורפים"
+  verified_by_human: [en, de]
+
+search.how_to_use.3:
+  context: Example instruction for mail search skill - unread
+  en: Show me **unread emails** from today
+  de: Zeige mir ungelesene E-Mails von heute
+  zh: 显示今天未读的邮件
+  es: Muéstrame los correos no leídos de hoy
+  fr: Montre-moi les e-mails non lus d'aujourd'hui
+  pt: Mostre-me os e-mails não lidos de hoje
+  ru: Покажи непрочитанные письма за сегодня
+  ja: 今日の未読メールを表示
+  ko: 오늘의 읽지 않은 이메일 보기
+  it: Mostrami le e-mail non lette di oggi
+  tr: Bugünkü okunmamış e-postalarımı göster
+  vi: Hiển thị email chưa đọc hôm nay
+  id: Tampilkan email belum dibaca hari ini
+  pl: Pokaż nieprzeczytane e-maile z dzisiaj
+  nl: Toon ongelezen e-mails van vandaag
+  ar: أظهر لي الرسائل غير المقروءة من اليوم
+  hi: आज के अपठित ईमेल दिखाएं
+  th: แสดงอีเมลที่ยังไม่ได้อ่านจากวันนี้
+  cs: Ukáž mi nepřečtené e-maily z dnešního dne
+  sv: Visa olästa e-postmeddelanden från idag
+  he: "הצג לי **מיילים שלא נקראו** מהיום"
+  verified_by_human: [en, de]

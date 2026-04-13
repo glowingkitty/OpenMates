@@ -702,8 +702,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     if (!model_name) return;
     const modelMeta = getModelByNameOrId(model_name);
     if (modelMeta) {
-      // Deep link to the model details page in the AI Ask skill settings
-      settingsDeepLink.set(`app_store/ai/skill/ask/model/${modelMeta.id}`);
+      // Deep link to the model details page in AI settings
+      settingsDeepLink.set(`ai/model/${modelMeta.id}`);
       panelState.openSettings();
     }
   }

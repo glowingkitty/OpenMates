@@ -1,0 +1,753 @@
+title:
+  context: Title of example chat about searching flights from Berlin to Bangkok
+  en: Flights from Berlin to Bangkok
+  de: Flüge von Berlin nach Bangkok
+  zh: 柏林至曼谷的航班
+  es: Vuelos de Berlín a Bangkok
+  fr: Vols de Berlin à Bangkok
+  pt: Voos de Berlim para Banguecoque
+  ru: Рейсы из Берлина в Бангкок
+  ja: ベルリンからバンコクへのフライト
+  ko: 베를린에서 방콕으로 가는 항공편
+  it: Voli da Berlino a Bangkok
+  tr: Berlin'den Bangkok'a Uçuşlar
+  vi: Chuyến bay từ Berlin đến Bangkok
+  id: Penerbangan dari Berlin ke Bangkok
+  pl: Loty z Berlina do Bangkoku
+  nl: Vluchten van Berlijn naar Bangkok
+  ar: رحلات من برلين إلى بانكوك
+  hi: बर्लिन से बैंकॉक तक उड़ानें
+  th: เที่ยวบินจากเบอร์ลินไปบางกอก
+  cs: Lety z Berlína do Bangkoku
+  sv: Flyg från Berlin till Bangkok
+  he: "טיסות מברלין לבנגקוק"
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat where user searched flights from Berlin to Bangkok and received airline options
+  en: User searched for flights from Berlin to Bangkok on April 14, 2026, and received options from Qatar Airways, Turkish Airlines, Air France, and KLM.
+  de: Der Benutzer suchte nach Flügen von Berlin nach Bangkok am 14. April 2026 und erhielt Optionen von Qatar Airways, Turkish Airlines, Air France und KLM.
+  zh: 用户搜索了2026年4月14日从柏林到曼谷的航班，并收到了卡塔尔航空、土耳其航空、法国航空和荷兰皇家航空的选项。
+  es: El usuario buscó vuelos de Berlín a Bangkok para el 14 de abril de 2026 y recibió opciones de Qatar Airways, Turkish Airlines, Air France y KLM.
+  fr: L'utilisateur a recherché des vols de Berlin à Bangkok pour le 14 avril 2026 et a reçu des options de Qatar Airways, Turkish Airlines, Air France et KLM.
+  pt: O utilizador pesquisou voos de Berlim para Banguecoque em 14 de abril de 2026 e recebeu opções da Qatar Airways, Turkish Airlines, Air France e KLM.
+  ru: Пользователь искал рейсы из Берлина в Бангкок на 14 апреля 2026 года и получил варианты от Qatar Airways, Turkish Airlines, Air France и KLM.
+  ja: ユーザーが2026年4月14日のベルリンからバンコク行きのフライトを検索し、Qatar Airways、Turkish Airlines、Air France、KLMの選択肢を受け取りました。
+  ko: 사용자가 2026년 4월 14일 베를린에서 방콕으로 가는 항공편을 검색했으며, Qatar Airways, Turkish Airlines, Air France, KLM의 옵션을 받았습니다.
+  it: L'utente ha cercato voli da Berlino a Bangkok per il 14 aprile 2026 e ha ricevuto opzioni da Qatar Airways, Turkish Airlines, Air France e KLM.
+  tr: Kullanıcı 14 Nisan 2026 tarihinde Berlin'den Bangkok'a uçuş aradı ve Qatar Airways, Turkish Airlines, Air France ve KLM seçeneklerini aldı.
+  vi: Người dùng đã tìm kiếm chuyến bay từ Berlin đến Bangkok vào ngày 14 tháng 4 năm 2026 và nhận được các tùy chọn từ Qatar Airways, Turkish Airlines, Air France và KLM.
+  id: Pengguna mencari penerbangan dari Berlin ke Bangkok pada 14 April 2026, dan menerima pilihan dari Qatar Airways, Turkish Airlines, Air France, dan KLM.
+  pl: Użytkownik wyszukał loty z Berlina do Bangkoku na 14 kwietnia 2026 roku i otrzymał opcje od Qatar Airways, Turkish Airlines, Air France i KLM.
+  nl: De gebruiker zocht vluchten van Berlijn naar Bangkok op 14 april 2026 en ontving opties van Qatar Airways, Turkish Airlines, Air France en KLM.
+  ar: بحث المستخدم عن رحلات من برلين إلى بانكوك في 14 أبريل 2026، وتلقّى خيارات من Qatar Airways وTurkish Airlines وAir France وKLM.
+  hi: उपयोगकर्ता ने 14 अप्रैल 2026 को बर्लिन से बैंकॉक तक उड़ानें खोजीं, और Qatar Airways, Turkish Airlines, Air France तथा KLM के विकल्प प्राप्त किए।
+  th: ผู้ใช้ค้นหาเที่ยวบินจากเบอร์ลินไปบางกอกในวันที่ 14 เมษายน 2026 และได้รับตัวเลือกจาก Qatar Airways, Turkish Airlines, Air France และ KLM
+  cs: Uživatel hledal lety z Berlína do Bangkoku na 14. dubna 2026 a obdržel nabídky od Qatar Airways, Turkish Airlines, Air France a KLM.
+  sv: Användaren sökte efter flyg från Berlin till Bangkok den 14 april 2026 och fick alternativ från Qatar Airways, Turkish Airlines, Air France och KLM.
+  he: "המשתמש חיפש טיסות מברלין לבנגקוק ב-14 באפריל 2026, וקיבל אפשרויות מ-Qatar Airways, Turkish Airlines, Air France ו-KLM."
+  verified_by_human: []
+
+user_message_1:
+  context: User message asking for flights from Berlin to Bangkok on April 14
+  en: Flights from Berlin to Bangkok for April 14?
+  de: Flüge von Berlin nach Bangkok für den 14. April?
+  zh: 4月14日柏林到曼谷的航班？
+  es: ¿Vuelos de Berlín a Bangkok para el 14 de abril?
+  fr: Vols de Berlin à Bangkok pour le 14 avril ?
+  pt: Voos de Berlim para Banguecoque para 14 de abril?
+  ru: Рейсы из Берлина в Бангкок на 14 апреля?
+  ja: 4月14日のベルリンからバンコク行きのフライトは？
+  ko: 4월 14일 베를린에서 방콕으로 가는 항공편이 있나요?
+  it: Voli da Berlino a Bangkok per il 14 aprile?
+  tr: 14 Nisan için Berlin'den Bangkok'a uçuşlar?
+  vi: Chuyến bay từ Berlin đến Bangkok ngày 14 tháng 4?
+  id: Penerbangan dari Berlin ke Bangkok untuk 14 April?
+  pl: Loty z Berlina do Bangkoku na 14 kwietnia?
+  nl: Vluchten van Berlijn naar Bangkok voor 14 april?
+  ar: رحلات من برلين إلى بانكوك في 14 أبريل؟
+  hi: 14 अप्रैल के लिए बर्लिन से बैंकॉक तक उड़ानें?
+  th: เที่ยวบินจากเบอร์ลินไปบางกอกสำหรับวันที่ 14 เมษายน?
+  cs: Lety z Berlína do Bangkoku na 14. dubna?
+  sv: Flyg från Berlin till Bangkok den 14 april?
+  he: "טיסות מברלין לבנגקוק ל-14 באפריל?"
+  verified_by_human: []
+
+assistant_message_1:
+  context: Assistant response with flight search results showing Qatar Airways, Turkish Airlines, Air France, and KLM options with embed references
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    For your trip from Berlin to Bangkok on April 14, 2026, here are some of the best flight options available:
+
+    ### Recommended Flights
+    *   **Qatar Airways** offers the most affordable options starting at **€636**. You can choose between a [morning departure at 10:00](embed:qatar-2026-OlW) or an [afternoon departure at 16:45](embed:qatar-2026-X5r), both with a single layover in Doha.
+    *   **Turkish Airlines** provides the fastest connection with a total travel time of **13h 25m**, departing at [10:40](embed:turkish-2026-yrG) with a quick stop in Istanbul for **€741**.
+    *   Other reliable choices include [Air France via Paris](embed:air-2026-u4K) and [KLM via Amsterdam](embed:klm-2026-oxW), both priced around €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Quick Summary
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Would you like me to look for return flights as well, or perhaps find some [highly-rated accommodation in Bangkok](/#settings/appstore/travel)?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Für Ihre Reise von Berlin nach Bangkok am 14. April 2026 stehen Ihnen folgende Flugoptionen zur Verfügung:
+
+    ### Empfohlene Flüge
+    *   **Qatar Airways** bietet die günstigsten Optionen ab **€636**. Sie können zwischen einem [Morgenabflug um 10:00 Uhr](embed:qatar-2026-OlW) oder einem [Nachmittagsabflug um 16:45 Uhr](embed:qatar-2026-X5r) wählen, beide mit einem Zwischenstopp in Doha.
+    *   **Turkish Airlines** bietet die schnellste Verbindung mit einer Gesamtreisezeit von **13h 25m**, Abflug um [10:40 Uhr](embed:turkish-2026-yrG) mit einem kurzen Stopp in Istanbul für **€741**.
+    *   Weitere zuverlässige Optionen sind [Air France über Paris](embed:air-2026-u4K) und [KLM über Amsterdam](embed:klm-2026-oxW), beide zu Preisen von ca. €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Kurzübersicht
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Soll ich auch Rückflüge suchen oder vielleicht [erstklassige Unterkünfte in Bangkok](/#settings/appstore/travel) finden?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    以下是2026年4月14日从柏林到曼谷的部分最佳航班选项：
+
+    ### 推荐航班
+    *   **卡塔尔航空**提供最实惠的选择，起价**€636**。您可以选择[上午10:00出发](embed:qatar-2026-OlW)或[下午16:45出发](embed:qatar-2026-X5r)，均经多哈中转一次。
+    *   **土耳其航空**提供最快捷的连接，总飞行时间**13小时25分钟**，[10:40](embed:turkish-2026-yrG)出发，经伊斯坦布尔短暂停留，票价**€741**。
+    *   其他可靠选择包括[法国航空经巴黎](embed:air-2026-u4K)和[KLM经阿姆斯特丹](embed:klm-2026-oxW)，价格均在€715–€725左右。
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### 快速摘要
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    您是否希望我也搜索回程航班，或者为您在曼谷寻找[评分极高的住宿](/#settings/appstore/travel)？
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Para tu viaje de Berlín a Bangkok el 14 de abril de 2026, aquí tienes algunas de las mejores opciones de vuelo disponibles:
+
+    ### Vuelos recomendados
+    *   **Qatar Airways** ofrece las opciones más económicas desde **€636**. Puedes elegir entre una [salida por la mañana a las 10:00](embed:qatar-2026-OlW) o una [salida por la tarde a las 16:45](embed:qatar-2026-X5r), ambas con una escala en Doha.
+    *   **Turkish Airlines** ofrece la conexión más rápida con un tiempo total de viaje de **13h 25m**, con salida a las [10:40](embed:turkish-2026-yrG) y una breve parada en Estambul por **€741**.
+    *   Otras opciones fiables incluyen [Air France vía París](embed:air-2026-u4K) y [KLM vía Ámsterdam](embed:klm-2026-oxW), ambas con precios de alrededor de €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Resumen rápido
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    ¿Te gustaría que busque también vuelos de regreso, o quizás encuentre [alojamiento con altas valoraciones en Bangkok](/#settings/appstore/travel)?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Pour votre voyage de Berlin à Bangkok le 14 avril 2026, voici quelques-unes des meilleures options de vol disponibles :
+
+    ### Vols recommandés
+    *   **Qatar Airways** propose les options les plus abordables à partir de **€636**. Vous pouvez choisir entre un [départ matinal à 10h00](embed:qatar-2026-OlW) ou un [départ en après-midi à 16h45](embed:qatar-2026-X5r), les deux avec une escale à Doha.
+    *   **Turkish Airlines** offre la connexion la plus rapide avec un temps de trajet total de **13h 25m**, au départ de [10h40](embed:turkish-2026-yrG) avec une courte escale à Istanbul pour **€741**.
+    *   D'autres choix fiables incluent [Air France via Paris](embed:air-2026-u4K) et [KLM via Amsterdam](embed:klm-2026-oxW), tous deux à environ €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Résumé rapide
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Souhaitez-vous que je recherche également des vols retour, ou peut-être trouver un [hébergement très bien noté à Bangkok](/#settings/appstore/travel) ?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Para a sua viagem de Berlim para Banguecoque a 14 de abril de 2026, aqui estão algumas das melhores opções de voo disponíveis:
+
+    ### Voos recomendados
+    *   **Qatar Airways** oferece as opções mais acessíveis a partir de **€636**. Pode escolher entre uma [partida de manhã às 10:00](embed:qatar-2026-OlW) ou uma [partida à tarde às 16:45](embed:qatar-2026-X5r), ambas com uma escala em Doha.
+    *   **Turkish Airlines** oferece a ligação mais rápida com um tempo total de viagem de **13h 25m**, partindo às [10:40](embed:turkish-2026-yrG) com uma breve paragem em Istambul por **€741**.
+    *   Outras opções fiáveis incluem [Air France via Paris](embed:air-2026-u4K) e [KLM via Amsterdão](embed:klm-2026-oxW), ambas com preços à volta de €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Resumo rápido
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Gostaria que eu também procurasse voos de regresso, ou talvez encontrasse [alojamento bem avaliado em Banguecoque](/#settings/appstore/travel)?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Для вашего путешествия из Берлина в Бангкок 14 апреля 2026 года вот несколько лучших доступных вариантов перелёта:
+
+    ### Рекомендуемые рейсы
+    *   **Qatar Airways** предлагает наиболее доступные варианты от **€636**. Вы можете выбрать [утренний вылет в 10:00](embed:qatar-2026-OlW) или [дневной вылет в 16:45](embed:qatar-2026-X5r), оба с одной пересадкой в Дохе.
+    *   **Turkish Airlines** обеспечивает наиболее быстрое соединение с общим временем в пути **13ч 25м**, вылет в [10:40](embed:turkish-2026-yrG) с кратким стопом в Стамбуле за **€741**.
+    *   Другие надёжные варианты включают [Air France через Париж](embed:air-2026-u4K) и [KLM через Амстердам](embed:klm-2026-oxW), оба по цене около €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Краткая сводка
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Хотите, чтобы я также нашёл обратные рейсы, или, возможно, подобрал [высокооценённое жильё в Бангкоке](/#settings/appstore/travel)?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    2026年4月14日のベルリンからバンコクへのご旅行について、おすすめのフライトオプションをご紹介します：
+
+    ### おすすめフライト
+    *   **Qatar Airways**は最もお手頃な選択肢を**€636**から提供しています。ドーハ経由の[午前10:00発](embed:qatar-2026-OlW)または[午後16:45発](embed:qatar-2026-X5r)からお選びいただけます。
+    *   **Turkish Airlines**はイスタンブール経由で総所要時間**13時間25分**と最速の接続を提供しており、[10:40発](embed:turkish-2026-yrG)で**€741**です。
+    *   その他の信頼できる選択肢として、[Air France パリ経由](embed:air-2026-u4K)と[KLM アムステルダム経由](embed:klm-2026-oxW)があり、どちらも€715〜€725前後です。
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### クイックサマリー
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    復路のフライトも検索しますか？または[バンコクの高評価宿泊施設](/#settings/appstore/travel)をお探しでしょうか？
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    2026년 4월 14일 베를린에서 방콕으로 가는 여행에 대해 이용 가능한 최적의 항공편 옵션을 안내해 드립니다:
+
+    ### 추천 항공편
+    *   **Qatar Airways**는 **€636**부터 시작하는 가장 저렴한 옵션을 제공합니다. 도하를 경유하는 [오전 10:00 출발](embed:qatar-2026-OlW) 또는 [오후 16:45 출발](embed:qatar-2026-X5r) 중 선택하실 수 있습니다.
+    *   **Turkish Airlines**는 이스탄불을 경유하여 **€741**에 총 비행 시간 **13시간 25분**으로 가장 빠른 연결편을 제공하며, [10:40](embed:turkish-2026-yrG)에 출발합니다.
+    *   그 외 신뢰할 수 있는 선택지로 [Air France 파리 경유](embed:air-2026-u4K)와 [KLM 암스테르담 경유](embed:klm-2026-oxW)가 있으며, 모두 €715–€725 수준으로 책정되어 있습니다.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### 빠른 요약
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    귀국 항공편도 찾아드릴까요, 아니면 [방콕의 높은 평점 숙소](/#settings/appstore/travel)를 찾아드릴까요?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Per il tuo viaggio da Berlino a Bangkok il 14 aprile 2026, ecco alcune delle migliori opzioni di volo disponibili:
+
+    ### Voli Consigliati
+    *   **Qatar Airways** offre le opzioni più convenienti a partire da **€636**. Puoi scegliere tra una [partenza mattutina alle 10:00](embed:qatar-2026-OlW) o una [partenza pomeridiana alle 16:45](embed:qatar-2026-X5r), entrambe con uno scalo a Doha.
+    *   **Turkish Airlines** offre il collegamento più veloce con un tempo di viaggio totale di **13h 25m**, con partenza alle [10:40](embed:turkish-2026-yrG) e una breve sosta a Istanbul per **€741**.
+    *   Altre scelte affidabili includono [Air France via Parigi](embed:air-2026-u4K) e [KLM via Amsterdam](embed:klm-2026-oxW), entrambe a circa €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Riepilogo Rapido
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Vuoi che cerchi anche i voli di ritorno da Bangkok a Berlino, o magari trovare [sistemazioni con ottime recensioni a Bangkok](/#settings/appstore/travel)?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    14 Nisan 2026'da Berlin'den Bangkok'a olan yolculuğunuz için mevcut en iyi uçuş seçeneklerinden bazıları şunlardır:
+
+    ### Önerilen Uçuşlar
+    *   **Qatar Airways**, **€636**'dan başlayan en uygun fiyatlı seçenekleri sunmaktadır. Her ikisi de Doha'da tek aktarmalı olan [sabah 10:00 kalkışı](embed:qatar-2026-OlW) veya [öğleden sonra 16:45 kalkışı](embed:qatar-2026-X5r) arasında seçim yapabilirsiniz.
+    *   **Turkish Airlines**, **€741** fiyatıyla İstanbul'da kısa bir duraklamayla [10:40](embed:turkish-2026-yrG) kalkışlı toplam **13s 25d** seyahat süresiyle en hızlı bağlantıyı sunmaktadır.
+    *   Diğer güvenilir seçenekler arasında [Air France Paris üzerinden](embed:air-2026-u4K) ve [KLM Amsterdam üzerinden](embed:klm-2026-oxW) yer almakta olup her ikisi de €715–€725 civarında fiyatlandırılmıştır.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Hızlı Özet
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Dönüş uçuşlarını da aramamı ister misiniz, yoksa [Bangkok'ta yüksek puanlı konaklama yerleri](/#settings/appstore/travel) bulmamı mı tercih edersiniz?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Cho chuyến đi của bạn từ Berlin đến Bangkok vào ngày 14 tháng 4 năm 2026, đây là một số lựa chọn chuyến bay tốt nhất hiện có:
+
+    ### Chuyến Bay Được Đề Xuất
+    *   **Qatar Airways** cung cấp các tùy chọn giá cả phải chăng nhất bắt đầu từ **€636**. Bạn có thể chọn [khởi hành buổi sáng lúc 10:00](embed:qatar-2026-OlW) hoặc [khởi hành buổi chiều lúc 16:45](embed:qatar-2026-X5r), cả hai đều có một điểm dừng tại Doha.
+    *   **Turkish Airlines** cung cấp kết nối nhanh nhất với tổng thời gian bay **13 giờ 25 phút**, khởi hành lúc [10:40](embed:turkish-2026-yrG) với điểm dừng ngắn tại Istanbul với giá **€741**.
+    *   Các lựa chọn đáng tin cậy khác bao gồm [Air France qua Paris](embed:air-2026-u4K) và [KLM qua Amsterdam](embed:klm-2026-oxW), cả hai có giá khoảng €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Tóm Tắt Nhanh
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Bạn có muốn tôi tìm chuyến bay về từ Bangkok đến Berlin không, hay có thể tìm [chỗ ở được đánh giá cao ở Bangkok](/#settings/appstore/travel)?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Untuk perjalanan Anda dari Berlin ke Bangkok pada 14 April 2026, berikut beberapa pilihan penerbangan terbaik yang tersedia:
+
+    ### Penerbangan yang Direkomendasikan
+    *   **Qatar Airways** menawarkan pilihan paling terjangkau mulai dari **€636**. Anda dapat memilih antara [keberangkatan pagi pukul 10:00](embed:qatar-2026-OlW) atau [keberangkatan sore pukul 16:45](embed:qatar-2026-X5r), keduanya dengan satu transit di Doha.
+    *   **Turkish Airlines** menyediakan koneksi tercepat dengan total waktu perjalanan **13j 25m**, berangkat pukul [10:40](embed:turkish-2026-yrG) dengan transit singkat di Istanbul seharga **€741**.
+    *   Pilihan andal lainnya termasuk [Air France via Paris](embed:air-2026-u4K) dan [KLM via Amsterdam](embed:klm-2026-oxW), keduanya dihargai sekitar €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Ringkasan Cepat
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Apakah Anda ingin saya mencari penerbangan pulang dari Bangkok ke Berlin juga, atau mungkin menemukan [akomodasi berperingkat tinggi di Bangkok](/#settings/appstore/travel)?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Na Twoją podróż z Berlina do Bangkoku 14 kwietnia 2026 roku, oto niektóre z najlepszych dostępnych opcji lotów:
+
+    ### Polecane Loty
+    *   **Qatar Airways** oferuje najbardziej przystępne cenowo opcje, zaczynając od **€636**. Możesz wybrać [poranny wylot o 10:00](embed:qatar-2026-OlW) lub [popołudniowy wylot o 16:45](embed:qatar-2026-X5r), oba z jedną przesiadką w Dosze.
+    *   **Turkish Airlines** zapewnia najszybsze połączenie z łącznym czasem podróży **13h 25min**, z wylotem o [10:40](embed:turkish-2026-yrG) z krótkim przystankiem w Stambule za **€741**.
+    *   Inne niezawodne opcje to [Air France przez Paryż](embed:air-2026-u4K) i [KLM przez Amsterdam](embed:klm-2026-oxW), obie w cenie około €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Szybkie Podsumowanie
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Czy chcesz, żebym poszukał również lotów powrotnych z Bangkoku do Berlina, a może znalazł [wysoko oceniane noclegi w Bangkoku](/#settings/appstore/travel)?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Voor uw reis van Berlijn naar Bangkok op 14 april 2026, hier zijn enkele van de beste beschikbare vluchtopties:
+
+    ### Aanbevolen Vluchten
+    *   **Qatar Airways** biedt de meest betaalbare opties vanaf **€636**. U kunt kiezen tussen een [ochtendvlucht om 10:00](embed:qatar-2026-OlW) of een [middagvlucht om 16:45](embed:qatar-2026-X5r), beide met een tussenstop in Doha.
+    *   **Turkish Airlines** biedt de snelste verbinding met een totale reistijd van **13u 25m**, vertrekkend om [10:40](embed:turkish-2026-yrG) met een korte tussenstop in Istanbul voor **€741**.
+    *   Andere betrouwbare keuzes zijn [Air France via Parijs](embed:air-2026-u4K) en [KLM via Amsterdam](embed:klm-2026-oxW), beide geprijsd rond €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Snel Overzicht
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Wilt u dat ik ook retourvluchten van Bangkok naar Berlijn zoek, of misschien [hoog gewaardeerde accommodaties in Bangkok](/#settings/appstore/travel) vinden?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    إليك بعض أفضل خيارات الرحلات المتاحة لرحلتك من برلين إلى بانكوك في 14 أبريل 2026:
+
+    ### الرحلات الموصى بها
+    *   تقدّم **Qatar Airways** أكثر الخيارات اقتصاديةً بأسعار تبدأ من **€636**. يمكنك الاختيار بين [رحلة صباحية تغادر في 10:00](embed:qatar-2026-OlW) أو [رحلة بعد الظهر تغادر في 16:45](embed:qatar-2026-X5r)، وكلتاهما بتوقف واحد في الدوحة.
+    *   توفّر **Turkish Airlines** أسرع رحلة بإجمالي وقت سفر **13 ساعة و25 دقيقة**، تغادر في [10:40](embed:turkish-2026-yrG) مع توقف قصير في إسطنبول بسعر **€741**.
+    *   تشمل الخيارات الموثوقة الأخرى [Air France عبر باريس](embed:air-2026-u4K) و[KLM عبر أمستردام](embed:klm-2026-oxW)، وكلاهما بأسعار تتراوح بين €715 و€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### ملخص سريع
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    هل تريد أن أبحث عن رحلات العودة أيضاً، أم تفضّل البحث عن [أماكن إقامة مُقيَّمة بشكل عالٍ في بانكوك](/#settings/appstore/travel)؟
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    14 अप्रैल 2026 को बर्लिन से बैंकॉक की आपकी यात्रा के लिए यहाँ कुछ बेहतरीन उड़ान विकल्प दिए गए हैं:
+
+    ### अनुशंसित उड़ानें
+    *   **Qatar Airways** सबसे किफायती विकल्प प्रदान करता है जो **€636** से शुरू होते हैं। आप [सुबह 10:00 बजे की उड़ान](embed:qatar-2026-OlW) या [दोपहर 16:45 बजे की उड़ान](embed:qatar-2026-X5r) में से चुन सकते हैं, दोनों में दोहा में एक स्टॉप है।
+    *   **Turkish Airlines** कुल **13 घंटे 25 मिनट** की यात्रा समय के साथ सबसे तेज़ कनेक्शन प्रदान करता है, जो [10:40](embed:turkish-2026-yrG) पर इस्तांबुल में एक छोटे पड़ाव के साथ **€741** में रवाना होती है।
+    *   अन्य विश्वसनीय विकल्पों में [Air France पेरिस के रास्ते](embed:air-2026-u4K) और [KLM एम्स्टर्डम के रास्ते](embed:klm-2026-oxW) शामिल हैं, दोनों की कीमत लगभग €715–€725 है।
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### संक्षिप्त सारांश
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    क्या आप चाहते हैं कि मैं वापसी की उड़ानें भी देखूँ, या शायद [बैंकॉक में उच्च-रेटेड आवास](/#settings/appstore/travel) खोजूँ?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    สำหรับการเดินทางจากเบอร์ลินไปบางกอกของคุณในวันที่ 14 เมษายน 2026 นี่คือตัวเลือกเที่ยวบินที่ดีที่สุดที่มีอยู่:
+
+    ### เที่ยวบินแนะนำ
+    *   **Qatar Airways** มีตัวเลือกที่ราคาประหยัดที่สุดเริ่มต้นที่ **€636** คุณสามารถเลือกระหว่าง[เที่ยวบินเช้าออกเดินทาง 10:00 น.](embed:qatar-2026-OlW) หรือ[เที่ยวบินบ่ายออกเดินทาง 16:45 น.](embed:qatar-2026-X5r) ทั้งสองแวะพักที่โดฮาหนึ่งครั้ง
+    *   **Turkish Airlines** มีการเชื่อมต่อที่เร็วที่สุดด้วยเวลาเดินทางรวม **13 ชั่วโมง 25 นาที** ออกเดินทางเวลา [10:40 น.](embed:turkish-2026-yrG) แวะพักที่อิสตันบูลในราคา **€741**
+    *   ตัวเลือกที่น่าเชื่อถืออื่น ๆ ได้แก่ [Air France ผ่านปารีส](embed:air-2026-u4K) และ [KLM ผ่านอัมสเตอร์ดัม](embed:klm-2026-oxW) ทั้งสองมีราคาประมาณ €715–€725
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### สรุปโดยย่อ
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    คุณต้องการให้ฉันค้นหาเที่ยวบินขากลับด้วยหรือไม่ หรืออาจจะหา[ที่พักที่ได้รับคะแนนสูงในบางกอก](/#settings/appstore/travel)?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    Pro vaši cestu z Berlína do Bangkoku dne 14. dubna 2026 jsou k dispozici tyto nejlepší možnosti letů:
+
+    ### Doporučené lety
+    *   **Qatar Airways** nabízí nejdostupnější možnosti od **€636**. Můžete si vybrat mezi [ranním odletem v 10:00](embed:qatar-2026-OlW) nebo [odpoledním odletem v 16:45](embed:qatar-2026-X5r), oba s jedním přestupem v Dauhá.
+    *   **Turkish Airlines** zajišťuje nejrychlejší spojení s celkovou dobou letu **13 h 25 min**, odlet v [10:40](embed:turkish-2026-yrG) s krátkým přestupem v Istanbulu za **€741**.
+    *   Mezi další spolehlivé možnosti patří [Air France přes Paříž](embed:air-2026-u4K) a [KLM přes Amsterdam](embed:klm-2026-oxW), obě v ceně přibližně €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Rychlé shrnutí
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Chcete, abych vyhledal také zpáteční lety, nebo snad nějaké [vysoce hodnocené ubytování v Bangkoku](/#settings/appstore/travel)?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    För din resa från Berlin till Bangkok den 14 april 2026 finns här några av de bästa tillgängliga flyalternativen:
+
+    ### Rekommenderade flyg
+    *   **Qatar Airways** erbjuder de mest prisvärda alternativen från **€636**. Du kan välja mellan [en morginavgång kl. 10:00](embed:qatar-2026-OlW) eller [en eftermiddagsavgång kl. 16:45](embed:qatar-2026-X5r), båda med ett mellanlandning i Doha.
+    *   **Turkish Airlines** erbjuder den snabbaste förbindelsen med en total restid på **13h 25m**, avgång kl. [10:40](embed:turkish-2026-yrG) med ett kort stopp i Istanbul för **€741**.
+    *   Andra pålitliga alternativ inkluderar [Air France via Paris](embed:air-2026-u4K) och [KLM via Amsterdam](embed:klm-2026-oxW), båda prissatta runt €715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### Snabb sammanfattning
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    Vill du att jag även söker efter returflyg, eller kanske hittar [välbedömda boenden i Bangkok](/#settings/appstore/travel)?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
+    ```
+
+    לטיול שלך מברלין לבנגקוק ב-14 באפריל 2026, הנה כמה מאפשרויות הטיסה הטובות ביותר הזמינות:
+
+    ### טיסות מומלצות
+    *   **Qatar Airways** מציעה את האפשרויות המשתלמות ביותר החל מ-**€636**. תוכל לבחור בין [המראה בוקר ב-10:00](embed:qatar-2026-OlW) לבין [המראה אחר הצהריים ב-16:45](embed:qatar-2026-X5r), שתיהן עם עצירה אחת בדוחא.
+    *   **Turkish Airlines** מספקת את החיבור המהיר ביותר עם זמן טיסה כולל של **13 שעות ו-25 דקות**, יציאה ב-[10:40](embed:turkish-2026-yrG) עם עצירה קצרה באיסטנבול ב-**€741**.
+    *   אפשרויות אמינות נוספות כוללות [Air France דרך פריז](embed:air-2026-u4K) ו-[KLM דרך אמסטרדם](embed:klm-2026-oxW), שתיהן במחיר של כ-€715–€725.
+
+    [!](embed:qatar-2026-OlW)
+    [!](embed:qatar-2026-X5r)
+    [!](embed:turkish-2026-yrG)
+    [!](embed:air-2026-u4K)
+    [!](embed:klm-2026-oxW)
+
+    ### סיכום קצר
+    ```json
+    {"type": "sheet", "embed_id": "4efde0ba-b891-4651-b00b-a7789f715c8c"}
+    ```
+
+
+    האם תרצה שאחפש גם טיסות חזרה, או אולי למצוא [לינה מדורגת גבוה בבנגקוק](/#settings/appstore/travel)?
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion to find return flights from Bangkok to Berlin
+  en: "[travel] Find return flights from Bangkok to Berlin for April 28"
+  de: "[travel] Rückflüge von Bangkok nach Berlin für den 28. April finden"
+  zh: "[travel] 查找4月28日从曼谷返回柏林的航班"
+  es: "[travel] Buscar vuelos de regreso de Bangkok a Berlín para el 28 de abril"
+  fr: "[travel] Trouver des vols retour de Bangkok à Berlin pour le 28 avril"
+  pt: "[travel] Encontrar voos de regresso de Banguecoque para Berlim a 28 de abril"
+  ru: "[travel] Найти обратные рейсы из Бангкока в Берлин на 28 апреля"
+  ja: "[travel] 4月28日のバンコクからベルリンへの復路フライトを検索する"
+  ko: "[travel] 4월 28일 방콕에서 베를린으로 돌아오는 항공편 찾기"
+  it: "[travel] Trova voli di ritorno da Bangkok a Berlino per il 28 aprile"
+  tr: "[travel] 28 Nisan için Bangkok'tan Berlin'e dönüş uçuşlarını bul"
+  vi: "[travel] Tìm chuyến bay về từ Bangkok đến Berlin ngày 28 tháng 4"
+  id: "[travel] Cari penerbangan pulang dari Bangkok ke Berlin untuk 28 April"
+  pl: "[travel] Znajdź loty powrotne z Bangkoku do Berlina na 28 kwietnia"
+  nl: "[travel] Zoek retourvluchten van Bangkok naar Berlijn voor 28 april"
+  ar: "[travel] البحث عن رحلات العودة من بانكوك إلى برلين في 28 أبريل"
+  hi: "[travel] बैंकॉक से बर्लिन के लिए 28 अप्रैल की वापसी उड़ानें खोजें"
+  th: "[travel] ค้นหาเที่ยวบินกลับจากบางกอกไปเบอร์ลินสำหรับวันที่ 28 เมษายน"
+  cs: "[travel] Najít zpáteční lety z Bangkoku do Berlína na 28. dubna"
+  sv: "[travel] Hitta returflyg från Bangkok till Berlin den 28 april"
+  he: "[travel] מצא טיסות חזרה מבנגקוק לברלין ל-28 באפריל"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion to show flights with shorter layovers
+  en: "[travel-search_connections] Show me flights with shorter layovers"
+  de: "[travel-search_connections] Flüge mit kürzeren Zwischenstopps anzeigen"
+  zh: "[travel-search_connections] 显示中转时间较短的航班"
+  es: "[travel-search_connections] Mostrar vuelos con escalas más cortas"
+  fr: "[travel-search_connections] Afficher les vols avec des escales plus courtes"
+  pt: "[travel-search_connections] Mostrar voos com escalas mais curtas"
+  ru: "[travel-search_connections] Показать рейсы с более короткими пересадками"
+  ja: "[travel-search_connections] 乗り継ぎ時間が短いフライトを表示する"
+  ko: "[travel-search_connections] 경유 시간이 더 짧은 항공편 보여주기"
+  it: "[travel-search_connections] Mostrami voli con scali più brevi"
+  tr: "[travel-search_connections] Daha kısa aktarmalı uçuşları göster"
+  vi: "[travel-search_connections] Cho tôi xem các chuyến bay có thời gian quá cảnh ngắn hơn"
+  id: "[travel-search_connections] Tampilkan penerbangan dengan transit lebih singkat"
+  pl: "[travel-search_connections] Pokaż mi loty z krótszymi przesiadkami"
+  nl: "[travel-search_connections] Laat me vluchten zien met kortere tussenstops"
+  ar: "[travel-search_connections] أرني رحلات بتوقفات أقصر"
+  hi: "[travel-search_connections] मुझे कम लेओवर वाली उड़ानें दिखाएं"
+  th: "[travel-search_connections] แสดงเที่ยวบินที่มีเวลาแวะพักสั้นกว่านี้"
+  cs: "[travel-search_connections] Ukáž mi lety s kratšími přestupy"
+  sv: "[travel-search_connections] Visa mig flyg med kortare mellanlandningar"
+  he: "[travel-search_connections] הראה לי טיסות עם עצירות קצרות יותר"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion to find hotels in Bangkok near city center
+  en: "[travel-search_stays] Find highly-rated hotels in Bangkok near the city center"
+  de: "[travel-search_stays] Hoch bewertete Hotels in Bangkok in der Nähe des Stadtzentrums finden"
+  zh: "[travel-search_stays] 在曼谷市中心附近寻找评分极高的酒店"
+  es: "[travel-search_stays] Buscar hoteles con altas valoraciones en Bangkok cerca del centro de la ciudad"
+  fr: "[travel-search_stays] Trouver des hôtels très bien notés à Bangkok près du centre-ville"
+  pt: "[travel-search_stays] Encontrar hotéis bem avaliados em Banguecoque perto do centro da cidade"
+  ru: "[travel-search_stays] Найти высокооценённые отели в Бангкоке рядом с центром города"
+  ja: "[travel-search_stays] バンコクの市内中心部近くの高評価ホテルを探す"
+  ko: "[travel-search_stays] 방콕 도심 근처의 높은 평점 호텔 찾기"
+  it: "[travel-search_stays] Trova hotel con ottime recensioni a Bangkok vicino al centro città"
+  tr: "[travel-search_stays] Bangkok şehir merkezine yakın yüksek puanlı oteller bul"
+  vi: "[travel-search_stays] Tìm khách sạn được đánh giá cao ở Bangkok gần trung tâm thành phố"
+  id: "[travel-search_stays] Temukan hotel berbintang tinggi di Bangkok dekat pusat kota"
+  pl: "[travel-search_stays] Znajdź wysoko oceniane hotele w Bangkoku w pobliżu centrum miasta"
+  nl: "[travel-search_stays] Zoek hoog gewaardeerde hotels in Bangkok nabij het stadscentrum"
+  ar: "[travel-search_stays] البحث عن فنادق مُقيَّمة بشكل عالٍ في بانكوك بالقرب من وسط المدينة"
+  hi: "[travel-search_stays] बैंकॉक में शहर के केंद्र के पास उच्च-रेटेड होटल खोजें"
+  th: "[travel-search_stays] ค้นหาโรงแรมที่ได้รับคะแนนสูงในบางกอกใกล้ใจกลางเมือง"
+  cs: "[travel-search_stays] Najít vysoce hodnocené hotely v Bangkoku v blízkosti centra města"
+  sv: "[travel-search_stays] Hitta välbedömda hotell i Bangkok nära stadskärnan"
+  he: "[travel-search_stays] מצא מלונות מדורגים גבוה בבנגקוק ליד מרכז העיר"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion to search for luxury resorts in Bangkok
+  en: "[travel-search_stays] Search for luxury resorts in Bangkok"
+  de: "[travel-search_stays] Nach Luxusresorts in Bangkok suchen"
+  zh: "[travel-search_stays] 搜索曼谷的豪华度假村"
+  es: "[travel-search_stays] Buscar resorts de lujo en Bangkok"
+  fr: "[travel-search_stays] Rechercher des complexes hôteliers de luxe à Bangkok"
+  pt: "[travel-search_stays] Pesquisar resorts de luxo em Banguecoque"
+  ru: "[travel-search_stays] Найти роскошные курорты в Бангкоке"
+  ja: "[travel-search_stays] バンコクの高級リゾートを検索する"
+  ko: "[travel-search_stays] 방콕의 럭셔리 리조트 검색"
+  it: "[travel-search_stays] Cerca resort di lusso a Bangkok"
+  tr: "[travel-search_stays] Bangkok'taki lüks tatil köylerini ara"
+  vi: "[travel-search_stays] Tìm kiếm khu nghỉ dưỡng cao cấp ở Bangkok"
+  id: "[travel-search_stays] Cari resor mewah di Bangkok"
+  pl: "[travel-search_stays] Wyszukaj luksusowe kurorty w Bangkoku"
+  nl: "[travel-search_stays] Zoek luxe resorts in Bangkok"
+  ar: "[travel-search_stays] البحث عن منتجعات فاخرة في بانكوك"
+  hi: "[travel-search_stays] बैंकॉक में लक्जरी रिसॉर्ट खोजें"
+  th: "[travel-search_stays] ค้นหารีสอร์ทหรูในบางกอก"
+  cs: "[travel-search_stays] Hledat luxusní rezorty v Bangkoku"
+  sv: "[travel-search_stays] Sök efter lyxresorts i Bangkok"
+  he: "[travel-search_stays] חפש אתרי נופש יוקרתיים בבנגקוק"
+  verified_by_human: []
+
+follow_up_5:
+  context: Follow-up suggestion to compare flight prices across airlines
+  en: "[travel] Compare flight prices for different airlines"
+  de: "[travel] Flugpreise verschiedener Fluggesellschaften vergleichen"
+  zh: "[travel] 比较不同航空公司的机票价格"
+  es: "[travel] Comparar precios de vuelos de diferentes aerolíneas"
+  fr: "[travel] Comparer les prix des vols de différentes compagnies aériennes"
+  pt: "[travel] Comparar preços de voos de diferentes companhias aéreas"
+  ru: "[travel] Сравнить цены на рейсы разных авиакомпаний"
+  ja: "[travel] 異なる航空会社のフライト料金を比較する"
+  ko: "[travel] 다양한 항공사의 항공권 가격 비교"
+  it: "[travel] Confronta i prezzi dei voli per diverse compagnie aeree"
+  tr: "[travel] Farklı havayolları için uçuş fiyatlarını karşılaştır"
+  vi: "[travel] So sánh giá vé máy bay của các hãng hàng không khác nhau"
+  id: "[travel] Bandingkan harga penerbangan untuk maskapai yang berbeda"
+  pl: "[travel] Porównaj ceny lotów dla różnych linii lotniczych"
+  nl: "[travel] Vergelijk vliegprijzen voor verschillende luchtvaartmaatschappijen"
+  ar: "[travel] مقارنة أسعار الرحلات بين شركات الطيران المختلفة"
+  hi: "[travel] विभिन्न एयरलाइनों के लिए उड़ान कीमतों की तुलना करें"
+  th: "[travel] เปรียบเทียบราคาเที่ยวบินของสายการบินต่าง ๆ"
+  cs: "[travel] Porovnat ceny letů u různých aerolinií"
+  sv: "[travel] Jämför flygpriser för olika flygbolag"
+  he: "[travel] השווה מחירי טיסות עבור חברות תעופה שונות"
+  verified_by_human: []
+
+follow_up_6:
+  context: Follow-up suggestion to recommend budget accommodations in Bangkok
+  en: "[travel-search_stays] Recommend budget-friendly accommodations in Bangkok"
+  de: "[travel-search_stays] Günstige Unterkünfte in Bangkok empfehlen"
+  zh: "[travel-search_stays] 推荐曼谷的经济实惠住宿"
+  es: "[travel-search_stays] Recomendar alojamientos económicos en Bangkok"
+  fr: "[travel-search_stays] Recommander des hébergements économiques à Bangkok"
+  pt: "[travel-search_stays] Recomendar acomodações econômicas em Banguecoque"
+  ru: "[travel-search_stays] Порекомендовать бюджетное жильё в Бангкоке"
+  ja: "[travel-search_stays] バンコクのリーズナブルな宿泊施設をおすすめする"
+  ko: "[travel-search_stays] 방콕의 저렴한 숙소 추천"
+  it: "[travel-search_stays] Consiglia sistemazioni economiche a Bangkok"
+  tr: "[travel-search_stays] Bangkok'ta bütçe dostu konaklama yerleri öner"
+  vi: "[travel-search_stays] Đề xuất chỗ ở tiết kiệm ở Bangkok"
+  id: "[travel-search_stays] Rekomendasikan akomodasi ramah anggaran di Bangkok"
+  pl: "[travel-search_stays] Poleć niedrogie noclegi w Bangkoku"
+  nl: "[travel-search_stays] Aanbeveel budgetvriendelijke accommodaties in Bangkok"
+  ar: "[travel-search_stays] التوصية بأماكن إقامة مناسبة للميزانية في بانكوك"
+  hi: "[travel-search_stays] बैंकॉक में बजट-अनुकूल आवास की सिफारिश करें"
+  th: "[travel-search_stays] แนะนำที่พักราคาประหยัดในบางกอก"
+  cs: "[travel-search_stays] Doporučit cenově dostupné ubytování v Bangkoku"
+  sv: "[travel-search_stays] Rekommendera budgetvänliga boenden i Bangkok"
+  he: "[travel-search_stays] המלץ על לינה ידידותית לתקציב בבנגקוק"
+  verified_by_human: []

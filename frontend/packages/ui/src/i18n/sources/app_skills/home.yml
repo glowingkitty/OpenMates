@@ -47,3 +47,78 @@ search.description:
   sv: Sök ett nytt hem och mer.
   he: חפש בית חדש ועוד.
   verified_by_human: [en, de]
+
+search.how_to_use.1:
+  context: Example instruction for home search skill - apartment search
+  en: "**Find apartments** for rent in Berlin under 1000 EUR"
+  de: Finde Mietwohnungen in Berlin unter 1000 EUR
+  zh: 在 Berlin 搜索1000欧元以下的出租公寓
+  es: Busca apartamentos en alquiler en Berlin por menos de 1000 EUR
+  fr: Trouve des appartements à louer à Berlin sous 1000 EUR
+  pt: Encontre apartamentos para alugar em Berlin abaixo de 1000 EUR
+  ru: Найдите квартиры в аренду в Berlin до 1000 EUR
+  ja: Berlin で家賃1000ユーロ以下のアパートを検索
+  ko: Berlin에서 1000유로 미만 임대 아파트 찾기
+  it: Trova appartamenti in affitto a Berlin sotto 1000 EUR
+  tr: Berlin'de 1000 EUR altı kiralık daire bul
+  vi: Tìm căn hộ cho thuê ở Berlin dưới 1000 EUR
+  id: Cari apartemen sewa di Berlin di bawah 1000 EUR
+  pl: Znajdź mieszkania do wynajęcia w Berlin poniżej 1000 EUR
+  nl: Vind huurappartementen in Berlin onder 1000 EUR
+  ar: ابحث عن شقق للإيجار في Berlin بأقل من 1000 يورو
+  hi: Berlin में 1000 EUR से कम किराये के अपार्टमेंट खोजें
+  th: ค้นหาอพาร์ทเมนต์ให้เช่าใน Berlin ต่ำกว่า 1000 EUR
+  cs: Najděte byty k pronájmu v Berlin pod 1000 EUR
+  sv: Hitta hyreslägenheter i Berlin under 1000 EUR
+  he: "**חפש דירות** להשכרה בברלין מתחת ל-1000 אירו"
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example instruction for home search skill - WG room
+  en: "**Search** for WG rooms in Munich available now"
+  de: Suche WG-Zimmer in München, die jetzt verfügbar sind
+  zh: 搜索 Munich 目前可用的合租房间
+  es: Busca habitaciones compartidas en Munich disponibles ahora
+  fr: Recherche des chambres en colocation à Munich disponibles maintenant
+  pt: Pesquise quartos de WG em Munich disponíveis agora
+  ru: Найдите комнаты в WG в Munich, доступные сейчас
+  ja: Munich で現在空いている WG 部屋を検索
+  ko: Munich에서 현재 입주 가능한 WG 방 찾기
+  it: Cerca stanze in WG a Munich disponibili ora
+  tr: Munich'te şu an müsait WG odaları ara
+  vi: Tìm phòng WG ở Munich có sẵn ngay bây giờ
+  id: Cari kamar WG di Munich yang tersedia sekarang
+  pl: Szukaj pokoi WG w Munich dostępnych teraz
+  nl: Zoek WG-kamers in Munich die nu beschikbaar zijn
+  ar: ابحث عن غرف WG في Munich متاحة الآن
+  hi: Munich में अभी उपलब्ध WG कमरे खोजें
+  th: ค้นหาห้อง WG ใน Munich ที่ว่างอยู่ตอนนี้
+  cs: Hledejte pokoje WG v Munich dostupné nyní
+  sv: Sök WG-rum i München som är lediga nu
+  he: "**חפש** חדרי WG במינכן שזמינים עכשיו"
+  verified_by_human: [en, de]
+
+search.how_to_use.3:
+  context: Example instruction for home search skill - buy house
+  en: What **houses are for sale** in Hamburg?
+  de: Welche Häuser stehen in Hamburg zum Verkauf?
+  zh: Hamburg 有哪些待售房屋？
+  es: ¿Qué casas están en venta en Hamburg?
+  fr: Quelles maisons sont en vente à Hamburg ?
+  pt: Quais casas estão à venda em Hamburg?
+  ru: Какие дома продаются в Hamburg?
+  ja: Hamburg で売りに出ている住宅は？
+  ko: Hamburg에서 매매 중인 주택은?
+  it: Quali case sono in vendita a Hamburg?
+  tr: Hamburg'da satılık evler hangileri?
+  vi: Những ngôi nhà nào đang rao bán ở Hamburg?
+  id: Rumah apa saja yang dijual di Hamburg?
+  pl: Jakie domy są na sprzedaż w Hamburg?
+  nl: Welke huizen staan te koop in Hamburg?
+  ar: ما هي المنازل المعروضة للبيع في Hamburg؟
+  hi: Hamburg में बिक्री के लिए कौन से मकान हैं?
+  th: บ้านที่ขายอยู่ใน Hamburg มีอะไรบ้าง?
+  cs: Jaké domy jsou na prodej v Hamburg?
+  sv: Vilka hus är till salu i Hamburg?
+  he: "אילו **בתים למכירה** בהמבורג?"
+  verified_by_human: [en, de]

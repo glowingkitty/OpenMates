@@ -63,6 +63,8 @@ changes to the documentation (to keep the documentation up to date).
     
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper } from './settings/settingsRoutes';
+    import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
+    import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
@@ -79,10 +81,11 @@ changes to the documentation (to keep the documentation up to date).
         getLucideIcon,
         getValidIconName,
     } from '../utils/categoryUtils';
+    import { resolveIconName } from '../utils/iconNameResolver';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     
     // Import the normal store instead of the derived one that was causing the error
-    import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+    import { settingsNavigationStore, resetSettingsNavigation } from '../stores/settingsNavigationStore';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -228,8 +231,15 @@ changes to the documentation (to keep the documentation up to date).
         
         // Add any dynamically registered entry detail routes
         // These are routes like: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
+        // or: ai/model/{model_id} (top-level AI settings model detail)
         for (const route of dynamicEntryRoutes) {
-            views[route] = AppDetailsWrapper;
+            if (/^ai\/model\//.test(route)) {
+                views[route] = AiModelDetailsWrapper;
+            } else if (/^ai\/provider\//.test(route)) {
+                views[route] = AiProviderDetailsWrapper;
+            } else {
+                views[route] = AppDetailsWrapper;
+            }
         }
 
         // Add any dynamically registered personal data edit routes
@@ -294,6 +304,7 @@ changes to the documentation (to keep the documentation up to date).
             // App store and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
+                    key === 'ai' || key.startsWith('ai/') ||
                     key === 'app_store' || key.startsWith('app_store/') ||
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
@@ -576,6 +587,14 @@ changes to the documentation (to keep the documentation up to date).
             if (!$authStore.isAuthenticated && pathString === 'shared') {
                 continue; // Skip the 'shared' segment for non-authenticated users
             }
+
+            // Skip the synthetic 'ai/model' and 'ai/provider' container segments.
+            // Their actual route parent is 'ai', and the final segment is the
+            // model/provider id — the intermediate 'model'/'provider' is a
+            // route namespace, not a navigable page.
+            if (pathString === 'ai/model' || pathString === 'ai/provider') {
+                continue;
+            }
             
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
@@ -586,6 +605,11 @@ changes to the documentation (to keep the documentation up to date).
                     // Use the title override if provided, otherwise fall back to the standard key
                     pathLabels.push(cameFromTitleOverride ?? $text('settings.settings_memories'));
                     // Skip all remaining app_store sub-segments — they belong to the old chain
+                    break;
+                }
+                if (cameFromPath === 'ai') {
+                    // Arrived from top-level AI settings — show "AI" instead of "App Store / AI"
+                    pathLabels.push(cameFromTitleOverride ?? $text('settings.ai'));
                     break;
                 }
                 // This is the base app_store route - add "App Store" translation
@@ -727,12 +751,17 @@ changes to the documentation (to keep the documentation up to date).
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
     
     // True when the header should show a provider icon (model or provider detail pages)
+    // NOTE: Top-level AI settings model/provider detail pages (`ai/model/*`,
+    // `ai/provider/*`) intentionally fall through to `isStandardSubPage` so they
+    // render the standard settings-banner-shell (same gradient header as Privacy,
+    // Billing, etc.). Back navigation for those routes is handled in backToMainView.
     let isModelDetailPage = $derived(
-        activeSettingsView.startsWith('app_store/') &&
+        // app_store model/provider detail pages
+        (activeSettingsView.startsWith('app_store/') &&
         (
             /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView) ||
             /^app_store\/[^/]+\/skill\/[^/]+\/provider\/[^/]+$/.test(activeSettingsView)
-        )
+        ))
     );
 
     // True when the header should show a mate profile image (mate detail pages)
@@ -772,7 +801,9 @@ changes to the documentation (to keep the documentation up to date).
         (/^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
          activeSettingsView === 'app_store/reminder/create' ||
          /^app_store\/reminder\/entry\//.test(activeSettingsView)) &&
-        !isModelDetailPage
+        !isModelDetailPage &&
+        // When arrived from top-level AI settings, use default settings gradient instead of app gradient
+        cameFromPath !== 'ai'
     );
 
     /**
@@ -814,7 +845,7 @@ changes to the documentation (to keep the documentation up to date).
         'support': 'settings.support.description',
         'developers': 'settings.developers_description',
         'mates': 'settings.mates.description',
-        'chat': 'settings.chat.description',
+        'ai': 'settings.ai.description',
         'security': 'settings.security.description',
         'newsletter': 'settings.newsletter.description',
         'server': 'settings.server.description',
@@ -830,6 +861,9 @@ changes to the documentation (to keep the documentation up to date).
      */
     let activeSubMenuDescription = $derived.by(() => {
         if (!isStandardSubPage) return '';
+        // AI model/provider detail pages show the model/provider name as the
+        // banner title — no inherited description from the parent AI section.
+        if (/^ai\/(model|provider)\//.test(activeSettingsView)) return '';
         // Use the top-level path segment for description lookup
         const topSegment = activeSettingsView.split('/')[0];
         const key = settingsPageDescriptionKeys[topSegment];
@@ -880,7 +914,7 @@ changes to the documentation (to keep the documentation up to date).
             const appMeta = appSkillsStore.getState().apps['reminder'];
             if (!appMeta) return null;
             const rawIcon = appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             return {
                 appId: 'reminder',
                 itemName: $text('reminder.settings.create_title'),
@@ -896,7 +930,7 @@ changes to the documentation (to keep the documentation up to date).
             const appMeta = appSkillsStore.getState().apps['reminder'];
             if (!appMeta) return null;
             const rawIcon = appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             const isEdit = activeSettingsView.endsWith('/edit');
             return {
                 appId: 'reminder',
@@ -924,7 +958,7 @@ changes to the documentation (to keep the documentation up to date).
             if (!skill) return null;
             // Derive icon name from skill's icon_image (strip .svg); fall back to app icon
             const rawIcon = skill.icon_image || appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             return {
                 appId,
                 itemName: skill.name_translation_key ? $text(skill.name_translation_key) : itemId,
@@ -942,7 +976,7 @@ changes to the documentation (to keep the documentation up to date).
             const focus = appMeta.focus_modes.find(f => f.id === itemId);
             if (!focus) return null;
             const rawIcon = focus.icon_image || appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             return {
                 appId,
                 itemName: focus.name_translation_key ? $text(focus.name_translation_key) : itemId,
@@ -960,7 +994,7 @@ changes to the documentation (to keep the documentation up to date).
             const cat = appMeta.settings_and_memories.find(c => c.id === itemId);
             if (!cat) return null;
             const rawIcon = cat.icon_image || appMeta.icon_image;
-            const iconName = rawIcon ? rawIcon.replace(/\.svg$/, '').trim() : undefined;
+            const iconName = rawIcon ? resolveIconName(rawIcon.replace(/\.svg$/, '').trim()) : undefined;
             
             // Check for deeper sub-routes: create or entry detail
             const subRoute = activeSettingsView.replace(
@@ -1145,6 +1179,15 @@ changes to the documentation (to keep the documentation up to date).
         let { settingsPath, direction: newDirection, icon, cameFrom, cameFromTitle } = detail;
         direction = newDirection;
 
+        // --- AI app redirect ---
+        // The AI app no longer has its own page in the app store. Intercept any navigation
+        // to app_store/ai (from sub-components like AppSettingsMemoriesCategory.goBack())
+        // and redirect to the top-level AI settings page.
+        if (settingsPath === 'app_store/ai') {
+            settingsPath = 'ai';
+            icon = 'ai';
+        }
+
         // --- Scroll position memory (All Apps only) ---
         // Save the scroll offset when leaving "All Apps" going forward, so pressing
         // back restores the position. All other pages always scroll to top on navigation.
@@ -1210,6 +1253,22 @@ changes to the documentation (to keep the documentation up to date).
             // Trigger reactivity by reassigning the Set
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
             // Dynamically registered model detail route: settingsPath
+        }
+
+        // Check if this is a top-level AI model detail route that needs to be registered
+        // Pattern: ai/model/{model_id} (from SettingsAI page)
+        const aiModelDetailPattern = /^ai\/model\/[^/]+$/;
+        if (aiModelDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
+        // Check if this is a top-level AI server-provider detail route
+        // Pattern: ai/provider/{provider_id} (from SettingsAI page)
+        const aiProviderDetailPattern = /^ai\/provider\/[^/]+$/;
+        if (aiProviderDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
         // Check if this is a dynamic reminder entry route that needs to be registered
@@ -1327,6 +1386,27 @@ changes to the documentation (to keep the documentation up to date).
                 activeSubMenuIcon = icon || appId;
                 activeSubMenuTitleKey = `apps.${appId}`;
             }
+        } else if (/^ai\/model\/[^/]+$/.test(settingsPath)) {
+            // Top-level AI model detail route: ai/model/{modelId}
+            // Rendered inside the standard settings-banner-shell so the icon is
+            // the AI icon and the title is the model name.
+            const aiModelId = settingsPath.replace('ai/model/', '');
+            const modelMeta = modelsMetadata.find(m => m.id === aiModelId);
+            activeSubMenuIcon = 'ai';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? (modelMeta?.name ?? aiModelId);
+        } else if (/^ai\/provider\/[^/]+$/.test(settingsPath)) {
+            // Top-level AI server-provider detail route: ai/provider/{providerId}
+            // Rendered inside the standard settings-banner-shell (AI icon + provider name).
+            const aiProviderId = settingsPath.replace('ai/provider/', '');
+            const providerMeta = providersMetadata[aiProviderId];
+            activeSubMenuIcon = 'ai';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            // Prefer the title passed in from SettingsAI (already simplified) over
+            // raw providersMetadata which has a different name for some ids.
+            activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? aiProviderId);
         } else if (settingsPath.startsWith('mates/') && settingsPath !== 'mates') {
             // Mate detail route: mates/{mateId}
             // Show the mate's profile image (via mate-profile CSS class) and the mate's name.
@@ -1499,6 +1579,10 @@ changes to the documentation (to keep the documentation up to date).
                     if (pathParts[1] === 'settings_memories' && cameFromPath === 'settings_memories') {
                         previousPath = 'settings_memories';
                         previousPathSegments = ['settings_memories'];
+                    } else if (cameFromPath === 'ai') {
+                        // Arrived from top-level AI settings — go back there, not to app_store/ai
+                        previousPath = 'ai';
+                        previousPathSegments = ['ai'];
                     } else {
                         previousPath = `app_store/${appId}`;
                         previousPathSegments = ['app_store', appId];
@@ -1514,6 +1598,12 @@ changes to the documentation (to keep the documentation up to date).
                         previousPathSegments = navigationPath.slice(0, -1);
                     }
                 }
+            } else if (/^ai\/(model|provider)\/[^/]+$/.test(currentPath)) {
+                // AI model/provider detail pages — back always returns to
+                // the top-level AI settings page, not an intermediate 'ai/model'
+                // or 'ai/provider' path (which don't exist as navigable views).
+                previousPath = 'ai';
+                previousPathSegments = ['ai'];
             } else if (navigationPath.join('/') === 'incognito/info') {
                 // 'incognito/info' is the only incognito route — there is no bare 'incognito' route.
                 // Pressing back should return to the main settings page, not try to navigate to
@@ -1713,6 +1803,10 @@ changes to the documentation (to keep the documentation up to date).
         	showSubmenuInfo = false;
         	navButtonLeft = false;
         	hideNavButton = false; // Reset hide nav button flag
+        	// Reset navigation store + dedup guard so the next search deep-link
+        	// can navigate to the same settings page reliably.
+        	previousNavigationPath = null;
+        	resetSettingsNavigation();
 
         	// Reset help link to base
         	// currentHelpLink = baseHelpLink; // Help button disabled
@@ -1860,6 +1954,8 @@ changes to the documentation (to keep the documentation up to date).
                 navButtonLeft = false;
                 hideNavButton = false;
                 allAppsScrollPosition = 0;
+                previousNavigationPath = null;
+                resetSettingsNavigation();
 
                 if (profileContainer) {
                     profileContainer.classList.remove('submenu-active');
@@ -2157,7 +2253,7 @@ changes to the documentation (to keep the documentation up to date).
             // Account deletion is allowed for uncompleted accounts via email link
             // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
@@ -2165,7 +2261,8 @@ changes to the documentation (to keep the documentation up to date).
                                      settingsPath.startsWith('support/') ||
                                      settingsPath.startsWith('report_issue/') ||
                                      settingsPath.startsWith('account/delete/') ||
-                                     settingsPath.startsWith('mates/');
+                                     settingsPath.startsWith('mates/') ||
+                                     settingsPath.startsWith('ai/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
@@ -2211,6 +2308,7 @@ changes to the documentation (to keep the documentation up to date).
                 // Set window flag for deep-link parameters so sub-components can read them
                 // after the hash is cleaned. SettingsUsage reads __openmates_usage_deeplink.
                 if (settingsPath.includes('&usage')) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (window as any).__openmates_usage_deeplink = true;
                 }
 
@@ -2249,7 +2347,13 @@ changes to the documentation (to keep the documentation up to date).
                     const translationKeyParts = cleanPath.split('/').map(segment => segment.replace(/-/g, '_'));
                     translationKey = `settings.${translationKeyParts.join('.')}`;
                 }
-                const title = $text(translationKey);
+
+                // For ai/model/* and ai/provider/* deep links, don't pass a title —
+                // handleOpenSettings resolves the name from modelsMetadata / providersMetadata.
+                // The auto-generated translation key (e.g. settings.ai.model.claude_opus_4_6)
+                // doesn't exist and would show a raw [T:...] placeholder.
+                const isAiDetailRoute = /^ai\/(model|provider)\//.test(cleanPath);
+                const title = isAiDetailRoute ? undefined : $text(translationKey);
 
                 handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {
@@ -2334,6 +2438,8 @@ changes to the documentation (to keep the documentation up to date).
     		navButtonLeft = false;
     		hideNavButton = false;
     		allAppsScrollPosition = 0;
+    		previousNavigationPath = null;
+    		resetSettingsNavigation();
 
     		if (profileContainer) {
     			profileContainer.classList.remove('submenu-active');
@@ -2450,6 +2556,7 @@ changes to the documentation (to keep the documentation up to date).
 <div
     class="settings-menu"
     data-testid="settings-menu"
+    data-active-view={activeSettingsView}
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
     class:mobile={$isMobileView}
@@ -2540,7 +2647,7 @@ changes to the documentation (to keep the documentation up to date).
          Displays the user's avatar + username and a clickable credits count.
          Placed outside the content-wrapper so sticky positioning works correctly. -->
     {#if activeSettingsView === 'main'}
-        <div class="settings-banner-shell">
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
             {#if headerChatDecorIcons.length > 0}
                 <div
                     class="header-chat-icons-layer on-banner"
@@ -2580,7 +2687,7 @@ changes to the documentation (to keep the documentation up to date).
          Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
          sticky positioning works here because this element is a direct flex child of .settings-menu. -->
     {#if isAnyAppBannerPage && currentAppMetadata}
-        <div class="settings-banner-shell">
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
             <AppDetailsHeader
                 appId={currentAppId}
                 app={currentAppMetadata}
@@ -2604,7 +2711,7 @@ changes to the documentation (to keep the documentation up to date).
          Uses the openmates gradient with the page icon and title.
          Placed outside the content-wrapper for the same sticky-positioning reason. -->
     {#if isStandardSubPage}
-        <div class="settings-banner-shell">
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
             <AppDetailsHeader
                 scrollTop={contentScrollTop}
                 breadcrumbLabel={breadcrumbLabel}

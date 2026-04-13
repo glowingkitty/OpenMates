@@ -1221,6 +1221,44 @@ export async function handleSend(
             // Update messages_v count (existing demo messages + the new message being sent)
             newChatData.messages_v = demoMessages.length + 1;
           }
+
+          // Clone example chat embeds into the embedStore (IndexedDB)
+          // Without this, embeds only render from the in-memory exampleChatStore
+          // fallback — they won't survive cross-device sync or backend AI context.
+          const { isExampleChat: isExampleChatCheck, getExampleChatEmbeds } =
+            await import("../../../demo_chats");
+          if (isExampleChatCheck(sourceDemoId)) {
+            const exampleEmbeds = getExampleChatEmbeds(sourceDemoId);
+            if (exampleEmbeds.length > 0) {
+              const { embedStore: embedStoreForClone } =
+                await import("../../../services/embedStore");
+              console.info(
+                `[handleSend] Cloning ${exampleEmbeds.length} embeds from example chat ${sourceDemoId} to new chat ${chatIdToUse}`,
+              );
+              for (const embed of exampleEmbeds) {
+                const contentRef = `embed:${embed.embed_id}`;
+                try {
+                  await embedStoreForClone.put(
+                    contentRef,
+                    {
+                      content: embed.content,
+                      type: embed.type,
+                      status: "finished",
+                      embed_id: embed.embed_id,
+                      parent_embed_id: embed.parent_embed_id,
+                      embed_ids: embed.embed_ids,
+                    },
+                    embed.type as import("../../../message_parsing/types").EmbedType,
+                  );
+                } catch (embedError) {
+                  console.warn(
+                    `[handleSend] Failed to clone embed ${embed.embed_id}:`,
+                    embedError,
+                  );
+                }
+              }
+            }
+          }
         } catch (dupError) {
           console.error(
             "[handleSend] Error duplicating demo history:",

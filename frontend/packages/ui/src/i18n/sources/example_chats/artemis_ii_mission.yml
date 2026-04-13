@@ -1,0 +1,1333 @@
+title:
+  context: Title of example chat about Artemis II moon mission
+  en: Artemis II Mission Highlights and Exploration
+  de: Artemis II Mission – Highlights und Erkundung
+  zh: Artemis II 任务亮点与探索
+  es: Aspectos destacados y exploración de la misión Artemis II
+  fr: Points forts et exploration de la mission Artemis II
+  pt: Destaques e exploração da missão Artemis II
+  ru: Основные моменты и исследования миссии Artemis II
+  ja: Artemis II ミッションのハイライトと探査
+  ko: Artemis II 임무 하이라이트 및 탐사
+  it: Punti salienti ed esplorazione della missione Artemis II
+  tr: Artemis II Görevi Öne Çıkanlar ve Keşif
+  vi: Điểm nổi bật và khám phá sứ mệnh Artemis II
+  id: Sorotan dan Eksplorasi Misi Artemis II
+  pl: Najważniejsze momenty i odkrycia misji Artemis II
+  nl: Hoogtepunten en verkenning van de Artemis II-missie
+  ar: أبرز أحداث واستكشافات مهمة Artemis II
+  hi: Artemis II मिशन की मुख्य बातें और अन्वेषण
+  th: ไฮไลท์และการสำรวจภารกิจ Artemis II
+  cs: Hlavní momenty a průzkum mise Artemis II
+  sv: Höjdpunkter och utforskning av Artemis II-uppdraget
+  he: נקודות עיקריות וחקירה של משימת Artemis II
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat about Artemis II mission details, crew, and photo highlights
+  en: Discussed Artemis II mission details, crew, milestones, and photo highlights. Explored significance of the mission and future Artemis plans.
+  de: Artemis II Missionsdetails, Besatzung, Meilensteine und Foto-Highlights besprochen. Bedeutung der Mission und zukünftige Artemis-Pläne erkundet.
+  zh: 讨论了 Artemis II 任务详情、机组人员、里程碑和照片亮点。探索了该任务的重要性和未来的 Artemis 计划。
+  es: Se discutieron los detalles de la misión Artemis II, la tripulación, los hitos y las fotos destacadas. Se exploró la importancia de la misión y los planes futuros de Artemis.
+  fr: Discussion des détails de la mission Artemis II, de l'équipage, des étapes clés et des photos marquantes. Exploration de l'importance de la mission et des plans futurs d'Artemis.
+  pt: Discutidos os detalhes da missão Artemis II, tripulação, marcos e fotos em destaque. Explorada a importância da missão e os planos futuros do programa Artemis.
+  ru: Обсуждены детали миссии Artemis II, экипаж, ключевые этапы и фотографии. Рассмотрено значение миссии и будущие планы программы Artemis.
+  ja: Artemis II ミッションの詳細、クルー、マイルストーン、写真ハイライトについて議論しました。ミッションの意義と今後の Artemis 計画を探りました。
+  ko: Artemis II 임무 세부 사항, 승무원, 이정표 및 사진 하이라이트를 논의했습니다. 임무의 중요성과 향후 Artemis 계획을 탐구했습니다.
+  it: Discussi i dettagli della missione Artemis II, l'equipaggio, le tappe fondamentali e le foto salienti. Esplorata l'importanza della missione e i piani futuri di Artemis.
+  tr: Artemis II görev detayları, mürettebat, kilometre taşları ve fotoğraf öne çıkanları tartışıldı. Görevin önemi ve gelecekteki Artemis planları incelendi.
+  vi: Thảo luận về chi tiết sứ mệnh Artemis II, phi hành đoàn, các cột mốc và ảnh nổi bật. Khám phá ý nghĩa của sứ mệnh và các kế hoạch Artemis trong tương lai.
+  id: Membahas detail misi Artemis II, kru, tonggak sejarah, dan sorotan foto. Mengeksplorasi signifikansi misi dan rencana Artemis di masa depan.
+  pl: Omówiono szczegóły misji Artemis II, załogę, kamienie milowe i najważniejsze zdjęcia. Zbadano znaczenie misji i przyszłe plany programu Artemis.
+  nl: De details van de Artemis II-missie, bemanning, mijlpalen en fotohoogtepunten besproken. De betekenis van de missie en toekomstige Artemis-plannen verkend.
+  ar: نوقشت تفاصيل مهمة Artemis II والطاقم والمعالم البارزة وأبرز الصور. استُكشفت أهمية المهمة وخطط Artemis المستقبلية.
+  hi: Artemis II मिशन के विवरण, चालक दल, मील के पत्थर और फोटो हाइलाइट्स पर चर्चा की गई। मिशन के महत्व और भविष्य की Artemis योजनाओं का अन्वेषण किया गया।
+  th: พูดคุยเกี่ยวกับรายละเอียดภารกิจ Artemis II ลูกเรือ เหตุการณ์สำคัญ และไฮไลท์ภาพถ่าย สำรวจความสำคัญของภารกิจและแผน Artemis ในอนาคต
+  cs: Probrány detaily mise Artemis II, posádka, milníky a fotografie. Prozkoumán význam mise a budoucí plány programu Artemis.
+  sv: Diskuterade Artemis II-uppdragets detaljer, besättning, milstolpar och fotohöjdpunkter. Utforskade uppdragets betydelse och framtida Artemis-planer.
+  he: נדונו פרטי משימת Artemis II, הצוות, אבני דרך ותמונות בולטות. נחקרה חשיבות המשימה ותוכניות Artemis העתידיות.
+  verified_by_human: []
+
+user_message_1:
+  context: User asking about Artemis II mission and photo highlights
+  en: Tell me more about the Artemis II mission and some photo highlights
+  de: Erzähl mir mehr über die Artemis II Mission und einige Foto-Highlights
+  zh: 告诉我更多关于 Artemis II 任务的信息和一些照片亮点
+  es: Cuéntame más sobre la misión Artemis II y algunos momentos fotográficos destacados
+  fr: Parle-moi davantage de la mission Artemis II et de quelques photos marquantes
+  pt: Conte-me mais sobre a missão Artemis II e alguns destaques em fotos
+  ru: Расскажи мне больше о миссии Artemis II и покажи интересные фотографии
+  ja: Artemis II ミッションについてもっと教えて、写真のハイライトも見せて
+  ko: Artemis II 임무에 대해 더 알려주고 사진 하이라이트도 보여줘
+  it: Dimmi di più sulla missione Artemis II e alcuni momenti fotografici salienti
+  tr: Artemis II görevi hakkında daha fazla bilgi ver ve bazı fotoğraf öne çıkanlarını göster
+  vi: Kể cho tôi thêm về sứ mệnh Artemis II và một số ảnh nổi bật
+  id: Ceritakan lebih banyak tentang misi Artemis II dan beberapa sorotan foto
+  pl: Opowiedz mi więcej o misji Artemis II i pokaż najciekawsze zdjęcia
+  nl: Vertel me meer over de Artemis II-missie en enkele fotohoogtepunten
+  ar: أخبرني المزيد عن مهمة Artemis II وبعض أبرز الصور
+  hi: मुझे Artemis II मिशन के बारे में और बताओ और कुछ फोटो हाइलाइट्स दिखाओ
+  th: บอกฉันเพิ่มเติมเกี่ยวกับภารกิจ Artemis II และไฮไลท์ภาพถ่ายบางส่วน
+  cs: Řekni mi více o misi Artemis II a ukaž některé fotografické momenty
+  sv: Berätta mer om Artemis II-uppdraget och visa några fotohöjdpunkter
+  he: ספר לי עוד על משימת Artemis II והראה לי כמה תמונות בולטות
+  verified_by_human: []
+
+assistant_message_2:
+  context: "Assistant response about Artemis II with web search, image search results and detailed information. Contains JSON embed blocks (language-independent) and markdown prose."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+    
+    The **Artemis II** mission recently concluded as a historic success, marking the first time humans have traveled to the vicinity of the Moon in over 50 years. Following its launch on **April 1, 2026**, the mission reached its climax with a successful splashdown in the Pacific Ocean on **April 10, 2026**.
+    
+    As an [astronomy](/#settings/appstore/study) and physics enthusiast, I find this mission particularly exciting because it serves as the final "test drive" before the Artemis III mission, which aims to land the first woman and next man on the lunar surface.
+    
+    ### Mission Overview
+    Artemis II was a 10-day flight test designed to verify that the **Space Launch System (SLS)** rocket and **Orion** spacecraft (named *Integrity* by the crew) could safely transport, sustain, and return astronauts from deep space.
+    
+    *   **The Crew:** The four-person crew consisted of Commander **Reid Wiseman**, Pilot **Victor Glover**, Mission Specialist **Christina Koch** (NASA), and Mission Specialist **Jeremy Hansen** (CSA).
+    *   **The Record:** During the mission, the crew set a new record for the farthest distance from Earth ever traveled by a human-rated spacecraft, reaching **252,756 miles** from our home planet—surpassing the record set by [Apollo 13](embed:nasa.gov-haz) in 1970.
+    *   **The Trajectory:** Unlike the Apollo missions, Artemis II used a "hybrid free-return trajectory." After orbiting Earth to test systems, the spacecraft performed a lunar flyby, using the Moon's gravity to "slingshot" back toward Earth without needing a major engine burn to return.
+    
+    ### Photo Highlights from the Mission
+    Here are some of the most stunning visual moments captured during the mission, from the thunderous launch at Kennedy Space Center to the serene views of Earth and the Moon.
+    
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+    
+    ### Key Milestones
+    *   **Launch (Flight Day 1):** The SLS rocket, the most powerful rocket ever built, lifted off from Launch Complex 39B, delivering the Orion spacecraft into a high Earth orbit.
+    *   **Proximity Operations (Flight Day 2):** The crew practiced manual handling of the spacecraft, a critical skill for future missions that will require docking with the [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Lunar Flyby (Flight Day 6):** The crew passed behind the Moon, losing contact with Earth for a brief period before emerging to see the "Earthrise" over the lunar horizon.
+    *   **Splashdown (Flight Day 10):** Orion re-entered the atmosphere at roughly 25,000 mph, with its heat shield enduring temperatures of nearly 5,000°F before splashing down safely off the coast of San Diego.
+    
+    Now that the crew is back home, NASA will begin an intensive review of the flight data to prepare for **Artemis III**. 
+    
+    What part of the Artemis program interests you most—the [rocket technology](/#settings/appstore/web), the [lunar science](/#settings/appstore/books), or the future [Mars missions](/#settings/appstore/videos)?
+    
+    **Explore further:**
+    *   [NASA Artemis Mission Page](https://www.nasa.gov/specials/artemis/)
+    *   [European Space Agency - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    Die **Artemis II**-Mission wurde kürzlich als historischer Erfolg abgeschlossen und markiert das erste Mal seit über 50 Jahren, dass Menschen in die Nähe des Mondes gereist sind. Nach ihrem Start am **1. April 2026** erreichte die Mission ihren Höhepunkt mit einer erfolgreichen Wasserung im Pazifischen Ozean am **10. April 2026**.
+
+    Als Enthusiast für [Astronomie](/#settings/appstore/study) und Physik finde ich diese Mission besonders spannend, da sie die letzte „Testfahrt" vor der Artemis III-Mission darstellt, die darauf abzielt, die erste Frau und den nächsten Mann auf der Mondoberfläche zu landen.
+
+    ### Missionsübersicht
+    Artemis II war ein 10-tägiger Flugtest, der überprüfen sollte, ob die **Space Launch System (SLS)**-Rakete und das **Orion**-Raumschiff (von der Besatzung *Integrity* getauft) Astronauten sicher in den Weltraum transportieren, versorgen und zurückbringen können.
+
+    *   **Die Besatzung:** Die vierköpfige Besatzung bestand aus Commander **Reid Wiseman**, Pilot **Victor Glover**, Missionsspezialistin **Christina Koch** (NASA) und Missionsspezialist **Jeremy Hansen** (CSA).
+    *   **Der Rekord:** Während der Mission stellte die Besatzung einen neuen Rekord für die größte Entfernung von der Erde auf, die jemals von einem bemannten Raumfahrzeug erreicht wurde: **252.756 Meilen** von unserem Heimatplaneten – und übertraf damit den Rekord von [Apollo 13](embed:nasa.gov-haz) aus dem Jahr 1970.
+    *   **Die Flugbahn:** Im Unterschied zu den Apollo-Missionen nutzte Artemis II eine „hybride Freiflug-Rückkehrbahn". Nach dem Umkreisen der Erde zur Systemprüfung führte das Raumschiff einen Mondvorbeiflug durch und nutzte die Schwerkraft des Mondes als „Schleuder" zurück zur Erde, ohne ein großes Triebwerksmanöver für die Rückkehr zu benötigen.
+
+    ### Foto-Highlights der Mission
+    Hier sind einige der beeindruckendsten visuellen Momente der Mission – vom donnernden Start am Kennedy Space Center bis zu den friedlichen Ausblicken auf Erde und Mond.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Wichtige Meilensteine
+    *   **Start (Flugtag 1):** Die SLS-Rakete, die leistungsstärkste jemals gebaute Rakete, hob von Launch Complex 39B ab und brachte das Orion-Raumschiff in eine hohe Erdumlaufbahn.
+    *   **Annäherungsmanöver (Flugtag 2):** Die Besatzung übte die manuelle Steuerung des Raumschiffs – eine entscheidende Fähigkeit für zukünftige Missionen, die ein Andocken am [Lunar Gateway](https://www.nasa.gov/mission/gateway/) erfordern.
+    *   **Mondvorbeiflug (Flugtag 6):** Die Besatzung flog hinter dem Mond entlang, verlor kurzzeitig den Kontakt zur Erde und sah beim Wiederauftauchen den „Erdaufgang" über dem Mondhorizont.
+    *   **Wasserung (Flugtag 10):** Orion trat mit etwa 40.000 km/h in die Atmosphäre ein, wobei der Hitzeschild Temperaturen von fast 2.800 °C standhielt, bevor das Raumschiff sicher vor der Küste von San Diego wasserte.
+
+    Nun, da die Besatzung wieder zu Hause ist, wird die NASA eine intensive Überprüfung der Flugdaten beginnen, um sich auf **Artemis III** vorzubereiten.
+
+    Welcher Teil des Artemis-Programms interessiert dich am meisten – die [Raketentechnologie](/#settings/appstore/web), die [Mondforschung](/#settings/appstore/books) oder die zukünftigen [Mars-Missionen](/#settings/appstore/videos)?
+
+    **Weiter entdecken:**
+    *   [NASA Artemis-Missionsseite](https://www.nasa.gov/specials/artemis/)
+    *   [Europäische Weltraumorganisation – Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    **Artemis II** 任务最近圆满成功，标志着人类50多年来首次飞往月球附近。该任务于 **2026年4月1日** 发射，并于 **2026年4月10日** 在太平洋成功溅落，达到了任务的高潮。
+
+    作为一名[天文学](/#settings/appstore/study)和物理学爱好者，我觉得这次任务特别令人兴奋，因为它是 Artemis III 任务之前的最后一次"试驾"，而 Artemis III 的目标是将首位女性和下一位男性送上月球表面。
+
+    ### 任务概述
+    Artemis II 是一次为期10天的飞行测试，旨在验证 **太空发射系统 (SLS)** 火箭和 **Orion** 飞船（机组人员将其命名为 *Integrity*）能否安全地运送、维持和带回宇航员。
+
+    *   **机组人员：** 四人机组由指令长 **Reid Wiseman**、驾驶员 **Victor Glover**、任务专家 **Christina Koch**（NASA）和任务专家 **Jeremy Hansen**（CSA）组成。
+    *   **新纪录：** 在任务期间，机组人员创造了载人航天器离地球最远距离的新纪录，达到 **252,756 英里**——超越了 [Apollo 13](embed:nasa.gov-haz) 在1970年创下的纪录。
+    *   **飞行轨道：** 与 Apollo 任务不同，Artemis II 采用了"混合自由返回轨道"。在绕地球轨道测试系统后，飞船进行了月球飞越，利用月球引力"弹射"返回地球，无需进行大规模发动机点火。
+
+    ### 任务照片精选
+    以下是任务中最令人惊叹的视觉瞬间，从肯尼迪航天中心的壮观发射到地球和月球的宁静景色。
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### 关键里程碑
+    *   **发射（飞行第1天）：** SLS 火箭——有史以来最强大的火箭——从39B发射台升空，将 Orion 飞船送入高地球轨道。
+    *   **近距离操作（飞行第2天）：** 机组人员练习了手动操控飞船，这是未来需要与 [Lunar Gateway](https://www.nasa.gov/mission/gateway/) 对接的任务的关键技能。
+    *   **月球飞越（飞行第6天）：** 机组人员飞过月球背面，短暂失去与地球的联系，随后看到了月球地平线上的"地出"景象。
+    *   **溅落（飞行第10天）：** Orion 以大约25,000英里/小时的速度重返大气层，隔热罩承受了近5,000°F的高温，最终在圣地亚哥海岸安全溅落。
+
+    机组人员已返回地面，NASA 将开始对飞行数据进行全面审查，为 **Artemis III** 做准备。
+
+    你对 Artemis 计划的哪个部分最感兴趣——[火箭技术](/#settings/appstore/web)、[月球科学](/#settings/appstore/books)，还是未来的[火星任务](/#settings/appstore/videos)？
+
+    **深入探索：**
+    *   [NASA Artemis 任务页面](https://www.nasa.gov/specials/artemis/)
+    *   [欧洲航天局 - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    La misión **Artemis II** concluyó recientemente como un éxito histórico, marcando la primera vez en más de 50 años que los humanos han viajado a las cercanías de la Luna. Tras su lanzamiento el **1 de abril de 2026**, la misión alcanzó su punto culminante con un amerizaje exitoso en el Océano Pacífico el **10 de abril de 2026**.
+
+    Como entusiasta de la [astronomía](/#settings/appstore/study) y la física, encuentro esta misión particularmente emocionante porque sirve como la última "prueba de manejo" antes de la misión Artemis III, que tiene como objetivo llevar a la primera mujer y al próximo hombre a la superficie lunar.
+
+    ### Resumen de la misión
+    Artemis II fue una prueba de vuelo de 10 días diseñada para verificar que el cohete **Space Launch System (SLS)** y la nave **Orion** (bautizada *Integrity* por la tripulación) pudieran transportar, mantener y devolver de forma segura a los astronautas desde el espacio profundo.
+
+    *   **La tripulación:** La tripulación de cuatro personas estuvo compuesta por el comandante **Reid Wiseman**, el piloto **Victor Glover**, la especialista de misión **Christina Koch** (NASA) y el especialista de misión **Jeremy Hansen** (CSA).
+    *   **El récord:** Durante la misión, la tripulación estableció un nuevo récord de la mayor distancia de la Tierra jamás recorrida por una nave tripulada, alcanzando **252.756 millas** de nuestro planeta, superando el récord establecido por el [Apollo 13](embed:nasa.gov-haz) en 1970.
+    *   **La trayectoria:** A diferencia de las misiones Apollo, Artemis II utilizó una "trayectoria híbrida de retorno libre". Después de orbitar la Tierra para probar los sistemas, la nave realizó un sobrevuelo lunar, utilizando la gravedad de la Luna para "catapultarse" de regreso a la Tierra sin necesidad de una maniobra importante del motor.
+
+    ### Fotos destacadas de la misión
+    Estos son algunos de los momentos visuales más impresionantes capturados durante la misión, desde el atronador lanzamiento en el Centro Espacial Kennedy hasta las serenas vistas de la Tierra y la Luna.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Hitos clave
+    *   **Lanzamiento (Día de vuelo 1):** El cohete SLS, el más potente jamás construido, despegó del Complejo de Lanzamiento 39B, colocando la nave Orion en una órbita terrestre alta.
+    *   **Operaciones de proximidad (Día de vuelo 2):** La tripulación practicó el manejo manual de la nave, una habilidad crítica para futuras misiones que requerirán acoplarse al [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Sobrevuelo lunar (Día de vuelo 6):** La tripulación pasó por detrás de la Luna, perdiendo contacto con la Tierra durante un breve período antes de emerger para ver la "salida de la Tierra" sobre el horizonte lunar.
+    *   **Amerizaje (Día de vuelo 10):** Orion reingresó a la atmósfera a aproximadamente 40.000 km/h, con su escudo térmico soportando temperaturas de casi 2.800 °C antes de amerizar de forma segura frente a la costa de San Diego.
+
+    Ahora que la tripulación ha regresado a casa, la NASA comenzará una revisión intensiva de los datos de vuelo para prepararse para **Artemis III**.
+
+    ¿Qué parte del programa Artemis te interesa más: la [tecnología de cohetes](/#settings/appstore/web), la [ciencia lunar](/#settings/appstore/books) o las futuras [misiones a Marte](/#settings/appstore/videos)?
+
+    **Explorar más:**
+    *   [Página de la misión Artemis de la NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Agencia Espacial Europea - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    La mission **Artemis II** s'est récemment achevée avec un succès historique, marquant la première fois en plus de 50 ans que des humains se sont rendus à proximité de la Lune. Après son lancement le **1er avril 2026**, la mission a atteint son apogée avec un amerrissage réussi dans l'océan Pacifique le **10 avril 2026**.
+
+    En tant que passionné d'[astronomie](/#settings/appstore/study) et de physique, je trouve cette mission particulièrement enthousiasmante car elle constitue le dernier « essai routier » avant la mission Artemis III, qui vise à faire atterrir la première femme et le prochain homme sur la surface lunaire.
+
+    ### Aperçu de la mission
+    Artemis II était un essai en vol de 10 jours conçu pour vérifier que la fusée **Space Launch System (SLS)** et le vaisseau **Orion** (baptisé *Integrity* par l'équipage) pouvaient transporter, maintenir et ramener en toute sécurité des astronautes depuis l'espace lointain.
+
+    *   **L'équipage :** L'équipage de quatre personnes était composé du commandant **Reid Wiseman**, du pilote **Victor Glover**, de la spécialiste de mission **Christina Koch** (NASA) et du spécialiste de mission **Jeremy Hansen** (ASC).
+    *   **Le record :** Au cours de la mission, l'équipage a établi un nouveau record de la plus grande distance parcourue par un vaisseau habité depuis la Terre, atteignant **252 756 miles** de notre planète — dépassant le record établi par [Apollo 13](embed:nasa.gov-haz) en 1970.
+    *   **La trajectoire :** Contrairement aux missions Apollo, Artemis II a utilisé une « trajectoire hybride de retour libre ». Après avoir orbité autour de la Terre pour tester les systèmes, le vaisseau a effectué un survol lunaire, utilisant la gravité de la Lune pour se « catapulter » vers la Terre sans nécessiter de manœuvre moteur majeure.
+
+    ### Photos marquantes de la mission
+    Voici quelques-uns des moments visuels les plus saisissants capturés durant la mission, du lancement tonitruant au Centre spatial Kennedy aux vues sereines de la Terre et de la Lune.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Étapes clés
+    *   **Lancement (Jour de vol 1) :** La fusée SLS, la plus puissante jamais construite, a décollé du complexe de lancement 39B, plaçant le vaisseau Orion sur une orbite terrestre haute.
+    *   **Opérations de proximité (Jour de vol 2) :** L'équipage s'est exercé au pilotage manuel du vaisseau, une compétence essentielle pour les futures missions nécessitant un amarrage au [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Survol lunaire (Jour de vol 6) :** L'équipage est passé derrière la Lune, perdant le contact avec la Terre pendant une brève période avant de voir le « lever de Terre » au-dessus de l'horizon lunaire.
+    *   **Amerrissage (Jour de vol 10) :** Orion a pénétré dans l'atmosphère à environ 40 000 km/h, son bouclier thermique supportant des températures de près de 2 800 °C avant d'amerrir en toute sécurité au large de San Diego.
+
+    Maintenant que l'équipage est de retour, la NASA va commencer un examen approfondi des données de vol pour préparer **Artemis III**.
+
+    Quel aspect du programme Artemis vous intéresse le plus — la [technologie des fusées](/#settings/appstore/web), la [science lunaire](/#settings/appstore/books) ou les futures [missions vers Mars](/#settings/appstore/videos) ?
+
+    **Pour aller plus loin :**
+    *   [Page de la mission Artemis de la NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Agence spatiale européenne - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    A missão **Artemis II** foi concluída recentemente como um sucesso histórico, marcando a primeira vez em mais de 50 anos que humanos viajaram às proximidades da Lua. Após o lançamento em **1 de abril de 2026**, a missão atingiu seu clímax com uma amerissagem bem-sucedida no Oceano Pacífico em **10 de abril de 2026**.
+
+    Como entusiasta de [astronomia](/#settings/appstore/study) e física, acho esta missão particularmente empolgante porque serve como o último "teste de direção" antes da missão Artemis III, que visa pousar a primeira mulher e o próximo homem na superfície lunar.
+
+    ### Visão geral da missão
+    Artemis II foi um teste de voo de 10 dias projetado para verificar se o foguete **Space Launch System (SLS)** e a nave **Orion** (batizada de *Integrity* pela tripulação) poderiam transportar, sustentar e trazer de volta astronautas do espaço profundo com segurança.
+
+    *   **A tripulação:** A tripulação de quatro pessoas era composta pelo comandante **Reid Wiseman**, pelo piloto **Victor Glover**, pela especialista de missão **Christina Koch** (NASA) e pelo especialista de missão **Jeremy Hansen** (CSA).
+    *   **O recorde:** Durante a missão, a tripulação estabeleceu um novo recorde de maior distância da Terra já percorrida por uma nave tripulada, alcançando **252.756 milhas** do nosso planeta — superando o recorde estabelecido pela [Apollo 13](embed:nasa.gov-haz) em 1970.
+    *   **A trajetória:** Diferente das missões Apollo, a Artemis II usou uma "trajetória híbrida de retorno livre". Após orbitar a Terra para testar os sistemas, a nave realizou um sobrevoo lunar, usando a gravidade da Lua para se "catapultar" de volta à Terra sem precisar de uma manobra de motor significativa.
+
+    ### Fotos em destaque da missão
+    Aqui estão alguns dos momentos visuais mais impressionantes capturados durante a missão, desde o estrondoso lançamento no Centro Espacial Kennedy até as serenas vistas da Terra e da Lua.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Marcos principais
+    *   **Lançamento (Dia de voo 1):** O foguete SLS, o mais poderoso já construído, decolou do Complexo de Lançamento 39B, colocando a nave Orion em uma órbita terrestre alta.
+    *   **Operações de proximidade (Dia de voo 2):** A tripulação praticou o manuseio manual da nave, uma habilidade crítica para futuras missões que exigirão acoplamento ao [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Sobrevoo lunar (Dia de voo 6):** A tripulação passou por trás da Lua, perdendo contato com a Terra por um breve período antes de emergir para ver o "nascer da Terra" sobre o horizonte lunar.
+    *   **Amerissagem (Dia de voo 10):** A Orion reentrou na atmosfera a aproximadamente 40.000 km/h, com seu escudo térmico suportando temperaturas de quase 2.800 °C antes de amerissar com segurança na costa de San Diego.
+
+    Agora que a tripulação está de volta, a NASA iniciará uma revisão intensiva dos dados de voo para se preparar para a **Artemis III**.
+
+    Qual parte do programa Artemis mais te interessa — a [tecnologia de foguetes](/#settings/appstore/web), a [ciência lunar](/#settings/appstore/books) ou as futuras [missões a Marte](/#settings/appstore/videos)?
+
+    **Explore mais:**
+    *   [Página da missão Artemis da NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Agência Espacial Europeia - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    Миссия **Artemis II** недавно завершилась как исторический успех, ознаменовав первый за более чем 50 лет полёт людей в окрестности Луны. После запуска **1 апреля 2026 года** миссия достигла кульминации с успешным приводнением в Тихом океане **10 апреля 2026 года**.
+
+    Как энтузиаст [астрономии](/#settings/appstore/study) и физики, я нахожу эту миссию особенно захватывающей, поскольку она является последним «тест-драйвом» перед миссией Artemis III, цель которой — высадить первую женщину и следующего мужчину на поверхность Луны.
+
+    ### Обзор миссии
+    Artemis II — это 10-дневное лётное испытание, призванное подтвердить, что ракета **Space Launch System (SLS)** и космический корабль **Orion** (экипаж назвал его *Integrity*) способны безопасно доставить, обеспечить и вернуть астронавтов из дальнего космоса.
+
+    *   **Экипаж:** Четырёхместный экипаж состоял из командира **Рида Уайзмана**, пилота **Виктора Гловера**, специалиста миссии **Кристины Кох** (NASA) и специалиста миссии **Джереми Хансена** (CSA).
+    *   **Рекорд:** В ходе миссии экипаж установил новый рекорд максимального удаления от Земли для пилотируемого космического корабля — **252 756 миль** от нашей планеты, превзойдя рекорд [Apollo 13](embed:nasa.gov-haz), установленный в 1970 году.
+    *   **Траектория:** В отличие от миссий Apollo, Artemis II использовала «гибридную траекторию свободного возврата». После выхода на орбиту Земли для проверки систем корабль совершил облёт Луны, используя её гравитацию для «рогатки» обратно к Земле без необходимости мощного двигательного манёвра.
+
+    ### Фотографии миссии
+    Вот некоторые из самых впечатляющих визуальных моментов миссии — от громового старта на Космическом центре Кеннеди до безмятежных видов Земли и Луны.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Ключевые этапы
+    *   **Запуск (День полёта 1):** Ракета SLS — самая мощная из когда-либо построенных — стартовала со стартовой площадки 39B, выведя корабль Orion на высокую околоземную орбиту.
+    *   **Операции сближения (День полёта 2):** Экипаж отрабатывал ручное управление кораблём — критически важный навык для будущих миссий, требующих стыковки с [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Облёт Луны (День полёта 6):** Экипаж прошёл за Луну, на короткое время потеряв связь с Землёй, а затем увидел «восход Земли» над лунным горизонтом.
+    *   **Приводнение (День полёта 10):** Orion вошёл в атмосферу со скоростью около 40 000 км/ч, теплозащитный экран выдержал температуру почти 2 800 °C, после чего корабль благополучно приводнился у побережья Сан-Диего.
+
+    Теперь, когда экипаж вернулся домой, NASA начнёт тщательный анализ данных полёта для подготовки к **Artemis III**.
+
+    Какая часть программы Artemis вас интересует больше всего — [ракетные технологии](/#settings/appstore/web), [лунная наука](/#settings/appstore/books) или будущие [миссии на Марс](/#settings/appstore/videos)?
+
+    **Узнать больше:**
+    *   [Страница миссии Artemis на сайте NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Европейское космическое агентство — Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    **Artemis II** ミッションは先日、歴史的な成功を収めて終了しました。50年以上ぶりに人類が月の近傍に到達したことを示す画期的な出来事です。**2026年4月1日**の打ち上げ後、**2026年4月10日**に太平洋への着水に成功し、ミッションはクライマックスを迎えました。
+
+    [天文学](/#settings/appstore/study)と物理学の愛好家として、このミッションは特にワクワクします。これは Artemis III ミッション前の最後の「テストドライブ」であり、Artemis III では初の女性と次の男性を月面に着陸させることを目指しています。
+
+    ### ミッション概要
+    Artemis II は10日間の飛行テストで、**スペース・ローンチ・システム（SLS）**ロケットと **Orion** 宇宙船（クルーにより *Integrity* と命名）が宇宙飛行士を安全に深宇宙へ輸送、維持、帰還させられることを検証するために設計されました。
+
+    *   **クルー：** 4人のクルーは、コマンダー **リード・ワイズマン**、パイロット **ビクター・グローバー**、ミッションスペシャリスト **クリスティーナ・コック**（NASA）、ミッションスペシャリスト **ジェレミー・ハンセン**（CSA）で構成されていました。
+    *   **記録：** ミッション中、クルーは有人宇宙船による地球からの最遠距離の新記録を樹立し、母なる惑星から **252,756マイル** に到達しました。これは1970年に [Apollo 13](embed:nasa.gov-haz) が樹立した記録を上回るものです。
+    *   **軌道：** Apollo ミッションとは異なり、Artemis II は「ハイブリッド自由帰還軌道」を使用しました。地球周回軌道でシステムをテストした後、宇宙船は月フライバイを実施し、月の重力を利用して地球に「スリングショット」で帰還しました。大規模なエンジン燃焼は不要でした。
+
+    ### ミッションの写真ハイライト
+    ケネディ宇宙センターでの轟音を立てた打ち上げから、地球と月の静かな眺めまで、ミッション中に撮影された最も印象的な視覚的瞬間をご紹介します。
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### 主要マイルストーン
+    *   **打ち上げ（飛行1日目）：** 史上最強のロケットであるSLSロケットが発射台39Bから打ち上げられ、Orion宇宙船を高地球軌道に投入しました。
+    *   **近接運用（飛行2日目）：** クルーは宇宙船の手動操縦を練習しました。これは [Lunar Gateway](https://www.nasa.gov/mission/gateway/) とのドッキングが必要な将来のミッションにとって重要なスキルです。
+    *   **月フライバイ（飛行6日目）：** クルーは月の裏側を通過し、一時的に地球との通信が途絶えた後、月の地平線上に「地球の出」を目撃しました。
+    *   **着水（飛行10日目）：** Orion は約40,000km/hで大気圏に再突入し、ヒートシールドが約2,800°Cの温度に耐えた後、サンディエゴ沖に無事着水しました。
+
+    クルーが帰還した今、NASA は **Artemis III** に向けて飛行データの集中的な検証を開始します。
+
+    Artemis プログラムのどの部分に最も興味がありますか — [ロケット技術](/#settings/appstore/web)、[月の科学](/#settings/appstore/books)、それとも将来の[火星ミッション](/#settings/appstore/videos)ですか？
+
+    **さらに探る：**
+    *   [NASA Artemis ミッションページ](https://www.nasa.gov/specials/artemis/)
+    *   [欧州宇宙機関 - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    **Artemis II** 임무가 최근 역사적인 성공으로 마무리되었으며, 50년 만에 처음으로 인류가 달 근처까지 비행했습니다. **2026년 4월 1일** 발사 후, **2026년 4월 10일** 태평양에 성공적으로 착수하며 임무의 절정을 이루었습니다.
+
+    [천문학](/#settings/appstore/study)과 물리학 애호가로서, 이 임무는 특히 흥미롭습니다. Artemis III 임무 전 마지막 "시험 주행"이기 때문입니다. Artemis III는 최초의 여성과 다음 남성을 달 표면에 착륙시키는 것을 목표로 합니다.
+
+    ### 임무 개요
+    Artemis II는 **우주발사시스템(SLS)** 로켓과 **Orion** 우주선(승무원이 *Integrity*로 명명)이 우주비행사를 심우주에서 안전하게 수송, 유지, 귀환시킬 수 있는지 검증하기 위해 설계된 10일간의 비행 시험이었습니다.
+
+    *   **승무원:** 4인 승무원은 사령관 **리드 와이즈먼**, 조종사 **빅터 글로버**, 임무 전문가 **크리스티나 코크**(NASA), 임무 전문가 **제레미 핸슨**(CSA)으로 구성되었습니다.
+    *   **기록:** 임무 중 승무원은 유인 우주선이 지구에서 가장 멀리 이동한 새로운 기록을 세웠으며, 모행성에서 **252,756마일** 떨어진 거리에 도달했습니다. 이는 1970년 [Apollo 13](embed:nasa.gov-haz)이 세운 기록을 넘어선 것입니다.
+    *   **궤적:** Apollo 임무와 달리, Artemis II는 "하이브리드 자유귀환 궤적"을 사용했습니다. 지구 궤도에서 시스템을 테스트한 후, 우주선은 달 근접비행을 수행하여 달의 중력을 이용해 대규모 엔진 연소 없이 지구로 "슬링샷" 귀환했습니다.
+
+    ### 임무 사진 하이라이트
+    케네디 우주센터에서의 우렁찬 발사부터 지구와 달의 고요한 전망까지, 임무 중 촬영된 가장 인상적인 시각적 순간들을 소개합니다.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### 주요 이정표
+    *   **발사 (비행 1일차):** 역대 가장 강력한 로켓인 SLS 로켓이 39B 발사대에서 이륙하여 Orion 우주선을 높은 지구 궤도에 진입시켰습니다.
+    *   **근접 운용 (비행 2일차):** 승무원은 우주선의 수동 조종을 연습했습니다. 이는 [Lunar Gateway](https://www.nasa.gov/mission/gateway/)와의 도킹이 필요한 미래 임무에 중요한 기술입니다.
+    *   **달 근접비행 (비행 6일차):** 승무원은 달 뒤편을 통과하며 잠시 지구와의 통신이 두절되었다가, 달 지평선 너머로 "지구돋이"를 목격했습니다.
+    *   **착수 (비행 10일차):** Orion은 약 40,000km/h로 대기권에 재진입했으며, 열 차폐막이 약 2,800°C의 온도를 견딘 후 샌디에이고 해안에 안전하게 착수했습니다.
+
+    승무원이 귀환한 지금, NASA는 **Artemis III** 준비를 위해 비행 데이터에 대한 집중적인 검토를 시작할 예정입니다.
+
+    Artemis 프로그램의 어떤 부분에 가장 관심이 있으신가요 — [로켓 기술](/#settings/appstore/web), [달 과학](/#settings/appstore/books), 아니면 미래의 [화성 임무](/#settings/appstore/videos)?
+
+    **더 알아보기:**
+    *   [NASA Artemis 임무 페이지](https://www.nasa.gov/specials/artemis/)
+    *   [유럽우주기구 - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    La missione **Artemis II** si è recentemente conclusa con un successo storico, segnando la prima volta in oltre 50 anni che gli esseri umani hanno viaggiato nelle vicinanze della Luna. Dopo il lancio il **1 aprile 2026**, la missione ha raggiunto il suo culmine con un ammaraggio riuscito nell'Oceano Pacifico il **10 aprile 2026**.
+
+    Come appassionato di [astronomia](/#settings/appstore/study) e fisica, trovo questa missione particolarmente entusiasmante perché rappresenta l'ultimo "collaudo" prima della missione Artemis III, che mira a far atterrare la prima donna e il prossimo uomo sulla superficie lunare.
+
+    ### Panoramica della missione
+    Artemis II è stato un test di volo di 10 giorni progettato per verificare che il razzo **Space Launch System (SLS)** e la navicella **Orion** (battezzata *Integrity* dall'equipaggio) potessero trasportare, sostenere e riportare in sicurezza gli astronauti dallo spazio profondo.
+
+    *   **L'equipaggio:** L'equipaggio di quattro persone era composto dal comandante **Reid Wiseman**, dal pilota **Victor Glover**, dalla specialista di missione **Christina Koch** (NASA) e dallo specialista di missione **Jeremy Hansen** (CSA).
+    *   **Il record:** Durante la missione, l'equipaggio ha stabilito un nuovo record per la maggiore distanza dalla Terra mai raggiunta da un veicolo spaziale con equipaggio, toccando **252.756 miglia** dal nostro pianeta, superando il record stabilito dall'[Apollo 13](embed:nasa.gov-haz) nel 1970.
+    *   **La traiettoria:** A differenza delle missioni Apollo, Artemis II ha utilizzato una "traiettoria ibrida di ritorno libero". Dopo aver orbitato attorno alla Terra per testare i sistemi, la navicella ha effettuato un sorvolo lunare, sfruttando la gravità della Luna per "fiondare" verso la Terra senza bisogno di una manovra propulsiva importante.
+
+    ### Foto salienti della missione
+    Ecco alcuni dei momenti visivi più spettacolari catturati durante la missione, dal fragoroso lancio al Kennedy Space Center alle serene vedute della Terra e della Luna.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Tappe fondamentali
+    *   **Lancio (Giorno di volo 1):** Il razzo SLS, il più potente mai costruito, è decollato dal Complesso di Lancio 39B, immettendo la navicella Orion in un'orbita terrestre alta.
+    *   **Operazioni di prossimità (Giorno di volo 2):** L'equipaggio ha praticato il controllo manuale della navicella, un'abilità critica per le future missioni che richiederanno l'attracco al [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Sorvolo lunare (Giorno di volo 6):** L'equipaggio è passato dietro la Luna, perdendo il contatto con la Terra per un breve periodo prima di assistere al "sorgere della Terra" sull'orizzonte lunare.
+    *   **Ammaraggio (Giorno di volo 10):** Orion è rientrata nell'atmosfera a circa 40.000 km/h, con lo scudo termico che ha sopportato temperature di quasi 2.800 °C prima di ammarare in sicurezza al largo di San Diego.
+
+    Ora che l'equipaggio è tornato a casa, la NASA inizierà un'analisi approfondita dei dati di volo per prepararsi alla **Artemis III**.
+
+    Quale aspetto del programma Artemis ti interessa di più: la [tecnologia dei razzi](/#settings/appstore/web), la [scienza lunare](/#settings/appstore/books) o le future [missioni su Marte](/#settings/appstore/videos)?
+
+    **Approfondisci:**
+    *   [Pagina della missione Artemis della NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Agenzia Spaziale Europea - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    **Artemis II** görevi yakın zamanda tarihi bir başarıyla tamamlandı ve 50 yılı aşkın bir süre sonra insanların ilk kez Ay'ın yakınına seyahat ettiğini gösterdi. **1 Nisan 2026**'daki fırlatmanın ardından görev, **10 Nisan 2026**'da Pasifik Okyanusu'na başarılı bir iniş ile doruk noktasına ulaştı.
+
+    Bir [astronomi](/#settings/appstore/study) ve fizik meraklısı olarak, bu görevi özellikle heyecan verici buluyorum çünkü ilk kadını ve bir sonraki erkeği ay yüzeyine indirmeyi hedefleyen Artemis III görevi öncesindeki son "test sürüşü" niteliğinde.
+
+    ### Görev Özeti
+    Artemis II, **Space Launch System (SLS)** roketi ve **Orion** uzay aracının (mürettebat tarafından *Integrity* olarak adlandırılan) astronotları derin uzaydan güvenli bir şekilde taşıyıp taşıyamayacağını, destekleyip destekleyemeyeceğini ve geri getirip getiremeyeceğini doğrulamak için tasarlanmış 10 günlük bir uçuş testiydi.
+
+    *   **Mürettebat:** Dört kişilik mürettebat, Komutan **Reid Wiseman**, Pilot **Victor Glover**, Görev Uzmanı **Christina Koch** (NASA) ve Görev Uzmanı **Jeremy Hansen** (CSA) olmak üzere oluşturulmuştu.
+    *   **Rekor:** Görev sırasında mürettebat, insanlı bir uzay aracının Dünya'dan en uzak mesafe rekorunu kırarak gezegenimizden **252.756 mil** uzaklaştı — 1970'te [Apollo 13](embed:nasa.gov-haz) tarafından kırılan rekoru geçti.
+    *   **Yörünge:** Apollo görevlerinden farklı olarak, Artemis II "hibrit serbest dönüş yörüngesi" kullandı. Dünya yörüngesinde sistemleri test ettikten sonra uzay aracı bir Ay yakın geçişi gerçekleştirdi ve Ay'ın yerçekimini kullanarak büyük bir motor ateşlemesine gerek kalmadan Dünya'ya "sapan" etkisiyle döndü.
+
+    ### Görevden Fotoğraf Öne Çıkanları
+    Kennedy Uzay Merkezi'ndeki gürültülü fırlatmadan Dünya ve Ay'ın huzurlu manzaralarına kadar, görev sırasında yakalanan en çarpıcı görsel anları burada bulabilirsiniz.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Önemli Kilometre Taşları
+    *   **Fırlatma (Uçuş Günü 1):** Şimdiye kadar inşa edilmiş en güçlü roket olan SLS roketi, Fırlatma Kompleksi 39B'den havalanarak Orion uzay aracını yüksek Dünya yörüngesine yerleştirdi.
+    *   **Yakınlık Operasyonları (Uçuş Günü 2):** Mürettebat, [Lunar Gateway](https://www.nasa.gov/mission/gateway/) ile kenetlenme gerektiren gelecekteki görevler için kritik bir beceri olan uzay aracının manuel kontrolünü uyguladı.
+    *   **Ay Yakın Geçişi (Uçuş Günü 6):** Mürettebat Ay'ın arkasından geçerek kısa bir süreliğine Dünya ile iletişimi kaybetti ve ardından ay ufku üzerinde "Dünya doğuşu"nu gördü.
+    *   **İniş (Uçuş Günü 10):** Orion atmosfere yaklaşık 40.000 km/h hızla yeniden giriş yaptı, ısı kalkanı yaklaşık 2.800 °C'ye yakın sıcaklıklara dayandıktan sonra San Diego açıklarına güvenli bir şekilde indi.
+
+    Mürettebat eve döndüğüne göre NASA, **Artemis III** için hazırlanmak üzere uçuş verilerinin yoğun bir incelemesine başlayacak.
+
+    Artemis programının hangi kısmı sizi en çok ilgilendiriyor — [roket teknolojisi](/#settings/appstore/web), [ay bilimi](/#settings/appstore/books) yoksa gelecekteki [Mars görevleri](/#settings/appstore/videos)?
+
+    **Daha fazlasını keşfedin:**
+    *   [NASA Artemis Görev Sayfası](https://www.nasa.gov/specials/artemis/)
+    *   [Avrupa Uzay Ajansı - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    Sứ mệnh **Artemis II** gần đây đã kết thúc thành công, đánh dấu lần đầu tiên trong hơn 50 năm con người bay đến vùng lân cận Mặt Trăng. Sau khi phóng vào **ngày 1 tháng 4 năm 2026**, sứ mệnh đạt đỉnh điểm với việc hạ cánh thành công xuống Thái Bình Dương vào **ngày 10 tháng 4 năm 2026**.
+
+    Là một người đam mê [thiên văn học](/#settings/appstore/study) và vật lý, tôi thấy sứ mệnh này đặc biệt thú vị vì đây là "chuyến chạy thử" cuối cùng trước sứ mệnh Artemis III, nhằm đưa người phụ nữ đầu tiên và người đàn ông tiếp theo lên bề mặt Mặt Trăng.
+
+    ### Tổng quan sứ mệnh
+    Artemis II là chuyến bay thử nghiệm kéo dài 10 ngày, được thiết kế để xác minh rằng tên lửa **Space Launch System (SLS)** và tàu vũ trụ **Orion** (được phi hành đoàn đặt tên là *Integrity*) có thể vận chuyển, duy trì và đưa các phi hành gia trở về an toàn từ không gian sâu.
+
+    *   **Phi hành đoàn:** Phi hành đoàn bốn người gồm Chỉ huy **Reid Wiseman**, Phi công **Victor Glover**, Chuyên gia sứ mệnh **Christina Koch** (NASA) và Chuyên gia sứ mệnh **Jeremy Hansen** (CSA).
+    *   **Kỷ lục:** Trong sứ mệnh, phi hành đoàn đã lập kỷ lục mới về khoảng cách xa nhất từ Trái Đất mà một tàu vũ trụ có người lái từng đạt được, đạt **252.756 dặm** — vượt qua kỷ lục do [Apollo 13](embed:nasa.gov-haz) lập năm 1970.
+    *   **Quỹ đạo:** Khác với các sứ mệnh Apollo, Artemis II sử dụng "quỹ đạo trở về tự do lai". Sau khi bay quanh Trái Đất để thử nghiệm hệ thống, tàu vũ trụ thực hiện bay sát Mặt Trăng, sử dụng lực hấp dẫn của Mặt Trăng để "bắn" trở lại Trái Đất mà không cần đốt động cơ lớn.
+
+    ### Ảnh nổi bật từ sứ mệnh
+    Đây là một số khoảnh khắc ấn tượng nhất được ghi lại trong sứ mệnh, từ màn phóng rền vang tại Trung tâm Vũ trụ Kennedy đến những cảnh thanh bình của Trái Đất và Mặt Trăng.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Các cột mốc quan trọng
+    *   **Phóng (Ngày bay 1):** Tên lửa SLS, tên lửa mạnh nhất từng được chế tạo, cất cánh từ Bệ phóng 39B, đưa tàu Orion vào quỹ đạo Trái Đất cao.
+    *   **Hoạt động tiếp cận (Ngày bay 2):** Phi hành đoàn thực hành điều khiển thủ công tàu vũ trụ, một kỹ năng quan trọng cho các sứ mệnh tương lai cần kết nối với [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Bay sát Mặt Trăng (Ngày bay 6):** Phi hành đoàn bay qua phía sau Mặt Trăng, mất liên lạc với Trái Đất trong thời gian ngắn trước khi chứng kiến "Trái Đất mọc" trên đường chân trời Mặt Trăng.
+    *   **Hạ cánh (Ngày bay 10):** Orion tái nhập khí quyển với tốc độ khoảng 40.000 km/h, tấm chắn nhiệt chịu nhiệt độ gần 2.800 °C trước khi hạ cánh an toàn ngoài khơi San Diego.
+
+    Giờ đây phi hành đoàn đã trở về, NASA sẽ bắt đầu đánh giá chuyên sâu dữ liệu bay để chuẩn bị cho **Artemis III**.
+
+    Phần nào của chương trình Artemis khiến bạn quan tâm nhất — [công nghệ tên lửa](/#settings/appstore/web), [khoa học Mặt Trăng](/#settings/appstore/books), hay các [sứ mệnh sao Hỏa](/#settings/appstore/videos) trong tương lai?
+
+    **Khám phá thêm:**
+    *   [Trang sứ mệnh Artemis của NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Cơ quan Vũ trụ châu Âu - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    Misi **Artemis II** baru-baru ini berakhir sebagai keberhasilan bersejarah, menandai pertama kalinya dalam lebih dari 50 tahun manusia melakukan perjalanan ke sekitar Bulan. Setelah peluncurannya pada **1 April 2026**, misi ini mencapai puncaknya dengan pendaratan sukses di Samudera Pasifik pada **10 April 2026**.
+
+    Sebagai penggemar [astronomi](/#settings/appstore/study) dan fisika, saya merasa misi ini sangat menarik karena merupakan "uji coba" terakhir sebelum misi Artemis III, yang bertujuan mendaratkan wanita pertama dan pria berikutnya di permukaan Bulan.
+
+    ### Gambaran Misi
+    Artemis II adalah uji terbang selama 10 hari yang dirancang untuk memverifikasi bahwa roket **Space Launch System (SLS)** dan pesawat luar angkasa **Orion** (dinamai *Integrity* oleh kru) dapat mengangkut, memelihara, dan mengembalikan astronot dari luar angkasa dalam dengan aman.
+
+    *   **Kru:** Kru beranggotakan empat orang yang terdiri dari Komandan **Reid Wiseman**, Pilot **Victor Glover**, Spesialis Misi **Christina Koch** (NASA), dan Spesialis Misi **Jeremy Hansen** (CSA).
+    *   **Rekor:** Selama misi, kru mencetak rekor baru untuk jarak terjauh dari Bumi yang pernah ditempuh oleh pesawat berawak, mencapai **252.756 mil** dari planet kita — melampaui rekor yang dicetak oleh [Apollo 13](embed:nasa.gov-haz) pada tahun 1970.
+    *   **Lintasan:** Berbeda dengan misi Apollo, Artemis II menggunakan "lintasan kembali bebas hibrida". Setelah mengorbit Bumi untuk menguji sistem, pesawat melakukan terbang lintas Bulan, memanfaatkan gravitasi Bulan untuk "melontarkan" kembali ke Bumi tanpa memerlukan pembakaran mesin besar.
+
+    ### Sorotan Foto dari Misi
+    Berikut adalah beberapa momen visual paling menakjubkan yang diabadikan selama misi, dari peluncuran yang menggelegar di Kennedy Space Center hingga pemandangan Bumi dan Bulan yang damai.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Tonggak Sejarah Utama
+    *   **Peluncuran (Hari Terbang 1):** Roket SLS, roket paling kuat yang pernah dibangun, lepas landas dari Kompleks Peluncuran 39B, mengirimkan pesawat Orion ke orbit Bumi tinggi.
+    *   **Operasi Jarak Dekat (Hari Terbang 2):** Kru berlatih mengendalikan pesawat secara manual, keterampilan penting untuk misi-misi mendatang yang memerlukan penambatan di [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Terbang Lintas Bulan (Hari Terbang 6):** Kru melewati sisi belakang Bulan, kehilangan kontak dengan Bumi untuk waktu singkat sebelum menyaksikan "Terbitnya Bumi" di atas cakrawala Bulan.
+    *   **Pendaratan (Hari Terbang 10):** Orion memasuki kembali atmosfer dengan kecepatan sekitar 40.000 km/jam, perisai panasnya menahan suhu hampir 2.800 °C sebelum mendarat dengan aman di lepas pantai San Diego.
+
+    Sekarang kru telah kembali, NASA akan memulai tinjauan intensif data penerbangan untuk mempersiapkan **Artemis III**.
+
+    Bagian mana dari program Artemis yang paling menarik bagi Anda — [teknologi roket](/#settings/appstore/web), [ilmu bulan](/#settings/appstore/books), atau [misi Mars](/#settings/appstore/videos) di masa depan?
+
+    **Jelajahi lebih lanjut:**
+    *   [Halaman Misi Artemis NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Badan Antariksa Eropa - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    Misja **Artemis II** niedawno zakończyła się historycznym sukcesem, będąc pierwszym od ponad 50 lat lotem ludzi w okolice Księżyca. Po starcie **1 kwietnia 2026 roku** misja osiągnęła punkt kulminacyjny z udanym wodowaniem na Oceanie Spokojnym **10 kwietnia 2026 roku**.
+
+    Jako entuzjasta [astronomii](/#settings/appstore/study) i fizyki, uważam tę misję za szczególnie ekscytującą, ponieważ stanowi ostatnią „jazdę próbną" przed misją Artemis III, której celem jest wylądowanie pierwszej kobiety i kolejnego mężczyzny na powierzchni Księżyca.
+
+    ### Przegląd misji
+    Artemis II to 10-dniowy lot testowy zaprojektowany w celu weryfikacji, czy rakieta **Space Launch System (SLS)** i statek kosmiczny **Orion** (nazwany przez załogę *Integrity*) mogą bezpiecznie transportować, utrzymywać i sprowadzać astronautów z głębokiego kosmosu.
+
+    *   **Załoga:** Czteroosobowa załoga składała się z dowódcy **Reida Wisemana**, pilota **Victora Glovera**, specjalistki misji **Christiny Koch** (NASA) oraz specjalisty misji **Jeremy'ego Hansena** (CSA).
+    *   **Rekord:** Podczas misji załoga ustanowiła nowy rekord najdalszej odległości od Ziemi, jaką kiedykolwiek pokonał załogowy statek kosmiczny, osiągając **252 756 mil** od naszej planety — bijąc rekord [Apollo 13](embed:nasa.gov-haz) z 1970 roku.
+    *   **Trajektoria:** W przeciwieństwie do misji Apollo, Artemis II wykorzystała „hybrydową trajektorię swobodnego powrotu". Po okrążeniu Ziemi w celu przetestowania systemów, statek wykonał przelot nad Księżycem, wykorzystując grawitację Księżyca do „katapultowania" z powrotem na Ziemię bez konieczności wykonywania dużego manewru silnikowego.
+
+    ### Najlepsze zdjęcia z misji
+    Oto niektóre z najbardziej spektakularnych wizualnych momentów uchwyconych podczas misji — od grzmiącego startu w Kennedy Space Center po spokojne widoki Ziemi i Księżyca.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Kluczowe kamienie milowe
+    *   **Start (Dzień lotu 1):** Rakieta SLS, najpotężniejsza kiedykolwiek zbudowana, wystartowała z Kompleksu Startowego 39B, umieszczając statek Orion na wysokiej orbicie okołoziemskiej.
+    *   **Operacje zbliżeniowe (Dzień lotu 2):** Załoga ćwiczyła ręczne sterowanie statkiem — kluczowa umiejętność dla przyszłych misji wymagających dokowania z [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Przelot nad Księżycem (Dzień lotu 6):** Załoga przeleciała za Księżycem, na krótko tracąc kontakt z Ziemią, a następnie ujrzała „wschód Ziemi" nad księżycowym horyzontem.
+    *   **Wodowanie (Dzień lotu 10):** Orion ponownie wkroczył w atmosferę z prędkością około 40 000 km/h, a osłona termiczna wytrzymała temperatury bliskie 2 800 °C, zanim statek bezpiecznie wylądował u wybrzeży San Diego.
+
+    Teraz, gdy załoga wróciła na Ziemię, NASA rozpocznie intensywną analizę danych lotowych w ramach przygotowań do **Artemis III**.
+
+    Która część programu Artemis interesuje cię najbardziej — [technologia rakietowa](/#settings/appstore/web), [nauka o Księżycu](/#settings/appstore/books), czy przyszłe [misje na Marsa](/#settings/appstore/videos)?
+
+    **Dowiedz się więcej:**
+    *   [Strona misji Artemis NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Europejska Agencja Kosmiczna - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    De **Artemis II**-missie is onlangs afgesloten als een historisch succes en markeert de eerste keer in meer dan 50 jaar dat mensen naar de omgeving van de Maan zijn gereisd. Na de lancering op **1 april 2026** bereikte de missie haar hoogtepunt met een succesvolle landing in de Stille Oceaan op **10 april 2026**.
+
+    Als liefhebber van [astronomie](/#settings/appstore/study) en natuurkunde vind ik deze missie bijzonder spannend, omdat het de laatste "proefrit" is vóór de Artemis III-missie, die als doel heeft de eerste vrouw en de volgende man op het maanoppervlak te laten landen.
+
+    ### Missieoverzicht
+    Artemis II was een 10-daagse vluchttest om te verifiëren dat de **Space Launch System (SLS)**-raket en het **Orion**-ruimtevaartuig (door de bemanning *Integrity* gedoopt) astronauten veilig naar de diepe ruimte konden vervoeren, onderhouden en terugbrengen.
+
+    *   **De bemanning:** De vierkoppige bemanning bestond uit commandant **Reid Wiseman**, piloot **Victor Glover**, missiespecialist **Christina Koch** (NASA) en missiespecialist **Jeremy Hansen** (CSA).
+    *   **Het record:** Tijdens de missie vestigde de bemanning een nieuw record voor de verste afstand van de Aarde die ooit door een bemand ruimtevaartuig is afgelegd: **252.756 mijl** van onze planeet — het record van [Apollo 13](embed:nasa.gov-haz) uit 1970 werd hiermee overtroffen.
+    *   **Het traject:** In tegenstelling tot de Apollo-missies gebruikte Artemis II een "hybride vrije-terugkeerbaan". Na het omcirkelen van de Aarde om systemen te testen, voerde het ruimtevaartuig een maanpassage uit en gebruikte de zwaartekracht van de Maan als "katapult" terug naar de Aarde, zonder een grote motormanoeuvre.
+
+    ### Fotohoogtepunten van de missie
+    Hier zijn enkele van de meest indrukwekkende visuele momenten van de missie, van de donderende lancering bij Kennedy Space Center tot de serene uitzichten op de Aarde en de Maan.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Belangrijke mijlpalen
+    *   **Lancering (Vluchtdag 1):** De SLS-raket, de krachtigste raket ooit gebouwd, steeg op vanaf Lanceercomplex 39B en bracht het Orion-ruimtevaartuig in een hoge aardbaan.
+    *   **Nabijheidsoperaties (Vluchtdag 2):** De bemanning oefende het handmatig besturen van het ruimtevaartuig, een cruciale vaardigheid voor toekomstige missies die koppeling met het [Lunar Gateway](https://www.nasa.gov/mission/gateway/) vereisen.
+    *   **Maanpassage (Vluchtdag 6):** De bemanning passeerde achter de Maan, verloor kort het contact met de Aarde en zag vervolgens de "Aardopkomst" boven de maanhorizon.
+    *   **Landing (Vluchtdag 10):** Orion trad de atmosfeer opnieuw binnen met ongeveer 40.000 km/u, waarbij het hitteschild temperaturen van bijna 2.800 °C doorstond voordat het veilig landde voor de kust van San Diego.
+
+    Nu de bemanning weer thuis is, begint NASA met een intensieve beoordeling van de vluchtgegevens ter voorbereiding op **Artemis III**.
+
+    Welk onderdeel van het Artemis-programma interesseert u het meest — de [rakettechnologie](/#settings/appstore/web), de [maanwetenschap](/#settings/appstore/books) of de toekomstige [Marsmissies](/#settings/appstore/videos)?
+
+    **Meer ontdekken:**
+    *   [NASA Artemis-missiepagina](https://www.nasa.gov/specials/artemis/)
+    *   [Europees Ruimteagentschap - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    اختُتمت مهمة **Artemis II** مؤخرًا بنجاح تاريخي، مسجلةً أول مرة منذ أكثر من 50 عامًا يسافر فيها البشر إلى جوار القمر. بعد إطلاقها في **1 أبريل 2026**، بلغت المهمة ذروتها بهبوط ناجح في المحيط الهادئ في **10 أبريل 2026**.
+
+    بصفتي من هواة [علم الفلك](/#settings/appstore/study) والفيزياء، أجد هذه المهمة مثيرة بشكل خاص لأنها تمثل آخر "اختبار قيادة" قبل مهمة Artemis III، التي تهدف إلى إنزال أول امرأة والرجل التالي على سطح القمر.
+
+    ### نظرة عامة على المهمة
+    كانت Artemis II اختبار طيران مدته 10 أيام صُمم للتحقق من أن صاروخ **Space Launch System (SLS)** ومركبة **Orion** الفضائية (التي أسماها الطاقم *Integrity*) يمكنهما نقل رواد الفضاء وإعالتهم وإعادتهم بأمان من الفضاء السحيق.
+
+    *   **الطاقم:** تألف الطاقم المكون من أربعة أشخاص من القائد **ريد وايزمان**، والطيار **فيكتور غلوفر**، وأخصائية المهمة **كريستينا كوخ** (NASA)، وأخصائي المهمة **جيريمي هانسن** (CSA).
+    *   **الرقم القياسي:** خلال المهمة، سجّل الطاقم رقمًا قياسيًا جديدًا لأبعد مسافة عن الأرض تقطعها مركبة فضائية مأهولة، بلغت **252,756 ميلًا** من كوكبنا — متجاوزًا الرقم القياسي الذي سجلته [Apollo 13](embed:nasa.gov-haz) عام 1970.
+    *   **المسار:** على عكس مهمات Apollo، استخدمت Artemis II "مسار العودة الحرة الهجين". بعد الدوران حول الأرض لاختبار الأنظمة، أجرت المركبة تحليقًا قمريًا، مستخدمةً جاذبية القمر "لقذف" نفسها عائدةً إلى الأرض دون الحاجة إلى حرق محرك كبير.
+
+    ### أبرز صور المهمة
+    فيما يلي بعض أكثر اللحظات البصرية إثارة التي التُقطت خلال المهمة، من الإطلاق المدوّي في مركز كينيدي للفضاء إلى المناظر الهادئة للأرض والقمر.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### المعالم الرئيسية
+    *   **الإطلاق (يوم الطيران 1):** انطلق صاروخ SLS، أقوى صاروخ بُني على الإطلاق، من منصة الإطلاق 39B، ووضع مركبة Orion في مدار أرضي مرتفع.
+    *   **عمليات الاقتراب (يوم الطيران 2):** تدرّب الطاقم على التحكم اليدوي بالمركبة، وهي مهارة حاسمة للمهمات المستقبلية التي ستتطلب الالتحام بـ [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **التحليق القمري (يوم الطيران 6):** مرّ الطاقم خلف القمر، وفقدوا الاتصال بالأرض لفترة وجيزة قبل أن يشهدوا "شروق الأرض" فوق أفق القمر.
+    *   **الهبوط (يوم الطيران 10):** دخلت Orion الغلاف الجوي بسرعة تقارب 40,000 كم/ساعة، وتحمّل درعها الحراري درجات حرارة قاربت 2,800 درجة مئوية قبل أن تهبط بأمان قبالة ساحل سان دييغو.
+
+    الآن بعد عودة الطاقم إلى الوطن، ستبدأ NASA مراجعة مكثفة لبيانات الرحلة استعدادًا لمهمة **Artemis III**.
+
+    أي جزء من برنامج Artemis يثير اهتمامك أكثر — [تكنولوجيا الصواريخ](/#settings/appstore/web)، أم [علوم القمر](/#settings/appstore/books)، أم [مهمات المريخ](/#settings/appstore/videos) المستقبلية؟
+
+    **استكشف المزيد:**
+    *   [صفحة مهمة Artemis على موقع NASA](https://www.nasa.gov/specials/artemis/)
+    *   [وكالة الفضاء الأوروبية - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    **Artemis II** मिशन हाल ही में एक ऐतिहासिक सफलता के रूप में संपन्न हुआ, जो 50 से अधिक वर्षों में पहली बार मनुष्यों की चंद्रमा के निकट यात्रा को चिह्नित करता है। **1 अप्रैल 2026** को प्रक्षेपण के बाद, मिशन ने **10 अप्रैल 2026** को प्रशांत महासागर में सफल स्प्लैशडाउन के साथ अपना चरमोत्कर्ष प्राप्त किया।
+
+    एक [खगोल विज्ञान](/#settings/appstore/study) और भौतिकी के शौकीन के रूप में, मुझे यह मिशन विशेष रूप से रोमांचक लगता है क्योंकि यह Artemis III मिशन से पहले अंतिम "टेस्ट ड्राइव" है, जिसका लक्ष्य पहली महिला और अगले पुरुष को चंद्रमा की सतह पर उतारना है।
+
+    ### मिशन अवलोकन
+    Artemis II एक 10-दिवसीय उड़ान परीक्षण था जिसे यह सत्यापित करने के लिए डिज़ाइन किया गया था कि **Space Launch System (SLS)** रॉकेट और **Orion** अंतरिक्ष यान (जिसे चालक दल ने *Integrity* नाम दिया) अंतरिक्ष यात्रियों को गहरे अंतरिक्ष से सुरक्षित रूप से ले जा सकते हैं, बनाए रख सकते हैं और वापस ला सकते हैं।
+
+    *   **चालक दल:** चार सदस्यीय चालक दल में कमांडर **रीड वाइज़मैन**, पायलट **विक्टर ग्लोवर**, मिशन विशेषज्ञ **क्रिस्टीना कोच** (NASA) और मिशन विशेषज्ञ **जेरेमी हैनसेन** (CSA) शामिल थे।
+    *   **रिकॉर्ड:** मिशन के दौरान, चालक दल ने किसी मानवयुक्त अंतरिक्ष यान द्वारा पृथ्वी से सबसे दूर यात्रा करने का नया रिकॉर्ड बनाया, जो हमारे ग्रह से **252,756 मील** दूर पहुँचा — 1970 में [Apollo 13](embed:nasa.gov-haz) द्वारा बनाए गए रिकॉर्ड को पार करते हुए।
+    *   **प्रक्षेपवक्र:** Apollo मिशनों के विपरीत, Artemis II ने "हाइब्रिड फ्री-रिटर्न ट्रैजेक्टरी" का उपयोग किया। सिस्टम परीक्षण के लिए पृथ्वी की परिक्रमा करने के बाद, अंतरिक्ष यान ने चंद्र फ्लाईबाई किया, चंद्रमा के गुरुत्वाकर्षण का उपयोग करके बड़े इंजन बर्न की आवश्यकता के बिना पृथ्वी की ओर "स्लिंगशॉट" किया।
+
+    ### मिशन की फोटो हाइलाइट्स
+    केनेडी स्पेस सेंटर से गरजती प्रक्षेपण से लेकर पृथ्वी और चंद्रमा के शांत दृश्यों तक, मिशन के दौरान कैप्चर किए गए कुछ सबसे शानदार दृश्य क्षण यहाँ हैं।
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### प्रमुख मील के पत्थर
+    *   **प्रक्षेपण (उड़ान दिवस 1):** अब तक बनाया गया सबसे शक्तिशाली रॉकेट SLS, लॉन्च कॉम्प्लेक्स 39B से उड़ान भरी, Orion अंतरिक्ष यान को उच्च पृथ्वी कक्षा में पहुँचाया।
+    *   **निकटता संचालन (उड़ान दिवस 2):** चालक दल ने अंतरिक्ष यान का मैनुअल नियंत्रण अभ्यास किया, जो [Lunar Gateway](https://www.nasa.gov/mission/gateway/) के साथ डॉकिंग की आवश्यकता वाले भविष्य के मिशनों के लिए एक महत्वपूर्ण कौशल है।
+    *   **चंद्र फ्लाईबाई (उड़ान दिवस 6):** चालक दल चंद्रमा के पीछे से गुज़रा, थोड़ी देर के लिए पृथ्वी से संपर्क खोया और फिर चंद्र क्षितिज पर "पृथ्वी उदय" देखा।
+    *   **स्प्लैशडाउन (उड़ान दिवस 10):** Orion लगभग 40,000 किमी/घंटा की गति से वायुमंडल में पुनः प्रवेश किया, इसके हीट शील्ड ने लगभग 2,800 °C का तापमान सहा और सैन डिएगो तट से सुरक्षित रूप से उतरा।
+
+    अब जब चालक दल घर लौट आया है, NASA **Artemis III** की तैयारी के लिए उड़ान डेटा की गहन समीक्षा शुरू करेगा।
+
+    Artemis कार्यक्रम का कौन सा हिस्सा आपको सबसे ज्यादा रुचिकर लगता है — [रॉकेट तकनीक](/#settings/appstore/web), [चंद्र विज्ञान](/#settings/appstore/books), या भविष्य के [मंगल मिशन](/#settings/appstore/videos)?
+
+    **और जानें:**
+    *   [NASA Artemis मिशन पेज](https://www.nasa.gov/specials/artemis/)
+    *   [यूरोपीय अंतरिक्ष एजेंसी - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    ภารกิจ **Artemis II** เพิ่งสิ้นสุดลงด้วยความสำเร็จทางประวัติศาสตร์ ถือเป็นครั้งแรกในรอบกว่า 50 ปีที่มนุษย์เดินทางไปยังบริเวณใกล้ดวงจันทร์ หลังจากการปล่อยตัวเมื่อ **1 เมษายน 2026** ภารกิจได้ถึงจุดสุดยอดด้วยการลงจอดในมหาสมุทรแปซิฟิกอย่างสำเร็จเมื่อ **10 เมษายน 2026**
+
+    ในฐานะผู้ที่หลงใหลใน[ดาราศาสตร์](/#settings/appstore/study)และฟิสิกส์ ผมพบว่าภารกิจนี้น่าตื่นเต้นเป็นพิเศษ เพราะเป็น "การทดสอบขับ" ครั้งสุดท้ายก่อนภารกิจ Artemis III ซึ่งมีเป้าหมายส่งผู้หญิงคนแรกและผู้ชายคนต่อไปลงบนพื้นผิวดวงจันทร์
+
+    ### ภาพรวมภารกิจ
+    Artemis II เป็นการทดสอบการบินระยะเวลา 10 วัน ออกแบบมาเพื่อตรวจสอบว่าจรวด **Space Launch System (SLS)** และยานอวกาศ **Orion** (ลูกเรือตั้งชื่อว่า *Integrity*) สามารถขนส่ง ดูแล และนำนักบินอวกาศกลับจากห้วงอวกาศลึกได้อย่างปลอดภัย
+
+    *   **ลูกเรือ:** ลูกเรือ 4 คนประกอบด้วยผู้บัญชาการ **รีด ไวซ์แมน** นักบิน **วิกเตอร์ โกลเวอร์** ผู้เชี่ยวชาญภารกิจ **คริสตินา ค็อก** (NASA) และผู้เชี่ยวชาญภารกิจ **เจเรมี แฮนเซน** (CSA)
+    *   **สถิติใหม่:** ระหว่างภารกิจ ลูกเรือทำสถิติใหม่สำหรับระยะทางไกลที่สุดจากโลกที่ยานอวกาศมีมนุษย์เดินทางถึง โดยอยู่ห่างจากโลก **252,756 ไมล์** — ทำลายสถิติที่ [Apollo 13](embed:nasa.gov-haz) ทำไว้ในปี 1970
+    *   **วิถีโคจร:** แตกต่างจากภารกิจ Apollo ตรงที่ Artemis II ใช้ "วิถีกลับอิสระแบบไฮบริด" หลังจากโคจรรอบโลกเพื่อทดสอบระบบ ยานอวกาศได้บินผ่านดวงจันทร์ ใช้แรงโน้มถ่วงของดวงจันทร์เพื่อ "เหวี่ยง" กลับสู่โลกโดยไม่ต้องจุดเครื่องยนต์ครั้งใหญ่
+
+    ### ไฮไลท์ภาพถ่ายจากภารกิจ
+    นี่คือช่วงเวลาทางภาพที่น่าทึ่งที่สุดบางส่วนที่ถ่ายได้ระหว่างภารกิจ ตั้งแต่การปล่อยจรวดที่กึกก้องที่ Kennedy Space Center ไปจนถึงทิวทัศน์อันสงบของโลกและดวงจันทร์
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### เหตุการณ์สำคัญ
+    *   **การปล่อยตัว (วันบินที่ 1):** จรวด SLS จรวดที่ทรงพลังที่สุดเท่าที่เคยสร้างมา ทะยานขึ้นจากฐานปล่อย 39B นำยาน Orion เข้าสู่วงโคจรโลกระดับสูง
+    *   **ปฏิบัติการใกล้ชิด (วันบินที่ 2):** ลูกเรือฝึกควบคุมยานอวกาศด้วยมือ ซึ่งเป็นทักษะสำคัญสำหรับภารกิจในอนาคตที่ต้องเชื่อมต่อกับ [Lunar Gateway](https://www.nasa.gov/mission/gateway/)
+    *   **บินผ่านดวงจันทร์ (วันบินที่ 6):** ลูกเรือบินผ่านด้านหลังดวงจันทร์ สูญเสียการติดต่อกับโลกชั่วระยะสั้นก่อนจะได้เห็น "โลกขึ้น" เหนือขอบฟ้าดวงจันทร์
+    *   **ลงจอด (วันบินที่ 10):** Orion กลับเข้าสู่ชั้นบรรยากาศด้วยความเร็วประมาณ 40,000 กม./ชม. แผ่นกันความร้อนทนอุณหภูมิเกือบ 2,800 องศาเซลเซียส ก่อนลงจอดอย่างปลอดภัยนอกชายฝั่ง San Diego
+
+    เมื่อลูกเรือกลับบ้านแล้ว NASA จะเริ่มทบทวนข้อมูลการบินอย่างเข้มข้นเพื่อเตรียมพร้อมสำหรับ **Artemis III**
+
+    ส่วนใดของโครงการ Artemis ที่คุณสนใจมากที่สุด — [เทคโนโลยีจรวด](/#settings/appstore/web), [วิทยาศาสตร์ดวงจันทร์](/#settings/appstore/books), หรือ[ภารกิจดาวอังคาร](/#settings/appstore/videos)ในอนาคต?
+
+    **สำรวจเพิ่มเติม:**
+    *   [หน้าภารกิจ Artemis ของ NASA](https://www.nasa.gov/specials/artemis/)
+    *   [องค์การอวกาศยุโรป - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    Mise **Artemis II** byla nedávno úspěšně dokončena jako historický úspěch, který znamená první cestu lidí do blízkosti Měsíce za více než 50 let. Po startu **1. dubna 2026** mise vyvrcholila úspěšným přistáním v Tichém oceánu **10. dubna 2026**.
+
+    Jako nadšenec do [astronomie](/#settings/appstore/study) a fyziky považuji tuto misi za obzvláště vzrušující, protože představuje poslední „zkušební jízdu" před misí Artemis III, jejímž cílem je přistát s první ženou a dalším mužem na povrchu Měsíce.
+
+    ### Přehled mise
+    Artemis II byl 10denní letový test navržený k ověření, zda raketa **Space Launch System (SLS)** a kosmická loď **Orion** (pojmenovaná posádkou *Integrity*) mohou bezpečně přepravit, udržovat a vrátit astronauty z hlubokého vesmíru.
+
+    *   **Posádka:** Čtyřčlenná posádka se skládala z velitele **Reida Wisemana**, pilota **Victora Glovera**, specialistky mise **Christiny Kochové** (NASA) a specialisty mise **Jeremyho Hansena** (CSA).
+    *   **Rekord:** Během mise posádka stanovila nový rekord v největší vzdálenosti od Země, jakou kdy dosáhla pilotovaná kosmická loď — **252 756 mil** od naší planety, čímž překonala rekord [Apollo 13](embed:nasa.gov-haz) z roku 1970.
+    *   **Trajektorie:** Na rozdíl od misí Apollo použila Artemis II „hybridní trajektorii volného návratu". Po obíhání Země za účelem testování systémů loď provedla průlet kolem Měsíce a využila jeho gravitace k „katapultování" zpět k Zemi bez nutnosti velkého zážehu motoru.
+
+    ### Fotografické momenty mise
+    Zde jsou některé z nejúchvatnějších vizuálních okamžiků zachycených během mise — od hřmícího startu v Kennedyho vesmírném středisku po klidné výhledy na Zemi a Měsíc.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Klíčové milníky
+    *   **Start (Den letu 1):** Raketa SLS, nejsilnější raketa kdy postavená, odstartovala z odpalovací rampy 39B a vynesla loď Orion na vysokou oběžnou dráhu Země.
+    *   **Operace v blízkosti (Den letu 2):** Posádka trénovala ruční ovládání lodi — klíčovou dovednost pro budoucí mise vyžadující připojení k [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Průlet kolem Měsíce (Den letu 6):** Posádka prolétla za Měsícem, na krátkou dobu ztratila kontakt se Zemí a poté spatřila „východ Země" nad měsíčním horizontem.
+    *   **Přistání (Den letu 10):** Orion vstoupila do atmosféry rychlostí přibližně 40 000 km/h, tepelný štít odolal teplotám blížícím se 2 800 °C a loď bezpečně přistála u pobřeží San Diega.
+
+    Nyní, když se posádka vrátila domů, NASA zahájí intenzivní přezkoumání letových dat jako přípravu na **Artemis III**.
+
+    Která část programu Artemis vás zajímá nejvíce — [raketová technologie](/#settings/appstore/web), [měsíční věda](/#settings/appstore/books), nebo budoucí [mise na Mars](/#settings/appstore/videos)?
+
+    **Prozkoumejte více:**
+    *   [Stránka mise Artemis na webu NASA](https://www.nasa.gov/specials/artemis/)
+    *   [Evropská kosmická agentura - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    **Artemis II**-uppdraget avslutades nyligen som en historisk framgång och markerar första gången på över 50 år som människor rest till Månens närhet. Efter uppskjutningen den **1 april 2026** nådde uppdraget sin kulmen med en lyckad nedslag i Stilla havet den **10 april 2026**.
+
+    Som [astronomi](/#settings/appstore/study)- och fysikentusiast tycker jag att detta uppdrag är särskilt spännande eftersom det fungerar som den sista "provkörningen" före Artemis III-uppdraget, som siktar på att landa den första kvinnan och nästa man på månens yta.
+
+    ### Uppdragsöversikt
+    Artemis II var ett 10-dagars flygtest utformat för att verifiera att **Space Launch System (SLS)**-raketen och rymdfarkosten **Orion** (döpt till *Integrity* av besättningen) säkert kunde transportera, underhålla och återföra astronauter från djupa rymden.
+
+    *   **Besättningen:** Den fyra personer stora besättningen bestod av befälhavare **Reid Wiseman**, pilot **Victor Glover**, uppdragsspecialist **Christina Koch** (NASA) och uppdragsspecialist **Jeremy Hansen** (CSA).
+    *   **Rekordet:** Under uppdraget satte besättningen nytt rekord för det längsta avståndet från Jorden som någonsin rest av en bemannad rymdfarkost — **252 756 miles** från vår hemplanet, vilket överträffade rekordet satt av [Apollo 13](embed:nasa.gov-haz) 1970.
+    *   **Banan:** Till skillnad från Apollo-uppdragen använde Artemis II en "hybrid frireturbana". Efter att ha kretsat runt Jorden för att testa system utförde farkosten en månpassage och använde Månens gravitation för att "slungskotas" tillbaka mot Jorden utan behov av en stor motormanöver.
+
+    ### Fotohöjdpunkter från uppdraget
+    Här är några av de mest häpnadsväckande visuella ögonblicken som fångades under uppdraget, från den dånande uppskjutningen vid Kennedy Space Center till de fridfulla vyerna av Jorden och Månen.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### Viktiga milstolpar
+    *   **Uppskjutning (Flygdag 1):** SLS-raketen, den kraftfullaste raketen som någonsin byggts, lyfte från startplats 39B och förde Orion-farkosten till en hög jordbana.
+    *   **Närhetsoperationer (Flygdag 2):** Besättningen övade manuell styrning av farkosten, en kritisk färdighet för framtida uppdrag som kräver dockning med [Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **Månpassage (Flygdag 6):** Besättningen passerade bakom Månen, tappade kontakten med Jorden under en kort period och såg sedan "Jorduppgången" över månhorisonten.
+    *   **Nedslag (Flygdag 10):** Orion återinträdde i atmosfären med ungefär 40 000 km/h, värmeskölden uthärdade temperaturer på nästan 2 800 °C innan farkosten landade säkert utanför San Diegos kust.
+
+    Nu när besättningen är hemma kommer NASA att påbörja en intensiv genomgång av flygdata för att förbereda sig för **Artemis III**.
+
+    Vilken del av Artemis-programmet intresserar dig mest — [raketteknologin](/#settings/appstore/web), [månvetenskapen](/#settings/appstore/books) eller de framtida [Mars-uppdragen](/#settings/appstore/videos)?
+
+    **Utforska vidare:**
+    *   [NASA:s Artemis-uppdragssida](https://www.nasa.gov/specials/artemis/)
+    *   [Europeiska rymdorganisationen - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "fa3654bf-3653-436c-9077-2a2f41816f0c", "app_id": "web", "skill_id": "search", "query": "Artemis II mission status and details April 2026", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "df72165a-a89b-4aba-84fc-b4bc870d8457", "app_id": "web", "skill_id": "search", "query": "Artemis II crew and mission goals", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "7b320fe9-2c21-4aff-92a7-0b3100a7419b", "app_id": "images", "skill_id": "search", "query": "Artemis II mission crew photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0fccdcb0-7d81-4c34-b40c-b09923fa946d", "app_id": "images", "skill_id": "search", "query": "Artemis II Orion spacecraft and SLS rocket photos", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "36ad23c6-4f10-4122-9261-006a40deafc1", "app_id": "images", "skill_id": "search", "query": "Artemis II mission highlights and graphics", "provider": "Brave"}
+    ```
+
+    משימת **Artemis II** הסתיימה לאחרונה בהצלחה היסטורית, והיא מסמנת את הפעם הראשונה ביותר מ-50 שנה שבני אדם נסעו לקרבת הירח. לאחר השיגור ב-**1 באפריל 2026**, המשימה הגיעה לשיאה עם נחיתה מוצלחת באוקיינוס השקט ב-**10 באפריל 2026**.
+
+    כחובב [אסטרונומיה](/#settings/appstore/study) ופיזיקה, אני מוצא את המשימה הזו מרגשת במיוחד כי היא משמשת כ"נסיעת מבחן" אחרונה לפני משימת Artemis III, שמטרתה להנחית את האישה הראשונה והגבר הבא על פני הירח.
+
+    ### סקירת המשימה
+    Artemis II היה מבחן טיסה בן 10 ימים שתוכנן לאמת שרקטת **Space Launch System (SLS)** וחללית **Orion** (שנקראה *Integrity* על ידי הצוות) יכולות להעביר, לתחזק ולהחזיר אסטרונאוטים מהחלל העמוק בבטחה.
+
+    *   **הצוות:** צוות ארבעת האנשים כלל את המפקד **ריד וייזמן**, הטייס **ויקטור גלובר**, מומחית המשימה **כריסטינה קוך** (NASA) ומומחה המשימה **ג'רמי הנסן** (CSA).
+    *   **השיא:** במהלך המשימה, הצוות קבע שיא חדש למרחק הגדול ביותר מכדור הארץ שאליו הגיעה חללית מאוישת — **252,756 מייל** מכוכב הלכת שלנו, וחרג מהשיא שנקבע על ידי [Apollo 13](embed:nasa.gov-haz) ב-1970.
+    *   **המסלול:** בניגוד למשימות Apollo, Artemis II השתמשה ב"מסלול חזרה חופשי היברידי". לאחר הקפת כדור הארץ לבדיקת מערכות, החללית ביצעה מעבר ליד הירח, תוך שימוש בכוח הכבידה של הירח כדי "להיקלע" בחזרה לכדור הארץ ללא צורך בהפעלת מנוע משמעותית.
+
+    ### תמונות בולטות מהמשימה
+    הנה כמה מהרגעים החזותיים המרהיבים ביותר שצולמו במהלך המשימה, מהשיגור הרועם במרכז החלל קנדי ועד למראות השלווים של כדור הארץ והירח.
+
+    [!](embed:nasa.gov-mEC)
+    [!](embed:nasa.gov-k1v)
+    [!](embed:space.com-idA)
+    [!](embed:nasa.gov-7Me)
+    [!](embed:cbsnews.com-H7E)
+    [!](embed:plus.nasa.gov-Srx)
+
+    ### אבני דרך מרכזיות
+    *   **שיגור (יום טיסה 1):** רקטת SLS, הרקטה החזקה ביותר שנבנתה אי פעם, המריאה מכן השיגור 39B והעבירה את חללית Orion למסלול גבוה סביב כדור הארץ.
+    *   **פעולות קרבה (יום טיסה 2):** הצוות תרגל שליטה ידנית בחללית — מיומנות קריטית למשימות עתידיות הדורשות עגינה ב-[Lunar Gateway](https://www.nasa.gov/mission/gateway/).
+    *   **מעבר ליד הירח (יום טיסה 6):** הצוות עבר מאחורי הירח, איבד קשר עם כדור הארץ לתקופה קצרה ואז חזה ב"זריחת כדור הארץ" מעל אופק הירח.
+    *   **נחיתה (יום טיסה 10):** Orion נכנסה מחדש לאטמוספרה במהירות של כ-40,000 קמ"ש, מגן החום שלה עמד בטמפרטורות של כמעט 2,800 מעלות צלזיוס לפני שנחתה בבטחה מול חופי סן דייגו.
+
+    כעת, כשהצוות חזר הביתה, NASA תתחיל בבדיקה מעמיקה של נתוני הטיסה כהכנה ל-**Artemis III**.
+
+    איזה חלק בתוכנית Artemis מעניין אתכם ביותר — [טכנולוגיית הרקטות](/#settings/appstore/web), [מדע הירח](/#settings/appstore/books), או [משימות המאדים](/#settings/appstore/videos) העתידיות?
+
+    **גלו עוד:**
+    *   [דף משימת Artemis באתר NASA](https://www.nasa.gov/specials/artemis/)
+    *   [סוכנות החלל האירופית - Artemis II](https://www.esa.int/Science_Exploration/Human_and_Robotic_Exploration/Orion/Artemis_II)
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion 1 for Artemis II chat
+  en: "[ai] Explain the significance of the hybrid free-return trajectory"
+  de: "[ai] Erkläre die Bedeutung der hybriden Freiflug-Rückkehrbahn"
+  zh: "[ai] 解释混合自由返回轨道的重要性"
+  es: "[ai] Explica la importancia de la trayectoria híbrida de retorno libre"
+  fr: "[ai] Explique l'importance de la trajectoire hybride de retour libre"
+  pt: "[ai] Explique a importância da trajetória híbrida de retorno livre"
+  ru: "[ai] Объясни значение гибридной траектории свободного возврата"
+  ja: "[ai] ハイブリッド自由帰還軌道の重要性を説明して"
+  ko: "[ai] 하이브리드 자유귀환 궤적의 중요성을 설명해줘"
+  it: "[ai] Spiega l'importanza della traiettoria ibrida di ritorno libero"
+  tr: "[ai] Hibrit serbest dönüş yörüngesinin önemini açıkla"
+  vi: "[ai] Giải thích ý nghĩa của quỹ đạo trở về tự do lai"
+  id: "[ai] Jelaskan pentingnya lintasan kembali bebas hibrida"
+  pl: "[ai] Wyjaśnij znaczenie hybrydowej trajektorii swobodnego powrotu"
+  nl: "[ai] Leg het belang uit van de hybride vrije-terugkeerbaan"
+  ar: "[ai] اشرح أهمية مسار العودة الحرة الهجين"
+  hi: "[ai] हाइब्रिड फ्री-रिटर्न ट्रैजेक्टरी का महत्व समझाओ"
+  th: "[ai] อธิบายความสำคัญของวิถีกลับอิสระแบบไฮบริด"
+  cs: "[ai] Vysvětli význam hybridní trajektorie volného návratu"
+  sv: "[ai] Förklara betydelsen av den hybrida frireturbanan"
+  he: "[ai] הסבר את המשמעות של מסלול החזרה החופשי ההיברידי"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion 2 for Artemis II chat
+  en: "[web-search] Find more details about the Lunar Gateway"
+  de: "[web-search] Finde mehr Details über das Lunar Gateway"
+  zh: "[web-search] 查找有关 Lunar Gateway 的更多详情"
+  es: "[web-search] Busca más detalles sobre el Lunar Gateway"
+  fr: "[web-search] Trouve plus de détails sur le Lunar Gateway"
+  pt: "[web-search] Encontre mais detalhes sobre o Lunar Gateway"
+  ru: "[web-search] Найди больше информации о Lunar Gateway"
+  ja: "[web-search] Lunar Gateway についてもっと詳しく調べて"
+  ko: "[web-search] Lunar Gateway에 대한 자세한 정보 찾기"
+  it: "[web-search] Trova più dettagli sul Lunar Gateway"
+  tr: "[web-search] Lunar Gateway hakkında daha fazla bilgi bul"
+  vi: "[web-search] Tìm thêm chi tiết về Lunar Gateway"
+  id: "[web-search] Cari detail lebih lanjut tentang Lunar Gateway"
+  pl: "[web-search] Znajdź więcej szczegółów o Lunar Gateway"
+  nl: "[web-search] Zoek meer details over het Lunar Gateway"
+  ar: "[web-search] ابحث عن مزيد من التفاصيل حول Lunar Gateway"
+  hi: "[web-search] Lunar Gateway के बारे में और जानकारी खोजो"
+  th: "[web-search] ค้นหารายละเอียดเพิ่มเติมเกี่ยวกับ Lunar Gateway"
+  cs: "[web-search] Najdi více podrobností o Lunar Gateway"
+  sv: "[web-search] Hitta fler detaljer om Lunar Gateway"
+  he: "[web-search] מצא פרטים נוספים על Lunar Gateway"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion 3 for Artemis II chat
+  en: "[videos-search] Watch videos of the Artemis II launch"
+  de: "[videos-search] Videos vom Artemis II Start ansehen"
+  zh: "[videos-search] 观看 Artemis II 发射视频"
+  es: "[videos-search] Ver videos del lanzamiento de Artemis II"
+  fr: "[videos-search] Regarder des vidéos du lancement d'Artemis II"
+  pt: "[videos-search] Assistir vídeos do lançamento da Artemis II"
+  ru: "[videos-search] Посмотреть видео запуска Artemis II"
+  ja: "[videos-search] Artemis II の打ち上げ動画を見る"
+  ko: "[videos-search] Artemis II 발사 영상 보기"
+  it: "[videos-search] Guarda i video del lancio di Artemis II"
+  tr: "[videos-search] Artemis II fırlatma videolarını izle"
+  vi: "[videos-search] Xem video phóng Artemis II"
+  id: "[videos-search] Tonton video peluncuran Artemis II"
+  pl: "[videos-search] Obejrzyj filmy ze startu Artemis II"
+  nl: "[videos-search] Bekijk video's van de Artemis II-lancering"
+  ar: "[videos-search] شاهد فيديوهات إطلاق Artemis II"
+  hi: "[videos-search] Artemis II प्रक्षेपण के वीडियो देखें"
+  th: "[videos-search] ดูวิดีโอการปล่อย Artemis II"
+  cs: "[videos-search] Podívej se na videa ze startu Artemis II"
+  sv: "[videos-search] Titta på videor av Artemis II-uppskjutningen"
+  he: "[videos-search] צפה בסרטונים של שיגור Artemis II"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion 4 for Artemis II chat
+  en: "[images-search] Show me more photos of the Orion spacecraft"
+  de: "[images-search] Zeig mir mehr Fotos des Orion-Raumschiffs"
+  zh: "[images-search] 展示更多 Orion 飞船的照片"
+  es: "[images-search] Muéstrame más fotos de la nave Orion"
+  fr: "[images-search] Montre-moi plus de photos du vaisseau Orion"
+  pt: "[images-search] Mostre-me mais fotos da nave Orion"
+  ru: "[images-search] Покажи мне больше фотографий корабля Orion"
+  ja: "[images-search] Orion 宇宙船の写真をもっと見せて"
+  ko: "[images-search] Orion 우주선 사진 더 보여줘"
+  it: "[images-search] Mostrami altre foto della navicella Orion"
+  tr: "[images-search] Bana Orion uzay aracının daha fazla fotoğrafını göster"
+  vi: "[images-search] Cho tôi xem thêm ảnh tàu vũ trụ Orion"
+  id: "[images-search] Tunjukkan lebih banyak foto pesawat Orion"
+  pl: "[images-search] Pokaż mi więcej zdjęć statku Orion"
+  nl: "[images-search] Laat me meer foto's zien van het Orion-ruimtevaartuig"
+  ar: "[images-search] أرني المزيد من صور مركبة Orion الفضائية"
+  hi: "[images-search] मुझे Orion अंतरिक्ष यान की और तस्वीरें दिखाओ"
+  th: "[images-search] แสดงรูปภาพยานอวกาศ Orion เพิ่มเติม"
+  cs: "[images-search] Ukaž mi více fotek lodi Orion"
+  sv: "[images-search] Visa mig fler bilder på rymdfarkosten Orion"
+  he: "[images-search] הראה לי עוד תמונות של חללית Orion"
+  verified_by_human: []

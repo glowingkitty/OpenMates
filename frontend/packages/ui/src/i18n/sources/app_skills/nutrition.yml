@@ -1,0 +1,124 @@
+search_recipes:
+  context: Skill name for recipe search in Nutrition app
+  en: Search Recipes
+  de: Rezepte suchen
+  zh: 搜索食谱
+  es: Buscar recetas
+  fr: Rechercher des recettes
+  pt: Pesquisar receitas
+  ru: Поиск рецептов
+  ja: レシピを検索
+  ko: 레시피 검색
+  it: Cerca ricette
+  tr: Tarif ara
+  vi: Tìm công thức
+  id: Cari resep
+  pl: Szukaj przepisów
+  nl: Recepten zoeken
+  ar: البحث عن وصفات
+  hi: रेसिपी खोजें
+  th: ค้นหาสูตรอาหาร
+  cs: Hledat recepty
+  sv: Sök recept
+  he: חיפוש מתכונים
+  verified_by_human: [en, de]
+
+search_recipes.description:
+  context: Description for the recipe search skill in Nutrition app
+  en: Search for recipes by dietary filters and categories.
+  de: Rezepte nach Ernährungsfiltern und Kategorien suchen.
+  zh: 按饮食过滤器和分类搜索食谱。
+  es: Busca recetas por filtros dietéticos y categorías.
+  fr: Recherchez des recettes par filtres alimentaires et catégories.
+  pt: Pesquise receitas por filtros alimentares e categorias.
+  ru: Ищите рецепты по диетическим фильтрам и категориям.
+  ja: 食事フィルターやカテゴリーでレシピを検索。
+  ko: 식이 필터와 카테고리로 레시피를 검색하세요.
+  it: Cerca ricette per filtri dietetici e categorie.
+  tr: Diyet filtreleri ve kategorilere göre tarif arayın.
+  vi: Tìm công thức theo bộ lọc dinh dưỡng và danh mục.
+  id: Cari resep berdasarkan filter diet dan kategori.
+  pl: Szukaj przepisów według filtrów dietetycznych i kategorii.
+  nl: Zoek recepten op dieetfilters en categorieën.
+  ar: ابحث عن وصفات حسب فلاتر النظام الغذائي والفئات.
+  hi: आहार फ़िल्टर और श्रेणियों के अनुसार रेसिपी खोजें।
+  th: ค้นหาสูตรอาหารตามตัวกรองโภชนาการและหมวดหมู่
+  cs: Hledejte recepty podle dietních filtrů a kategorií.
+  sv: Sök recept efter kostfilter och kategorier.
+  he: חפש מתכונים לפי סינון תזונתי וקטגוריות.
+  verified_by_human: [en, de]
+
+search_recipes.how_to_use.1:
+  context: Example instruction for nutrition recipe search skill - vegetarian
+  en: "**Find vegetarian** pasta recipes"
+  de: Finde vegetarische Pasta-Rezepte
+  zh: 搜索素食意大利面食谱
+  es: Busca recetas vegetarianas de pasta
+  fr: Trouve des recettes de pâtes végétariennes
+  pt: Encontre receitas vegetarianas de massa
+  ru: Найдите вегетарианские рецепты пасты
+  ja: ベジタリアンのパスタレシピを検索
+  ko: 채식 파스타 레시피 찾기
+  it: Trova ricette di pasta vegetariane
+  tr: Vejetaryen makarna tarifleri bul
+  vi: Tìm công thức mì ý chay
+  id: Cari resep pasta vegetarian
+  pl: Znajdź wegetariańskie przepisy na makaron
+  nl: Vind vegetarische pastarecepten
+  ar: ابحث عن وصفات معكرونة نباتية
+  hi: शाकाहारी पास्ता रेसिपी खोजें
+  th: ค้นหาสูตรพาสต้ามังสวิรัติ
+  cs: Najděte vegetariánské recepty na těstoviny
+  sv: Hitta vegetariska pastarecept
+  he: "**מצא מתכוני** פסטה צמחוניים"
+  verified_by_human: [en, de]
+
+search_recipes.how_to_use.2:
+  context: Example instruction for nutrition recipe search skill - quick easy
+  en: "**Search** for quick and easy dinner recipes"
+  de: Suche schnelle und einfache Abendessenrezepte
+  zh: 搜索快速简单的晚餐食谱
+  es: Busca recetas de cena rápidas y fáciles
+  fr: Recherche des recettes de dîner rapides et faciles
+  pt: Pesquise receitas de jantar rápidas e fáceis
+  ru: Найдите быстрые и простые рецепты ужина
+  ja: 簡単で手早い夕食レシピを検索
+  ko: 빠르고 쉬운 저녁 레시피 검색
+  it: Cerca ricette per cena veloci e facili
+  tr: Hızlı ve kolay akşam yemeği tarifleri ara
+  vi: Tìm công thức bữa tối nhanh và dễ
+  id: Cari resep makan malam cepat dan mudah
+  pl: Szukaj szybkich i łatwych przepisów na kolację
+  nl: Zoek snelle en makkelijke dinerrecepten
+  ar: ابحث عن وصفات عشاء سريعة وسهلة
+  hi: जल्दी और आसान डिनर रेसिपी खोजें
+  th: ค้นหาสูตรอาหารเย็นง่ายและเร็ว
+  cs: Hledejte rychlé a snadné recepty na večeři
+  sv: Sök snabba och enkla middagsrecept
+  he: "**חפש** מתכוני ארוחת ערב מהירים וקלים"
+  verified_by_human: [en, de]
+
+search_recipes.how_to_use.3:
+  context: Example instruction for nutrition recipe search skill - gluten free
+  en: Show me **gluten-free** dessert ideas
+  de: Zeige mir glutenfreie Dessert-Ideen
+  zh: 给我看无麸质甜点创意
+  es: Muéstrame ideas de postres sin gluten
+  fr: Montre-moi des idées de desserts sans gluten
+  pt: Mostre-me ideias de sobremesas sem glúten
+  ru: Покажите безглютеновые десерты
+  ja: グルテンフリーのデザートアイデアを表示
+  ko: 글루텐 프리 디저트 아이디어 보기
+  it: Mostrami idee per dessert senza glutine
+  tr: Glutensiz tatlı fikirleri göster
+  vi: Cho tôi xem ý tưởng tráng miệng không gluten
+  id: Tampilkan ide dessert bebas gluten
+  pl: Pokaż mi pomysły na bezglutenowe desery
+  nl: Laat me glutenvrije dessertideeën zien
+  ar: أرني أفكار حلويات خالية من الغلوتين
+  hi: ग्लूटेन-फ्री डेसर्ट आइडिया दिखाएं
+  th: แสดงไอเดียขนมหวานปราศจากกลูเตน
+  cs: Ukáž mi nápady na bezlepkové dezerty
+  sv: Visa mig glutenfria dessertidéer
+  he: "הצג לי רעיונות לקינוחים **ללא גלוטן**"
+  verified_by_human: [en, de]

@@ -2626,6 +2626,10 @@ booking_link_failed:
   sv: Kunde inte ladda bokningslänk. Prova att söka på Google Flights istället.
   he: לא ניתן היה לטעון את קישור ההזמנה. כדאי לנסות לחפש ב-Google Flights במקום.
   verified_by_human: [en, de]
+booking_link_example_only:
+  context: Info notification shown when user clicks "Get booking link" on a store example embed
+  en: Booking links are only available for real flight searches. Sign up and start a new search to get live booking links.
+  de: Buchungslinks sind nur für echte Flugsuchen verfügbar. Melde dich an und starte eine neue Suche, um aktuelle Buchungslinks zu erhalten.
 stay:
   context: Singular label for a travel stay/accommodation result
   en: stay
@@ -3553,28 +3557,28 @@ health.book_on_doctolib:
   verified_by_human: []
 
 health.slots_may_be_outdated:
-  context: Disclaimer shown below the slot time chips on the doctor appointment fullscreen, warning that the displayed times may no longer be available
-  en: These times may no longer be available. Check current availability on Doctolib.
-  de: Diese Termine sind möglicherweise nicht mehr verfügbar. Aktuelle Verfügbarkeit auf Doctolib prüfen.
-  zh: 这些时间段可能已不再可用。请在 Doctolib 上查看最新可用性。
-  es: Estas horas podrían no estar disponibles. Consulta la disponibilidad actual en Doctolib.
-  fr: Ces créneaux peuvent ne plus être disponibles. Vérifiez la disponibilité actuelle sur Doctolib.
-  pt: Estes horários podem não estar mais disponíveis. Verifique a disponibilidade atual no Doctolib.
-  ru: Эти время могут быть недоступны. Проверьте актуальное расписание на Doctolib.
-  ja: これらの時間帯はすでに利用できない場合があります。Doctolib で最新の空き状況を確認してください。
-  ko: 이 시간대는 더 이상 이용 가능하지 않을 수 있습니다. Doctolib에서 현재 가용 여부를 확인하세요.
-  it: Questi orari potrebbero non essere più disponibili. Controlla la disponibilità attuale su Doctolib.
-  tr: Bu saatler artık mevcut olmayabilir. Doctolib'de güncel uygunluğu kontrol edin.
-  vi: Các thời điểm này có thể không còn khả dụng. Kiểm tra tình trạng hiện tại trên Doctolib.
-  id: Waktu ini mungkin tidak lagi tersedia. Periksa ketersediaan terkini di Doctolib.
-  pl: Te terminy mogą być już niedostępne. Sprawdź aktualną dostępność na Doctolib.
-  nl: Deze tijden zijn mogelijk niet meer beschikbaar. Controleer de huidige beschikbaarheid op Doctolib.
-  ar: قد لا تكون هذه الأوقات متاحة بعد الآن. تحقق من التوفر الحالي على Doctolib.
-  hi: ये समय अब उपलब्ध नहीं हो सकते। Doctolib पर वर्तमान उपलब्धता जांचें।
-  th: เวลาเหล่านี้อาจไม่มีให้บริการอีกต่อไป ตรวจสอบเวลาว่างล่าสุดบน Doctolib
-  cs: Tyto termíny již nemusí být dostupné. Zkontrolujte aktuální dostupnost na Doctolib.
-  sv: Dessa tider kanske inte längre är tillgängliga. Kontrollera aktuell tillgänglighet på Doctolib.
-  he: ייתכן שזמנים אלו כבר לא פנויים. בדוק זמינות עדכנית ב-Doctolib.
+  context: Disclaimer shown below the slot time chips on the doctor appointment fullscreen, warning that the displayed times may no longer be available. {provider} is the booking platform name (e.g. Doctolib, Jameda).
+  en: These times may no longer be available. Check current availability on {provider}.
+  de: Diese Termine sind möglicherweise nicht mehr verfügbar. Aktuelle Verfügbarkeit auf {provider} prüfen.
+  zh: 这些时间段可能已不再可用。请在 {provider} 上查看最新可用性。
+  es: Estas horas podrían no estar disponibles. Consulta la disponibilidad actual en {provider}.
+  fr: Ces créneaux peuvent ne plus être disponibles. Vérifiez la disponibilité actuelle sur {provider}.
+  pt: Estes horários podem não estar mais disponíveis. Verifique a disponibilidade atual no {provider}.
+  ru: Эти время могут быть недоступны. Проверьте актуальное расписание на {provider}.
+  ja: これらの時間帯はすでに利用できない場合があります。{provider} で最新の空き状況を確認してください。
+  ko: 이 시간대는 더 이상 이용 가능하지 않을 수 있습니다. {provider}에서 현재 가용 여부를 확인하세요.
+  it: Questi orari potrebbero non essere più disponibili. Controlla la disponibilità attuale su {provider}.
+  tr: Bu saatler artık mevcut olmayabilir. {provider}'de güncel uygunluğu kontrol edin.
+  vi: Các thời điểm này có thể không còn khả dụng. Kiểm tra tình trạng hiện tại trên {provider}.
+  id: Waktu ini mungkin tidak lagi tersedia. Periksa ketersediaan terkini di {provider}.
+  pl: Te terminy mogą być już niedostępne. Sprawdź aktualną dostępność na {provider}.
+  nl: Deze tijden zijn mogelijk niet meer beschikbaar. Controleer de huidige beschikbaarheid op {provider}.
+  ar: قد لا تكون هذه الأوقات متاحة بعد الآن. تحقق من التوفر الحالي على {provider}.
+  hi: ये समय अब उपलब्ध नहीं हो सकते। {provider} पर वर्तमान उपलब्धता जांचें।
+  th: เวลาเหล่านี้อาจไม่มีให้บริการอีกต่อไป ตรวจสอบเวลาว่างล่าสุดบน {provider}
+  cs: Tyto termíny již nemusí být dostupné. Zkontrolujte aktuální dostupnost na {provider}.
+  sv: Dessa tider kanske inte längre är tillgängliga. Kontrollera aktuell tillgänglighet på {provider}.
+  he: ייתכן שזמנים אלו כבר לא פנויים. בדוק זמינות עדכנית ב-{provider}.
   verified_by_human: []
 
 health.no_appointments_found:

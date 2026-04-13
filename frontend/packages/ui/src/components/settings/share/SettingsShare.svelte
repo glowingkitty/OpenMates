@@ -92,15 +92,9 @@
     // Time limit state - duration in seconds (0 = no expiration)
     let selectedDuration: ShareDuration = $state(0);
 
-    // Share with Community state - only for chats, not embeds
+    // Share with Community state - only for chats, not embeds.
+    // When enabled, the share link (with encryption key) is emailed to admin for review.
     let shareWithCommunity = $state(false);
-
-    // Include sensitive data state - when false (default), PII is stripped from shared content.
-    // Users must explicitly opt-in to include their personal information in shared chats.
-    let includeSensitiveData = $state(false);
-
-    // Whether the current chat has any PII mappings (used to conditionally show the sensitive data toggle)
-    let chatHasPII = $state(false);
 
     // Generated share link state
     let generatedLink = $state('');
@@ -693,31 +687,6 @@
     });
 
     // Check whether the current chat contains PII mappings
-    // This determines if we show the "Include sensitive data" toggle
-    $effect(() => {
-        const chatId = currentChatId;
-        if (!chatId || isEmbedSharing) {
-            chatHasPII = false;
-            return;
-        }
-        // Async check - load messages and see if any have pii_mappings
-        (async () => {
-            try {
-                const { chatDB } = await import('../../../services/db');
-                const { getMessagesForChat } = await import('../../../services/db/messageOperations');
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chatDB satisfies ChatDatabaseInstance at runtime
-                const messages = await getMessagesForChat(chatDB as any, chatId);
-                if (messages && messages.length > 0) {
-                    chatHasPII = messages.some(m => m.pii_mappings && m.pii_mappings.length > 0);
-                } else {
-                    chatHasPII = false;
-                }
-            } catch (error) {
-                console.error('[SettingsShare] Error checking chat PII:', error);
-                chatHasPII = false;
-            }
-        })();
-    });
     
     // Also check on mount in case the chatId is already set
     // Only initialize if we don't already have a shared chat (to maintain stability)
@@ -935,152 +904,10 @@
             
             // If sharing with community, decrypt all messages and embeds locally
             // and send plaintext to server (zero-knowledge architecture)
-            let decryptedMessages: Array<{role: string; content: string; category?: string; model_name?: string; created_at: number}> | null = null;
-            let decryptedEmbeds: Array<{embed_id: string; type: string; content: string; created_at: number}> | null = null;
-            
-            if (shareWithCommunity && !isEmbedSharing) {
-                try {
-                    console.debug('[SettingsShare] Decrypting messages and embeds for community sharing...');
-                    
-                    // Import database services
-                    const { getMessagesForChat } = await import('../../../services/db/messageOperations');
-                    const { embedStore } = await import('../../../services/embedStore');
-                    const { computeSHA256 } = await import('../../../message_parsing/utils');
-                    
-                    // Get all messages for this chat (already decrypted by getMessagesForChat)
-                    // NOTE: message.content from DB has PLACEHOLDERS (e.g., "[EMAIL_1]")
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- chatDB satisfies ChatDatabaseInstance at runtime
-                    const messages = await getMessagesForChat(chatDB as any, currentChatId);
-                    if (messages && messages.length > 0) {
-                        // Build cumulative PII mappings from user messages for restoration
-                        const allPIIMappings: import('../../../types/chat').PIIMapping[] = [];
-                        for (const msg of messages) {
-                            if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
-                                allPIIMappings.push(...msg.pii_mappings);
-                            }
-                        }
-
-                        // Import restorePIIInText for when user opts to include sensitive data
-                        const { restorePIIInText } = await import('../../../components/enter_message/services/piiDetectionService');
-
-                        decryptedMessages = messages.map(msg => {
-                            let content = msg.content || '';
-                            // Content from DB has PLACEHOLDERS. When includeSensitiveData is ON,
-                            // restore originals so the shared content shows actual personal data.
-                            // When OFF (default), content keeps placeholders — no action needed.
-                            if (includeSensitiveData && allPIIMappings.length > 0 && typeof content === 'string') {
-                                content = restorePIIInText(content, allPIIMappings);
-                            }
-                            return {
-                                role: msg.role,
-                                content, // Content with placeholders (default) or originals (if includeSensitiveData)
-                                category: msg.category,
-                                model_name: msg.model_name,
-                                created_at: msg.created_at
-                            };
-                        });
-                        console.debug(`[SettingsShare] Decrypted ${decryptedMessages.length} messages for community sharing (includeSensitiveData: ${includeSensitiveData})`);
-                    }
-                    
-                    // Get all embeds for this chat
-                    const hashedChatId = await computeSHA256(currentChatId);
-                    const embedEntries = await embedStore.getEmbedsByHashedChatId(hashedChatId);
-                    
-                    // VALIDATION: Extract embed references from message content and check for missing embeds
-                    // CRITICAL: This prevents sharing chats with orphan embed references that would break demo chats
-                    if (decryptedMessages && decryptedMessages.length > 0) {
-                        const { extractEmbedReferences } = await import('../../../services/embedResolver');
-                        const embedIdsInStore = new Set((embedEntries || []).map(e => e.embed_id));
-                        const referencedEmbedIds = new Set<string>();
-
-                        for (const msg of decryptedMessages) {
-                            if (msg.content) {
-                                const refs = extractEmbedReferences(msg.content);
-                                for (const ref of refs) {
-                                    referencedEmbedIds.add(ref.embed_id);
-                                }
-                            }
-                        }
-
-                        // Find embed references that are not in the store
-                        const missingEmbedIds = [...referencedEmbedIds].filter(id => !embedIdsInStore.has(id));
-                        if (missingEmbedIds.length > 0) {
-                            // CRITICAL ERROR: Cannot share chat with orphan embed references
-                            const errorMessage = `Sorry, we can't share this chat right now. Something went wrong while processing the embeds in your messages. Please use the "Report Issue" button to let us know about this problem so we can help fix it.`;
-                            console.error('[SettingsShare] ❌ BLOCKED sharing due to missing embeds:', missingEmbedIds);
-
-                            // Show user-facing error and block sharing
-                            throw new Error(errorMessage);
-                        }
-                    }
-                    
-                    if (embedEntries && embedEntries.length > 0) {
-                        decryptedEmbeds = [];
-                        console.debug(`[SettingsShare] Found ${embedEntries.length} embeds for community sharing`);
-                        
-                        // Pre-load all embed keys into cache to avoid transaction issues during decryption
-                        console.debug('[SettingsShare] Pre-loading embed keys into cache...');
-                        for (const embedEntry of embedEntries) {
-                            try {
-                                const embedId = embedEntry.embed_id;
-                                if (!embedId) continue;
-                                
-                                // Pre-cache the embed key - this will load it from IndexedDB once
-                                await embedStore.getEmbedKey(embedId, embedEntry.hashed_chat_id);
-                            } catch (keyError) {
-                                console.warn(`[SettingsShare] Failed to pre-load key for embed ${embedEntry.embed_id}:`, keyError);
-                            }
-                        }
-                        console.debug('[SettingsShare] Embed keys pre-loaded, now decrypting content...');
-                        
-                        // Now decrypt embed content (keys should be in cache now, avoiding repeated transactions)
-                        for (let i = 0; i < embedEntries.length; i++) {
-                            const embedEntry = embedEntries[i];
-                            try {
-                                const contentRef = `embed:${embedEntry.embed_id}`;
-                                console.debug(`[SettingsShare] Decrypting embed ${i + 1}/${embedEntries.length}: ${embedEntry.embed_id}`);
-                                const embedData = await embedStore.get(contentRef);
-                                
-                                if (embedData && typeof embedData !== 'string' && embedData.content) {
-                                    decryptedEmbeds.push({
-                                        embed_id: embedEntry.embed_id || '',
-                                        type: embedEntry.type || 'unknown',
-                                        content: String(embedData.content),
-                                        created_at: embedEntry.createdAt || Date.now()
-                                    });
-                                    console.debug(`[SettingsShare] ✅ Successfully decrypted embed: ${embedEntry.embed_id}`);
-                                } else {
-                                    console.warn(`[SettingsShare] ⚠️ Embed ${embedEntry.embed_id} has no content or failed to decrypt`);
-                                }
-                            } catch (embedError) {
-                                console.error(`[SettingsShare] ❌ Failed to decrypt embed ${embedEntry.embed_id}:`, embedError);
-                                // Continue with other embeds - don't fail the entire process
-                            }
-                        }
-                        console.debug(`[SettingsShare] Successfully decrypted ${decryptedEmbeds.length}/${embedEntries.length} embeds for community sharing`);
-                    }
-                } catch (error) {
-                    // Check if this is an embed validation error (missing embeds = cannot share)
-                    // vs a transient decryption error (can still proceed without community sharing)
-                    if (error instanceof Error && error.message.includes('embeds in your messages')) {
-                        // CRITICAL: Embed validation failure — surface to user and block community sharing.
-                        // This prevents demo chats from being created with embed references in
-                        // messages but no embed data, which results in empty embed preview cards.
-                        console.error(`[SettingsShare] ❌ Embed validation failed, blocking community sharing: chat_id=${currentChatId}`, error);
-                    } else {
-                        console.error(`[SettingsShare] Error decrypting messages/embeds for community sharing: chat_id=${currentChatId}`, error);
-                    }
-                    // Both cases: disable community sharing but allow regular sharing to proceed.
-                    // The user still gets their share link — only the community submission is skipped.
-                    shareWithCommunity = false;
-                    decryptedMessages = null;
-                    decryptedEmbeds = null;
-                }
-            }
             
             // Always send is_shared = true when sharing (even if no title/summary)
             // This ensures the server marks the chat as shared
-            // Also send share_with_community flag and decrypted content if community sharing is enabled
+            // If community sharing is enabled, include the full share link for admin review
             try {
                 const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
                     method: 'POST',
@@ -1097,9 +924,8 @@
                         icon: icon || null,
                         follow_up_suggestions: followUpSuggestions || null,
                         is_shared: true,  // Mark chat as shared on server
-                        share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,  // Only for chats, not embeds
-                        decrypted_messages: decryptedMessages || undefined,  // Plaintext messages for community sharing
-                        decrypted_embeds: decryptedEmbeds || undefined  // Plaintext embeds for community sharing
+                        share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,
+                        share_link: shareWithCommunity && !isEmbedSharing && generatedLink ? generatedLink : undefined
                     }),
                     credentials: 'include' // Include cookies for authentication
                 });
@@ -1487,26 +1313,12 @@
         }
     });
     
-    // When Share with Community is enabled, disable password and time limit
-    $effect(() => {
-        if (shareWithCommunity && !isEmbedSharing) {
-            // Disable password protection and time limit when sharing with community
-            isPasswordProtected = false;
-            password = '';
-            selectedDuration = 0;
-        }
-    });
-    
     // ===============================
     // Password Validation
     // ===============================
-    
+
     // Password must be max 10 characters
     let isPasswordValid = $derived(!isPasswordProtected || (password.length > 0 && password.length <= 10));
-    
-    // When Share with Community is enabled, password and time limit are disabled
-    let isPasswordDisabled = $derived(shareWithCommunity && !isEmbedSharing);
-    let isTimeLimitDisabled = $derived(shareWithCommunity && !isEmbedSharing);
     
     // Can generate link if we have either a chat ID or an embed context
     let canGenerateLink = $derived((currentChatId || (isEmbedSharing && embedContext)) && isPasswordValid);
@@ -1651,35 +1463,9 @@
                 {/if}
             {/if}
 
-            <!-- Include Sensitive Data Toggle (only shown when chat has PII) -->
-            {#if chatHasPII && !isEmbedSharing}
-                <div class="option-row">
-                    <div class="option-label">
-                        <div class="icon settings_size {includeSensitiveData ? 'icon_visible' : 'icon_hidden'}"></div>
-                        <span>{$text('settings.share.include_sensitive_data')}</span>
-                    </div>
-                    <Toggle
-                        bind:checked={includeSensitiveData}
-                        name="include-sensitive-data"
-                        ariaLabel="Toggle include sensitive data"
-                    />
-                </div>
-
-                <!-- Sensitive Data Warning (shown when toggle is ON) -->
-                {#if includeSensitiveData}
-                    <div class="community-info warning" transition:slide={{ duration: 200, easing: cubicOut }}>
-                        <div class="info-icon">&#9888;&#65039;</div>
-                        <p>
-                            {$text('settings.share.include_sensitive_data_warning', { 
-                                default: 'Your personal information (emails, phone numbers, etc.) will be included in the shared content. Only enable this if you trust all recipients.' 
-                            })}
-                        </p>
-                    </div>
-                {/if}
-            {/if}
 
             <!-- Password Protection Toggle -->
-            <div class="option-row" class:disabled={isPasswordDisabled}>
+            <div class="option-row">
                 <div class="option-label">
                     <div class="icon settings_size lock"></div>
                     <span>{$text('settings.share.password_protection')}</span>
@@ -1688,7 +1474,7 @@
                     bind:checked={isPasswordProtected}
                     name="password-protection"
                     ariaLabel="Toggle password protection"
-                    disabled={isPasswordDisabled}
+
                 />
             </div>
 
@@ -1714,7 +1500,7 @@
             {/if}
 
             <!-- Time Limit Selection -->
-            <div class="option-row" class:disabled={isTimeLimitDisabled}>
+            <div class="option-row">
                 <div class="option-label">
                     <div class="icon settings_size time"></div>
                     <span>{$text('settings.share.time_limit')}</span>
@@ -1722,19 +1508,18 @@
             </div>
 
             <!-- Duration Options -->
-            <div class="duration-options" class:disabled={isTimeLimitDisabled}>
+            <div class="duration-options">
                 {#each durationOptions as option}
                     <button
                         class="duration-option"
                         data-testid="duration-option"
                         class:selected={selectedDuration === option.value}
-                        class:disabled={isTimeLimitDisabled}
-                        onclick={() => {
-                            if (!isTimeLimitDisabled) {
+                                               onclick={() => {
+                            {
                                 selectedDuration = option.value;
                             }
                         }}
-                        disabled={isTimeLimitDisabled}
+    
                     >
                         {$text(option.labelKey)}
                     </button>
@@ -2042,21 +1827,6 @@
         color: var(--color-grey-100);
     }
     
-    .option-row.disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    
-    .duration-options.disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    
-    .duration-option.disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
-    
     /* Password input */
     .password-input-container {
         padding: 0 12px;
@@ -2223,11 +1993,6 @@
         line-height: 1.4;
     }
 
-    .community-info.warning {
-        background-color: rgba(250, 204, 21, 0.1);
-        border-color: rgba(250, 204, 21, 0.3);
-    }
-    
     /* Back to configuration button */
     .back-to-config-button {
         width: 100%;

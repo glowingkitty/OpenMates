@@ -1,0 +1,1979 @@
+title:
+  context: Title of example chat about giant cargo aircraft used to transport rocket and airplane parts
+  en: Gigantic airplanes for transporting rocket and airplane parts
+  de: Riesige Flugzeuge für den Transport von Raketen- und Flugzeugteilen
+  zh: 用于运输火箭和飞机零件的巨型飞机
+  es: Aviones gigantes para transportar piezas de cohetes y aviones
+  fr: Avions géants pour le transport de pièces de fusées et d'avions
+  pt: Aviões gigantes para transportar peças de foguetes e aviões
+  ru: Гигантские самолёты для перевозки деталей ракет и самолётов
+  ja: ロケットや航空機の部品を輸送するための巨大な飛行機
+  ko: 로켓 및 항공기 부품 운송에 사용되는 거대한 비행기
+  it: Aerei giganti per il trasporto di parti di razzi e aerei
+  tr: Roket ve uçak parçalarını taşımak için kullanılan dev uçaklar
+  vi: Những chiếc máy bay khổng lồ dùng để vận chuyển bộ phận tên lửa và máy bay
+  id: Pesawat raksasa untuk mengangkut suku cadang roket dan pesawat
+  pl: Gigantyczne samoloty do transportu części rakiet i samolotów
+  nl: Gigantische vliegtuigen voor het vervoeren van raket- en vliegtuigonderdelen
+  ar: طائرات عملاقة لنقل أجزاء الصواريخ والطائرات
+  hi: रॉकेट और हवाई जहाज के पुर्जों के परिवहन के लिए विशाल विमान
+  th: เครื่องบินยักษ์สำหรับขนส่งชิ้นส่วนจรวดและเครื่องบิน
+  cs: Gigantická letadla pro přepravu součástí raket a letadel
+  sv: Gigantiska flygplan för transport av raket- och flygplansdelar
+  he: "מטוסים ענקיים להובלת חלקי טילים ומטוסים"
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat discussing specialized cargo aircraft like An-225, Super Guppy, and BelugaXL
+  en: Discussed specialized cargo aircraft like the An-225, Super Guppy, and BelugaXL used to transport rocket and airplane parts.
+  de: Besprochen wurden spezialisierte Frachtflugzeuge wie die An-225, Super Guppy und BelugaXL, die für den Transport von Raketen- und Flugzeugteilen eingesetzt werden.
+  zh: 讨论了用于运输火箭和飞机零件的专用货运飞机，如An-225、超级古比鱼和白鲸XL。
+  es: Se discutieron aviones de carga especializados como el An-225, Super Guppy y BelugaXL utilizados para transportar piezas de cohetes y aviones.
+  fr: Discussion sur les avions-cargos spécialisés comme l'An-225, le Super Guppy et le BelugaXL utilisés pour transporter des pièces de fusées et d'avions.
+  pt: Discutimos aeronaves de carga especializadas como o An-225, Super Guppy e BelugaXL usados para transportar peças de foguetes e aviões.
+  ru: Обсуждались специализированные грузовые самолёты, такие как Ан-225, Super Guppy и BelugaXL, используемые для перевозки деталей ракет и самолётов.
+  ja: An-225、スーパーグッピー、ベルーガXLなど、ロケットや航空機の部品輸送に使われる専用貨物機について話しました。
+  ko: An-225, 슈퍼 구피, 벨루가XL 등 로켓 및 항공기 부품 운송에 사용되는 특수 화물기에 대해 논의했습니다.
+  it: Discussi aerei cargo specializzati come l'An-225, il Super Guppy e il BelugaXL usati per trasportare parti di razzi e aerei.
+  tr: An-225, Super Guppy ve BelugaXL gibi roket ve uçak parçalarını taşımak için kullanılan özel kargo uçakları tartışıldı.
+  vi: Thảo luận về các máy bay chở hàng chuyên dụng như An-225, Super Guppy và BelugaXL được sử dụng để vận chuyển bộ phận tên lửa và máy bay.
+  id: Membahas pesawat kargo khusus seperti An-225, Super Guppy, dan BelugaXL yang digunakan untuk mengangkut suku cadang roket dan pesawat.
+  pl: Omówiono wyspecjalizowane samoloty transportowe takie jak An-225, Super Guppy i BelugaXL używane do transportu części rakiet i samolotów.
+  nl: Besproken werden gespecialiseerde vrachtvliegtuigen zoals de An-225, Super Guppy en BelugaXL die worden gebruikt om raket- en vliegtuigonderdelen te vervoeren.
+  ar: ناقشنا طائرات الشحن المتخصصة مثل An-225 وSuper Guppy وBelugaXL المستخدمة لنقل أجزاء الصواريخ والطائرات.
+  hi: An-225, सुपर गप्पी और बेलुगाXL जैसे विशेष कार्गो विमानों पर चर्चा की गई जो रॉकेट और हवाई जहाज के पुर्जों के परिवहन के लिए उपयोग किए जाते हैं।
+  th: พูดคุยเกี่ยวกับเครื่องบินขนส่งสินค้าพิเศษ เช่น An-225, Super Guppy และ BelugaXL ที่ใช้ขนส่งชิ้นส่วนจรวดและเครื่องบิน
+  cs: Diskutovali jsme o specializovaných nákladních letadlech jako An-225, Super Guppy a BelugaXL používaných k přepravě součástí raket a letadel.
+  sv: Vi diskuterade specialiserade fraktflygplan som An-225, Super Guppy och BelugaXL som används för att transportera raket- och flygplansdelar.
+  he: "דנו במטוסי מטען מיוחדים כמו An-225, סופר גאפי ו-BelugaXL המשמשים להובלת חלקי טילים ומטוסים."
+  verified_by_human: []
+
+user_message_1:
+  context: First user message asking about giant airplane for rocket transport
+  en: Name of the airplane that was used to transport rocket parts? The gigantic airplane?
+  de: Name des Flugzeugs, das für den Transport von Raketenteilen verwendet wurde? Das riesige Flugzeug?
+  zh: 用来运输火箭部件的那架飞机叫什么名字？那架巨大的飞机？
+  es: ¿Nombre del avión que se usaba para transportar partes de cohetes? ¿El avión gigante?
+  fr: Le nom de l'avion qui était utilisé pour transporter des pièces de fusée ? L'avion gigantesque ?
+  pt: Nome do avião que era usado para transportar peças de foguetes? O avião gigantesco?
+  ru: Как называется самолёт, который использовался для перевозки деталей ракет? Тот гигантский самолёт?
+  ja: ロケットの部品を運ぶのに使われていた飛行機の名前は？あの巨大な飛行機？
+  ko: 로켓 부품을 운반하는 데 사용된 비행기 이름이 뭐였죠? 그 거대한 비행기요?
+  it: Il nome dell'aereo che veniva usato per trasportare parti di razzi? Quell'aereo gigantesco?
+  tr: Roket parçalarını taşımak için kullanılan uçağın adı neydi? O devasa uçak?
+  vi: Tên chiếc máy bay được dùng để vận chuyển các bộ phận tên lửa là gì? Chiếc máy bay khổng lồ đó?
+  id: Apa nama pesawat yang digunakan untuk mengangkut bagian roket? Pesawat raksasa itu?
+  pl: Jak nazywał się samolot używany do transportu części rakiet? Ten gigantyczny samolot?
+  nl: Wat was de naam van het vliegtuig dat werd gebruikt om raketonderdelen te vervoeren? Dat gigantische vliegtuig?
+  ar: ما اسم الطائرة التي كانت تُستخدم لنقل أجزاء الصواريخ؟ تلك الطائرة العملاقة؟
+  hi: रॉकेट के पुर्जे ले जाने के लिए इस्तेमाल किए जाने वाले उस विमान का नाम क्या है? वह विशाल विमान?
+  th: ชื่อเครื่องบินที่ใช้ขนส่งชิ้นส่วนจรวดคืออะไร? เครื่องบินลำยักษ์นั่น?
+  cs: Jak se jmenuje to letadlo, které se používalo k přepravě součástí raket? To obrovské letadlo?
+  sv: Vad heter flygplanet som användes för att transportera raketdelar? Det gigantiska flygplanet?
+  he: "מה שם המטוס שהשתמשו בו להובלת חלקי טילים? המטוס הענק?"
+  verified_by_human: []
+
+user_message_2:
+  context: Second user message asking about Airbus Beluga/BelugaXL for airplane parts
+  en: Wasn't there a new version of the guppy or something similar that is used in Europe to transport airplane parts?
+  de: Gab es nicht eine neue Version des Guppy oder etwas Ähnliches, das in Europa zum Transport von Flugzeugteilen verwendet wird?
+  zh: 欧洲不是有一种古比鱼的新版本或类似的飞机用来运输飞机零件吗？
+  es: ¿No había una nueva versión del guppy o algo similar que se usa en Europa para transportar piezas de aviones?
+  fr: N'y avait-il pas une nouvelle version du guppy ou quelque chose de similaire utilisé en Europe pour transporter des pièces d'avion ?
+  pt: Não havia uma nova versão do guppy ou algo semelhante usado na Europa para transportar peças de avião?
+  ru: Разве не было новой версии Guppy или чего-то подобного, что используется в Европе для перевозки деталей самолётов?
+  ja: ヨーロッパで飛行機の部品を運ぶのに使われているグッピーの新しいバージョンか何か似たようなものがなかったっけ？
+  ko: 유럽에서 비행기 부품을 운반하는 데 사용되는 구피의 새로운 버전이나 비슷한 것이 있지 않았나요?
+  it: Non c'era una nuova versione del guppy o qualcosa di simile usato in Europa per trasportare parti di aerei?
+  tr: Avrupa'da uçak parçalarını taşımak için kullanılan guppy'nin yeni bir versiyonu veya benzeri bir şey yok muydu?
+  vi: Chẳng phải có một phiên bản mới của guppy hoặc thứ gì đó tương tự được sử dụng ở châu Âu để vận chuyển bộ phận máy bay sao?
+  id: Bukankah ada versi baru guppy atau sesuatu yang serupa yang digunakan di Eropa untuk mengangkut suku cadang pesawat?
+  pl: Czy nie było nowej wersji guppy'ego lub czegoś podobnego używanego w Europie do transportu części samolotów?
+  nl: Was er niet een nieuwe versie van de guppy of iets vergelijkbaars dat in Europa wordt gebruikt om vliegtuigonderdelen te vervoeren?
+  ar: ألم يكن هناك نسخة جديدة من الغوبي أو شيء مشابه يُستخدم في أوروبا لنقل أجزاء الطائرات؟
+  hi: क्या गप्पी का कोई नया संस्करण या ऐसा ही कुछ नहीं था जो यूरोप में हवाई जहाज के पुर्जों के परिवहन के लिए उपयोग किया जाता है?
+  th: ไม่ใช่มีเวอร์ชันใหม่ของ guppy หรืออะไรคล้ายๆ กันที่ใช้ในยุโรปเพื่อขนส่งชิ้นส่วนเครื่องบินหรือ?
+  cs: Nebyla tam nová verze guppy nebo něco podobného, co se v Evropě používá k přepravě dílů letadel?
+  sv: Fanns det inte en ny version av guppy eller något liknande som används i Europa för att transportera flygplansdelar?
+  he: "לא הייתה גרסה חדשה של הגאפי או משהו דומה שמשתמשים בו באירופה להובלת חלקי מטוסים?"
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion - compare BelugaXL to Dreamlifter
+  en: "[ai] Explain how the BelugaXL compares to Boeing's Dreamlifter"
+  de: "[ai] Erkläre, wie sich der BelugaXL mit Boeings Dreamlifter vergleicht"
+  zh: "[ai] 解释白鲸XL与波音梦想运输机的比较"
+  es: "[ai] Explica cómo se compara el BelugaXL con el Dreamlifter de Boeing"
+  fr: "[ai] Expliquez comment le BelugaXL se compare au Dreamlifter de Boeing"
+  pt: "[ai] Explique como o BelugaXL se compara ao Dreamlifter da Boeing"
+  ru: "[ai] Объясните, как BelugaXL сравнивается с Boeing Dreamlifter"
+  ja: "[ai] BelugaXLとボーイングのDreamlifterの比較を説明して"
+  ko: "[ai] BelugaXL이 보잉의 Dreamlifter와 어떻게 비교되는지 설명해 주세요"
+  it: "[ai] Spiega come il BelugaXL si confronta con il Dreamlifter di Boeing"
+  tr: "[ai] BelugaXL'in Boeing'in Dreamlifter'ı ile nasıl karşılaştırıldığını açıkla"
+  vi: "[ai] Giải thích BelugaXL so sánh với Dreamlifter của Boeing như thế nào"
+  id: "[ai] Jelaskan perbandingan BelugaXL dengan Dreamlifter Boeing"
+  pl: "[ai] Wyjaśnij, jak BelugaXL wypada w porównaniu z Dreamlifterem Boeinga"
+  nl: "[ai] Leg uit hoe de BelugaXL zich verhoudt tot Boeings Dreamlifter"
+  ar: "[ai] اشرح كيف يُقارن BelugaXL بطائرة Dreamlifter من بوينغ"
+  hi: "[ai] समझाइए कि BelugaXL की तुलना बोइंग के Dreamlifter से कैसे होती है"
+  th: "[ai] อธิบายว่า BelugaXL เปรียบเทียบกับ Dreamlifter ของ Boeing อย่างไร"
+  cs: "[ai] Vysvětlete, jak se BelugaXL srovnává s Dreamlifterem od Boeingu"
+  sv: "[ai] Förklara hur BelugaXL jämförs med Boeings Dreamlifter"
+  he: "[ai] הסבר כיצד ה-BelugaXL משתווה ל-Dreamlifter של בואינג"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion - search for images of BelugaXL loading
+  en: "[images-search] Show me images of the Airbus BelugaXL loading a wing"
+  de: "[images-search] Zeig mir Bilder vom Airbus BelugaXL beim Laden eines Flügels"
+  zh: "[images-search] 给我看空客白鲸XL装载机翼的图片"
+  es: "[images-search] Muéstrame imágenes del Airbus BelugaXL cargando un ala"
+  fr: "[images-search] Montre-moi des images de l'Airbus BelugaXL chargeant une aile"
+  pt: "[images-search] Mostre-me imagens do Airbus BelugaXL carregando uma asa"
+  ru: "[images-search] Покажи мне изображения Airbus BelugaXL при загрузке крыла"
+  ja: "[images-search] エアバス BelugaXL が翼を積み込んでいる画像を見せて"
+  ko: "[images-search] 에어버스 BelugaXL이 날개를 싣고 있는 이미지를 보여주세요"
+  it: "[images-search] Mostrami immagini dell'Airbus BelugaXL che carica un'ala"
+  tr: "[images-search] Airbus BelugaXL'in kanat yüklerken fotoğraflarını göster"
+  vi: "[images-search] Cho tôi xem hình ảnh Airbus BelugaXL đang chất cánh máy bay"
+  id: "[images-search] Tunjukkan gambar Airbus BelugaXL saat memuat sayap"
+  pl: "[images-search] Pokaż mi zdjęcia Airbusa BelugaXL ładującego skrzydło"
+  nl: "[images-search] Laat me afbeeldingen zien van de Airbus BelugaXL die een vleugel laadt"
+  ar: "[images-search] أرني صور طائرة Airbus BelugaXL وهي تحمل جناحاً"
+  hi: "[images-search] एयरबस BelugaXL को पंख लोड करते हुए दिखाओ"
+  th: "[images-search] แสดงรูปภาพ Airbus BelugaXL กำลังบรรทุกปีก"
+  cs: "[images-search] Ukaž mi obrázky Airbusu BelugaXL nakládajícího křídlo"
+  sv: "[images-search] Visa mig bilder på Airbus BelugaXL som lastar en vinge"
+  he: "[images-search] הראה לי תמונות של Airbus BelugaXL טוען כנף"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion - search for videos of BelugaXL
+  en: "[web-search] Find videos of the BelugaXL in action"
+  de: "[web-search] Finde Videos vom BelugaXL in Aktion"
+  zh: "[web-search] 查找白鲸XL的实际运作视频"
+  es: "[web-search] Busca videos del BelugaXL en acción"
+  fr: "[web-search] Trouve des vidéos du BelugaXL en action"
+  pt: "[web-search] Encontre vídeos do BelugaXL em ação"
+  ru: "[web-search] Найти видео BelugaXL в действии"
+  ja: "[web-search] BelugaXLの活動中の動画を探して"
+  ko: "[web-search] BelugaXL 실제 운용 영상을 찾아주세요"
+  it: "[web-search] Trova video del BelugaXL in azione"
+  tr: "[web-search] BelugaXL'in iş başında videolarını bul"
+  vi: "[web-search] Tìm video BelugaXL đang hoạt động"
+  id: "[web-search] Temukan video BelugaXL beraksi"
+  pl: "[web-search] Znajdź filmy z BelugaXL w akcji"
+  nl: "[web-search] Zoek video's van de BelugaXL in actie"
+  ar: "[web-search] ابحث عن فيديوهات BelugaXL أثناء العمل"
+  hi: "[web-search] BelugaXL के काम करते हुए वीडियो खोजें"
+  th: "[web-search] ค้นหาวิดีโอ BelugaXL ขณะปฏิบัติงาน"
+  cs: "[web-search] Najdi videa BelugaXL v akci"
+  sv: "[web-search] Hitta videor på BelugaXL i aktion"
+  he: "[web-search] מצא סרטונים של BelugaXL בפעולה"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion - engineering challenges of BelugaXL
+  en: "[ai] Describe the engineering challenges of designing the BelugaXL"
+  de: "[ai] Beschreibe die technischen Herausforderungen bei der Konstruktion des BelugaXL"
+  zh: "[ai] 描述设计白鲸XL的工程挑战"
+  es: "[ai] Describe los desafíos de ingeniería del diseño del BelugaXL"
+  fr: "[ai] Décris les défis d'ingénierie de la conception du BelugaXL"
+  pt: "[ai] Descreva os desafios de engenharia do projeto do BelugaXL"
+  ru: "[ai] Опишите инженерные сложности проектирования BelugaXL"
+  ja: "[ai] BelugaXLの設計における工学的な課題を説明して"
+  ko: "[ai] BelugaXL 설계의 엔지니어링 과제를 설명해 주세요"
+  it: "[ai] Descrivi le sfide ingegneristiche della progettazione del BelugaXL"
+  tr: "[ai] BelugaXL'in tasarımındaki mühendislik zorluklarını açıkla"
+  vi: "[ai] Mô tả những thách thức kỹ thuật trong thiết kế BelugaXL"
+  id: "[ai] Jelaskan tantangan rekayasa dalam merancang BelugaXL"
+  pl: "[ai] Opisz wyzwania inżynieryjne projektowania BelugaXL"
+  nl: "[ai] Beschrijf de technische uitdagingen bij het ontwerpen van de BelugaXL"
+  ar: "[ai] صف التحديات الهندسية في تصميم BelugaXL"
+  hi: "[ai] BelugaXL के डिज़ाइन की इंजीनियरिंग चुनौतियों का वर्णन करें"
+  th: "[ai] อธิบายความท้าทายด้านวิศวกรรมในการออกแบบ BelugaXL"
+  cs: "[ai] Popiš inženýrské výzvy při navrhování BelugaXL"
+  sv: "[ai] Beskriv de ingenjörsmässiga utmaningarna med att designa BelugaXL"
+  he: "[ai] תאר את אתגרי ההנדסה בתכנון ה-BelugaXL"
+  verified_by_human: []
+
+follow_up_5:
+  context: Follow-up suggestion - compare BelugaXL to original Super Guppy
+  en: "[ai] Compare the BelugaXL to the original Super Guppy"
+  de: "[ai] Vergleiche den BelugaXL mit dem originalen Super Guppy"
+  zh: "[ai] 将白鲸XL与原版超级古比鱼进行比较"
+  es: "[ai] Compara el BelugaXL con el Super Guppy original"
+  fr: "[ai] Compare le BelugaXL au Super Guppy original"
+  pt: "[ai] Compare o BelugaXL com o Super Guppy original"
+  ru: "[ai] Сравните BelugaXL с оригинальным Super Guppy"
+  ja: "[ai] BelugaXLとオリジナルのスーパーグッピーを比較して"
+  ko: "[ai] BelugaXL을 원래의 슈퍼 구피와 비교해 주세요"
+  it: "[ai] Confronta il BelugaXL con il Super Guppy originale"
+  tr: "[ai] BelugaXL'i orijinal Super Guppy ile karşılaştır"
+  vi: "[ai] So sánh BelugaXL với Super Guppy ban đầu"
+  id: "[ai] Bandingkan BelugaXL dengan Super Guppy asli"
+  pl: "[ai] Porównaj BelugaXL z oryginalnym Super Guppy"
+  nl: "[ai] Vergelijk de BelugaXL met de originele Super Guppy"
+  ar: "[ai] قارن بين BelugaXL و Super Guppy الأصلية"
+  hi: "[ai] BelugaXL की तुलना मूल सुपर गप्पी से करें"
+  th: "[ai] เปรียบเทียบ BelugaXL กับ Super Guppy ดั้งเดิม"
+  cs: "[ai] Porovnej BelugaXL s původním Super Guppy"
+  sv: "[ai] Jämför BelugaXL med den ursprungliga Super Guppy"
+  he: "[ai] השווה את ה-BelugaXL ל-Super Guppy המקורי"
+  verified_by_human: []
+
+follow_up_6:
+  context: Follow-up suggestion - list other specialized cargo aircraft
+  en: "[ai] List other specialized cargo aircraft used in aviation"
+  de: "[ai] Liste andere spezialisierte Frachtflugzeuge in der Luftfahrt auf"
+  zh: "[ai] 列出航空中使用的其他专用货运飞机"
+  es: "[ai] Lista otros aviones de carga especializados usados en aviación"
+  fr: "[ai] Liste d'autres avions-cargos spécialisés utilisés dans l'aviation"
+  pt: "[ai] Liste outras aeronaves de carga especializadas usadas na aviação"
+  ru: "[ai] Перечислите другие специализированные грузовые самолёты, используемые в авиации"
+  ja: "[ai] 航空で使用される他の特殊貨物機をリストアップして"
+  ko: "[ai] 항공에서 사용되는 다른 특수 화물기를 나열해 주세요"
+  it: "[ai] Elenca altri aerei cargo specializzati usati nell'aviazione"
+  tr: "[ai] Havacılıkta kullanılan diğer özel kargo uçaklarını listele"
+  vi: "[ai] Liệt kê các máy bay chở hàng chuyên dụng khác trong ngành hàng không"
+  id: "[ai] Sebutkan pesawat kargo khusus lainnya yang digunakan dalam penerbangan"
+  pl: "[ai] Wymień inne wyspecjalizowane samoloty transportowe używane w lotnictwie"
+  nl: "[ai] Noem andere gespecialiseerde vrachtvliegtuigen die in de luchtvaart worden gebruikt"
+  ar: "[ai] اذكر طائرات شحن متخصصة أخرى مستخدمة في مجال الطيران"
+  hi: "[ai] विमानन में उपयोग किए जाने वाले अन्य विशेष कार्गो विमानों की सूची दें"
+  th: "[ai] ระบุเครื่องบินขนส่งสินค้าพิเศษอื่นๆ ที่ใช้ในการบิน"
+  cs: "[ai] Vyjmenuj další specializovaná nákladní letadla používaná v letectví"
+  sv: "[ai] Lista andra specialiserade fraktflygplan som används inom flyget"
+  he: "[ai] רשום מטוסי מטען מיוחדים נוספים המשמשים בתעופה"
+  verified_by_human: []
+
+assistant_message_1:
+  context: "First assistant response about giant cargo aircraft (An-225, Super Guppy, Stratolaunch). Contains JSON embed blocks (language-independent) and markdown prose with embed references. The JSON code blocks must remain identical in all languages."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    There are a few "gigantic" airplanes famous for transporting rockets and their components. Depending on whether you mean a plane that carries parts inside it or one that carries a whole shuttle on its back, you are likely thinking of one of these:
+
+    ### 1. Antonov An-225 Mriya
+    The **Antonov An-225 Mriya** was the heaviest aircraft ever built and had the largest wingspan of any aircraft in operational service. It was originally designed by the Soviet Union in the 1980s specifically to transport the **Buran space shuttle** and components of the **Energia rocket** on its back.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    If you mean the bulbous, strangely-shaped plane that "swallows" rocket parts, that is the **NASA Super Guppy**. It is used by NASA to transport oversized cargo, such as the **S-IVB stage of the Saturn V rocket** during the Apollo era and, more recently, components for the **Artemis** moon missions. Its nose hinges open to allow massive parts to be loaded directly into its fuselage.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    The **Stratolaunch Roc** currently holds the record for the world's longest wingspan (385 feet). Unlike the others, it is designed as a **mobile launch platform** to carry rockets to high altitudes between its twin fuselages and release them into space.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Which one looks most like the one you saw?**
+    - The **An-225** (Soviet/Ukrainian) is a massive six-engine jet.
+    - The **Super Guppy** (NASA) looks like a giant, inflated whale.
+    - The **Stratolaunch** has two separate bodies (twin-fuselage).
+
+    Would you like to know more about the history of the [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) or how the [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) works?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Es gibt einige „gigantische" Flugzeuge, die für den Transport von Raketen und deren Komponenten berühmt sind. Je nachdem, ob Sie ein Flugzeug meinen, das Teile in seinem Inneren transportiert, oder eines, das ein ganzes Shuttle auf dem Rücken trägt, denken Sie wahrscheinlich an eines dieser:
+
+    ### 1. Antonov An-225 Mriya
+    Die **Antonov An-225 Mriya** war das schwerste jemals gebaute Flugzeug und hatte die größte Spannweite aller im Einsatz befindlichen Flugzeuge. Sie wurde in den 1980er Jahren von der Sowjetunion speziell für den Transport des **Buran-Space-Shuttles** und der Komponenten der **Energia-Rakete** auf ihrem Rücken entwickelt.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Wenn Sie das bauchige, seltsam geformte Flugzeug meinen, das Raketenteile „verschluckt", dann ist das die **NASA Super Guppy**. Sie wird von der NASA zum Transport übergroßer Fracht verwendet, wie etwa der **S-IVB-Stufe der Saturn-V-Rakete** während der Apollo-Ära und in jüngerer Zeit Komponenten für die **Artemis**-Mondmissionen. Ihre Nase klappt auf, damit massive Teile direkt in den Rumpf geladen werden können.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch „Roc"
+    Die **Stratolaunch Roc** hält derzeit den Rekord für die weltweit größte Spannweite (117 Meter). Im Gegensatz zu den anderen wurde sie als **mobile Startplattform** konzipiert, um Raketen zwischen ihren Doppelrümpfen in große Höhen zu tragen und ins All freizusetzen.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Welches sieht dem am ähnlichsten, das Sie gesehen haben?**
+    - Die **An-225** (sowjetisch/ukrainisch) ist ein massiver Jet mit sechs Triebwerken.
+    - Die **Super Guppy** (NASA) sieht aus wie ein riesiger, aufgeblasener Wal.
+    - Die **Stratolaunch** hat zwei separate Rümpfe (Doppelrumpf).
+
+    Möchten Sie mehr über die Geschichte der [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) erfahren oder wie die [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) funktioniert?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    有几架以运输火箭及其组件而闻名的"巨型"飞机。根据您指的是在内部运载零件的飞机还是背着整个航天飞机的飞机，您可能想到的是以下之一：
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** 是有史以来建造的最重的飞机，拥有所有在役飞机中最大的翼展。它由苏联在1980年代专门设计，用于在其背上运输**暴风雪号航天飞机**和**能源号火箭**的组件。
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    如果您指的是那架球状的、形状奇特的、能"吞下"火箭部件的飞机，那就是 **NASA Super Guppy**。它被NASA用于运输超大货物，例如阿波罗时代的**土星五号火箭S-IVB级**，以及最近的**阿尔忒弥斯**登月任务的组件。它的机头可以铰链式打开，使大型部件可以直接装入机身。
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** 目前保持着世界上最长翼展的纪录（385英尺）。与其他飞机不同，它被设计为一个**移动发射平台**，在其双机身之间将火箭携带至高空并释放到太空中。
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **哪一架最像您见过的那架？**
+    - **An-225**（苏联/乌克兰）是一架巨大的六引擎喷气式飞机。
+    - **Super Guppy**（NASA）看起来像一头巨大的膨胀鲸鱼。
+    - **Stratolaunch** 有两个独立的机身（双机身）。
+
+    您想了解更多关于 [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) 的历史，还是 [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) 的工作原理？
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Hay varios aviones "gigantescos" famosos por transportar cohetes y sus componentes. Dependiendo de si te refieres a un avión que lleva piezas en su interior o a uno que lleva un transbordador completo en su espalda, probablemente estés pensando en uno de estos:
+
+    ### 1. Antonov An-225 Mriya
+    El **Antonov An-225 Mriya** fue la aeronave más pesada jamás construida y tenía la mayor envergadura de cualquier aeronave en servicio operativo. Fue diseñado originalmente por la Unión Soviética en la década de 1980 específicamente para transportar el **transbordador espacial Buran** y componentes del **cohete Energia** sobre su espalda.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Si te refieres al avión abultado y de forma extraña que "traga" piezas de cohetes, ese es el **NASA Super Guppy**. Es utilizado por la NASA para transportar carga de gran tamaño, como la **etapa S-IVB del cohete Saturn V** durante la era Apollo y, más recientemente, componentes para las misiones lunares **Artemis**. Su morro se abre con bisagras para permitir que piezas masivas se carguen directamente en su fuselaje.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    El **Stratolaunch Roc** tiene actualmente el récord de la mayor envergadura del mundo (117 metros). A diferencia de los otros, está diseñado como una **plataforma de lanzamiento móvil** para llevar cohetes a grandes altitudes entre sus fuselajes gemelos y liberarlos al espacio.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **¿Cuál se parece más al que viste?**
+    - El **An-225** (soviético/ucraniano) es un enorme jet de seis motores.
+    - El **Super Guppy** (NASA) parece una ballena gigante e inflada.
+    - El **Stratolaunch** tiene dos cuerpos separados (fuselaje doble).
+
+    ¿Te gustaría saber más sobre la historia del [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) o cómo funciona el [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Il existe plusieurs avions « gigantesques » célèbres pour le transport de fusées et de leurs composants. Selon que vous parlez d'un avion qui transporte des pièces à l'intérieur ou d'un avion qui porte une navette entière sur son dos, vous pensez probablement à l'un de ceux-ci :
+
+    ### 1. Antonov An-225 Mriya
+    L'**Antonov An-225 Mriya** était l'avion le plus lourd jamais construit et possédait la plus grande envergure de tous les avions en service opérationnel. Il a été conçu à l'origine par l'Union soviétique dans les années 1980 spécifiquement pour transporter la **navette spatiale Bourane** et les composants de la **fusée Energia** sur son dos.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Si vous parlez de l'avion ventru à la forme étrange qui « avale » des pièces de fusée, c'est le **NASA Super Guppy**. Il est utilisé par la NASA pour transporter des cargaisons surdimensionnées, comme l'**étage S-IVB de la fusée Saturn V** pendant l'ère Apollo et, plus récemment, des composants pour les missions lunaires **Artemis**. Son nez s'ouvre sur charnière pour permettre le chargement direct de pièces massives dans son fuselage.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch « Roc »
+    Le **Stratolaunch Roc** détient actuellement le record de la plus grande envergure au monde (117 mètres). Contrairement aux autres, il est conçu comme une **plateforme de lancement mobile** pour transporter des fusées à haute altitude entre ses fuselages jumeaux et les libérer dans l'espace.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Lequel ressemble le plus à celui que vous avez vu ?**
+    - L'**An-225** (soviétique/ukrainien) est un énorme jet à six moteurs.
+    - Le **Super Guppy** (NASA) ressemble à une baleine géante et gonflée.
+    - Le **Stratolaunch** a deux corps séparés (double fuselage).
+
+    Souhaitez-vous en savoir plus sur l'histoire de l'[An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) ou sur le fonctionnement du [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) ?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Existem alguns aviões "gigantescos" famosos por transportar foguetes e seus componentes. Dependendo de se você quer dizer um avião que carrega peças dentro dele ou um que carrega um ônibus espacial inteiro nas costas, você provavelmente está pensando em um destes:
+
+    ### 1. Antonov An-225 Mriya
+    O **Antonov An-225 Mriya** foi a aeronave mais pesada já construída e tinha a maior envergadura de qualquer aeronave em serviço operacional. Foi originalmente projetado pela União Soviética na década de 1980 especificamente para transportar o **ônibus espacial Buran** e componentes do **foguete Energia** em suas costas.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Se você se refere ao avião bojudo e de formato estranho que "engole" peças de foguete, esse é o **NASA Super Guppy**. Ele é usado pela NASA para transportar cargas superdimensionadas, como o **estágio S-IVB do foguete Saturn V** durante a era Apollo e, mais recentemente, componentes para as missões lunares **Artemis**. Seu nariz abre em dobradiça para permitir que peças enormes sejam carregadas diretamente em sua fuselagem.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    O **Stratolaunch Roc** detém atualmente o recorde da maior envergadura do mundo (117 metros). Diferentemente dos outros, ele foi projetado como uma **plataforma de lançamento móvel** para carregar foguetes a grandes altitudes entre suas fuselagens gêmeas e liberá-los no espaço.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Qual deles se parece mais com o que você viu?**
+    - O **An-225** (soviético/ucraniano) é um enorme jato de seis motores.
+    - O **Super Guppy** (NASA) parece uma baleia gigante e inflada.
+    - O **Stratolaunch** tem dois corpos separados (fuselagem dupla).
+
+    Gostaria de saber mais sobre a história do [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) ou como o [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) funciona?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Есть несколько «гигантских» самолётов, знаменитых перевозкой ракет и их компонентов. В зависимости от того, имеете ли вы в виду самолёт, который перевозит детали внутри себя, или тот, который несёт целый шаттл на спине, вы, вероятно, думаете об одном из этих:
+
+    ### 1. Антонов Ан-225 «Мрия»
+    **Антонов Ан-225 «Мрия»** был самым тяжёлым из когда-либо построенных самолётов и обладал самым большим размахом крыльев среди всех находившихся в эксплуатации воздушных судов. Он был разработан в СССР в 1980-х годах специально для перевозки **космического корабля «Буран»** и компонентов **ракеты «Энергия»** на своей спине.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Если вы имеете в виду раздутый самолёт странной формы, который «проглатывает» детали ракет, — это **NASA Super Guppy**. Он используется NASA для перевозки негабаритных грузов, таких как **ступень S-IVB ракеты Saturn V** во времена программы «Аполлон» и, в последнее время, компоненты для лунных миссий **Artemis**. Его нос откидывается на петлях, позволяя загружать массивные детали прямо в фюзеляж.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch «Roc»
+    **Stratolaunch Roc** в настоящее время удерживает рекорд самого большого размаха крыльев в мире (117 метров). В отличие от остальных, он спроектирован как **мобильная стартовая платформа** для подъёма ракет на большую высоту между двумя фюзеляжами и запуска их в космос.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Какой из них больше всего похож на тот, что вы видели?**
+    - **Ан-225** (советский/украинский) — массивный шестимоторный реактивный самолёт.
+    - **Super Guppy** (NASA) — выглядит как гигантский надутый кит.
+    - **Stratolaunch** — имеет два отдельных корпуса (двухфюзеляжный).
+
+    Хотите узнать больше об истории [Ан-225 «Мрия»](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) или о том, как работает [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    ロケットやその部品の輸送で有名な「巨大」な飛行機がいくつかあります。部品を内部に積んで運ぶ飛行機のことか、シャトルを背中に載せて運ぶ飛行機のことかによって、おそらく以下のいずれかを思い浮かべているでしょう：
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** は、これまでに建造された中で最も重い航空機であり、運用中の航空機の中で最大の翼幅を持っていました。1980年代にソビエト連邦によって、**ブラン宇宙往還機**と**エネルギアロケット**の部品をその背中に載せて輸送するために特別に設計されました。
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    ロケット部品を「飲み込む」ような膨らんだ奇妙な形の飛行機のことであれば、それは **NASA Super Guppy** です。NASAによって、アポロ時代の**サターンVロケットのS-IVBステージ**や、最近では**アルテミス**月面ミッションの部品など、超大型貨物の輸送に使用されています。機首がヒンジ式に開き、巨大な部品を直接胴体に搭載できます。
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** は現在、世界最長の翼幅（385フィート）の記録を保持しています。他の機体とは異なり、双胴体の間にロケットを搭載して高高度まで運び、宇宙に放出する**移動式発射プラットフォーム**として設計されています。
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **あなたが見たものに最も似ているのはどれですか？**
+    - **An-225**（ソビエト/ウクライナ）は、6基のエンジンを持つ巨大なジェット機です。
+    - **Super Guppy**（NASA）は、巨大な膨らんだクジラのような外見です。
+    - **Stratolaunch** は2つの独立した胴体を持っています（双胴型）。
+
+    [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) の歴史や、[Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) の仕組みについてもっと知りたいですか？
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    로켓과 그 부품 운송으로 유명한 "거대한" 비행기가 몇 가지 있습니다. 부품을 내부에 실어 나르는 비행기를 말하는 것인지, 아니면 셔틀 전체를 등에 얹고 나르는 비행기를 말하는 것인지에 따라, 아마 다음 중 하나를 떠올리고 계실 겁니다:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya**는 역사상 가장 무거운 항공기였으며, 운용 중인 모든 항공기 중 가장 큰 날개 폭을 가지고 있었습니다. 1980년대에 소련에서 **부란 우주왕복선**과 **에네르기아 로켓** 부품을 등에 실어 운송하기 위해 특별히 설계되었습니다.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    로켓 부품을 "삼키는" 볼록하고 이상한 모양의 비행기를 말하는 것이라면, 그것은 **NASA Super Guppy**입니다. NASA에서 아폴로 시대의 **새턴 V 로켓의 S-IVB 단계**와 최근에는 **아르테미스** 달 탐사 임무의 부품 등 대형 화물을 운송하는 데 사용됩니다. 기수가 힌지식으로 열려 거대한 부품을 동체에 직접 실을 수 있습니다.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc**는 현재 세계 최장 날개 폭(385피트) 기록을 보유하고 있습니다. 다른 비행기들과 달리, 쌍동체 사이에 로켓을 실어 고고도까지 운반한 뒤 우주로 발사하는 **이동식 발사 플랫폼**으로 설계되었습니다.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **어떤 것이 본 것과 가장 비슷한가요?**
+    - **An-225** (소련/우크라이나)는 6개 엔진을 가진 거대한 제트기입니다.
+    - **Super Guppy** (NASA)는 거대하게 부풀어 오른 고래처럼 생겼습니다.
+    - **Stratolaunch**는 두 개의 분리된 동체를 가지고 있습니다 (쌍동형).
+
+    [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya)의 역사나 [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)의 작동 원리에 대해 더 알고 싶으신가요?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Ci sono diversi aerei "giganteschi" famosi per il trasporto di razzi e dei loro componenti. A seconda che tu intenda un aereo che trasporta pezzi al suo interno o uno che porta un intero shuttle sulla schiena, probabilmente stai pensando a uno di questi:
+
+    ### 1. Antonov An-225 Mriya
+    L'**Antonov An-225 Mriya** era l'aereo più pesante mai costruito e aveva l'apertura alare più grande di qualsiasi aereo in servizio operativo. Fu progettato originariamente dall'Unione Sovietica negli anni '80 specificamente per trasportare lo **Space Shuttle Buran** e i componenti del **razzo Energia** sulla sua schiena.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Se intendi l'aereo panciuto dalla forma bizzarra che "inghiotte" parti di razzi, quello è il **NASA Super Guppy**. Viene utilizzato dalla NASA per trasportare carichi fuori misura, come lo **stadio S-IVB del razzo Saturn V** durante l'era Apollo e, più recentemente, componenti per le missioni lunari **Artemis**. Il suo muso si apre a cerniera per consentire il caricamento diretto di pezzi enormi nella fusoliera.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    Lo **Stratolaunch Roc** detiene attualmente il record per la più grande apertura alare al mondo (117 metri). A differenza degli altri, è progettato come una **piattaforma di lancio mobile** per trasportare razzi ad alta quota tra le sue fusoliere gemelle e rilasciarli nello spazio.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Quale assomiglia di più a quello che hai visto?**
+    - L'**An-225** (sovietico/ucraino) è un enorme jet a sei motori.
+    - Il **Super Guppy** (NASA) sembra una balena gigante e gonfiata.
+    - Lo **Stratolaunch** ha due corpi separati (doppia fusoliera).
+
+    Vorresti saperne di più sulla storia dell'[An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) o su come funziona il [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Roket ve bilesenlerini tasimak ile unlu birkac "devasa" ucak vardir. Parcalari icinde tasiyan bir ucaktan mi yoksa tumuyle bir mekigi sirtinda tasiyan bir ucaktan mi bahsettiginize bagli olarak, muhtemelen bunlardan birini dusunuyorsunuz:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya**, simdiye kadar insa edilen en agir ucak olup operasyonel hizmetteki tum ucaklar arasinda en buyuk kanat acikligina sahipti. 1980'lerde Sovyetler Birligi tarafindan ozellikle **Buran uzay mekigi** ve **Energia roketi** bilesenlerini sirtinda tasimak icin tasarlanmisti.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Roket parcalarini "yutan" sisko, tuhaf sekilli ucaktan bahsediyorsaniz, o **NASA Super Guppy**'dir. NASA tarafindan Apollo doneminde **Saturn V roketinin S-IVB asamasi** ve daha yakin zamanda **Artemis** Ay gorevleri icin bilesenler gibi buyuk boyutlu yuklerin tasimasi icin kullanilmaktadir. Burnu menteseli olarak acilarak devasa parcalarin dogrudan govdeye yuklenmesini saglar.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc**, su anda dunyanin en uzun kanat acikligi rekorunu (385 fit) elinde tutmaktadir. Digerlerinden farkli olarak, ikiz govdeleri arasinda roketleri yuksek irtifalara tasimak ve uzaya birakmak icin **mobil firlama platformu** olarak tasarlanmistir.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Gordugunuze en cok hangisi benziyor?**
+    - **An-225** (Sovyet/Ukrayna) alti motorlu devasa bir jet ucagidir.
+    - **Super Guppy** (NASA) dev, siskin bir balina gibi gorunur.
+    - **Stratolaunch** iki ayri govdeye sahiptir (cift govde).
+
+    [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya)'nin tarihi veya [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)'nin nasil calistigi hakkinda daha fazla bilgi ister misiniz?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Co mot vai may bay "khong lo" noi tieng voi viec van chuyen ten lua va cac bo phan cua chung. Tuy thuoc vao viec ban muon noi den may bay cho cac bo phan ben trong hay may bay mang nguyen ca tau con thoi tren lung, ban co the dang nghi den mot trong nhung chiec sau:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** la may bay nang nhat tung duoc che tao va co sai canh lon nhat trong so tat ca cac may bay dang hoat dong. No duoc Lien Xo thiet ke vao nhung nam 1980 dac biet de van chuyen **tau con thoi Buran** va cac bo phan cua **ten lua Energia** tren lung.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Neu ban muon noi den chiec may bay phong phao, hinh dang ky la co the "nuot" cac bo phan ten lua, do chinh la **NASA Super Guppy**. No duoc NASA su dung de van chuyen hang hoa co kich thuoc lon, nhu **tang S-IVB cua ten lua Saturn V** trong thoi ky Apollo va gan day hon la cac bo phan cho cac su menh mat trang **Artemis**. Mui may bay mo ra bang ban le de cho phep cac bo phan lon duoc nap truc tiep vao than may bay.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** hien dang giu ky luc ve sai canh dai nhat the gioi (385 feet). Khac voi nhung chiec khac, no duoc thiet ke nhu mot **be phong di dong** de mang ten lua len do cao lon giua hai than may bay va tha chung vao khong gian.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Chiec nao giong nhat voi chiec ban da thay?**
+    - **An-225** (Lien Xo/Ukraine) la mot may bay phan luc khong lo voi sau dong co.
+    - **Super Guppy** (NASA) trong nhu mot con ca voi khong lo phong to.
+    - **Stratolaunch** co hai than may bay rieng biet (than doi).
+
+    Ban co muon tim hieu them ve lich su cua [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) hay cach [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) hoat dong khong?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Ada beberapa pesawat "raksasa" yang terkenal untuk mengangkut roket dan komponennya. Tergantung apakah yang Anda maksud adalah pesawat yang membawa suku cadang di dalamnya atau yang membawa seluruh pesawat ulang-alik di punggungnya, Anda mungkin sedang memikirkan salah satu dari ini:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** adalah pesawat terberat yang pernah dibangun dan memiliki bentang sayap terbesar dari semua pesawat yang beroperasi. Pesawat ini awalnya dirancang oleh Uni Soviet pada tahun 1980-an khusus untuk mengangkut **pesawat ulang-alik Buran** dan komponen **roket Energia** di punggungnya.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Jika yang Anda maksud adalah pesawat besar berbentuk aneh yang "menelan" suku cadang roket, itu adalah **NASA Super Guppy**. Pesawat ini digunakan NASA untuk mengangkut kargo berukuran besar, seperti **tahap S-IVB roket Saturn V** selama era Apollo dan, baru-baru ini, komponen untuk misi bulan **Artemis**. Hidungnya terbuka dengan engsel sehingga komponen besar dapat dimuat langsung ke dalam badan pesawat.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** saat ini memegang rekor bentang sayap terpanjang di dunia (385 kaki). Berbeda dengan yang lain, pesawat ini dirancang sebagai **platform peluncuran bergerak** untuk membawa roket ke ketinggian tinggi di antara dua badan pesawatnya dan melepaskannya ke luar angkasa.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Mana yang paling mirip dengan yang Anda lihat?**
+    - **An-225** (Soviet/Ukraina) adalah jet raksasa bermesin enam.
+    - **Super Guppy** (NASA) terlihat seperti paus raksasa yang mengembung.
+    - **Stratolaunch** memiliki dua badan terpisah (badan kembar).
+
+    Apakah Anda ingin tahu lebih banyak tentang sejarah [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) atau cara kerja [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Istnieje kilka "gigantycznych" samolotow slynacych z transportu rakiet i ich komponentow. W zaleznosci od tego, czy masz na mysli samolot przewozacy czesci w swoim wnetrzu, czy taki, ktory niesie caly prom kosmiczny na grzbiecie, prawdopodobnie myslisz o jednym z tych:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** byl najciezszym samolotem w historii i mial najwieksza rozpietosc skrzydel wsrod wszystkich samolotow bedacych w sluzbie operacyjnej. Zostal zaprojektowany przez Zwiazek Radziecki w latach 80. specjalnie do transportu **promu kosmicznego Buran** i komponentow **rakiety Energia** na swoim grzbiecie.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Jesli masz na mysli wydety, dziwnie uksztaltowany samolot, ktory "polyka" czesci rakiet, to jest **NASA Super Guppy**. Jest uzywany przez NASA do transportu ponadgabarytowych ladunkow, takich jak **stopien S-IVB rakiety Saturn V** w erze Apollo oraz, niedawno, komponentow do misji ksiezycowych **Artemis**. Jego dziob otwiera sie na zawiasach, umozliwiajac bezposredni zaladunek masywnych czesci do kadluba.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** obecnie trzyma rekord najdluzszej rozpietosci skrzydel na swiecie (117 metrow). W przeciwienstwie do pozostalych, zostal zaprojektowany jako **mobilna platforma startowa** do wynoszenia rakiet na duze wysokosci miedzy swoimi podwojnymi kadlubami i uwalniania ich w przestrzen kosmiczna.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Ktory z nich najbardziej przypomina ten, ktory widziales?**
+    - **An-225** (radziecki/ukrainski) to ogromny odrzutowiec z szescioma silnikami.
+    - **Super Guppy** (NASA) wyglada jak olbrzymi, napompowany wieloryb.
+    - **Stratolaunch** ma dwa oddzielne kadluby (podwojny kadlub).
+
+    Chcialbyc dowiedziec sie wiecej o historii [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) lub o tym, jak dziala [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Er zijn een paar "gigantische" vliegtuigen die beroemd zijn voor het vervoeren van raketten en hun onderdelen. Afhankelijk van of je een vliegtuig bedoelt dat onderdelen binnenin vervoert of een dat een complete shuttle op zijn rug draagt, denk je waarschijnlijk aan een van deze:
+
+    ### 1. Antonov An-225 Mriya
+    De **Antonov An-225 Mriya** was het zwaarste vliegtuig ooit gebouwd en had de grootste spanwijdte van alle operationele vliegtuigen. Het werd oorspronkelijk ontworpen door de Sovjet-Unie in de jaren 1980, specifiek om de **Buran-spaceshuttle** en onderdelen van de **Energia-raket** op zijn rug te vervoeren.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Als je het bolvormige, vreemd gevormde vliegtuig bedoelt dat raketonderdelen "opslikt", dan is dat de **NASA Super Guppy**. Het wordt door NASA gebruikt om buitenmaatse lading te vervoeren, zoals de **S-IVB-trap van de Saturn V-raket** tijdens het Apollo-tijdperk en, recenter, onderdelen voor de **Artemis**-maanmissies. De neus scharniert open zodat enorme onderdelen direct in de romp geladen kunnen worden.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    De **Stratolaunch Roc** houdt momenteel het record voor de langste spanwijdte ter wereld (117 meter). In tegenstelling tot de anderen is het ontworpen als een **mobiel lanceerplatform** om raketten tussen zijn dubbele rompen naar grote hoogte te brengen en in de ruimte te lanceren.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Welke lijkt het meest op wat je hebt gezien?**
+    - De **An-225** (Sovjet/Oekraiens) is een enorme jet met zes motoren.
+    - De **Super Guppy** (NASA) ziet eruit als een reusachtige, opgeblazen walvis.
+    - De **Stratolaunch** heeft twee aparte rompen (dubbele romp).
+
+    Wil je meer weten over de geschiedenis van de [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) of hoe de [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) werkt?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    هناك عدة طائرات "عملاقة" مشهورة بنقل الصواريخ ومكوناتها. بناء على ما اذا كنت تقصد طائرة تحمل القطع بداخلها او طائرة تحمل مكوكا كاملا على ظهرها، فمن المرجح انك تفكر في واحدة من هذه:
+
+    ### 1. Antonov An-225 Mriya
+    كانت **Antonov An-225 Mriya** اثقل طائرة تم بناؤها على الاطلاق وكان لديها اكبر باع جناح من بين جميع الطائرات العاملة. صممها الاتحاد السوفيتي في الثمانينيات خصيصا لنقل **مكوك الفضاء بوران** ومكونات **صاروخ انيرجيا** على ظهرها.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    اذا كنت تقصد الطائرة المنتفخة ذات الشكل الغريب التي "تبتلع" اجزاء الصواريخ، فتلك هي **NASA Super Guppy**. تستخدمها ناسا لنقل الحمولات كبيرة الحجم، مثل **مرحلة S-IVB من صاروخ Saturn V** خلال حقبة ابولو، ومؤخرا مكونات مهام **ارتميس** القمرية. تفتح مقدمتها بمفصل للسماح بتحميل القطع الضخمة مباشرة في جسم الطائرة.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    تحمل **Stratolaunch Roc** حاليا الرقم القياسي لاطول باع جناح في العالم (385 قدما). على عكس الاخريات، صممت كـ**منصة اطلاق متنقلة** لحمل الصواريخ الى ارتفاعات عالية بين جسميها التوامين واطلاقها الى الفضاء.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **ايهم يشبه اكثر ما رايته؟**
+    - **An-225** (سوفيتية/اوكرانية) هي طائرة نفاثة ضخمة بستة محركات.
+    - **Super Guppy** (ناسا) تبدو كحوت عملاق منتفخ.
+    - **Stratolaunch** لديها جسمان منفصلان (جسم مزدوج).
+
+    هل تريد معرفة المزيد عن تاريخ [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) او كيف يعمل [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)؟
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    रॉकेट और उनके घटकों के परिवहन के लिए प्रसिद्ध कुछ "विशाल" विमान हैं। इस पर निर्भर करते हुए कि आप ऐसे विमान की बात कर रहे हैं जो पुर्जे अपने अंदर ले जाता है या जो पूरे शटल को अपनी पीठ पर ले जाता है, आप शायद इनमें से किसी एक के बारे में सोच रहे हैं:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** अब तक बना सबसे भारी विमान था और इसके पंखों का फैलाव किसी भी परिचालन में रहे विमान से सबसे बड़ा था। इसे 1980 के दशक में सोवियत संघ द्वारा विशेष रूप से **बुरान अंतरिक्ष यान** और **एनेर्जिया रॉकेट** के घटकों को अपनी पीठ पर ढोने के लिए डिज़ाइन किया गया था।
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    यदि आपका मतलब उस फूले हुए, अजीब आकार के विमान से है जो रॉकेट के पुर्जों को "निगल" लेता है, तो वह **NASA Super Guppy** है। इसका उपयोग NASA द्वारा बड़े आकार के कार्गो के परिवहन के लिए किया जाता है, जैसे अपोलो युग में **Saturn V रॉकेट का S-IVB चरण** और हाल ही में **आर्टेमिस** चंद्र मिशन के घटक। इसकी नाक हिंज पर खुलती है ताकि विशाल पुर्जों को सीधे धड़ में लोड किया जा सके।
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** वर्तमान में दुनिया के सबसे लंबे पंखों के फैलाव (385 फीट) का रिकॉर्ड रखता है। दूसरों से अलग, इसे एक **मोबाइल लॉन्च प्लेटफॉर्म** के रूप में डिज़ाइन किया गया है जो अपने जुड़वां धड़ों के बीच रॉकेट को ऊंचाई तक ले जाता है और उन्हें अंतरिक्ष में छोड़ता है।
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **इनमें से कौन सा आपके देखे हुए विमान से सबसे ज्यादा मिलता-जुलता है?**
+    - **An-225** (सोवियत/यूक्रेनी) छह इंजन वाला एक विशाल जेट है।
+    - **Super Guppy** (NASA) एक विशाल, फूली हुई व्हेल जैसा दिखता है।
+    - **Stratolaunch** के दो अलग-अलग धड़ हैं (जुड़वां धड़)।
+
+    क्या आप [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) के इतिहास या [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) कैसे काम करता है, इसके बारे में और जानना चाहेंगे?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    มีเครื่องบิน "ยักษ์" หลายลำที่มีชื่อเสียงในการขนส่งจรวดและชิ้นส่วนต่างๆ ขึ้นอยู่กับว่าคุณหมายถึงเครื่องบินที่บรรทุกชิ้นส่วนภายในตัวหรือเครื่องที่แบกกระสวยอวกาศทั้งลำบนหลัง คุณน่าจะนึกถึงลำใดลำหนึ่งต่อไปนี้:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** เป็นเครื่องบินที่หนักที่สุดเท่าที่เคยสร้างมา และมีปีกกว้างที่สุดในบรรดาเครื่องบินที่ให้บริการอยู่ ออกแบบโดยสหภาพโซเวียตในช่วงทศวรรษ 1980 โดยเฉพาะเพื่อขนส่ง**กระสวยอวกาศบูราน**และชิ้นส่วนของ**จรวดเอเนอร์เกีย**บนหลัง
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    หากคุณหมายถึงเครื่องบินท้องป่องรูปร่างแปลกที่ "กลืน" ชิ้นส่วนจรวด นั่นคือ **NASA Super Guppy** ถูกใช้โดย NASA เพื่อขนส่งสินค้าขนาดใหญ่พิเศษ เช่น **จรวด Saturn V ขั้น S-IVB** ในยุค Apollo และล่าสุดชิ้นส่วนสำหรับภารกิจดวงจันทร์ **Artemis** จมูกเครื่องเปิดแบบบานพับเพื่อให้สามารถบรรทุกชิ้นส่วนขนาดใหญ่เข้าไปในลำตัวได้โดยตรง
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** ถือสถิติปีกกว้างที่สุดในโลก (385 ฟุต) ในปัจจุบัน ต่างจากลำอื่นๆ ถูกออกแบบเป็น**แท่นปล่อยเคลื่อนที่**เพื่อนำจรวดขึ้นไปยังระดับความสูงมากระหว่างลำตัวคู่แล้วปล่อยสู่อวกาศ
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **ลำไหนคล้ายกับที่คุณเห็นมากที่สุด?**
+    - **An-225** (โซเวียต/ยูเครน) เป็นเครื่องบินเจ็ตขนาดมหึมาที่มีหกเครื่องยนต์
+    - **Super Guppy** (NASA) ดูเหมือนวาฬยักษ์ที่พองตัว
+    - **Stratolaunch** มีลำตัวสองลำแยกจากกัน (ลำตัวคู่)
+
+    คุณต้องการทราบเพิ่มเติมเกี่ยวกับประวัติของ [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) หรือการทำงานของ [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) ไหม?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Existuje nekolik "gigantickych" letadel proslulych prepravou raket a jejich soucastek. Podle toho, zda mate na mysli letadlo, ktere prevazi dily uvnitr, nebo takove, ktere nese cely raketplan na zadech, pravdepodobne myslite na jedno z techto:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** bylo nejtezsim letadlem, jake bylo kdy postaveno, a melo nejvetsi rozpeti kridel ze vsech provozovanych letadel. Bylo puvodnne navrzeno Sovetskym svazem v 80. letech specialne pro prepravu **raketoplanu Buran** a soucastek **rakety Energija** na svem hrbete.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Pokud mate na mysli to banatove, podivne tvarovane letadlo, ktere "polyaka" dily raket, to je **NASA Super Guppy**. Pouziva ho NASA k preprave nadrozmerneho nakladu, jako je **stupen S-IVB rakety Saturn V** behem ery Apollo a v posledni dobe soucastek pro lunalni mise **Artemis**. Jeho prida se odklapeci, aby bylo mozne nahravat masivni dily primo do trupu.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** v soucasnosti drzi rekord v nejdelsim rozpeti kridel na svete (117 metru). Na rozdil od ostatnich je navrzeno jako **mobilni startovaci platforma** pro vynaseni raket do vysokych nadmorskych vysek mezi svymi dvojitymi trupy a jejich vypousteni do vesmiru.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Ktere z nich nejvice pripomina to, co jste videli?**
+    - **An-225** (sovetske/ukrajinske) je obrovske proudove letadlo se sesti motory.
+    - **Super Guppy** (NASA) vypada jako obrovsky nafouknuti velryba.
+    - **Stratolaunch** ma dva oddelene trupy (dvojtrup).
+
+    Chcete vedet vice o historii [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) nebo o tom, jak funguje [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html)?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    Det finns nagra "gigantiska" flygplan som ar berorda for att transportera raketer och deras komponenter. Beroende pa om du menar ett flygplan som bar delar inuti sig eller ett som bar en hel rymdfarja pa ryggen, tanker du troligen pa ett av dessa:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** var det tungsta flygplanet som nagonsin byggts och hade det storsta vingspannet av alla flygplan i operativ tjanst. Det designades ursprungligen av Sovjetunionen pa 1980-talet specifikt for att transportera **rymdfarjan Buran** och komponenter till **Energia-raketen** pa sin rygg.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    Om du menar det buktiga, konstigt formade flygplanet som "svaljer" raketdelar, sa ar det **NASA Super Guppy**. Det anvands av NASA for att transportera overstora laster, som **S-IVB-steget av Saturn V-raketen** under Apollo-eran och, pa senare tid, komponenter for **Artemis**-manuppdragen. Nosen oppnas pa gangjarn sa att massiva delar kan lastas direkt in i flygkroppen.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** har for narvarande rekordet for varldens langsta vingspann (117 meter). Till skillnad fran de andra ar det designat som en **mobil uppskjutningsplattform** for att bara raketer till hog hojd mellan sina tvillingkroppar och slappa dem ut i rymden.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **Vilket liknar mest det du sag?**
+    - **An-225** (sovjetiskt/ukrainskt) ar ett enormt jetplan med sex motorer.
+    - **Super Guppy** (NASA) ser ut som en jattelik, uppblast val.
+    - **Stratolaunch** har tva separata kroppar (dubbelkropp).
+
+    Vill du veta mer om historien bakom [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) eller hur [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) fungerar?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "c71ba783-237b-4f89-8034-a44bd560fe65", "app_id": "web", "skill_id": "search", "query": "gigantic airplane used to transport rocket parts name", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "a9f61cd9-09d1-4010-b720-fc60fe92e0c0", "app_id": "images", "skill_id": "search", "query": "Antonov An-225 Mriya rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "5e183917-41a3-45f4-a0e7-e01e346b1e58", "app_id": "images", "skill_id": "search", "query": "NASA Super Guppy rocket transport", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "0cd8de03-8aa9-47e3-b2f9-2d5e098cee2e", "app_id": "images", "skill_id": "search", "query": "Stratolaunch Roc rocket transport", "provider": "Brave"}
+    ```
+
+    ישנם כמה מטוסים "ענקיים" המפורסמים בהובלת טילים והרכיבים שלהם. בהתאם לשאלה אם אתה מתכוון למטוס שנושא חלקים בתוכו או כזה שנושא מעבורת חלל שלמה על גבו, סביר שאתה חושב על אחד מאלה:
+
+    ### 1. Antonov An-225 Mriya
+    **Antonov An-225 Mriya** היה המטוס הכבד ביותר שנבנה אי פעם והיה בעל מוטת הכנפיים הגדולה ביותר מבין כל המטוסים בשירות מבצעי. הוא תוכנן במקור על ידי ברית המועצות בשנות ה-80 במיוחד להובלת **מעבורת החלל בוראן** ורכיבי **טיל האנרגיה** על גבו.
+
+    [!](embed:popularmechanics.com-kIm)
+    [!](embed:britannica.com-f9U)
+    [!](embed:space.com-EES)
+
+    ### 2. NASA Super Guppy
+    אם אתה מתכוון למטוס הנפוח בעל הצורה המוזרה ש"בולע" חלקי טילים, זהו **NASA Super Guppy**. הוא משמש את נאס"א להובלת מטענים גדולים במיוחד, כמו **שלב S-IVB של טיל Saturn V** בתקופת אפולו, ולאחרונה רכיבים למשימות הירח **ארטמיס**. חרטום המטוס נפתח על צירים כדי לאפשר טעינת חלקים ענקיים ישירות לתוך גוף המטוס.
+
+    [!](embed:interestingengineering.com-fne)
+    [!](embed:nasa.gov-IKy)
+    [!](embed:reddit.com-eHx)
+
+    ### 3. Stratolaunch "Roc"
+    **Stratolaunch Roc** מחזיק כיום בשיא מוטת הכנפיים הארוכה ביותר בעולם (385 רגל). בניגוד לאחרים, הוא תוכנן כ**פלטפורמת שיגור ניידת** לנשיאת טילים לגובה רב בין גופיו התאומים ושחרורם לחלל.
+
+    [!](embed:jetsprops.com-uun)
+    [!](embed:cnet.com-ML7)
+    [!](embed:jetsprops.com-opu)
+
+    **איזה מהם הכי דומה למה שראית?**
+    - **An-225** (סובייטי/אוקראיני) הוא מטוס סילון ענק עם שישה מנועים.
+    - **Super Guppy** (נאס"א) נראה כמו לוויתן ענק ומנופח.
+    - **Stratolaunch** יש לו שני גופים נפרדים (גוף כפול).
+
+    האם תרצה לדעת עוד על ההיסטוריה של [An-225 Mriya](https://en.wikipedia.org/wiki/Antonov_An-225_Mriya) או איך [Super Guppy](https://www.nasa.gov/centers/johnson/flights/guppy.html) עובד?
+  verified_by_human: []
+
+assistant_message_2:
+  context: "Second assistant response about Airbus Beluga and BelugaXL. Contains JSON embed blocks (language-independent) and markdown prose with embed references. The JSON code blocks must remain identical in all languages."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Yes, you're exactly right! Airbus used the original NASA-style **Super Guppies** until the 1990s, but they eventually built their own specialized versions to transport massive wings and fuselage sections between their factories across Europe.
+
+    The aircraft you are thinking of is the **Airbus Beluga**. There are two generations:
+
+    ### 1. Airbus BelugaST (The Original)
+    Introduced in 1995, the **BelugaST** (Super Transporter) was based on the Airbus A300-600. It was designed specifically to replace the aging Super Guppy fleet. For nearly 30 years, it was the workhorse that connected Airbus production sites in France, Germany, the UK, and Spain.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (The New Version)
+    The "new version" you mentioned is the **BelugaXL**, which entered service in 2020. Based on the much larger **Airbus A330**, it was built to keep up with the production of the A350 jetliner.
+    * **Capacity:** It can carry **two A350 wings** at once, whereas the original Beluga could only carry one.
+    * **The "Smile":** It is famous for its "smiling whale" livery, which was chosen by Airbus employees in a company-wide vote.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Why are they used?
+    Airbus builds different parts of its planes in different countries (e.g., wings in the UK, tails in Spain, fuselages in Germany). Because these parts are too large to fit on trains or standard cargo planes, the Beluga "swallows" them through a massive front-opening door and flies them to final assembly lines in **Toulouse, France**, or **Hamburg, Germany**.
+
+    Would you like to see a [video of how they load a wing](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) into the BelugaXL, or are you interested in how it compares to Boeing's version, the [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Ja, da haben Sie absolut recht! Airbus verwendete die originalen **Super Guppies** im NASA-Stil bis in die 1990er Jahre, baute dann aber eigene spezialisierte Versionen, um massive Tragflachen und Rumpfsektionen zwischen ihren Fabriken in ganz Europa zu transportieren.
+
+    Das Flugzeug, an das Sie denken, ist die **Airbus Beluga**. Es gibt zwei Generationen:
+
+    ### 1. Airbus BelugaST (Das Original)
+    Die **BelugaST** (Super Transporter) wurde 1995 eingefuhrt und basierte auf dem Airbus A300-600. Sie wurde speziell als Ersatz fur die alternde Super-Guppy-Flotte entwickelt. Fast 30 Jahre lang war sie das Arbeitspferd, das die Airbus-Produktionsstandorte in Frankreich, Deutschland, Grossbritannien und Spanien verband.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Die neue Version)
+    Die "neue Version", die Sie erwahnten, ist die **BelugaXL**, die 2020 in Dienst gestellt wurde. Basierend auf dem viel grosseren **Airbus A330** wurde sie gebaut, um mit der Produktion des A350-Passagierflugzeugs Schritt zu halten.
+    * **Kapazitat:** Sie kann **zwei A350-Tragflachen** gleichzeitig transportieren, wahrend die originale Beluga nur eine tragen konnte.
+    * **Das "Lacheln":** Sie ist beruhmt fur ihre "lachelnder Wal"-Lackierung, die von Airbus-Mitarbeitern in einer unternehmensweiten Abstimmung gewahlt wurde.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Warum werden sie eingesetzt?
+    Airbus baut verschiedene Teile seiner Flugzeuge in verschiedenen Landern (z.B. Tragflachen in Grossbritannien, Leitwerke in Spanien, Rumpfe in Deutschland). Da diese Teile zu gross fur Zuge oder Standard-Frachtflugzeuge sind, "verschluckt" die Beluga sie durch eine massive Frontklappe und fliegt sie zu den Endmontagelinien in **Toulouse, Frankreich**, oder **Hamburg, Deutschland**.
+
+    Mochten Sie ein [Video sehen, wie eine Tragflache geladen wird](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) in die BelugaXL, oder interessieren Sie sich dafur, wie sie sich mit Boeings Version, dem [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter), vergleicht?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    是的，您说得完全正确！空客一直使用NASA风格的原版 **Super Guppies** 直到1990年代，但最终建造了自己的专用版本，用于在欧洲各地工厂之间运输巨大的机翼和机身段。
+
+    您想到的飞机是 **Airbus Beluga**。它有两代：
+
+    ### 1. Airbus BelugaST（原版）
+    **BelugaST**（超级运输机）于1995年推出，基于Airbus A300-600。它专门设计用来替换老化的Super Guppy机队。近30年来，它一直是连接法国、德国、英国和西班牙空客生产基地的主力。
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL（新版本）
+    您提到的"新版本"就是 **BelugaXL**，于2020年投入服务。它基于更大的 **Airbus A330**，专为跟上A350客机的生产节奏而建造。
+    * **载货能力：** 它可以一次运载 **两个A350机翼**，而原版Beluga只能运载一个。
+    * **"微笑"：** 它以"微笑鲸鱼"涂装闻名，这是由空客员工在全公司投票中选出的。
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### 为什么要使用它们？
+    空客在不同国家生产飞机的不同部件（例如，机翼在英国，尾翼在西班牙，机身在德国）。由于这些部件太大，无法用火车或标准货运飞机运输，Beluga通过巨大的前开门将它们"吞入"，然后飞往位于**法国图卢兹**或**德国汉堡**的总装线。
+
+    您想看一个[机翼装载视频](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing)了解BelugaXL如何装载，还是想了解它与波音的版本 [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter) 相比如何？
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Si, tienes toda la razon! Airbus utilizo los **Super Guppies** originales de estilo NASA hasta la decada de 1990, pero finalmente construyeron sus propias versiones especializadas para transportar alas y secciones de fuselaje masivas entre sus fabricas en toda Europa.
+
+    El avion en el que estas pensando es el **Airbus Beluga**. Hay dos generaciones:
+
+    ### 1. Airbus BelugaST (El Original)
+    Introducido en 1995, el **BelugaST** (Super Transporter) se baso en el Airbus A300-600. Fue disenado especificamente para reemplazar la envejecida flota de Super Guppy. Durante casi 30 anos, fue el caballo de batalla que conecto los sitios de produccion de Airbus en Francia, Alemania, el Reino Unido y Espana.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (La Nueva Version)
+    La "nueva version" que mencionaste es el **BelugaXL**, que entro en servicio en 2020. Basado en el mucho mas grande **Airbus A330**, fue construido para mantenerse al ritmo de la produccion del avion A350.
+    * **Capacidad:** Puede transportar **dos alas de A350** a la vez, mientras que el Beluga original solo podia llevar una.
+    * **La "Sonrisa":** Es famoso por su librea de "ballena sonriente", que fue elegida por los empleados de Airbus en una votacion a nivel de toda la empresa.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Por que se utilizan?
+    Airbus fabrica diferentes partes de sus aviones en diferentes paises (por ejemplo, alas en el Reino Unido, colas en Espana, fuselajes en Alemania). Como estas piezas son demasiado grandes para trenes o aviones de carga estandar, el Beluga las "traga" a traves de una enorme puerta frontal y las transporta a las lineas de ensamblaje final en **Toulouse, Francia**, o **Hamburgo, Alemania**.
+
+    Te gustaria ver un [video de como cargan un ala](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) en el BelugaXL, o te interesa saber como se compara con la version de Boeing, el [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Oui, vous avez tout a fait raison ! Airbus a utilise les **Super Guppies** originaux de style NASA jusqu'aux annees 1990, mais a fini par construire ses propres versions specialisees pour transporter des ailes et des sections de fuselage massives entre ses usines a travers l'Europe.
+
+    L'avion auquel vous pensez est l'**Airbus Beluga**. Il en existe deux generations :
+
+    ### 1. Airbus BelugaST (L'Original)
+    Introduit en 1995, le **BelugaST** (Super Transporter) etait base sur l'Airbus A300-600. Il a ete concu specifiquement pour remplacer la flotte vieillissante de Super Guppy. Pendant pres de 30 ans, il a ete le cheval de bataille reliant les sites de production d'Airbus en France, en Allemagne, au Royaume-Uni et en Espagne.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (La Nouvelle Version)
+    La "nouvelle version" que vous avez mentionnee est le **BelugaXL**, entre en service en 2020. Base sur le bien plus grand **Airbus A330**, il a ete construit pour suivre le rythme de production de l'avion de ligne A350.
+    * **Capacite :** Il peut transporter **deux ailes d'A350** en meme temps, alors que le Beluga original ne pouvait en transporter qu'une.
+    * **Le "Sourire" :** Il est celebre pour sa livree de "baleine souriante", choisie par les employes d'Airbus lors d'un vote a l'echelle de l'entreprise.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Pourquoi sont-ils utilises ?
+    Airbus fabrique differentes parties de ses avions dans differents pays (par exemple, les ailes au Royaume-Uni, les empennages en Espagne, les fuselages en Allemagne). Comme ces pieces sont trop volumineuses pour les trains ou les avions-cargos standards, le Beluga les "avale" par une enorme porte frontale et les transporte vers les lignes d'assemblage final a **Toulouse, en France**, ou a **Hambourg, en Allemagne**.
+
+    Souhaitez-vous voir une [video du chargement d'une aile](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) dans le BelugaXL, ou etes-vous interesse par sa comparaison avec la version de Boeing, le [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter) ?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Sim, voce esta absolutamente certo! A Airbus usou os **Super Guppies** originais no estilo NASA ate a decada de 1990, mas acabou construindo suas proprias versoes especializadas para transportar asas e secoes de fuselagem enormes entre suas fabricas pela Europa.
+
+    A aeronave em que voce esta pensando e o **Airbus Beluga**. Existem duas geracoes:
+
+    ### 1. Airbus BelugaST (O Original)
+    Introduzido em 1995, o **BelugaST** (Super Transporter) foi baseado no Airbus A300-600. Foi projetado especificamente para substituir a envelhecida frota de Super Guppy. Por quase 30 anos, foi o cavalo de batalha que conectava os locais de producao da Airbus na Franca, Alemanha, Reino Unido e Espanha.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (A Nova Versao)
+    A "nova versao" que voce mencionou e o **BelugaXL**, que entrou em servico em 2020. Baseado no muito maior **Airbus A330**, foi construido para acompanhar o ritmo de producao do aviao A350.
+    * **Capacidade:** Pode transportar **duas asas de A350** de uma vez, enquanto o Beluga original so conseguia levar uma.
+    * **O "Sorriso":** E famoso por sua pintura de "baleia sorridente", que foi escolhida pelos funcionarios da Airbus em uma votacao da empresa inteira.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Por que sao usados?
+    A Airbus fabrica diferentes partes de seus avioes em diferentes paises (por exemplo, asas no Reino Unido, caudas na Espanha, fuselagens na Alemanha). Como essas pecas sao grandes demais para trens ou avioes de carga padrao, o Beluga as "engole" por uma enorme porta frontal e as transporta ate as linhas de montagem final em **Toulouse, Franca**, ou **Hamburgo, Alemanha**.
+
+    Gostaria de ver um [video de como carregam uma asa](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) no BelugaXL, ou tem interesse em saber como ele se compara com a versao da Boeing, o [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Да, вы совершенно правы! Airbus использовал оригинальные **Super Guppies** в стиле NASA до 1990-х годов, но в итоге построил собственные специализированные версии для перевозки огромных крыльев и секций фюзеляжа между своими заводами по всей Европе.
+
+    Самолет, о котором вы думаете, — это **Airbus Beluga**. Существует два поколения:
+
+    ### 1. Airbus BelugaST (Оригинал)
+    Представленный в 1995 году, **BelugaST** (Super Transporter) был создан на базе Airbus A300-600. Он был специально разработан для замены стареющего парка Super Guppy. На протяжении почти 30 лет он был рабочей лошадкой, связывающей производственные площадки Airbus во Франции, Германии, Великобритании и Испании.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Новая версия)
+    «Новая версия», которую вы упомянули, — это **BelugaXL**, введённый в эксплуатацию в 2020 году. Созданный на базе значительно большего **Airbus A330**, он был построен, чтобы не отставать от производства лайнера A350.
+    * **Вместимость:** Он может перевозить **два крыла A350** одновременно, тогда как оригинальный Beluga мог перевозить только одно.
+    * **«Улыбка»:** Он знаменит своей ливреей «улыбающегося кита», которая была выбрана сотрудниками Airbus в ходе общекорпоративного голосования.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Зачем они используются?
+    Airbus производит различные части своих самолётов в разных странах (например, крылья — в Великобритании, хвостовое оперение — в Испании, фюзеляжи — в Германии). Поскольку эти детали слишком велики для поездов или стандартных грузовых самолётов, Beluga «проглатывает» их через массивную переднюю дверь и доставляет на линии окончательной сборки в **Тулузе, Франция**, или **Гамбурге, Германия**.
+
+    Хотите посмотреть [видео загрузки крыла](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) в BelugaXL, или вам интересно, как он сравнивается с версией Boeing — [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    はい、まさにその通りです！エアバスは1990年代までNASAスタイルのオリジナル **Super Guppies** を使用していましたが、最終的にヨーロッパ各地の工場間で巨大な翼や胴体セクションを輸送するための独自の専用バージョンを建造しました。
+
+    あなたが思い浮かべている航空機は **Airbus Beluga** です。2つの世代があります：
+
+    ### 1. Airbus BelugaST（オリジナル）
+    1995年に導入された **BelugaST**（スーパートランスポーター）は、Airbus A300-600をベースにしています。老朽化したSuper Guppy機団の後継として特別に設計されました。約30年間、フランス、ドイツ、イギリス、スペインのエアバス製造拠点を結ぶ主力機として活躍しました。
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL（新バージョン）
+    あなたが言及した「新バージョン」は **BelugaXL** で、2020年に就航しました。より大型の **Airbus A330** をベースに、A350旅客機の製造ペースに対応するために建造されました。
+    * **積載能力：** **A350の翼を2枚同時に**運搬できます。オリジナルのBelugaは1枚しか運べませんでした。
+    * **「スマイル」：** 「笑顔のクジラ」の塗装で有名で、これはエアバスの全社投票で従業員によって選ばれました。
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### なぜ使われるのか？
+    エアバスは異なる国で飛行機の異なる部品を製造しています（例：翼はイギリス、尾翼はスペイン、胴体はドイツ）。これらの部品は列車や標準的な貨物機には大きすぎるため、Belugaが巨大な前面扉から「飲み込み」、**フランスのトゥールーズ**または**ドイツのハンブルク**の最終組立ラインまで空輸します。
+
+    BelugaXLに[翼を積み込む動画](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing)を見たいですか、それともボーイングのバージョンである[Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)との比較に興味がありますか？
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    네, 정확히 맞습니다! 에어버스는 1990년대까지 NASA 스타일의 오리지널 **Super Guppies**를 사용했지만, 결국 유럽 전역의 공장 간에 거대한 날개와 동체 섹션을 운송하기 위한 자체 특수 버전을 제작했습니다.
+
+    당신이 생각하고 있는 항공기는 **Airbus Beluga**입니다. 두 세대가 있습니다:
+
+    ### 1. Airbus BelugaST (오리지널)
+    1995년에 도입된 **BelugaST** (Super Transporter)는 Airbus A300-600을 기반으로 했습니다. 노후화된 Super Guppy 함대를 대체하기 위해 특별히 설계되었습니다. 거의 30년 동안 프랑스, 독일, 영국, 스페인의 에어버스 생산 기지를 연결하는 주력기였습니다.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (새 버전)
+    당신이 언급한 "새 버전"은 2020년에 취항한 **BelugaXL**입니다. 훨씬 더 큰 **Airbus A330**을 기반으로, A350 여객기의 생산 속도에 맞추기 위해 제작되었습니다.
+    * **적재 용량:** **A350 날개 2개**를 동시에 운반할 수 있으며, 원래 Beluga는 1개만 운반할 수 있었습니다.
+    * **"미소":** 에어버스 직원들이 전사적 투표로 선택한 "웃는 고래" 도장으로 유명합니다.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### 왜 사용되나요?
+    에어버스는 비행기의 각기 다른 부품을 다른 나라에서 제조합니다 (예: 날개는 영국, 꼬리는 스페인, 동체는 독일). 이 부품들은 기차나 표준 화물기에 실기에는 너무 크기 때문에, Beluga가 거대한 전면 개폐문을 통해 "삼킨" 후 **프랑스 툴루즈** 또는 **독일 함부르크**의 최종 조립 라인으로 운송합니다.
+
+    BelugaXL에 [날개를 싣는 영상](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing)을 보시겠습니까, 아니면 보잉의 버전인 [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)와의 비교가 궁금하신가요?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Si, hai perfettamente ragione! Airbus ha utilizzato i **Super Guppies** originali in stile NASA fino agli anni '90, ma alla fine ha costruito le proprie versioni specializzate per trasportare ali e sezioni di fusoliera enormi tra le sue fabbriche in tutta Europa.
+
+    L'aereo a cui stai pensando e l'**Airbus Beluga**. Ne esistono due generazioni:
+
+    ### 1. Airbus BelugaST (L'Originale)
+    Introdotto nel 1995, il **BelugaST** (Super Transporter) era basato sull'Airbus A300-600. Fu progettato specificamente per sostituire la vecchia flotta di Super Guppy. Per quasi 30 anni, e stato il cavallo di battaglia che collegava i siti di produzione Airbus in Francia, Germania, Regno Unito e Spagna.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (La Nuova Versione)
+    La "nuova versione" che hai menzionato e il **BelugaXL**, entrato in servizio nel 2020. Basato sul molto piu grande **Airbus A330**, e stato costruito per tenere il passo con la produzione dell'aereo di linea A350.
+    * **Capacita:** Puo trasportare **due ali di A350** contemporaneamente, mentre il Beluga originale poteva trasportarne solo una.
+    * **Il "Sorriso":** E famoso per la sua livrea della "balena sorridente", scelta dai dipendenti Airbus in un voto aziendale.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Perche vengono utilizzati?
+    Airbus produce diverse parti dei suoi aerei in diversi paesi (ad esempio, ali nel Regno Unito, code in Spagna, fusoliere in Germania). Poiche queste parti sono troppo grandi per i treni o gli aerei cargo standard, il Beluga le "inghiotte" attraverso un'enorme porta frontale e le trasporta alle linee di assemblaggio finale a **Tolosa, Francia**, o **Amburgo, Germania**.
+
+    Vorresti vedere un [video di come caricano un'ala](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) nel BelugaXL, o ti interessa sapere come si confronta con la versione di Boeing, il [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Evet, kesinlikle haklisiniz! Airbus, 1990'lara kadar NASA tarzi orijinal **Super Guppies** ucaklarini kullandi, ancak sonunda Avrupa genelindeki fabrikalari arasinda devasa kanatlari ve govde bolumlerini tasimak icin kendi ozel versiyonlarini insa etti.
+
+    Dusundugunuz ucak **Airbus Beluga**'dir. Iki nesil vardir:
+
+    ### 1. Airbus BelugaST (Orijinal)
+    1995'te tanitilan **BelugaST** (Super Transporter), Airbus A300-600 uzerine insa edilmistir. Yaslanan Super Guppy filosunun yerine gecmek icin ozel olarak tasarlanmistir. Yaklasik 30 yil boyunca Fransa, Almanya, Birlesik Krallik ve Ispanya'daki Airbus uretim tesislerini birbirine baglayan is ati olmustur.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Yeni Versiyon)
+    Bahsettiginiz "yeni versiyon", 2020'de hizmete giren **BelugaXL**'dir. Cok daha buyuk **Airbus A330** uzerine insa edilmis olup, A350 yolcu ucaginin uretim hizina ayak uydurmak icin uretilmistir.
+    * **Kapasite:** Bir seferde **iki A350 kanadi** tasiyabilir; orijinal Beluga yalnizca bir tane tasiyabiliyordu.
+    * **"Gulumseme":** Airbus calisanlari tarafindan sirket genelinde yapilan bir oylama ile secilen "gulen balina" boyamasiyla meshurdur.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Neden kullaniliyorlar?
+    Airbus, ucaklarinin farkli parcalarini farkli ulkelerde uretmektedir (ornegin, kanatlar Birlesik Krallik'ta, kuyruklar Ispanya'da, govdeler Almanya'da). Bu parcalar trenlere veya standart kargo ucaklarina sigamayacak kadar buyuk oldugu icin, Beluga bunlari devasa on kapisından "yutar" ve **Fransa, Toulouse** veya **Almanya, Hamburg**'daki final montaj hatlarina ucurur.
+
+    BelugaXL'e [kanat yukleme videosunu](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) gormek ister misiniz, yoksa Boeing'in versiyonu [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter) ile nasil karsilastirildigini merak mi ediyorsunuz?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Dung vay, ban hoan toan chinh xac! Airbus da su dung nhung chiec **Super Guppies** ban goc kieu NASA cho den nhung nam 1990, nhung cuoi cung da che tao phien ban chuyen dung cua rieng minh de van chuyen nhung canh may bay va phan than khong lo giua cac nha may tren khap chau Au.
+
+    May bay ma ban dang nghi den la **Airbus Beluga**. Co hai the he:
+
+    ### 1. Airbus BelugaST (Ban Goc)
+    Ra mat nam 1995, **BelugaST** (Super Transporter) duoc dua tren Airbus A300-600. No duoc thiet ke dac biet de thay the doi may bay Super Guppy da cu. Trong gan 30 nam, no la con ngua tho ket noi cac co so san xuat cua Airbus tai Phap, Duc, Anh va Tay Ban Nha.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Phien Ban Moi)
+    "Phien ban moi" ma ban de cap la **BelugaXL**, di vao hoat dong nam 2020. Dua tren **Airbus A330** lon hon nhieu, no duoc che tao de theo kip toc do san xuat may bay A350.
+    * **Suc chua:** Co the cho **hai canh A350** cung luc, trong khi Beluga ban goc chi co the cho mot canh.
+    * **"Nu cuoi":** No noi tieng voi lop son "ca voi cuoi", duoc nhan vien Airbus chon qua cuoc binh chon toan cong ty.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Tai sao chung duoc su dung?
+    Airbus san xuat cac bo phan khac nhau cua may bay tai cac quoc gia khac nhau (vi du: canh o Anh, duoi o Tay Ban Nha, than o Duc). Vi nhung bo phan nay qua lon de van chuyen bang tau hoa hay may bay cho hang tieu chuan, Beluga "nuot" chung qua cua truoc khong lo va bay den day chuyen lap rap cuoi cung tai **Toulouse, Phap**, hoac **Hamburg, Duc**.
+
+    Ban co muon xem [video cach ho chat canh may bay](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) vao BelugaXL, hay ban quan tam den viec so sanh no voi phien ban cua Boeing, chiec [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Ya, Anda benar sekali! Airbus menggunakan **Super Guppies** asli bergaya NASA hingga tahun 1990-an, tetapi akhirnya mereka membangun versi khusus sendiri untuk mengangkut sayap dan bagian badan pesawat yang sangat besar antar pabrik mereka di seluruh Eropa.
+
+    Pesawat yang Anda pikirkan adalah **Airbus Beluga**. Ada dua generasi:
+
+    ### 1. Airbus BelugaST (Yang Asli)
+    Diperkenalkan pada tahun 1995, **BelugaST** (Super Transporter) berbasis Airbus A300-600. Pesawat ini dirancang khusus untuk menggantikan armada Super Guppy yang menua. Selama hampir 30 tahun, pesawat ini menjadi andalan yang menghubungkan lokasi produksi Airbus di Prancis, Jerman, Inggris, dan Spanyol.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Versi Baru)
+    "Versi baru" yang Anda sebutkan adalah **BelugaXL**, yang mulai beroperasi pada tahun 2020. Berbasis **Airbus A330** yang jauh lebih besar, pesawat ini dibangun untuk mengimbangi produksi pesawat penumpang A350.
+    * **Kapasitas:** Dapat mengangkut **dua sayap A350** sekaligus, sedangkan Beluga asli hanya bisa mengangkut satu.
+    * **"Senyuman":** Terkenal dengan livery "paus tersenyum", yang dipilih oleh karyawan Airbus dalam pemungutan suara perusahaan.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Mengapa mereka digunakan?
+    Airbus memproduksi bagian-bagian berbeda dari pesawatnya di negara-negara berbeda (misalnya, sayap di Inggris, ekor di Spanyol, badan pesawat di Jerman). Karena bagian-bagian ini terlalu besar untuk kereta api atau pesawat kargo standar, Beluga "menelan" mereka melalui pintu depan yang sangat besar dan menerbangkannya ke jalur perakitan akhir di **Toulouse, Prancis**, atau **Hamburg, Jerman**.
+
+    Apakah Anda ingin melihat [video cara mereka memuat sayap](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) ke dalam BelugaXL, atau Anda tertarik dengan perbandingannya dengan versi Boeing, yaitu [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Tak, masz calkowita racje! Airbus korzystal z oryginalnych **Super Guppies** w stylu NASA az do lat 90., ale ostatecznie zbudowal wlasne wyspecjalizowane wersje do transportu ogromnych skrzydel i sekcji kadluba miedzy swoimi fabrykami w calej Europie.
+
+    Samolot, o ktorym myslisz, to **Airbus Beluga**. Istnieja dwie generacje:
+
+    ### 1. Airbus BelugaST (Oryginal)
+    Wprowadzony w 1995 roku, **BelugaST** (Super Transporter) byl oparty na Airbusie A300-600. Zostal zaprojektowany specjalnie jako nastepca starzejącej sie floty Super Guppy. Przez prawie 30 lat byl koniem pociagowym laczacym zaklady produkcyjne Airbusa we Francji, Niemczech, Wielkiej Brytanii i Hiszpanii.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Nowa Wersja)
+    "Nowa wersja", o ktorej wspominalec, to **BelugaXL**, ktory rozpoczal sluzbe w 2020 roku. Oparty na znacznie wiekszym **Airbusie A330**, zostal zbudowany, aby nadazyc za produkcja samolotu pasazerskiego A350.
+    * **Pojemnosc:** Moze przewozic **dwa skrzydla A350** jednoczesnie, podczas gdy oryginalny Beluga mogl przewozic tylko jedno.
+    * **"Usmiech":** Slynie ze swojego malowania "usmiechinietego wieloryba", ktore zostalo wybrane przez pracownikow Airbusa w glosowaniu ogolnofirmowym.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Dlaczego sa uzywane?
+    Airbus produkuje rozne czesci swoich samolotow w roznych krajach (np. skrzydla w Wielkiej Brytanii, usterzenia w Hiszpanii, kadluby w Niemczech). Poniewaz te czesci sa zbyt duze na pociagi lub standardowe samoloty transportowe, Beluga "polyka" je przez ogromne przednie drzwi i transportuje do linii montazu koncowego w **Tuluzie we Francji** lub **Hamburgu w Niemczech**.
+
+    Chcialbyc zobaczyc [film z zaladunku skrzydla](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) do BelugaXL, czy interesuje Cie, jak wypada w porownaniu z wersja Boeinga, [Dreamlifterem](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Ja, je hebt helemaal gelijk! Airbus gebruikte de originele **Super Guppies** in NASA-stijl tot de jaren '90, maar bouwde uiteindelijk hun eigen gespecialiseerde versies om enorme vleugels en rompsecties te vervoeren tussen hun fabrieken door heel Europa.
+
+    Het vliegtuig waar je aan denkt is de **Airbus Beluga**. Er zijn twee generaties:
+
+    ### 1. Airbus BelugaST (Het Origineel)
+    Geintroduceerd in 1995, was de **BelugaST** (Super Transporter) gebaseerd op de Airbus A300-600. Hij werd speciaal ontworpen om de verouderende Super Guppy-vloot te vervangen. Bijna 30 jaar lang was het het werkpaard dat de Airbus-productielocaties in Frankrijk, Duitsland, het Verenigd Koninkrijk en Spanje met elkaar verbond.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (De Nieuwe Versie)
+    De "nieuwe versie" die je noemde is de **BelugaXL**, die in 2020 in dienst trad. Gebaseerd op de veel grotere **Airbus A330**, werd hij gebouwd om de productiesnelheid van het A350-passagiersvliegtuig bij te houden.
+    * **Capaciteit:** Hij kan **twee A350-vleugels** tegelijk vervoeren, terwijl de originele Beluga er maar een kon dragen.
+    * **De "Glimlach":** Hij is beroemd om zijn "glimlachende walvis"-beschildering, die werd gekozen door Airbus-medewerkers in een bedrijfsbrede stemming.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Waarom worden ze gebruikt?
+    Airbus bouwt verschillende delen van zijn vliegtuigen in verschillende landen (bijv. vleugels in het VK, staarten in Spanje, rompen in Duitsland). Omdat deze onderdelen te groot zijn voor treinen of standaard vrachtvliegtuigen, "slikt" de Beluga ze op via een enorme voordeur en vliegt ze naar de eindassemblagelijnen in **Toulouse, Frankrijk**, of **Hamburg, Duitsland**.
+
+    Wil je een [video zien van hoe ze een vleugel laden](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) in de BelugaXL, of ben je benieuwd hoe hij zich verhoudt tot de versie van Boeing, de [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    نعم، انت محق تماما! استخدمت Airbus طائرات **Super Guppies** الاصلية بطراز NASA حتى التسعينيات، لكنها في النهاية بنت نسخها المتخصصة الخاصة لنقل الاجنحة الضخمة واقسام جسم الطائرة بين مصانعها في انحاء اوروبا.
+
+    الطائرة التي تفكر فيها هي **Airbus Beluga**. هناك جيلان:
+
+    ### 1. Airbus BelugaST (الاصلية)
+    قدمت عام 1995، كانت **BelugaST** (الناقلة الفائقة) مبنية على Airbus A300-600. صممت خصيصا لاستبدال اسطول Super Guppy المتقادم. لمدة تقارب 30 عاما، كانت الحصان العامل الذي يربط مواقع انتاج Airbus في فرنسا والمانيا والمملكة المتحدة واسبانيا.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (النسخة الجديدة)
+    "النسخة الجديدة" التي ذكرتها هي **BelugaXL**، التي دخلت الخدمة في 2020. مبنية على **Airbus A330** الاكبر بكثير، وتم تصنيعها لمواكبة انتاج طائرة الركاب A350.
+    * **السعة:** يمكنها حمل **جناحي A350** في ان واحد، بينما كانت Beluga الاصلية تستطيع حمل جناح واحد فقط.
+    * **"الابتسامة":** تشتهر بطلاء "الحوت المبتسم"، الذي اختاره موظفو Airbus في تصويت على مستوى الشركة.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### لماذا تستخدم؟
+    تصنع Airbus اجزاء مختلفة من طائراتها في بلدان مختلفة (مثلا: الاجنحة في المملكة المتحدة، الذيول في اسبانيا، اجسام الطائرات في المانيا). نظرا لان هذه الاجزاء كبيرة جدا للقطارات او طائرات الشحن القياسية، تقوم Beluga "بابتلاعها" عبر باب امامي ضخم وتنقلها الى خطوط التجميع النهائي في **تولوز، فرنسا**، او **هامبورغ، المانيا**.
+
+    هل تريد مشاهدة [فيديو لكيفية تحميل جناح](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) في BelugaXL، ام تهتم بمعرفة كيف تقارن بنسخة Boeing، الـ[Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)؟
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    हाँ, आप बिल्कुल सही कह रहे हैं! एयरबस ने 1990 के दशक तक NASA शैली के मूल **Super Guppies** का उपयोग किया, लेकिन अंततः यूरोप भर में अपनी फैक्ट्रियों के बीच विशाल पंखों और धड़ के हिस्सों को ले जाने के लिए अपने स्वयं के विशेष संस्करण बनाए।
+
+    जिस विमान के बारे में आप सोच रहे हैं, वह **Airbus Beluga** है। इसकी दो पीढ़ियाँ हैं:
+
+    ### 1. Airbus BelugaST (मूल)
+    1995 में शुरू किया गया, **BelugaST** (सुपर ट्रांसपोर्टर) Airbus A300-600 पर आधारित था। इसे विशेष रूप से पुराने Super Guppy बेड़े की जगह लेने के लिए डिज़ाइन किया गया था। लगभग 30 वर्षों तक, यह फ्रांस, जर्मनी, ब्रिटेन और स्पेन में एयरबस उत्पादन स्थलों को जोड़ने वाला प्रमुख विमान रहा।
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (नया संस्करण)
+    आपने जिस "नए संस्करण" का उल्लेख किया, वह **BelugaXL** है, जिसने 2020 में सेवा शुरू की। बहुत बड़े **Airbus A330** पर आधारित, इसे A350 विमान के उत्पादन की गति बनाए रखने के लिए बनाया गया था।
+    * **क्षमता:** यह एक बार में **दो A350 पंख** ले जा सकता है, जबकि मूल Beluga केवल एक ही ले जा सकता था।
+    * **"मुस्कान":** यह अपनी "मुस्कुराती व्हेल" पेंटिंग के लिए प्रसिद्ध है, जिसे एयरबस के कर्मचारियों ने कंपनी-व्यापी मतदान में चुना था।
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### इनका उपयोग क्यों किया जाता है?
+    एयरबस अपने विमानों के विभिन्न हिस्से विभिन्न देशों में बनाता है (उदाहरण: पंख ब्रिटेन में, पूंछ स्पेन में, धड़ जर्मनी में)। चूँकि ये हिस्से ट्रेनों या मानक कार्गो विमानों के लिए बहुत बड़े हैं, Beluga उन्हें एक विशाल सामने वाले दरवाज़े से "निगल" लेता है और **फ्रांस के टूलूज़** या **जर्मनी के हैम्बर्ग** में अंतिम असेंबली लाइनों तक उड़ाकर ले जाता है।
+
+    क्या आप BelugaXL में [पंख लोड करने का वीडियो](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) देखना चाहेंगे, या आप जानना चाहते हैं कि यह बोइंग के संस्करण, [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter) से कैसे तुलना करता है?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    ใช่แล้ว คุณพูดถูกทีเดียว! Airbus ใช้ **Super Guppies** ต้นฉบับแบบ NASA จนถึงช่วงทศวรรษ 1990 แต่ในที่สุดก็สร้างเวอร์ชันเฉพาะทางของตัวเองเพื่อขนส่งปีกและส่วนลำตัวขนาดมหึมาระหว่างโรงงานทั่วยุโรป
+
+    เครื่องบินที่คุณนึกถึงคือ **Airbus Beluga** มีสองรุ่น:
+
+    ### 1. Airbus BelugaST (รุ่นดั้งเดิม)
+    เปิดตัวในปี 1995 **BelugaST** (Super Transporter) พัฒนาจาก Airbus A300-600 ถูกออกแบบมาโดยเฉพาะเพื่อทดแทนฝูงบิน Super Guppy ที่เก่าแก่ เป็นเวลาเกือบ 30 ปีที่มันเป็นม้าศึกเชื่อมต่อฐานการผลิตของ Airbus ในฝรั่งเศส เยอรมนี สหราชอาณาจักร และสเปน
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (เวอร์ชันใหม่)
+    "เวอร์ชันใหม่" ที่คุณกล่าวถึงคือ **BelugaXL** ซึ่งเข้าประจำการในปี 2020 สร้างบนพื้นฐานของ **Airbus A330** ที่ใหญ่กว่ามาก เพื่อรองรับอัตราการผลิตเครื่องบินโดยสาร A350
+    * **ความจุ:** สามารถบรรทุก **ปีก A350 สองข้าง** พร้อมกัน ในขณะที่ Beluga ดั้งเดิมบรรทุกได้เพียงข้างเดียว
+    * **"รอยยิ้ม":** มีชื่อเสียงจากลายเครื่อง "วาฬยิ้ม" ซึ่งถูกเลือกโดยพนักงาน Airbus ในการโหวตทั่วทั้งบริษัท
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### ทำไมถึงใช้พวกมัน?
+    Airbus ผลิตชิ้นส่วนต่างๆ ของเครื่องบินในประเทศต่างๆ (เช่น ปีกในสหราชอาณาจักร หางในสเปน ลำตัวในเยอรมนี) เนื่องจากชิ้นส่วนเหล่านี้ใหญ่เกินไปสำหรับรถไฟหรือเครื่องบินขนส่งมาตรฐาน Beluga จึง "กลืน" พวกมันผ่านประตูหน้าขนาดมหึมาและบินไปยังสายการประกอบขั้นสุดท้ายที่ **ตูลูส ฝรั่งเศส** หรือ **ฮัมบูร์ก เยอรมนี**
+
+    คุณต้องการดู[วิดีโอการบรรทุกปีก](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing)เข้า BelugaXL หรือสนใจว่ามันเปรียบเทียบกับเวอร์ชันของ Boeing อย่าง [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter) อย่างไร?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Ano, mate naprostou pravdu! Airbus pouzival originalni **Super Guppies** ve stylu NASA az do 90. let, ale nakonec si postavil vlastni specializovane verze pro prepravu obrovsich kridel a sekci trupu mezi svymi tovartnami po cele Evrope.
+
+    Letadlo, na ktere myslite, je **Airbus Beluga**. Existuji dve generace:
+
+    ### 1. Airbus BelugaST (Original)
+    Predstavena v roce 1995, **BelugaST** (Super Transporter) byla postavena na zaklade Airbusu A300-600. Byla navrzena specialne jako nahrada starnouci flotily Super Guppy. Po temmer 30 let byla tahounem spojujicim vyrobni zavody Airbusu ve Francii, Nemecku, Velke Britanii a Spanelsku.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Nova Verze)
+    "Nova verze", kterou jste zminili, je **BelugaXL**, ktery vstoupil do sluzby v roce 2020. Postaveny na zaklade mnohem vetsiho **Airbusu A330**, byl vyroben, aby udrzoval krok s vyrobou dopravniho letounu A350.
+    * **Kapacita:** Muze prepravovat **dve kridla A350** najednou, zatimco originalni Beluga mohla prepravovat pouze jedno.
+    * **"Usmev":** Je proslula svym natertm "usmivajici se velryby", ktery byl zvolen zamestnanci Airbusu v celofiremnim hlasovani.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Proc se pouzivaji?
+    Airbus vyrabi ruzne casti svych letadel v ruznych zemich (napr. kridla ve Velke Britanii, ocasni plochy ve Spanelsku, trupy v Nemecku). Protoze tyto dily jsou prilis velke pro vlaky nebo standardni nakladni letadla, Beluga je "spolkne" pres obrovske predni dvere a odveze na linky konecne montaze v **Toulouse ve Francii** nebo **Hamburku v Nemecku**.
+
+    Chcete videt [video, jak nahravaji kridlo](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) do BelugaXL, nebo vas zajima, jak se srovnava s verzi Boeingu, [Dreamlifterem](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    Ja, du har helt ratt! Airbus anvande de ursprungliga **Super Guppies** i NASA-stil fram till 1990-talet, men byggde till slut sina egna specialiserade versioner for att transportera enorma vingar och kroppssektioner mellan sina fabriker over hela Europa.
+
+    Flygplanet du tanker pa ar **Airbus Beluga**. Det finns tva generationer:
+
+    ### 1. Airbus BelugaST (Originalet)
+    Introducerad 1995, var **BelugaST** (Super Transporter) baserad pa Airbus A300-600. Den designades specifikt for att ersatta den aldrande Super Guppy-flottan. I nastan 30 ar var den arbetshästen som forbinder Airbus produktionsplatser i Frankrike, Tyskland, Storbritannien och Spanien.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (Den Nya Versionen)
+    Den "nya versionen" du namnde ar **BelugaXL**, som sattes i tjanst 2020. Baserad pa den mycket storre **Airbus A330**, byggdes den for att halla jamma steg med produktionen av A350-passagerarplanet.
+    * **Kapacitet:** Den kan transportera **tva A350-vingar** samtidigt, medan den ursprungliga Beluga bara kunde bara en.
+    * **"Leendet":** Den ar kamd for sin "leende val"-lackering, som valdes av Airbus anstallda i en foretagsomfattande omrostning.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### Varfor anvands de?
+    Airbus bygger olika delar av sina flygplan i olika lander (t.ex. vingar i Storbritannien, stjartpartier i Spanien, flygkroppar i Tyskland). Eftersom dessa delar ar for stora for tag eller vanliga fraktflygplan, "svaljer" Beluga dem genom en massiv frontdorr och flyger dem till slutmonteringslinjerna i **Toulouse, Frankrike**, eller **Hamburg, Tyskland**.
+
+    Vill du se en [video pa hur de lastar en vinge](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) i BelugaXL, eller ar du intresserad av hur den jamfors med Boeings version, [Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "040ef265-5dc8-4512-b443-b52bc86f7a6b", "app_id": "web", "skill_id": "search", "query": "Airbus Beluga and BelugaXL history and usage Europe airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "f483e089-ff31-472e-9b0d-28f03b92eee1", "app_id": "images", "skill_id": "search", "query": "Airbus BelugaXL transporting airplane parts", "provider": "Brave"}
+    ```
+
+    ```json
+    {"type": "app_skill_use", "embed_id": "893f5c33-f98b-46e7-b81a-475a94827b35", "app_id": "images", "skill_id": "search", "query": "Airbus Beluga A300-600ST vs BelugaXL A330-743L", "provider": "Brave"}
+    ```
+
+    כן, אתה צודק לגמרי! Airbus השתמשה ב-**Super Guppies** המקוריים בסגנון NASA עד שנות ה-90, אך בסופו של דבר בנתה גרסאות מיוחדות משלה להובלת כנפיים ומקטעי גוף מטוס ענקיים בין מפעליה ברחבי אירופה.
+
+    המטוס שאתה חושב עליו הוא **Airbus Beluga**. ישנם שני דורות:
+
+    ### 1. Airbus BelugaST (המקורי)
+    הוצג ב-1995, ה-**BelugaST** (Super Transporter) התבסס על Airbus A300-600. הוא תוכנן במיוחד להחליף את צי ה-Super Guppy המזדקן. במשך כמעט 30 שנה, הוא היה סוס העבודה שחיבר את אתרי הייצור של Airbus בצרפת, גרמניה, בריטניה וספרד.
+
+    [!](embed:airbus.com-lTo)
+    [!](embed:aviationa2z.com-fNJ)
+
+    ### 2. Airbus BelugaXL (הגרסה החדשה)
+    ה"גרסה החדשה" שהזכרת היא ה-**BelugaXL**, שנכנס לשירות ב-2020. מבוסס על ה-**Airbus A330** הגדול בהרבה, הוא נבנה כדי לעמוד בקצב ייצור מטוס הנוסעים A350.
+    * **קיבולת:** הוא יכול לשאת **שתי כנפי A350** בו-זמנית, בעוד שה-Beluga המקורי יכול היה לשאת רק אחת.
+    * **ה"חיוך":** הוא מפורסם בצביעת "הלוויתן המחייך" שלו, שנבחרה על ידי עובדי Airbus בהצבעה כלל-חברתית.
+
+    [!](embed:cnn.com-5jh)
+    [!](embed:simpleflying.com-N3v)
+    [!](embed:gettyimages.com-8Kw)
+
+    ### למה הם משמשים?
+    Airbus מייצרת חלקים שונים של מטוסיה במדינות שונות (למשל, כנפיים בבריטניה, זנבות בספרד, גופי מטוס בגרמניה). מכיוון שחלקים אלה גדולים מדי לרכבות או למטוסי מטען רגילים, ה-Beluga "בולע" אותם דרך דלת קדמית ענקית ומטיס אותם לקווי ההרכבה הסופיים ב**טולוז, צרפת**, או ב**המבורג, גרמניה**.
+
+    האם תרצה לראות [סרטון של איך הם טוענים כנף](https://www.youtube.com/results?search_query=airbus+belugaxl+loading+wing) ל-BelugaXL, או שמעניין אותך איך הוא משתווה לגרסה של Boeing, ה-[Dreamlifter](https://en.wikipedia.org/wiki/Boeing_Dreamlifter)?
+  verified_by_human: []

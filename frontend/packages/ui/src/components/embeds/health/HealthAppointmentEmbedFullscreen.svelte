@@ -22,6 +22,14 @@
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
+  interface GoogleReview {
+    author?: string;
+    rating?: number;
+    text?: string;
+    language?: string;
+    relative_time?: string;
+  }
+
   interface AppointmentData {
     embed_id: string;
     /** ISO datetime for this specific appointment slot */
@@ -39,8 +47,21 @@
     booking_url?: string;
     rating?: number;
     rating_count?: number;
+    rating_sources?: string[];
     price?: number;
     service_name?: string;
+    // Alternate slot times (same doctor, next 5 available)
+    additional_slot_datetimes?: string[];
+    additional_slot_count?: number;
+    // Google Places enrichment
+    google_reviews?: GoogleReview[];
+    opening_hours?: string[];
+    phone?: string;
+    website?: string;
+    description?: string;
+    google_maps_uri?: string;
+    business_status?: string;
+    accessibility?: string[];
   }
 
   interface Props {
@@ -81,6 +102,31 @@
     return typeof v === 'string' ? v : undefined;
   }
 
+  function asStringArray(v: unknown): string[] | undefined {
+    if (!Array.isArray(v)) return undefined;
+    const out: string[] = [];
+    for (const s of v) if (typeof s === 'string' && s.trim().length > 0) out.push(s);
+    return out.length > 0 ? out : undefined;
+  }
+
+  function parseGoogleReviews(v: unknown): GoogleReview[] | undefined {
+    if (!Array.isArray(v)) return undefined;
+    const out: GoogleReview[] = [];
+    for (const entry of v) {
+      if (entry && typeof entry === 'object') {
+        const r = entry as Record<string, unknown>;
+        out.push({
+          author: asString(r.author),
+          rating: asNumber(r.rating),
+          text: asString(r.text),
+          language: asString(r.language),
+          relative_time: asString(r.relative_time),
+        });
+      }
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
   function parseGps(content: Record<string, unknown>): AppointmentData['gps_coordinates'] {
     // Nested: gps_coordinates: { latitude, longitude }
     const gps = content.gps_coordinates;
@@ -112,9 +158,50 @@
     booking_url: asString(dc.booking_url),
     rating: asNumber(dc.rating),
     rating_count: asNumber(dc.rating_count),
+    rating_sources: asStringArray(dc.rating_sources),
     price: asNumber(dc.price),
     service_name: asString(dc.service_name),
+    additional_slot_datetimes: asStringArray(dc.additional_slot_datetimes),
+    additional_slot_count: asNumber(dc.additional_slot_count),
+    google_reviews: parseGoogleReviews(dc.google_reviews),
+    opening_hours: asStringArray(dc.opening_hours),
+    phone: asString(dc.phone),
+    website: asString(dc.website),
+    description: asString(dc.description),
+    google_maps_uri: asString(dc.google_maps_uri),
+    business_status: asString(dc.business_status),
+    accessibility: asStringArray(dc.accessibility),
   }));
+
+  /** Format an ISO slot as a short "Sat, 14:00" label for the alternate-times list. */
+  function formatAlternateSlot(iso: string): string {
+    try {
+      const dt = new Date(iso);
+      return (
+        dt.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
+        + ' · '
+        + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      );
+    } catch {
+      return iso;
+    }
+  }
+
+  /** Map accessibility flag keys to short German/English labels. */
+  function accessibilityLabel(flag: string): string {
+    switch (flag) {
+      case 'wheelchair_entrance':
+        return 'Wheelchair entrance';
+      case 'wheelchair_parking':
+        return 'Wheelchair parking';
+      case 'wheelchair_seating':
+        return 'Wheelchair seating';
+      case 'wheelchair_restroom':
+        return 'Wheelchair restroom';
+      default:
+        return flag;
+    }
+  }
 
   function getAddressLines(value: unknown): string[] {
     if (typeof value !== 'string' || !value.trim()) return [];
@@ -156,6 +243,9 @@
   );
 
   let addressLines = $derived(getAddressLines(activeAppointment?.address));
+
+  /** Booking platform name for labels/disclaimer — falls back to a generic word. */
+  let providerName = $derived(activeAppointment?.provider_platform?.trim() || 'the provider');
 
   /** Header title: formatted appointment date/time (most important info at a glance) */
   let headerTitle = $derived.by(() => {
@@ -241,21 +331,101 @@
       {#if activeAppointment.telehealth}
         <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
       {/if}
-      {#if activeAppointment.insurance}
+      {#if activeAppointment.insurance === 'unknown'}
+        <!-- Jameda doesn't expose per-doctor insurance sector info — warn
+             the user that they need to verify it on Jameda before booking -->
+        <span class="badge insurance-unknown-badge" title="Insurance requirement not available — verify on Jameda before booking">
+          Insurance: verify on Jameda
+        </span>
+      {:else if activeAppointment.insurance}
         <span class="badge insurance-badge">{activeAppointment.insurance}</span>
+      {/if}
+      {#if activeAppointment.accessibility}
+        {#each activeAppointment.accessibility as flag}
+          <span class="badge accessibility-badge">{accessibilityLabel(flag)}</span>
+        {/each}
       {/if}
     </div>
 
+    <!-- Alternate slot times for the same doctor (from _group_slots_by_doctor) -->
+    {#if activeAppointment.additional_slot_datetimes && activeAppointment.additional_slot_datetimes.length > 0}
+      <div class="alternate-slots">
+        <div class="section-title">Also available</div>
+        <div class="alternate-slots-list">
+          {#each activeAppointment.additional_slot_datetimes as altIso}
+            <span class="alternate-slot">{formatAlternateSlot(altIso)}</span>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Editorial summary from Google Places (practice description) -->
+    {#if activeAppointment.description}
+      <div class="editorial-summary">{activeAppointment.description}</div>
+    {/if}
+
+    <!-- Opening hours from Google Places -->
+    {#if activeAppointment.opening_hours && activeAppointment.opening_hours.length > 0}
+      <div class="opening-hours">
+        <div class="section-title">Opening hours</div>
+        <ul class="opening-hours-list">
+          {#each activeAppointment.opening_hours as line}
+            <li>{line}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+
+    <!-- Patient reviews from Google Places (up to 5) -->
+    {#if activeAppointment.google_reviews && activeAppointment.google_reviews.length > 0}
+      <div class="reviews">
+        <div class="section-title">Patient reviews</div>
+        {#each activeAppointment.google_reviews as review}
+          <div class="review-card">
+            <div class="review-header">
+              {#if review.rating != null}
+                <span class="review-rating">{review.rating.toFixed(1)} ★</span>
+              {/if}
+              {#if review.author}
+                <span class="review-author">{review.author}</span>
+              {/if}
+              {#if review.relative_time}
+                <span class="review-time">· {review.relative_time}</span>
+              {/if}
+            </div>
+            {#if review.text}
+              <p class="review-text">{review.text}</p>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- External links: phone, website, Google Maps (from Google Places) -->
+    {#if activeAppointment.phone || activeAppointment.website || activeAppointment.google_maps_uri}
+      <div class="external-links">
+        {#if activeAppointment.phone}
+          <a class="external-link" href={`tel:${activeAppointment.phone}`}>{activeAppointment.phone}</a>
+        {/if}
+        {#if activeAppointment.website}
+          <a class="external-link" href={activeAppointment.website} target="_blank" rel="noopener noreferrer">Website</a>
+        {/if}
+        {#if activeAppointment.google_maps_uri}
+          <a class="external-link" href={activeAppointment.google_maps_uri} target="_blank" rel="noopener noreferrer">View on Google Maps</a>
+        {/if}
+      </div>
+    {/if}
+
     {#if effectiveSlotDatetime}
-      <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated')}</p>
+      <p class="slots-disclaimer">{$text('embeds.health.slots_may_be_outdated').replace('{provider}', providerName)}</p>
     {/if}
   {/snippet}
 
   {#snippet embedHeaderCta()}
     {#if activeAppointment.booking_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Jameda')} href={activeAppointment.booking_url} />
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} href={activeAppointment.booking_url} />
     {:else if activeAppointment.practice_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Doctolib')} href={activeAppointment.practice_url} />
+      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} href={activeAppointment.practice_url} />
     {/if}
   {/snippet}
 </EntryWithMapTemplate>
@@ -319,6 +489,119 @@
     color: var(--color-grey-70);
     border: 1px solid var(--color-grey-30);
     text-transform: capitalize;
+  }
+  .insurance-unknown-badge {
+    background-color: rgba(var(--color-warning-rgb, 245, 166, 35), 0.12);
+    color: var(--color-warning, #f5a623);
+    border: 1px solid rgba(var(--color-warning-rgb, 245, 166, 35), 0.3);
+  }
+  .accessibility-badge {
+    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.08);
+    color: var(--color-primary);
+    border: 1px solid rgba(var(--color-primary-rgb, 74, 144, 226), 0.2);
+  }
+
+  /* Section titles reused across alternate slots, hours, reviews */
+  .section-title {
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    color: var(--color-font-primary);
+    margin-bottom: var(--spacing-3);
+  }
+
+  /* Alternate slot times list */
+  .alternate-slots-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+  }
+  .alternate-slot {
+    display: inline-block;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-8);
+    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.08);
+    color: var(--color-primary);
+    font-size: var(--font-size-xxs);
+    font-weight: 600;
+    border: 1px solid rgba(var(--color-primary-rgb, 74, 144, 226), 0.2);
+  }
+
+  /* Editorial summary — Google's practice description */
+  .editorial-summary {
+    font-size: var(--font-size-small);
+    color: var(--color-font-secondary);
+    line-height: 1.5;
+  }
+
+  /* Opening hours list */
+  .opening-hours-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .opening-hours-list li {
+    font-size: var(--font-size-xs);
+    color: var(--color-font-secondary);
+    line-height: 1.5;
+  }
+
+  /* Review cards — one per Google review */
+  .review-card {
+    padding: var(--spacing-4);
+    border-radius: var(--radius-5);
+    background-color: var(--color-grey-10);
+    border: 1px solid var(--color-grey-20);
+    margin-bottom: var(--spacing-3);
+  }
+  .review-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
+    flex-wrap: wrap;
+  }
+  .review-rating {
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--color-warning, #f5a623);
+  }
+  .review-author {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-font-primary);
+  }
+  .review-time {
+    font-size: var(--font-size-tiny);
+    color: var(--color-font-secondary);
+  }
+  .review-text {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-font-secondary);
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
+  /* External links row (phone / website / google maps) */
+  .external-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    justify-content: center;
+  }
+  .external-link {
+    display: inline-block;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-8);
+    background-color: var(--color-grey-10);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    border: 1px solid var(--color-grey-20);
+  }
+  .external-link:hover {
+    background-color: var(--color-grey-20);
   }
 
   .slots-disclaimer {

@@ -11,6 +11,7 @@
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
     import { loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
+    import { demoMode } from '../stores/demoModeStore';
 
     // Props using Svelte 5 runes
     let { 
@@ -38,7 +39,7 @@
     let serverEditionLabel = $derived(
         serverEdition === 'self_hosted'
             ? $text('header.self_hosting_edition')
-            : serverEdition === 'development'
+            : serverEdition === 'development' && !$demoMode
               ? $text('header.development_server')
               : $text('signup.version_title')
     );

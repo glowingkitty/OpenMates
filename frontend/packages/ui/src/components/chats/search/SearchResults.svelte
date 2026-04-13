@@ -517,6 +517,7 @@
         <button
           class="search-setting-item"
           class:focused={isFocused}
+          data-testid="search-setting-item"
           data-result-id={itemId}
           onclick={() => onSettingsClick(
             settingResult.entry.path,
@@ -547,6 +548,7 @@
         <button
           class="search-setting-item"
           class:focused={isFocused}
+          data-testid="search-setting-item"
           data-result-id={itemId}
           onclick={() => onSettingsClick(
             settingResult.entry.path,

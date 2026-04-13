@@ -165,6 +165,10 @@ run_spec() {
       -e SIGNUP_TEST_EMAIL_DOMAINS \
       -e MAILOSAUR_API_KEY \
       -e MAILOSAUR_SERVER_ID \
+      -e GMAIL_CLIENT_ID \
+      -e GMAIL_CLIENT_SECRET \
+      -e GMAIL_REFRESH_TOKEN \
+      -e GMAIL_TEST_ADDRESS \
       playwright 2>&1
   )" || spec_exit=$?
 

@@ -18,7 +18,6 @@
 
 <script lang="ts">
     import { appSkillsStore } from '../../stores/appSkillsStore';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, FocusModeMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -71,7 +70,7 @@
         for (let i = 1; i <= 3; i++) {
             const key = `${focusMode.name_translation_key}.how_to_use.${i}`;
             const translated = $text(key);
-            if (translated && translated !== key) {
+            if (translated && translated !== key && !translated.startsWith('[T:')) {
                 examples.push(translated);
             }
         }

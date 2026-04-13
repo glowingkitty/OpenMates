@@ -32,7 +32,11 @@
     // Access the store state directly — static data loaded at build time
     let storeState = $state(appSkillsStore.getState());
 
-    let apps = $derived(storeState.apps);
+    // Exclude the AI app — its settings live under the top-level "AI" settings menu
+    let apps = $derived.by(() => {
+        const { ai: _excluded, ...rest } = storeState.apps;
+        return rest;
+    });
     let appsList = $derived(Object.values(apps));
 
     // --- Filter state ---

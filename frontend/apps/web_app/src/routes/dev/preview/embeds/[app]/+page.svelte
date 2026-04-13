@@ -747,30 +747,15 @@
 	 * E.g., ShoppingResultEmbedFullscreen takes `product`, NutritionRecipeEmbedFullscreen takes `recipe`.
 	 * If any of these keys is present in raw props, the fullscreen is treated as a direct-props
 	 * component and no wrapping is applied.
+	 *
+	 * IMPORTANT: Only add names here for fullscreens that genuinely accept a direct entity prop
+	 * (not `data: EmbedFullscreenRawData`). After the OPE-276 data-driven migration, most child
+	 * fullscreens were migrated to `data.decodedContent` — their old direct-prop names were
+	 * removed in OPE-413 to prevent wrapFullscreenProps from bypassing the wrapping.
 	 */
 	const DIRECT_PROP_NAMES = new Set([
 		'product',
 		'recipe',
-		'event',
-		'listing',
-		'connection',
-		'stay',
-		'place',
-		'appointment',
-		// NOTE: 'image' intentionally excluded. It was previously in this set but
-		// collides with Website embed preview props (OG-metadata `image: ""`),
-		// causing wrapFullscreenProps() to short-circuit and pass raw props
-		// through — which then crashed WebsiteEmbedFullscreen because `data` was
-		// undefined. ImageEmbedFullscreen and ImageResultEmbedFullscreen both
-		// use the data-driven `{ data }` shape anyway, so no image fullscreen
-		// needs this direct-prop escape hatch. Fixed in OPE-405 Phase 1 flake.
-		'video',
-		'recording',
-		'sheet',
-		'plot',
-		'flight',
-		'transcript',
-		'docs'
 	]);
 
 	/**

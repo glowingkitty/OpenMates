@@ -6,31 +6,38 @@
 # - CRUD endpoints: JWT auth (authenticated user managing their keys)
 # - POST /incoming: Webhook key auth (external service triggering a chat)
 #
-# The incoming endpoint creates a chat with a system message (visible in UI),
-# similar to reminder messages and memory confirmation messages. The message
-# is vault-encrypted server-side and stored pending device sync.
+# Incoming flow (mirrors the reminder pattern — see backend/apps/reminder/tasks.py):
+#   1. Auth + rate-limit + dedupe the webhook key.
+#   2. Pre-create the chat in Directus so later AI persistence has a row to attach to.
+#   3. Broadcast a `webhook_chat` WebSocket event with PLAINTEXT content to any online
+#      device for that user. The frontend handler encrypts with a freshly-generated
+#      chat key and persists via `chat_system_message_added`, matching reminder_fired.
+#   4. If the user is offline, queue an email notification + cache a vault-encrypted
+#      copy of the pending chat for 24h so the UI can recover it on reconnect.
+#   5. Unless the key has `require_confirmation=True`, unconditionally dispatch an
+#      AI ask-request so the assistant replies server-side regardless of presence.
 #
 # Architecture: docs/architecture/webhooks.md
 # Related: api_key_auth.py, webhook_auth.py, cache_webhook_mixin.py
 
 import hashlib
+import json
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, HTTPException, Request, Depends, Security
+from fastapi import APIRouter, HTTPException, Request, Depends, Body
 from pydantic import BaseModel, Field
+
+from jinja2 import ChainableUndefined
+from jinja2.exceptions import TemplateError
+from jinja2.sandbox import SandboxedEnvironment
 
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
-from backend.core.api.app.utils.webhook_auth import (
-    verify_webhook_key,
-    webhook_key_scheme,
-    WebhookKeyAuth,
-)
+from backend.core.api.app.utils.webhook_auth import verify_webhook_key
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 
@@ -48,6 +55,20 @@ router = APIRouter(
 
 # --- CRUD models (JWT-authenticated) ---
 
+# Supported rate-limit periods → seconds in a sliding window.
+# Exposed as a module constant so webhook_auth.py can reuse it.
+RATE_LIMIT_PERIOD_SECONDS = {
+    "minute": 60,
+    "hour": 3600,
+    "day": 86400,
+    "week": 604800,
+}
+DEFAULT_RATE_LIMIT_COUNT = 3
+DEFAULT_RATE_LIMIT_PERIOD = "hour"
+DEFAULT_MESSAGE_TEMPLATE = "{{payload_json}}"
+MAX_TEMPLATE_LENGTH = 4000
+
+
 class WebhookCreateRequest(BaseModel):
     """Request to create a new webhook key. Key hash + encrypted fields are
     generated client-side (zero-knowledge pattern matching API keys)."""
@@ -58,6 +79,28 @@ class WebhookCreateRequest(BaseModel):
     direction: str = Field(default="incoming", pattern="^(incoming|outgoing)$")
     permissions: List[str] = Field(default=["trigger_chat"])
     require_confirmation: bool = Field(default=False)
+    message_template: str = Field(
+        default=DEFAULT_MESSAGE_TEMPLATE,
+        max_length=MAX_TEMPLATE_LENGTH,
+        description=(
+            "Jinja2 template rendered with the incoming JSON body as `payload`. "
+            "Use `{{payload_json}}` for the pretty-printed full body, or "
+            "dotted-path access like `{{payload.pull_request.title}}` for specific fields."
+        ),
+    )
+    rate_limit_count: Optional[int] = Field(
+        default=DEFAULT_RATE_LIMIT_COUNT,
+        ge=1,
+        le=10,
+        description=(
+            "Maximum invocations allowed per rate_limit_period. "
+            "Set to null to disable rate limiting (unlimited). Range 1–10 otherwise."
+        ),
+    )
+    rate_limit_period: str = Field(
+        default=DEFAULT_RATE_LIMIT_PERIOD,
+        pattern="^(minute|hour|day|week)$",
+    )
     expires_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp")
 
 
@@ -68,6 +111,9 @@ class WebhookResponse(BaseModel):
     direction: str = "incoming"
     permissions: List[str] = []
     require_confirmation: bool = False
+    message_template: str = DEFAULT_MESSAGE_TEMPLATE
+    rate_limit_count: Optional[int] = DEFAULT_RATE_LIMIT_COUNT
+    rate_limit_period: str = DEFAULT_RATE_LIMIT_PERIOD
     is_active: bool = True
     created_at: Optional[str] = None
     expires_at: Optional[str] = None
@@ -83,23 +129,58 @@ class WebhookUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
     require_confirmation: Optional[bool] = None
     encrypted_name: Optional[str] = Field(default=None, max_length=512)
-
-
-# --- Incoming webhook models (webhook-key authenticated) ---
-
-class WebhookIncomingRequest(BaseModel):
-    """Payload sent by external services to trigger a chat."""
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=50_000,
-        description="The message content. Will be stored as a system message in a new chat.",
-    )
+    message_template: Optional[str] = Field(default=None, max_length=MAX_TEMPLATE_LENGTH)
+    rate_limit_count: Optional[int] = Field(default=None, ge=1, le=10)
+    rate_limit_period: Optional[str] = Field(default=None, pattern="^(minute|hour|day|week)$")
 
 
 class WebhookIncomingResponse(BaseModel):
     chat_id: str
     status: str  # "processing" or "pending_confirmation"
+
+
+# ---------------------------------------------------------------------------
+# Jinja2 template rendering for webhook message content
+# ---------------------------------------------------------------------------
+#
+# Templates are user-supplied and stored in the DB, so we render them with a
+# SandboxedEnvironment that blocks access to dangerous attributes / methods
+# (e.g. __class__.__bases__ SSTI escapes). ChainableUndefined means missing
+# paths like {{payload.pull_request.title}} render as empty strings instead
+# of raising an error when the external service sends an unexpected shape.
+
+_WEBHOOK_JINJA_ENV = SandboxedEnvironment(
+    autoescape=False,  # System message is plaintext, not HTML.
+    undefined=ChainableUndefined,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
+
+
+def _render_webhook_template(template_str: Optional[str], payload: Any) -> str:
+    """Render a webhook message template against the incoming body.
+
+    Exposes two variables to the template:
+      - `payload`      → the parsed body (dict / list / primitive), for
+                         dotted-path access like {{payload.pull_request.title}}.
+      - `payload_json` → the pretty-printed JSON string of the whole body,
+                         for templates that want to dump everything at once.
+
+    Falls back to the pretty-printed JSON if the template is missing, empty,
+    or fails to render — the webhook must never fail because the user wrote
+    a broken template.
+    """
+    payload_json = json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+    tpl_source = (template_str or DEFAULT_MESSAGE_TEMPLATE).strip() or DEFAULT_MESSAGE_TEMPLATE
+    try:
+        template = _WEBHOOK_JINJA_ENV.from_string(tpl_source)
+        rendered = template.render(payload=payload, payload_json=payload_json)
+    except TemplateError as tpl_err:
+        logger.warning(
+            f"Webhook template render failed ({tpl_err}); falling back to raw JSON dump"
+        )
+        return payload_json
+    return rendered.strip() or payload_json
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +192,16 @@ ALLOWED_PERMISSIONS = {"trigger_chat"}
 
 # Pending webhook chat cache TTL (24 hours)
 PENDING_WEBHOOK_CHAT_TTL = 86400
+
+# Prompt wrapper passed to the AI as the "user" turn when a webhook fires.
+# Mirrors REMINDER_TASK_TEMPLATE in backend/apps/reminder/tasks.py so webhook
+# chats carry the same "task triggered, just act" signal to the LLM.
+WEBHOOK_TASK_TEMPLATE = (
+    "[Incoming Webhook — Task Triggered]\n\n"
+    "Task: {message}\n\n"
+    "Carry out this task now. Do not explain that a webhook fired unless the user "
+    "explicitly asks."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +246,17 @@ async def create_webhook(
 
     hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
 
+    # Fail fast if the user-supplied template is syntactically broken.
+    # (Rendering errors at call time fall back to raw JSON, but create-time
+    # validation gives the user immediate feedback on a typo.)
+    try:
+        _WEBHOOK_JINJA_ENV.from_string(payload.message_template)
+    except TemplateError as tpl_err:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid message template: {tpl_err}",
+        )
+
     created = await directus_service.create_webhook(
         user_id=current_user.id,
         hashed_user_id=hashed_user_id,
@@ -164,6 +266,9 @@ async def create_webhook(
         direction=payload.direction,
         permissions=payload.permissions,
         require_confirmation=payload.require_confirmation,
+        message_template=payload.message_template,
+        rate_limit_count=payload.rate_limit_count,
+        rate_limit_period=payload.rate_limit_period,
         expires_at=payload.expires_at,
     )
 
@@ -177,6 +282,9 @@ async def create_webhook(
         direction=payload.direction,
         permissions=payload.permissions,
         require_confirmation=payload.require_confirmation,
+        message_template=payload.message_template,
+        rate_limit_count=payload.rate_limit_count,
+        rate_limit_period=payload.rate_limit_period,
         is_active=True,
         created_at=created.get("created_at"),
         expires_at=created.get("expires_at"),
@@ -201,6 +309,9 @@ async def list_webhooks(
             direction=item.get("direction", "incoming"),
             permissions=item.get("permissions") or [],
             require_confirmation=bool(item.get("require_confirmation", False)),
+            message_template=item.get("message_template") or DEFAULT_MESSAGE_TEMPLATE,
+            rate_limit_count=item.get("rate_limit_count") if item.get("rate_limit_count") is not None else DEFAULT_RATE_LIMIT_COUNT,
+            rate_limit_period=item.get("rate_limit_period") or DEFAULT_RATE_LIMIT_PERIOD,
             is_active=bool(item.get("is_active", True)),
             created_at=item.get("created_at"),
             expires_at=item.get("expires_at"),
@@ -235,6 +346,19 @@ async def update_webhook(
         update_data["require_confirmation"] = payload.require_confirmation
     if payload.encrypted_name is not None:
         update_data["encrypted_name"] = payload.encrypted_name
+    if payload.message_template is not None:
+        try:
+            _WEBHOOK_JINJA_ENV.from_string(payload.message_template)
+        except TemplateError as tpl_err:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid message template: {tpl_err}",
+            )
+        update_data["message_template"] = payload.message_template
+    if payload.rate_limit_count is not None:
+        update_data["rate_limit_count"] = payload.rate_limit_count
+    if payload.rate_limit_period is not None:
+        update_data["rate_limit_period"] = payload.rate_limit_period
 
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -255,6 +379,9 @@ async def update_webhook(
         direction=target.get("direction", "incoming"),
         permissions=target.get("permissions") or [],
         require_confirmation=payload.require_confirmation if payload.require_confirmation is not None else target.get("require_confirmation", False),
+        message_template=(payload.message_template if payload.message_template is not None else target.get("message_template") or DEFAULT_MESSAGE_TEMPLATE),
+        rate_limit_count=(payload.rate_limit_count if payload.rate_limit_count is not None else target.get("rate_limit_count") if target.get("rate_limit_count") is not None else DEFAULT_RATE_LIMIT_COUNT),
+        rate_limit_period=(payload.rate_limit_period or target.get("rate_limit_period") or DEFAULT_RATE_LIMIT_PERIOD),
         is_active=payload.is_active if payload.is_active is not None else target.get("is_active", True),
         created_at=target.get("created_at"),
         expires_at=target.get("expires_at"),
@@ -302,40 +429,59 @@ async def delete_webhook(
     summary="Trigger a new chat via webhook",
     description=(
         "External services call this endpoint to create a new chat with a system message. "
+        "The entire JSON body is available to the webhook key's message template as "
+        "`{{payload}}` (dotted-path access) or `{{payload_json}}` (full JSON dump). "
         "Authenticate with a webhook key: `Authorization: Bearer wh-...`"
     ),
 )
-@limiter.limit("10/minute")
+@limiter.limit("60/minute")
 async def webhook_incoming(
     request: Request,
-    payload: WebhookIncomingRequest,
+    payload: Any = Body(
+        ...,
+        description="Arbitrary JSON body from the external service (any shape).",
+    ),
     webhook_info: Dict[str, Any] = Depends(verify_webhook_key),
 ):
     """
     Create a new chat triggered by an incoming webhook.
 
-    The message is stored as a system message (role='system'), visible in chat
-    history alongside reminder and memory confirmation messages.
-
-    Processing flow:
-    1. Generate chat_id and message_id
-    2. Encrypt message with user's vault key (server-side, since webhook
-       senders don't have the user's client-side encryption key)
-    3. Register chat in user's chat_ids_versions sorted set
-    4. Store as pending webhook chat in cache (for delivery on next connect)
-    5. If user online: broadcast via WebSocket immediately
-    6. If user offline: queue email notification
-    7. If require_confirmation: chat enters pending state
+    Mirrors the reminder-fired flow (backend/apps/reminder/tasks.py):
+      1. Pre-create a minimal chat row in Directus so the AI response has something
+         to attach to.
+      2. Broadcast a `webhook_chat` WebSocket event carrying PLAINTEXT content —
+         the WS channel is already TLS + session-authenticated, and the frontend
+         is responsible for chat-key-encrypting and persisting via
+         `chat_system_message_added`.
+      3. Register the chat in the user's chat_ids_versions sorted set.
+      4. Offline safety net: vault-encrypt a copy into a 24h pending cache and
+         queue an email notification so the user is alerted.
+      5. Unless `require_confirmation` is set on the webhook key, dispatch an AI
+         ask-request server-side so the assistant runs regardless of whether
+         any device is online.
     """
     user_id = webhook_info["user_id"]
     hashed_user_id = webhook_info["hashed_user_id"]
     require_confirmation = webhook_info["require_confirmation"]
     webhook_id = webhook_info["webhook_id"]
+    message_template = webhook_info.get("message_template") or DEFAULT_MESSAGE_TEMPLATE
 
     cache_service: CacheService = request.app.state.cache_service
     encryption_service = request.app.state.encryption_service
+    directus_service: DirectusService = request.app.state.directus_service
 
-    # --- Get user's vault key ID for server-side encryption ---
+    # --- Render the per-key Jinja2 template into the system message content ---
+    # The user's template decides how the external service's JSON body becomes a
+    # human-readable prompt (e.g. "Analyze this pull request: {{payload.pull_request.title}}").
+    # Rendering is sandboxed and chainable-undefined, so missing paths fall back
+    # to empty strings instead of 500-ing the webhook.
+    rendered_message = _render_webhook_template(message_template, payload)
+    if not rendered_message:
+        # Belt-and-braces — _render_webhook_template already falls back to the
+        # raw JSON dump, but an empty body still means nothing to say.
+        raise HTTPException(status_code=400, detail="Rendered webhook message is empty")
+
+    # --- Get user's vault key ID (needed for the offline-delivery safety net) ---
     cached_user = await cache_service.get_user_by_id(user_id)
     vault_key_id = None
     if cached_user:
@@ -343,7 +489,6 @@ async def webhook_incoming(
 
     if not vault_key_id:
         # Directus fallback (never treat cache miss as terminal)
-        directus_service: DirectusService = request.app.state.directus_service
         try:
             success, user_profile, _ = await directus_service.get_user_profile(user_id)
             if success and user_profile:
@@ -359,21 +504,48 @@ async def webhook_incoming(
     chat_id = str(uuid.uuid4())
     message_id = str(uuid.uuid4())
     now_ts = int(time.time())
+    status_value = "pending_confirmation" if require_confirmation else "processing"
 
-    # --- Encrypt the message content with user's vault key ---
+    # --- Pre-create chat in Directus (mirrors reminder tasks.py:234-253) ---
+    # The AI response persistence flow needs a chat row to exist. The frontend
+    # handler will fill in the real encrypted_title once it generates the chat key.
+    try:
+        minimal_chat_metadata = {
+            "chat_id": chat_id,
+            "hashed_user_id": hashed_user_id,
+            "title_v": 0,
+            "messages_v": 0,
+            "last_edited_overall_timestamp": now_ts,
+            "last_message_timestamp": now_ts,
+            "unread_count": 1,
+        }
+        created_data, is_duplicate = await directus_service.chat.create_chat_in_directus(
+            minimal_chat_metadata
+        )
+        if created_data:
+            logger.info(f"Pre-created chat {chat_id} in Directus for webhook {webhook_id}")
+        elif is_duplicate:
+            logger.debug(f"Chat {chat_id} already exists (race), continuing")
+        else:
+            logger.warning(f"Failed to pre-create chat {chat_id} in Directus, continuing anyway")
+    except Exception as create_err:
+        logger.warning(f"Error pre-creating chat {chat_id}: {create_err}, continuing anyway")
+
+    # --- Register chat in user's chat_ids_versions for ownership checks ---
+    await cache_service.add_chat_to_ids_versions(user_id, chat_id, now_ts)
+
+    # --- Vault-encrypt a copy for the offline safety net only ---
+    # Online users get plaintext via the WS event below; this copy is just so the
+    # frontend can recover the chat via the pending cache after a cold-boot.
     try:
         encrypted_content, key_version = await encryption_service.encrypt_with_user_key(
-            payload.message, vault_key_id
+            rendered_message, vault_key_id
         )
     except Exception as e:
         logger.error(f"Vault encryption failed for webhook chat: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Encryption failed")
 
-    # --- Build the webhook chat payload ---
-    # This is stored in cache pending delivery and then persisted to Directus
-    status_value = "pending_confirmation" if require_confirmation else "processing"
-
-    webhook_chat = {
+    webhook_pending_record = {
         "chat_id": chat_id,
         "message_id": message_id,
         "webhook_id": webhook_id,
@@ -386,49 +558,24 @@ async def webhook_incoming(
         "created_at": now_ts,
         "source": "webhook",
     }
-
-    # --- Store in pending delivery cache ---
     pending_key = f"webhook_pending_chat:{user_id}:{chat_id}"
     try:
-        import json
         await cache_service.set(
             pending_key,
-            json.dumps(webhook_chat),
+            json.dumps(webhook_pending_record),
             ttl=PENDING_WEBHOOK_CHAT_TTL,
         )
     except Exception as e:
-        logger.error(f"Failed to cache pending webhook chat: {e}")
-        raise HTTPException(status_code=500, detail="Failed to store webhook chat")
+        logger.warning(f"Failed to cache pending webhook chat record: {e}")
+        # Non-fatal — online delivery path doesn't depend on this cache.
 
-    # --- Register chat in user's chat_ids_versions for ownership checks ---
-    await cache_service.add_chat_to_ids_versions(user_id, chat_id, now_ts)
-
-    # --- Persist system message via Celery task ---
-    if not require_confirmation:
-        try:
-            from backend.core.api.app.tasks.celery_config import app as celery_app
-            celery_app.send_task(
-                name="app.tasks.persistence_tasks.persist_new_chat_message",
-                kwargs={
-                    "message_id": message_id,
-                    "chat_id": chat_id,
-                    "hashed_user_id": hashed_user_id,
-                    "role": "system",
-                    "encrypted_content": encrypted_content,
-                    "created_at": now_ts,
-                    "user_id": user_id,
-                },
-                queue="default",
-            )
-        except Exception as e:
-            logger.warning(f"Failed to queue persistence task for webhook chat: {e}")
-
-    # --- Deliver to user (if online) or queue notification (if offline) ---
+    # --- Broadcast plaintext via WebSocket (reminder_fired pattern) ---
+    user_is_online = False
     try:
         from backend.core.api.app.routes.websockets import manager
+        user_is_online = manager.is_user_active(user_id)
 
-        if manager.is_user_active(user_id):
-            # User online — broadcast webhook_chat event to all devices
+        if user_is_online:
             await manager.broadcast_to_user(
                 message={
                     "type": "webhook_chat",
@@ -436,11 +583,11 @@ async def webhook_incoming(
                     "payload": {
                         "chat_id": chat_id,
                         "message_id": message_id,
-                        "encrypted_content": encrypted_content,
-                        "vault_key_version": key_version,
+                        "content": rendered_message,  # rendered plaintext — frontend encrypts with chat key
                         "status": status_value,
                         "source": "webhook",
-                        "created_at": now_ts,
+                        "webhook_id": webhook_id,
+                        "fired_at": now_ts,
                     },
                 },
                 user_id=user_id,
@@ -449,25 +596,195 @@ async def webhook_incoming(
                 f"Delivered webhook chat {chat_id} to online user {user_id[:8]}... "
                 f"(status={status_value})"
             )
-        else:
-            # User offline — queue email notification (if enabled)
-            _queue_webhook_email_notification(
-                request=request,
+    except Exception as e:
+        logger.warning(f"Failed to broadcast webhook_chat WS event: {e}")
+        # Non-fatal — offline delivery path still fires below.
+
+    # --- Offline notification (only when no device was live to receive it) ---
+    if not user_is_online:
+        _queue_webhook_email_notification(
+            request=request,
+            user_id=user_id,
+            chat_id=chat_id,
+            cached_user=cached_user,
+            vault_key_id=vault_key_id,
+            encryption_service=encryption_service,
+        )
+        logger.info(
+            f"User {user_id[:8]}... offline — webhook chat {chat_id} queued for "
+            f"email + pending cache (status={status_value})"
+        )
+
+    # --- Dispatch AI response server-side (unconditional unless approval required) ---
+    if not require_confirmation:
+        try:
+            await _dispatch_webhook_ai_request(
                 user_id=user_id,
                 chat_id=chat_id,
-                cached_user=cached_user,
-                vault_key_id=vault_key_id,
-                encryption_service=encryption_service,
+                message_id=message_id,
+                message=rendered_message,
+                cache_service=cache_service,
             )
-            logger.info(
-                f"User {user_id[:8]}... offline — webhook chat {chat_id} stored pending "
-                f"(status={status_value})"
+        except Exception as ai_error:
+            logger.warning(
+                f"Failed to dispatch AI request for webhook chat {chat_id}: {ai_error}",
+                exc_info=True,
             )
-    except Exception as e:
-        logger.warning(f"Failed to deliver/notify webhook chat: {e}")
-        # Non-fatal — chat is already cached and will be delivered on next connect
+            # Non-fatal — the chat + system message still exist; user can reply manually.
 
     return WebhookIncomingResponse(chat_id=chat_id, status=status_value)
+
+
+# ---------------------------------------------------------------------------
+# Pending approval endpoints (JWT auth — user confirms a pending webhook chat)
+# ---------------------------------------------------------------------------
+
+class WebhookApprovalResponse(BaseModel):
+    chat_id: str
+    status: str  # "processing" (approved) or "rejected"
+
+
+@router.post(
+    "/pending/{chat_id}/approve",
+    response_model=WebhookApprovalResponse,
+    summary="Approve a pending webhook chat",
+    description=(
+        "When a webhook key has `require_confirmation=true`, the incoming chat "
+        "lands in a `pending_confirmation` state and the AI is NOT dispatched "
+        "automatically. Calling this endpoint approves the pending chat, which "
+        "decrypts the cached content and hands off to the AI pipeline."
+    ),
+)
+@limiter.limit("30/minute")
+async def approve_pending_webhook(
+    request: Request,
+    chat_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    cache_service: CacheService = request.app.state.cache_service
+    encryption_service = request.app.state.encryption_service
+
+    pending_key = f"webhook_pending_chat:{current_user.id}:{chat_id}"
+    pending_raw = await cache_service.get(pending_key)
+    if not pending_raw:
+        raise HTTPException(status_code=404, detail="No pending webhook chat with that id")
+
+    try:
+        pending = json.loads(pending_raw) if isinstance(pending_raw, str) else pending_raw
+    except (ValueError, TypeError) as parse_err:
+        logger.error(f"Corrupt pending webhook record for chat {chat_id}: {parse_err}")
+        raise HTTPException(status_code=500, detail="Corrupt pending webhook record")
+
+    # Sanity-check ownership even though the cache key already includes user_id.
+    if pending.get("user_id") != current_user.id:
+        raise HTTPException(status_code=403, detail="Pending webhook does not belong to this user")
+
+    encrypted_content = pending.get("encrypted_content")
+    if not encrypted_content:
+        raise HTTPException(status_code=500, detail="Pending webhook record missing content")
+
+    # Get vault_key_id (cache first, Directus fallback — never treat miss as terminal).
+    cached_user = await cache_service.get_user_by_id(current_user.id)
+    vault_key_id = cached_user.get("vault_key_id") if cached_user else None
+    if not vault_key_id:
+        directus_service: DirectusService = request.app.state.directus_service
+        try:
+            success, user_profile, _ = await directus_service.get_user_profile(current_user.id)
+            if success and user_profile:
+                vault_key_id = user_profile.get("vault_key_id")
+        except Exception as e:
+            logger.error(f"Vault key fetch failed during webhook approval: {e}")
+    if not vault_key_id:
+        raise HTTPException(status_code=500, detail="User encryption not configured")
+
+    try:
+        plaintext = await encryption_service.decrypt_with_user_key(encrypted_content, vault_key_id)
+    except Exception as dec_err:
+        logger.error(f"Vault decrypt failed for webhook approval {chat_id[:8]}...: {dec_err}")
+        raise HTTPException(status_code=500, detail="Failed to decrypt pending webhook content")
+
+    if not plaintext:
+        raise HTTPException(status_code=500, detail="Decrypted pending webhook content is empty")
+
+    message_id = pending.get("message_id") or str(uuid.uuid4())
+
+    try:
+        await _dispatch_webhook_ai_request(
+            user_id=current_user.id,
+            chat_id=chat_id,
+            message_id=message_id,
+            message=plaintext,
+            cache_service=cache_service,
+        )
+    except Exception as ai_err:
+        logger.error(f"AI dispatch failed for webhook approval {chat_id[:8]}...: {ai_err}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to dispatch AI request")
+
+    # Clear the pending cache entry — one-shot approval, no replay.
+    await cache_service.delete(pending_key)
+
+    # Notify the user's other devices that the chat is now processing so their
+    # "Approve/Reject" banner disappears in real time.
+    try:
+        from backend.core.api.app.routes.websockets import manager
+        if manager.is_user_active(current_user.id):
+            await manager.broadcast_to_user(
+                message={
+                    "type": "webhook_chat_approved",
+                    "event": "webhook_chat_approved",
+                    "payload": {"chat_id": chat_id, "status": "processing"},
+                },
+                user_id=current_user.id,
+            )
+    except Exception as ws_err:
+        logger.warning(f"Failed to broadcast webhook_chat_approved: {ws_err}")
+
+    logger.info(f"Approved webhook chat {chat_id} for user {current_user.id[:8]}...")
+    return WebhookApprovalResponse(chat_id=chat_id, status="processing")
+
+
+@router.post(
+    "/pending/{chat_id}/reject",
+    response_model=WebhookApprovalResponse,
+    summary="Reject a pending webhook chat",
+    description=(
+        "Discards a pending webhook chat. The cached content is dropped and "
+        "the client should remove the chat locally. The Directus chat row "
+        "stays for consistency with the phased-sync model but is unused."
+    ),
+)
+@limiter.limit("30/minute")
+async def reject_pending_webhook(
+    request: Request,
+    chat_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    cache_service: CacheService = request.app.state.cache_service
+
+    pending_key = f"webhook_pending_chat:{current_user.id}:{chat_id}"
+    pending_raw = await cache_service.get(pending_key)
+    if not pending_raw:
+        raise HTTPException(status_code=404, detail="No pending webhook chat with that id")
+
+    await cache_service.delete(pending_key)
+
+    # Broadcast rejection so all devices drop the chat locally.
+    try:
+        from backend.core.api.app.routes.websockets import manager
+        if manager.is_user_active(current_user.id):
+            await manager.broadcast_to_user(
+                message={
+                    "type": "webhook_chat_rejected",
+                    "event": "webhook_chat_rejected",
+                    "payload": {"chat_id": chat_id},
+                },
+                user_id=current_user.id,
+            )
+    except Exception as ws_err:
+        logger.warning(f"Failed to broadcast webhook_chat_rejected: {ws_err}")
+
+    logger.info(f"Rejected webhook chat {chat_id} for user {current_user.id[:8]}...")
+    return WebhookApprovalResponse(chat_id=chat_id, status="rejected")
 
 
 # ---------------------------------------------------------------------------
@@ -515,14 +832,9 @@ def _queue_webhook_email_notification(
         language = cached_user.get("language", "en") or "en"
         darkmode = bool(cached_user.get("darkmode", False))
 
-        # Dispatch Celery email task
-        import asyncio
+        # Dispatch Celery email task — the task itself handles decryption.
         from backend.core.api.app.tasks.celery_config import app as celery_app
 
-        # Decrypt email synchronously (we're in an async context but email
-        # decryption is fast via vault)
-        loop = asyncio.get_event_loop()
-        # The email task will handle decryption itself — pass encrypted values
         celery_app.send_task(
             name="app.tasks.email_tasks.webhook_chat_notification_email_task.send_webhook_chat_notification",
             kwargs={
@@ -540,82 +852,68 @@ def _queue_webhook_email_notification(
 
 
 # ---------------------------------------------------------------------------
-# Decrypt pending webhook message (JWT auth — authenticated user's device)
+# AI dispatch helper (server-side assistant run, presence-independent)
 # ---------------------------------------------------------------------------
 
-class WebhookDecryptRequest(BaseModel):
-    chat_id: str
-    message_id: str
-    encrypted_content: str
-    vault_key_version: str
-
-
-class WebhookDecryptResponse(BaseModel):
-    plaintext: str
-
-
-@router.post(
-    "/decrypt-pending",
-    response_model=WebhookDecryptResponse,
-    summary="Decrypt a vault-encrypted webhook message for the client",
-    description=(
-        "Decrypts the server-side vault-encrypted content of a webhook chat message "
-        "so the client can re-encrypt it with the chat key (zero-knowledge flow)."
-    ),
-)
-@limiter.limit("30/minute")
-async def decrypt_pending_webhook(
-    request: Request,
-    payload: WebhookDecryptRequest,
-    current_user: User = Depends(get_current_user),
-):
+async def _dispatch_webhook_ai_request(
+    user_id: str,
+    chat_id: str,
+    message_id: str,
+    message: str,
+    cache_service: CacheService,
+) -> None:
     """
-    Decrypt vault-encrypted webhook message content for the authenticated user.
+    Dispatch an AI ask request for a fired webhook.
 
-    The incoming webhook flow stores the message encrypted with the user's vault key
-    (server-side, since the external sender has no access to the client master key).
-    When the user's device receives the webhook_chat WebSocket event, it calls this
-    endpoint to get the plaintext, then re-encrypts with the local chat key.
+    Mirrors backend/apps/reminder/tasks.py::_dispatch_reminder_ai_request.
+    The webhook chat is a brand-new chat, so there is no prior message history —
+    we build a single-turn history containing the wrapped task prompt and let the
+    `ai/ask` skill take over. The assistant response is persisted by the AI
+    pipeline to Directus whether or not any device is online.
     """
-    # Verify the pending chat belongs to this user
-    cache_service: CacheService = request.app.state.cache_service
-    pending_key = f"webhook_pending_chat:{current_user.id}:{payload.chat_id}"
-    pending_raw = await cache_service.get(pending_key)
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
-    if not pending_raw:
-        # Allow re-delivery attempts — check via message_id ownership
-        # Fall through to decryption if user_id matches
-        logger.debug(
-            f"No pending cache entry for webhook chat {payload.chat_id[:8]}..., "
-            f"attempting vault decryption anyway"
-        )
+    task_content = WEBHOOK_TASK_TEMPLATE.format(message=message)
+    message_history = [
+        {
+            "content": task_content,
+            "role": "user",
+            "created_at": int(time.time()),
+        }
+    ]
 
-    # Decrypt using the user's vault key
-    encryption_service = request.app.state.encryption_service
-    cached_user = await cache_service.get_user_by_id(current_user.id)
-    vault_key_id = cached_user.get("vault_key_id") if cached_user else None
-
-    if not vault_key_id:
-        raise HTTPException(status_code=500, detail="User encryption not configured")
-
+    user_preferences: Dict[str, Any] = {}
     try:
-        plaintext = await encryption_service.decrypt_with_user_key(
-            payload.encrypted_content, vault_key_id
+        user_timezone = await cache_service.get_user_timezone(user_id)
+        if user_timezone:
+            user_preferences["timezone"] = user_timezone
+    except Exception as tz_err:
+        logger.debug(f"Could not fetch user timezone for webhook AI dispatch: {tz_err}")
+
+    ask_request = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "user_id": user_id,
+        "user_id_hash": user_id_hash,
+        "message_history": message_history,
+        "chat_has_title": False,  # New chat, title not yet set.
+        "mate_id": None,
+        "active_focus_id": None,
+        "user_preferences": user_preferences,
+        "app_settings_memories_metadata": None,
+    }
+
+    # Dispatch via in-process SkillRegistry (same pattern as reminder AI dispatch;
+    # the API container registry has the `ai` app registered).
+    from backend.core.api.app.services.skill_registry import get_global_registry
+
+    response_data = await get_global_registry().dispatch_skill("ai", "ask", ask_request)
+    ai_task_id = response_data.get("task_id") if isinstance(response_data, dict) else None
+
+    if ai_task_id:
+        await cache_service.set_active_ai_task(chat_id, ai_task_id)
+        logger.info(
+            f"Dispatched AI ask request for webhook chat {chat_id} (task_id={ai_task_id})"
         )
-    except Exception as e:
-        logger.error(f"Vault decryption failed for webhook chat {payload.chat_id[:8]}...: {e}")
-        raise HTTPException(status_code=500, detail="Decryption failed")
-
-    if not plaintext:
-        raise HTTPException(status_code=500, detail="Decryption returned empty result")
-
-    # Clear the pending cache entry after successful decryption
-    if pending_raw:
-        await cache_service.delete(pending_key)
-
-    logger.info(
-        f"Decrypted webhook message for user {current_user.id[:8]}... "
-        f"(chat={payload.chat_id[:8]}..., msg={payload.message_id[:8]}...)"
-    )
-
-    return WebhookDecryptResponse(plaintext=plaintext)
+    else:
+        logger.warning(f"ai.ask returned no task_id for webhook chat {chat_id}")

@@ -1036,6 +1036,31 @@ header.next_chat:
   he: "הצ'אט הבא"
   verified_by_human: []
 
+header.example_chat:
+  context: Label shown as a badge/pill in the chat header banner when the user is viewing an example chat. Helps non-authenticated users understand this is a pre-made example, not their own chat.
+  en: Example chat
+  de: Beispiel-Chat
+  zh: 示例聊天
+  es: Chat de ejemplo
+  fr: Chat d'exemple
+  pt: Chat de exemplo
+  ru: Пример чата
+  ja: チャットの例
+  ko: 예시 채팅
+  it: Chat di esempio
+  tr: Örnek sohbet
+  vi: Trò chuyện mẫu
+  id: Obrolan contoh
+  pl: Przykładowy czat
+  nl: Voorbeeldchat
+  ar: محادثة نموذجية
+  hi: उदाहरण चैट
+  th: แชทตัวอย่าง
+  cs: Příklad chatu
+  sv: Exempelchatt
+  he: "צ'אט לדוגמה"
+  verified_by_human: []
+
 header.set_reminder:
   context: Accessible label for the bell button in the top-right of the chat header banner that opens the reminder setter panel
   en: Set reminder

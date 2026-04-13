@@ -24,7 +24,7 @@ Required env vars:
                                      (must exactly match the card's
                                      allowed_email_domain — e.g.
                                      xyz9abc1.mailosaur.net)
-- MAILOSAUR_API_KEY, MAILOSAUR_SERVER_ID
+- GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN (preferred) or MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID (fallback)
 - PROD_SMOKE_GIFT_CARD_CODE        — the reusable card seeded once via the
                                      admin generate-gift-cards endpoint
 */
@@ -58,16 +58,14 @@ const {
 	createStepScreenshotter,
 	setToggleChecked,
 	getSignupTestDomain,
-	getMailosaurServerId,
 	buildSignupEmail,
-	createMailosaurClient,
+	createEmailClient,
+	checkEmailQuota,
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('../signup-flow-helpers');
 
 const PROD_BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
-const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const PROD_SMOKE_GIFT_CARD_CODE = process.env.PROD_SMOKE_GIFT_CARD_CODE;
 
@@ -113,28 +111,25 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
-	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required.');
+
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+	const emailQuota = await checkEmailQuota();
+	test.skip(!emailQuota.available, `Email quota reached (${emailQuota.current}/${emailQuota.limit}).`);
+
 	test.skip(!PROD_SMOKE_GIFT_CARD_CODE, 'PROD_SMOKE_GIFT_CARD_CODE must be set.');
-	if (!signupDomain || !MAILOSAUR_API_KEY || !PROD_SMOKE_GIFT_CARD_CODE) {
+	if (!signupDomain || !PROD_SMOKE_GIFT_CARD_CODE) {
 		throw new Error('Missing required env vars after skip guards.');
 	}
 
-	const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
-	if (!mailosaurServerId) {
-		throw new Error(
-			'MAILOSAUR_SERVER_ID is missing and could not be derived from the signup domain.'
-		);
-	}
-
-	const { waitForMailosaurMessage, extractSixDigitCode } = createMailosaurClient({
-		apiKey: MAILOSAUR_API_KEY,
-		serverId: mailosaurServerId
-	});
+	const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
 
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
-	const signupUsername = signupEmail.split('@')[0];
+	const emailLocal = signupEmail.split('@')[0];
+	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'ProdSmoke!2345Secure';
 	logCheckpoint('Generated fresh signup email.', { signupEmail });
 

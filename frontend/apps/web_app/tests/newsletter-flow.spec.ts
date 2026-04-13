@@ -28,8 +28,9 @@ export {};
  *     API contracts are validated directly here.
  *
  * REQUIRED ENV VARS:
- *   SIGNUP_TEST_EMAIL_DOMAINS    — comma-separated Mailosaur domains (e.g. ae20drx9.mailosaur.net)
- *   MAILOSAUR_API_KEY            — Mailosaur REST API key
+ *   SIGNUP_TEST_EMAIL_DOMAINS    — comma-separated test domains (e.g. gmail.com or ae20drx9.mailosaur.net)
+ *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN — Gmail API credentials (preferred)
+ *   MAILOSAUR_API_KEY            — Mailosaur REST API key (fallback)
  *
  * Runtime: ~5–8 minutes (email delivery waits dominate).
  */
@@ -39,8 +40,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	createMailosaurClient,
-	getMailosaurServerId,
+	createEmailClient,
+	checkEmailQuota,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
@@ -49,14 +50,11 @@ const {
 // ---------------------------------------------------------------------------
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS ?? '';
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY ?? '';
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 // Derive API base URL: app.dev.openmates.org → api.dev.openmates.org
 const API_BASE_URL = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 
-// Derive Mailosaur server ID from the first domain
 const [FIRST_DOMAIN] = SIGNUP_TEST_EMAIL_DOMAINS.split(',').map((d: string) => d.trim());
-const MAILOSAUR_SERVER_ID = getMailosaurServerId(FIRST_DOMAIN, process.env.MAILOSAUR_SERVER_ID);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -245,28 +243,32 @@ test('newsletter: subscribe → confirm → unsubscribe → re-subscribe', async
 	test.setTimeout(900000); // 15 min ceiling
 
 	test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
-	test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required.');
-	test.skip(!MAILOSAUR_SERVER_ID, 'Cannot derive Mailosaur server ID.');
+
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+	const quota = await checkEmailQuota();
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
 	const log = createSignupLogger('NEWSLETTER_FLOW');
 	const screenshot = createStepScreenshotter(log);
 	await archiveExistingScreenshots(log);
 
-	const { deleteAllMessages, waitForMailosaurMessage } = createMailosaurClient({
-		apiKey: MAILOSAUR_API_KEY,
-		serverId: MAILOSAUR_SERVER_ID
-	});
+	const { deleteAllMessages, waitForMailosaurMessage } = emailClient!;
 
-	// Unique time-based address: nlMMDDHHmm@<domain>
+	// Unique time-based address using +alias for Gmail or plain local part for Mailosaur
 	const now = new Date();
 	const pad = (n: number) => String(n).padStart(2, '0');
 	// Include seconds so two runs in the same minute get different addresses
 	const localPart = `nl${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-	const testEmail = `${localPart}@${FIRST_DOMAIN}`;
+	const gmailTestAddress = process.env.GMAIL_TEST_ADDRESS;
+	const testEmail = gmailTestAddress && gmailTestAddress.includes('@')
+		? `${gmailTestAddress.split('@')[0]}+${localPart}@${gmailTestAddress.split('@')[1]}`
+		: `${localPart}@${FIRST_DOMAIN}`;
 	log(`Test email address: ${testEmail}`);
 
 	await deleteAllMessages();
-	log('Mailosaur inbox cleared.');
+	log('Email inbox cleared.');
 
 	// -------------------------------------------------------------------------
 	// STEP 1: Subscribe via Settings > Newsletter UI

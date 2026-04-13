@@ -77,6 +77,10 @@ jobs:
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
           MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
           E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
           E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
           CREATE_ACCOUNT_SLOT: ${{ github.event.inputs.create_account_slot }}
@@ -113,10 +117,16 @@ jobs:
             echo "Updating $SECRET_NAME after credential-mutating test..."
             gh secret set "$SECRET_NAME" --body "$NEW_KEY" && echo "✅ Updated $SECRET_NAME" || echo "⚠️ Failed to update $SECRET_NAME"
           fi
+      - name: Sanitize artifact name
+        if: always()
+        id: artifact_name
+        run: echo "name=playwright-${SPEC//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          SPEC: ${{ github.event.inputs.spec }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-${{ github.event.inputs.spec }}
+          name: ${{ steps.artifact_name.outputs.name }}
           path: |
             test-results/playwright.json
             frontend/apps/web_app/test-results/

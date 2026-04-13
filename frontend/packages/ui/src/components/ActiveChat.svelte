@@ -3,6 +3,7 @@
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
+    import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
     // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
     // AppSettingsMemoriesPermissionDialog is now rendered inside ChatHistory.svelte
     // so it scrolls with the messages instead of being fixed at the bottom
@@ -69,11 +70,15 @@
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { reminderContext } from '../stores/reminderContextStore';
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
+    import {
+        skillStoreExampleFullscreenStore,
+        closeSkillStoreExampleFullscreen,
+    } from '../stores/skillStoreExampleFullscreenStore'; // Synthetic fullscreen state from app-store skill examples
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllCommunityDemoChats, communityDemoStore } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats'; // Import demo chat utilities
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
@@ -995,6 +1000,32 @@
     let embedFullscreenData = $state<EmbedFullscreenState>(null);
 
     /**
+     * Subscribe to the app-store skill example fullscreen store and mount
+     * the synthetic example inside the normal fullscreen container so it
+     * behaves exactly like a real chat embed (slide-up animation,
+     * data-driven routing, child drilldown, download/copy, etc.).
+     *
+     * Sharing is implicitly disabled because synthetic examples have no
+     * real embed id in the embed store — the share button in
+     * EmbedTopBar only activates for embeds with a resolvable id.
+     */
+    $effect(() => {
+        const example = $skillStoreExampleFullscreenStore;
+        if (!example) return;
+        embedFullscreenData = {
+            embedId: example.embedId,
+            embedType: 'app-skill-use',
+            decodedContent: example.decodedContent,
+            attrs: { app_id: example.appId, skill_id: example.skillId },
+            embedData: { status: 'finished' },
+            focusChildEmbedId: null,
+            highlightQuoteText: null,
+            focusLineRange: null,
+        };
+        showEmbedFullscreen = true;
+    });
+
+    /**
      * Direction of the last embed navigation gesture.
      * Used to drive the directional slide-in animation in UnifiedEmbedFullscreen:
      *   'next'     → new embed slides in from the right
@@ -1569,19 +1600,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         showEmbedFullscreen = false;
         embedFullscreenData = null;
-        
+
+        // Clear any active app-store skill example so the $effect doesn't
+        // immediately re-mount the synthetic embed.
+        closeSkillStoreExampleFullscreen();
+
         // Reset forceOverlayMode when embed is closed
         // This ensures the next time an embed is opened, it uses the default layout based on screen size
         forceOverlayMode = false;
-        
-        // Clear embed URL hash when embed is closed
+
+        // Clear embed store state — clearActiveEmbed() uses replaceState internally,
+        // which clears the entire hash (including the chat-id part) without firing hashchange.
         activeEmbedStore.clearActiveEmbed();
         console.debug('[ActiveChat] Cleared embed from URL hash');
-        
-        // If there's an active chat, restore the chat URL hash
-        // This ensures that when closing an embed while viewing a chat, the chat URL is restored
+
+        // Restore the chat-only URL hash (#chat-id=X).
+        // CRITICAL: Use history.replaceState instead of activeChatStore.setActiveChat to
+        // avoid firing a hashchange event. setActiveChat sets window.location.hash which
+        // triggers handleHashChange → loadChat → resetChatHeaderState, clearing the chat
+        // header (title + summary) until the chat is reopened. The activeChatStore value
+        // is already correct (set when the chat was opened), so we only need to restore
+        // the URL hash for bookmarkability.
         if (currentChat && currentChat.chat_id) {
-            activeChatStore.setActiveChat(currentChat.chat_id);
+            history.replaceState(null, '', `#chat-id=${currentChat.chat_id}`);
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
     }
@@ -2576,7 +2617,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /**
      * Build the scrollable intro list for non-authenticated users.
      * Combines static DEMO_CHATS (intro chats, excluding legal) with
-     * community demo chats loaded from the server, in that order.
+     * example chats (static, always available), in that order.
      * Returns Chat[] ready for rendering with the standard card components.
      */
     function loadNonAuthRecentChats(): RecentChatMeta[] {
@@ -2594,8 +2635,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             };
         });
 
-        // 2. Community demo chats (server-fetched, already Chat objects, no legal chats)
-        const communityMetas: RecentChatMeta[] = getAllCommunityDemoChats().map((chat) => ({
+        // 2. Example chats (static, always available, no legal chats)
+        const communityMetas: RecentChatMeta[] = getAllExampleChats().map((chat) => ({
             chat,
             title: chat.title ?? null,
             category: chat.category ?? null,
@@ -2633,8 +2674,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
-        // Subscribe to communityDemoStore so this effect re-runs when demos load
-        void $communityDemoStore;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
@@ -2806,7 +2845,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
 
             // Normal path: use cleartext fields as fallback (demo chats have these set directly)
-            const displayTitle = chat.title || decryptedTitle || 'Untitled Chat';
+            const displayTitle = chat.title || decryptedTitle || get(text)('common.untitled_chat');
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
             const displaySummary = chat.chat_summary || decryptedSummary || null;
@@ -2840,7 +2879,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (isOgExample && isWelcome && !currentActiveChat) {
             const chat = getOgExampleResumeChat();
             resumeChatData = chat;
-            resumeChatTitle = chat.title || 'Untitled Chat';
+            resumeChatTitle = chat.title || $text('common.untitled_chat');
             resumeChatCategory = chat.category || 'general_knowledge';
             resumeChatIcon = chat.icon || 'sparkles';
             resumeChatSummary = chat.chat_summary || null;
@@ -3942,7 +3981,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 (async () => {
                     try {
                         const freshChat = await chatDB.getChat(currentChat.chat_id);
-                        // Check for cleartext suggestions on fresh read (community demo chats)
+                        // Check for cleartext suggestions on fresh read (example chats)
                         if (freshChat?.follow_up_request_suggestions) {
                             try {
                                 const suggestions = JSON.parse(freshChat.follow_up_request_suggestions);
@@ -7195,13 +7234,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 followUpSuggestions = translatedChat.follow_up_suggestions || [];
                 console.debug('[ActiveChat] Loaded original public chat follow-up suggestions from static bundle:', $state.snapshot(followUpSuggestions));
             } else if (currentChat.follow_up_request_suggestions) {
-                // For community demo chats (from server), use cleartext suggestions stored on chat object
-                // ARCHITECTURE: Community demo chats use cleartext fields (not encrypted_* fields)
+                // For example chats, use cleartext suggestions stored on chat object
+                // ARCHITECTURE: Example chats use cleartext fields (not encrypted_* fields)
                 try {
                     followUpSuggestions = JSON.parse(currentChat.follow_up_request_suggestions);
-                    console.debug('[ActiveChat] Loaded community demo chat follow-up suggestions from cleartext:', $state.snapshot(followUpSuggestions));
+                    console.debug('[ActiveChat] Loaded example chat follow-up suggestions from cleartext:', $state.snapshot(followUpSuggestions));
                 } catch (error) {
-                    console.error('[ActiveChat] Failed to parse community demo follow-up suggestions:', error);
+                    console.error('[ActiveChat] Failed to parse example chat follow-up suggestions:', error);
                     followUpSuggestions = [];
                 }
             } else {
@@ -8261,12 +8300,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
         window.addEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked);
         
-        // Add language change listener to reload public chats (demo + legal + community demos) when language changes
+        // Add language change listener to reload public chats (demo + legal + example chats) when language changes
         const handleLanguageChange = async () => {
             try {
+                // Refresh the welcome-screen recent-chats carousel so demo/example
+                // chat titles re-translate to the new locale.
+                carouselInvalidationCounter++;
+
                 // CRITICAL: Use $state.snapshot to get current value in async context
                 const snapshotChat = $state.snapshot(currentChat);
-                
+
                 if (!snapshotChat || !isPublicChat(snapshotChat.chat_id)) {
                     return;
                 }
@@ -8286,35 +8329,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const { _: translationStore } = await import('svelte-i18n');
                 get(translationStore); // Ensure translation store is updated
                 
-                // Import community demo store functions
-                const { getCommunityDemoMessages, communityDemoStore } = await import('../demo_chats');
-                
-                // Check if this is a community demo chat (demo-1, demo-2, etc.)
-                // Community demos are fetched from server with language-specific translations
-                // ARCHITECTURE: Community demos use a pattern-based ID check (startsWith 'demo-')
-                // but exclude static intro chats which are in DEMO_CHATS
-                const isStatic = DEMO_CHATS.some(c => c.chat_id === snapshotChat.chat_id);
-                if (snapshotChat.chat_id.startsWith('demo-') && !isStatic) {
-                    console.debug('[ActiveChat] Language changed - reloading community demo:', snapshotChat.chat_id);
-                    
-                    // ARCHITECTURE: Community demos are reloaded by Chats.svelte when language changes
-                    // The 'language-changed' event triggers loadDemoChatsFromServer(true) in Chats.svelte
-                    // which clears the cache and fetches demos in the new language
-                    // We need to wait for that reload to complete before we can get the new messages
-                    
-                    // Wait for Chats.svelte to finish reloading the community demos
-                    // We use waitForLoadingComplete() which waits for the store's loading flag to clear
-                    await communityDemoStore.waitForLoadingComplete();
-                    
-                    // Get the reloaded messages from communityDemoStore
-                    const newMessages = getCommunityDemoMessages(snapshotChat.chat_id);
-                    
+                // Import example chat functions (static data, always available)
+                const { getExampleChatMessages, isExampleChat } = await import('../demo_chats');
+
+                // Check if this is an example chat (static, always available)
+                if (isExampleChat(snapshotChat.chat_id)) {
+                    console.debug('[ActiveChat] Language changed - reloading example chat:', snapshotChat.chat_id);
+
+                    // Update the chat header title and summary to the new locale
+                    const { getExampleChat } = await import('../demo_chats');
+                    const translatedExampleChat = getExampleChat(snapshotChat.chat_id);
+                    if (translatedExampleChat?.title) {
+                        activeChatDecryptedTitle = translatedExampleChat.title;
+                        activeChatDecryptedSummary = translatedExampleChat.chat_summary ?? null;
+                    }
+
+                    // Get the messages from the static example chat store (always available, no waiting needed)
+                    const newMessages = getExampleChatMessages(snapshotChat.chat_id);
+
                     if (newMessages.length > 0) {
-                        console.debug(`[ActiveChat] Reloaded ${newMessages.length} messages for community demo ${snapshotChat.chat_id}`);
-                        
+                        console.debug(`[ActiveChat] Reloaded ${newMessages.length} messages for example chat ${snapshotChat.chat_id}`);
+
                         // CRITICAL: Force new array reference to ensure reactivity
                         currentMessages = newMessages.map(msg => ({ ...msg }));
-                        
+
                         // Update chat history display
                         if (chatHistoryRef) {
                             chatHistoryRef.updateMessages(currentMessages);
@@ -8322,10 +8360,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.warn('[ActiveChat] chatHistoryRef is null - cannot update messages');
                         }
                     } else {
-                        console.warn('[ActiveChat] No messages found for community demo after language change:', snapshotChat.chat_id);
-                        console.debug('[ActiveChat] Community demos may still be loading - messages will update when available');
+                        console.warn('[ActiveChat] No messages found for example chat after language change:', snapshotChat.chat_id);
                     }
-                    
+
                     return;
                 }
                 
@@ -8350,6 +8387,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Also ensure each message object is new to force re-rendering
                     currentMessages = newMessages.map(msg => ({ ...msg }));
                     
+                    // Update the chat header title and summary to the new locale
+                    activeChatDecryptedTitle = translatedChat.title;
+                    activeChatDecryptedSummary = translatedChat.description ?? null;
+
                     // Reload follow-up suggestions with new translations
                     if (translatedChat.follow_up_suggestions) {
                         followUpSuggestions = translatedChat.follow_up_suggestions;
@@ -9597,7 +9638,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
-                                                    <span class="resume-large-title" data-testid="resume-large-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                    <span class="resume-large-title" data-testid="resume-large-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
                                                     {#if resumeChatSummary}
                                                         <p class="resume-large-summary">{resumeChatSummary}</p>
                                                     {/if}
@@ -9638,7 +9679,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                         <CompactIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                     </div>
                                                     <div class="resume-chat-content">
-                                                        <span class="resume-chat-title" data-testid="resume-chat-title">{resumeChatTitle || 'Untitled Chat'}</span>
+                                                        <span class="resume-chat-title" data-testid="resume-chat-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
                                                     </div>
                                                 {/if}
                                                 <div class="resume-chat-arrow">
@@ -9877,6 +9918,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isNewChatCreditsError}
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
+                         isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
@@ -9986,10 +10028,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
                         {/if}
 
+                        <!-- Chat search suggestions — shown when typing in an open chat's message input.
+                             Searches existing chats and shows matching results as horizontal cards.
+                             Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
+                        {#if !showWelcome && !messageInputMapsOpen}
+                            <ChatSearchSuggestions
+                                messageInputContent={liveInputText}
+                                onChatNavigate={handleChatNavigate}
+                                currentChatId={currentChat?.chat_id}
+                            />
+                        {/if}
+
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <!-- Only show message input if user owns the chat or is not authenticated -->
                         {#if chatOwnershipResolved || !$authStore.isAuthenticated}
-                            <MessageInput 
+                            <MessageInput
                                 bind:this={messageInputFieldRef}
                                 currentChatId={currentChat?.chat_id || temporaryChatId}
                                 showActionButtons={showActionButtons}
@@ -10132,7 +10185,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
             <!-- Smooth transition: chat shrinks while fullscreen panel grows simultaneously -->
             {#if showEmbedFullscreen && embedFullscreenData}
-                <div 
+                <div
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideLayout}
                     class:overlay-mode={!showSideBySideLayout}
@@ -10141,6 +10194,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                     class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
                 >
+                <!-- Sample data banner — shown only when previewing an app-store
+                     skill example backed by synthetic fixture data (e.g. maps,
+                     health, home, events). Helps users understand the people,
+                     places and prices on these cards are not real. -->
+                {#if embedFullscreenData?.decodedContent?.is_store_example}
+                    <div class="store-example-banner" data-testid="store-example-banner">
+                        {$text('settings.app_store_examples.banner.sample_data')}
+                    </div>
+                {/if}
                 <!-- Key block forces complete recreation when embed changes -->
                 <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
@@ -10580,6 +10642,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .fullscreen-embed-container {
         position: relative;
         height: 100%;
+    }
+
+    /* Sample-data banner — only rendered for synthetic app-store example
+       embeds (is_store_example flag on decodedContent). Sits on top of
+       the EmbedTopBar row via a high z-index + top offset that clears the
+       action buttons. Pointer events disabled so the Close button stays
+       clickable through it. */
+    .store-example-banner {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: calc(var(--z-index-dropdown) + 10);
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 500;
+        line-height: 1.3;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        max-width: calc(100% - 160px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
     
     /* Overlay mode (default): Absolute positioning over everything */

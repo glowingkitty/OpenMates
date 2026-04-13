@@ -91,6 +91,21 @@ class UserCacheMixin:
             logger.error(f"Error getting user from cache by token hash {token_hash[:8]}...: {str(e)}")
             return None
 
+    # Auth-critical fields that must never be silently clobbered by a partial cache write.
+    # If the incoming user_data is missing any of these but the existing cached entry has them,
+    # the existing values are preserved. This prevents billing/payment/session code paths
+    # (which may write partial dicts) from wiping fields required for passkey login.
+    _PROTECTED_PROFILE_FIELDS = (
+        "encrypted_email_with_master_key",
+        "encrypted_email_address",
+        "hashed_email",
+        "user_email_salt",
+        "vault_key_id",
+        "vault_key_version",
+        "encrypted_settings",
+        "lookup_hashes",
+    )
+
     async def set_user(self, user_data: Dict, user_id: str = None, refresh_token: str = None, ttl: Optional[int] = None) -> bool:
         """Cache user data by user_id and optionally associate a refresh token."""
         try:
@@ -116,6 +131,26 @@ class UserCacheMixin:
             session_ttl = ttl if ttl is not None else self.SESSION_TTL
 
             user_cache_key = f"{self.USER_KEY_PREFIX}{user_id}"
+
+            # Guard: prevent partial writes from clobbering auth-critical fields.
+            # Many callers (billing, payments, session refresh) write back user_data dicts
+            # that may not contain passkey/encryption fields. If the existing cached profile
+            # has these fields, carry them forward so passkey login keeps working.
+            existing = await self.get(user_cache_key)
+            if existing and isinstance(existing, dict):
+                preserved = []
+                for field in self._PROTECTED_PROFILE_FIELDS:
+                    old_val = existing.get(field)
+                    new_val = user_data.get(field)
+                    if old_val and not new_val:
+                        user_data[field] = old_val
+                        preserved.append(field)
+                if preserved:
+                    logger.info(
+                        f"set_user: preserved {len(preserved)} protected field(s) from existing cache "
+                        f"for user {user_id[:8]}...: {preserved}"
+                    )
+
             user_set_success = await self.set(user_cache_key, user_data, ttl=user_ttl)
             logger.debug(f"Cache SET result for user key '{user_cache_key}': {user_set_success}")
 

@@ -46,7 +46,7 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-10'
+  last_observed: '2026-04-13'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -84,7 +84,7 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-10'
+  last_observed: '2026-04-13'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -112,7 +112,7 @@ cookies:
   same_site: Lax
   value_length: 64
   first_observed: '2026-04-08'
-  last_observed: '2026-04-10'
+  last_observed: '2026-04-13'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -156,7 +156,7 @@ cookies:
   same_site: None
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-10'
+  last_observed: '2026-04-13'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -176,36 +176,5 @@ cookies:
   notes: 'Set by Stripe (processor), not OpenMates. Third-party cookie on
 
     m.stripe.com. Disclosed in the privacy policy under Stripe.
-
-    '
-- name: preferredLanguage
-  domain: app.dev.openmates.org
-  path: /
-  http_only: false
-  secure: false
-  same_site: Lax
-  value_length: 2
-  first_observed: '2026-04-09'
-  last_observed: '2026-04-10'
-  seen_in_specs:
-  - language-settings-flow.spec.ts
-  purpose: 'Stores the user''s explicitly selected UI language (ISO 639-1 code such as
-
-    "en", "de") so that the correct translations are served on the next
-
-    request, including before authentication.
-
-    '
-  consent_exempt: true
-  exemption_basis: 'Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25 — "user-input
-
-    cookies" that remember a preference the user has explicitly set (here,
-
-    the language choice) are a canonical example of the strictly-necessary
-
-    exemption in Art. 29 WP Opinion 04/2012 §3.2.
-
-    '
-  notes: '2-character value (language code only). First-party. Not used for tracking.
 
     '

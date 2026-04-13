@@ -1276,10 +1276,12 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
     try:
         import stripe
 
-        # Get Stripe API key from Vault
+        # Get Stripe API key from Vault — mirrors billing_service._get_stripe_api_key.
+        # The Vault secret is split by environment: sandbox_secret_key / production_secret_key.
+        is_production = os.getenv("ENVIRONMENT", "development") == "production"
         stripe_api_key = await secrets_manager.get_secret(
             secret_path="kv/data/providers/stripe",
-            secret_key="api_key"
+            secret_key="production_secret_key" if is_production else "sandbox_secret_key",
         )
 
         if not stripe_api_key:

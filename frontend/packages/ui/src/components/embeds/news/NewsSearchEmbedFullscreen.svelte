@@ -132,7 +132,6 @@
 <SearchResultsTemplate
   appId="news"
   skillId="search"
-  minCardWidth="260px"
   skillIconName="search"
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}

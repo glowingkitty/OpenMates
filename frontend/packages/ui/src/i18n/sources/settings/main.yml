@@ -5063,6 +5063,11 @@ app_embeds.loading:
   sv: Läser in inbäddningar...
   he: טוען הטמעות...
   verified_by_human: []
+app_settings_memories.encryption_notice:
+  context: Explanatory text at the top of the Settings & Memories hub explaining that entries are end-to-end encrypted like chats
+  en: "Just like your chats, your settings & memories are encrypted & decrypted on your devices. So the OpenMates server and AI providers can never see the actual content, unless you decide to explicitely share the content for a chat."
+  verified_by_human:
+    - en
 app_settings_memories.examples_label:
   context: Label shown above example entries for non-authenticated users
   en: "Examples:"

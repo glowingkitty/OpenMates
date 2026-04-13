@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllCommunityDemoChats, communityDemoStore, loadCommunityDemos } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -232,11 +232,11 @@ let _chatUpdatedFlushPending = false;
 
 	// --- Reactive Computations for Display ---
 
-	// Get filtered public chats (intro + community demos + legal) - exclude hidden ones for authenticated users
+	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
 	// 
 	// ARCHITECTURE:
 	// - INTRO_CHATS: Static intro chats bundled with the app (welcome, what-makes-different)
-	// - Community demos: Dynamic demo chats fetched from server, stored in communityDemoStore (in-memory)
+	// - Example chats: Static hardcoded example chats from exampleChatStore
 	// - Legal chats: Legal documents (privacy, terms, imprint) - only for non-self-hosted
 	//
 	// Legal chats are shown only for non-self-hosted instances - they're OpenMates-specific documents
@@ -251,10 +251,7 @@ let _chatUpdatedFlushPending = false;
 		// Reference the text store to ensure reactivity when translations are loaded
 		void $text;
 		
-		// Reference the communityDemoStore to trigger reactivity when community demos are loaded
-		void $communityDemoStore;
-		
-		console.debug('[Chats] Recalculating visiblePublicChats. Community demos count:', getAllCommunityDemoChats().length);
+		// Example chats are static — no store subscription needed
 		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
 		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
@@ -281,14 +278,13 @@ let _chatUpdatedFlushPending = false;
 				});
 		}
 		
-		// 2. Community demo chats (fetched from server, stored in-memory)
+		// 2. Example chats (hardcoded static data)
 		// These are shown for all users (authenticated and non-authenticated)
-		let communityChats: ChatType[] = [];
-		communityChats = getAllCommunityDemoChats()
+		const exampleChats: ChatType[] = getAllExampleChats()
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.map(chat => ({
 				...chat,
-				group_key: 'examples' // Community demos go in "Examples" group
+				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
 		// 3. Legal chats (ONLY for non-self-hosted instances)
@@ -310,10 +306,10 @@ let _chatUpdatedFlushPending = false;
 				});
 		}
 		
-		return [...introChats, ...communityChats, ...legalChats];
+		return [...introChats, ...exampleChats, ...legalChats];
 	})());
 
-	// Combine public chats (intro + community demos + legal) with real chats from IndexedDB
+	// Combine public chats (intro + example chats + legal) with real chats from IndexedDB
 	// Also include sessionStorage-only chats for non-authenticated users (new chats with drafts)
 	// Also include shared chats for non-authenticated users (loaded from IndexedDB but marked for cleanup)
 	// Also include incognito chats (stored in sessionStorage, not IndexedDB)
@@ -321,7 +317,7 @@ let _chatUpdatedFlushPending = false;
 	//
 	// ARCHITECTURE:
 	// - Intro chats: Static, bundled with app, stored in INTRO_CHATS array (in-memory)
-	// - Community demos: Dynamic, fetched from server, stored in communityDemoStore (in-memory)
+	// - Example chats: Static hardcoded example chats from exampleChatStore
 	// - Legal chats: Static, bundled with app, stored in LEGAL_CHATS array (in-memory)
 	// - Real chats: User's actual chats, stored in IndexedDB
 	// - Shared chats: Chats shared with user, stored in IndexedDB (temporary for viewing)
@@ -427,10 +423,10 @@ let _chatUpdatedFlushPending = false;
 			}
 		}
 		
-		// Final log for debugging community demo categorization
-		const communityDemoCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
-		if (communityDemoCount > 0) {
-			console.debug(`[Chats] Found ${communityDemoCount} community demo chat(s) in 'examples' group`);
+		// Final log for debugging example chat categorization
+		const exampleChatCount = deduplicatedChats.filter(c => c.group_key === 'examples').length;
+		if (exampleChatCount > 0) {
+			console.debug(`[Chats] Found ${exampleChatCount} example chat(s) in 'examples' group`);
 		}
 		
 		return deduplicatedChats;
@@ -600,8 +596,22 @@ let _chatUpdatedFlushPending = false;
 		if (totalUserChats > visibleUserChatLimit) return true;
 		// Loading from server in progress
 		if (loadTier === 'loading_server') return true;
+		// Server reports more chats than we have locally (guards against metadata sync
+		// setting hasMoreOnServer=false while local IDB hasn't refreshed yet)
+		if (totalServerChatCount > 0 && totalUserChats < totalServerChatCount) return true;
 		// Server has more chats beyond what we've loaded locally
 		return hasMoreOnServer;
+	})());
+
+	// Number of remaining chats not yet visible (for "Show more (N)" button text)
+	let remainingChatsCount = $derived((() => {
+		const totalUserChats = sortedAllChatsFiltered.filter(
+			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
+		).length;
+		const totalKnown = totalServerChatCount > 0
+			? Math.max(totalUserChats, totalServerChatCount)
+			: totalUserChats;
+		return Math.max(0, totalKnown - visibleUserChatLimit);
 	})());
 
 	// Group the chats intended for display using Svelte 5 runes
@@ -658,7 +668,7 @@ let _chatUpdatedFlushPending = false;
 	//
 	// Problem: sortChats() orders entirely by timestamp, which mixes real user chats with
 	// intro/examples/legal chats wherever their timestamps happen to land. This means a
-	// community demo chat (server timestamp) or a legal chat (order 3-5 from 7-days-ago)
+	// example chat chat (server timestamp) or a legal chat (order 3-5 from 7-days-ago)
 	// can interleave with — or appear before — user chats and intro chats.
 	//
 	// Fix: always sort by section first, then by the existing timestamp sort within each section:
@@ -702,8 +712,6 @@ let _chatUpdatedFlushPending = false;
 	// --- Event Handlers & Lifecycle ---
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
-	let handleLanguageChangeForDemos: () => void; // For reloading demo chats on language change
-	let languageChangeDemoDebounceTimer: ReturnType<typeof setTimeout> | null = null; // Debounce timer for demo reload on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
 	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
@@ -977,15 +985,21 @@ let _chatUpdatedFlushPending = false;
 		* Handles 'phase_2_last_20_chats_ready' events from Phase 2 of the new phased sync system.
 		* This means the last 20 updated chats are ready for quick access.
 		*/
-	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.debug(`[Chats] Phase 2 complete - chats ready: ${event.detail.chat_count} chats.`);
+	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number; total_chat_count?: number}>) => {
+		console.debug(`[Chats] Phase 2 complete - chats ready: ${event.detail.chat_count} chats, total on server: ${event.detail.total_chat_count || 'unknown'}.`);
+
+		// Set total chat count early so "Show more (N)" button shows the correct remaining
+		// count immediately — don't wait for Phase 3 which can take several seconds.
+		if (event.detail.total_chat_count && event.detail.total_chat_count > 0) {
+			totalServerChatCount = event.detail.total_chat_count;
+			hasMoreOnServer = event.detail.total_chat_count > 100;
+			serverPaginationOffset = 100;
+			console.info(`[Chats] Phase 2: totalServerChatCount=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
+		}
 
 		// PERF: Phase 2 sync handler incrementally upserts each chat into chatListCache.
 		// Non-forced read picks up the in-memory cache (no full IDB re-scan).
 		await updateChatListFromDB(false);
-
-		// Phase 2 stores metadata in IDB but tier 1 only displays 11 chats (Phase 1a set).
-		// No state change needed here; user clicks "Show more" to see the rest.
 
 		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};
@@ -997,10 +1011,13 @@ let _chatUpdatedFlushPending = false;
 	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number; total_chat_count?: number}>) => {
 		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats, total on server: ${event.detail.total_chat_count || 'unknown'}.`);
 
-		// PERF: Phase 3 sync handler (chatSyncServiceHandlersPhasedSync.ts) now
-		// incrementally upserts each chat into chatListCache during storage.
-		// We only need a non-forced read to pick up the cache (no full IDB re-scan).
-		await updateChatListFromDB(false);
+		// Phase 3 is the definitive chat load — force a full IDB re-read to ensure
+		// we pick up ALL chats. A non-forced read would use the cache, which can be
+		// stale if Phase 2 upserts were dropped during the cold-boot race (cacheReady
+		// is false while the initial IDB read is in progress, so upserts are silently
+		// skipped). The forced read guarantees the sidebar has the full set.
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 		
 		// Phase 3 complete — stay on current tier (user clicks "Show more" to expand).
 		// Only track server-side pagination metadata.
@@ -1157,16 +1174,28 @@ let _chatUpdatedFlushPending = false;
 			return;
 		}
 
-		// All local chats are shown — fetch more from server if available
-		if (hasMoreOnServer && !loadingMoreChats) {
+		// All local chats are shown — fetch more from server if available.
+		// Also fetch when totalServerChatCount exceeds local count (guards against
+		// metadata sync setting hasMoreOnServer=false before IDB refresh completes).
+		const serverHasMore = hasMoreOnServer || (totalServerChatCount > 0 && totalUserChats < totalServerChatCount);
+		if (serverHasMore && !loadingMoreChats) {
 			loadingMoreChats = true;
 			loadTier = 'loading_server';
 			console.debug(`[Chats] Show more: requesting older chats from server (offset=${serverPaginationOffset}).`);
 			try {
 				await chatSyncService.sendLoadMoreChats(serverPaginationOffset, SHOW_MORE_INCREMENT);
+				// Safety timeout: reset loadingMoreChats if server never responds (10s)
+				setTimeout(() => {
+					if (loadingMoreChats) {
+						console.warn('[Chats] Show more: server response timeout — resetting loading state.');
+						loadingMoreChats = false;
+						loadTier = 'all_local';
+					}
+				}, 10000);
 			} catch (error) {
 				console.error('[Chats] Error requesting more chats:', error);
 				loadingMoreChats = false;
+				loadTier = 'all_local';
 			}
 		}
 	};
@@ -1188,7 +1217,7 @@ let _chatUpdatedFlushPending = false;
 			// Deduplicate against existing chats before appending
 			const existingIds = new Set(allChats.map(c => c.chat_id));
 			const newChats = chats.filter(c => !existingIds.has(c.chat_id));
-			
+
 			if (newChats.length > 0) {
 				olderChatsFromServer = [...olderChatsFromServer, ...newChats];
 				console.debug(`[Chats] Added ${newChats.length} new older chats (${chats.length - newChats.length} duplicates filtered).`);
@@ -1196,19 +1225,29 @@ let _chatUpdatedFlushPending = false;
 		}
 
 		// Update pagination state
-		hasMoreOnServer = has_more;
 		totalServerChatCount = total_count;
-		serverPaginationOffset = offset + chats.length;
+		// Advance offset — guard against stuck pagination when server returns 0 chats
+		serverPaginationOffset = offset + Math.max(chats.length, SHOW_MORE_INCREMENT);
 		loadingMoreChats = false;
 		loadTier = 'all_local'; // Reset from 'loading_server' back to 'all_local'
 
-		// Increase visible limit to include the newly loaded server chats
-		const totalUserChats = sortedAllChatsFiltered.filter(
+		// Check how many user chats are now locally available (IDB + in-memory).
+		// sortedAllChatsFiltered already includes chats added to olderChatsFromServer above.
+		const totalLocalUserChats = sortedAllChatsFiltered.filter(
 			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
-		).length + (chats.length);
-		if (visibleUserChatLimit < totalUserChats) {
-			visibleUserChatLimit = totalUserChats;
+		).length;
+
+		// Only trust server's has_more if local chats don't already cover everything.
+		// Metadata sync may have loaded all chats into IDB while this fetch was in-flight,
+		// so the server's has_more can be stale.
+		if (totalLocalUserChats >= total_count) {
+			hasMoreOnServer = false;
+		} else {
+			hasMoreOnServer = has_more;
 		}
+
+		// Increase visible limit by one page to reveal the newly loaded chats
+		visibleUserChatLimit += SHOW_MORE_INCREMENT;
 	};
 
 	/**
@@ -1488,26 +1527,8 @@ let _chatUpdatedFlushPending = false;
 		};
 		window.addEventListener('language-changed', languageChangeHandler);
 
-		// Language change handler for demo chats - reload demos in new language
-		// DEBOUNCED: The 'language-changed' event fires multiple times in quick succession
-		// (once from updateNavigationAndBreadcrumbs, once from setTimeout in SettingsLanguage).
-		// Without debouncing, two concurrent loadCommunityDemos(true) calls race against
-		// each other - the second call's communityDemoStore.clear() can wipe data that the
-		// first call just added, causing demo chat titles to briefly disappear or stay stale.
-		handleLanguageChangeForDemos = () => {
-			// Clear any pending debounce timer (collapses multiple rapid events into one)
-			if (languageChangeDemoDebounceTimer) {
-				clearTimeout(languageChangeDemoDebounceTimer);
-			}
-			languageChangeDemoDebounceTimer = setTimeout(() => {
-				languageChangeDemoDebounceTimer = null;
-				console.debug('[Chats] Language changed (debounced) - reloading community demo chats');
-				loadCommunityDemos(true).catch(error => {
-					console.error('[Chats] Error reloading demo chats after language change:', error);
-				});
-			}, 100); // 100ms debounce - long enough to collapse double-dispatch, short enough to feel instant
-		};
-		window.addEventListener('language-changed', handleLanguageChangeForDemos);
+		// Example chats are static — no language-based reloading needed.
+		// Intro chats use i18n keys that auto-update via the $text store reactivity.
 
 		// Listen to local draft changes for immediate UI updates
 		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
@@ -1902,11 +1923,7 @@ let _chatUpdatedFlushPending = false;
 		// Don't use subscription to avoid reactive loops - just check on mount
 		await loadIncognitoChats();
 
-		// Ensure community demos are loaded (fallback if +page.svelte load hasn't completed yet).
-		// Primary load happens on page load in +page.svelte so example chats show in for-everyone/for-developers without opening sidebar.
-		loadCommunityDemos().catch(error => {
-			console.error('[Chats] Error loading demo chats from server:', error);
-		});
+		// Example chats are static — no loading needed.
 
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
@@ -1915,12 +1932,14 @@ let _chatUpdatedFlushPending = false;
 		// where the sidebar (Chats component) is closed by default and this component never mounts.
 		// This component only handles UI updates (loading indicators, list updates) from sync events.
 		// Note: syncing is now derived from phasedSyncState.initialSyncCompleted - no manual check needed
-		// If sync was already completed before this component mounted, ensure we have the latest data
-		// This handles the case where the sidebar was closed during sync (common on mobile)
-		// We intentionally stay on Tier 1 (11 chats) — user clicks "Show more" to see the rest
+		// If sync was already completed before this component mounted, do a FORCED full
+		// IDB read. The cold-boot load above used limit=20 (for fast first paint), and
+		// the Phase 2/3 events fired while the sidebar was closed — so the cache is stale
+		// with only 20 chats. A forced read bypasses the cache and loads ALL chats from IDB.
 		if ($phasedSyncState.initialSyncCompleted) {
-			await updateChatListFromDB();
-			console.debug('[Chats] Sync was already complete on mount, loaded data but staying at loadTier:', loadTier);
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+			console.debug('[Chats] Sync was already complete on mount — forced full IDB read:', allChatsFromDB.length, 'chats loaded');
 		}
 
 		// SEARCH RESTORE: If the search store has an active query when this component mounts
@@ -2005,10 +2024,8 @@ let _chatUpdatedFlushPending = false;
 		chatListCache.notifySidebarDestroyed();
 
 		window.removeEventListener('language-changed', languageChangeHandler);
-		window.removeEventListener('language-changed', handleLanguageChangeForDemos);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		window.removeEventListener('userLoggingOut', handleLogoutEvent);
-		if (languageChangeDemoDebounceTimer) clearTimeout(languageChangeDemoDebounceTimer);
 		if (unsubscribeDraftState) unsubscribeDraftState();
 		if (unsubscribeAuth) unsubscribeAuth();
 		
@@ -2483,7 +2500,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// For authenticated users, load all chats normally
 		if (!$authStore.isAuthenticated) {
 			console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
-			// NOTE: Community demo chats are now stored in-memory (communityDemoStore), not IndexedDB
+			// NOTE: Community demo chats are now stored in-memory (exampleChatStore), not IndexedDB
 			// They're included via visiblePublicChats derived, so we only need to load shared chats here
 			
 			try {
@@ -3003,12 +3020,12 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
      * Handles public chats (demo/legal), regular chats, and incognito chats
      */
     async function getChatDataAndMessages(chatId: string): Promise<{ chat: ChatType | null; messages: Message[] }> {
-        // Check if this is a public chat (intro, community demo, or legal)
+        // Check if this is a public chat (intro, example chat, or legal)
         if (isPublicChat(chatId)) {
             // Find the chat in visiblePublicChats
             const chat = visiblePublicChats.find(c => c.chat_id === chatId);
             if (chat) {
-                // getDemoMessages checks INTRO_CHATS, LEGAL_CHATS, and communityDemoStore
+                // getDemoMessages checks INTRO_CHATS, LEGAL_CHATS, and exampleChatStore
                 const messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
                 return { chat, messages };
             }
@@ -3852,7 +3869,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{#if loadingMoreChats}
 								...
 							{:else}
-								{$text('chats.loadMore.button')}
+								{$text('chats.loadMore.button')}{#if remainingChatsCount > 0}&nbsp;({remainingChatsCount}){/if}
 							{/if}
 						</button>
 					</div>

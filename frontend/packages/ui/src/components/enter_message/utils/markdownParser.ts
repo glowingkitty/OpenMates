@@ -227,6 +227,17 @@ export function preprocessMarkdown(markdownText: string): string {
     "$1\n$2\n$3",
   );
 
+  // Fix LLM hallucination: writing both an https:// URL and a bare (embed:ref)
+  // next to a markdown link. The LLM sometimes writes:
+  //   [Display text](https://example.com/page) (embed:example.com-x4F)
+  // instead of the correct:
+  //   [Display text](embed:example.com-x4F)
+  // Rewrite to use the embed ref as the link URL (drop the https:// URL).
+  markdownText = markdownText.replace(
+    /\[([^\]]+)\]\(https?:\/\/[^)]+\)\s*\(embed:([^)]+)\)/g,
+    "[$1](embed:$2)",
+  );
+
   // First extract math formulas
   const { processed: textWithMathExtracted, formulas } =
     extractMathFormulas(markdownText);

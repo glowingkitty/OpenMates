@@ -52,3 +52,78 @@ calculate.description:
   sv: Lös ekvationer och beräkna derivator eller integraler.
   he: פתור משוואות וחשב נגזרות או אינטגרלים.
   verified_by_human: []
+
+calculate.how_to_use.1:
+  context: Example instruction for math calculate skill - equation
+  en: "**Solve** the equation 2x² + 5x - 3 = 0"
+  de: Löse die Gleichung 2x² + 5x - 3 = 0
+  zh: 求解方程 2x² + 5x - 3 = 0
+  es: Resuelve la ecuación 2x² + 5x - 3 = 0
+  fr: Résous l'équation 2x² + 5x - 3 = 0
+  pt: Resolva a equação 2x² + 5x - 3 = 0
+  ru: Решите уравнение 2x² + 5x - 3 = 0
+  ja: 方程式 2x² + 5x - 3 = 0 を解く
+  ko: 방정식 2x² + 5x - 3 = 0 풀기
+  it: Risolvi l'equazione 2x² + 5x - 3 = 0
+  tr: 2x² + 5x - 3 = 0 denklemini çöz
+  vi: Giải phương trình 2x² + 5x - 3 = 0
+  id: Selesaikan persamaan 2x² + 5x - 3 = 0
+  pl: Rozwiąż równanie 2x² + 5x - 3 = 0
+  nl: Los de vergelijking 2x² + 5x - 3 = 0 op
+  ar: حل المعادلة 2x² + 5x - 3 = 0
+  hi: समीकरण 2x² + 5x - 3 = 0 हल करें
+  th: แก้สมการ 2x² + 5x - 3 = 0
+  cs: Vyřešte rovnici 2x² + 5x - 3 = 0
+  sv: Lös ekvationen 2x² + 5x - 3 = 0
+  he: "**פתור** את המשוואה 2x² + 5x - 3 = 0"
+  verified_by_human: []
+
+calculate.how_to_use.2:
+  context: Example instruction for math calculate skill - derivative
+  en: "**Calculate** the derivative of sin(x) · e^x"
+  de: Berechne die Ableitung von sin(x) · e^x
+  zh: 计算 sin(x) · e^x 的导数
+  es: Calcula la derivada de sin(x) · e^x
+  fr: Calcule la dérivée de sin(x) · e^x
+  pt: Calcule a derivada de sin(x) · e^x
+  ru: Вычислите производную sin(x) · e^x
+  ja: sin(x) · e^x の導関数を計算
+  ko: sin(x) · e^x의 도함수 계산
+  it: Calcola la derivata di sin(x) · e^x
+  tr: sin(x) · e^x'in türevini hesapla
+  vi: Tính đạo hàm của sin(x) · e^x
+  id: Hitung turunan dari sin(x) · e^x
+  pl: Oblicz pochodną sin(x) · e^x
+  nl: Bereken de afgeleide van sin(x) · e^x
+  ar: احسب مشتقة sin(x) · e^x
+  hi: sin(x) · e^x का अवकलज निकालें
+  th: คำนวณอนุพันธ์ของ sin(x) · e^x
+  cs: Vypočítejte derivaci sin(x) · e^x
+  sv: Beräkna derivatan av sin(x) · e^x
+  he: "**חשב** את הנגזרת של sin(x) · e^x"
+  verified_by_human: []
+
+calculate.how_to_use.3:
+  context: Example instruction for math calculate skill - integral
+  en: What is the **integral** of 1/(1 + x²)?
+  de: Was ist das Integral von 1/(1 + x²)?
+  zh: 1/(1 + x²) 的积分是什么？
+  es: ¿Cuál es la integral de 1/(1 + x²)?
+  fr: Quelle est l'intégrale de 1/(1 + x²) ?
+  pt: Qual é a integral de 1/(1 + x²)?
+  ru: Чему равен интеграл от 1/(1 + x²)?
+  ja: 1/(1 + x²) の積分は？
+  ko: 1/(1 + x²)의 적분은?
+  it: Qual è l'integrale di 1/(1 + x²)?
+  tr: 1/(1 + x²)'nin integrali nedir?
+  vi: Tích phân của 1/(1 + x²) là gì?
+  id: Berapa integral dari 1/(1 + x²)?
+  pl: Jaka jest całka z 1/(1 + x²)?
+  nl: Wat is de integraal van 1/(1 + x²)?
+  ar: ما هو تكامل 1/(1 + x²)؟
+  hi: 1/(1 + x²) का समाकल क्या है?
+  th: อินทิกรัลของ 1/(1 + x²) คืออะไร?
+  cs: Jaký je integrál z 1/(1 + x²)?
+  sv: Vad är integralen av 1/(1 + x²)?
+  he: "מהו ה**אינטגרל** של 1/(1 + x²)?"
+  verified_by_human: []

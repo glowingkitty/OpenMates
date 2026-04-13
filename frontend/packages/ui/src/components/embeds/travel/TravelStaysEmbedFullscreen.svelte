@@ -296,7 +296,6 @@
   errorMessage={localErrorMessage}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   onResultsLoaded={(results) => { allLoadedResults = results; }}
-  minCardWidth="260px"
   {initialChildEmbedId}
   {hasPreviousEmbed}
   {hasNextEmbed}

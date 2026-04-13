@@ -1,0 +1,648 @@
+title:
+  context: Title of example chat about creating a beautiful single page HTML
+  en: Beautiful Single Page HTML
+  de: Schöne Einzelseiten-HTML
+  zh: 精美的单页HTML
+  es: Hermoso HTML de una sola página
+  fr: Magnifique HTML en une seule page
+  pt: Belo HTML de página única
+  ru: Красивая одностраничная HTML-страница
+  ja: 美しいシングルページHTML
+  ko: 아름다운 싱글 페이지 HTML
+  it: Bellissimo HTML a pagina singola
+  tr: Güzel tek sayfa HTML
+  vi: HTML trang đơn đẹp mắt
+  id: HTML halaman tunggal yang indah
+  pl: Piękny jednostronicowy HTML
+  nl: Prachtig enkelzijdig HTML
+  ar: "صفحة HTML واحدة جميلة"
+  hi: सुंदर सिंगल पेज HTML
+  th: HTML หน้าเดียวสวยงาม
+  cs: Krásné jednostránkové HTML
+  sv: Vacker ensidig HTML
+  he: "HTML יפה של עמוד יחיד"
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat where user requested a single-page HTML template with glassmorphism design
+  en: User requested and received a single-page HTML template with inline CSS animations and Glassmorphism design
+  de: Benutzer hat eine Einzelseiten-HTML-Vorlage mit Inline-CSS-Animationen und Glassmorphism-Design angefragt und erhalten
+  zh: 用户请求并收到了一个带有内联CSS动画和Glassmorphism设计的单页HTML模板
+  es: El usuario solicitó y recibió una plantilla HTML de una sola página con animaciones CSS en línea y diseño Glassmorphism
+  fr: L'utilisateur a demandé et reçu un modèle HTML d'une seule page avec des animations CSS en ligne et un design Glassmorphism
+  pt: O usuário solicitou e recebeu um modelo HTML de página única com animações CSS embutidas e design Glassmorphism
+  ru: Пользователь запросил и получил одностраничный HTML-шаблон с встроенными CSS-анимациями и дизайном Glassmorphism
+  ja: ユーザーがインラインCSSアニメーションとGlassmorphismデザインを備えた単一ページHTMLテンプレートをリクエストし、受け取りました
+  ko: 사용자가 인라인 CSS 애니메이션과 Glassmorphism 디자인을 갖춘 싱글 페이지 HTML 템플릿을 요청하고 받았습니다
+  it: L'utente ha richiesto e ricevuto un modello HTML a pagina singola con animazioni CSS inline e design Glassmorphism
+  tr: Kullanıcı, satır içi CSS animasyonları ve Glassmorphism tasarımına sahip tek sayfalık bir HTML şablonu istedi ve aldı
+  vi: Người dùng đã yêu cầu và nhận được một mẫu HTML trang đơn với hoạt ảnh CSS nội tuyến và thiết kế Glassmorphism
+  id: Pengguna meminta dan menerima template HTML halaman tunggal dengan animasi CSS inline dan desain Glassmorphism
+  pl: Użytkownik poprosił o i otrzymał jednostronicowy szablon HTML z wbudowanymi animacjami CSS i designem Glassmorphism
+  nl: Gebruiker heeft een enkelpagina HTML-sjabloon met inline CSS-animaties en Glassmorphism-ontwerp aangevraagd en ontvangen
+  ar: "طلب المستخدم وحصل على قالب HTML من صفحة واحدة مع رسوم CSS متحركة مضمنة وتصميم Glassmorphism"
+  hi: उपयोगकर्ता ने इनलाइन CSS एनिमेशन और Glassmorphism डिज़ाइन के साथ एक सिंगल-पेज HTML टेम्पलेट का अनुरोध किया और प्राप्त किया
+  th: ผู้ใช้ขอและได้รับเทมเพลต HTML หน้าเดียวพร้อมแอนิเมชัน CSS แบบอินไลน์และการออกแบบ Glassmorphism
+  cs: Uživatel požádal o a obdržel jednostránkovou HTML šablonu s vloženými CSS animacemi a designem Glassmorphism
+  sv: Användaren begärde och fick en ensidig HTML-mall med inline CSS-animationer och Glassmorphism-design
+  he: "המשתמש ביקש וקיבל תבנית HTML של עמוד יחיד עם אנימציות CSS מוטמעות ועיצוב Glassmorphism"
+  verified_by_human: []
+
+user_message_1:
+  context: User asking for a beautiful single page HTML with animations
+  en: Give me some beautiful single page html with inline css animations
+  de: Gib mir eine schöne Einzelseiten-HTML mit Inline-CSS-Animationen
+  zh: 给我一个带有内联CSS动画的精美单页HTML
+  es: Dame un hermoso HTML de una sola página con animaciones CSS en línea
+  fr: Donne-moi un beau HTML d'une seule page avec des animations CSS en ligne
+  pt: Me dê um belo HTML de página única com animações CSS embutidas
+  ru: Сделай мне красивую одностраничную HTML-страницу с встроенными CSS-анимациями
+  ja: インラインCSSアニメーション付きの美しいシングルページHTMLをください
+  ko: 인라인 CSS 애니메이션이 있는 아름다운 싱글 페이지 HTML을 만들어 줘
+  it: Dammi un bel HTML a pagina singola con animazioni CSS inline
+  tr: Bana satır içi CSS animasyonları olan güzel bir tek sayfa HTML ver
+  vi: Cho tôi một trang HTML đơn đẹp mắt với hoạt ảnh CSS nội tuyến
+  id: Berikan saya HTML halaman tunggal yang indah dengan animasi CSS inline
+  pl: Daj mi piękny jednostronicowy HTML z wbudowanymi animacjami CSS
+  nl: Geef me een mooie enkelzijdige HTML met inline CSS-animaties
+  ar: "أعطني صفحة HTML واحدة جميلة مع رسوم CSS متحركة مضمنة"
+  hi: मुझे इनलाइन CSS एनिमेशन के साथ एक सुंदर सिंगल पेज HTML दो
+  th: ขอ HTML หน้าเดียวสวยๆ พร้อมแอนิเมชัน CSS แบบอินไลน์
+  cs: Dej mi krásné jednostránkové HTML s vloženými CSS animacemi
+  sv: Ge mig en vacker ensidig HTML med inline CSS-animationer
+  he: "תן לי HTML יפה של עמוד יחיד עם אנימציות CSS מוטמעות"
+  verified_by_human: []
+
+assistant_message_2:
+  context: "Assistant response with a glassmorphism HTML template featuring CSS animations. Contains code blocks."
+  en: |
+    Here is a modern, responsive single-page template featuring a **Glassmorphism** design and smooth CSS animations. It uses a dynamic gradient background and floating decorative elements to create a "living" feel.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Key Animation Concepts Used:
+    1.  **Gradient Shifting:** The `.background-canvas` uses `background-size: 400%` and moves the background position via keyframes. This creates a "lava lamp" effect that feels premium without needing high-res images.
+    2.  **Floating Blobs:** The `.blob` elements use `filter: blur()` and a combination of `translate` and `scale` to create organic, floating shapes.
+    3.  **Performance Tip:** I used `transform: translate()` and `opacity` for the entry animations. These properties are "GPU-accelerated," meaning the browser can animate them much more smoothly than properties like `margin` or `top/left`, which trigger layout recalculations.
+    4.  **Glassmorphism:** The `backdrop-filter: blur()` creates the frosted glass effect, which pairs perfectly with the moving background colors.
+
+    ### How to expand this:
+    *   **Scroll Reveal:** To make this a longer page, you might want to use a library like [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) or the native CSS `view-timeline` property (in modern browsers) to trigger animations as you scroll down.
+    *   **Interactivity:** You could add a simple JavaScript listener to move the "blobs" slightly based on the user's mouse position to create a parallax effect.
+
+    What kind of project are you planning to use this for? I can help you tailor the layout or the color palette (e.g., [Tailwind](https://tailwindcss.com/) colors or [Adobe Color](https://color.adobe.com/) themes) to fit a specific brand!
+  de: |
+    Hier ist eine moderne, responsive Einzelseiten-Vorlage mit einem **Glassmorphism**-Design und flüssigen CSS-Animationen. Sie verwendet einen dynamischen Verlaufshintergrund und schwebende dekorative Elemente, um ein „lebendiges" Gefühl zu erzeugen.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Verwendete Animations-Konzepte:
+    1.  **Gradient Shifting:** `.background-canvas` verwendet `background-size: 400%` und verschiebt die Hintergrundposition über Keyframes. Dies erzeugt einen „Lavalampen"-Effekt, der hochwertig wirkt, ohne hochauflösende Bilder zu benötigen.
+    2.  **Floating Blobs:** Die `.blob`-Elemente verwenden `filter: blur()` und eine Kombination aus `translate` und `scale`, um organische, schwebende Formen zu erzeugen.
+    3.  **Performance-Tipp:** Ich habe `transform: translate()` und `opacity` für die Eingangsanimationen verwendet. Diese Eigenschaften sind „GPU-beschleunigt", was bedeutet, dass der Browser sie viel flüssiger animieren kann als Eigenschaften wie `margin` oder `top/left`, die Layout-Neuberechnungen auslösen.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` erzeugt den Milchglas-Effekt, der perfekt zu den bewegten Hintergrundfarben passt.
+
+    ### Wie man dies erweitern kann:
+    *   **Scroll Reveal:** Um eine längere Seite zu erstellen, könnte man eine Bibliothek wie [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) oder die native CSS-Eigenschaft `view-timeline` (in modernen Browsern) verwenden, um Animationen beim Scrollen auszulösen.
+    *   **Interaktivität:** Man könnte einen einfachen JavaScript-Listener hinzufügen, um die „Blobs" leicht basierend auf der Mausposition des Benutzers zu bewegen und so einen Parallax-Effekt zu erzeugen.
+
+    Für welche Art von Projekt planst du das zu verwenden? Ich kann dir helfen, das Layout oder die Farbpalette anzupassen (z.B. [Tailwind](https://tailwindcss.com/)-Farben oder [Adobe Color](https://color.adobe.com/)-Themen), um es an eine bestimmte Marke anzupassen!
+  zh: |
+    这是一个现代化、响应式的单页模板，采用 **Glassmorphism** 设计和流畅的CSS动画。它使用动态渐变背景和浮动装饰元素来创造"活的"感觉。
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### 使用的关键动画概念：
+    1.  **Gradient Shifting：** `.background-canvas` 使用 `background-size: 400%` 并通过关键帧移动背景位置。这创造了一种"熔岩灯"效果，无需高分辨率图片就能呈现高级感。
+    2.  **Floating Blobs：** `.blob` 元素使用 `filter: blur()` 以及 `translate` 和 `scale` 的组合来创建有机的浮动形状。
+    3.  **性能提示：** 我使用了 `transform: translate()` 和 `opacity` 来制作入场动画。这些属性是"GPU加速"的，这意味着浏览器可以比 `margin` 或 `top/left` 等会触发布局重新计算的属性更流畅地进行动画处理。
+    4.  **Glassmorphism：** `backdrop-filter: blur()` 创建了磨砂玻璃效果，与移动的背景色完美搭配。
+
+    ### 如何扩展：
+    *   **Scroll Reveal：** 要制作更长的页面，你可能想使用像 [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) 这样的库或原生CSS `view-timeline` 属性（在现代浏览器中）来在滚动时触发动画。
+    *   **交互性：** 你可以添加一个简单的JavaScript监听器，根据用户的鼠标位置稍微移动"Blobs"，以创建视差效果。
+
+    你打算将这个用于什么类型的项目？我可以帮你调整布局或配色方案（例如 [Tailwind](https://tailwindcss.com/) 颜色或 [Adobe Color](https://color.adobe.com/) 主题）以适合特定品牌！
+  es: |
+    Aquí tienes una plantilla moderna y responsive de una sola página con un diseño **Glassmorphism** y animaciones CSS fluidas. Utiliza un fondo de degradado dinámico y elementos decorativos flotantes para crear una sensación "viva".
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Conceptos clave de animación utilizados:
+    1.  **Gradient Shifting:** `.background-canvas` usa `background-size: 400%` y mueve la posición del fondo mediante keyframes. Esto crea un efecto de "lámpara de lava" que se siente premium sin necesitar imágenes de alta resolución.
+    2.  **Floating Blobs:** Los elementos `.blob` usan `filter: blur()` y una combinación de `translate` y `scale` para crear formas orgánicas y flotantes.
+    3.  **Consejo de rendimiento:** Usé `transform: translate()` y `opacity` para las animaciones de entrada. Estas propiedades están "aceleradas por GPU", lo que significa que el navegador puede animarlas de forma mucho más fluida que propiedades como `margin` o `top/left`, que activan recálculos de diseño.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` crea el efecto de vidrio esmerilado, que combina perfectamente con los colores de fondo en movimiento.
+
+    ### Cómo expandir esto:
+    *   **Scroll Reveal:** Para hacer una página más larga, podrías usar una biblioteca como [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) o la propiedad CSS nativa `view-timeline` (en navegadores modernos) para activar animaciones al desplazarte.
+    *   **Interactividad:** Podrías agregar un listener de JavaScript simple para mover los "blobs" ligeramente según la posición del ratón del usuario para crear un efecto de paralaje.
+
+    ¿Para qué tipo de proyecto planeas usar esto? ¡Puedo ayudarte a adaptar el diseño o la paleta de colores (por ejemplo, colores de [Tailwind](https://tailwindcss.com/) o temas de [Adobe Color](https://color.adobe.com/)) para que se ajuste a una marca específica!
+  fr: |
+    Voici un modèle moderne et responsive d'une seule page avec un design **Glassmorphism** et des animations CSS fluides. Il utilise un arrière-plan dégradé dynamique et des éléments décoratifs flottants pour créer une sensation « vivante ».
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Concepts d'animation clés utilisés :
+    1.  **Gradient Shifting :** `.background-canvas` utilise `background-size: 400%` et déplace la position de l'arrière-plan via des keyframes. Cela crée un effet « lampe à lave » qui paraît haut de gamme sans nécessiter d'images haute résolution.
+    2.  **Floating Blobs :** Les éléments `.blob` utilisent `filter: blur()` et une combinaison de `translate` et `scale` pour créer des formes organiques flottantes.
+    3.  **Astuce performance :** J'ai utilisé `transform: translate()` et `opacity` pour les animations d'entrée. Ces propriétés sont « accélérées par le GPU », ce qui signifie que le navigateur peut les animer beaucoup plus fluidement que des propriétés comme `margin` ou `top/left`, qui déclenchent des recalculs de mise en page.
+    4.  **Glassmorphism :** `backdrop-filter: blur()` crée l'effet de verre dépoli, qui s'associe parfaitement aux couleurs d'arrière-plan en mouvement.
+
+    ### Comment étendre ceci :
+    *   **Scroll Reveal :** Pour créer une page plus longue, vous pourriez utiliser une bibliothèque comme [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) ou la propriété CSS native `view-timeline` (dans les navigateurs modernes) pour déclencher des animations en défilant.
+    *   **Interactivité :** Vous pourriez ajouter un simple écouteur JavaScript pour déplacer légèrement les « blobs » en fonction de la position de la souris de l'utilisateur afin de créer un effet de parallaxe.
+
+    Pour quel type de projet prévoyez-vous d'utiliser ceci ? Je peux vous aider à adapter la mise en page ou la palette de couleurs (par exemple, les couleurs [Tailwind](https://tailwindcss.com/) ou les thèmes [Adobe Color](https://color.adobe.com/)) pour correspondre à une marque spécifique !
+  pt: |
+    Aqui está um modelo moderno e responsivo de página única com um design **Glassmorphism** e animações CSS suaves. Ele usa um fundo de gradiente dinâmico e elementos decorativos flutuantes para criar uma sensação "viva".
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Conceitos-chave de animação utilizados:
+    1.  **Gradient Shifting:** `.background-canvas` usa `background-size: 400%` e move a posição do fundo via keyframes. Isso cria um efeito de "lâmpada de lava" que parece premium sem precisar de imagens de alta resolução.
+    2.  **Floating Blobs:** Os elementos `.blob` usam `filter: blur()` e uma combinação de `translate` e `scale` para criar formas orgânicas flutuantes.
+    3.  **Dica de performance:** Usei `transform: translate()` e `opacity` para as animações de entrada. Essas propriedades são "aceleradas por GPU", o que significa que o navegador pode animá-las de forma muito mais suave do que propriedades como `margin` ou `top/left`, que acionam recálculos de layout.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` cria o efeito de vidro fosco, que combina perfeitamente com as cores de fundo em movimento.
+
+    ### Como expandir isso:
+    *   **Scroll Reveal:** Para criar uma página mais longa, você pode usar uma biblioteca como [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) ou a propriedade CSS nativa `view-timeline` (em navegadores modernos) para acionar animações ao rolar.
+    *   **Interatividade:** Você pode adicionar um listener JavaScript simples para mover os "blobs" levemente com base na posição do mouse do usuário para criar um efeito de paralaxe.
+
+    Para que tipo de projeto você planeja usar isso? Posso ajudá-lo a personalizar o layout ou a paleta de cores (por exemplo, cores do [Tailwind](https://tailwindcss.com/) ou temas do [Adobe Color](https://color.adobe.com/)) para se adequar a uma marca específica!
+  ru: |
+    Вот современный, адаптивный одностраничный шаблон с дизайном **Glassmorphism** и плавными CSS-анимациями. Он использует динамический градиентный фон и плавающие декоративные элементы для создания «живого» ощущения.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Использованные ключевые концепции анимации:
+    1.  **Gradient Shifting:** `.background-canvas` использует `background-size: 400%` и перемещает позицию фона через keyframes. Это создаёт эффект «лавовой лампы», который выглядит премиально без необходимости в изображениях высокого разрешения.
+    2.  **Floating Blobs:** Элементы `.blob` используют `filter: blur()` и комбинацию `translate` и `scale` для создания органичных плавающих форм.
+    3.  **Совет по производительности:** Я использовал `transform: translate()` и `opacity` для анимаций появления. Эти свойства «ускорены GPU», что означает, что браузер может анимировать их гораздо плавнее, чем свойства вроде `margin` или `top/left`, которые вызывают пересчёт макета.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` создаёт эффект матового стекла, который идеально сочетается с движущимися цветами фона.
+
+    ### Как расширить это:
+    *   **Scroll Reveal:** Чтобы сделать страницу длиннее, можно использовать библиотеку вроде [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) или нативное CSS-свойство `view-timeline` (в современных браузерах) для запуска анимаций при прокрутке.
+    *   **Интерактивность:** Можно добавить простой JavaScript-слушатель для лёгкого перемещения «блобов» в зависимости от положения курсора пользователя, создавая эффект параллакса.
+
+    Для какого проекта вы планируете это использовать? Я могу помочь настроить макет или цветовую палитру (например, цвета [Tailwind](https://tailwindcss.com/) или темы [Adobe Color](https://color.adobe.com/)) под конкретный бренд!
+  ja: |
+    **Glassmorphism**デザインとスムーズなCSSアニメーションを特徴とする、モダンでレスポンシブなシングルページテンプレートです。ダイナミックなグラデーション背景とフローティング装飾要素を使用して「生きている」感覚を演出しています。
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### 使用された主要なアニメーション概念：
+    1.  **Gradient Shifting：** `.background-canvas`は`background-size: 400%`を使用し、キーフレームで背景位置を移動させます。これにより、高解像度画像なしでプレミアム感のある「ラバランプ」エフェクトが生まれます。
+    2.  **Floating Blobs：** `.blob`要素は`filter: blur()`と`translate`・`scale`の組み合わせを使用して、有機的なフローティングシェイプを作成します。
+    3.  **パフォーマンスのヒント：** エントリーアニメーションには`transform: translate()`と`opacity`を使用しました。これらのプロパティは「GPU高速化」されており、レイアウトの再計算を引き起こす`margin`や`top/left`などのプロパティよりもはるかにスムーズにアニメーションできます。
+    4.  **Glassmorphism：** `backdrop-filter: blur()`がすりガラス効果を作り出し、動く背景色と完璧にマッチします。
+
+    ### 拡張方法：
+    *   **Scroll Reveal：** より長いページにするには、[AOS (Animate on Scroll)](https://michalsnik.github.io/aos/)のようなライブラリや、ネイティブCSSの`view-timeline`プロパティ（モダンブラウザ対応）を使用して、スクロール時にアニメーションをトリガーできます。
+    *   **インタラクティビティ：** シンプルなJavaScriptリスナーを追加して、ユーザーのマウス位置に基づいて「ブロブ」をわずかに動かし、パララックス効果を作ることができます。
+
+    これをどのようなプロジェクトに使う予定ですか？レイアウトやカラーパレット（例えば[Tailwind](https://tailwindcss.com/)カラーや[Adobe Color](https://color.adobe.com/)テーマ）を特定のブランドに合わせて調整するお手伝いができます！
+  ko: |
+    **Glassmorphism** 디자인과 부드러운 CSS 애니메이션을 특징으로 하는 모던하고 반응형인 싱글 페이지 템플릿입니다. 동적 그라디언트 배경과 떠다니는 장식 요소를 사용하여 "살아있는" 느낌을 만들어냅니다.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### 사용된 주요 애니메이션 개념:
+    1.  **Gradient Shifting:** `.background-canvas`는 `background-size: 400%`를 사용하고 키프레임을 통해 배경 위치를 이동시킵니다. 이는 고해상도 이미지 없이도 프리미엄 느낌을 주는 "라바 램프" 효과를 만듭니다.
+    2.  **Floating Blobs:** `.blob` 요소는 `filter: blur()`와 `translate` 및 `scale`의 조합을 사용하여 유기적이고 떠다니는 형태를 만듭니다.
+    3.  **성능 팁:** 진입 애니메이션에 `transform: translate()`와 `opacity`를 사용했습니다. 이러한 속성은 "GPU 가속"되어 있어, 레이아웃 재계산을 유발하는 `margin`이나 `top/left` 같은 속성보다 훨씬 더 부드럽게 애니메이션할 수 있습니다.
+    4.  **Glassmorphism:** `backdrop-filter: blur()`가 반투명 유리 효과를 만들어 움직이는 배경색과 완벽하게 어울립니다.
+
+    ### 확장 방법:
+    *   **Scroll Reveal:** 더 긴 페이지를 만들려면 [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) 같은 라이브러리나 네이티브 CSS `view-timeline` 속성(모던 브라우저)을 사용하여 스크롤 시 애니메이션을 트리거할 수 있습니다.
+    *   **인터랙티비티:** 간단한 JavaScript 리스너를 추가하여 사용자의 마우스 위치에 따라 "블롭"을 약간 이동시켜 패럴랙스 효과를 만들 수 있습니다.
+
+    이것을 어떤 종류의 프로젝트에 사용할 계획인가요? 레이아웃이나 색상 팔레트(예: [Tailwind](https://tailwindcss.com/) 색상 또는 [Adobe Color](https://color.adobe.com/) 테마)를 특정 브랜드에 맞게 조정하는 것을 도와드릴 수 있습니다!
+  it: |
+    Ecco un modello moderno e responsive a pagina singola con un design **Glassmorphism** e animazioni CSS fluide. Utilizza uno sfondo con gradiente dinamico ed elementi decorativi flottanti per creare una sensazione "viva".
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Concetti chiave di animazione utilizzati:
+    1.  **Gradient Shifting:** `.background-canvas` usa `background-size: 400%` e sposta la posizione dello sfondo tramite keyframes. Questo crea un effetto "lampada di lava" che appare premium senza bisogno di immagini ad alta risoluzione.
+    2.  **Floating Blobs:** Gli elementi `.blob` usano `filter: blur()` e una combinazione di `translate` e `scale` per creare forme organiche flottanti.
+    3.  **Suggerimento sulle prestazioni:** Ho usato `transform: translate()` e `opacity` per le animazioni di entrata. Queste proprietà sono "accelerate dalla GPU", il che significa che il browser può animarle in modo molto più fluido rispetto a proprietà come `margin` o `top/left`, che attivano ricalcoli del layout.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` crea l'effetto vetro smerigliato, che si abbina perfettamente ai colori di sfondo in movimento.
+
+    ### Come espandere questo:
+    *   **Scroll Reveal:** Per creare una pagina più lunga, potresti usare una libreria come [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) o la proprietà CSS nativa `view-timeline` (nei browser moderni) per attivare animazioni durante lo scorrimento.
+    *   **Interattività:** Potresti aggiungere un semplice listener JavaScript per spostare leggermente i "blob" in base alla posizione del mouse dell'utente per creare un effetto di parallasse.
+
+    Per che tipo di progetto hai intenzione di usare questo? Posso aiutarti a personalizzare il layout o la tavolozza dei colori (ad esempio, colori [Tailwind](https://tailwindcss.com/) o temi [Adobe Color](https://color.adobe.com/)) per adattarsi a un marchio specifico!
+  tr: |
+    İşte **Glassmorphism** tasarımı ve akıcı CSS animasyonları içeren modern, duyarlı tek sayfalık bir şablon. Dinamik bir gradyan arka plan ve yüzen dekoratif öğeler kullanarak "canlı" bir his yaratır.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Kullanılan temel animasyon kavramları:
+    1.  **Gradient Shifting:** `.background-canvas`, `background-size: 400%` kullanır ve arka plan konumunu keyframes aracılığıyla hareket ettirir. Bu, yüksek çözünürlüklü görüntülere ihtiyaç duymadan premium hissettiren bir "lav lambası" efekti yaratır.
+    2.  **Floating Blobs:** `.blob` öğeleri, organik, yüzen şekiller oluşturmak için `filter: blur()` ve `translate` ile `scale` kombinasyonunu kullanır.
+    3.  **Performans ipucu:** Giriş animasyonları için `transform: translate()` ve `opacity` kullandım. Bu özellikler "GPU hızlandırmalı"dır, yani tarayıcı bunları, düzen yeniden hesaplamalarını tetikleyen `margin` veya `top/left` gibi özelliklerden çok daha akıcı bir şekilde canlandırabilir.
+    4.  **Glassmorphism:** `backdrop-filter: blur()`, hareketli arka plan renkleriyle mükemmel eşleşen buzlu cam efektini oluşturur.
+
+    ### Bunu nasıl genişletebilirsiniz:
+    *   **Scroll Reveal:** Daha uzun bir sayfa yapmak için [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) gibi bir kütüphane veya yerel CSS `view-timeline` özelliğini (modern tarayıcılarda) kullanarak kaydırma sırasında animasyonları tetikleyebilirsiniz.
+    *   **Etkileşim:** Kullanıcının fare konumuna göre "blob'ları" hafifçe hareket ettirmek ve bir paralaks efekti oluşturmak için basit bir JavaScript dinleyicisi ekleyebilirsiniz.
+
+    Bunu ne tür bir proje için kullanmayı planlıyorsunuz? Düzeni veya renk paletini (örneğin [Tailwind](https://tailwindcss.com/) renkleri veya [Adobe Color](https://color.adobe.com/) temaları) belirli bir markaya uyacak şekilde özelleştirmenize yardımcı olabilirim!
+  vi: |
+    Đây là một mẫu trang đơn hiện đại, responsive với thiết kế **Glassmorphism** và hoạt ảnh CSS mượt mà. Nó sử dụng nền gradient động và các phần tử trang trí nổi để tạo cảm giác "sống động".
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Các khái niệm hoạt ảnh chính được sử dụng:
+    1.  **Gradient Shifting:** `.background-canvas` sử dụng `background-size: 400%` và di chuyển vị trí nền qua keyframes. Điều này tạo ra hiệu ứng "đèn dung nham" trông cao cấp mà không cần hình ảnh độ phân giải cao.
+    2.  **Floating Blobs:** Các phần tử `.blob` sử dụng `filter: blur()` và kết hợp `translate` với `scale` để tạo các hình dạng nổi tự nhiên.
+    3.  **Mẹo hiệu suất:** Tôi đã sử dụng `transform: translate()` và `opacity` cho các hoạt ảnh xuất hiện. Các thuộc tính này được "tăng tốc GPU", nghĩa là trình duyệt có thể tạo hoạt ảnh cho chúng mượt mà hơn nhiều so với các thuộc tính như `margin` hoặc `top/left`, vốn kích hoạt tính toán lại bố cục.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` tạo hiệu ứng kính mờ, kết hợp hoàn hảo với các màu nền chuyển động.
+
+    ### Cách mở rộng:
+    *   **Scroll Reveal:** Để tạo trang dài hơn, bạn có thể sử dụng thư viện như [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) hoặc thuộc tính CSS gốc `view-timeline` (trên trình duyệt hiện đại) để kích hoạt hoạt ảnh khi cuộn.
+    *   **Tương tác:** Bạn có thể thêm một JavaScript listener đơn giản để di chuyển nhẹ các "blob" dựa trên vị trí chuột của người dùng để tạo hiệu ứng parallax.
+
+    Bạn dự định sử dụng cái này cho loại dự án nào? Tôi có thể giúp bạn tùy chỉnh bố cục hoặc bảng màu (ví dụ: màu [Tailwind](https://tailwindcss.com/) hoặc chủ đề [Adobe Color](https://color.adobe.com/)) để phù hợp với thương hiệu cụ thể!
+  id: |
+    Berikut adalah template halaman tunggal yang modern dan responsif dengan desain **Glassmorphism** dan animasi CSS yang halus. Template ini menggunakan latar belakang gradien dinamis dan elemen dekoratif mengambang untuk menciptakan nuansa "hidup".
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Konsep animasi kunci yang digunakan:
+    1.  **Gradient Shifting:** `.background-canvas` menggunakan `background-size: 400%` dan menggerakkan posisi latar belakang melalui keyframes. Ini menciptakan efek "lampu lava" yang terasa premium tanpa memerlukan gambar resolusi tinggi.
+    2.  **Floating Blobs:** Elemen `.blob` menggunakan `filter: blur()` dan kombinasi `translate` serta `scale` untuk membuat bentuk organik yang mengambang.
+    3.  **Tips performa:** Saya menggunakan `transform: translate()` dan `opacity` untuk animasi masuk. Properti ini "dipercepat GPU", yang berarti browser dapat menganimasikannya jauh lebih halus dibandingkan properti seperti `margin` atau `top/left`, yang memicu perhitungan ulang tata letak.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` menciptakan efek kaca buram, yang cocok sempurna dengan warna latar belakang yang bergerak.
+
+    ### Cara mengembangkan ini:
+    *   **Scroll Reveal:** Untuk membuat halaman lebih panjang, Anda bisa menggunakan pustaka seperti [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) atau properti CSS native `view-timeline` (di browser modern) untuk memicu animasi saat menggulir.
+    *   **Interaktivitas:** Anda bisa menambahkan listener JavaScript sederhana untuk menggerakkan "blob" sedikit berdasarkan posisi mouse pengguna untuk menciptakan efek paralaks.
+
+    Untuk jenis proyek apa Anda berencana menggunakan ini? Saya bisa membantu menyesuaikan tata letak atau palet warna (misalnya, warna [Tailwind](https://tailwindcss.com/) atau tema [Adobe Color](https://color.adobe.com/)) agar sesuai dengan merek tertentu!
+  pl: |
+    Oto nowoczesny, responsywny szablon jednostronicowy z designem **Glassmorphism** i płynnymi animacjami CSS. Wykorzystuje dynamiczne tło gradientowe i pływające elementy dekoracyjne, aby stworzyć „żywe" wrażenie.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Kluczowe wykorzystane koncepcje animacji:
+    1.  **Gradient Shifting:** `.background-canvas` używa `background-size: 400%` i przesuwa pozycję tła za pomocą keyframes. Tworzy to efekt „lampy lawowej", który wygląda premium bez potrzeby obrazów w wysokiej rozdzielczości.
+    2.  **Floating Blobs:** Elementy `.blob` używają `filter: blur()` oraz kombinacji `translate` i `scale` do tworzenia organicznych, pływających kształtów.
+    3.  **Wskazówka dotycząca wydajności:** Użyłem `transform: translate()` i `opacity` dla animacji wejściowych. Te właściwości są „akcelerowane GPU", co oznacza, że przeglądarka może je animować znacznie płynniej niż właściwości takie jak `margin` czy `top/left`, które wywołują ponowne obliczenia układu.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` tworzy efekt matowego szkła, który idealnie pasuje do ruchomych kolorów tła.
+
+    ### Jak to rozszerzyć:
+    *   **Scroll Reveal:** Aby stworzyć dłuższą stronę, możesz użyć biblioteki takiej jak [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) lub natywnej właściwości CSS `view-timeline` (w nowoczesnych przeglądarkach) do wyzwalania animacji podczas przewijania.
+    *   **Interaktywność:** Możesz dodać prosty listener JavaScript, aby lekko przesuwać „bloby" na podstawie pozycji kursora użytkownika, tworząc efekt paralaksy.
+
+    Do jakiego rodzaju projektu planujesz to wykorzystać? Mogę pomóc dostosować układ lub paletę kolorów (np. kolory [Tailwind](https://tailwindcss.com/) lub motywy [Adobe Color](https://color.adobe.com/)) do konkretnej marki!
+  nl: |
+    Hier is een modern, responsief sjabloon van één pagina met een **Glassmorphism**-ontwerp en vloeiende CSS-animaties. Het gebruikt een dynamische gradiëntachtergrond en zwevende decoratieve elementen om een "levend" gevoel te creëren.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Gebruikte belangrijke animatieconcepten:
+    1.  **Gradient Shifting:** `.background-canvas` gebruikt `background-size: 400%` en verplaatst de achtergrondpositie via keyframes. Dit creëert een "lavalamp"-effect dat premium aanvoelt zonder hogeresolutieafbeeldingen nodig te hebben.
+    2.  **Floating Blobs:** De `.blob`-elementen gebruiken `filter: blur()` en een combinatie van `translate` en `scale` om organische, zwevende vormen te creëren.
+    3.  **Prestatietip:** Ik heb `transform: translate()` en `opacity` gebruikt voor de entreeanimaties. Deze eigenschappen zijn "GPU-versneld", wat betekent dat de browser ze veel vloeiender kan animeren dan eigenschappen zoals `margin` of `top/left`, die layoutherberekeningen veroorzaken.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` creëert het matglaseffect, dat perfect past bij de bewegende achtergrondkleuren.
+
+    ### Hoe dit uit te breiden:
+    *   **Scroll Reveal:** Om een langere pagina te maken, kunt u een bibliotheek zoals [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) of de native CSS-eigenschap `view-timeline` (in moderne browsers) gebruiken om animaties te activeren bij het scrollen.
+    *   **Interactiviteit:** U kunt een eenvoudige JavaScript-listener toevoegen om de "blobs" licht te verplaatsen op basis van de muispositie van de gebruiker om een parallax-effect te creëren.
+
+    Voor wat voor soort project bent u van plan dit te gebruiken? Ik kan u helpen de lay-out of het kleurenpalet aan te passen (bijv. [Tailwind](https://tailwindcss.com/)-kleuren of [Adobe Color](https://color.adobe.com/)-thema's) om bij een specifiek merk te passen!
+  ar: |
+    إليك قالب صفحة واحدة حديث ومتجاوب بتصميم **Glassmorphism** ورسوم CSS متحركة سلسة. يستخدم خلفية متدرجة ديناميكية وعناصر زخرفية عائمة لخلق إحساس "حي".
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### مفاهيم الرسوم المتحركة الرئيسية المستخدمة:
+    1.  **Gradient Shifting:** يستخدم `.background-canvas` القيمة `background-size: 400%` ويحرك موضع الخلفية عبر keyframes. هذا يخلق تأثير "مصباح الحمم" الذي يبدو فاخراً دون الحاجة إلى صور عالية الدقة.
+    2.  **Floating Blobs:** تستخدم عناصر `.blob` القيمة `filter: blur()` ومزيجاً من `translate` و `scale` لإنشاء أشكال عضوية عائمة.
+    3.  **نصيحة للأداء:** استخدمت `transform: translate()` و `opacity` لرسوم الدخول المتحركة. هذه الخصائص "مسرّعة بواسطة GPU"، مما يعني أن المتصفح يمكنه تحريكها بسلاسة أكبر بكثير من خصائص مثل `margin` أو `top/left`، التي تُطلق إعادة حسابات التخطيط.
+    4.  **Glassmorphism:** يُنشئ `backdrop-filter: blur()` تأثير الزجاج المصنفر، الذي يتناسب تماماً مع ألوان الخلفية المتحركة.
+
+    ### كيفية التوسع:
+    *   **Scroll Reveal:** لإنشاء صفحة أطول، يمكنك استخدام مكتبة مثل [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) أو خاصية CSS الأصلية `view-timeline` (في المتصفحات الحديثة) لتشغيل الرسوم المتحركة أثناء التمرير.
+    *   **التفاعل:** يمكنك إضافة مستمع JavaScript بسيط لتحريك "الفقاعات" قليلاً بناءً على موضع فأرة المستخدم لإنشاء تأثير المنظور.
+
+    ما نوع المشروع الذي تخطط لاستخدام هذا فيه؟ يمكنني مساعدتك في تخصيص التخطيط أو لوحة الألوان (مثل ألوان [Tailwind](https://tailwindcss.com/) أو سمات [Adobe Color](https://color.adobe.com/)) لتناسب علامة تجارية محددة!
+  hi: |
+    यहाँ **Glassmorphism** डिज़ाइन और सहज CSS एनिमेशन वाला एक आधुनिक, रेस्पॉन्सिव सिंगल-पेज टेम्पलेट है। यह "जीवित" अनुभव बनाने के लिए डायनामिक ग्रेडिएंट बैकग्राउंड और फ्लोटिंग सजावटी तत्वों का उपयोग करता है।
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### उपयोग किए गए प्रमुख एनिमेशन कॉन्सेप्ट:
+    1.  **Gradient Shifting:** `.background-canvas` में `background-size: 400%` का उपयोग होता है और keyframes के माध्यम से बैकग्राउंड पोजीशन को मूव किया जाता है। यह एक "लावा लैंप" इफेक्ट बनाता है जो बिना हाई-रेज इमेज के प्रीमियम दिखता है।
+    2.  **Floating Blobs:** `.blob` तत्व `filter: blur()` और `translate` तथा `scale` के संयोजन का उपयोग करके ऑर्गेनिक, फ्लोटिंग शेप बनाते हैं।
+    3.  **परफॉर्मेंस टिप:** मैंने एंट्री एनिमेशन के लिए `transform: translate()` और `opacity` का उपयोग किया। ये प्रॉपर्टीज "GPU-एक्सेलेरेटेड" हैं, जिसका मतलब है कि ब्राउज़र इन्हें `margin` या `top/left` जैसी प्रॉपर्टीज की तुलना में बहुत अधिक स्मूथली एनिमेट कर सकता है, जो लेआउट रीकैलकुलेशन ट्रिगर करती हैं।
+    4.  **Glassmorphism:** `backdrop-filter: blur()` फ्रॉस्टेड ग्लास इफेक्ट बनाता है, जो मूविंग बैकग्राउंड कलर्स के साथ बिल्कुल सही मैच करता है।
+
+    ### इसे कैसे विस्तारित करें:
+    *   **Scroll Reveal:** एक लंबा पेज बनाने के लिए, आप [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) जैसी लाइब्रेरी या नेटिव CSS `view-timeline` प्रॉपर्टी (मॉडर्न ब्राउज़र्स में) का उपयोग करके स्क्रॉल करते समय एनिमेशन ट्रिगर कर सकते हैं।
+    *   **इंटरैक्टिविटी:** आप एक सिंपल JavaScript लिसनर जोड़ सकते हैं जो यूज़र की माउस पोजीशन के आधार पर "ब्लॉब्स" को थोड़ा मूव करे, जिससे पैरेलैक्स इफेक्ट बने।
+
+    आप इसे किस तरह के प्रोजेक्ट के लिए उपयोग करने की योजना बना रहे हैं? मैं लेआउट या कलर पैलेट (जैसे [Tailwind](https://tailwindcss.com/) कलर्स या [Adobe Color](https://color.adobe.com/) थीम्स) को किसी विशिष्ट ब्रांड के अनुसार कस्टमाइज़ करने में आपकी मदद कर सकता हूँ!
+  th: |
+    นี่คือเทมเพลตหน้าเดียวที่ทันสมัยและ responsive พร้อมดีไซน์ **Glassmorphism** และแอนิเมชัน CSS ที่ลื่นไหล ใช้พื้นหลังไล่สีแบบไดนามิกและองค์ประกอบตกแต่งลอยเพื่อสร้างความรู้สึก "มีชีวิต"
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### แนวคิดแอนิเมชันหลักที่ใช้:
+    1.  **Gradient Shifting:** `.background-canvas` ใช้ `background-size: 400%` และเลื่อนตำแหน่งพื้นหลังผ่าน keyframes ซึ่งสร้างเอฟเฟกต์ "โคมลาวา" ที่ดูพรีเมียมโดยไม่ต้องใช้ภาพความละเอียดสูง
+    2.  **Floating Blobs:** องค์ประกอบ `.blob` ใช้ `filter: blur()` และการผสมผสานของ `translate` กับ `scale` เพื่อสร้างรูปทรงลอยที่ดูเป็นธรรมชาติ
+    3.  **เคล็ดลับประสิทธิภาพ:** ผมใช้ `transform: translate()` และ `opacity` สำหรับแอนิเมชันเข้าฉาก คุณสมบัติเหล่านี้ "เร่งด้วย GPU" หมายความว่าเบราว์เซอร์สามารถทำแอนิเมชันได้ลื่นไหลกว่าคุณสมบัติอย่าง `margin` หรือ `top/left` ซึ่งทริกเกอร์การคำนวณเลย์เอาต์ใหม่
+    4.  **Glassmorphism:** `backdrop-filter: blur()` สร้างเอฟเฟกต์กระจกฝ้าที่เข้ากันได้อย่างลงตัวกับสีพื้นหลังที่เคลื่อนไหว
+
+    ### วิธีขยายเพิ่มเติม:
+    *   **Scroll Reveal:** เพื่อทำหน้าที่ยาวขึ้น คุณอาจใช้ไลบรารีอย่าง [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) หรือคุณสมบัติ CSS ดั้งเดิม `view-timeline` (ในเบราว์เซอร์สมัยใหม่) เพื่อทริกเกอร์แอนิเมชันขณะเลื่อน
+    *   **การโต้ตอบ:** คุณสามารถเพิ่ม JavaScript listener อย่างง่ายเพื่อเลื่อน "blob" เล็กน้อยตามตำแหน่งเมาส์ของผู้ใช้เพื่อสร้างเอฟเฟกต์ parallax
+
+    คุณวางแผนจะใช้สิ่งนี้สำหรับโปรเจกต์ประเภทไหน? ผมช่วยปรับแต่งเลย์เอาต์หรือจานสี (เช่น สี [Tailwind](https://tailwindcss.com/) หรือธีม [Adobe Color](https://color.adobe.com/)) ให้เข้ากับแบรนด์เฉพาะได้!
+  cs: |
+    Zde je moderní, responzivní jednostránková šablona s designem **Glassmorphism** a plynulými CSS animacemi. Používá dynamické gradientové pozadí a plovoucí dekorativní prvky k vytvoření „živého" dojmu.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Použité klíčové koncepty animací:
+    1.  **Gradient Shifting:** `.background-canvas` používá `background-size: 400%` a posouvá pozici pozadí pomocí keyframes. Tím vzniká efekt „lávové lampy", který působí prémiově bez nutnosti obrázků ve vysokém rozlišení.
+    2.  **Floating Blobs:** Prvky `.blob` používají `filter: blur()` a kombinaci `translate` a `scale` k vytvoření organických, plovoucích tvarů.
+    3.  **Tip pro výkon:** Pro vstupní animace jsem použil `transform: translate()` a `opacity`. Tyto vlastnosti jsou „GPU akcelerované", což znamená, že je prohlížeč může animovat mnohem plynuleji než vlastnosti jako `margin` nebo `top/left`, které spouštějí přepočty rozložení.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` vytváří efekt matného skla, který dokonale ladí s pohybujícími se barvami pozadí.
+
+    ### Jak toto rozšířit:
+    *   **Scroll Reveal:** Pro vytvoření delší stránky můžete použít knihovnu jako [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) nebo nativní CSS vlastnost `view-timeline` (v moderních prohlížečích) ke spouštění animací při posouvání.
+    *   **Interaktivita:** Můžete přidat jednoduchý JavaScript listener pro mírné posouvání „blobů" na základě pozice kurzoru uživatele a vytvořit tak paralaxní efekt.
+
+    Pro jaký typ projektu to plánujete použít? Mohu vám pomoci přizpůsobit rozložení nebo barevnou paletu (např. barvy [Tailwind](https://tailwindcss.com/) nebo motivy [Adobe Color](https://color.adobe.com/)) tak, aby odpovídaly konkrétní značce!
+  sv: |
+    Här är en modern, responsiv ensidesmall med en **Glassmorphism**-design och smidiga CSS-animationer. Den använder en dynamisk gradientbakgrund och svävande dekorativa element för att skapa en "levande" känsla.
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### Viktiga animationskoncept som används:
+    1.  **Gradient Shifting:** `.background-canvas` använder `background-size: 400%` och flyttar bakgrundspositionen via keyframes. Detta skapar en "lavalampa"-effekt som känns premium utan att behöva högupplösta bilder.
+    2.  **Floating Blobs:** `.blob`-elementen använder `filter: blur()` och en kombination av `translate` och `scale` för att skapa organiska, svävande former.
+    3.  **Prestandatips:** Jag använde `transform: translate()` och `opacity` för ingångsanimationerna. Dessa egenskaper är "GPU-accelererade", vilket innebär att webbläsaren kan animera dem mycket smidigare än egenskaper som `margin` eller `top/left`, som utlöser layoutomberäkningar.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` skapar den frostade glaseffekten, som passar perfekt med de rörliga bakgrundsfärgerna.
+
+    ### Hur man utökar detta:
+    *   **Scroll Reveal:** För att göra en längre sida kan du använda ett bibliotek som [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) eller den inbyggda CSS-egenskapen `view-timeline` (i moderna webbläsare) för att utlösa animationer vid scrollning.
+    *   **Interaktivitet:** Du kan lägga till en enkel JavaScript-lyssnare för att flytta "blobbar" något baserat på användarens musposition för att skapa en parallaxeffekt.
+
+    Vilken typ av projekt planerar du att använda detta för? Jag kan hjälpa dig att anpassa layouten eller färgpaletten (t.ex. [Tailwind](https://tailwindcss.com/)-färger eller [Adobe Color](https://color.adobe.com/)-teman) för att passa ett specifikt varumärke!
+  he: |
+    הנה תבנית מודרנית ורספונסיבית של עמוד יחיד עם עיצוב **Glassmorphism** ואנימציות CSS חלקות. היא משתמשת ברקע גרדיאנט דינמי ובאלמנטים דקורטיביים צפים כדי ליצור תחושה "חיה".
+
+    ```json
+    {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
+    ```
+
+
+
+    ### קונספטים מרכזיים של אנימציה שנעשה בהם שימוש:
+    1.  **Gradient Shifting:** ה-`.background-canvas` משתמש ב-`background-size: 400%` ומזיז את מיקום הרקע באמצעות keyframes. זה יוצר אפקט "מנורת לבה" שנראה פרימיום בלי צורך בתמונות ברזולוציה גבוהה.
+    2.  **Floating Blobs:** אלמנטי ה-`.blob` משתמשים ב-`filter: blur()` ובשילוב של `translate` ו-`scale` כדי ליצור צורות אורגניות צפות.
+    3.  **טיפ לביצועים:** השתמשתי ב-`transform: translate()` וב-`opacity` לאנימציות הכניסה. מאפיינים אלה "מואצי GPU", כלומר הדפדפן יכול לאנימט אותם בצורה חלקה הרבה יותר ממאפיינים כמו `margin` או `top/left`, שמפעילים חישובי פריסה מחדש.
+    4.  **Glassmorphism:** `backdrop-filter: blur()` יוצר את אפקט הזכוכית החלבית, שמשתלב בצורה מושלמת עם צבעי הרקע הנעים.
+
+    ### איך להרחיב את זה:
+    *   **Scroll Reveal:** כדי ליצור עמוד ארוך יותר, תוכלו להשתמש בספרייה כמו [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) או במאפיין CSS מקורי `view-timeline` (בדפדפנים מודרניים) כדי להפעיל אנימציות בזמן גלילה.
+    *   **אינטראקטיביות:** תוכלו להוסיף מאזין JavaScript פשוט כדי להזיז מעט את ה-"blobs" בהתאם למיקום העכבר של המשתמש וליצור אפקט פרלקס.
+
+    לאיזה סוג פרויקט אתם מתכננים להשתמש בזה? אני יכול לעזור לכם להתאים את הפריסה או לוח הצבעים (למשל, צבעי [Tailwind](https://tailwindcss.com/) או ערכות נושא של [Adobe Color](https://color.adobe.com/)) כדי להתאים למותג ספציפי!
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion 1
+  en: "[code] Add a dark mode toggle to this template"
+  de: "[code] Füge einen Dark-Mode-Schalter zu dieser Vorlage hinzu"
+  zh: "[code] 为这个模板添加暗黑模式切换"
+  es: "[code] Agregar un interruptor de modo oscuro a esta plantilla"
+  fr: "[code] Ajouter un bouton de mode sombre à ce modèle"
+  pt: "[code] Adicionar um botão de modo escuro a este modelo"
+  ru: "[code] Добавь переключатель тёмного режима к этому шаблону"
+  ja: "[code] このテンプレートにダークモード切り替えを追加して"
+  ko: "[code] 이 템플릿에 다크 모드 토글을 추가해 줘"
+  it: "[code] Aggiungi un interruttore per la modalità scura a questo modello"
+  tr: "[code] Bu şablona karanlık mod düğmesi ekle"
+  vi: "[code] Thêm nút chuyển đổi chế độ tối cho mẫu này"
+  id: "[code] Tambahkan tombol mode gelap ke template ini"
+  pl: "[code] Dodaj przełącznik trybu ciemnego do tego szablonu"
+  nl: "[code] Voeg een donkere modus-schakelaar toe aan dit sjabloon"
+  ar: "[code] أضف زر تبديل الوضع المظلم إلى هذا القالب"
+  hi: "[code] इस टेम्पलेट में डार्क मोड टॉगल जोड़ें"
+  th: "[code] เพิ่มปุ่มสลับโหมดมืดให้เทมเพลตนี้"
+  cs: "[code] Přidej přepínač tmavého režimu k této šabloně"
+  sv: "[code] Lägg till en mörkt läge-knapp i denna mall"
+  he: "[code] הוסף מתג מצב כהה לתבנית הזו"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion 2
+  en: "[code] Show me how to implement scroll-triggered animations"
+  de: "[code] Zeig mir, wie man scroll-gesteuerte Animationen implementiert"
+  zh: "[code] 教我如何实现滚动触发的动画"
+  es: "[code] Muéstrame cómo implementar animaciones activadas por desplazamiento"
+  fr: "[code] Montre-moi comment implémenter des animations déclenchées par le défilement"
+  pt: "[code] Me mostre como implementar animações acionadas por rolagem"
+  ru: "[code] Покажи, как реализовать анимации, запускаемые при прокрутке"
+  ja: "[code] スクロールトリガーアニメーションの実装方法を教えて"
+  ko: "[code] 스크롤 트리거 애니메이션을 구현하는 방법을 보여줘"
+  it: "[code] Mostrami come implementare animazioni attivate dallo scorrimento"
+  tr: "[code] Kaydırma ile tetiklenen animasyonları nasıl uygulayacağımı göster"
+  vi: "[code] Cho tôi xem cách triển khai hoạt ảnh kích hoạt khi cuộn"
+  id: "[code] Tunjukkan cara mengimplementasikan animasi yang dipicu oleh scroll"
+  pl: "[code] Pokaż mi, jak zaimplementować animacje wyzwalane przewijaniem"
+  nl: "[code] Laat me zien hoe ik scroll-geactiveerde animaties kan implementeren"
+  ar: "[code] أرني كيفية تنفيذ الرسوم المتحركة المُفعَّلة بالتمرير"
+  hi: "[code] मुझे दिखाओ कि स्क्रॉल-ट्रिगर एनिमेशन कैसे लागू करें"
+  th: "[code] สอนวิธีใช้งานแอนิเมชันที่ทริกเกอร์ด้วยการเลื่อน"
+  cs: "[code] Ukaž mi, jak implementovat animace spouštěné posouváním"
+  sv: "[code] Visa mig hur man implementerar scroll-utlösta animationer"
+  he: "[code] הראה לי איך ליישם אנימציות שמופעלות בגלילה"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion 3
+  en: "[ai] Explain the science behind CSS transforms and GPU acceleration"
+  de: "[ai] Erkläre die Wissenschaft hinter CSS-Transforms und GPU-Beschleunigung"
+  zh: "[ai] 解释CSS变换和GPU加速背后的科学原理"
+  es: "[ai] Explica la ciencia detrás de las transformaciones CSS y la aceleración GPU"
+  fr: "[ai] Explique la science derrière les transformations CSS et l'accélération GPU"
+  pt: "[ai] Explique a ciência por trás das transformações CSS e aceleração GPU"
+  ru: "[ai] Объясни науку, стоящую за CSS-трансформациями и GPU-ускорением"
+  ja: "[ai] CSSトランスフォームとGPUアクセラレーションの仕組みを説明して"
+  ko: "[ai] CSS 변환과 GPU 가속의 원리를 설명해 줘"
+  it: "[ai] Spiega la scienza dietro le trasformazioni CSS e l'accelerazione GPU"
+  tr: "[ai] CSS dönüşümleri ve GPU hızlandırmasının ardındaki bilimi açıkla"
+  vi: "[ai] Giải thích khoa học đằng sau CSS transforms và tăng tốc GPU"
+  id: "[ai] Jelaskan ilmu di balik CSS transforms dan akselerasi GPU"
+  pl: "[ai] Wyjaśnij naukę stojącą za transformacjami CSS i akceleracją GPU"
+  nl: "[ai] Leg de wetenschap achter CSS-transformaties en GPU-versnelling uit"
+  ar: "[ai] اشرح العلم وراء تحويلات CSS وتسريع GPU"
+  hi: "[ai] CSS ट्रांसफॉर्म और GPU एक्सेलेरेशन के पीछे के विज्ञान की व्याख्या करो"
+  th: "[ai] อธิบายหลักวิทยาศาสตร์เบื้องหลัง CSS transforms และการเร่งด้วย GPU"
+  cs: "[ai] Vysvětli vědu za CSS transformacemi a GPU akcelerací"
+  sv: "[ai] Förklara vetenskapen bakom CSS-transformationer och GPU-acceleration"
+  he: "[ai] הסבר את המדע מאחורי CSS transforms והאצת GPU"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion 4
+  en: "[code] Modify this template to use Tailwind CSS classes instead"
+  de: "[code] Ändere diese Vorlage, um stattdessen Tailwind CSS-Klassen zu verwenden"
+  zh: "[code] 修改这个模板改用Tailwind CSS类"
+  es: "[code] Modifica esta plantilla para usar clases de Tailwind CSS en su lugar"
+  fr: "[code] Modifie ce modèle pour utiliser des classes Tailwind CSS à la place"
+  pt: "[code] Modifique este modelo para usar classes Tailwind CSS em vez disso"
+  ru: "[code] Измени этот шаблон, чтобы использовать классы Tailwind CSS"
+  ja: "[code] このテンプレートをTailwind CSSクラスを使うように変更して"
+  ko: "[code] 이 템플릿을 Tailwind CSS 클래스를 사용하도록 수정해 줘"
+  it: "[code] Modifica questo modello per usare le classi Tailwind CSS al suo posto"
+  tr: "[code] Bu şablonu Tailwind CSS sınıflarını kullanacak şekilde değiştir"
+  vi: "[code] Sửa đổi mẫu này để sử dụng các lớp Tailwind CSS thay thế"
+  id: "[code] Ubah template ini untuk menggunakan kelas Tailwind CSS sebagai gantinya"
+  pl: "[code] Zmodyfikuj ten szablon, aby używał klas Tailwind CSS zamiast tego"
+  nl: "[code] Pas dit sjabloon aan om Tailwind CSS-klassen te gebruiken"
+  ar: "[code] عدّل هذا القالب لاستخدام فئات Tailwind CSS بدلاً من ذلك"
+  hi: "[code] इस टेम्पलेट को Tailwind CSS क्लासेज का उपयोग करने के लिए संशोधित करो"
+  th: "[code] แก้ไขเทมเพลตนี้ให้ใช้คลาส Tailwind CSS แทน"
+  cs: "[code] Uprav tuto šablonu, aby místo toho používala třídy Tailwind CSS"
+  sv: "[code] Ändra denna mall till att använda Tailwind CSS-klasser istället"
+  he: "[code] שנה את התבנית הזו לשימוש במחלקות Tailwind CSS במקום"
+  verified_by_human: []
+
+follow_up_5:
+  context: Follow-up suggestion 5
+  en: "[code] Add interactive elements that respond to mouse movement"
+  de: "[code] Füge interaktive Elemente hinzu, die auf Mausbewegungen reagieren"
+  zh: "[code] 添加响应鼠标移动的交互元素"
+  es: "[code] Agregar elementos interactivos que respondan al movimiento del ratón"
+  fr: "[code] Ajouter des éléments interactifs qui réagissent au mouvement de la souris"
+  pt: "[code] Adicionar elementos interativos que respondam ao movimento do mouse"
+  ru: "[code] Добавь интерактивные элементы, реагирующие на движение мыши"
+  ja: "[code] マウスの動きに反応するインタラクティブな要素を追加して"
+  ko: "[code] 마우스 움직임에 반응하는 인터랙티브 요소를 추가해 줘"
+  it: "[code] Aggiungi elementi interattivi che rispondano al movimento del mouse"
+  tr: "[code] Fare hareketine tepki veren etkileşimli öğeler ekle"
+  vi: "[code] Thêm các phần tử tương tác phản hồi chuyển động chuột"
+  id: "[code] Tambahkan elemen interaktif yang merespons gerakan mouse"
+  pl: "[code] Dodaj interaktywne elementy reagujące na ruch myszy"
+  nl: "[code] Voeg interactieve elementen toe die reageren op muisbewegingen"
+  ar: "[code] أضف عناصر تفاعلية تستجيب لحركة الماوس"
+  hi: "[code] माउस मूवमेंट पर प्रतिक्रिया करने वाले इंटरैक्टिव तत्व जोड़ें"
+  th: "[code] เพิ่มองค์ประกอบแบบโต้ตอบที่ตอบสนองต่อการเคลื่อนไหวของเมาส์"
+  cs: "[code] Přidej interaktivní prvky reagující na pohyb myši"
+  sv: "[code] Lägg till interaktiva element som reagerar på musrörelser"
+  he: "[code] הוסף אלמנטים אינטראקטיביים שמגיבים לתנועת העכבר"
+  verified_by_human: []
+
+follow_up_6:
+  context: Follow-up suggestion 6
+  en: "[code] Create a similar template but with a different design aesthetic"
+  de: "[code] Erstelle eine ähnliche Vorlage, aber mit einer anderen Design-Ästhetik"
+  zh: "[code] 创建一个类似的模板但采用不同的设计风格"
+  es: "[code] Crear una plantilla similar pero con una estética de diseño diferente"
+  fr: "[code] Créer un modèle similaire mais avec une esthétique de design différente"
+  pt: "[code] Criar um modelo semelhante mas com uma estética de design diferente"
+  ru: "[code] Создай похожий шаблон, но с другой дизайн-эстетикой"
+  ja: "[code] 同様のテンプレートを異なるデザインの美学で作成して"
+  ko: "[code] 비슷한 템플릿을 다른 디자인 미학으로 만들어 줘"
+  it: "[code] Crea un modello simile ma con un'estetica di design diversa"
+  tr: "[code] Benzer bir şablon oluştur ama farklı bir tasarım estetiğiyle"
+  vi: "[code] Tạo một mẫu tương tự nhưng với phong cách thiết kế khác"
+  id: "[code] Buat template serupa tapi dengan estetika desain yang berbeda"
+  pl: "[code] Stwórz podobny szablon, ale z inną estetyką designu"
+  nl: "[code] Maak een vergelijkbaar sjabloon maar met een andere ontwerpesthetiek"
+  ar: "[code] أنشئ قالباً مشابهاً ولكن بجمالية تصميم مختلفة"
+  hi: "[code] एक समान टेम्पलेट बनाओ लेकिन अलग डिज़ाइन सौंदर्य के साथ"
+  th: "[code] สร้างเทมเพลตคล้ายกันแต่ด้วยสไตล์การออกแบบที่แตกต่าง"
+  cs: "[code] Vytvoř podobnou šablonu, ale s jiným designovým stylem"
+  sv: "[code] Skapa en liknande mall men med en annan designestetik"
+  he: "[code] צור תבנית דומה אבל עם אסתטיקת עיצוב שונה"
+  verified_by_human: []

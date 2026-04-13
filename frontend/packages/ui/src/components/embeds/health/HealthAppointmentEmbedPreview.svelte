@@ -36,12 +36,16 @@
     insurance?: string;
     /** Whether the doctor offers telehealth consultations */
     telehealth?: boolean;
-    /** Star rating (0-5, from Jameda) */
+    /** Combined Jameda + Google Places rating (weighted average) */
     rating?: number;
+    /** Combined review count across rating sources */
+    ratingCount?: number;
     /** Service price in EUR (from Jameda) */
     price?: number;
     /** Provider platform: "Doctolib" | "Jameda" */
     providerPlatform?: string;
+    /** Number of additional alternate slots available for this doctor */
+    additionalSlotCount?: number;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error';
     /** Whether to use mobile layout */
@@ -59,8 +63,10 @@
     insurance,
     telehealth = false,
     rating,
+    ratingCount,
     price,
     providerPlatform,
+    additionalSlotCount = 0,
     status = 'finished',
     isMobile = false,
     onFullscreen,
@@ -107,9 +113,14 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="appointment-details" class:mobile={isMobileLayout}>
 
-      <!-- Slot datetime — prominent -->
+      <!-- Slot datetime — prominent — with "+N more" badge when alternates exist -->
       {#if slotDisplay}
-        <div class="slot-datetime">{slotDisplay}</div>
+        <div class="slot-datetime-row">
+          <span class="slot-datetime">{slotDisplay}</span>
+          {#if additionalSlotCount > 0}
+            <span class="more-slots-badge">+{additionalSlotCount} more</span>
+          {/if}
+        </div>
       {/if}
 
       <!-- Doctor name -->
@@ -127,11 +138,16 @@
         <div class="doctor-address">{address.split('\n')[0]}</div>
       {/if}
 
-      <!-- Rating + Price row (Jameda) -->
+      <!-- Rating + Price row (combined Jameda + Google Places) -->
       {#if rating != null || price != null}
         <div class="extras-row">
           {#if rating != null}
-            <span class="rating-compact">{rating.toFixed(1)} ★</span>
+            <span class="rating-compact">
+              {rating.toFixed(1)} ★
+              {#if ratingCount != null && ratingCount > 0}
+                <span class="rating-count">({ratingCount})</span>
+              {/if}
+            </span>
           {/if}
           {#if price != null}
             <span class="price-compact">{price} €</span>
@@ -148,7 +164,13 @@
           {#if telehealth}
             <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
           {/if}
-          {#if insurance}
+          {#if insurance === 'unknown'}
+            <!-- Jameda doesn't expose per-doctor insurance sector info — warn
+                 the user that they need to verify it on Jameda before booking -->
+            <span class="badge insurance-unknown-badge" title="Insurance requirement not available — verify on Jameda before booking">
+              Insurance: verify on Jameda
+            </span>
+          {:else if insurance}
             <span class="badge insurance-badge">{insurance}</span>
           {/if}
         </div>
@@ -175,9 +197,16 @@
     justify-content: flex-start;
   }
 
+  /* Slot datetime row — holds the primary time + optional "+N more" badge */
+  .slot-datetime-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+  }
+
   /* Slot datetime — most prominent element */
   .slot-datetime {
-    font-size: null;
     font-weight: 700;
     color: var(--color-primary);
     line-height: 1.25;
@@ -185,6 +214,17 @@
 
   .appointment-details.mobile .slot-datetime {
     font-size: var(--font-size-small);
+  }
+
+  /* "+N more" badge showing alternate slots for the same doctor */
+  .more-slots-badge {
+    font-size: var(--font-size-tiny);
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: var(--radius-8);
+    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.1);
+    color: var(--color-primary);
+    line-height: 1.4;
   }
 
   /* Doctor name */
@@ -241,6 +281,12 @@
     color: var(--color-warning, #f5a623);
   }
 
+  .rating-compact .rating-count {
+    color: var(--color-grey-60);
+    font-weight: 500;
+    margin-left: 2px;
+  }
+
   .price-compact {
     font-size: var(--font-size-xxs);
     font-weight: 600;
@@ -280,6 +326,12 @@
     color: var(--color-grey-70);
     border: 1px solid var(--color-grey-30);
     text-transform: capitalize;
+  }
+
+  .insurance-unknown-badge {
+    background-color: rgba(var(--color-warning-rgb, 245, 166, 35), 0.12);
+    color: var(--color-warning, #f5a623);
+    border: 1px solid rgba(var(--color-warning-rgb, 245, 166, 35), 0.3);
   }
 
 </style>

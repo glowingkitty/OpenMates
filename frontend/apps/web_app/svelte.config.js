@@ -60,27 +60,12 @@ const config = {
 			pollInterval: 120000
 		},
 		prerender: {
-			// SEO pages (e.g. /demo/chat/[slug], /intro/[slug]) link to the SPA root via
+			// SEO pages (e.g. /intro/[slug]) link to the SPA root via
 			// /#chat-id={slug} hash deep links. The prerenderer follows these href links and
 			// complains that no element with id="chat-id=..." exists on the / page — which is
 			// correct, because / is a JS SPA and the anchor is a client-side deep link, not
 			// a real DOM id. Ignore these missing-id warnings so the build succeeds.
-			handleMissingId: 'ignore',
-			// Demo chat slugs are fetched from the backend at build time. If the backend
-			// returns a slug in the list but its individual endpoint 404s (e.g. temporary
-			// data inconsistency, backend deploy in progress), skip that page gracefully
-			// rather than failing the entire build. The page will be served via SSR on
-			// first request — prerender='auto' already handles this fallback.
-			handleHttpError: ({ status, path, referrer, referenceType }) => {
-				if (status === 404 && path.startsWith('/demo/chat/')) {
-					console.warn(
-						`[prerender] Skipping ${path} — backend returned 404 (will SSR on first request)`
-					);
-					return;
-				}
-				// All other HTTP errors are real build failures — throw as normal.
-				throw new Error(`${status} ${path}${referrer ? ` (referred from ${referrer})` : ''}`);
-			}
+			handleMissingId: 'ignore'
 		}
 	}
 };

@@ -30,9 +30,10 @@
       - 0.4 opacity, entrance animation: fade up from +50px Y offset
       - overflow: hidden clips them at the banner edges
 
-  Dimensions match DailyInspirationBanner:
-    - Desktop: 240px height, 14px border-radius
-    - Mobile (≤730px): 190px height
+  Dimensions:
+    - Desktop: 50vh height (min 240px), 14px border-radius
+    - Mobile (≤730px): 50vh height (min 190px)
+    - When settings panel is open or embed fullscreen is side-by-side: reverts to fixed 240px / 190px
 
   Props:
     title          - decrypted/plaintext chat title
@@ -62,6 +63,8 @@
     /** When true, renders the incognito-specific variant: fixed dark gradient, anonym icon,
      *  and "Incognito Mode" as the title. Overrides all other visual states. */
     isIncognito = false,
+    /** When true, shows an "Example chat" badge/pill in the loaded header state. */
+    isExampleChat = false,
   }: {
     title?: string;
     category?: string | null;
@@ -73,6 +76,9 @@
     isCreditsError?: boolean;
     chatCreatedAt?: number | null;
     isIncognito?: boolean;
+    /** True when this chat is a pre-made example chat (shown to non-authenticated users).
+     *  Displays an "Example chat" badge in the loaded header state. */
+    isExampleChat?: boolean;
   } = $props();
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -370,6 +376,12 @@
            and must never be rendered as HTML to prevent stored XSS via prompt injection. -->
       <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
+      <!-- "Example chat" badge: shown for pre-made example chats so unauthenticated users
+           understand this is not their own chat. Pill-shaped label below the title. -->
+      {#if isExampleChat}
+        <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+      {/if}
+
       <!-- Summary: fades in with max-height expand when available -->
       {#if showSummary}
         <p class="loaded-summary">{summary}</p>
@@ -416,7 +428,8 @@
   .chat-header-banner {
     position: relative;
     width: 100%;
-    height: 240px;
+    height: 50vh;
+    min-height: 240px;
     /* Top corners are flush with the top of the scroll area — no top radius.
        Only bottom corners are rounded to separate the banner from messages below. */
     border-radius: 0 0 14px 14px;
@@ -424,12 +437,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Smooth background transition when switching from primary → category gradient */
-    transition: background 0.5s ease;
+    /* Smooth background + height transition when switching states */
+    transition: background 0.5s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
     /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
     pointer-events: none;
     user-select: none;
+  }
+
+  /* When settings panel is open or embed fullscreen is side-by-side, revert to
+     fixed height so the chat header matches the settings/embed header height.
+     .menu-open is set on .chat-container by +page.svelte when settings is open.
+     .side-by-side-active is set on .active-chat-container by ActiveChat.svelte. */
+  :global(.menu-open) .chat-header-banner,
+  :global(.side-by-side-active) .chat-header-banner {
+    height: 240px;
+    min-height: unset;
   }
 
   /* ─── Processing state ──────────────────────────────────────────────────── */
@@ -568,6 +591,20 @@
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* "Example chat" badge: semi-transparent pill below the title.
+     Helps unauthenticated users distinguish example chats from real ones. */
+  .example-chat-badge {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 12px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-font-button);
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    letter-spacing: 0.02em;
   }
 
   /* Summary: 14px, white, centered. Animates height from 0.
@@ -851,7 +888,14 @@
 
   @media (max-width: 730px) {
     .chat-header-banner {
+      height: 50vh;
+      min-height: 190px;
+    }
+
+    :global(.menu-open) .chat-header-banner,
+    :global(.side-by-side-active) .chat-header-banner {
       height: 190px;
+      min-height: unset;
     }
 
     .processing-ai-icon {

@@ -2,7 +2,7 @@
 # Handles the main processing stage of AI skill requests.
 
 import logging
-from typing import Dict, Any, List, Optional, AsyncIterator, Union
+from typing import Dict, Any, List, Optional, AsyncIterator, Tuple, Union
 import json
 import httpx
 import datetime
@@ -1581,26 +1581,41 @@ async def handle_main_processing(
             except Exception as e:
                 logger.warning(f"{log_prefix} Error building description for focus mode {focus_id}: {e}")
         
+        # Tool name MUST conform to Google Gemini's function-name spec:
+        # ^[a-zA-Z_][a-zA-Z0-9_]*$. Hyphens cause Gemini to return
+        # FinishReason.MALFORMED_FUNCTION_CALL, so we use snake_case here
+        # even though the rest of the codebase uses hyphens for app skills.
+        # The downstream resolver map below translates back to ("system",
+        # "activate_focus_mode") for the dispatcher.
+        #
+        # NOTE: We intentionally do NOT use an `enum` constraint on focus_id.
+        # Gemini 3.x emits FinishReason.MALFORMED_FUNCTION_CALL when the enum
+        # contains hyphenated values (e.g. "jobs-career-insights"). Listing
+        # the valid IDs in the description works reliably across providers
+        # and still gives the model a constrained vocabulary to choose from.
+        _valid_ids_list = ", ".join(f'"{fid}"' for fid in relevant_focus_modes)
+        _desc_lines = [
+            "Activate a focus mode to specialize the assistant's behavior for a specific task. "
+            "Focus modes provide specialized instructions that help with particular types of requests.",
+            "",
+            f"Valid focus_id values (use EXACTLY one of these): {_valid_ids_list}",
+        ]
+        if focus_mode_descriptions:
+            _desc_lines.extend(["", "Available focus modes:", *focus_mode_descriptions])
         activate_tool = {
             "type": "function",
             "function": {
-                # Tool name MUST conform to Google Gemini's function-name spec:
-                # ^[a-zA-Z_][a-zA-Z0-9_]*$. Hyphens cause Gemini to return
-                # FinishReason.MALFORMED_FUNCTION_CALL when emitting the call,
-                # so we use snake_case here even though the rest of the codebase
-                # uses hyphens for app skills. The downstream resolver map below
-                # contains explicit entries that translate the canonicalized form
-                # back to the (app_id="system", skill_id="activate_focus_mode")
-                # tuple expected by the dispatcher at line ~2752.
                 "name": "activate_focus_mode",
-                "description": "Activate a focus mode to specialize the assistant's behavior for a specific task. Focus modes provide specialized instructions that help with particular types of requests.\n\nAvailable focus modes:\n" + "\n".join(focus_mode_descriptions) if focus_mode_descriptions else "Activate a focus mode to specialize the assistant's behavior.",
+                "description": "\n".join(_desc_lines),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "focus_id": {
                             "type": "string",
-                            "description": "The focus mode to activate (format: app_id-focus_id)",
-                            "enum": relevant_focus_modes
+                            "description": (
+                                f"The focus mode to activate. Must be one of: {_valid_ids_list}. "
+                                "Format: app_id-focus_id."
+                            ),
                         }
                     },
                     "required": ["focus_id"]
@@ -1671,6 +1686,15 @@ async def handle_main_processing(
             # Underscore variant: app_skill (e.g., "web_search") - common LLM hallucination
             underscore_name = f"{app_id}_{skill.id}"
             tool_resolver_map[underscore_name] = (app_id, skill.id)
+
+            # Canonical (all-hyphen) form: what _canonicalize_tool_name produces.
+            # For skills with underscored IDs (e.g., "search_appointments"),
+            # hyphen_name is "health-search_appointments" but the canonicalizer
+            # converts all separators to hyphens → "health-search-appointments".
+            # Without this entry the allow-list passes but resolver lookup fails.
+            canonical_name = _canonicalize_tool_name(hyphen_name)
+            if canonical_name != hyphen_name:
+                tool_resolver_map[canonical_name] = (app_id, skill.id)
 
             # Also map the skill ID directly if it's unique? No, that might be risky.
             # But we can map just the skill ID if the app ID is implicit? No, explicit is better.
@@ -2081,6 +2105,15 @@ async def handle_main_processing(
 
         current_turn_text_buffer = []
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
+        # Hallucinated tool calls that must round-trip through the history as
+        # matched (tool_use, tool_result) pairs. If we appended only the tool
+        # result without the corresponding tool_use block, the next LLM call
+        # would crash with "toolResult blocks exceeds toolUse blocks" on
+        # Bedrock / "Function call is missing a thought_signature" on Gemini.
+        # Stored as (tool_call_obj, rejection_message_dict) so the assistant
+        # message (line ~2599) can include them in its tool_calls list and the
+        # rejection tool messages are appended right after.
+        hallucinated_tool_calls_this_turn: List[Tuple[Any, Dict[str, Any]]] = []
         hallucinated_rejections_this_turn = 0
         llm_turn_had_content = False
         
@@ -2153,10 +2186,16 @@ async def handle_main_processing(
                         f"Allowed tools ({len(allowed_tool_names)}): {sorted(allowed_tool_names)}. "
                         f"Raw arguments: {chunk.function_arguments_raw[:500]}"
                     )
-                    # Inject a structured tool response so the LLM sees the rejection
-                    # and does not retry the same call. Don't append to
-                    # tool_calls_for_this_turn — skill execution will not run for it.
-                    current_message_history.append({
+                    # Defer both the assistant tool_use block AND its rejection
+                    # tool_result message. The assistant message is built after
+                    # the stream ends (line ~2609); without the matching tool_use
+                    # block, the next LLM call crashes on conversation integrity
+                    # checks (Bedrock: "toolResult exceeds toolUse", Gemini:
+                    # "Function call is missing a thought_signature"). We therefore
+                    # stash the rejected chunk + its rejection message and inject
+                    # both together right after the assistant message is appended,
+                    # so the pair is correctly matched in history.
+                    rejection_tool_message = {
                         "tool_call_id": chunk.tool_call_id,
                         "role": "tool",
                         "name": raw_function_name,
@@ -2167,7 +2206,8 @@ async def handle_main_processing(
                                 "Do not retry this call."
                             ),
                         }),
-                    })
+                    }
+                    hallucinated_tool_calls_this_turn.append((chunk, rejection_tool_message))
                     hallucinated_rejections_this_turn += 1
                     continue
 
@@ -2587,6 +2627,12 @@ async def handle_main_processing(
         assistant_message_content_for_history = final_buffered_text_for_turn
         # Format tool calls for message history
         # CRITICAL: Include thought_signature for Gemini 3 thinking models - required for multi-turn function calling
+        # CRITICAL: Include hallucinated (rejected) calls so their deferred
+        # tool_result messages have matching tool_use blocks. Without this
+        # pairing, Bedrock crashes with "toolResult count exceeds toolUse
+        # count" and Gemini crashes with "missing thought_signature".
+        _hallucinated_tcs = [tc for tc, _ in hallucinated_tool_calls_this_turn]
+        _combined_tcs = list(tool_calls_for_this_turn) + _hallucinated_tcs
         assistant_message_tool_calls_formatted = [
             {
                 "id": tc.tool_call_id,
@@ -2595,10 +2641,110 @@ async def handle_main_processing(
                 # Include thought_signature if present (for Gemini 3 thinking models)
                 **({"thought_signature": tc.thought_signature} if hasattr(tc, 'thought_signature') and tc.thought_signature else {})
             }
-            for tc in tool_calls_for_this_turn
+            for tc in _combined_tcs
         ]
         assistant_message: Dict[str, Any] = {"role": "assistant", "content": assistant_message_content_for_history or None, "tool_calls": assistant_message_tool_calls_formatted}
         current_message_history.append(assistant_message)
+
+        # Append the deferred rejection tool_result messages for each
+        # hallucinated call. They now pair correctly with the tool_use blocks
+        # added above. Keep this immediately after the assistant message so
+        # they sit next to the calls they reject.
+        for _rejected_tc, _rejection_msg in hallucinated_tool_calls_this_turn:
+            current_message_history.append(_rejection_msg)
+
+        # === FOCUS MODE EXCLUSIVITY GUARD ===
+        # When activate_focus_mode is in the tool-call batch, it MUST run
+        # exclusively — no other app skills should execute in the same turn.
+        # The LLM sometimes emits focus mode activation alongside regular
+        # skills (e.g. web-search) in a single parallel tool-call batch.
+        # Without this guard, the focus mode's `return` would abandon the
+        # other skills mid-execution, leaving orphaned placeholder embeds.
+        # See: docs/architecture/focus-modes.md, issue e85778c8
+        _focus_mode_in_batch = any(
+            tool_resolver_map.get(tc.function_name, (None, None))[1] == "activate_focus_mode"
+            for tc in tool_calls_for_this_turn
+        )
+        if _focus_mode_in_batch and len(tool_calls_for_this_turn) > 1:
+            _non_focus_tools = [
+                tc for tc in tool_calls_for_this_turn
+                if tool_resolver_map.get(tc.function_name, (None, None))[0] != "system"
+            ]
+            if _non_focus_tools:
+                logger.info(
+                    f"{log_prefix} [FOCUS_EXCLUSIVITY] activate_focus_mode in batch with "
+                    f"{len(_non_focus_tools)} app skill(s): "
+                    f"{[tc.function_name for tc in _non_focus_tools]}. "
+                    f"Suppressing app skills — focus mode takes priority."
+                )
+                for _suppressed_tc in _non_focus_tools:
+                    _sup_tool_call_id = _suppressed_tc.tool_call_id
+                    _sup_tool_name = _suppressed_tc.function_name
+
+                    # Cancel any placeholder embeds that were streamed for the suppressed tool
+                    _sup_placeholder = inline_placeholder_embeds.get(_sup_tool_call_id)
+                    if _sup_placeholder and cache_service and user_vault_key_id and directus_service:
+                        try:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            _focus_guard_embed_svc = EmbedService(
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service
+                            )
+                            _sup_resolved = tool_resolver_map.get(_sup_tool_name, ("unknown", "unknown"))
+                            _sup_embed_ids = []
+                            if isinstance(_sup_placeholder, dict) and _sup_placeholder.get("multiple"):
+                                for _p in _sup_placeholder.get("placeholders", []):
+                                    _eid = _p.get("embed_id") if isinstance(_p, dict) else None
+                                    if _eid:
+                                        _sup_embed_ids.append(_eid)
+                            elif isinstance(_sup_placeholder, dict) and "embed_id" in _sup_placeholder:
+                                _sup_embed_ids.append(_sup_placeholder["embed_id"])
+
+                            for _eid in _sup_embed_ids:
+                                await _focus_guard_embed_svc.update_embed_status_to_cancelled(
+                                    embed_id=_eid,
+                                    app_id=_sup_resolved[0],
+                                    skill_id=_sup_resolved[1],
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                            if _sup_embed_ids:
+                                logger.info(
+                                    f"{log_prefix} [FOCUS_EXCLUSIVITY] Cancelled {len(_sup_embed_ids)} placeholder(s) "
+                                    f"for suppressed tool '{_sup_tool_name}'"
+                                )
+                        except Exception as _fe:
+                            logger.warning(
+                                f"{log_prefix} [FOCUS_EXCLUSIVITY] Failed to cancel placeholder for "
+                                f"'{_sup_tool_name}': {_fe}"
+                            )
+
+                    # Add a synthetic tool response so the LLM's tool_call is properly closed
+                    current_message_history.append({
+                        "tool_call_id": _sup_tool_call_id,
+                        "role": "tool",
+                        "name": _sup_tool_name,
+                        "content": json.dumps({
+                            "status": "skipped",
+                            "reason": "Focus mode activation takes priority. This skill will be available after focus mode is active."
+                        })
+                    })
+
+                # Filter the batch to only keep system tools (focus mode)
+                tool_calls_for_this_turn = [
+                    tc for tc in tool_calls_for_this_turn
+                    if tool_resolver_map.get(tc.function_name, (None, None))[0] == "system"
+                ]
+                logger.info(
+                    f"{log_prefix} [FOCUS_EXCLUSIVITY] Proceeding with {len(tool_calls_for_this_turn)} "
+                    f"system tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
+                )
 
         # Execute all tool calls (skills) in this turn
         for tool_call in tool_calls_for_this_turn:

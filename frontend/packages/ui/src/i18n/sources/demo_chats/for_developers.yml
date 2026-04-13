@@ -53,7 +53,9 @@ message:
 
     OpenMates is also an awesome tool for developers. For everything from quick questions, planning large projects, generating code based on the most up-to-date docs and much more. All without any complicated MCP server setups and all while protecting your privacy & giving you access to all the best AI models. A REST API for all app skills included, and a powerful CLI and pip & npm packages are also planned, to allow you to interact with your chats from anywhere.
 
-    Click on those example chats to see what OpenMates can do for developers:
+    ## 💬 Example chats:
+
+    Just click on the example chats to open them.
 
     [[dev_example_chats_group]]
 
@@ -147,7 +149,9 @@ message:
 
     OpenMates ist auch ein großartiges Tool für Entwickler. Für alles von schnellen Fragen, Planung großer Projekte, Code-Generierung basierend auf der aktuellsten Dokumentation und vieles mehr. Alles ohne komplizierte MCP-Server-Setups und unter Wahrung deiner Privatsphäre & mit Zugang zu allen besten KI-Modellen. Eine REST API für alle App-Skills inklusive, und ein leistungsstarkes CLI sowie pip & npm Pakete sind ebenfalls geplant, damit du von überall mit deinen Chats interagieren kannst.
 
-    Klicke auf diese Beispiel-Chats, um zu sehen, was OpenMates für Entwickler kann:
+    ## Beispiel-Chats:
+
+    Klicke einfach auf die Beispiel-Chats, um sie zu öffnen.
 
     [[dev_example_chats_group]]
 
@@ -241,7 +245,9 @@ message:
 
     OpenMates es también una herramienta increíble para desarrolladores. Para todo, desde preguntas rápidas, planificación de grandes proyectos, generación de código basado en la documentación más actualizada y mucho más. Todo sin configuraciones complicadas de servidores MCP y protegiendo tu privacidad y dándote acceso a todos los mejores modelos de IA. Una REST API para todas las habilidades de apps incluida, y un potente CLI y paquetes pip y npm también están planeados, para permitirte interactuar con tus chats desde cualquier lugar.
 
-    Haz clic en estos chats de ejemplo para ver lo que OpenMates puede hacer para desarrolladores:
+    ## Chats de ejemplo:
+
+    Simplemente haz clic en los chats de ejemplo para abrirlos.
 
     [[dev_example_chats_group]]
 
@@ -335,7 +341,9 @@ message:
 
     OpenMates est aussi un outil formidable pour les développeurs. Pour tout, des questions rapides à la planification de grands projets, la génération de code basée sur la documentation la plus récente et bien plus encore. Le tout sans configurations compliquées de serveurs MCP et en protégeant votre vie privée et en vous donnant accès à tous les meilleurs modèles d'IA. Une REST API pour toutes les compétences d'apps incluse, et un puissant CLI ainsi que des packages pip et npm sont également prévus, pour vous permettre d'interagir avec vos chats de n'importe où.
 
-    Cliquez sur ces chats d'exemple pour voir ce qu'OpenMates peut faire pour les développeurs :
+    ## Chats d'exemple :
+
+    Cliquez simplement sur les chats d'exemple pour les ouvrir.
 
     [[dev_example_chats_group]]
 
@@ -429,7 +437,9 @@ message:
 
     OpenMates è anche uno strumento fantastico per gli sviluppatori. Per tutto, dalle domande rapide alla pianificazione di grandi progetti, generazione di codice basata sulla documentazione più aggiornata e molto altro. Il tutto senza complicate configurazioni di server MCP e proteggendo la tua privacy e dandoti accesso a tutti i migliori modelli di IA. Una REST API per tutte le competenze delle app inclusa, e un potente CLI e pacchetti pip e npm sono anche previsti, per permetterti di interagire con le tue chat da qualsiasi luogo.
 
-    Clicca su queste chat d'esempio per vedere cosa OpenMates può fare per gli sviluppatori:
+    ## Chat di esempio:
+
+    Clicca semplicemente sulle chat di esempio per aprirle.
 
     [[dev_example_chats_group]]
 
@@ -523,7 +533,9 @@ message:
 
     OpenMates也是开发者的绝佳工具。无论是快速提问、规划大型项目、基于最新文档生成代码等，无需复杂的MCP服务器设置，同时保护您的隐私，让您访问所有最佳AI模型。包含所有应用技能的REST API，还计划推出强大的CLI及pip和npm包，让您从任何地方与聊天交互。
 
-    点击这些示例聊天，看看OpenMates能为开发者做什么：
+    ## 示例聊天：
+
+    只需点击示例聊天即可打开。
 
     [[dev_example_chats_group]]
 
@@ -611,7 +623,9 @@ message:
 
     OpenMates é também uma ferramenta incrível para programadores. Para tudo, desde perguntas rápidas, planeamento de grandes projetos, geração de código baseado na documentação mais atualizada e muito mais. Tudo sem configurações complicadas de servidores MCP e protegendo a sua privacidade. Uma REST API para todas as competências de apps incluída, e um poderoso CLI e pacotes pip e npm também estão planeados.
 
-    Clique nestes chats de exemplo para ver o que o OpenMates pode fazer para programadores:
+    ## Chats de exemplo:
+
+    Basta clicar nos chats de exemplo para os abrir.
 
     [[dev_example_chats_group]]
 
@@ -690,7 +704,9 @@ message:
 
     OpenMates — отличный инструмент и для разработчиков. Для всего: от быстрых вопросов и планирования крупных проектов до генерации кода на основе актуальной документации. Без сложных настроек MCP-сервера, с защитой конфиденциальности и доступом к лучшим моделям ИИ. REST API для всех навыков приложений включён, CLI и пакеты pip/npm планируются.
 
-    Нажмите на примеры чатов, чтобы увидеть, что OpenMates может для разработчиков:
+    ## Примеры чатов:
+
+    Просто нажмите на примеры чатов, чтобы открыть их.
 
     [[dev_example_chats_group]]
 
@@ -767,7 +783,9 @@ message:
 
     OpenMatesは開発者にとっても素晴らしいツールです。簡単な質問から大規模プロジェクトの計画、最新ドキュメントに基づくコード生成など、複雑なMCPサーバー設定なしで、プライバシーを守りながら最高のAIモデルにアクセスできます。
 
-    これらのサンプルチャットをクリックして、OpenMatesが開発者に何をできるか見てみましょう：
+    ## サンプルチャット：
+
+    サンプルチャットをクリックするだけで開けます。
 
     [[dev_example_chats_group]]
 
@@ -844,7 +862,9 @@ message:
 
     OpenMates는 개발자에게도 훌륭한 도구입니다. 빠른 질문부터 대규모 프로젝트 계획, 최신 문서 기반 코드 생성 등 복잡한 MCP 서버 설정 없이 개인정보를 보호하며 최고의 AI 모델에 액세스할 수 있습니다.
 
-    이 예시 채팅을 클릭하여 개발자를 위한 OpenMates를 확인하세요:
+    ## 예시 채팅:
+
+    예시 채팅을 클릭하면 바로 열 수 있습니다.
 
     [[dev_example_chats_group]]
 
@@ -921,7 +941,9 @@ message:
 
     OpenMates, geliştiriciler için de harika bir araçtır. Hızlı sorulardan büyük projelerin planlanmasına, en güncel dokümanlara dayalı kod üretimine kadar, karmaşık MCP sunucu kurulumları olmadan, gizliliğinizi koruyarak tüm en iyi AI modellerine erişebilirsiniz.
 
-    Geliştiriciler için OpenMates'in neler yapabileceğini görmek için bu örnek sohbetlere tıklayın:
+    ## Örnek sohbetler:
+
+    Açmak için örnek sohbetlere tıklamanız yeterli.
 
     [[dev_example_chats_group]]
 
@@ -998,7 +1020,9 @@ message:
 
     OpenMates cũng là công cụ tuyệt vời cho nhà phát triển. Từ câu hỏi nhanh, lập kế hoạch dự án lớn đến tạo code dựa trên tài liệu mới nhất, tất cả mà không cần cài đặt MCP phức tạp, đồng thời bảo vệ quyền riêng tư của bạn.
 
-    Nhấp vào các cuộc trò chuyện mẫu để xem OpenMates có thể làm gì cho nhà phát triển:
+    ## Cuộc trò chuyện mẫu:
+
+    Chỉ cần nhấp vào các cuộc trò chuyện mẫu để mở chúng.
 
     [[dev_example_chats_group]]
 
@@ -1075,7 +1099,9 @@ message:
 
     OpenMates juga merupakan alat luar biasa untuk pengembang. Dari pertanyaan cepat, perencanaan proyek besar, hingga pembuatan kode berdasarkan dokumentasi terbaru, semua tanpa pengaturan MCP server yang rumit sambil melindungi privasi Anda.
 
-    Klik obrolan contoh ini untuk melihat apa yang bisa dilakukan OpenMates untuk pengembang:
+    ## Obrolan contoh:
+
+    Cukup klik obrolan contoh untuk membukanya.
 
     [[dev_example_chats_group]]
 
@@ -1152,7 +1178,9 @@ message:
 
     OpenMates to też świetne narzędzie dla programistów. Do wszystkiego: od szybkich pytań, planowania dużych projektów, generowania kodu na podstawie aktualnej dokumentacji i wiele więcej. Wszystko bez skomplikowanych konfiguracji MCP, chroniąc Twoją prywatność.
 
-    Kliknij te przykładowe czaty, aby zobaczyć, co OpenMates może zrobić dla programistów:
+    ## Przykładowe czaty:
+
+    Wystarczy kliknąć na przykładowe czaty, aby je otworzyć.
 
     [[dev_example_chats_group]]
 
@@ -1229,7 +1257,9 @@ message:
 
     OpenMates is ook een geweldig hulpmiddel voor ontwikkelaars. Voor alles van snelle vragen, het plannen van grote projecten, het genereren van code op basis van de meest actuele documentatie en nog veel meer. Alles zonder ingewikkelde MCP-serverinstellingen en met bescherming van uw privacy.
 
-    Klik op deze voorbeeldchats om te zien wat OpenMates voor ontwikkelaars kan doen:
+    ## Voorbeeldchats:
+
+    Klik gewoon op de voorbeeldchats om ze te openen.
 
     [[dev_example_chats_group]]
 
@@ -1306,7 +1336,9 @@ message:
 
     OpenMates هو أيضاً أداة رائعة للمطورين. لكل شيء من الأسئلة السريعة وتخطيط المشاريع الكبيرة وتوليد الكود استناداً إلى أحدث التوثيق وأكثر من ذلك. كل هذا دون إعدادات MCP معقدة مع حماية خصوصيتك.
 
-    انقر على محادثات المثال هذه لترى ما يمكن لـ OpenMates فعله للمطورين:
+    ## محادثات مثال:
+
+    فقط انقر على محادثات المثال لفتحها.
 
     [[dev_example_chats_group]]
 
@@ -1383,7 +1415,9 @@ message:
 
     OpenMates डेवलपर्स के लिए भी एक शानदार टूल है। त्वरित प्रश्नों से लेकर बड़े प्रोजेक्ट की योजना बनाने, नवीनतम दस्तावेज़ों के आधार पर कोड जेनरेट करने तक, जटिल MCP सर्वर सेटअप के बिना, आपकी गोपनीयता की रक्षा करते हुए।
 
-    इन उदाहरण चैट पर क्लिक करें और देखें OpenMates डेवलपर्स के लिए क्या कर सकता है:
+    ## उदाहरण चैट:
+
+    उदाहरण चैट पर क्लिक करके उन्हें खोलें।
 
     [[dev_example_chats_group]]
 
@@ -1460,7 +1494,9 @@ message:
 
     OpenMates เป็นเครื่องมือที่ยอดเยี่ยมสำหรับนักพัฒนาด้วย ตั้งแต่คำถามด่วน การวางแผนโครงการขนาดใหญ่ การสร้างโค้ดจากเอกสารล่าสุด ทั้งหมดโดยไม่ต้องตั้งค่า MCP ที่ซับซ้อน พร้อมปกป้องความเป็นส่วนตัวของคุณ
 
-    คลิกที่แชทตัวอย่างเหล่านี้เพื่อดูสิ่งที่ OpenMates ทำได้สำหรับนักพัฒนา:
+    ## แชทตัวอย่าง:
+
+    เพียงคลิกที่แชทตัวอย่างเพื่อเปิดดู
 
     [[dev_example_chats_group]]
 
@@ -1537,7 +1573,9 @@ message:
 
     OpenMates je také skvělý nástroj pro vývojáře. Pro vše od rychlých dotazů, plánování velkých projektů, generování kódu na základě nejnovější dokumentace a dalšího. Vše bez složitých nastavení MCP serverů a s ochranou vašeho soukromí.
 
-    Klikněte na tyto ukázkové chaty a podívejte se, co OpenMates umí pro vývojáře:
+    ## Ukázkové chaty:
+
+    Stačí kliknout na ukázkové chaty a otevřít je.
 
     [[dev_example_chats_group]]
 
@@ -1614,7 +1652,9 @@ message:
 
     OpenMates är också ett fantastiskt verktyg för utvecklare. För allt från snabba frågor, planering av stora projekt, kodgenerering baserad på den senaste dokumentationen och mycket mer. Allt utan komplicerade MCP-serverinställningar och med skydd av din integritet.
 
-    Klicka på dessa exempelchatter för att se vad OpenMates kan göra för utvecklare:
+    ## Exempelchatter:
+
+    Klicka bara på exempelchatterna för att öppna dem.
 
     [[dev_example_chats_group]]
 
@@ -1690,7 +1730,9 @@ message:
     # 👨‍💻 חברי צוות דיגיטליים למפתחים
     
     OpenMates הוא גם כלי מדהים למפתחים. לכל דבר, משאלות מהירות, תכנון פרויקטים גדולים, יצירת קוד המבוסס על התיעוד העדכני ביותר ועוד הרבה יותר. הכל ללא הגדרות שרת MCP מסובכות, ותוך הגנה על הפרטיות שלך ומתן גישה לכל מודלי ה-AI הטובים ביותר. API של REST לכל כישורי האפליקציה כלול, וגם CLI עוצמתי וחבילות pip ו-npm מתוכננים, כדי לאפשר לך לתקשר עם הצ'אטים שלך מכל מקום.
-    לחץ על צ'אטים לדוגמה אלו כדי לראות מה OpenMates יכול לעשות עבור מפתחים:
+    ## צ'אטים לדוגמה:
+
+    פשוט לחצו על צ'אטים לדוגמה כדי לפתוח אותם.
     [[dev_example_chats_group]]
     
     ## 🚀 התחלה מהירה

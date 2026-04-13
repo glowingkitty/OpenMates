@@ -49,9 +49,10 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/test-results
           cd backend
           pytest tests/ \
-            -m "not integration and not slow and not vault and not benchmark" \
+            -m "not integration and not slow and not vault and not benchmark and not provider_contract" \
             -v --tb=short --color=no \
             --ignore=tests/fixtures \
+            --ignore=tests/provider_contracts \
             --ignore=tests/test_encryption_service.py \
             --ignore=tests/test_integration_encryption.py \
             --ignore=tests/test_status_service_v2.py \

@@ -26,11 +26,12 @@
    * This component uses Svelte 5 runes exclusively for its own state.
    */
 
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore';
+  import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
   import { authStore } from '../stores/authStore';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
 
@@ -84,14 +85,61 @@
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
 
+  // ─── Crossfade when data source changes ─────────────────────────────────────
+  // When hardcoded inspirations are replaced by real data (IndexedDB / server /
+  // WS), the banner crossfades: the old content fades out, then the new content
+  // fades in. This avoids a jarring instant swap.
+  const HARDCODED_ID_PREFIX = "hardcoded-";
+  let isCrossfading = $state(false);
+
   // ─── Subscribe to store ─────────────────────────────────────────────────────
 
   const unsubscribe = dailyInspirationStore.subscribe((state) => {
-    inspirations = state.inspirations;
-    currentIndex = state.currentIndex;
+    const wasHardcoded = inspirations.length > 0 &&
+      inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
+    const isNowReal = state.inspirations.length > 0 &&
+      !state.inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
+
+    if (wasHardcoded && isNowReal) {
+      // Trigger crossfade: fade out, swap data, fade in
+      isCrossfading = true;
+      setTimeout(() => {
+        inspirations = state.inspirations;
+        currentIndex = state.currentIndex;
+        // Allow a frame for the DOM to update with new data before fading in
+        requestAnimationFrame(() => {
+          isCrossfading = false;
+        });
+      }, 200); // Match the CSS fade-out duration
+    } else {
+      inspirations = state.inspirations;
+      currentIndex = state.currentIndex;
+    }
   });
 
   onDestroy(unsubscribe);
+
+  // ─── Reload inspirations on language change ─────────────────────────────────
+  // Default (non-personalized) inspirations are fetched from the server with a
+  // lang parameter. When the user switches language, we clear the store and
+  // re-fetch so the inspiration phrases match the new locale.
+  // Personalized inspirations (from WS/IndexedDB) are AI-generated content in the
+  // user's language at creation time — they cannot be retranslated, so we skip.
+  onMount(() => {
+    const handleLanguageChange = () => {
+      const state = get(dailyInspirationStore);
+      if (!state.isPersonalized) {
+        dailyInspirationStore.reset();
+        loadDefaultInspirations({ allowIndexedDB: false }).catch((err) => {
+          console.error('[DailyInspirationBanner] Failed to reload inspirations after language change:', err);
+        });
+      }
+    };
+    // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
+    // to ensure the svelte-i18n locale store is fully settled before re-fetching.
+    window.addEventListener('language-changed-complete', handleLanguageChange);
+    return () => window.removeEventListener('language-changed-complete', handleLanguageChange);
+  });
 
   // ─── Passive view tracking via IntersectionObserver ─────────────────────────
   //
@@ -236,7 +284,6 @@
    * Handle clicking on the banner body — start a chat from this inspiration.
    * Also marks the inspiration as viewed via WebSocket.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function handleStartChat(_e: MouseEvent) {
     if (!current) return;
 
@@ -313,7 +360,7 @@
   <!-- Outer wrapper for fade-in animation and full-width layout.
        bind:this lets the IntersectionObserver target this element to detect
        when the banner enters the viewport for passive view tracking. -->
-  <div class="daily-inspiration-wrapper" bind:this={bannerWrapperEl}>
+  <div class="daily-inspiration-wrapper" class:crossfading={isCrossfading} bind:this={bannerWrapperEl}>
 
     <!--
       Banner card: div[role=button] avoids nested-button HTML validation errors
@@ -359,7 +406,7 @@
         <!-- ── Top label ── -->
         <div class="banner-label">
           <BookOpen size={14} color="rgba(255,255,255,0.85)" />
-          <span>{$text('daily_inspiration.label')}</span>
+          <span data-testid="daily-inspiration-label">{$text('daily_inspiration.label')}</span>
         </div>
 
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
@@ -462,6 +509,17 @@
   @keyframes inspirationFadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0);   }
+  }
+
+  /* Crossfade transition: when hardcoded data is replaced by real data,
+     the banner fades out (200ms), data swaps, then fades back in (300ms). */
+  .daily-inspiration-wrapper {
+    transition: opacity 300ms ease-in;
+  }
+
+  .daily-inspiration-wrapper.crossfading {
+    opacity: 0;
+    transition: opacity 200ms ease-out;
   }
 
   /* ── Banner card ──

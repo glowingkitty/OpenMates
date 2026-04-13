@@ -40,8 +40,8 @@
   // Carousel layout (for consecutive runs of highlighted embeds):
   //   - The FIRST card (carouselIndex === 0) is always rendered as the "shell"
   //     and holds the left/right navigation arrows.
-  //   - Non-first cards overlay on top using negative margin.
-  //   - Only the active card is visible; others use display:none or visibility:hidden.
+  //   - Non-first cards overlay on top via position:absolute + translateY.
+  //   - All cards stay mounted; visibility crossfades via opacity for smooth transitions.
   //
   // Architecture: See docs/architecture/embeds.md for rendering pipeline.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
@@ -91,7 +91,7 @@
     return unsub;
   });
 
-  /** Shell height written by the first card, read by overlay cards for negative margin. */
+  /** Shell height written by the first card, read by overlay cards for translateY. */
   let sharedShellHeight = $state(215);
   $effect(() => {
     const unsub = shellHeightStore.subscribe((value) => {
@@ -116,6 +116,12 @@
     carouselStore.update((i) => (i + 1) % carouselTotal);
   }
 
+  function handleDotClick(e: MouseEvent, index: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    carouselStore.set(index);
+  }
+
   // ── Embed ID resolution ─────────────────────────────────────────────────
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
@@ -130,16 +136,21 @@
   let wrapperEl = $state<HTMLElement | null>(null);
   let isExpanded = $state(false);
 
+  // First card's measured rendered height — published to overlays so their
+  // translateY matches the actual rendered shell precisely.
+  let measuredShellHeight = $state(0);
+
   onMount(() => {
     if (!wrapperEl) return;
-    console.debug('[EmbedPreviewLarge] Mounted', { embedRef, carouselIndex, width: wrapperEl.offsetWidth });
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const newExpanded = entry.contentRect.width > 400;
-        if (newExpanded !== isExpanded) {
-          console.debug('[EmbedPreviewLarge] ResizeObserver', { embedRef, width: entry.contentRect.width, isExpanded: newExpanded });
-        }
-        isExpanded = newExpanded;
+        isExpanded = entry.contentRect.width > 400;
+        const el = entry.target as HTMLElement;
+        // Include margin-bottom in the measurement so overlay translateY
+        // accounts for the flow gap created by the dots spacing margin
+        // (which collapses through the TipTap node-view wrapper div).
+        const mb = parseFloat(getComputedStyle(el).marginBottom) || 0;
+        measuredShellHeight = el.offsetHeight + mb;
       }
     });
     ro.observe(wrapperEl);
@@ -148,12 +159,14 @@
 
   let shellMinHeight = $derived(isExpanded ? 365 : 215);
 
-  // First card publishes its shell height so overlay cards can match the negative margin.
+  // First card publishes its actual rendered height so overlay cards can match
+  // the translateY precisely. Falls back to shellMinHeight before measurement.
   $effect(() => {
     if (isFirstCard) {
-      shellHeightStore.set(shellMinHeight);
+      shellHeightStore.set(measuredShellHeight || shellMinHeight);
     }
   });
+
 </script>
 
 {#if isFirstCard}
@@ -161,6 +174,7 @@
   <div
     bind:this={wrapperEl}
     class="embed-preview-large-wrapper"
+    class:embed-preview-large-wrapper--has-dots={hasMultiple}
     style="min-height: {shellMinHeight}px;"
   >
     <div class="embed-preview-large-container">
@@ -190,17 +204,35 @@
       >
         <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
       </button>
+
+      <div class="carousel-dots" role="tablist" aria-label="Carousel position">
+        {#each Array(carouselTotal) as _, i}
+          <button
+            class="carousel-dot"
+            class:carousel-dot--active={currentIndex === i}
+            type="button"
+            role="tab"
+            aria-selected={currentIndex === i}
+            aria-label={`Go to slide ${i + 1} of ${carouselTotal}`}
+            onclick={(e) => handleDotClick(e, i)}
+          ></button>
+        {/each}
+      </div>
     {/if}
   </div>
 {:else if hasMultiple}
-  <!-- Non-first cards: absolute overlay -->
-  <div
-    class="embed-preview-large-wrapper embed-preview-large-overlay"
-    class:embed-preview-large-overlay--hidden={!isVisible}
-    style="margin-top: -{sharedShellHeight}px;"
-  >
-    <div class="embed-preview-large-container">
-      <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+  <!-- Non-first cards: zero-height anchor keeps overlays out of document flow.
+       The overlay is position:absolute inside, painted over the shell via
+       transform, so it contributes 0px to the carousel's flow height. -->
+  <div class="embed-preview-large-overlay-anchor">
+    <div
+      class="embed-preview-large-overlay"
+      class:embed-preview-large-overlay--hidden={!isVisible}
+      style="transform: translateY(-{sharedShellHeight}px);"
+    >
+      <div class="embed-preview-large-container">
+        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+      </div>
     </div>
   </div>
 {/if}
@@ -210,6 +242,15 @@
   .embed-preview-large-wrapper {
     position: relative;
     width: 100%;
+  }
+
+  /* Reserve space below the carousel for the floating pagination dots.
+     This MUST be on the shell (not on an overlay), because the shell
+     contains the absolutely-positioned dots and its min-height can exceed
+     the overlay heights — if so, the overlay's margin-bottom would sit
+     *inside* the shell's height and never create actual spacing. */
+  .embed-preview-large-wrapper--has-dots {
+    margin-bottom: 24px;
   }
 
   /* ── Container query context ─────────────────────────────────────────────
@@ -225,21 +266,81 @@
 
   .embed-preview-large-content {
     width: 100%;
+    opacity: 1;
+    transition: opacity var(--duration-normal) var(--easing-default);
   }
 
   .embed-preview-large-content--hidden {
-    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 
-  /* ── Non-first cards: overlay ────────────────────────────────────────────── */
-  /* margin-top is set dynamically via style binding based on isExpanded */
-  .embed-preview-large-overlay {
+  /* ── Non-first cards: out-of-flow overlay ─────────────────────────────────
+     The anchor is 0px tall in flow so overlays never affect the carousel's
+     flow height — only the shell does. The overlay is position:absolute
+     inside the anchor and uses transform to slide over the shell. */
+  .embed-preview-large-overlay-anchor {
+    height: 0;
+    overflow: visible;
     position: relative;
+  }
+
+  .embed-preview-large-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     z-index: var(--z-index-raised-2);
+    opacity: 1;
+    transition: opacity var(--duration-normal) var(--easing-default);
   }
 
   .embed-preview-large-overlay--hidden {
-    display: none;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── Pagination dots ─────────────────────────────────────────────────────── */
+  .carousel-dots {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background-color: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: var(--z-index-dropdown-2);
+    pointer-events: auto;
+  }
+
+  .carousel-dot {
+    width: 7px;
+    height: 7px;
+    padding: 0 !important;
+    min-width: unset !important;
+    border: none;
+    border-radius: 50% !important;
+    background-color: rgba(255, 255, 255, 0.45) !important;
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--easing-default),
+                width var(--duration-fast) var(--easing-default);
+    margin: 0 !important;
+    filter: none !important;
+  }
+
+  .carousel-dot:hover {
+    background-color: rgba(255, 255, 255, 0.7) !important;
+    scale: none !important;
+  }
+
+  .carousel-dot--active {
+    width: 18px;
+    border-radius: 999px !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
   }
 
   /* ── Navigation arrows (matches ChatHeader .nav-arrow style) ────────────── */

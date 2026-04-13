@@ -726,8 +726,18 @@ async def invoke_google_ai_studio_chat_completions(
                             yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
                         elif "RECITATION" in finish_reason_str:
                             yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
+                        elif "MALFORMED_FUNCTION_CALL" in finish_reason_str:
+                            # Gemini failed to emit a valid tool call (known issue with
+                            # strict schemas on gemini-3.x). Raise so main_processor's
+                            # model-fallback path kicks in and retries with the next model.
+                            raise IOError(
+                                f"Gemini returned MALFORMED_FUNCTION_CALL for model '{model_id}'. "
+                                "Triggering model fallback."
+                            )
                         else:
                             yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
+            except IOError:
+                raise
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not check finish_reason after stream: {e}")
 
@@ -1100,8 +1110,18 @@ async def invoke_google_chat_completions(
                             yield "\n\n---\n*This response was cut short because it reached the model's maximum output length. You can ask the AI to continue.*"
                         elif "RECITATION" in finish_reason_str:
                             yield "\n\n---\n*This response was blocked because it matched existing copyrighted content. Try rephrasing your request.*"
+                        elif "MALFORMED_FUNCTION_CALL" in finish_reason_str:
+                            # Gemini failed to emit a valid tool call (known issue with
+                            # strict schemas on gemini-3.x). Raise so main_processor's
+                            # model-fallback path kicks in and retries with the next model.
+                            raise IOError(
+                                f"Gemini returned MALFORMED_FUNCTION_CALL for model '{model_id}'. "
+                                "Triggering model fallback."
+                            )
                         else:
                             yield f"\n\n---\n*This response ended unexpectedly (reason: {finish_reason_str}). Try rephrasing or using a different model.*"
+            except IOError:
+                raise
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not check finish_reason after stream: {e}")
 

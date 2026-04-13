@@ -138,4 +138,59 @@ test.describe('Unauthenticated app load', () => {
 
 		console.log('[unauthenticated-load] All checks passed');
 	});
+
+	test('AI model card in for-everyone chat opens settings deep link', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		// ─── Console logging for diagnostics ────────────────────────────
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		// ─── 1. Navigate as a fresh user ────────────────────────────────
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		// Wait for the for-everyone demo chat to load
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone'),
+			null,
+			{ timeout: 15000 }
+		);
+
+		// ─── 2. Find and click an AI model card ────────────────────────
+		// Scroll until we find a model card (they're in the ai_models_group)
+		const modelCard = page.getByTestId('ai-model-card').first();
+		await modelCard.scrollIntoViewIfNeeded({ timeout: 15000 });
+		await expect(modelCard).toBeVisible({ timeout: 10000 });
+
+		// Get the model name for later verification
+		const modelName = await modelCard.getByTestId('model-name').textContent();
+		console.log(`[unauthenticated-load] Clicking AI model card: ${modelName}`);
+
+		await modelCard.click();
+
+		// ─── 3. Verify settings panel opens with AI model detail ────────
+		// The settings menu should become visible
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Settings menu opened after model card click');
+
+		// Verify the settings menu navigated to an ai/model/* route
+		await expect(settingsMenu).toHaveAttribute('data-active-view', /^ai\/model\//, { timeout: 10000 });
+		const activeView = await settingsMenu.getAttribute('data-active-view');
+		console.log(`[unauthenticated-load] Settings active view: "${activeView}"`);
+
+		// Verify the banner shell is rendered (model detail page)
+		const bannerShell = settingsMenu.getByTestId('settings-banner-shell');
+		await expect(bannerShell.first()).toBeVisible({ timeout: 5000 });
+
+		console.log('[unauthenticated-load] AI model deep link test passed');
+	});
 });

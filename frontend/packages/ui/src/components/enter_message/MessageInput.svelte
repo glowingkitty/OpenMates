@@ -2335,14 +2335,17 @@
         const wasPaste = piiPasteDetectionPending;
         piiPasteDetectionPending = false;
         
-        // PII Detection: immediate only on paste events; delimiter-triggered detection
-        // uses the debounce fallback to avoid stacking with heavy parsing.
-        runPIIDetection(editor, wasPaste, currentText);
-
         // Heavy parsing (markdown serialization + unified parser + decorations):
         // Runs immediately on delimiter characters and paste, with a 400ms fallback
-        // timer for regular characters.
+        // timer for regular characters. Must run BEFORE PII detection on paste so that
+        // any content modifications (URL → embed conversion) complete first.
         scheduleHeavyParsing(editor, currentText, wasPaste);
+
+        // PII Detection: immediate only on paste events; delimiter-triggered detection
+        // uses the debounce fallback to avoid stacking with heavy parsing.
+        // On paste, use editor.getText() instead of cached currentText since heavy
+        // parsing above may have modified the editor content.
+        runPIIDetection(editor, wasPaste, wasPaste ? editor.getText() : currentText);
 
         // Dispatch live text change event so parent components can react on each keystroke
         // This enables precise, character-by-character search in new chat suggestions
@@ -4543,7 +4546,6 @@
 
     <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
     <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
-    <!-- .message-field has overflow:hidden which would clip the dropdown if placed inside -->
     <MentionDropdown
         bind:show={showMentionDropdown}
         query={mentionQuery}

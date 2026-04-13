@@ -10,8 +10,8 @@
  * Environment:
  *   CREATE_ACCOUNT_SLOT  — slot number (1-20), determines email/password
  *   SIGNUP_TEST_EMAIL_DOMAINS — Mailosaur test domain
- *   MAILOSAUR_API_KEY    — Mailosaur credentials
- *   MAILOSAUR_SERVER_ID  — Mailosaur server ID
+ *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN — Gmail API credentials (preferred)
+ *   MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID — Mailosaur credentials (fallback)
  *
  * Usage:
  *   gh workflow run playwright-spec.yml -f spec=create-test-account.spec.ts \
@@ -36,17 +36,14 @@ const {
 	setToggleChecked,
 	fillStripeCardDetails,
 	getSignupTestDomain,
-	getMailosaurServerId,
 	buildTestAccountEmail,
-	checkMailosaurQuota,
-	createMailosaurClient,
+	createEmailClient,
+	checkEmailQuota,
 	generateTotp,
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
-const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY;
-const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID;
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const CREATE_ACCOUNT_SLOT = process.env.CREATE_ACCOUNT_SLOT;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
@@ -62,7 +59,12 @@ test.describe('Create persistent test account', () => {
 		const slot = parseInt(CREATE_ACCOUNT_SLOT || '', 10);
 		test.skip(!CREATE_ACCOUNT_SLOT || isNaN(slot), 'CREATE_ACCOUNT_SLOT env var is required (1-20).');
 		test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
-		test.skip(!MAILOSAUR_API_KEY, 'MAILOSAUR_API_KEY is required.');
+
+		const emailClient = createEmailClient();
+		test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+		const quota = await checkEmailQuota();
+		test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
 		// Allow generous time for full signup + payment flow.
 		test.setTimeout(240000);
@@ -77,21 +79,7 @@ test.describe('Create persistent test account', () => {
 			throw new Error('Missing signup test domain.');
 		}
 
-		// Check Mailosaur quota
-		if (MAILOSAUR_API_KEY) {
-			const quota = await checkMailosaurQuota(MAILOSAUR_API_KEY);
-			test.skip(!quota.available, `Mailosaur quota reached (${quota.current}/${quota.limit}).`);
-		}
-
-		const mailosaurServerId = getMailosaurServerId(signupDomain, MAILOSAUR_SERVER_ID);
-		if (!mailosaurServerId) {
-			throw new Error('MAILOSAUR_SERVER_ID is missing and could not be derived from domain.');
-		}
-
-		const { waitForMailosaurMessage, extractSixDigitCode } = createMailosaurClient({
-			apiKey: MAILOSAUR_API_KEY,
-			serverId: mailosaurServerId
-		});
+		const { waitForMailosaurMessage, extractSixDigitCode } = emailClient!;
 
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 

@@ -78,14 +78,9 @@ async function navigateToPrivacySettings(
  * Close the settings panel by clicking the settings toggle again.
  */
 async function closeSettings(page: any): Promise<void> {
-	const closeIcon = page.locator('#settings-menu-toggle .close-icon-container.visible').first();
-	try {
-		await closeIcon.click({ timeout: 3000 });
-	} catch {
-		// Fallback: click the toggle itself
-		const settingsToggle = page.locator('#settings-menu-toggle');
-		await settingsToggle.click();
-	}
+	// Click the close button inside the settings toggle (it has data-testid="icon-button-close")
+	const closeButton = page.getByTestId('icon-button-close');
+	await closeButton.click({ timeout: 5000 });
 	await page.waitForTimeout(500);
 }
 
@@ -96,7 +91,7 @@ async function closeSettings(page: any): Promise<void> {
 function getDebugLoggingToggle(page: any) {
 	// The toggle is a SettingsItem with hasToggle=true containing the debug logging label text
 	// Look for the toggle input near the "Debug Logging" or "Enable detailed debug logging" text
-	return page.locator('[data-testid="settings-item"]:has-text("debug") input[type="checkbox"], [data-testid="settings-item"]:has-text("Debug") input[type="checkbox"]').first();
+	return page.locator('[data-testid="menu-item"]:has-text("debug") input[type="checkbox"], [data-testid="menu-item"]:has-text("Debug") input[type="checkbox"]').first();
 }
 
 /**
@@ -104,7 +99,7 @@ function getDebugLoggingToggle(page: any) {
  * Returns the clickable settings item row.
  */
 function getDebugLoggingRow(page: any) {
-	return page.locator('[data-testid="settings-item"]:has-text("debug logging"), [data-testid="settings-item"]:has-text("Debug Logging"), [data-testid="settings-item"]:has-text("Enable detailed debug logging")').first();
+	return page.locator('[data-testid="menu-item"]:has-text("debug logging"), [data-testid="menu-item"]:has-text("Debug Logging"), [data-testid="menu-item"]:has-text("Enable detailed debug logging")').first();
 }
 
 // ---------------------------------------------------------------------------
