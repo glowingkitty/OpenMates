@@ -237,9 +237,7 @@ test.describe('Unauthenticated app load', () => {
 		const wikiLinkCount = await wikiLinks.count();
 		expect(
 			wikiLinkCount,
-			'Expected at least one Wikipedia inline link in the Artemis II example chat. ' +
-				`Found ${wikiLinkCount}. This means wikipedia_topics are not reaching parse_message ` +
-				'or the wikiInline TipTap node is not rendering.'
+			`Expected wiki links but found ${wikiLinkCount}. Diagnostics: ${JSON.stringify(diagInfo)}`
 		).toBeGreaterThan(0);
 		console.log(
 			`[unauthenticated-load] Found ${wikiLinkCount} Wikipedia inline link(s)`
