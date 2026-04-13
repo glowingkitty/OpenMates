@@ -119,6 +119,10 @@
   showSkillIcon={false}
   {onClose}
 >
+  {#snippet embedHeaderCta()}
+    <EmbedHeaderCtaButton label="Open on Wikipedia" onclick={handleOpenWikipedia} />
+  {/snippet}
+
   {#snippet content()}
     <div class="wiki-fullscreen-content" data-testid="wiki-fullscreen-content">
       {#if isLoading}
@@ -161,14 +165,6 @@
             <p>{articleExtract}</p>
           </div>
         {/if}
-
-        <!-- CTA: Open on Wikipedia -->
-        <div class="wiki-cta">
-          <EmbedHeaderCtaButton
-            label="Open on Wikipedia"
-            onclick={handleOpenWikipedia}
-          />
-        </div>
 
         <!-- Attribution -->
         <p class="wiki-attribution">
@@ -238,13 +234,6 @@
     color: var(--color-grey-80);
     line-height: 1.65;
     margin: 0;
-  }
-
-  /* CTA button */
-  .wiki-cta {
-    width: 100%;
-    display: flex;
-    justify-content: center;
   }
 
   /* Attribution */

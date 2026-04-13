@@ -73,8 +73,8 @@
     opacity: 0.8;
   }
 
-  /* 20 px circular badge — wraps icon_rounded.study to render the gradient + icon.
-   * Same dimensions as EmbedInlineLink's badge for visual consistency. */
+  /* 20 px circular badge — study gradient background, icon rendered inside at 10 px.
+   * Matches EmbedInlineLink dimensions exactly for visual consistency. */
   .wiki-inline-badge {
     display: inline-flex;
     align-items: center;
@@ -85,9 +85,11 @@
     border-radius: 50%;
     vertical-align: middle;
     margin-right: 3px;
+    background: var(--color-app-study);
   }
 
-  /* Scale down the icon_rounded icon inside the small badge (same as EmbedInlineLink) */
+  /* Scale down the icon_rounded icon inside the small badge (same as EmbedInlineLink).
+     The gradient is on the outer badge; the inner icon stays transparent. */
   .wiki-inline-badge :global(.icon_rounded) {
     width: 10px !important;
     height: 10px !important;
@@ -96,8 +98,7 @@
     bottom: auto;
     left: auto;
     z-index: auto;
-    background: var(--color-app-study) !important;
-    border-radius: 50%;
+    background: transparent !important;
   }
 
   .wiki-inline-badge :global(.icon_rounded::after) {
