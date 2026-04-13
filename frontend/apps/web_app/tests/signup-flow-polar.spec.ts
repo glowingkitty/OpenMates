@@ -457,37 +457,54 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await expect(billingCountrySelect).toBeVisible({ timeout: 10000 });
 	await billingCountrySelect.selectOption('US');
 
-	// US billing requires address, city, state, and ZIP — fill them after selecting country
-	// so the form has time to render the address fields (some providers show them conditionally).
-	const billingAddress = polarIframe.locator('input[name="customer_billing_address_line1"], input[autocomplete="billing address-line1"], input[placeholder*="Address"]').first();
-	if (await billingAddress.isVisible({ timeout: 5000 }).catch(() => false)) {
+	// US billing requires address, city, state, and ZIP — fill them after selecting country.
+	// Polar renders these fields in the checkout iframe. Use broad locator strategies:
+	// label text, placeholder text, and common name/autocomplete attributes.
+	// Wait longer (10s) since fields may render after country selection.
+	await page.waitForTimeout(2000); // Let Polar render address fields after country change
+
+	// Billing address line 1 — try label, placeholder, then name attribute patterns
+	const billingAddress = polarIframe.getByLabel(/billing address|address line 1|street address/i).first()
+		.or(polarIframe.locator('input[placeholder*="address" i]').first())
+		.or(polarIframe.locator('input[name*="address_line1"], input[name*="billing_address"], input[name*="address1"]').first());
+	if (await billingAddress.isVisible({ timeout: 10000 }).catch(() => false)) {
 		await billingAddress.fill('123 Test Street');
-
-		const billingCity = polarIframe.locator('input[name="customer_billing_address_city"], input[autocomplete="billing address-level2"], input[placeholder*="City"]').first();
-		if (await billingCity.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await billingCity.fill('New York');
-		}
-
-		const billingState = polarIframe.locator('input[name="customer_billing_address_state"], input[autocomplete="billing address-level1"], input[placeholder*="State"], select[name="customer_billing_address_state"], select[autocomplete="billing address-level1"]').first();
-		if (await billingState.isVisible({ timeout: 3000 }).catch(() => false)) {
-			// Try select first, then input
-			const tagName = await billingState.evaluate((el: Element) => el.tagName.toLowerCase());
-			if (tagName === 'select') {
-				await billingState.selectOption('NY');
-			} else {
-				await billingState.fill('NY');
-			}
-		}
-
-		const billingZip = polarIframe.locator('input[name="customer_billing_address_postal_code"], input[autocomplete="billing postal-code"], input[placeholder*="ZIP"], input[placeholder*="Postal"]').first();
-		if (await billingZip.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await billingZip.fill('10001');
-		}
-
-		logSignupCheckpoint('Filled billing address, city, state, and ZIP.');
+		logSignupCheckpoint('Filled billing address line 1.');
 	} else {
-		logSignupCheckpoint('Billing address fields not visible — Polar may not require them for this flow.');
+		logSignupCheckpoint('WARNING: Billing address field not found — payment may fail.');
 	}
+
+	// City
+	const billingCity = polarIframe.getByLabel(/city/i).first()
+		.or(polarIframe.locator('input[placeholder*="city" i]').first())
+		.or(polarIframe.locator('input[name*="city"]').first());
+	if (await billingCity.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await billingCity.fill('New York');
+		logSignupCheckpoint('Filled billing city.');
+	}
+
+	// State — can be input or select
+	const billingStateInput = polarIframe.getByLabel(/state|province|region/i).first()
+		.or(polarIframe.locator('input[placeholder*="state" i], input[name*="state"]').first());
+	const billingStateSelect = polarIframe.locator('select[name*="state"], select[autocomplete*="address-level1"]').first();
+	if (await billingStateSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await billingStateSelect.selectOption('NY');
+		logSignupCheckpoint('Selected billing state (dropdown).');
+	} else if (await billingStateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await billingStateInput.fill('NY');
+		logSignupCheckpoint('Filled billing state (input).');
+	}
+
+	// ZIP / Postal code
+	const billingZip = polarIframe.getByLabel(/zip|postal/i).first()
+		.or(polarIframe.locator('input[placeholder*="zip" i], input[placeholder*="postal" i]').first())
+		.or(polarIframe.locator('input[name*="postal"], input[name*="zip"]').first());
+	if (await billingZip.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await billingZip.fill('10001');
+		logSignupCheckpoint('Filled billing ZIP code.');
+	}
+
+	await takeStepScreenshot(page, 'polar-billing-filled');
 
 	logSignupCheckpoint('Filled cardholder name and billing country.');
 
