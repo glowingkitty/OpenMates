@@ -5023,3 +5023,103 @@ nutrition.view_on_rewe:
   sv: Visa på REWE
   he: צפה ב-REWE
   verified_by_human: [en, de]
+
+wiki.open_on_wikipedia:
+  context: CTA button label to open article on Wikipedia
+  en: Open on Wikipedia
+  de: Auf Wikipedia öffnen
+  zh: 在维基百科上打开
+  es: Abrir en Wikipedia
+  fr: Ouvrir sur Wikipédia
+  pt: Abrir na Wikipédia
+  ru: Открыть в Википедии
+  ja: Wikipediaで開く
+  ko: 위키백과에서 열기
+  it: Apri su Wikipedia
+  tr: Wikipedia'da aç
+  vi: Mở trên Wikipedia
+  id: Buka di Wikipedia
+  pl: Otwórz na Wikipedii
+  nl: Openen op Wikipedia
+  ar: فتح في ويكيبيديا
+  hi: विकिपीडिया पर खोलें
+  th: เปิดบน Wikipedia
+  cs: Otevřít na Wikipedii
+  sv: Öppna på Wikipedia
+  he: פתח בוויקיפדיה
+  verified_by_human: []
+
+wiki.loading:
+  context: Loading state while fetching Wikipedia article data
+  en: Loading...
+  de: Wird geladen...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جارٍ التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  he: טוען...
+  verified_by_human: []
+
+wiki.article_not_found:
+  context: Error message when Wikipedia article cannot be found
+  en: Article not found
+  de: Artikel nicht gefunden
+  zh: 未找到文章
+  es: Artículo no encontrado
+  fr: Article non trouvé
+  pt: Artigo não encontrado
+  ru: Статья не найдена
+  ja: 記事が見つかりません
+  ko: 문서를 찾을 수 없습니다
+  it: Articolo non trovato
+  tr: Makale bulunamadı
+  vi: Không tìm thấy bài viết
+  id: Artikel tidak ditemukan
+  pl: Artykuł nie znaleziony
+  nl: Artikel niet gevonden
+  ar: المقال غير موجود
+  hi: लेख नहीं मिला
+  th: ไม่พบบทความ
+  cs: Článek nenalezen
+  sv: Artikel hittades inte
+  he: הערך לא נמצא
+  verified_by_human: []
+
+wiki.source_wikipedia:
+  context: Attribution text for Wikipedia content
+  en: "Source: Wikipedia \u2014 content available under CC BY-SA 4.0"
+  de: "Quelle: Wikipedia \u2014 Inhalte unter CC BY-SA 4.0"
+  zh: "来源：维基百科 \u2014 内容依据 CC BY-SA 4.0 许可"
+  es: "Fuente: Wikipedia \u2014 contenido bajo CC BY-SA 4.0"
+  fr: "Source : Wikip\u00E9dia \u2014 contenu sous CC BY-SA 4.0"
+  pt: "Fonte: Wikip\u00E9dia \u2014 conte\u00FAdo sob CC BY-SA 4.0"
+  ru: "Источник: Википедия \u2014 содержание под CC BY-SA 4.0"
+  ja: "出典：Wikipedia \u2014 CC BY-SA 4.0 ライセンス"
+  ko: "출처: 위키백과 \u2014 CC BY-SA 4.0 라이선스"
+  it: "Fonte: Wikipedia \u2014 contenuto sotto CC BY-SA 4.0"
+  tr: "Kaynak: Vikipedi \u2014 CC BY-SA 4.0 ile lisansl\u0131"
+  vi: "Ngu\u1ED3n: Wikipedia \u2014 n\u1ED9i dung theo CC BY-SA 4.0"
+  id: "Sumber: Wikipedia \u2014 konten di bawah CC BY-SA 4.0"
+  pl: "Źr\u00F3dło: Wikipedia \u2014 treść na licencji CC BY-SA 4.0"
+  nl: "Bron: Wikipedia \u2014 inhoud onder CC BY-SA 4.0"
+  ar: "المصدر: ويكيبيديا \u2014 المحتوى متاح تحت CC BY-SA 4.0"
+  hi: "स्रोत: विकिपीडिया \u2014 CC BY-SA 4.0 के तहत सामग्री"
+  th: "แหล่งที่มา: Wikipedia \u2014 เนื้อหาภายใต้ CC BY-SA 4.0"
+  cs: "Zdroj: Wikipedie \u2014 obsah pod CC BY-SA 4.0"
+  sv: "K\u00E4lla: Wikipedia \u2014 inneh\u00E5ll under CC BY-SA 4.0"
+  he: "מקור: ויקיפדיה \u2014 תוכן תחת CC BY-SA 4.0"
+  verified_by_human: []

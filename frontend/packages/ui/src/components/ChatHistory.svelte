@@ -482,6 +482,7 @@
     isExampleChat = false,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
+    wikipediaTopics = undefined,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -523,6 +524,8 @@
     followUpSuggestions?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
+    /** Validated Wikipedia topics for inline link rendering in assistant messages. */
+    wikipediaTopics?: import('../message_parsing/types').WikipediaTopic[];
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -1620,6 +1623,7 @@
                         isFirstMessage={msgIndex === 0}
                         {isCreditsRestored}
                         {onResend}
+                        wikipediaTopics={msg.role === 'assistant' ? wikipediaTopics : undefined}
                     />
 
                 </div>

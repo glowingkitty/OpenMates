@@ -2,7 +2,7 @@
 // Main entry point for the unified message parsing architecture
 // Handles both write_mode (editing) and read_mode (display) parsing
 
-import { ParseMessageOptions } from "./types";
+import { ParseMessageOptions, WikipediaTopic } from "./types";
 import { markdownToTipTap } from "./serializers";
 import { parseEmbedNodes } from "./embedParsing";
 import { handleStreamingSemantics } from "./streamingSemantics";
@@ -947,6 +947,121 @@ function promoteAssistantEmbedsToLarge(doc: any, role?: string): any {
   };
 }
 
+// ─── Wikipedia inline link conversion ─────────────────────────────────────────
+//
+// Scans text nodes in a TipTap document for Wikipedia topic phrases and wraps
+// the first occurrence of each matched phrase in a wikiInline atom node.
+// Topics are sorted by phrase length descending (longest-match-first) to prevent
+// partial matches (e.g. "United" matching before "United States").
+
+/** Node types that should never have their text content scanned for wiki links. */
+const WIKI_SKIP_NODE_TYPES = new Set([
+  "codeBlock", "code_block", "embedInline", "wikiInline",
+  "embedPreviewLarge", "embed", "sourceQuote",
+]);
+
+/**
+ * Walk a TipTap document and replace matching topic phrases in text nodes
+ * with wikiInline atom nodes. Only the first occurrence of each topic is linked.
+ */
+function convertWikiTopicLinks(doc: any, topics: WikipediaTopic[]): any {
+  if (!doc || !doc.content || !topics.length) return doc;
+
+  // Sort by phrase length descending (longest match first)
+  const sorted = [...topics].sort((a, b) => b.topic.length - a.topic.length);
+
+  // Build case-insensitive regex with word boundaries
+  const escaped = sorted.map(t =>
+    t.topic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  );
+  const pattern = new RegExp(`\\b(${escaped.join("|")})\\b`, "gi");
+
+  // Lookup map: lowercase topic -> topic data
+  const topicMap = new Map<string, WikipediaTopic>(
+    sorted.map(t => [t.topic.toLowerCase(), t]),
+  );
+
+  // Track which topics have already been linked (first occurrence only)
+  const linked = new Set<string>();
+
+  function walkNode(node: any): any {
+    // Skip node types where wiki links should not appear
+    if (WIKI_SKIP_NODE_TYPES.has(node.type)) return node;
+
+    // Text node — check for topic matches
+    if (node.type === "text" && typeof node.text === "string") {
+      // Don't match inside inline code marks
+      if (node.marks?.some((m: any) => m.type === "code")) return node;
+
+      const text = node.text;
+      const fragments: any[] = [];
+      let lastIndex = 0;
+
+      // Reset regex state for this text node
+      pattern.lastIndex = 0;
+      let match: RegExpExecArray | null;
+
+      while ((match = pattern.exec(text)) !== null) {
+        const matchedText = match[0];
+        const lower = matchedText.toLowerCase();
+        const topicData = topicMap.get(lower);
+
+        // Skip if already linked or no topic data
+        if (!topicData || linked.has(lower)) continue;
+
+        // Add preceding text
+        if (match.index > lastIndex) {
+          const before = text.slice(lastIndex, match.index);
+          fragments.push({ type: "text", text: before, ...(node.marks ? { marks: node.marks } : {}) });
+        }
+
+        // Add wikiInline atom node
+        fragments.push({
+          type: "wikiInline",
+          attrs: {
+            displayText: matchedText,
+            wikiTitle: topicData.wiki_title,
+            wikidataId: topicData.wikidata_id || null,
+            thumbnailUrl: topicData.thumbnail_url || null,
+            description: topicData.description || null,
+          },
+        });
+
+        linked.add(lower);
+        lastIndex = match.index + matchedText.length;
+      }
+
+      // No matches — return original node
+      if (fragments.length === 0) return node;
+
+      // Add remaining text after last match
+      if (lastIndex < text.length) {
+        fragments.push({ type: "text", text: text.slice(lastIndex), ...(node.marks ? { marks: node.marks } : {}) });
+      }
+
+      return fragments;
+    }
+
+    // Recurse into children
+    if (node.content && Array.isArray(node.content)) {
+      const newContent: any[] = [];
+      for (const child of node.content) {
+        const result = walkNode(child);
+        if (Array.isArray(result)) {
+          newContent.push(...result);
+        } else {
+          newContent.push(result);
+        }
+      }
+      return { ...node, content: newContent };
+    }
+
+    return node;
+  }
+
+  return walkNode(doc);
+}
+
 export function parse_message(
   markdown: string,
   mode: "write" | "read",
@@ -957,7 +1072,10 @@ export function parse_message(
     const doc = markdownToTipTap(markdown);
     // Still apply embed: link + source quote conversion in read mode even on the fast path
     if (mode === "read") {
-      const withLinks = convertEmbedLinks(doc);
+      let withLinks = convertEmbedLinks(doc);
+      if (opts.wikipediaTopics?.length) {
+        withLinks = convertWikiTopicLinks(withLinks, opts.wikipediaTopics as WikipediaTopic[]);
+      }
       return convertSourceQuotes(withLinks);
     }
     return doc;
@@ -1005,6 +1123,9 @@ export function parse_message(
   // blockquotes that are source quotes and convert them (read mode only)
   if (mode === "read") {
     unifiedDoc = convertEmbedLinks(unifiedDoc);
+    if (opts.wikipediaTopics?.length) {
+      unifiedDoc = convertWikiTopicLinks(unifiedDoc, opts.wikipediaTopics as WikipediaTopic[]);
+    }
     unifiedDoc = convertSourceQuotes(unifiedDoc);
   }
 

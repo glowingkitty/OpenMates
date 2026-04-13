@@ -215,6 +215,13 @@ class PostProcessingResult(BaseModel):
         default_factory=list,
         description="3 concise topic/interest phrases (in English) capturing what the user discussed or showed curiosity about"
     )
+    # Wikipedia inline links: validated topic entries with confirmed Wikipedia articles.
+    # Populated by batch_validate_topics() after the LLM extracts topic candidates.
+    # Stored per-chat (accumulated, deduplicated) for inline link rendering in all assistant messages.
+    wikipedia_topics: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Up to 20 validated Wikipedia topic entries with wiki_title, wikidata_id, thumbnail_url, description"
+    )
 
 
 async def handle_postprocessing(
@@ -613,6 +620,26 @@ async def handle_postprocessing(
     else:
         translated_new_chat_suggestions = sanitized_new_chat
 
+    # Validate Wikipedia topic candidates against the Wikipedia API.
+    # The LLM extracts notable topic phrases; we batch-check which ones have real articles.
+    # Only confirmed matches (with canonical title, QID, thumbnail) are included in the result.
+    validated_wiki_topics: List[Dict[str, Any]] = []
+    raw_wiki_candidates = llm_result.arguments.get("wikipedia_topic_candidates", [])
+    if raw_wiki_candidates and isinstance(raw_wiki_candidates, list) and not is_incognito:
+        try:
+            from backend.shared.providers.wikipedia.wikipedia_api import batch_validate_topics
+            validated = await batch_validate_topics(
+                topics=raw_wiki_candidates[:20],
+                language=output_language,
+            )
+            validated_wiki_topics = [t.model_dump() for t in validated]
+            logger.info(
+                f"[Task ID: {task_id}] [PostProcessor] Wikipedia: {len(validated_wiki_topics)}/{len(raw_wiki_candidates)} "
+                f"topics validated"
+            )
+        except Exception as e:
+            logger.warning(f"[Task ID: {task_id}] [PostProcessor] Wikipedia validation failed: {e}")
+
     result = PostProcessingResult(
         follow_up_request_suggestions=sanitized_follow_up,
         new_chat_request_suggestions=translated_new_chat_suggestions,
@@ -620,8 +647,8 @@ async def handle_postprocessing(
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
-
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
+        wikipedia_topics=validated_wiki_topics,
     )
 
     # Validate that we have the required number of suggestions

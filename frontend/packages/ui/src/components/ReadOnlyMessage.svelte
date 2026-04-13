@@ -9,6 +9,7 @@
     import { GenericMentionNode } from '../components/enter_message/extensions/GenericMentionNode';
     import { BestModelMentionNode } from '../components/enter_message/extensions/BestModelMentionNode';
     import { EmbedInlineNode } from '../components/enter_message/extensions/EmbedInlineNode';
+    import { WikiInlineNode } from '../components/enter_message/extensions/WikiInlineNode';
     import { SourceQuoteNode } from '../components/enter_message/extensions/SourceQuoteNode';
     import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
@@ -31,22 +32,26 @@
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
     // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
-    let { 
-        content, 
-        isStreaming = false, 
+    import type { WikipediaTopic } from '../message_parsing/types';
+
+    let {
+        content,
+        isStreaming = false,
         _embedUpdateTimestamp = 0,
         selectable = false,
         piiMappings = undefined,
         piiRevealed = false,
-        role = undefined
-    }: { 
-        content: string | Record<string, unknown> | null; 
-        isStreaming?: boolean; 
+        role = undefined,
+        wikipediaTopics = undefined
+    }: {
+        content: string | Record<string, unknown> | null;
+        isStreaming?: boolean;
         _embedUpdateTimestamp?: number;
         selectable?: boolean;
         piiMappings?: PIIMapping[];
         piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
         role?: "user" | "assistant" | "system"; // Message role — passed to parse_message for single-embed large promotion
+        wikipediaTopics?: WikipediaTopic[]; // Validated Wikipedia topics for inline link injection
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
@@ -525,7 +530,7 @@
                 // Handle special translation keys
                 if (inputContent === 'chat.an_error_occured') {
                     const translatedText = $text('chat.an_error_occured');
-                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role });
+                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
                 }
 
                 // Performance optimization: Check cache before parsing
@@ -552,7 +557,7 @@
                 }
 
                 // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
-                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role });
+                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
                 
                 // Only cache if not bypassing (avoid polluting cache with stale embed state)
                 if (!bypassCache) {
@@ -577,7 +582,7 @@
                     } else if (isMarkdownContent(textContent)) {
                         // If the text content looks like markdown, parse it with unified parsing
                         logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');
-                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role });
+                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
                     }
                 }
                 
@@ -593,7 +598,7 @@
             const stringContent = String(inputContent);
             if (isMarkdownContent(stringContent)) {
                 logger.debug('Converting unknown content type to markdown');
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
             }
             
             // Fallback: return content as-is (should already be processed)
@@ -605,7 +610,7 @@
             // Final fallback: try to parse as markdown text
             try {
                 const stringContent = typeof inputContent === 'string' ? inputContent : String(inputContent);
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics });
             } catch (markdownError) {
                 logger.debug("Markdown parsing also failed, returning simple paragraph", markdownError);
                 
@@ -664,6 +669,7 @@
             BestModelMentionNode, // For @best-model:best, @best-model:fast alias mentions
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
             EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
+            WikiInlineNode, // For Wikipedia topic inline links from post-processing
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
             EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
             ...MarkdownExtensions, // Spread the array of markdown extensions

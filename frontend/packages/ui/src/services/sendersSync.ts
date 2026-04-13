@@ -359,7 +359,8 @@ export async function sendPostProcessingMetadataImpl(
 	encrypted_chat_tags: string,
 	encrypted_top_recommended_apps: string = "",
 	encrypted_updated_title: string = "",
-	encrypted_chat_key: string = ""
+	encrypted_chat_key: string = "",
+	encrypted_wikipedia_topics: string = ""
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
 		console.warn(
@@ -378,6 +379,7 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_top_recommended_apps_for_chat?: string;
 			encrypted_title?: string; // OPE-265: Updated title from post-processing
 			encrypted_chat_key?: string; // OPE-314: Include for server-side key validation
+			encrypted_wikipedia_topics?: string; // Accumulated Wikipedia topic entries for inline links
 			title_v?: number;
 		}
 
@@ -406,6 +408,11 @@ export async function sendPostProcessingMetadataImpl(
 		// bypassed and metadata encrypted with a stale/wrong key gets persisted.
 		if (encrypted_chat_key) {
 			payload.encrypted_chat_key = encrypted_chat_key;
+		}
+
+		// Include encrypted Wikipedia topics for inline link rendering
+		if (encrypted_wikipedia_topics) {
+			payload.encrypted_wikipedia_topics = encrypted_wikipedia_topics;
 		}
 
 		console.debug(

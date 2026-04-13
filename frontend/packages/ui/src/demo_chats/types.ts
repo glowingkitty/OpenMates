@@ -81,4 +81,13 @@ export interface ExampleChat {
 		featured: boolean; // Show in default 10 on homepage
 		order: number; // Display order
 	};
+	/** Validated Wikipedia topics for inline link rendering in assistant messages.
+	 *  Stored cleartext since example chats are not encrypted. */
+	wikipedia_topics?: Array<{
+		topic: string;
+		wiki_title: string;
+		wikidata_id: string | null;
+		thumbnail_url: string | null;
+		description: string | null;
+	}>;
 }

@@ -422,6 +422,12 @@ postprocess_response_tool:
             type: "string"
           minItems: 3
           maxItems: 3
+        wikipedia_topic_candidates:
+          type: "array"
+          description: "Up to 20 notable topic phrases from the assistant's response that likely have Wikipedia articles. Extract proper nouns (people, places, organizations), scientific concepts, historical events, technologies, and other genuinely notable topics. Each must be a concise phrase (1-5 words) matching a likely Wikipedia article title. Only extract topics that are specific and encyclopedic — skip common words, generic phrases, and brand names. Examples of good topics: 'Albert Einstein', 'quantum entanglement', 'Treaty of Versailles', 'CRISPR', 'Mount Everest'. Examples of bad topics: 'science', 'the internet', 'good idea', 'app'. Generate in the CONVERSATION language for non-English wikis."
+          items:
+            type: "string"
+          maxItems: 20
       required:
         - "follow_up_request_suggestions"
         - "new_chat_request_suggestions"
@@ -429,6 +435,7 @@ postprocess_response_tool:
         - "chat_summary"
         - "updated_chat_title"
         - "daily_inspiration_topic_suggestions"
+        - "wikipedia_topic_candidates"
 
 url_correction_tool:
   type: "function"

@@ -90,6 +90,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     isThinkingStreaming = false,
     piiMappings = undefined,
     piiRevealed = false,
+    wikipediaTopics = undefined,
     // Message identification props (for usage/cost lookup in message context menu)
     messageId = undefined,
     userMessageId = undefined,
@@ -119,6 +120,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
     piiMappings?: import('../types/chat').PIIMapping[]; // Cumulative PII mappings for decoration highlighting
     piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
+    wikipediaTopics?: import('../message_parsing/types').WikipediaTopic[]; // Validated Wikipedia topics for inline links
     // Message identification props (for usage/cost lookup in message context menu)
     messageId?: string; // Message ID for cost lookup
     userMessageId?: string; // User message ID that triggered this response (usage records are stored with this ID)
@@ -2196,7 +2198,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <!-- Debug mode: render raw stored content without any processing -->
           <pre class="debug-raw-content selectable">{debugRawContent}</pre>
         {:else if showFullMessage && fullContent}
-          <ReadOnlyMessage 
+          <ReadOnlyMessage
               bind:this={readOnlyMessageComponent}
               content={fullContent}
               isStreaming={status === 'streaming'}
@@ -2205,6 +2207,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               {piiMappings}
               {piiRevealed}
               {role}
+              {wikipediaTopics}
               on:message-embed-click={handleEmbedClick}
           />
         {:else if hasExampleChatsPlaceholder}
@@ -2216,7 +2219,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               {selectable}
           />
         {:else}
-          <ReadOnlyMessage 
+          <ReadOnlyMessage
               bind:this={readOnlyMessageComponent}
               {content}
               isStreaming={status === 'streaming'}
@@ -2225,6 +2228,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               {piiMappings}
               {piiRevealed}
               {role}
+              {wikipediaTopics}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}

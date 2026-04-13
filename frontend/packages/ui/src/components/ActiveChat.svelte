@@ -454,6 +454,16 @@
         lineCount: 0
     });
 
+    // Wikipedia fullscreen — triggered by clicking a wiki inline link in an assistant message
+    let showWikiFullscreen = $state(false);
+    let wikiFullscreenData = $state<{
+        wikiTitle: string;
+        wikidataId?: string | null;
+        displayText: string;
+        thumbnailUrl?: string | null;
+        description?: string | null;
+    } | null>(null);
+
     // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
     let showPdfEmbedFullscreen = $state(false);
     let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number }>({});
@@ -1217,6 +1227,20 @@
         }
     }
     
+    // Handler for Wikipedia fullscreen events (from WikiInlineLink)
+    function handleWikiFullscreen(event: CustomEvent) {
+        const detail = event.detail as {
+            wikiTitle: string;
+            wikidataId?: string | null;
+            displayText: string;
+            thumbnailUrl?: string | null;
+            description?: string | null;
+        };
+        wikiFullscreenData = detail;
+        showWikiFullscreen = true;
+        console.debug('[ActiveChat] Opening Wikipedia fullscreen for:', detail.wikiTitle);
+    }
+
     // Handler for embed fullscreen events (from embed renderers)
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
@@ -6411,6 +6435,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug('[ActiveChat] Chat header title updated from post-processing:', decryptedTitle);
                         }
                     }
+                    // Decrypt Wikipedia topics for inline link rendering
+                    if (incomingChatMetadata.encrypted_wikipedia_topics) {
+                        try {
+                            const wikiJson = await decryptWithChatKey(incomingChatMetadata.encrypted_wikipedia_topics, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_wikipedia_topics' });
+                            if (wikiJson && currentChat) {
+                                currentChat = { ...currentChat, wikipedia_topics: JSON.parse(wikiJson) };
+                            }
+                        } catch { /* keep existing topics */ }
+                    }
                 }
             } catch (err) {
                 console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt post-processing metadata: chat_id=${incomingChatId}`, err);
@@ -6729,6 +6762,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showEmbedFullscreen = false;
             embedFullscreenData = null;
         }
+        if (showWikiFullscreen) {
+            showWikiFullscreen = false;
+            wikiFullscreenData = null;
+        }
         
         // CRITICAL: Close video player when switching chats (only if NOT in PiP mode)
         // In PiP mode, video should keep playing as user browses other chats
@@ -6925,6 +6962,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               }
                               if (chatForHeader.encrypted_chat_summary) {
                                   try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
+                              }
+                              // Decrypt Wikipedia topics for inline link rendering
+                              if (chatForHeader.encrypted_wikipedia_topics) {
+                                  try {
+                                      const wikiJson = await decryptWithChatKey(chatForHeader.encrypted_wikipedia_topics, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_wikipedia_topics' });
+                                      if (wikiJson) {
+                                          chatForHeader.wikipedia_topics = JSON.parse(wikiJson);
+                                      }
+                                  } catch { /* keep undefined */ }
                               }
                               if (t && c) {
                                   activeChatDecryptedTitle = t;
@@ -7895,6 +7941,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleEmbedFullscreen(event);
         };
         document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+
+        // Wikipedia fullscreen event — fired by WikiInlineLink when user clicks a wiki topic
+        const wikiFullscreenHandler = (event: Event) => {
+            handleWikiFullscreen(event as CustomEvent);
+        };
+        document.addEventListener('wikifullscreen', wikiFullscreenHandler as EventListenerCallback);
 
         // Add document-level listeners for image/PDF/recording fullscreen events.
         // These events bubble from TipTap node views (both editor and read-only messages).
@@ -9330,6 +9382,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('setRetryMessage', handleSetRetryMessage);
             // Remove embed and video PiP fullscreen listeners
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+            document.removeEventListener('wikifullscreen', wikiFullscreenHandler as EventListenerCallback);
             document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
             // Remove image/PDF/recording fullscreen document listeners
             document.removeEventListener('imagefullscreen', imagefullscreenHandler);
@@ -9942,6 +9995,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
+                         wikipediaTopics={currentChat?.wikipedia_topics}
                          onSuggestionClick={handleSuggestionClick}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}
@@ -10111,6 +10165,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 </div>
                 {/if}
             </div>
+            {/if}
+
+            {#if showWikiFullscreen && wikiFullscreenData}
+                {#await import('./embeds/wiki/WikipediaFullscreen.svelte') then module}
+                    <module.default
+                        wikiTitle={wikiFullscreenData.wikiTitle}
+                        wikidataId={wikiFullscreenData.wikidataId}
+                        displayText={wikiFullscreenData.displayText}
+                        thumbnailUrl={wikiFullscreenData.thumbnailUrl}
+                        description={wikiFullscreenData.description}
+                        onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
+                    />
+                {/await}
             {/if}
 
             {#if showCodeFullscreen}
