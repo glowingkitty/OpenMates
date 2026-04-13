@@ -174,7 +174,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	// Basics step: fill email/username and exercise key toggles.
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 	await takeStepScreenshot(page, 'basics-filled');
@@ -207,7 +207,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	// Confirm email step: wait for step transition and verify "Open mail app" link.
 	// The step transition may take a moment, so we wait for the link to appear with a longer timeout.
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
-	await expect(openMailLink).toBeVisible({ timeout: 15000 });
+	await expect(openMailLink).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'confirm-email');
 	await expect(openMailLink).toHaveAttribute('href', /^mailto:/i);
 
@@ -225,7 +225,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	// Secure account step: choose password-based setup.
 	const passwordOption = page.locator('#signup-password-option');
-	await expect(passwordOption).toBeVisible({ timeout: 15000 });
+	await expect(passwordOption).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'secure-account');
 	await passwordOption.click();
 	await takeStepScreenshot(page, 'password-step');
@@ -376,7 +376,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	const cardInput = stripeIframe
 		.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
 		.first();
-	await cardInput.waitFor({ state: 'visible', timeout: 60000 });
+	await cardInput.waitFor({ state: 'visible', timeout: 30000 });
 	logSignupCheckpoint('Stripe Payment Element loaded.');
 
 	await takeStepScreenshot(page, 'payment-form');
@@ -387,7 +387,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	// Wait for Stripe to validate the card (isPaymentElementComplete → buy button enabled).
 	const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
-	await expect(buyButton).toBeEnabled({ timeout: 15000 });
+	await expect(buyButton).toBeEnabled({ timeout: 10000 });
 
 	// Submit payment and wait for success.
 	const paymentSubmittedAt = new Date().toISOString();
@@ -466,7 +466,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	const deleteConfirmToggle = page
 		.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 		.first();
-	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+	await expect(deleteConfirmToggle).toBeAttached({ timeout: 10000 });
 	await setToggleChecked(deleteConfirmToggle, true);
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
@@ -483,14 +483,14 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
 	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 60000
+		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
 
 	// Confirm logout redirect to demo chat after deletion.
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 60000
+		timeout: 10000
 	});
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
 });

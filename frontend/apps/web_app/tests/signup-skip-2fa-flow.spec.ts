@@ -135,7 +135,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
+	await expect(emailInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 
@@ -148,7 +148,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await page.getByRole('button', { name: /create new account/i }).click();
 
 	const openMailLink = page.getByRole('link', { name: /open mail app/i });
-	await expect(openMailLink).toBeVisible({ timeout: 15000 });
+	await expect(openMailLink).toBeVisible({ timeout: 10000 });
 
 	const confirmEmailMessage = await waitForMailosaurMessage({
 		sentTo: signupEmail,
@@ -161,7 +161,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await confirmEmailInput.fill(emailCode);
 
 	const passwordOption = page.locator('#signup-password-option');
-	await expect(passwordOption).toBeVisible({ timeout: 15000 });
+	await expect(passwordOption).toBeVisible({ timeout: 10000 });
 	await passwordOption.click();
 
 	const passwordInputs = page.locator('input[autocomplete="new-password"]');
@@ -173,10 +173,10 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await takeStepScreenshot(page, 'one-time-codes');
 
 	const skipForNowButton = page.locator('#signup-nav-skip');
-	await expect(skipForNowButton).toBeVisible({ timeout: 20000 });
+	await expect(skipForNowButton).toBeVisible({ timeout: 10000 });
 	await skipForNowButton.click();
 
-	await expect(page.getByText(/be aware before skipping 2fa/i)).toBeVisible({ timeout: 15000 });
+	await expect(page.getByText(/be aware before skipping 2fa/i)).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'skip-2fa-consent');
 
 	const skipConsentToggle = page.locator('#skip-2fa-consent-toggle');
@@ -198,7 +198,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await setToggleChecked(recoveryConfirmToggle, true);
 
 	await expect(page.getByTestId('credits-package').getByTestId('buy-button').first()).toBeVisible({
-		timeout: 30000
+		timeout: 10000
 	});
 	await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
 	await takeStepScreenshot(page, 'payment-consent');
@@ -211,7 +211,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	const stripeIframe = page.locator('iframe[title="Secure payment input frame"]');
 
 	// Wait for the consent toggle or Stripe iframe to appear (payment step loaded)
-	await expect(consentToggle.or(stripeIframe)).toBeAttached({ timeout: 60000 });
+	await expect(consentToggle.or(stripeIframe)).toBeAttached({ timeout: 10000 });
 
 	if (await consentToggle.isVisible().catch(() => false)) {
 		await setToggleChecked(consentToggle, true);
@@ -235,7 +235,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	const cardInputWait = stripeFrameLocator
 		.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')
 		.first();
-	await cardInputWait.waitFor({ state: 'visible', timeout: 60000 });
+	await cardInputWait.waitFor({ state: 'visible', timeout: 30000 });
 	logSignupCheckpoint('Stripe Payment Element loaded.');
 
 	await takeStepScreenshot(page, 'payment-form');
@@ -246,11 +246,11 @@ test('completes signup with skipped 2FA, login with password, and delete account
 
 	// Wait for Stripe to validate the card (buy button enabled).
 	const buyButton = page.getByTestId('payment-form').getByTestId('buy-button');
-	await expect(buyButton).toBeEnabled({ timeout: 15000 });
+	await expect(buyButton).toBeEnabled({ timeout: 10000 });
 
 	// Submit payment and wait for success.
 	await buyButton.click();
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	logSignupCheckpoint('Stripe payment completed successfully.');
 
 	await page.locator('#signup-finish-setup').click();
@@ -267,7 +267,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await logoutItem.click();
 
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 60000
+		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'logged-out');
 
@@ -284,7 +284,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	const loginButtonAfterLogout = page.getByRole('button', {
 		name: /login.*sign up|sign up/i
 	});
-	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
+	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 10000 });
 	await loginButtonAfterLogout.click();
 
 	// Switch to Login tab (dialog may default to Sign up tab after a fresh signup)
@@ -296,21 +296,21 @@ test('completes signup with skipped 2FA, login with password, and delete account
 
 	// Use broader selector to handle both login dialog variants (name="username" or id="login-email-input").
 	const emailInputRelogin = page.locator('#login-email-input, input[type="email"][name="username"]').first();
-	await expect(emailInputRelogin).toBeVisible({ timeout: 15000 });
+	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
 	await emailInputRelogin.fill(signupEmail);
 	await page.getByRole('button', { name: /continue|next/i }).click();
 
 	const passwordInputRelogin = page.locator('#login-password-input');
-	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 15000 });
+	await expect(passwordInputRelogin.first()).toBeVisible({ timeout: 10000 });
 	await passwordInputRelogin.first().fill(signupPassword);
 
 	await expect(page.locator('#login-otp-input').first()).not.toBeVisible();
 
 	const loginSubmitButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(loginSubmitButton).toBeVisible({ timeout: 15000 });
+	await expect(loginSubmitButton).toBeVisible({ timeout: 10000 });
 	await loginSubmitButton.click();
 
-	await page.waitForURL(/chat/, { timeout: 60000 });
+	await page.waitForURL(/chat/, { timeout: 10000 });
 	await takeStepScreenshot(page, 'relogin-success');
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('Re-login with password completed. No 2FA/OTP was requested.');
@@ -335,7 +335,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	const deleteConfirmToggle = page
 		.getByTestId('delete-account-container').locator('input[type="checkbox"]')
 		.first();
-	await expect(deleteConfirmToggle).toBeAttached({ timeout: 60000 });
+	await expect(deleteConfirmToggle).toBeAttached({ timeout: 10000 });
 	await setToggleChecked(deleteConfirmToggle, true);
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
@@ -343,7 +343,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	// Click delete button — should open the auth modal with email OTP (not 2FA).
 	await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
 	const authModal = page.getByTestId('auth-modal');
-	await expect(authModal).toBeVisible({ timeout: 15000 });
+	await expect(authModal).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'delete-account-auth-email-otp');
 
 	// Verify this is the email OTP flow (not 2FA or passkey).
@@ -365,7 +365,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	// The backend may fail with "Failed to retrieve email" if encryption keys aren't
 	// synced yet for the freshly created account. Retry once after a short wait.
 	const deleteOtpInput = emailOtpSection.locator('input[inputmode="numeric"]');
-	const otpVisible = await deleteOtpInput.isVisible({ timeout: 10000 }).catch(() => false);
+	const otpVisible = await deleteOtpInput.isVisible({ timeout: 5000 }).catch(() => false);
 	if (!otpVisible) {
 		const errorText = await page.getByText(/failed to retrieve email/i).isVisible({ timeout: 2000 }).catch(() => false);
 		if (errorText) {
@@ -374,7 +374,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 			await sendCodeButton.click();
 		}
 	}
-	await expect(deleteOtpInput).toBeVisible({ timeout: 30000 });
+	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'delete-account-otp-input');
 
 	// Get the verification code from Mailosaur email.
@@ -397,7 +397,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	// The deletion flow sets a brief success message then navigates away,
 	// so we wait for the redirect rather than the transient success message.
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 60000
+		timeout: 10000
 	});
 	await takeStepScreenshot(page, 'delete-account-redirected');
 	logSignupCheckpoint('Account deleted and redirected to demo chat.');
