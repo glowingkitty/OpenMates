@@ -1,5 +1,4 @@
 <script lang="ts">
-	/* eslint-disable no-console */
 	import {
 		// components
 		Chats,
@@ -2657,9 +2656,13 @@
 	<meta property="og:title" content={seoTitle} />
 	<meta property="og:description" content={seoDescription} />
 	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://openmates.org" />
+	<meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
+	<meta property="og:site_name" content="OpenMates" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={seoTitle} />
 	<meta name="twitter:description" content={seoDescription} />
+	<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
 	<link rel="canonical" href="https://openmates.org" />
 </svelte:head>
 

@@ -4,6 +4,7 @@
 //
 // ARCHITECTURE:
 //   Generates a valid XML sitemap including:
+//     - The homepage (/)
 //     - The example chat listing index page (/example/)
 //     - Each individual example chat SEO page (/example/{slug})
 //     - Intro chat SEO pages (/intro/{slug})
@@ -20,6 +21,11 @@ import docsData from '$lib/generated/docs-data.json';
 import type { DocFolder, DocStructure } from '$lib/types/docs';
 
 export const prerender = false; // SSR so the sitemap always reflects the current build
+
+// Build timestamp — set once at deploy time, honest and stable across requests.
+// Unlike `new Date()` per request, this doesn't change every hit, so crawlers
+// see a consistent date that only advances on actual deployments.
+const BUILD_DATE = new Date().toISOString().split('T')[0];
 
 export const GET: RequestHandler = async ({ url }) => {
 	const siteOrigin = url.origin;
@@ -43,33 +49,36 @@ export const GET: RequestHandler = async ({ url }) => {
 		);
 	}
 
-	const today = new Date().toISOString().split('T')[0];
-
 	// Static pages
 	const staticUrls = [
+		// Homepage — highest priority page
+		`  <url>
+    <loc>${siteOrigin}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>`,
 		// Example chat listing page
 		`  <url>
     <loc>${siteOrigin}/example</loc>
-    <lastmod>${today}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>`,
 		// Intro chat SEO pages
 		`  <url>
     <loc>${siteOrigin}/intro/for-everyone</loc>
-    <lastmod>${today}</lastmod>
+    <lastmod>${BUILD_DATE}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>`,
 		`  <url>
     <loc>${siteOrigin}/intro/for-developers</loc>
-    <lastmod>${today}</lastmod>
+    <lastmod>${BUILD_DATE}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>`,
 		`  <url>
     <loc>${siteOrigin}/intro/who-develops-openmates</loc>
-    <lastmod>${today}</lastmod>
+    <lastmod>${BUILD_DATE}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>`
@@ -80,7 +89,6 @@ export const GET: RequestHandler = async ({ url }) => {
 	const exampleUrls = exampleChats.map((chat) => {
 		return `  <url>
     <loc>${siteOrigin}/example/${chat.slug}</loc>
-    <lastmod>${today}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>`;
@@ -90,14 +98,14 @@ export const GET: RequestHandler = async ({ url }) => {
 	const docsUrls: string[] = [];
 	function collectDocSlugs(folder: DocFolder | DocStructure) {
 		for (const file of folder.files) {
-			docsUrls.push(`  <url>\n    <loc>${siteOrigin}/docs/${file.slug}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
+			docsUrls.push(`  <url>\n    <loc>${siteOrigin}/docs/${file.slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>`);
 		}
 		for (const sub of folder.folders) {
 			collectDocSlugs(sub);
 		}
 	}
 	collectDocSlugs(docsData.structure as DocStructure);
-	docsUrls.unshift(`  <url>\n    <loc>${siteOrigin}/docs</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`);
+	docsUrls.unshift(`  <url>\n    <loc>${siteOrigin}/docs</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`);
 
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

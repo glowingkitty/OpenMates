@@ -51,6 +51,20 @@
 		<!-- Safari-specific: Prevent HTML from being cached -->
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="mobile-web-app-capable" content="yes" />
+		<!-- Default SEO meta tags — overridden by <svelte:head> on SSR-enabled pages.
+			 These ensure crawlers see valid OG/Twitter tags even on client-only pages
+			 (homepage has ssr=false due to complex store dependencies). -->
+		<meta property="og:title" content="OpenMates - Your Personalized Digital Team Mates" />
+		<meta property="og:description" content="AI-powered digital team mates for complex questions, task automation, and everyday apps. End-to-end encrypted." />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://openmates.org" />
+		<meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
+		<meta property="og:site_name" content="OpenMates" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="OpenMates - Your Personalized Digital Team Mates" />
+		<meta name="twitter:description" content="AI-powered digital team mates for complex questions, task automation, and everyday apps. End-to-end encrypted." />
+		<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
+		<meta name="description" content="AI-powered digital team mates for complex questions, task automation, and everyday apps. End-to-end encrypted." />
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
