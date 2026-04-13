@@ -38,6 +38,10 @@ embed_types:
     child_type: recipe
     child_frontend_type: nutrition-recipe
     groupable: false
+    preview_component: nutrition/NutritionSearchEmbedPreview.svelte
+    fullscreen_component: nutrition/NutritionSearchEmbedFullscreen.svelte
+    child_preview_component: nutrition/NutritionRecipeEmbedPreview.svelte
+    child_fullscreen_component: nutrition/NutritionRecipeEmbedFullscreen.svelte
     icon: nutrition
     gradient_var: "--color-app-nutrition"
     i18n_namespace: embeds.nutrition.search_recipes
