@@ -447,6 +447,21 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 		.first();
 	await polarCvcInput.fill('123');
 
+	// Polar's Stripe checkout also requires cardholder name and billing country.
+	const cardholderInput = stripeFrame
+		.locator('input[name="billingName"], input[id="Field-nameInput"], input[autocomplete="cc-name"]')
+		.first();
+	if (await cardholderInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await cardholderInput.fill('Test User');
+	}
+
+	const countrySelect = stripeFrame
+		.locator('select[name="billingCountry"], select[id="Field-countryInput"], select[autocomplete="country"]')
+		.first();
+	if (await countrySelect.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await countrySelect.selectOption('US');
+	}
+
 	await takeStepScreenshot(page, 'polar-card-filled');
 	logSignupCheckpoint('Filled Polar sandbox card details.');
 
