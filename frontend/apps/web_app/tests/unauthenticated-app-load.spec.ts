@@ -209,11 +209,12 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
 
 		// ─── 5. Diagnostics: check wiki data in DOM ───────────────────
+		// Collect wiki-related console warnings from the browser
+		const wikiWarns = consoleLogs.filter(l => l.includes('ReadOnlyMessage:processContent') || l.includes('convertWikiTopicLinks') || l.includes('parse_message'));
+
 		const diagInfo = await page.evaluate(() => {
-			// Check for any wiki-inline nodes in the DOM
 			const wikiNodes = document.querySelectorAll('[data-type="wiki-inline"]');
 			const wikiTestIds = document.querySelectorAll('[data-testid="wiki-inline-link"]');
-			// Check for the text "Reid Wiseman" in the page to confirm message rendered
 			const bodyText = document.body.innerText;
 			const hasReidWiseman = bodyText.includes('Reid Wiseman');
 			const hasArtemis = bodyText.includes('Artemis');
@@ -223,10 +224,11 @@ test.describe('Unauthenticated app load', () => {
 				hasReidWiseman,
 				hasArtemis,
 				bodyTextLength: bodyText.length,
-				// Check for console errors from wiki/parse
 				hash: window.location.hash,
 			};
 		});
+		// Append wiki console warns to diagnostics
+		const fullDiag = { ...diagInfo, wikiWarns: wikiWarns.slice(-10) };
 		console.log('[unauthenticated-load] Wiki diagnostics:', JSON.stringify(diagInfo));
 
 		// ─── 6. Verify Wikipedia inline links are rendered ──────────────
@@ -237,7 +239,7 @@ test.describe('Unauthenticated app load', () => {
 		const wikiLinkCount = await wikiLinks.count();
 		expect(
 			wikiLinkCount,
-			`Expected wiki links but found ${wikiLinkCount}. Diagnostics: ${JSON.stringify(diagInfo)}`
+			`Expected wiki links but found ${wikiLinkCount}. Diagnostics: ${JSON.stringify(fullDiag)}`
 		).toBeGreaterThan(0);
 		console.log(
 			`[unauthenticated-load] Found ${wikiLinkCount} Wikipedia inline link(s)`

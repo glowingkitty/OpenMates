@@ -529,6 +529,12 @@
 
     function processContent(inputContent: string | Record<string, unknown> | null) {
         if (!inputContent) return null;
+        // TEMPORARY DEBUG: trace wiki topics availability in processContent
+        if (role === 'assistant' && effectiveWikiTopics && effectiveWikiTopics.length > 0) {
+            console.warn(`[ReadOnlyMessage:processContent] effectiveWikiTopics=${effectiveWikiTopics.length}, content type=${typeof inputContent}, first topic=${effectiveWikiTopics[0]?.topic}`);
+        } else if (role === 'assistant') {
+            console.warn(`[ReadOnlyMessage:processContent] NO wiki topics for assistant message. prop=${wikipediaTopics?.length ?? 'undef'}, store=${$wikiTopicsStore?.length ?? 'undef'}, derived=${effectiveWikiTopics?.length ?? 'undef'}`);
+        }
         
         try {
             // Check if the content is a plain string (markdown text)
