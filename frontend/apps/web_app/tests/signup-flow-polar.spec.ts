@@ -456,6 +456,39 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	const billingCountrySelect = polarIframe.locator('select[autocomplete="billing country"]');
 	await expect(billingCountrySelect).toBeVisible({ timeout: 10000 });
 	await billingCountrySelect.selectOption('US');
+
+	// US billing requires address, city, state, and ZIP — fill them after selecting country
+	// so the form has time to render the address fields (some providers show them conditionally).
+	const billingAddress = polarIframe.locator('input[name="customer_billing_address_line1"], input[autocomplete="billing address-line1"], input[placeholder*="Address"]').first();
+	if (await billingAddress.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await billingAddress.fill('123 Test Street');
+
+		const billingCity = polarIframe.locator('input[name="customer_billing_address_city"], input[autocomplete="billing address-level2"], input[placeholder*="City"]').first();
+		if (await billingCity.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await billingCity.fill('New York');
+		}
+
+		const billingState = polarIframe.locator('input[name="customer_billing_address_state"], input[autocomplete="billing address-level1"], input[placeholder*="State"], select[name="customer_billing_address_state"], select[autocomplete="billing address-level1"]').first();
+		if (await billingState.isVisible({ timeout: 3000 }).catch(() => false)) {
+			// Try select first, then input
+			const tagName = await billingState.evaluate((el: Element) => el.tagName.toLowerCase());
+			if (tagName === 'select') {
+				await billingState.selectOption('NY');
+			} else {
+				await billingState.fill('NY');
+			}
+		}
+
+		const billingZip = polarIframe.locator('input[name="customer_billing_address_postal_code"], input[autocomplete="billing postal-code"], input[placeholder*="ZIP"], input[placeholder*="Postal"]').first();
+		if (await billingZip.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await billingZip.fill('10001');
+		}
+
+		logSignupCheckpoint('Filled billing address, city, state, and ZIP.');
+	} else {
+		logSignupCheckpoint('Billing address fields not visible — Polar may not require them for this flow.');
+	}
+
 	logSignupCheckpoint('Filled cardholder name and billing country.');
 
 	await takeStepScreenshot(page, 'polar-card-filled');
@@ -571,7 +604,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await expect(authModal).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account-auth');
 
-	const deleteOtpInput = authModal.locator('input.tfa-input');
+	const deleteOtpInput = authModal.getByTestId('tfa-input');
 	await expect(deleteOtpInput).toBeVisible();
 	await deleteOtpInput.fill(generateTotp(tfaSecret));
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
