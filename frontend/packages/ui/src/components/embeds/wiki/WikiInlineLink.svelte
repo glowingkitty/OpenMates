@@ -46,7 +46,7 @@
 </script>
 
 <!-- Inline badge + link, rendered as a <span> so it flows within text -->
-<span class="wiki-inline-link" role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
+<span class="wiki-inline-link" role="link" tabindex="0" data-testid="wiki-inline-link" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
   <!-- Small circular Wikipedia badge -->
   <span class="wiki-inline-badge" aria-hidden="true">W</span>
   <!-- Blue display text -->

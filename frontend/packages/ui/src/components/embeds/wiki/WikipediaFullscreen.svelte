@@ -120,7 +120,7 @@
   {onClose}
 >
   {#snippet content()}
-    <div class="wiki-fullscreen-content">
+    <div class="wiki-fullscreen-content" data-testid="wiki-fullscreen-content">
       {#if isLoading}
         <!-- Loading skeleton -->
         <div class="wiki-skeleton">
@@ -149,7 +149,7 @@
 
         <!-- Title + description -->
         <div class="wiki-header">
-          <h2 class="wiki-title">{articleTitle}</h2>
+          <h2 class="wiki-title" data-testid="wiki-fullscreen-title">{articleTitle}</h2>
           {#if articleDescription}
             <p class="wiki-description">{articleDescription}</p>
           {/if}

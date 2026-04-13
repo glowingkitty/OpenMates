@@ -139,6 +139,98 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] All checks passed');
 	});
 
+	test('example chat loads with Wikipedia inline links', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		// ─── 1. Navigate directly to the Artemis II example chat ────────
+		await page.goto(getE2EDebugUrl('/#example-artemis-ii-mission'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.waitForLoadState('networkidle');
+
+		// ─── 2. Verify the example chat loaded ─────────────────────────
+		const activeChatContainer = page.getByTestId('active-chat-container');
+		await expect(activeChatContainer).toBeVisible({ timeout: 15000 });
+
+		// Verify we're in the example chat (badge should be visible)
+		const exampleBadge = page.getByTestId('example-chat-badge');
+		await expect(exampleBadge).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Artemis II example chat loaded');
+
+		// ─── 3. Verify assistant message is visible ────────────────────
+		const assistantMessage = page.getByTestId('mate-message-content').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Assistant message content visible');
+
+		// ─── 4. Verify Wikipedia inline links are rendered ──────────────
+		// The Artemis II example chat has wikipedia_topics defined.
+		// The parse_message pipeline should inject wikiInline TipTap nodes,
+		// which render as WikiInlineLink.svelte with data-testid="wiki-inline-link".
+		const wikiLinks = page.getByTestId('wiki-inline-link');
+		const wikiLinkCount = await wikiLinks.count();
+		expect(
+			wikiLinkCount,
+			'Expected at least one Wikipedia inline link in the Artemis II example chat. ' +
+				`Found ${wikiLinkCount}. This means wikipedia_topics are not reaching parse_message ` +
+				'or the wikiInline TipTap node is not rendering.'
+		).toBeGreaterThan(0);
+		console.log(
+			`[unauthenticated-load] Found ${wikiLinkCount} Wikipedia inline link(s)`
+		);
+
+		// Verify the first wiki link has a "W" badge and display text
+		const firstLink = wikiLinks.first();
+		await expect(firstLink).toBeVisible();
+		const linkText = await firstLink.textContent();
+		expect(
+			linkText?.includes('W'),
+			'Wiki inline link should contain "W" badge text'
+		).toBe(true);
+		expect(
+			linkText && linkText.length > 2,
+			'Wiki inline link should have display text beyond the badge'
+		).toBe(true);
+		console.log(
+			`[unauthenticated-load] First wiki link text: "${linkText}"`
+		);
+
+		// ─── 5. Click a wiki link to verify fullscreen opens ────────────
+		await firstLink.click();
+
+		// WikipediaFullscreen should appear (it fetches data from Wikipedia API on mount)
+		// Look for the fullscreen container — it uses UnifiedEmbedFullscreen which has
+		// the embed-fullscreen-container structure
+		const wikiFullscreen = page.getByTestId('wiki-fullscreen-content');
+		await expect(wikiFullscreen).toBeVisible({ timeout: 15000 });
+		console.log('[unauthenticated-load] Wikipedia fullscreen opened');
+
+		// Verify the fullscreen loaded content (article title should appear)
+		const wikiTitle = page.getByTestId('wiki-fullscreen-title');
+		await expect(wikiTitle).toBeVisible({ timeout: 10000 });
+		const titleText = await wikiTitle.textContent();
+		expect(
+			titleText && titleText.length > 0,
+			'Wikipedia fullscreen should show an article title'
+		).toBe(true);
+		console.log(
+			`[unauthenticated-load] Wikipedia article title: "${titleText}"`
+		);
+
+		// ─── 6. No missing translations ─────────────────────────────────
+		await assertNoMissingTranslations(page);
+		console.log('[unauthenticated-load] Wikipedia inline links test passed');
+	});
+
 	test('AI model card in for-everyone chat opens settings deep link', async ({
 		page
 	}: {
