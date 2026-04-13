@@ -4,12 +4,15 @@
   // Compact inline Wikipedia topic link rendered inside ReadOnlyMessage.
   //
   // Visuals (left to right):
-  //   1. Small 20 px circular badge: Wikipedia blue background + white "W" letter
-  //   2. Display text as a blue-tinted clickable link
+  //   1. Small 20 px circular badge: study app gradient background + study icon
+  //   2. Display text in study app start/end colors (matches EmbedInlineLink pattern)
   //
   // On click: dispatches a document-level "wikifullscreen" CustomEvent so
   // ActiveChat can open the Wikipedia fullscreen panel — same event-dispatch
   // pattern used by EmbedInlineLink for embed references.
+  //
+  // Styling uses the "study" app color scheme (orange/red gradient) since
+  // Wikipedia topics are study-related knowledge references.
 
   interface Props {
     /** The matched topic phrase as it appears in the message text */
@@ -47,14 +50,17 @@
 
 <!-- Inline badge + link, rendered as a <span> so it flows within text -->
 <span class="wiki-inline-link" role="link" tabindex="0" data-testid="wiki-inline-link" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
-  <!-- Small circular Wikipedia badge -->
-  <span class="wiki-inline-badge" aria-hidden="true">W</span>
-  <!-- Blue display text -->
+  <!-- Small circular study-app-gradient badge with study icon -->
+  <span class="wiki-inline-badge" aria-hidden="true">
+    <span class="icon_rounded study"></span>
+  </span>
+  <!-- Display text in study app colors -->
   <span class="wiki-inline-text">{displayText}</span>
 </span>
 
 <style>
-  /* Outer wrapper — true inline so it flows naturally within paragraph text. */
+  /* Outer wrapper — true inline so it flows naturally within paragraph text.
+   * Matches EmbedInlineLink pattern for consistent visual flow. */
   .wiki-inline-link {
     display: inline;
     cursor: pointer;
@@ -67,7 +73,8 @@
     opacity: 0.8;
   }
 
-  /* 20 px circular Wikipedia badge — blue background with white "W" letter */
+  /* 20 px circular badge — wraps icon_rounded.study to render the gradient + icon.
+   * Same dimensions as EmbedInlineLink's badge for visual consistency. */
   .wiki-inline-badge {
     display: inline-flex;
     align-items: center;
@@ -78,24 +85,39 @@
     border-radius: 50%;
     vertical-align: middle;
     margin-right: 3px;
-    background: #3366CC;
-    color: white;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
   }
 
-  /* Display text — solid blue link colour */
+  /* Scale down the icon_rounded icon inside the small badge (same as EmbedInlineLink) */
+  .wiki-inline-badge :global(.icon_rounded) {
+    width: 10px !important;
+    height: 10px !important;
+    min-width: 10px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+    background: var(--color-app-study) !important;
+    border-radius: 50%;
+  }
+
+  .wiki-inline-badge :global(.icon_rounded::after) {
+    filter: brightness(0) invert(1);
+    width: 100%;
+    height: 100%;
+    background-size: contain !important;
+  }
+
+  /* Display text — uses study app start color (darker, readable on light bg) */
   .wiki-inline-text {
     display: inline;
     font-size: inherit;
     font-weight: 500;
     line-height: inherit;
-    color: #3366CC;
+    color: var(--color-app-study-start);
   }
 
-  /* Dark mode: brighter blue for contrast on dark backgrounds */
+  /* Dark mode: use study app end color (brighter, readable on dark bg) */
   :global([data-theme="dark"]) .wiki-inline-text {
-    color: #6699FF;
+    color: var(--color-app-study-end);
   }
 </style>

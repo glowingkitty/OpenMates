@@ -112,8 +112,8 @@
 </script>
 
 <UnifiedEmbedFullscreen
-  appId="wiki"
-  skillId="wikipedia"
+  appId="study"
+  skillId="study"
   embedHeaderTitle={articleTitle}
   embedHeaderSubtitle={articleDescription}
   showSkillIcon={false}

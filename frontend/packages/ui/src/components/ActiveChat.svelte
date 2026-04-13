@@ -3620,12 +3620,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let forceOverlayMode = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND an embed fullscreen is open AND not forcing overlay mode
-    let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && !forceOverlayMode);
-    
+    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed or wiki) AND not forcing overlay mode
+    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && !forceOverlayMode);
+
     // Determine if we should show the "Show Chat" button in fullscreen embed views
-    // Shows when ultra-wide screen has an embed fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && forceOverlayMode);
+    // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
+    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -10176,16 +10176,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
 
             {#if showWikiFullscreen && wikiFullscreenData}
-                {#await import('./embeds/wiki/WikipediaFullscreen.svelte') then module}
-                    <module.default
-                        wikiTitle={wikiFullscreenData.wikiTitle}
-                        wikidataId={wikiFullscreenData.wikidataId}
-                        displayText={wikiFullscreenData.displayText}
-                        thumbnailUrl={wikiFullscreenData.thumbnailUrl}
-                        description={wikiFullscreenData.description}
-                        onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
-                    />
-                {/await}
+                <div
+                    class="fullscreen-embed-container"
+                    class:side-panel={showSideBySideLayout}
+                    class:overlay-mode={!showSideBySideLayout}
+                    class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
+                    class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
+                    class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
+                    class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
+                >
+                    {#await import('./embeds/wiki/WikipediaFullscreen.svelte') then module}
+                        <module.default
+                            wikiTitle={wikiFullscreenData.wikiTitle}
+                            wikidataId={wikiFullscreenData.wikidataId}
+                            displayText={wikiFullscreenData.displayText}
+                            thumbnailUrl={wikiFullscreenData.thumbnailUrl}
+                            description={wikiFullscreenData.description}
+                            onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
+                        />
+                    {/await}
+                </div>
             {/if}
 
             {#if showCodeFullscreen}
