@@ -415,28 +415,35 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Polar renders an inline iframe with the checkout form; the src is a polar.sh URL.
 	const polarIframe = page.frameLocator('iframe[src*="polar.sh"], iframe[src*="sandbox.polar.sh"]');
 
-	// Wait for the iframe to load by checking for a card input inside it.
-	// Polar uses Stripe's payment form internally in sandbox, so the card input
-	// is a standard Stripe card number field.
-	const polarCardInput = polarIframe
-		.locator('input[name="cardNumber"], input[autocomplete="cc-number"], [placeholder*="1234"]')
-		.first();
-	await expect(polarCardInput).toBeVisible({ timeout: 60000 });
+	// Wait for the Polar iframe to load by checking for a visible element inside it.
+	// Polar's checkout page renders a submit button — use that as the load indicator.
+	await expect(polarIframe.getByRole('button', { name: /pay|subscribe|complete/i }).first())
+		.toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'polar-checkout-overlay');
-	logSignupCheckpoint('Polar checkout overlay visible with card input.');
+	logSignupCheckpoint('Polar checkout overlay visible.');
 
-	// Fill Polar's (Stripe-backed) card form in the overlay iframe.
+	// Polar uses Stripe Payment Element internally, which renders card inputs inside
+	// a NESTED iframe within the Polar checkout iframe. We need two levels of frameLocator:
+	//   page → iframe[src*="polar.sh"] → iframe (Stripe Payment Element) → inputs
+	const stripeFrame = polarIframe.frameLocator('iframe').first();
+
+	// Stripe Payment Element uses input[name="number"] for card number.
+	const polarCardInput = stripeFrame
+		.locator('input[name="number"], input[autocomplete="cc-number"], input[id="Field-numberInput"]')
+		.first();
+	await expect(polarCardInput).toBeVisible({ timeout: 30000 });
+	logSignupCheckpoint('Stripe Payment Element card input visible inside Polar checkout.');
+
+	// Fill card details inside the nested Stripe iframe.
 	await polarCardInput.fill(POLAR_SANDBOX_TEST_CARD);
 
-	const polarExpiryInput = polarIframe
-		.locator('input[name="cardExpiry"], input[autocomplete="cc-exp"], [placeholder*="MM"]')
+	const polarExpiryInput = stripeFrame
+		.locator('input[name="expiry"], input[autocomplete="cc-exp"], input[id="Field-expiryInput"]')
 		.first();
 	await polarExpiryInput.fill('12/34');
 
-	const polarCvcInput = polarIframe
-		.locator(
-			'input[name="cardCvc"], input[autocomplete="cc-csc"], [placeholder*="CVC"], [placeholder*="123"]'
-		)
+	const polarCvcInput = stripeFrame
+		.locator('input[name="cvc"], input[autocomplete="cc-csc"], input[id="Field-cvcInput"]')
 		.first();
 	await polarCvcInput.fill('123');
 
@@ -444,7 +451,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Filled Polar sandbox card details.');
 
 	// Submit the Polar checkout form.
-	// The submit button in Polar's checkout overlay should be labeled "Pay" or similar.
+	// The submit button is in the Polar iframe (not inside the Stripe iframe).
 	const polarSubmitButton = polarIframe
 		.getByRole('button', { name: /pay|subscribe|complete/i })
 		.first();
