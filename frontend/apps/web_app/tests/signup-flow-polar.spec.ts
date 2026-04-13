@@ -491,12 +491,11 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Filled billing ZIP via Tab navigation.');
 
 	await page.keyboard.press('Tab'); // → state (below city/zip row, autocomplete dropdown)
-	// Type full state name — "NY" matches "Nebraska" in Polar's autocomplete.
-	// Typing "New Y" narrows to "New York" which can be selected with Enter.
-	await page.keyboard.type('New Y', { delay: 50 });
-	await page.waitForTimeout(500); // Let autocomplete dropdown appear
-	await page.keyboard.press('ArrowDown'); // Select first match
-	await page.keyboard.press('Enter');
+	// Type full state name to match exactly — abbreviations and partial matches
+	// pick wrong states (NY→Nebraska, "New Y"→New Hampshire).
+	await page.keyboard.type('New York', { delay: 50 });
+	await page.waitForTimeout(500); // Let autocomplete narrow to exact match
+	await page.keyboard.press('Enter'); // Confirm selection
 	logSignupCheckpoint('Filled billing state via Tab navigation.');
 
 	await takeStepScreenshot(page, 'polar-billing-filled');
