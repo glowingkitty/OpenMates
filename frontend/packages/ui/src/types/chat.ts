@@ -165,6 +165,7 @@ export interface Chat {
   // New encrypted fields for zero-knowledge architecture from message processing
   encrypted_chat_summary?: string | null; // Encrypted chat summary (max 20 words) generated during post-processing
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
+  encrypted_wikipedia_topics?: string | null; // Encrypted JSON array of validated Wikipedia topic entries for inline link rendering
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
@@ -173,6 +174,15 @@ export interface Chat {
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
   encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
+
+  // Transient decrypted fields (in-memory only, populated from encrypted_* counterparts)
+  wikipedia_topics?: Array<{
+    topic: string;
+    wiki_title: string;
+    wikidata_id: string | null;
+    thumbnail_url: string | null;
+    description: string | null;
+  }>;
 
   // Cleartext fields for demo chats (already decrypted server-side, never encrypted client-side)
   // ARCHITECTURE: Demo chats use these cleartext fields instead of encrypted_* versions
