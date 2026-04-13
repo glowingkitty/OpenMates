@@ -478,8 +478,8 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	await expect(authModal).toBeVisible();
 	await takeStepScreenshot(page, 'delete-account-auth');
 
-	const deleteOtpInput = authModal.locator('input.tfa-input');
-	await expect(deleteOtpInput).toBeVisible();
+	const deleteOtpInput = authModal.getByTestId('tfa-input');
+	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 	await deleteOtpInput.fill(generateTotp(tfaSecret));
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
