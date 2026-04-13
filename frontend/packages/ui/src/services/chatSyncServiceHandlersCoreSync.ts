@@ -312,7 +312,7 @@ export async function handlePhase1LastChatImpl(
         id: payload.chat_id,
       } as Partial<Chat> & { id: string });
       allPhase1Chats.push(lastChat);
-      await chatDB.addChat(lastChat);
+      await chatDB.addChat(lastChat, undefined, { isFromSync: true });
       chatListCache.upsertChat(lastChat);
     }
 
@@ -320,7 +320,7 @@ export async function handlePhase1LastChatImpl(
       for (const meta of payload.recent_chat_metadata) {
         const chat = buildChat(meta);
         allPhase1Chats.push(chat);
-        await chatDB.addChat(chat);
+        await chatDB.addChat(chat, undefined, { isFromSync: true });
         chatListCache.upsertChat(chat);
       }
     }
@@ -527,7 +527,7 @@ export async function handlePhase1bChatContentImpl(
             chatData.server_message_count,
           );
           if (updatedV > (existingChat.messages_v || 0)) {
-            await chatDB.addChat({ ...existingChat, messages_v: updatedV });
+            await chatDB.addChat({ ...existingChat, messages_v: updatedV }, undefined, { isFromSync: true });
           }
         }
       }

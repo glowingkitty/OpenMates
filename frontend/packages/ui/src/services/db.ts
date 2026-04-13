@@ -1115,8 +1115,8 @@ class ChatDatabase {
   // CHAT CRUD OPERATIONS (delegated to chatCrudOperations.ts)
   // ============================================================================
 
-  async addChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
-    return chatCrudOps.addChat(this, chat, transaction);
+  async addChat(chat: Chat, transaction?: IDBTransaction, options?: { isFromSync?: boolean }): Promise<void> {
+    return chatCrudOps.addChat(this, chat, transaction, options);
   }
 
   async getAllChats(

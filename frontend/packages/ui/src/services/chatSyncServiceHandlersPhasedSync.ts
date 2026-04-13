@@ -370,7 +370,7 @@ export async function handleBackgroundMessageSyncImpl(
           chatData.messages_v || chatData.server_message_count || 0,
         );
         if (newV > (existingChat.messages_v || 0)) {
-          await chatDB.addChat({ ...existingChat, messages_v: newV });
+          await chatDB.addChat({ ...existingChat, messages_v: newV }, undefined, { isFromSync: true });
         }
       }
     }
@@ -563,7 +563,7 @@ async function storeRecentChats(
 
       // Metadata-only path: save chat and move on (no message processing)
       if (!shouldSyncMessages) {
-        await chatDB.addChat(mergedChat);
+        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
         continue;
@@ -583,7 +583,7 @@ async function storeRecentChats(
       }
 
       if (shouldSkipMessageSync) {
-        await chatDB.addChat(mergedChat);
+        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
         continue;
@@ -598,7 +598,7 @@ async function storeRecentChats(
 
       // Save chat and messages
       try {
-        await chatDB.addChat(mergedChat);
+        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
         chatListCache.upsertChat(mergedChat);
 
         if (shouldSyncMessages && preparedMessages.length > 0) {
@@ -747,7 +747,7 @@ async function storeAllChats(
             ...mergedChat,
             messages_v: 0, // Reset to force re-sync on next load
           };
-          await chatDB.addChat(mergedChat);
+          await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
           chatListCache.upsertChat(mergedChat);
 
           // Dispatch event to notify about the inconsistency
@@ -786,14 +786,14 @@ async function storeAllChats(
       }
 
       if (shouldSkipMessageSync) {
-        await chatDB.addChat(mergedChat);
+        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
         chatListCache.upsertChat(mergedChat);
         continue;
       }
 
       // Save chat and messages
       try {
-        await chatDB.addChat(mergedChat);
+        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
         chatListCache.upsertChat(mergedChat);
 
         if (shouldSyncMessages && messages && messages.length > 0) {

@@ -247,7 +247,7 @@ export async function handleChatDraftUpdatedImpl(
         updated_at: payload.last_edited_overall_timestamp,
       };
       // Use a separate transaction for addChat (it will create its own internally)
-      await chatDB.addChat(newChatForDraft);
+      await chatDB.addChat(newChatForDraft, undefined, { isFromSync: true });
     }
 
     // DB operations completed successfully - now do cache invalidation and event dispatch
@@ -549,7 +549,7 @@ export async function handleNewChatMessageImpl(
         );
       }
 
-      await chatDB.addChat(newChat);
+      await chatDB.addChat(newChat, undefined, { isFromSync: true });
       chat = newChat; // Use the newly created chat for message saving
       console.info(
         `[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`,
