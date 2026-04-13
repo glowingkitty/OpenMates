@@ -222,17 +222,13 @@ test.describe('Unauthenticated app load', () => {
 			`[unauthenticated-load] Found ${wikiLinkCount} Wikipedia inline link(s)`
 		);
 
-		// Verify the first wiki link has a "W" badge and display text
+		// Verify the first wiki link has display text (badge is rendered as icon, not text)
 		const firstLink = wikiLinks.first();
 		await expect(firstLink).toBeVisible();
 		const linkText = await firstLink.textContent();
 		expect(
-			linkText?.includes('W'),
-			'Wiki inline link should contain "W" badge text'
-		).toBe(true);
-		expect(
-			linkText && linkText.length > 2,
-			'Wiki inline link should have display text beyond the badge'
+			linkText && linkText.trim().length > 0,
+			'Wiki inline link should have display text (topic phrase)'
 		).toBe(true);
 		console.log(
 			`[unauthenticated-load] First wiki link text: "${linkText}"`
