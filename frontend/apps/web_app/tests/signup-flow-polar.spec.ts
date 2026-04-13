@@ -501,11 +501,13 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Filled Polar sandbox card details.');
 
 	// Submit the Polar checkout form.
-	// The submit button is in the Polar iframe (not inside the Stripe iframe).
+	// The submit button ("Pay now") is in the Polar iframe. Scroll it into view first —
+	// after filling billing fields the button may be below the iframe viewport.
 	const polarSubmitButton = polarIframe
-		.getByRole('button', { name: /pay|subscribe|complete/i })
-		.first();
+		.getByRole('button', { name: /pay now/i })
+		.or(polarIframe.getByRole('button', { name: /pay|subscribe|complete/i }).last());
 	await expect(polarSubmitButton).toBeVisible({ timeout: 30000 });
+	await polarSubmitButton.scrollIntoViewIfNeeded();
 	await polarSubmitButton.click();
 	logSignupCheckpoint('Submitted Polar checkout form.');
 
