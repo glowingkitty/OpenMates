@@ -78,10 +78,20 @@ export async function loadSkillExamples(
     fullscreenLoader ? fullscreenLoader() : Promise.resolve(null),
   ]);
 
+  const allExamples: Array<Record<string, unknown>> = examplesMod.default ?? [];
+
+  // When multiple skills share one preview component (e.g. images/generate
+  // and images/generate_draft both use ImageGenerateEmbedPreview), examples
+  // carry an optional `skillId` field. Filter to the requested skill so
+  // each skill page shows only its own examples.
+  const filtered = allExamples.some((e) => 'skillId' in e)
+    ? allExamples.filter((e) => e.skillId === skillId)
+    : allExamples;
+
   return {
     previewComponent: previewMod.default,
     fullscreenComponent:
       (fullscreenMod as { default?: Component } | null)?.default ?? null,
-    examples: examplesMod.default ?? [],
+    examples: filtered,
   };
 }

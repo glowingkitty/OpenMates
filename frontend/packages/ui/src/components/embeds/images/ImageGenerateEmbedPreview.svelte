@@ -80,8 +80,10 @@
     onFullscreen: () => void;
     /** Embed IDs of the source images used for image-to-image generation */
     inputEmbedIds?: string[];
+    /** Direct preview image URL — bypasses S3 decrypt for store examples */
+    previewImageUrl?: string;
   }
-  
+
   let {
     id,
     skillId: skillIdProp = 'generate',
@@ -96,7 +98,8 @@
     taskId: taskIdProp,
     isMobile = false,
     onFullscreen,
-    inputEmbedIds: inputEmbedIdsProp
+    inputEmbedIds: inputEmbedIdsProp,
+    previewImageUrl: previewImageUrlProp,
   }: Props = $props();
   
   // Local reactive state — updated via handleEmbedDataUpdated callback
@@ -173,6 +176,8 @@
       localError = errorProp;
       localTaskId = taskIdProp;
       localInputEmbedIds = inputEmbedIdsProp;
+      // Direct image URL for store examples — bypasses S3 decrypt
+      if (previewImageUrlProp && !imageUrl) imageUrl = previewImageUrlProp;
     }
   });
   
