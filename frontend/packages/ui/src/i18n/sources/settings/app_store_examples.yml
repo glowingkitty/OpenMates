@@ -577,6 +577,79 @@ images.search.3:
   he: שולחן ארוחת בוקר חורפי ונעים
   verified_by_human: [en]
 
+code.get_docs.1:
+  context: Query label for the first code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for the Svelte 5 $state rune.
+  en: Svelte 5 $state rune
+  de: Svelte 5 $state-Rune
+  zh: Svelte 5 $state 符文
+  es: Runa $state de Svelte 5
+  fr: Rune $state de Svelte 5
+  pt: Runa $state do Svelte 5
+  ru: Руна $state в Svelte 5
+  ja: Svelte 5 $state ルーン
+  ko: Svelte 5 $state 룬
+  it: Runa $state di Svelte 5
+  tr: Svelte 5 $state rünü
+  vi: Svelte 5 rune $state
+  id: Rune $state Svelte 5
+  pl: Runa $state w Svelte 5
+  nl: Svelte 5 $state-rune
+  ar: رمز $state في Svelte 5
+  hi: Svelte 5 $state रून
+  th: Svelte 5 รูน $state
+  cs: Runa $state v Svelte 5
+  sv: Svelte 5 $state-runan
+  he: רון $state ב-Svelte 5
+  verified_by_human: [en]
+code.get_docs.2:
+  context: Query label for the second code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for the React useState hook.
+  en: React useState hook
+  de: React useState-Hook
+  zh: React useState 钩子
+  es: Hook useState de React
+  fr: Hook useState de React
+  pt: Hook useState do React
+  ru: Хук useState в React
+  ja: React useState フック
+  ko: React useState 훅
+  it: Hook useState di React
+  tr: React useState kancası
+  vi: React hook useState
+  id: Hook useState React
+  pl: Hook useState w React
+  nl: React useState-hook
+  ar: خطاف useState في React
+  hi: React useState हुक
+  th: React hook useState
+  cs: Hook useState v Reactu
+  sv: React useState-hook
+  he: הוק useState ב-React
+  verified_by_human: [en]
+code.get_docs.3:
+  context: Query label for the third code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for FastAPI path parameters.
+  en: FastAPI path parameters
+  de: FastAPI-Pfadparameter
+  zh: FastAPI 路径参数
+  es: Parámetros de ruta de FastAPI
+  fr: Paramètres de chemin FastAPI
+  pt: Parâmetros de caminho do FastAPI
+  ru: Параметры пути в FastAPI
+  ja: FastAPI パスパラメータ
+  ko: FastAPI 경로 매개변수
+  it: Parametri di percorso di FastAPI
+  tr: FastAPI yol parametreleri
+  vi: Tham số đường dẫn FastAPI
+  id: Parameter path FastAPI
+  pl: Parametry ścieżki FastAPI
+  nl: FastAPI-padparameters
+  ar: معلمات المسار في FastAPI
+  hi: FastAPI पथ पैरामीटर
+  th: พารามิเตอร์พาธ FastAPI
+  cs: Parametry cesty ve FastAPI
+  sv: FastAPI-vägparametrar
+  he: פרמטרי נתיב ב-FastAPI
+  verified_by_human: [en]
+
 health.search_appointments.1:
   context: Query label for the first health appointments example in the app store. Shown on a preview card that opens real Doctolib appointment results for ophthalmologists (eye doctors) in Berlin, Germany.
   en: Eye doctor in Berlin
@@ -937,6 +1010,222 @@ videos.get_transcript.3:
   cs: Populární TED talk o lidském spojení
   sv: Ett populärt TED-tal om mänsklig kontakt
   he: הרצאת TED פופולרית על חיבור אנושי
+  verified_by_human: [en]
+
+nutrition.search_recipes.1:
+  context: Query label for the first nutrition recipe search example in the app store. Shown on a preview card that displays vegetarian pasta recipes from the REWE search skill.
+  en: Vegetarian pasta recipes
+  de: Vegetarische Pasta-Rezepte
+  zh: 素食意面食谱
+  es: Recetas de pasta vegetariana
+  fr: Recettes de pâtes végétariennes
+  pt: Receitas de massa vegetariana
+  ru: Рецепты вегетарианской пасты
+  ja: ベジタリアンパスタレシピ
+  ko: 채식 파스타 레시피
+  tr: Vejetaryen makarna tarifleri
+  vi: Công thức mì ý chay
+  id: Resep pasta vegetarian
+  pl: Przepisy na wegetariański makaron
+  nl: Vegetarische pastarecepten
+  ar: وصفات معكرونة نباتية
+  hi: शाकाहारी पास्ता रेसिपी
+  th: สูตรพาสต้ามังสวิรัติ
+  cs: Vegetariánské recepty na těstoviny
+  sv: Vegetariska pastarecept
+  he: מתכוני פסטה צמחונית
+  verified_by_human: [en]
+
+nutrition.search_recipes.2:
+  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays quick bowl recipes from the REWE search skill.
+  en: Quick bowl recipes
+  de: Schnelle Bowl-Rezepte
+  zh: 快速碗食谱
+  es: Recetas rápidas de bowls
+  fr: Recettes de bowls rapides
+  pt: Receitas rápidas de bowls
+  ru: Быстрые рецепты боулов
+  ja: 簡単ボウルレシピ
+  ko: 빠른 볼 레시피
+  tr: Hızlı kase tarifleri
+  vi: Công thức bowl nhanh
+  id: Resep bowl cepat
+  pl: Szybkie przepisy na bowle
+  nl: Snelle bowl-recepten
+  ar: وصفات أطباق سريعة
+  hi: झटपट बाउल रेसिपी
+  th: สูตรโบว์ลเร็ว
+  cs: Rychlé recepty na misky
+  sv: Snabba bowlrecept
+  he: מתכוני קערות מהירים
+  verified_by_human: [en]
+
+nutrition.search_recipes.3:
+  context: Query label for the third nutrition recipe search example in the app store. Shown on a preview card that displays low-carb dinner recipes from the REWE search skill.
+  en: Low carb dinner recipes
+  de: Low-Carb-Abendessen-Rezepte
+  zh: 低碳晚餐食谱
+  es: Recetas de cenas bajas en carbohidratos
+  fr: Recettes de dîners faibles en glucides
+  pt: Receitas de jantar low carb
+  ru: Низкоуглеводные ужины
+  ja: ローカーボディナーレシピ
+  ko: 저탄수화물 저녁 레시피
+  tr: Düşük karbonhidratlı akşam yemeği tarifleri
+  vi: Công thức bữa tối ít tinh bột
+  id: Resep makan malam rendah karbohidrat
+  pl: Przepisy na kolację low carb
+  nl: Low-carb dinerrecepten
+  ar: وصفات عشاء منخفضة الكربوهيدرات
+  hi: लो कार्ब डिनर रेसिपी
+  th: สูตรอาหารเย็นคาร์โบต่ำ
+  cs: Recepty na nízkosacharidové večeře
+  sv: Lågkolhydratmiddagsrecept
+  he: מתכוני ארוחת ערב דלת פחמימות
+  verified_by_human: [en]
+
+math.calculate.1:
+  context: Expression label for the first math calculate example in the app store. Shows a square root and exponent calculation.
+  en: "sqrt(144) + 3^4"
+  de: "sqrt(144) + 3^4"
+  zh: "sqrt(144) + 3^4"
+  es: "sqrt(144) + 3^4"
+  fr: "sqrt(144) + 3^4"
+  pt: "sqrt(144) + 3^4"
+  ru: "sqrt(144) + 3^4"
+  ja: "sqrt(144) + 3^4"
+  ko: "sqrt(144) + 3^4"
+  tr: "sqrt(144) + 3^4"
+  vi: "sqrt(144) + 3^4"
+  id: "sqrt(144) + 3^4"
+  pl: "sqrt(144) + 3^4"
+  nl: "sqrt(144) + 3^4"
+  ar: "sqrt(144) + 3^4"
+  hi: "sqrt(144) + 3^4"
+  th: "sqrt(144) + 3^4"
+  cs: "sqrt(144) + 3^4"
+  sv: "sqrt(144) + 3^4"
+  he: "sqrt(144) + 3^4"
+  verified_by_human: [en]
+
+math.calculate.2:
+  context: Expression label for the second math calculate example in the app store. Shows a unit conversion from km/h to mph.
+  en: 150 km/h to mph
+  de: 150 km/h in mph
+  zh: 150 km/h 转换为 mph
+  es: 150 km/h a mph
+  fr: 150 km/h en mph
+  pt: 150 km/h para mph
+  ru: 150 км/ч в мили/ч
+  ja: 150 km/hをmphに変換
+  ko: 150 km/h를 mph로
+  tr: 150 km/s'den mph'ye
+  vi: 150 km/h sang mph
+  id: 150 km/j ke mph
+  pl: 150 km/h na mph
+  nl: 150 km/u naar mph
+  ar: 150 كم/س إلى ميل/س
+  hi: 150 km/h को mph में
+  th: 150 km/h เป็น mph
+  cs: 150 km/h na mph
+  sv: 150 km/h till mph
+  he: 150 קמ"ש ל-mph
+  verified_by_human: [en]
+
+math.calculate.3:
+  context: Expression label for the third math calculate example in the app store. Shows a trigonometric calculation.
+  en: "sin(π/4) × cos(π/4)"
+  de: "sin(π/4) × cos(π/4)"
+  zh: "sin(π/4) × cos(π/4)"
+  es: "sin(π/4) × cos(π/4)"
+  fr: "sin(π/4) × cos(π/4)"
+  pt: "sin(π/4) × cos(π/4)"
+  ru: "sin(π/4) × cos(π/4)"
+  ja: "sin(π/4) × cos(π/4)"
+  ko: "sin(π/4) × cos(π/4)"
+  tr: "sin(π/4) × cos(π/4)"
+  vi: "sin(π/4) × cos(π/4)"
+  id: "sin(π/4) × cos(π/4)"
+  pl: "sin(π/4) × cos(π/4)"
+  nl: "sin(π/4) × cos(π/4)"
+  ar: "sin(π/4) × cos(π/4)"
+  hi: "sin(π/4) × cos(π/4)"
+  th: "sin(π/4) × cos(π/4)"
+  cs: "sin(π/4) × cos(π/4)"
+  sv: "sin(π/4) × cos(π/4)"
+  he: "sin(π/4) × cos(π/4)"
+  verified_by_human: [en]
+
+travel.get_flight.1:
+  context: Query label for the first flight tracking example in the app store. Shows a Lufthansa flight from Munich to London.
+  en: Flight LH2472 Munich → London
+  de: Flug LH2472 München → London
+  zh: LH2472航班 慕尼黑→伦敦
+  es: Vuelo LH2472 Múnich → Londres
+  fr: Vol LH2472 Munich → Londres
+  pt: Voo LH2472 Munique → Londres
+  ru: Рейс LH2472 Мюнхен → Лондон
+  ja: LH2472便 ミュンヘン→ロンドン
+  ko: LH2472편 뮌헨→런던
+  tr: LH2472 sefer Münih → Londra
+  vi: Chuyến bay LH2472 Munich → London
+  id: Penerbangan LH2472 Munich → London
+  pl: Lot LH2472 Monachium → Londyn
+  nl: Vlucht LH2472 München → Londen
+  ar: رحلة LH2472 ميونيخ ← لندن
+  hi: फ्लाइट LH2472 म्यूनिख → लंदन
+  th: เที่ยวบิน LH2472 มิวนิก → ลอนดอน
+  cs: Let LH2472 Mnichov → Londýn
+  sv: Flyg LH2472 München → London
+  he: טיסה LH2472 מינכן → לונדון
+  verified_by_human: [en]
+
+travel.get_flight.2:
+  context: Query label for the second flight tracking example in the app store. Shows a British Airways flight from London to Rome.
+  en: Flight BA918 London → Rome
+  de: Flug BA918 London → Rom
+  zh: BA918航班 伦敦→罗马
+  es: Vuelo BA918 Londres → Roma
+  fr: Vol BA918 Londres → Rome
+  pt: Voo BA918 Londres → Roma
+  ru: Рейс BA918 Лондон → Рим
+  ja: BA918便 ロンドン→ローマ
+  ko: BA918편 런던→로마
+  tr: BA918 sefer Londra → Roma
+  vi: Chuyến bay BA918 London → Roma
+  id: Penerbangan BA918 London → Roma
+  pl: Lot BA918 Londyn → Rzym
+  nl: Vlucht BA918 Londen → Rome
+  ar: رحلة BA918 لندن ← روما
+  hi: फ्लाइट BA918 लंदन → रोम
+  th: เที่ยวบิน BA918 ลอนดอน → โรม
+  cs: Let BA918 Londýn → Řím
+  sv: Flyg BA918 London → Rom
+  he: טיסה BA918 לונדון → רומא
+  verified_by_human: [en]
+
+travel.get_flight.3:
+  context: Query label for the third flight tracking example in the app store. Shows a Eurowings flight from Berlin to Barcelona.
+  en: Flight EW8614 Berlin → Barcelona
+  de: Flug EW8614 Berlin → Barcelona
+  zh: EW8614航班 柏林→巴塞罗那
+  es: Vuelo EW8614 Berlín → Barcelona
+  fr: Vol EW8614 Berlin → Barcelone
+  pt: Voo EW8614 Berlim → Barcelona
+  ru: Рейс EW8614 Берлин → Барселона
+  ja: EW8614便 ベルリン→バルセロナ
+  ko: EW8614편 베를린→바르셀로나
+  tr: EW8614 sefer Berlin → Barselona
+  vi: Chuyến bay EW8614 Berlin → Barcelona
+  id: Penerbangan EW8614 Berlin → Barcelona
+  pl: Lot EW8614 Berlin → Barcelona
+  nl: Vlucht EW8614 Berlijn → Barcelona
+  ar: رحلة EW8614 برلين ← برشلونة
+  hi: फ्लाइट EW8614 बर्लिन → बार्सिलोना
+  th: เที่ยวบิน EW8614 เบอร์ลิน → บาร์เซโลนา
+  cs: Let EW8614 Berlín → Barcelona
+  sv: Flyg EW8614 Berlin → Barcelona
+  he: טיסה EW8614 ברלין → ברצלונה
   verified_by_human: [en]
 
 banner.sample_data:
