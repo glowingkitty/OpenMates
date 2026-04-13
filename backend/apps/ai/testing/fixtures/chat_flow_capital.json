@@ -1,0 +1,40 @@
+{
+  "fixture_id": "chat_flow_capital",
+  "recorded_at": "2026-04-13T13:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Capital of Germany?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Capital of Germany",
+    "icon_names": ["globe"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked about the capital of Germany",
+    "chat_tags": ["geography", "general-knowledge"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Capital of Germany"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "The capital of Germany is **Berlin**. It has been the capital since German reunification in 1990. Berlin is also the largest city in Germany, with a population of approximately 3.7 million people.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 45,
+    "completion_tokens": 40,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}
