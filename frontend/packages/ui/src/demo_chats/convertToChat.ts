@@ -54,7 +54,7 @@ export function convertDemoMessagesToMessages(demoMessages: DemoMessage[], chatI
 		// CLEARTEXT fields - demo messages are already decrypted server-side
 		content: demoMsg.content,
 		category: demoMsg.role === 'assistant' ? category : undefined,
-		created_at: new Date(demoMsg.timestamp).getTime(),
+		created_at: Math.floor(new Date(demoMsg.timestamp).getTime() / 1000),
 		status: 'synced' as const // Demo messages are always synced
 	}));
 }
