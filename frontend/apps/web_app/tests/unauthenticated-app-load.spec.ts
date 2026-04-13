@@ -152,19 +152,43 @@ test.describe('Unauthenticated app load', () => {
 			if (msg.type() === 'error') consoleErrors.push(text);
 		});
 
-		// ─── 1. Navigate directly to the Artemis II example chat ────────
-		await page.goto(getE2EDebugUrl('/#example-artemis-ii-mission'), {
-			waitUntil: 'domcontentloaded'
-		});
+		// ─── 1. Load as fresh user, wait for intro chat ────────────────
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		// ─── 2. Verify the example chat loaded ─────────────────────────
-		const activeChatContainer = page.getByTestId('active-chat-container');
-		await expect(activeChatContainer).toBeVisible({ timeout: 15000 });
+		// Wait for the for-everyone intro chat to load (default for new visitors)
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone'),
+			null,
+			{ timeout: 15000 }
+		);
+		console.log('[unauthenticated-load] Intro chat loaded');
 
-		// Verify we're in the example chat (badge should be visible)
-		const exampleBadge = page.getByTestId('example-chat-badge');
-		await expect(exampleBadge).toBeVisible({ timeout: 10000 });
+		// ─── 2. Find and click the Artemis II example chat card ─────────
+		// Example chats are shown in an ExampleChatsGroup inside the intro chat.
+		// Scroll down to find them and click the Artemis II card.
+		const exampleChatsGroup = page.getByTestId('example-chats-group');
+		await exampleChatsGroup.scrollIntoViewIfNeeded({ timeout: 15000 });
+		await expect(exampleChatsGroup).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Example chats group visible');
+
+		// Click the Artemis II example chat card (find by its title text)
+		const artemisCard = exampleChatsGroup.getByTestId('chat-embed-card').filter({
+			hasText: /artemis/i
+		}).first();
+		await expect(artemisCard).toBeVisible({ timeout: 10000 });
+		await artemisCard.click();
+		console.log('[unauthenticated-load] Clicked Artemis II example chat card');
+
+		// Wait for the example chat to load
+		await page.waitForFunction(
+			() => window.location.hash.includes('example-artemis'),
+			null,
+			{ timeout: 10000 }
+		);
+
+		const activeChatContainer = page.getByTestId('active-chat-container');
+		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
 		console.log('[unauthenticated-load] Artemis II example chat loaded');
 
 		// ─── 3. Verify assistant message is visible ────────────────────
