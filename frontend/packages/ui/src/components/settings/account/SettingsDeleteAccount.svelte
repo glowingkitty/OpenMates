@@ -330,7 +330,7 @@ Uses SecurityAuth component for passkey/2FA verification.
         {/if}
 
         {#if successMessage}
-            <div class="success-message">{successMessage}</div>
+            <div class="success-message" data-testid="success-message">{successMessage}</div>
         {/if}
 
         {#if !deletionScheduled}
@@ -402,7 +402,7 @@ Uses SecurityAuth component for passkey/2FA verification.
         {/if}
 
         {#if successMessage}
-            <div class="success-message">{successMessage}</div>
+            <div class="success-message" data-testid="success-message">{successMessage}</div>
         {/if}
 
         <div class="action-buttons">
