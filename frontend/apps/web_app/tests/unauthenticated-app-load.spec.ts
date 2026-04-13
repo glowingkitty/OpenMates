@@ -208,7 +208,28 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForTimeout(3000);
 		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
 
-		// ─── 5. Verify Wikipedia inline links are rendered ──────────────
+		// ─── 5. Diagnostics: check wiki data in DOM ───────────────────
+		const diagInfo = await page.evaluate(() => {
+			// Check for any wiki-inline nodes in the DOM
+			const wikiNodes = document.querySelectorAll('[data-type="wiki-inline"]');
+			const wikiTestIds = document.querySelectorAll('[data-testid="wiki-inline-link"]');
+			// Check for the text "Reid Wiseman" in the page to confirm message rendered
+			const bodyText = document.body.innerText;
+			const hasReidWiseman = bodyText.includes('Reid Wiseman');
+			const hasArtemis = bodyText.includes('Artemis');
+			return {
+				wikiNodeCount: wikiNodes.length,
+				wikiTestIdCount: wikiTestIds.length,
+				hasReidWiseman,
+				hasArtemis,
+				bodyTextLength: bodyText.length,
+				// Check for console errors from wiki/parse
+				hash: window.location.hash,
+			};
+		});
+		console.log('[unauthenticated-load] Wiki diagnostics:', JSON.stringify(diagInfo));
+
+		// ─── 6. Verify Wikipedia inline links are rendered ──────────────
 		// The Artemis II example chat has wikipedia_topics defined.
 		// The parse_message pipeline should inject wikiInline TipTap nodes,
 		// which render as WikiInlineLink.svelte with data-testid="wiki-inline-link".
