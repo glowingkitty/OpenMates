@@ -454,6 +454,13 @@
         lineCount: 0
     });
 
+    // DEBUG: trace wikipedia_topics on currentChat
+    $effect(() => {
+        if (currentChat) {
+            console.debug(`[ActiveChat:wiki-debug] currentChat=${currentChat.chat_id} wikipedia_topics=${currentChat.wikipedia_topics?.length ?? 'undefined'} keys=${Object.keys(currentChat).filter(k => k.includes('wiki')).join(',')}`);
+        }
+    });
+
     // Wikipedia fullscreen — triggered by clicking a wiki inline link in an assistant message
     let showWikiFullscreen = $state(false);
     let wikiFullscreenData = $state<{
