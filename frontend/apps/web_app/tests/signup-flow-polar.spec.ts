@@ -474,46 +474,77 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 		logSignupCheckpoint('WARNING: Billing address field not found — payment may fail.');
 	}
 
-	// After filling address line 1, use Tab key to navigate through the remaining
-	// billing fields (address line 2, city, state, zip). This is more reliable than
-	// guessing locators for Polar's cross-origin iframe fields.
-	// Focus the address field first, then Tab through.
-	await billingAddress.click();
-	await page.keyboard.press('Tab'); // → address line 2 (apartment/suite) — skip it
-	await page.keyboard.press('Tab'); // → city
-	await page.keyboard.type('New York');
-	logSignupCheckpoint('Filled billing city via Tab navigation.');
+	// Fill remaining billing fields using the Polar Frame directly.
+	// Tab+type doesn't reliably trigger React change handlers in cross-origin iframes,
+	// causing "Invalid postal code" errors even with valid data. Using frame.fill()
+	// or frame locators ensures proper event dispatch.
+	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
 
-	// Polar US layout: City and Zip are side-by-side, then State is below.
-	// Tab order: City → Zip → State (not City → State → Zip).
-	await page.keyboard.press('Tab'); // → zip (next to city, same row)
-	await page.keyboard.type('10001');
-	logSignupCheckpoint('Filled billing ZIP via Tab navigation.');
+	// City — use frame locator for reliable input
+	const cityInput = polarIframe.getByLabel(/city/i).first()
+		.or(polarIframe.locator('input[name*="city"]').first());
+	if (await cityInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await cityInput.fill('New York');
+		logSignupCheckpoint('Filled billing city via locator.');
+	} else {
+		// Fallback: Tab from address
+		await billingAddress.click();
+		await page.keyboard.press('Tab');
+		await page.keyboard.press('Tab');
+		await page.keyboard.type('New York');
+		logSignupCheckpoint('Filled billing city via Tab fallback.');
+	}
 
-	// State field: Polar uses a <select> or custom dropdown. Tab navigation types into it
-	// but autocomplete picks wrong states ("NY"→Nebraska, "New York"→"New Hampshire").
-	// Use the Polar iframe's locator to directly set the select/input value instead.
+	// ZIP / Postal code
+	const zipInput = polarIframe.getByLabel(/zip|postal/i).first()
+		.or(polarIframe.locator('input[name*="postal"], input[name*="zip"]').first());
+	if (await zipInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await zipInput.fill('10001');
+		logSignupCheckpoint('Filled billing ZIP via locator.');
+	} else {
+		// Fallback: use frame evaluate to find and fill the postal code input
+		if (polarFrame) {
+			await polarFrame.evaluate(() => {
+				const inputs = Array.from(document.querySelectorAll('input'));
+				const zipField = inputs.find(i =>
+					(i.name || '').match(/postal|zip/i) ||
+					(i.placeholder || '').match(/postal|zip/i) ||
+					(i.autocomplete || '').match(/postal/i)
+				);
+				if (zipField) {
+					zipField.value = '10001';
+					zipField.dispatchEvent(new Event('input', { bubbles: true }));
+					zipField.dispatchEvent(new Event('change', { bubbles: true }));
+				}
+			});
+			logSignupCheckpoint('Filled billing ZIP via frame evaluate.');
+		}
+	}
+
+	// State — Polar uses a <select> dropdown
 	const stateSelect = polarIframe.locator('select[name*="state"], select[autocomplete*="address-level1"]').first();
-	const stateInput = polarIframe.locator('input[name*="state"]').first();
 	if (await stateSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await stateSelect.selectOption({ label: 'New York' });
 		logSignupCheckpoint('Selected billing state via select dropdown.');
-	} else if (await stateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-		// Clear any existing value and set via JS to bypass autocomplete
-		await stateInput.fill('');
-		await stateInput.evaluate((el: HTMLInputElement) => {
-			el.value = 'NY';
-			el.dispatchEvent(new Event('input', { bubbles: true }));
-			el.dispatchEvent(new Event('change', { bubbles: true }));
+	} else if (polarFrame) {
+		// Fallback: find select via frame evaluate
+		await polarFrame.evaluate(() => {
+			const selects = Array.from(document.querySelectorAll('select'));
+			const stateEl = selects.find(s =>
+				(s.name || '').match(/state/i) ||
+				(s.autocomplete || '').match(/address-level1/i)
+			);
+			if (stateEl) {
+				const nyOption = Array.from(stateEl.options).find(o =>
+					o.text === 'New York' || o.value === 'NY'
+				);
+				if (nyOption) {
+					stateEl.value = nyOption.value;
+					stateEl.dispatchEvent(new Event('change', { bubbles: true }));
+				}
+			}
 		});
-		logSignupCheckpoint('Set billing state via JS input.');
-	} else {
-		// Fallback: Tab and type, accepting autocomplete risk
-		await page.keyboard.press('Tab');
-		await page.keyboard.type('New York', { delay: 50 });
-		await page.waitForTimeout(500);
-		await page.keyboard.press('Enter');
-		logSignupCheckpoint('Filled billing state via Tab fallback.');
+		logSignupCheckpoint('Selected billing state via frame evaluate.');
 	}
 
 	await takeStepScreenshot(page, 'polar-billing-filled');
