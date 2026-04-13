@@ -702,17 +702,25 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// NOTE: assertChatDecryptedCorrectly opens the sidebar, checks it, then closes it.
 	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'initial');
 
-	// Capture the chat title from the ChatHeader component for later comparison
-	// (the header is always visible regardless of sidebar state).
+	// Verify ChatHeader is fully loaded with title, summary, and icon.
+	// These are populated by the AI after processing the first message.
 	const chatHeaderTitle = page.getByTestId('chat-header-title');
 	let headerTitleText = '';
-	try {
-		await expect(chatHeaderTitle).toBeVisible({ timeout: 5000 });
-		headerTitleText = (await chatHeaderTitle.textContent())?.trim() || '';
-		logChatCheckpoint(`ChatHeader title captured: "${headerTitleText}"`);
-	} catch {
-		logChatCheckpoint('ChatHeader title not visible — skipping capture.');
-	}
+	await expect(chatHeaderTitle).toBeVisible({ timeout: 15000 });
+	headerTitleText = (await chatHeaderTitle.textContent())?.trim() || '';
+	logChatCheckpoint(`ChatHeader title: "${headerTitleText}"`);
+	expect(headerTitleText).toBeTruthy();
+	expect(headerTitleText.toLowerCase()).not.toContain('untitled');
+
+	const chatHeaderIcon = page.getByTestId('chat-header-icon');
+	await expect(chatHeaderIcon).toBeVisible({ timeout: 10000 });
+	logChatCheckpoint('ChatHeader icon visible.');
+
+	const chatHeaderSummary = page.getByTestId('chat-header-summary');
+	await expect(chatHeaderSummary).toBeVisible({ timeout: 10000 });
+	const summaryText = (await chatHeaderSummary.textContent())?.trim() || '';
+	logChatCheckpoint(`ChatHeader summary: "${summaryText}"`);
+	expect(summaryText).toBeTruthy();
 
 	// Verify no missing translations on the chat page
 	await assertNoMissingTranslations(page);
