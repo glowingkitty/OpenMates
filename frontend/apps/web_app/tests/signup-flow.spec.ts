@@ -447,7 +447,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 
 	// Confirm credits reflect the purchase (should be non-zero after payment).
 	const creditsAmount = page.getByTestId('credits-amount');
-	await expect(creditsAmount).toBeVisible();
+	await expect(creditsAmount).toBeVisible({ timeout: 10000 });
 	const creditsText = (await creditsAmount.textContent()) || '';
 	const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
 	expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(0);

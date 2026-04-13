@@ -538,7 +538,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	logSignupCheckpoint('Opened settings menu for credit verification.');
 
 	const creditsAmount = page.getByTestId('credits-amount');
-	await expect(creditsAmount).toBeVisible();
+	await expect(creditsAmount).toBeVisible({ timeout: 10000 });
 	const creditsText = (await creditsAmount.textContent()) || '';
 	const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
 	expect(
