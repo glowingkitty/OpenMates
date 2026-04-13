@@ -1,0 +1,237 @@
+# OpenMates Privacy Promises — Source of Truth
+# -----------------------------------------------------------------------------
+# Canonical registry of user-facing privacy claims. Every promise links to the
+# code that enforces it and the tests that verify it. Consumed by:
+#
+#   - backend/tests/test_privacy_promises.py (meta-test: validates registry
+#     integrity, forbidden terms, zero-knowledge gate)
+#   - .claude/hooks/privacy-promise-guard.sh (warn-only pre-edit reminder)
+#   - frontend/packages/ui/src/legal/buildLegalContent.ts (auto-generated
+#     "Technical Privacy Measures" section of the public privacy policy —
+#     Phase 2)
+#   - .claude/agents/legal-compliance-auditor.md (twice-weekly cross-check —
+#     Phase 3)
+#
+# Terminology rules (enforced by meta-test):
+#   - "client-side encryption" is the accurate claim.
+#   - "zero-knowledge encryption" MAY be used only when the checklist in
+#     docs/architecture/core/encryption-architecture.md is satisfied.
+#   - "end-to-end encryption" / "E2EE" / "E2E encryption" is FORBIDDEN —
+#     OpenMates is not an E2EE system (no recipient-only key model).
+#
+# Adding a promise: append an entry below, add the i18n keys under
+# `legal.privacy.promises.<id>.{heading,description}` in
+# frontend/packages/ui/src/i18n/sources/legal/privacy.yml, add the
+# `@privacy-promise: <id>` marker to at least one test (or set
+# `verification: documentation` if the promise is contractual).
+#
+# Meta-test: `python3 scripts/run_tests.py --spec backend/tests/test_privacy_promises.py`
+
+version: 1
+
+promises:
+  - id: client-side-chat-encryption
+    category: encryption
+    severity: critical
+    i18n_key: legal.privacy.promises.client_side_chat_encryption
+    verification: test
+    gdpr_articles: ["Art. 32"]
+    enforcement:
+      - file: frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+        what: AES-256-GCM key derivation and per-chat key unwrap on the client
+      - file: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+        what: Server persists ciphertext only; never sees plaintext chat content
+    tests:
+      - kind: unit
+        path: frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+        marker: client-side-chat-encryption
+    architecture_doc: docs/architecture/core/encryption-architecture.md
+    surfaced_in_policy: true
+
+  - id: email-encryption-at-rest
+    category: encryption
+    severity: critical
+    i18n_key: legal.privacy.promises.email_encryption_at_rest
+    verification: test
+    gdpr_articles: ["Art. 32", "Art. 5(1)(f)"]
+    enforcement:
+      - file: backend/core/api/app/utils/encryption.py
+        what: Email-address encryption primitives; server holds keys only in memory
+      - file: backend/core/api/app/routes/auth_routes/auth_login.py
+        what: Ephemeral in-memory decryption during login; key discarded immediately after use
+    tests:
+      - kind: unit
+        path: backend/tests/test_encryption_service.py
+        marker: email-encryption-at-rest
+    architecture_doc: docs/architecture/privacy/email-privacy.md
+    surfaced_in_policy: true
+
+  - id: no-third-party-tracking
+    category: tracking
+    severity: high
+    i18n_key: legal.privacy.promises.no_third_party_tracking
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 25"]
+    enforcement:
+      - file: frontend/apps/web_app/src/hooks.server.ts
+        what: CSP and cookie headers forbid third-party tracking origins
+      - file: .claude/hooks/analytics-sdk-forbidden.sh
+        what: Pre-edit hook blocks introduction of analytics SDKs (gtag, segment, mixpanel, posthog, plausible, amplitude)
+    tests:
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: no-third-party-tracking
+        assertion: "Scans frontend package.json files; asserts no analytics SDK dependencies"
+    architecture_doc: docs/architecture/privacy/pii-protection.md
+    surfaced_in_policy: true
+
+  - id: pii-placeholder-substitution
+    category: pii
+    severity: critical
+    i18n_key: legal.privacy.promises.pii_placeholder_substitution
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 25"]
+    enforcement:
+      - file: frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+        what: Client-side detection of 32 PII categories before any server transmission
+      - file: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+        what: Final scan + placeholder substitution at send-time; mappings encrypted with chat key
+    tests:
+      - kind: e2e
+        path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+        marker: pii-placeholder-substitution
+    architecture_doc: docs/architecture/privacy/pii-protection.md
+    surfaced_in_policy: true
+
+  - id: telemetry-privacy-filter
+    category: logging
+    severity: high
+    i18n_key: legal.privacy.promises.telemetry_privacy_filter
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 32"]
+    enforcement:
+      - file: backend/shared/python_utils/tracing/privacy_filter.py
+        what: Strips auth headers/cookies/db statements from OTel spans; pseudonymizes enduser.id with daily-rotated salt
+    tests:
+      - kind: unit
+        path: backend/tests/test_tracing/test_privacy_filter.py
+        marker: telemetry-privacy-filter
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: cryptographic-erasure
+    category: deletion
+    severity: critical
+    i18n_key: legal.privacy.promises.cryptographic_erasure
+    verification: test
+    gdpr_articles: ["Art. 17"]
+    enforcement:
+      - file: backend/core/api/app/tasks/user_cache_tasks.py
+        what: Phased account deletion — encryption keys destroyed before content; renders any residual ciphertext permanently unreadable
+    tests:
+      - kind: unit
+        path: backend/tests/test_privacy_promises.py
+        marker: cryptographic-erasure
+        assertion: "Placeholder: asserts key-deletion phase precedes content deletion by inspecting task source for phase order. Replace with dedicated deletion spec in Phase 3."
+    architecture_doc: docs/architecture/core/encryption-architecture.md
+    surfaced_in_policy: true
+
+  - id: argon2-password-hashing
+    category: auth
+    severity: critical
+    i18n_key: legal.privacy.promises.argon2_password_hashing
+    verification: test
+    gdpr_articles: ["Art. 32"]
+    enforcement:
+      - file: backend/core/api/app/routes/auth_routes/auth_2fa_utils.py
+        what: Argon2 verification for backup codes and credentials; plaintext never persisted
+    tests:
+      - kind: unit
+        path: backend/tests/test_rest_api_auth.py
+        marker: argon2-password-hashing
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: payment-data-minimization
+    category: payment
+    severity: high
+    i18n_key: legal.privacy.promises.payment_data_minimization
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)"]
+    enforcement:
+      - file: backend/core/api/app/services/payment/stripe_service.py
+        what: Only Stripe tokens/customer IDs stored; raw card data never touches our servers
+      - file: backend/core/api/app/services/payment/polar_service.py
+        what: Only Polar tokens stored; no PAN/CVV ever persisted
+    tests:
+      - kind: unit
+        path: backend/tests/test_payment_provider_routing.py
+        marker: payment-data-minimization
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: logging-redaction
+    category: logging
+    severity: high
+    i18n_key: legal.privacy.promises.logging_redaction
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 32"]
+    enforcement:
+      - file: backend/core/api/app/utils/log_filters.py
+        what: SensitiveDataFilter regex-redacts emails, IPs, tokens, passwords from all application logs
+    tests:
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: logging-redaction
+        assertion: "Instantiates SensitiveDataFilter, asserts a log record with email/token is redacted"
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: prompt-injection-defense
+    category: pii
+    severity: high
+    i18n_key: legal.privacy.promises.prompt_injection_defense
+    verification: test
+    gdpr_articles: ["Art. 32"]
+    enforcement:
+      - file: backend/core/api/app/utils/text_sanitization.py
+        what: Layer 0 — strips invisible Unicode (ASCII smuggling, zero-width chars, BiDi controls)
+      - file: backend/apps/ai/processing/content_sanitization.py
+        what: Layer 1 — LLM-based semantic injection detection with scored block/replace thresholds
+    tests:
+      - kind: unit
+        path: backend/core/api/app/utils/__tests__/test_text_sanitization.py
+        marker: prompt-injection-defense
+      - kind: unit
+        path: backend/tests/test_content_sanitization.py
+        marker: prompt-injection-defense
+    architecture_doc: docs/architecture/privacy/prompt-injection.md
+    surfaced_in_policy: true
+
+  - id: no-training-on-user-data
+    category: transparency
+    severity: high
+    i18n_key: legal.privacy.promises.no_training_on_user_data
+    verification: documentation
+    gdpr_articles: ["Art. 5(1)(b)"]
+    enforcement:
+      - file: shared/docs/privacy_policy.yml
+        what: Canonical privacy policy discloses provider contracts with no-training clauses
+    docs:
+      - docs/architecture/privacy/pii-protection.md
+      - shared/docs/privacy_policy.yml
+    tests: []
+    surfaced_in_policy: true
+
+  - id: open-source-transparency
+    category: transparency
+    severity: medium
+    i18n_key: legal.privacy.promises.open_source_transparency
+    verification: documentation
+    enforcement:
+      - file: LICENSE
+        what: Entire codebase published under an open-source license; every claim above is independently auditable
+    docs:
+      - LICENSE
+    tests: []
+    surfaced_in_policy: true

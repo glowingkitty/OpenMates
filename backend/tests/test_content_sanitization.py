@@ -1,4 +1,5 @@
 # backend/tests/test_content_sanitization.py
+# @privacy-promise: prompt-injection-defense
 #
 # Unit tests for the content sanitization module — the prompt injection defense layer.
 # Focuses on the pure _split_text_into_chunks() function which handles text chunking

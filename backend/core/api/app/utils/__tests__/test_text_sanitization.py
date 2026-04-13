@@ -1,4 +1,5 @@
 # backend/core/api/app/utils/__tests__/test_text_sanitization.py
+# @privacy-promise: prompt-injection-defense
 """
 Tests for ASCII smuggling protection and text sanitization.
 

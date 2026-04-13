@@ -1,4 +1,6 @@
 """
+@privacy-promise: payment-data-minimization
+
 Payment Provider Routing Tests
 ===============================
 Tests that /v1/payments/config correctly routes to Stripe (EU IPs) or Polar (non-EU IPs),
