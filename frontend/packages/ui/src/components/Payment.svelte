@@ -1121,6 +1121,17 @@
                         .replace('{amount}', (purchasePrice / 100).toString())}
                 </button>
             {/if}
+            {#if requireConsent && !hasConsentedToLimitedRefund}
+                <div class="consent-overlay" transition:fade>
+                    <LimitedRefundConsent
+                        bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                        on:consentChanged={(event) => {
+                            hasConsentedToLimitedRefund = event.detail.consented;
+                            dispatch('consentGiven', event.detail);
+                        }}
+                    />
+                </div>
+            {/if}
         </div>
     {:else}
         {#if hostedInvoiceUrl}
@@ -1157,6 +1168,17 @@
                     clientSecret={clientSecret}
                     darkmode={darkmode}
                 />
+                {#if requireConsent && !hasConsentedToLimitedRefund}
+                    <div class="consent-overlay" transition:fade>
+                        <LimitedRefundConsent
+                            bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                            on:consentChanged={(event) => {
+                                hasConsentedToLimitedRefund = event.detail.consented;
+                                dispatch('consentGiven', event.detail);
+                            }}
+                        />
+                    </div>
+                {/if}
             </div>
         {:else}
         <div class="payment-form-overlay-wrapper">
@@ -1277,6 +1299,7 @@
 
     /* Polar checkout wrapper — full width, no extra padding */
     .polar-checkout-wrapper {
+        position: relative;
         width: 100%;
     }
 
