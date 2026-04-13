@@ -174,5 +174,42 @@ const test = baseTest.extend<{ _storageAudit: void }>({
 	]
 });
 
+/**
+ * Inline assertion helper for the `no-third-party-tracking` privacy promise.
+ *
+ * Reads all cookies from the current BrowserContext and asserts every cookie
+ * domain is an OpenMates-owned host (first-party). Any cookie whose domain
+ * doesn't match the allowlist is a regression — our privacy policy states
+ * explicitly that we do not set third-party tracking cookies.
+ *
+ * Keep the allowlist narrow — adding a new domain here is a material change
+ * to the privacy promise and should be reviewed in shared/docs/privacy_promises.yml.
+ */
+export async function assertNoThirdPartyCookies(context: any): Promise<void> {
+	const FIRST_PARTY_DOMAINS = [
+		'openmates.org',
+		'openmates.dev',
+		'dev.openmates.org',
+		'api.dev.openmates.org',
+		'localhost',
+		'127.0.0.1'
+	];
+	const cookies: Array<{ name: string; domain: string }> = (await context.cookies()) || [];
+	const offenders = cookies.filter((c: any) => {
+		const dom = (c.domain || '').replace(/^\./, '').toLowerCase();
+		if (!dom) return false;
+		return !FIRST_PARTY_DOMAINS.some((ok) => dom === ok || dom.endsWith('.' + ok));
+	});
+	if (offenders.length > 0) {
+		const summary = offenders
+			.map((c: any) => `${c.name} @ ${c.domain}`)
+			.join(', ');
+		throw new Error(
+			`privacy-promise "no-third-party-tracking" violated: third-party cookie(s) present: ${summary}. ` +
+				`Update the allowlist in helpers/cookie-audit.ts only after amending shared/docs/privacy_promises.yml.`
+		);
+	}
+}
+
 export { test, expect };
-module.exports = { test, expect };
+module.exports = { test, expect, assertNoThirdPartyCookies };

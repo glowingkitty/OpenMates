@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
+// @privacy-promise: client-side-chat-encryption
 /**
  * Chat flow test: login with existing account + 2FA, then send a message and validate
  * zero-knowledge encryption health through multiple lifecycle phases:

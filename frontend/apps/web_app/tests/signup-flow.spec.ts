@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
+// @privacy-promise: no-third-party-tracking
 export {};
 // NOTE:
 // This file is executed inside the official Playwright Docker image, which
 // provides the @playwright/test module at runtime. To keep repo-wide TypeScript
 // checks happy without requiring local Playwright installation, we use CommonJS
 // require() and broad lint disables limited to this spec file.
-const { test, expect } = require('./helpers/cookie-audit');
+const { test, expect, assertNoThirdPartyCookies } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 
@@ -494,4 +495,10 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 		timeout: 10000
 	});
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
+
+	// Privacy promise check: after a full signup + purchase + deletion flow,
+	// no third-party tracking cookies must exist. Enforces
+	// shared/docs/privacy_promises.yml → no-third-party-tracking.
+	await assertNoThirdPartyCookies(context);
+	logSignupCheckpoint('No third-party cookies observed.');
 });

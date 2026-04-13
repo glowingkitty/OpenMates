@@ -45,6 +45,10 @@ promises:
       - kind: unit
         path: frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
         marker: client-side-chat-encryption
+      - kind: e2e
+        path: frontend/apps/web_app/tests/chat-flow.spec.ts
+        marker: client-side-chat-encryption
+        assertion: "Sends a message and validates zero-knowledge encryption health across lifecycle phases"
     architecture_doc: docs/architecture/core/encryption-architecture.md
     surfaced_in_policy: true
 
@@ -77,11 +81,17 @@ promises:
         what: CSP and cookie headers forbid third-party tracking origins
       - file: .claude/hooks/analytics-sdk-forbidden.sh
         what: Pre-edit hook blocks introduction of analytics SDKs (gtag, segment, mixpanel, posthog, plausible, amplitude)
+      - file: frontend/apps/web_app/tests/helpers/cookie-audit.ts
+        what: Per-test cookie snapshots + inline assertNoThirdPartyCookies helper enforce first-party-only domains
     tests:
       - kind: static
         path: backend/tests/test_privacy_promises.py
         marker: no-third-party-tracking
         assertion: "Scans frontend package.json files; asserts no analytics SDK dependencies"
+      - kind: e2e
+        path: frontend/apps/web_app/tests/signup-flow.spec.ts
+        marker: no-third-party-tracking
+        assertion: "End of signup/purchase/deletion flow calls assertNoThirdPartyCookies()"
     architecture_doc: docs/architecture/privacy/pii-protection.md
     surfaced_in_policy: true
 
@@ -132,7 +142,11 @@ promises:
       - kind: unit
         path: backend/tests/test_privacy_promises.py
         marker: cryptographic-erasure
-        assertion: "Placeholder: asserts key-deletion phase precedes content deletion by inspecting task source for phase order. Replace with dedicated deletion spec in Phase 3."
+        assertion: "Static source check: asserts key-deletion phase precedes content deletion by inspecting user_cache_tasks.py for phase order"
+      - kind: e2e
+        path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+        marker: cryptographic-erasure
+        assertion: "Exercises the full account deletion flow end-to-end (email OTP + success confirmation)"
     architecture_doc: docs/architecture/core/encryption-architecture.md
     surfaced_in_policy: true
 
@@ -167,6 +181,10 @@ promises:
       - kind: unit
         path: backend/tests/test_payment_provider_routing.py
         marker: payment-data-minimization
+      - kind: e2e
+        path: frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+        marker: payment-data-minimization
+        assertion: "Full Stripe EU-card purchase flow; Stripe iframe handles the card number so it never touches our origin"
     architecture_doc: docs/architecture/core/security.md
     surfaced_in_policy: true
 

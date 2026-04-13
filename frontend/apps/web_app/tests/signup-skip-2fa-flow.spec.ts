@@ -1,4 +1,5 @@
 /*
+@privacy-promise: cryptographic-erasure
 Purpose: Verifies password signup with skipped 2FA setup, re-login with password only, and account deletion via email OTP.
 Architecture: Covers the signup route state machine and auth login flow from the deployed web app.
 Architecture Doc: See docs/architecture/app-skills.md for async auth-related flow context.
