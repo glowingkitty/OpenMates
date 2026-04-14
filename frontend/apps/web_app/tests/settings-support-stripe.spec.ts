@@ -194,7 +194,7 @@ test('settings support: completes one-time donation via Stripe card', async ({
 	// ─── Wait for success ─────────────────────────────────────────────────────
 
 	// Success: confirmation screen or "purchase successful" text
-	const successIndicator = page.locator('text=/thank|success|received|support.*received|confirmation/i');
+	const successIndicator = page.locator('text=/thank|success|received|support.*received|confirmation/i').first();
 	await expect(successIndicator).toBeVisible({ timeout: 60000 });
 	log('Success confirmation shown.');
 	await screenshot(page, '08-success');
