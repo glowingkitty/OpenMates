@@ -1,11 +1,11 @@
 <!--
   BankTransferPayment.svelte
 
-  Displays company bank details (IBAN, BIC) and a structured reference
-  for the user to include in their SEPA bank transfer. Polls for transfer
-  status and listens for WebSocket payment_completed events.
+  Displays company bank details (IBAN, BIC, account holder name, reference)
+  for a SEPA bank transfer, using canonical settings UI elements.
 
-  Used in both the settings billing flow and signup flow.
+  All value fields are user-selectable text. Copy icons use SettingsCodeBlock pattern.
+  Polls for transfer completion and listens for WebSocket payment_completed events.
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
@@ -14,6 +14,11 @@
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { webSocketService } from '../../services/websocketService';
+    import {
+        SettingsCard,
+        SettingsInfoBox,
+        SettingsPageHeader,
+    } from '../settings/elements';
 
     const dispatch = createEventDispatcher();
 
@@ -24,8 +29,8 @@
         isSupportContribution = false,
         supportEmail = '',
         emailEncryptionKey = '',
-        allowContinueWithoutPayment = false, // signup flow: show "Continue to app" button
-        isSignup = false,                    // signup flow: include is_signup in order request
+        allowContinueWithoutPayment = false,
+        isSignup = false,
     }: {
         credits_amount: number;
         price: number;
@@ -37,11 +42,9 @@
         isSignup?: boolean;
     } = $props();
 
-    // Component state
     let state: 'loading' | 'awaiting_transfer' | 'completed' | 'error' = $state('loading');
     let errorMessage: string = $state('');
 
-    // Order data from the backend
     let orderId: string = $state('');
     let reference: string = $state('');
     let iban: string = $state('');
@@ -51,21 +54,16 @@
     let amountEur: string = $state('');
     let expiresAt: string = $state('');
 
-    // Copy feedback state
+    // Per-field copy feedback
     let copiedField: string = $state('');
     let copyTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    // Polling interval
     let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-    onMount(async () => {
-        await createOrder();
-    });
+    onMount(async () => { await createOrder(); });
 
     onDestroy(() => {
         if (pollInterval) clearInterval(pollInterval);
         if (copyTimeout) clearTimeout(copyTimeout);
-        // Unregister WebSocket handler
         webSocketService.off('payment_completed', handlePaymentCompleted);
     });
 
@@ -103,14 +101,8 @@
             expiresAt = data.expires_at;
 
             state = 'awaiting_transfer';
-
-            // Start polling for status updates every 30 seconds
             pollInterval = setInterval(pollStatus, 30_000);
-
-            // Listen for WebSocket payment_completed event for instant notification
             webSocketService.on('payment_completed', handlePaymentCompleted);
-
-            // Dispatch event so parent knows the order was created
             dispatch('orderCreated', { orderId, reference });
 
         } catch (err: unknown) {
@@ -121,37 +113,25 @@
 
     async function pollStatus() {
         if (!orderId || state !== 'awaiting_transfer') return;
-
         try {
-            const response = await fetch(
+            const r = await fetch(
                 `${getApiEndpoint(apiEndpoints.payments.bankTransferStatus)}/${orderId}`,
                 { credentials: 'include' }
             );
-            if (!response.ok) return;
-
-            const data = await response.json();
-            if (data.status === 'completed') {
-                handleCompleted();
-            }
-        } catch {
-            // Silently ignore poll errors — next poll will retry
-        }
+            if (!r.ok) return;
+            const data = await r.json();
+            if (data.status === 'completed') handleCompleted();
+        } catch { /* silent */ }
     }
 
     function handlePaymentCompleted(payload: { order_id?: string }) {
-        if (payload?.order_id === orderId) {
-            handleCompleted();
-        }
+        if (payload?.order_id === orderId) handleCompleted();
     }
 
     function handleCompleted() {
         state = 'completed';
         if (pollInterval) clearInterval(pollInterval);
-        dispatch('paymentStateChange', {
-            state: 'success',
-            provider: 'bank_transfer',
-            payment_intent_id: orderId,
-        });
+        dispatch('paymentStateChange', { state: 'success', provider: 'bank_transfer', payment_intent_id: orderId });
     }
 
     async function handleCopy(fieldName: string, value: string) {
@@ -165,139 +145,154 @@
 
     function formatExpiryDate(iso: string): string {
         try {
-            const date = new Date(iso);
-            return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-        } catch {
-            return iso;
-        }
+            return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        } catch { return iso; }
     }
 </script>
 
 {#if state === 'loading'}
-    <div class="bank-transfer-loading" in:fade={{ duration: 200 }}>
-        <p>{$text('common.loading')}</p>
+    <div class="bt-loading" in:fade={{ duration: 200 }}>
+        <p class="color-grey-60">{$text('common.loading')}</p>
     </div>
 
 {:else if state === 'error'}
-    <div class="bank-transfer-error" in:fade={{ duration: 200 }}>
-        <p class="error-text">{errorMessage}</p>
-        <button class="retry-btn" onclick={createOrder}>
-            {$text('common.try_again')}
-        </button>
+    <div class="bt-error" in:fade={{ duration: 200 }}>
+        <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
+        <button class="retry-link" onclick={createOrder}>{$text('common.try_again')}</button>
     </div>
 
 {:else if state === 'completed'}
-    <div class="bank-transfer-success" in:fade={{ duration: 300 }}>
-        <span class="check-icon"></span>
-        <p class="success-text">{$text('settings.billing.bank_transfer_received')}</p>
-        <p class="confirmation-text color-grey-60">
-            {$text('signup.you_will_receive_confirmation_soon')}
-        </p>
+    <div class="bt-completed" in:fade={{ duration: 300 }}>
+        <SettingsInfoBox type="success">
+            {$text('settings.billing.bank_transfer_received')}
+        </SettingsInfoBox>
     </div>
 
 {:else}
-    <div class="bank-transfer-details" in:fade={{ duration: 200 }} data-testid="bank-transfer-details">
-        <h3 class="details-heading">{$text('settings.billing.bank_transfer_details')}</h3>
+    <!-- awaiting_transfer -->
+    <div class="bt-details" in:fade={{ duration: 200 }} data-testid="bank-transfer-details">
+        <SettingsPageHeader title={$text('settings.billing.bank_transfer_details')} />
 
-        {#if accountHolderName}
-            <div class="detail-row" data-testid="bank-transfer-account-holder">
-                <span class="detail-label">{$text('settings.billing.bank_transfer_account_holder')}</span>
+        <SettingsCard>
+            <!-- Account Holder -->
+            {#if accountHolderName}
+                <div class="detail-copyable" data-testid="bank-transfer-account-holder">
+                    <div class="detail-label">{$text('settings.billing.bank_transfer_account_holder')}</div>
+                    <div class="detail-value-row">
+                        <span class="detail-value selectable">{accountHolderName}</span>
+                        <button
+                            class="copy-icon-btn"
+                            class:copied={copiedField === 'holder'}
+                            onclick={() => handleCopy('holder', accountHolderName)}
+                            title={copiedField === 'holder' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
+                            aria-label={$text('settings.billing.copy')}
+                            data-testid="copy-account-holder-btn"
+                        ><span class="copy-icon-inner"></span></button>
+                    </div>
+                </div>
+            {/if}
+
+            <!-- Bank Name -->
+            {#if bankName}
+                <div class="detail-copyable">
+                    <div class="detail-label">{$text('settings.billing.bank_transfer_bank_name')}</div>
+                    <div class="detail-value-row">
+                        <span class="detail-value selectable">{bankName}</span>
+                    </div>
+                </div>
+            {/if}
+
+            <!-- IBAN -->
+            <div class="detail-copyable" data-testid="bank-transfer-iban">
+                <div class="detail-label">{$text('settings.billing.bank_transfer_iban')}</div>
                 <div class="detail-value-row">
-                    <span class="detail-value">{accountHolderName}</span>
+                    <span class="detail-value selectable monospace">{iban}</span>
                     <button
-                        class="copy-btn"
-                        onclick={() => handleCopy('holder', accountHolderName)}
-                        data-testid="copy-account-holder-btn"
-                    >
-                        {copiedField === 'holder' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
-                    </button>
+                        class="copy-icon-btn"
+                        class:copied={copiedField === 'iban'}
+                        onclick={() => handleCopy('iban', iban)}
+                        title={copiedField === 'iban' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
+                        aria-label={$text('settings.billing.copy')}
+                        data-testid="copy-iban-btn"
+                    ><span class="copy-icon-inner"></span></button>
                 </div>
             </div>
-        {/if}
 
-        <div class="detail-row" data-testid="bank-transfer-iban">
-            <span class="detail-label">{$text('settings.billing.bank_transfer_iban')}</span>
-            <div class="detail-value-row">
-                <span class="detail-value monospace">{iban}</span>
-                <button
-                    class="copy-btn"
-                    onclick={() => handleCopy('iban', iban)}
-                    data-testid="copy-iban-btn"
-                >
-                    {copiedField === 'iban' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
-                </button>
+            <!-- BIC -->
+            <div class="detail-copyable" data-testid="bank-transfer-bic">
+                <div class="detail-label">{$text('settings.billing.bank_transfer_bic')}</div>
+                <div class="detail-value-row">
+                    <span class="detail-value selectable monospace">{bic}</span>
+                    <button
+                        class="copy-icon-btn"
+                        class:copied={copiedField === 'bic'}
+                        onclick={() => handleCopy('bic', bic)}
+                        title={copiedField === 'bic' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
+                        aria-label={$text('settings.billing.copy')}
+                        data-testid="copy-bic-btn"
+                    ><span class="copy-icon-inner"></span></button>
+                </div>
             </div>
-        </div>
 
-        <div class="detail-row" data-testid="bank-transfer-bic">
-            <span class="detail-label">{$text('settings.billing.bank_transfer_bic')}</span>
-            <div class="detail-value-row">
-                <span class="detail-value monospace">{bic}</span>
-                <button
-                    class="copy-btn"
-                    onclick={() => handleCopy('bic', bic)}
-                    data-testid="copy-bic-btn"
-                >
-                    {copiedField === 'bic' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
-                </button>
+            <!-- Amount -->
+            <div class="detail-copyable" data-testid="bank-transfer-amount">
+                <div class="detail-label">{$text('settings.billing.bank_transfer_amount')}</div>
+                <div class="detail-value-row">
+                    <span class="detail-value selectable monospace">{amountEur} EUR</span>
+                    <button
+                        class="copy-icon-btn"
+                        class:copied={copiedField === 'amount'}
+                        onclick={() => handleCopy('amount', amountEur)}
+                        title={copiedField === 'amount' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
+                        aria-label={$text('settings.billing.copy')}
+                        data-testid="copy-amount-btn"
+                    ><span class="copy-icon-inner"></span></button>
+                </div>
             </div>
-        </div>
 
-        <div class="detail-row" data-testid="bank-transfer-amount">
-            <span class="detail-label">{$text('settings.billing.bank_transfer_amount')}</span>
-            <div class="detail-value-row">
-                <span class="detail-value monospace">{amountEur} EUR</span>
-                <button
-                    class="copy-btn"
-                    onclick={() => handleCopy('amount', amountEur)}
-                    data-testid="copy-amount-btn"
-                >
-                    {copiedField === 'amount' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
-                </button>
+            <!-- Reference — highlighted, most critical -->
+            <div class="detail-copyable reference-row" data-testid="bank-transfer-reference">
+                <div class="detail-label">{$text('settings.billing.bank_transfer_reference')}</div>
+                <div class="detail-value-row">
+                    <span class="detail-value selectable monospace reference-value">{reference}</span>
+                    <button
+                        class="copy-icon-btn"
+                        class:copied={copiedField === 'reference'}
+                        onclick={() => handleCopy('reference', reference)}
+                        title={copiedField === 'reference' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
+                        aria-label={$text('settings.billing.copy_reference')}
+                        data-testid="copy-reference-btn"
+                    ><span class="copy-icon-inner"></span></button>
+                </div>
             </div>
-        </div>
 
-        <div class="detail-row reference-row" data-testid="bank-transfer-reference">
-            <span class="detail-label">{$text('settings.billing.bank_transfer_reference')}</span>
-            <div class="detail-value-row">
-                <span class="detail-value monospace reference-value">{reference}</span>
-                <button
-                    class="copy-btn"
-                    onclick={() => handleCopy('reference', reference)}
-                    data-testid="copy-reference-btn"
-                >
-                    {copiedField === 'reference' ? $text('settings.billing.copied') : $text('settings.billing.copy_reference')}
-                </button>
+            <!-- Deadline -->
+            <div class="detail-copyable">
+                <div class="detail-label">{$text('settings.billing.bank_transfer_deadline')}</div>
+                <div class="detail-value-row">
+                    <span class="detail-value selectable">{formatExpiryDate(expiresAt)}</span>
+                </div>
             </div>
+        </SettingsCard>
+
+        <!-- Reference hint — different text for support vs credit purchase -->
+        <div class="reference-hint-container" data-testid="reference-warning">
+            <SettingsInfoBox type="info">
+                {#if isSupportContribution}
+                    {$text('settings.billing.bank_transfer_reference_hint_support')}
+                {:else}
+                    {$text('settings.billing.bank_transfer_reference_warning')}
+                {/if}
+            </SettingsInfoBox>
         </div>
 
-        <p class="reference-warning" data-testid="reference-warning">
-            {$text('settings.billing.bank_transfer_reference_warning')}
-        </p>
-
-        {#if bankName}
-            <div class="detail-row">
-                <span class="detail-label">{$text('settings.billing.bank_transfer_bank_name')}</span>
-                <span class="detail-value">{bankName}</span>
-            </div>
-        {/if}
-
-        <div class="detail-row">
-            <span class="detail-label">{$text('settings.billing.bank_transfer_deadline')}</span>
-            <span class="detail-value">{formatExpiryDate(expiresAt)}</span>
+        <!-- Awaiting status -->
+        <div class="awaiting-row" data-testid="bank-transfer-awaiting">
+            <span class="pulse-dot"></span>
+            <span class="color-grey-60">{$text('settings.billing.bank_transfer_awaiting')}</span>
         </div>
 
-        {#if !isSupportContribution && credits_amount > 0}
-            <p class="credits-info color-grey-40">
-                {$text('settings.billing.bank_transfer_credits_info', { credits: credits_amount.toLocaleString('de-DE') })}
-            </p>
-        {/if}
-
-        <div class="awaiting-status" data-testid="bank-transfer-awaiting">
-            <div class="pulse-dot"></div>
-            <span class="awaiting-text">{$text('settings.billing.bank_transfer_awaiting')}</span>
-        </div>
-
+        <!-- Continue to app button (signup flow only) -->
         {#if allowContinueWithoutPayment}
             <div class="continue-section" data-testid="bank-transfer-continue-section">
                 <button
@@ -316,112 +311,142 @@
 {/if}
 
 <style>
-    .bank-transfer-loading,
-    .bank-transfer-error,
-    .bank-transfer-success {
+    .bt-loading,
+    .bt-error,
+    .bt-completed {
+        padding: 1rem 0.625rem;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
-        gap: 16px;
-        text-align: center;
+        gap: 0.75rem;
     }
 
-    .bank-transfer-details {
+    .retry-link {
+        background: none;
+        border: none;
+        color: var(--color-primary-start);
+        cursor: pointer;
+        font-size: var(--font-size-p, 0.875rem);
+        padding: 0;
+        text-decoration: underline;
+    }
+
+    .bt-details {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 16px 0;
+        gap: 0.5rem;
     }
 
-    .details-heading {
-        font-size: var(--ds-font-size-m);
-        font-weight: 600;
-        color: var(--ds-color-text-primary);
-        margin: 0 0 8px 0;
-    }
-
-    .detail-row {
+    /* ── Detail row (inside SettingsCard) ──────────────────────── */
+    .detail-copyable {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 0.25rem;
+        padding: 0.625rem 0;
+        border-bottom: 0.0625rem solid var(--color-grey-20);
+    }
+
+    .detail-copyable:last-child {
+        border-bottom: none;
     }
 
     .detail-label {
-        font-size: var(--ds-font-size-xs);
-        color: var(--ds-color-text-secondary);
+        font-size: var(--font-size-small, 0.75rem);
+        color: var(--color-font-secondary);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.03em;
     }
 
     .detail-value-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        justify-content: space-between;
+        gap: 0.5rem;
     }
 
     .detail-value {
-        font-size: var(--ds-font-size-s);
-        color: var(--ds-color-text-primary);
+        font-size: var(--font-size-p, 0.875rem);
+        font-weight: 500;
+        color: var(--color-font-primary);
+    }
+
+    .detail-value.selectable {
+        user-select: text;
+        -webkit-user-select: text;
     }
 
     .detail-value.monospace {
-        font-family: var(--ds-font-mono, monospace);
-        letter-spacing: 0.5px;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Menlo', monospace;
+        font-size: 0.8125rem;
     }
 
-    .reference-value {
+    .reference-row .detail-value {
+        color: var(--color-primary-start);
+        font-size: 0.9rem;
         font-weight: 600;
-        color: var(--ds-color-text-accent);
     }
 
-    .reference-warning {
-        font-size: var(--ds-font-size-xs);
-        color: var(--ds-color-text-warning);
-        background: var(--ds-color-bg-warning);
-        padding: 8px 12px;
-        border-radius: var(--ds-radius-s);
-        margin: 4px 0;
-    }
-
-    .copy-btn {
-        font-size: var(--ds-font-size-xs);
-        color: var(--ds-color-text-accent);
-        background: none;
-        border: 1px solid var(--ds-color-border-accent);
-        border-radius: var(--ds-radius-s);
-        padding: 2px 8px;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background-color 0.15s ease;
-    }
-
-    .copy-btn:hover {
-        background: var(--ds-color-bg-hover);
-    }
-
-    .credits-info {
-        font-size: var(--ds-font-size-xs);
-        margin: 4px 0;
-    }
-
-    .awaiting-status {
+    /* ── Copy icon button ─────────────────────────────────────── */
+    .copy-icon-btn {
+        flex-shrink: 0;
+        width: 1.75rem;
+        height: 1.75rem;
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 16px;
-        background: var(--ds-color-bg-secondary);
-        border-radius: var(--ds-radius-m);
-        margin-top: 8px;
+        justify-content: center;
+        background: var(--color-grey-20);
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: background var(--duration-normal, 0.15s) ease;
+    }
+
+    .copy-icon-btn:hover {
+        background: var(--color-grey-30);
+    }
+
+    .copy-icon-inner {
+        display: block;
+        width: 1rem;
+        height: 1rem;
+        background: var(--color-font-secondary);
+        -webkit-mask-image: var(--icon-url-copy, var(--icon-url-duplicate));
+        mask-image: var(--icon-url-copy, var(--icon-url-duplicate));
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        transition: background var(--duration-normal, 0.15s) ease;
+    }
+
+    .copy-icon-btn.copied .copy-icon-inner {
+        -webkit-mask-image: var(--icon-url-check);
+        mask-image: var(--icon-url-check);
+        background: var(--color-success);
+    }
+
+    /* ── Reference hint ──────────────────────────────────────────── */
+    .reference-hint-container {
+        margin: 0.25rem 0;
+    }
+
+    /* ── Awaiting status ─────────────────────────────────────────── */
+    .awaiting-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.625rem;
+        font-size: var(--font-size-small, 0.75rem);
     }
 
     .pulse-dot {
-        width: 8px;
-        height: 8px;
+        width: 0.5rem;
+        height: 0.5rem;
         border-radius: 50%;
-        background: var(--ds-color-text-accent);
+        background: var(--color-primary-start);
         animation: pulse 2s ease-in-out infinite;
+        flex-shrink: 0;
     }
 
     @keyframes pulse {
@@ -429,73 +454,36 @@
         50% { opacity: 0.3; }
     }
 
-    .awaiting-text {
-        font-size: var(--ds-font-size-s);
-        color: var(--ds-color-text-secondary);
-    }
-
+    /* ── Continue to app (signup) ────────────────────────────────── */
     .continue-section {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
-        margin-top: 8px;
-        padding-top: 16px;
-        border-top: 1px solid var(--ds-color-border-subtle);
+        gap: 0.5rem;
+        padding: 1rem 0.625rem 0.5rem;
+        border-top: 0.0625rem solid var(--color-grey-20);
+        margin-top: 0.25rem;
     }
 
     .continue-btn {
         width: 100%;
-        padding: 12px 20px;
-        background: var(--ds-color-bg-accent);
-        color: var(--ds-color-text-on-accent);
+        padding: 0.75rem 1rem;
+        background: var(--color-primary-start);
+        color: #fff;
         border: none;
-        border-radius: var(--ds-radius-m);
-        font-size: var(--ds-font-size-m);
+        border-radius: 0.75rem;
+        font-size: var(--font-size-p, 0.875rem);
         font-weight: 600;
         cursor: pointer;
         transition: opacity 0.15s ease;
     }
 
-    .continue-btn:hover {
-        opacity: 0.9;
-    }
+    .continue-btn:hover { opacity: 0.9; }
 
     .continue-hint {
-        font-size: var(--ds-font-size-xs);
+        font-size: var(--font-size-small, 0.75rem);
         text-align: center;
         margin: 0;
         line-height: 1.4;
-    }
-
-    .error-text {
-        color: var(--ds-color-text-error);
-    }
-
-    .retry-btn {
-        padding: 8px 16px;
-        background: var(--ds-color-bg-accent);
-        color: var(--ds-color-text-on-accent);
-        border: none;
-        border-radius: var(--ds-radius-m);
-        cursor: pointer;
-    }
-
-    .check-icon {
-        display: inline-block;
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: var(--ds-color-bg-success);
-    }
-
-    .success-text {
-        font-size: var(--ds-font-size-m);
-        font-weight: 600;
-        color: var(--ds-color-text-primary);
-    }
-
-    .confirmation-text {
-        font-size: var(--ds-font-size-s);
     }
 </style>
