@@ -118,6 +118,15 @@ export class ChatSynchronizationService extends EventTarget {
       this.stopPendingMessageRetry();
     });
 
+    // Defer websocketStatus subscription to avoid a Temporal Dead Zone (TDZ) crash
+    // when this module is loaded as part of a circular import chain:
+    //   authStore → authSessionActions → appSettingsMemoriesStore → chatSyncService → authStore
+    // In that chain, authStore's const binding hasn't been initialized yet when the
+    // ChatSynchronizationService constructor runs. queueMicrotask defers until after
+    // the synchronous module-evaluation stack completes, at which point authStore is
+    // fully initialized. Behaviour is identical — the initial status check fires before
+    // any user events, just one microtask later.
+    queueMicrotask(() => {
     websocketStatus.subscribe((storeState) => {
       this.webSocketConnected = storeState.status === "connected";
       if (this.webSocketConnected) {
@@ -278,6 +287,7 @@ export class ChatSynchronizationService extends EventTarget {
         }
       }
     });
+    }); // end queueMicrotask
   }
 
   private handlersRegistered = false; // Prevent duplicate registration
