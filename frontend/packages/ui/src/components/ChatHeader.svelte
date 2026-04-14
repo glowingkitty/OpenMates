@@ -501,15 +501,12 @@
         </div>
       {/if}
 
-      <!-- Title: always shown. When a video is set it renders below the play button
-           with reduced opacity so it's legible without blocking the video.
+      <!-- Title: always shown using the standard loaded-title style.
+           When a video is set, .loaded-content is pinned to the bottom so the
+           title sits 15px above the banner edge without blocking the video.
            SECURITY: plain text only — chat titles are AI-generated from user input,
            never render as HTML to prevent stored XSS via prompt injection. -->
-      <span
-        class="loaded-title"
-        class:loaded-title-on-video={!!videoMp4Url}
-        data-testid="chat-header-title"
-      >{title}</span>
+      <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
       <!-- "Example chat" badge: shown for pre-made example chats so unauthenticated users
            understand this is not their own chat. Pill-shaped label below the title. -->
@@ -1181,26 +1178,19 @@
 
   /* ─── Title on video — bottom-aligned, subtle overlay ───────────────────── */
 
-  /* When a video is playing, push content to the bottom of the banner */
+  /* When a video is playing, pin .loaded-content to the bottom of the banner.
+     Existing .loaded-title styles are reused unchanged — no overrides needed.
+     A gradient underlay preserves text readability against the video. */
   :global(.chat-header-banner:has(.header-video)) .loaded-content {
     position: absolute;
-    bottom: 0;
+    bottom: 15px;
     left: 0;
     right: 0;
-    align-items: flex-start;
-    padding: var(--spacing-6) var(--spacing-8);
+    align-items: center;
+    justify-content: flex-end;
+    padding: var(--spacing-4) var(--spacing-8) 0;
     max-width: unset;
-    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);
+    background: none;
     z-index: 2;
-  }
-
-  /* Title on video: slightly smaller, semi-transparent, left-aligned */
-  .loaded-title-on-video {
-    font-size: var(--font-size-small) !important;
-    font-weight: 600 !important;
-    color: rgba(255, 255, 255, 0.75) !important;
-    -webkit-line-clamp: 1 !important;
-    line-clamp: 1 !important;
-    text-align: left !important;
   }
 </style>
