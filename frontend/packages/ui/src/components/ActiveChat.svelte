@@ -74,6 +74,11 @@
         skillStoreExampleFullscreenStore,
         closeSkillStoreExampleFullscreen,
     } from '../stores/skillStoreExampleFullscreenStore'; // Synthetic fullscreen state from app-store skill examples
+    import {
+        introVideoFullscreenStore,
+        closeIntroVideoFullscreen,
+    } from '../stores/introVideoFullscreenStore'; // Intro video fullscreen for the for-everyone demo chat
+    import DirectVideoEmbedFullscreen from '../components/embeds/videos/DirectVideoEmbedFullscreen.svelte';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
@@ -10401,6 +10406,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/await}
             {/if}
             
+            <!-- Intro video fullscreen — for-everyone demo chat header play button.
+                 Rendered here (ActiveChat level) so UnifiedEmbedFullscreen's
+                 position:absolute fills this container correctly. -->
+            <!-- Intro video fullscreen — for-everyone demo chat header play button.
+                 Uses the same .fullscreen-embed-container as wiki/embed fullscreens
+                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute). -->
+            {#if $introVideoFullscreenStore}
+                {@const forEveryoneChat = DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')}
+                {#if forEveryoneChat?.metadata.video_mp4_url}
+                    <div
+                        class="fullscreen-embed-container"
+                        class:side-panel={showSideBySideLayout}
+                        class:overlay-mode={!showSideBySideLayout}
+                        data-testid="intro-video-fullscreen"
+                    >
+                        <DirectVideoEmbedFullscreen
+                            mp4Url={forEveryoneChat.metadata.video_mp4_url}
+                            title={forEveryoneChat.title}
+                            startTime={0}
+                            onClose={() => {
+                                closeIntroVideoFullscreen();
+                                history.replaceState(null, '', window.location.pathname + window.location.search);
+                            }}
+                        />
+                    </div>
+                {/if}
+            {/if}
+
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}
                 on:focusInput={() => messageInputFieldRef.focus()}

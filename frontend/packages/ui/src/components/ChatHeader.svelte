@@ -50,7 +50,7 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
-  import DirectVideoEmbedFullscreen from './embeds/videos/DirectVideoEmbedFullscreen.svelte';
+  import { openIntroVideoFullscreen, closeIntroVideoFullscreen, introVideoFullscreenStore } from '../stores/introVideoFullscreenStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,8 @@
   // ─── Video: background element + state ────────────────────────────────────
 
   let bgVideoEl = $state<HTMLVideoElement | null>(null);
-  let showVideoFullscreen = $state(false);
+  /** Mirror of introVideoFullscreenStore — used to pause bg video when fullscreen opens. */
+  let showVideoFullscreen = $derived($introVideoFullscreenStore);
 
   /** Seek to videoStartTime once metadata is loaded so the loop starts mid-video. */
   function handleBgVideoMetadata() {
@@ -144,25 +145,22 @@
 
   function openVideoFullscreen(e?: MouseEvent) {
     e?.stopPropagation();
-    showVideoFullscreen = true;
+    openIntroVideoFullscreen();
     bgVideoEl?.pause();
     if (browser) window.location.hash = INTRO_VIDEO_HASH;
   }
 
-  function closeVideoFullscreen() {
-    showVideoFullscreen = false;
-    // Resume background video if it's visible
-    if (bgVideoEl) bgVideoEl.play().catch(() => {});
-    if (browser && window.location.hash === `#${INTRO_VIDEO_HASH}`) {
-      history.replaceState(null, '', window.location.pathname + window.location.search);
+  /** Called by ActiveChat (via store) when the fullscreen closes — resume bg video. */
+  $effect(() => {
+    if (!showVideoFullscreen && bgVideoEl) {
+      bgVideoEl.play().catch(() => {});
     }
-  }
+  });
 
   /** Handle browser back/forward navigation clearing the hash. */
   function handleHashChange() {
-    if (browser && !window.location.hash.includes(INTRO_VIDEO_HASH) && showVideoFullscreen) {
-      showVideoFullscreen = false;
-      if (bgVideoEl) bgVideoEl.play().catch(() => {});
+    if (browser && !window.location.hash.includes(INTRO_VIDEO_HASH) && $introVideoFullscreenStore) {
+      closeIntroVideoFullscreen();
     }
   }
 
@@ -480,31 +478,38 @@
       </div>
     {/if}
 
+    <!-- Play button: centered over the video, outside .loaded-content so
+         the content can sit at the bottom without competing for center space -->
+    {#if videoMp4Url}
+      <button
+        class="video-play-btn"
+        onclick={(e) => openVideoFullscreen(e)}
+        type="button"
+        aria-label="Play video"
+        data-testid="chat-header-play-btn"
+      >
+        <div class="video-play-icon" aria-hidden="true"></div>
+      </button>
+    {/if}
+
     <div class="loaded-content">
-      <!-- Play button replaces the category icon when a video is set -->
-      {#if videoMp4Url}
-        <button
-          class="video-play-btn"
-          onclick={(e) => openVideoFullscreen(e)}
-          type="button"
-          aria-label="Play video"
-          data-testid="chat-header-play-btn"
-        >
-          <div class="video-play-icon" aria-hidden="true"></div>
-        </button>
-      {:else if IconComponent}
+      <!-- Category icon: only shown when no video -->
+      {#if !videoMp4Url && IconComponent}
         <!-- Category icon (38×38px) -->
         <div class="loaded-icon" data-testid="chat-header-icon">
           <IconComponent size={38} color="white" />
         </div>
       {/if}
 
-      <!-- Title: hidden when a video background is shown (video speaks for itself).
+      <!-- Title: always shown. When a video is set it renders below the play button
+           with reduced opacity so it's legible without blocking the video.
            SECURITY: plain text only — chat titles are AI-generated from user input,
            never render as HTML to prevent stored XSS via prompt injection. -->
-      {#if !videoMp4Url}
-        <span class="loaded-title" data-testid="chat-header-title">{title}</span>
-      {/if}
+      <span
+        class="loaded-title"
+        class:loaded-title-on-video={!!videoMp4Url}
+        data-testid="chat-header-title"
+      >{title}</span>
 
       <!-- "Example chat" badge: shown for pre-made example chats so unauthenticated users
            understand this is not their own chat. Pill-shaped label below the title. -->
@@ -552,15 +557,9 @@
 
 </div>
 
-<!-- ── Video fullscreen — uses the standard embed fullscreen shell ───────── -->
-{#if showVideoFullscreen && videoMp4Url}
-  <DirectVideoEmbedFullscreen
-    mp4Url={videoMp4Url}
-    title={title}
-    startTime={videoStartTime}
-    onClose={closeVideoFullscreen}
-  />
-{/if}
+<!-- DirectVideoEmbedFullscreen is rendered by ActiveChat.svelte at its level
+     (UnifiedEmbedFullscreen needs position:absolute within ActiveChat, not here).
+     ChatHeader only signals open/close via introVideoFullscreenStore. -->
 
 <style>
   /* ─── Banner container ──────────────────────────────────────────────────── */
@@ -1179,4 +1178,29 @@
   }
 
   /* Video fullscreen is handled by DirectVideoEmbedFullscreen + UnifiedEmbedFullscreen. */
+
+  /* ─── Title on video — bottom-aligned, subtle overlay ───────────────────── */
+
+  /* When a video is playing, push content to the bottom of the banner */
+  :global(.chat-header-banner:has(.header-video)) .loaded-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    align-items: flex-start;
+    padding: var(--spacing-6) var(--spacing-8);
+    max-width: unset;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);
+    z-index: 2;
+  }
+
+  /* Title on video: slightly smaller, semi-transparent, left-aligned */
+  .loaded-title-on-video {
+    font-size: var(--font-size-small) !important;
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+    -webkit-line-clamp: 1 !important;
+    line-clamp: 1 !important;
+    text-align: left !important;
+  }
 </style>
