@@ -4452,6 +4452,140 @@ providers.always_active.sightengine.description:
   pt: Cada imagem e vídeo que você carrega é verificado pela Sightengine para moderação de segurança antes de ser armazenado. A Sightengine vê o conteúdo da imagem ou vídeo.
   fr: "Chaque image et vidéo que tu télécharges est scannée par Sightengine pour la modération de sécurité avant d'être stockée. Sightengine voit le contenu de l'image ou de la vidéo."
   verified_by_human: []
+providers.always_active.api_video.heading:
+  context: Heading for api.video provider entry
+  en: api.video (product video hosting)
+  de: api.video (Produktvideo-Hosting)
+  zh: api.video（产品视频托管）
+  es: api.video (alojamiento de vídeos de producto)
+  ru: api.video (хостинг видео продукта)
+  ja: api.video（製品動画ホスティング）
+  ko: api.video (제품 동영상 호스팅)
+  it: api.video (hosting di video di prodotto)
+  tr: api.video (ürün videosu barındırma)
+  vi: api.video (lưu trữ video sản phẩm)
+  id: api.video (hosting video produk)
+  pl: api.video (hosting wideo produktowego)
+  nl: api.video (productvideohosting)
+  ar: api.video (استضافة مقاطع فيديو المنتج)
+  hi: api.video (उत्पाद वीडियो होस्टिंग)
+  th: api.video (โฮสติ้งวิดีโอผลิตภัณฑ์)
+  cs: api.video (hosting produktových videí)
+  sv: api.video (värdtjänst för produktvideor)
+  he: api.video (אירוח סרטוני מוצר)
+  pt: api.video (hospedagem de vídeos de produto)
+  fr: api.video (hébergement de vidéos de produit)
+  verified_by_human: []
+providers.always_active.api_video.description:
+  context: Description of api.video service — product video hosting used on the website and web app
+  en: >-
+    We use api.video (EU company, France) to host and stream product demo and
+    feature walkthrough videos shown on our website and web app. When you watch
+    a video, your IP address and basic viewing data are processed by api.video.
+    No user account identifiers are shared.
+  de: >-
+    Wir verwenden api.video (EU-Unternehmen, Frankreich) zum Hosten und Streamen
+    von Produkt-Demo- und Feature-Walkthrough-Videos auf unserer Website und
+    Web-App. Wenn du ein Video anschaust, werden deine IP-Adresse und
+    grundlegende Ansichtsdaten von api.video verarbeitet. Es werden keine
+    Benutzerkonto-Kennungen weitergegeben.
+  zh: >-
+    我们使用 api.video（欧盟公司，法国）在网站和网页应用中托管和播放产品演示及功能介绍视频。当你观看视频时，你的 IP 地址和基本观看数据会由
+    api.video 处理。不共享任何用户账号标识符。
+  es: >-
+    Utilizamos api.video (empresa de la UE, Francia) para alojar y transmitir vídeos de
+    demostración de productos y guías de funciones en nuestro sitio web y aplicación
+    web. Cuando ves un vídeo, tu dirección IP y los datos básicos de visualización son
+    procesados por api.video. No se comparten identificadores de cuenta de usuario.
+  ru: >-
+    Мы используем api.video (компания ЕС, Франция) для хостинга и трансляции
+    демонстрационных и обучающих видеороликов о продукте на нашем сайте и
+    веб-приложении. При просмотре видео твой IP-адрес и базовые данные просмотра
+    обрабатываются api.video. Идентификаторы учётных записей пользователей не
+    передаются.
+  ja: >-
+    api.video（EUの企業、フランス）を使用して、ウェブサイトおよびウェブアプリに製品デモや機能紹介動画をホストおよびストリーミングしています。動画を再生すると、あなたのIPアドレスと基本的な視聴データがapi.videoによって処理されます。ユーザーアカウントの識別子は共有されません。
+  ko: >-
+    api.video(EU 기업, 프랑스)를 사용하여 웹사이트 및 웹 앱에서 제품 데모 및 기능 소개 동영상을 호스팅하고 스트리밍합니다.
+    동영상을 시청할 때 귀하의 IP 주소와 기본 시청 데이터가 api.video에 의해 처리됩니다. 사용자 계정 식별자는 공유되지 않습니다.
+  it: >-
+    Utilizziamo api.video (azienda UE, Francia) per ospitare e trasmettere in streaming
+    video dimostrativi dei prodotti e guide alle funzionalità mostrate sul nostro sito
+    web e sull'app web. Quando guardi un video, il tuo indirizzo IP e i dati di
+    visualizzazione di base vengono elaborati da api.video. Non vengono condivisi
+    identificatori di account utente.
+  tr: >-
+    Web sitemizde ve web uygulamamızda gösterilen ürün demo ve özellik tanıtım
+    videolarını barındırmak ve yayın yapmak için api.video (AB şirketi, Fransa)
+    kullanıyoruz. Bir video izlediğinde, IP adresin ve temel izleme verilerin
+    api.video tarafından işlenir. Kullanıcı hesabı tanımlayıcıları paylaşılmaz.
+  vi: >-
+    Chúng tôi sử dụng api.video (công ty EU, Pháp) để lưu trữ và phát trực tuyến
+    các video demo sản phẩm và hướng dẫn tính năng được hiển thị trên trang web
+    và ứng dụng web của chúng tôi. Khi bạn xem video, địa chỉ IP và dữ liệu xem
+    cơ bản của bạn được xử lý bởi api.video. Không có mã định danh tài khoản người
+    dùng nào được chia sẻ.
+  id: >-
+    Kami menggunakan api.video (perusahaan UE, Prancis) untuk menghosting dan
+    melakukan streaming video demo produk dan panduan fitur yang ditampilkan di
+    situs web dan aplikasi web kami. Saat kamu menonton video, alamat IP dan data
+    penayangan dasar kamu diproses oleh api.video. Tidak ada pengidentifikasi
+    akun pengguna yang dibagikan.
+  pl: >-
+    Używamy api.video (firma UE, Francja) do hostowania i streamowania
+    demonstracyjnych filmów produktowych i przewodników po funkcjach
+    wyświetlanych na naszej stronie i w aplikacji webowej. Gdy oglądasz film,
+    Twój adres IP i podstawowe dane oglądalności są przetwarzane przez api.video.
+    Identyfikatory kont użytkowników nie są udostępniane.
+  nl: >-
+    We gebruiken api.video (EU-bedrijf, Frankrijk) voor het hosten en streamen van
+    productdemovideo's en functierondleidingen op onze website en web-app. Wanneer
+    je een video bekijkt, worden je IP-adres en basisweergavegegevens verwerkt door
+    api.video. Er worden geen gebruikersaccount-ID's gedeeld.
+  ar: >-
+    نستخدم api.video (شركة أوروبية، فرنسا) لاستضافة وبث مقاطع الفيديو التجريبية
+    للمنتجات وإرشادات الميزات المعروضة على موقعنا الإلكتروني وتطبيق الويب. عند
+    مشاهدة مقطع فيديو، تتم معالجة عنوان IP الخاص بك وبيانات المشاهدة الأساسية
+    بواسطة api.video. لا يتم مشاركة معرّفات حسابات المستخدمين.
+  hi: >-
+    हम api.video (EU कंपनी, फ्रांस) का उपयोग हमारी वेबसाइट और वेब ऐप पर दिखाए
+    गए उत्पाद डेमो और फीचर वॉकथ्रू वीडियो को होस्ट और स्ट्रीम करने के लिए
+    करते हैं। जब आप कोई वीडियो देखते हैं, तो आपका IP पता और बुनियादी देखने का
+    डेटा api.video द्वारा संसाधित किया जाता है। उपयोगकर्ता खाता पहचानकर्ता साझा
+    नहीं किए जाते।
+  th: >-
+    เราใช้ api.video (บริษัทในสหภาพยุโรป ประเทศฝรั่งเศส) เพื่อโฮสต์และสตรีมวิดีโอสาธิตผลิตภัณฑ์
+    และคำแนะนำการใช้งานฟีเจอร์ที่แสดงบนเว็บไซต์และเว็บแอปของเรา เมื่อคุณดูวิดีโอ ที่อยู่ IP
+    และข้อมูลการรับชมพื้นฐานของคุณจะถูกประมวลผลโดย api.video ไม่มีการแชร์ตัวระบุบัญชีผู้ใช้
+  cs: >-
+    Používáme api.video (společnost EU, Francie) pro hostování a streamování
+    ukázkových a prezentačních videí produktů zobrazených na našem webu a
+    webové aplikaci. Když sledujete video, vaše IP adresa a základní data
+    sledování jsou zpracovávána společností api.video. Identifikátory uživatelských
+    účtů nejsou sdíleny.
+  sv: >-
+    Vi använder api.video (EU-företag, Frankrike) för att vara värd för och strömma
+    produktdemo- och funktionsgenomgångsvideor som visas på vår webbplats och
+    webbapp. När du tittar på ett videoklipp behandlas din IP-adress och grundläggande
+    visningsdata av api.video. Inga användarkonto-identifierare delas.
+  he: >-
+    אנו משתמשים ב-api.video (חברה אירופאית, צרפת) לאחסון ולשידור סרטוני הדגמת
+    מוצרים ומדריכי תכונות המוצגים באתר ובאפליקציית האינטרנט שלנו. כאשר אתה צופה
+    בסרטון, כתובת ה-IP שלך ונתוני הצפייה הבסיסיים מעובדים על ידי api.video. לא
+    משותפים מזהי חשבון משתמש.
+  pt: >-
+    Usamos api.video (empresa da UE, França) para hospedar e transmitir vídeos de
+    demonstração de produtos e tutoriais de funcionalidades exibidos no nosso site
+    e aplicativo web. Quando você assiste a um vídeo, seu endereço IP e dados
+    básicos de visualização são processados pelo api.video. Nenhum identificador
+    de conta de usuário é compartilhado.
+  fr: >-
+    Nous utilisons api.video (entreprise UE, France) pour héberger et diffuser des
+    vidéos de démonstration de produits et des tutoriels de fonctionnalités affichés
+    sur notre site web et notre application web. Lorsque tu regardes une vidéo,
+    ton adresse IP et les données de visionnage de base sont traitées par api.video.
+    Aucun identifiant de compte utilisateur n'est partagé.
+  verified_by_human: []
 providers.payments.heading:
   context: Subheading for Group B providers (payments)
   en: Payment providers (only when you purchase credits)
