@@ -27,10 +27,8 @@ pricingTiers:
       usd: 60
     monthly_auto_top_up_extra_credits: 3000
 
-  # TODO add later as option for power users, with support for SEPA bank transfer only, and only in 'recharge credits' settings menu, not during signup
-  # - credits: 110000
-  #   price:
-  #     eur: 100
-  #     usd: 110
-  #     jpy: 18000
-  #   label: "110.000 credits"
+  # Bank-transfer-only tier: SEPA is EUR-only, so no USD price.
+  - credits: 110000
+    price:
+      eur: 100
+    bank_transfer_only: true
