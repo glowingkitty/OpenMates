@@ -180,6 +180,7 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.payments.stripe", privacyPolicyLinks.stripe);
   renderProvider("legal.privacy.providers.payments.polar", privacyPolicyLinks.polar);
+  renderProvider("legal.privacy.providers.payments.revolut_business", privacyPolicyLinks.revolutBusiness);
 
   // Group C — AI models
   lines.push(`### ${t("legal.privacy.providers.ai_models.heading")}`);

@@ -46,7 +46,7 @@ api.openmates.org {
 	@webapp_paths path /v1/auth/* /v1/payments/* # Webapp paths that require Origin check
 	@webapp_origin header Origin https://openmates.org
 	@options_method method OPTIONS # Renamed for clarity
-	@revolut_webhook path /v1/payments/webhook # Matcher for Revolut webhook
+	@revolut_webhook path /v1/payments/webhook # Matcher for payment provider webhooks (Stripe / Polar / Revolut Business)
 	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
 
 	# --- PUBLIC DEVELOPER API MATCHERS ---
@@ -272,7 +272,7 @@ api.openmates.org {
 			}
 		}
 
-		# 8. Handle Revolut Webhook path (POST only)
+		# 8. Handle payment provider webhook path (Stripe / Polar / Revolut Business — POST only)
 		handle @revolut_webhook {
 			method POST
 			encode gzip zstd

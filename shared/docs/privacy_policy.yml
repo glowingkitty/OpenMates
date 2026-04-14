@@ -118,10 +118,10 @@ data_categories:
       encrypted before transmission.
   payments:
     description: >
-      Payment-related data processed by our payment processors (Stripe and
-      Polar), such as payment method token, transaction ID, billing address
-      and VAT information when required for invoicing. We do not store full
-      card numbers.
+      Payment-related data processed by our payment processors (Stripe,
+      Polar, and Revolut Business for SEPA bank transfers), such as payment
+      method token, transaction ID, billing address and VAT information when
+      required for invoicing. We do not store full card numbers.
   newsletter:
     description: >
       If you opt in to the OpenMates newsletter, we retain your email address
@@ -213,6 +213,23 @@ provider_groups:
           - Payment method token
           - Billing address and VAT information
           - Transaction metadata
+      revolut_business:
+        privacy_policy: https://www.revolut.com/en-LT/legal/privacy/
+        location: EU
+        legal_entity: Revolut Bank UAB (Lithuania)
+        used_for:
+          - receiving SEPA bank transfers as an alternative to card payments
+          - detecting and matching incoming transfers to credit purchase orders via webhook
+        data_shared:
+          - Structured payment reference (a code we generate: no personal data)
+          - Transfer amount and currency
+          - Revolut transaction ID (for our records and dispute handling)
+        notes: >
+          Revolut Bank UAB acts only as the receiving bank. We do not initiate
+          outgoing transfers, and we do not proactively send user personal data
+          to Revolut. The sender's bank routes the transfer using the IBAN we
+          display; Revolut notifies us of the received transfer via a signed
+          webhook containing only transaction metadata.
 
   # =====================================================================
   # Group C — AI model providers. Only used when you pick a model that
@@ -228,7 +245,7 @@ provider_groups:
       always see which provider a model uses in the model details panel.
     providers:
       mistral:
-        privacy_policy: https://mistral.ai/privacy-policy
+        privacy_policy: https://legal.mistral.ai/terms/privacy-policy
         location: EU
         used_for:
           - Mistral-family model inference (when you select a Mistral model)
@@ -388,7 +405,7 @@ provider_groups:
       app, none of your data is shared with them.
     providers:
       serpapi:
-        privacy_policy: https://serpapi.com/legal/privacy-policy
+        privacy_policy: https://serpapi.com/legal#privacy-policy
         location: US
         used_for:
           - flight search (via Google Flights)

@@ -1318,6 +1318,78 @@ polar.privacy_policy_link:
   sv: Polars integritetspolicy
   verified_by_human: []
   he: מדיניות פרטיות של Polar
+revolut_business.heading:
+  context: Section heading for Revolut Bank UAB as a payment provider in the privacy policy
+  en: "3.16 Revolut Business (SEPA Bank Transfer)"
+  de: "3.16 Revolut Business (SEPA-Banküberweisung)"
+  zh: "3.16 Revolut Business（SEPA银行转账）"
+  es: "3.16 Revolut Business (Transferencia bancaria SEPA)"
+  fr: "3.16 Revolut Business (Virement bancaire SEPA)"
+  pt: "3.16 Revolut Business (Transferência bancária SEPA)"
+  ru: "3.16 Revolut Business (SEPA банковский перевод)"
+  ja: "3.16 Revolut Business（SEPA銀行振込）"
+  ko: "3.16 Revolut Business (SEPA 은행 송금)"
+  it: "3.16 Revolut Business (Bonifico bancario SEPA)"
+  tr: "3.16 Revolut Business (SEPA Banka Havalesi)"
+  vi: "3.16 Revolut Business (Chuyển khoản ngân hàng SEPA)"
+  id: "3.16 Revolut Business (Transfer bank SEPA)"
+  pl: "3.16 Revolut Business (Przelew bankowy SEPA)"
+  nl: "3.16 Revolut Business (SEPA-bankoverschrijving)"
+  ar: "3.16 Revolut Business (التحويل البنكي SEPA)"
+  hi: "3.16 Revolut Business (SEPA बैंक ट्रांसफर)"
+  th: "3.16 Revolut Business (โอนเงินผ่านธนาคาร SEPA)"
+  cs: "3.16 Revolut Business (Bankovní převod SEPA)"
+  sv: "3.16 Revolut Business (SEPA-banköverföring)"
+  he: "3.16 Revolut Business (העברה בנקאית SEPA)"
+  verified_by_human: []
+revolut_business.description:
+  context: Description of Revolut Bank UAB as a receiving bank for SEPA transfers — clarifies minimal data sharing
+  en: We use Revolut Bank UAB (Lithuania, EU) as our receiving bank for SEPA bank transfers. When you choose to pay via bank transfer, we display our Revolut IBAN to you. Revolut notifies us via a cryptographically signed webhook when a transfer arrives. We do not send your personal data to Revolut — only the transaction reference, amount, and Revolut's own transaction ID are processed.
+  de: Wir nutzen Revolut Bank UAB (Litauen, EU) als Empfangsbank für SEPA-Überweisungen. Wenn Sie per Banküberweisung zahlen, zeigen wir Ihnen unsere Revolut-IBAN. Revolut benachrichtigt uns per kryptografisch signiertem Webhook, wenn eine Überweisung eingeht. Wir übermitteln keine persönlichen Daten an Revolut — nur Verwendungszweck, Betrag und Revoluts eigene Transaktions-ID werden verarbeitet.
+  zh: 我们使用 Revolut Bank UAB（立陶宛，欧盟）作为 SEPA 银行转账的收款银行。当您选择银行转账付款时，我们会向您显示我们的 Revolut IBAN。当转账到达时，Revolut 通过加密签名的 Webhook 通知我们。我们不会向 Revolut 发送您的个人数据——只处理交易参考、金额和 Revolut 自己的交易 ID。
+  es: Utilizamos Revolut Bank UAB (Lituania, UE) como banco receptor para transferencias bancarias SEPA. Cuando elige pagar mediante transferencia bancaria, le mostramos nuestro IBAN de Revolut. Revolut nos notifica mediante un webhook firmado criptográficamente cuando llega una transferencia. No enviamos sus datos personales a Revolut — solo se procesan la referencia de transacción, el importe y el ID de transacción propio de Revolut.
+  fr: Nous utilisons Revolut Bank UAB (Lituanie, UE) comme banque réceptrice pour les virements bancaires SEPA. Lorsque vous choisissez de payer par virement bancaire, nous vous affichons notre IBAN Revolut. Revolut nous notifie via un webhook signé cryptographiquement lorsqu'un virement arrive. Nous ne transmettons pas vos données personnelles à Revolut — seuls la référence de transaction, le montant et l'ID de transaction de Revolut sont traités.
+  pt: Usamos o Revolut Bank UAB (Lituânia, UE) como banco receptor para transferências bancárias SEPA. Quando opta por pagar via transferência bancária, exibimos o nosso IBAN Revolut. O Revolut notifica-nos via webhook assinado criptograficamente quando uma transferência chega. Não enviamos os seus dados pessoais ao Revolut — apenas a referência de transação, o montante e o ID de transação do próprio Revolut são processados.
+  ru: Мы используем Revolut Bank UAB (Литва, ЕС) в качестве банка-получателя для SEPA-переводов. Когда вы выбираете оплату банковским переводом, мы показываем вам наш IBAN Revolut. Revolut уведомляет нас через криптографически подписанный вебхук о поступлении перевода. Мы не передаём ваши личные данные в Revolut — обрабатываются только назначение платежа, сумма и собственный ID транзакции Revolut.
+  ja: 当社はSEPA銀行振込の受取銀行としてRevolut Bank UAB（リトアニア、EU）を使用しています。銀行振込でのお支払いを選択された場合、当社のRevolut IBANをお知らせします。振込が到着した際、Revoltは暗号署名されたWebhookで当社に通知します。当社はお客様の個人データをRevolutに送信しません。処理されるのは取引参照、金額、RevolutのトランザクションIDのみです。
+  ko: 우리는 SEPA 은행 송금의 수취 은행으로 Revolut Bank UAB(리투아니아, EU)를 사용합니다. 은행 송금으로 결제를 선택하면 Revolut IBAN을 표시합니다. 송금이 도착하면 Revolut은 암호화 서명된 웹훅을 통해 알려줍니다. 귀하의 개인 정보를 Revolut에 보내지 않습니다 — 거래 참조, 금액 및 Revolut의 거래 ID만 처리됩니다.
+  it: Utilizziamo Revolut Bank UAB (Lituania, UE) come banca ricevente per i bonifici bancari SEPA. Quando scegli di pagare tramite bonifico, ti mostriamo il nostro IBAN Revolut. Revolut ci notifica tramite webhook firmato crittograficamente quando arriva un bonifico. Non inviamo i tuoi dati personali a Revolut — vengono elaborati solo il riferimento della transazione, l'importo e l'ID transazione di Revolut.
+  tr: SEPA banka havaleleri için alıcı banka olarak Revolut Bank UAB'ı (Litvanya, AB) kullanıyoruz. Banka havalesiyle ödemeyi seçtiğinizde, Revolut IBAN'ımızı gösteririz. Havale geldiğinde Revolut bizi kriptografik olarak imzalanmış bir webhook aracılığıyla bilgilendirir. Kişisel verilerinizi Revolut'a göndermiyoruz — yalnızca işlem referansı, tutar ve Revolut'un kendi işlem kimliği işlenir.
+  vi: Chúng tôi sử dụng Revolut Bank UAB (Litva, EU) làm ngân hàng nhận tiền cho các giao dịch chuyển khoản ngân hàng SEPA. Khi bạn chọn thanh toán qua chuyển khoản ngân hàng, chúng tôi hiển thị IBAN Revolut của mình. Revolut thông báo cho chúng tôi qua webhook được ký mật mã khi có chuyển khoản đến. Chúng tôi không gửi dữ liệu cá nhân của bạn cho Revolut — chỉ mã tham chiếu giao dịch, số tiền và ID giao dịch của Revolut được xử lý.
+  id: Kami menggunakan Revolut Bank UAB (Lithuania, EU) sebagai bank penerima untuk transfer bank SEPA. Ketika Anda memilih pembayaran melalui transfer bank, kami menampilkan IBAN Revolut kami. Revolut memberi tahu kami melalui webhook yang ditandatangani secara kriptografi ketika transfer tiba. Kami tidak mengirimkan data pribadi Anda ke Revolut — hanya referensi transaksi, jumlah, dan ID transaksi Revolut yang diproses.
+  pl: Używamy Revolut Bank UAB (Litwa, UE) jako banku odbierającego przelewy bankowe SEPA. Gdy wybierzesz płatność przelewem bankowym, wyświetlamy nasz IBAN Revolut. Revolut powiadamia nas przez kryptograficznie podpisany webhook, gdy przelew dotrze. Nie przesyłamy Twoich danych osobowych do Revolut — przetwarzane są tylko referencja transakcji, kwota i własny identyfikator transakcji Revolut.
+  nl: We gebruiken Revolut Bank UAB (Litouwen, EU) als ontvangende bank voor SEPA-bankoverschrijvingen. Wanneer u kiest voor betaling via bankoverschrijving, tonen wij u ons Revolut-IBAN. Revolut stelt ons op de hoogte via een cryptografisch ondertekende webhook wanneer een overschrijving aankomt. Wij sturen uw persoonlijke gegevens niet naar Revolut — alleen de transactiereferentie, het bedrag en het eigen transactie-ID van Revolut worden verwerkt.
+  ar: نستخدم Revolut Bank UAB (ليتوانيا، الاتحاد الأوروبي) كبنك مستقبل لتحويلات SEPA المصرفية. عند اختيار الدفع عبر التحويل المصرفي، نعرض لك رقم IBAN الخاص بـ Revolut. يُخطرنا Revolut عبر webhook موقّع تشفيريًا عند وصول التحويل. لا نرسل بياناتك الشخصية إلى Revolut — تُعالج فقط مرجع المعاملة والمبلغ ومعرّف معاملة Revolut الخاص.
+  hi: हम SEPA बैंक ट्रांसफर के लिए Revolut Bank UAB (लिथुआनिया, EU) को रिसीविंग बैंक के रूप में उपयोग करते हैं। जब आप बैंक ट्रांसफर से भुगतान चुनते हैं, हम आपको अपना Revolut IBAN दिखाते हैं। ट्रांसफर आने पर Revolut हमें क्रिप्टोग्राफिक रूप से हस्ताक्षरित Webhook से सूचित करता है। हम आपका कोई व्यक्तिगत डेटा Revolut को नहीं भेजते — केवल लेनदेन संदर्भ, राशि और Revolut का ट्रांजेक्शन ID प्रोसेस होता है।
+  th: เราใช้ Revolut Bank UAB (ลิทัวเนีย, EU) เป็นธนาคารรับสำหรับการโอนเงินผ่านธนาคาร SEPA เมื่อคุณเลือกชำระด้วยการโอนเงิน เราจะแสดง IBAN Revolut ของเรา Revolut แจ้งเราผ่าน webhook ที่เซ็นด้วยการเข้ารหัสเมื่อการโอนมาถึง เราไม่ส่งข้อมูลส่วนตัวของคุณไปยัง Revolut — ประมวลผลเพียงรหัสอ้างอิงธุรกรรม จำนวนเงิน และ ID ธุรกรรมของ Revolut
+  cs: Jako přijímající banku pro bankovní převody SEPA používáme Revolut Bank UAB (Litva, EU). Když zvolíte platbu bankovním převodem, zobrazíme vám naše Revolut IBAN. Revolut nás informuje prostřednictvím kryptograficky podepsaného webhooku, když převod dorazí. Vaše osobní údaje Revolut nepředáváme — zpracovává se pouze reference transakce, částka a vlastní ID transakce Revolut.
+  sv: Vi använder Revolut Bank UAB (Litauen, EU) som mottagarbank för SEPA-banköverföringar. När du väljer att betala via banköverföring visar vi vår Revolut-IBAN. Revolut meddelar oss via en kryptografiskt signerad webhook när en överföring anländer. Vi skickar inte dina personuppgifter till Revolut — endast transaktionsreferens, belopp och Revoluts eget transaktions-ID behandlas.
+  he: אנו משתמשים ב-Revolut Bank UAB (ליטא, האיחוד האירופי) כבנק מקבל להעברות בנקאיות SEPA. כאשר אתה בוחר לשלם באמצעות העברה בנקאית, אנו מציגים לך את ה-IBAN של Revolut שלנו. Revolut מודיע לנו דרך webhook חתום קריפטוגרפית כאשר העברה מגיעה. אנו לא שולחים את הנתונים האישיים שלך ל-Revolut — רק אסמכתא לעסקה, סכום ומזהה עסקה של Revolut עצמם מעובדים.
+  verified_by_human: []
+revolut_business.privacy_policy_link:
+  context: Link text for Revolut Bank UAB's privacy policy
+  en: Revolut Privacy Policy
+  de: Revolut Datenschutzerklärung
+  zh: Revolut 隐私政策
+  es: Política de privacidad de Revolut
+  fr: Politique de confidentialité de Revolut
+  pt: Política de Privacidade do Revolut
+  ru: Политика конфиденциальности Revolut
+  ja: Revolutプライバシーポリシー
+  ko: Revolut 개인정보 보호정책
+  it: Informativa sulla Privacy di Revolut
+  tr: Revolut Gizlilik Politikası
+  vi: Chính sách Bảo mật của Revolut
+  id: Kebijakan Privasi Revolut
+  pl: Polityka Prywatności Revolut
+  nl: Privacybeleid van Revolut
+  ar: سياسة خصوصية Revolut
+  hi: Revolut गोपनीयता नीति
+  th: นโยบายความเป็นส่วนตัวของ Revolut
+  cs: Zásady ochrany osobních údajů Revolut
+  sv: Revoluts integritetspolicy
+  he: מדיניות פרטיות של Revolut
+  verified_by_human: []
 flightradar24.heading:
   context: Section heading for Flightradar24 as a data provider in the privacy policy
   en: 3.16 Flightradar24
