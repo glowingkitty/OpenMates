@@ -138,9 +138,9 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	test.slow();
 	// Allow extra time: Polar checkout overlay + billing field filling + purchase confirmation
-	// email + account deletion. GHA runners are slower — 480s was insufficient after adding
-	// billing address fields (cross-origin iframe interactions are slow). 600s provides margin.
-	test.setTimeout(600000);
+	// email + account deletion. GHA runners are slower — 600s was insufficient after fixing
+	// billing address (scroll + fill adds ~2min). 900s provides margin.
+	test.setTimeout(900000);
 
 	const logSignupCheckpoint = createSignupLogger('POLAR_SIGNUP_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
@@ -593,9 +593,15 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 		}
 	} catch { /* not present — proceed */ }
 
-	// For Polar, the "auto top-up" step still shows the "Finish setup" button.
-	await page.locator('#signup-finish-setup').click();
-	await page.waitForURL(/chat/);
+	// For Polar, the post-payment page may still show a "Finish setup" button, OR Polar
+	// may have already navigated directly to /chat. Guard with isVisible before clicking.
+	const finishSetupBtn = page.locator('#signup-finish-setup');
+	if (await finishSetupBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await finishSetupBtn.click();
+	}
+	if (!page.url().includes('/chat')) {
+		await page.waitForURL(/chat/, { timeout: 15000 });
+	}
 	await takeStepScreenshot(page, 'chat');
 	logSignupCheckpoint('Arrived in chat after Polar signup.');
 
