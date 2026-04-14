@@ -30,7 +30,8 @@
         supportContribution = false, // When true, this is a supporter contribution
         supportEmail = null, // Email for supporter contributions (non-authenticated users)
         isRecurring = false, // When true, this is a recurring monthly subscription
-        initialProviderOverride = null // When set, forces a specific provider on first load (e.g. 'polar' when user clicked non-EU card)
+        initialProviderOverride = null, // When set, forces a specific provider on first load (e.g. 'polar' when user clicked non-EU card)
+        isSignupFlow = false // When true: signup context → show "Continue to app" button and send reminder email
     }: {
         purchasePrice?: number;
         currency?: string;
@@ -45,6 +46,7 @@
         supportEmail?: string | null;
         isRecurring?: boolean;
         initialProviderOverride?: 'stripe' | 'polar' | null;
+        isSignupFlow?: boolean;
     } = $props();
 
     let hasConsentedToLimitedRefund = $state(false);
@@ -1086,6 +1088,8 @@
                 price={purchasePrice}
                 currency={currency}
                 emailEncryptionKey=""
+                isSignup={isSignupFlow}
+                allowContinueWithoutPayment={isSignupFlow}
                 on:paymentStateChange={(e) => dispatch('paymentStateChange', e.detail)}
             />
         </div>

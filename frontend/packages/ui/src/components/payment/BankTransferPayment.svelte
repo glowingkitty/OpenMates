@@ -24,6 +24,8 @@
         isSupportContribution = false,
         supportEmail = '',
         emailEncryptionKey = '',
+        allowContinueWithoutPayment = false, // signup flow: show "Continue to app" button
+        isSignup = false,                    // signup flow: include is_signup in order request
     }: {
         credits_amount: number;
         price: number;
@@ -31,6 +33,8 @@
         isSupportContribution?: boolean;
         supportEmail?: string;
         emailEncryptionKey?: string;
+        allowContinueWithoutPayment?: boolean;
+        isSignup?: boolean;
     } = $props();
 
     // Component state
@@ -43,6 +47,7 @@
     let iban: string = $state('');
     let bic: string = $state('');
     let bankName: string = $state('');
+    let accountHolderName: string = $state('');
     let amountEur: string = $state('');
     let expiresAt: string = $state('');
 
@@ -73,7 +78,7 @@
 
             const body = isSupportContribution
                 ? { amount: price, currency: currency.toLowerCase(), support_email: supportEmail }
-                : { credits_amount, currency: currency.toLowerCase(), email_encryption_key: emailEncryptionKey };
+                : { credits_amount, currency: currency.toLowerCase(), email_encryption_key: emailEncryptionKey, is_signup: isSignup };
 
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -93,6 +98,7 @@
             iban = data.iban;
             bic = data.bic;
             bankName = data.bank_name;
+            accountHolderName = data.account_holder_name || '';
             amountEur = data.amount_eur;
             expiresAt = data.expires_at;
 
@@ -193,6 +199,22 @@
     <div class="bank-transfer-details" in:fade={{ duration: 200 }} data-testid="bank-transfer-details">
         <h3 class="details-heading">{$text('settings.billing.bank_transfer_details')}</h3>
 
+        {#if accountHolderName}
+            <div class="detail-row" data-testid="bank-transfer-account-holder">
+                <span class="detail-label">{$text('settings.billing.bank_transfer_account_holder')}</span>
+                <div class="detail-value-row">
+                    <span class="detail-value">{accountHolderName}</span>
+                    <button
+                        class="copy-btn"
+                        onclick={() => handleCopy('holder', accountHolderName)}
+                        data-testid="copy-account-holder-btn"
+                    >
+                        {copiedField === 'holder' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
+                    </button>
+                </div>
+            </div>
+        {/if}
+
         <div class="detail-row" data-testid="bank-transfer-iban">
             <span class="detail-label">{$text('settings.billing.bank_transfer_iban')}</span>
             <div class="detail-value-row">
@@ -275,6 +297,21 @@
             <div class="pulse-dot"></div>
             <span class="awaiting-text">{$text('settings.billing.bank_transfer_awaiting')}</span>
         </div>
+
+        {#if allowContinueWithoutPayment}
+            <div class="continue-section" data-testid="bank-transfer-continue-section">
+                <button
+                    class="continue-btn"
+                    onclick={() => dispatch('paymentStateChange', { state: 'bank_transfer_pending', provider: 'bank_transfer', order_id: orderId })}
+                    data-testid="bank-transfer-continue-btn"
+                >
+                    {$text('settings.billing.bank_transfer_continue_to_app')}
+                </button>
+                <p class="continue-hint color-grey-40">
+                    {$text('settings.billing.bank_transfer_continue_hint')}
+                </p>
+            </div>
+        {/if}
     </div>
 {/if}
 
@@ -395,6 +432,40 @@
     .awaiting-text {
         font-size: var(--ds-font-size-s);
         color: var(--ds-color-text-secondary);
+    }
+
+    .continue-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        padding-top: 16px;
+        border-top: 1px solid var(--ds-color-border-subtle);
+    }
+
+    .continue-btn {
+        width: 100%;
+        padding: 12px 20px;
+        background: var(--ds-color-bg-accent);
+        color: var(--ds-color-text-on-accent);
+        border: none;
+        border-radius: var(--ds-radius-m);
+        font-size: var(--ds-font-size-m);
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s ease;
+    }
+
+    .continue-btn:hover {
+        opacity: 0.9;
+    }
+
+    .continue-hint {
+        font-size: var(--ds-font-size-xs);
+        text-align: center;
+        margin: 0;
+        line-height: 1.4;
     }
 
     .error-text {

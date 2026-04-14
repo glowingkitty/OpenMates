@@ -660,17 +660,19 @@ class CreateBankTransferOrderRequest(BaseModel):
     credits_amount: int
     currency: str = "eur"
     email_encryption_key: str  # Stored with the order; needed when transfer arrives 1-2 days later
+    is_signup: bool = False    # True when called from the signup payment step → triggers reminder email
 
 
 class CreateBankTransferOrderResponse(BaseModel):
     order_id: str
-    reference: str          # Structured reference user must include in the transfer
+    reference: str              # Structured reference user must include in the transfer
     iban: str
     bic: str
     bank_name: str
-    amount_eur: str         # Display amount (e.g. "100.00")
+    account_holder_name: str    # Legal account holder name (required for SEPA transfers)
+    amount_eur: str             # Display amount (e.g. "100.00")
     credits_amount: int
-    expires_at: str         # ISO datetime
+    expires_at: str             # ISO datetime
 
 
 class CreateSupportBankTransferRequest(BaseModel):
@@ -766,6 +768,7 @@ async def create_bank_transfer_order(
                 iban=bank_details["iban"],
                 bic=bank_details["bic"],
                 bank_name=bank_details["bank_name"],
+                account_holder_name=bank_details.get("account_holder_name", ""),
                 amount_eur=f"{price_cents / 100:.2f}",
                 credits_amount=order_data.credits_amount,
                 expires_at=existing.get("expires_at", ""),
@@ -823,12 +826,40 @@ async def create_bank_transfer_order(
             f"{order_data.credits_amount} credits, €{price_cents / 100:.2f}, ref={reference}"
         )
 
+        # If called from signup, dispatch a reminder email with the bank transfer details
+        # so the user has them even if they forget to note them during signup.
+        if order_data.is_signup:
+            try:
+                invoice_sender_path = "kv/data/providers/invoice_sender"
+                app.send_task(
+                    name="app.tasks.email_tasks.bank_transfer_reminder_email_task.send_bank_transfer_reminder",
+                    kwargs={
+                        "user_id": str(current_user.id),
+                        "order_id": order_id,
+                        "email_encryption_key": order_data.email_encryption_key,
+                        "iban": bank_details["iban"],
+                        "bic": bank_details["bic"],
+                        "account_holder_name": bank_details.get("account_holder_name", ""),
+                        "bank_name": bank_details["bank_name"],
+                        "amount_eur": f"{price_cents / 100:.2f}",
+                        "credits_amount": order_data.credits_amount,
+                        "reference": reference,
+                        "expires_at": expires_at,
+                        # sender_email resolved inside the task via SecretsManager
+                    },
+                    queue="email",
+                )
+                logger.info(f"Dispatched bank transfer reminder email for signup order {order_id}")
+            except Exception as email_err:
+                logger.error(f"Failed to dispatch bank transfer reminder email: {email_err}")
+
         return CreateBankTransferOrderResponse(
             order_id=order_id,
             reference=reference,
             iban=bank_details["iban"],
             bic=bank_details["bic"],
             bank_name=bank_details["bank_name"],
+            account_holder_name=bank_details.get("account_holder_name", ""),
             amount_eur=f"{price_cents / 100:.2f}",
             credits_amount=order_data.credits_amount,
             expires_at=expires_at,
@@ -927,6 +958,7 @@ async def create_support_bank_transfer_order(
             iban=bank_details["iban"],
             bic=bank_details["bic"],
             bank_name=bank_details["bank_name"],
+            account_holder_name=bank_details.get("account_holder_name", ""),
             amount_eur=f"{order_data.amount / 100:.2f}",
             credits_amount=0,
             expires_at=expires_at,

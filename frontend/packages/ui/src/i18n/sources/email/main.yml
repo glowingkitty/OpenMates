@@ -8369,3 +8369,195 @@ new_api_key_device_not_you:
   sv: "Om det var du kan du ignorera det här e-postmeddelandet.\nOm det inte var du, återkalla din API-nyckel omedelbart i Utvecklarinställningar."
   he: "אם היית זה אתה, תוכל להתעלם מהודעת דואר אלקטרוני זו.\nאם לא היית אתה, בטל את מפתח ה-API שלך מיד בהגדרות המפתח."
   verified_by_human: []
+bank_transfer_reminder:
+  context: Subject / heading of the bank transfer details reminder email sent after signup
+  en: Your bank transfer details
+  de: Ihre Überweisungsdetails
+  zh: 您的银行转账详情
+  es: Sus detalles de transferencia bancaria
+  fr: Vos détails de virement bancaire
+  pt: Seus detalhes de transferência bancária
+  ru: Реквизиты для перевода
+  ja: 銀行振込の詳細
+  ko: 은행 송금 세부 정보
+  it: I suoi dettagli di bonifico bancario
+  tr: Banka havalesi detaylarınız
+  vi: Chi tiết chuyển khoản ngân hàng của bạn
+  id: Detail transfer bank Anda
+  pl: Szczegóły przelewu bankowego
+  nl: Uw overschrijvingsgegevens
+  ar: تفاصيل التحويل البنكي الخاصة بك
+  hi: आपके बैंक ट्रांसफर विवरण
+  th: รายละเอียดการโอนเงินของคุณ
+  cs: Vaše podrobnosti bankovního převodu
+  sv: Dina banköverlöringsuppgifter
+  he: פרטי ההעברה הבנקאית שלך
+  verified_by_human: []
+bank_transfer_reminder_intro:
+  context: Intro text in reminder email — {credits} is replaced with credit count, {amount} with EUR amount
+  en: "Here are the details to add {credits} credits to your account. Please transfer exactly €{amount} with the reference below."
+  de: "Hier sind die Details, um {credits} Credits Ihrem Konto hinzuzufügen. Bitte überweisen Sie genau €{amount} mit dem unten angegebenen Verwendungszweck."
+  zh: "以下是向您账户添加 {credits} 积分的详情。请按以下参考号精确转账 €{amount}。"
+  es: "Aquí están los detalles para añadir {credits} créditos a su cuenta. Por favor transfiera exactamente €{amount} con la referencia a continuación."
+  fr: "Voici les détails pour ajouter {credits} crédits à votre compte. Veuillez transférer exactement €{amount} avec la référence ci-dessous."
+  pt: "Aqui estão os detalhes para adicionar {credits} créditos à sua conta. Por favor, transfira exatamente €{amount} com a referência abaixo."
+  ru: "Вот реквизиты для добавления {credits} кредитов на ваш счёт. Пожалуйста, переведите ровно €{amount} с указанным ниже назначением платежа."
+  ja: "アカウントに {credits} クレジットを追加するための詳細です。以下の参照番号で正確に €{amount} を振り込んでください。"
+  ko: "계정에 {credits} 크레딧을 추가하기 위한 세부 정보입니다. 아래 참조번호로 정확히 €{amount}를 송금해 주세요."
+  it: "Ecco i dettagli per aggiungere {credits} crediti al tuo account. Si prega di trasferire esattamente €{amount} con la causale seguente."
+  tr: "Hesabınıza {credits} kredi eklemek için gerekli detaylar. Lütfen aşağıdaki referans ile tam olarak €{amount} transfer edin."
+  vi: "Đây là chi tiết để thêm {credits} tín dụng vào tài khoản của bạn. Vui lòng chuyển khoản chính xác €{amount} với mã tham chiếu bên dưới."
+  id: "Berikut detail untuk menambahkan {credits} kredit ke akun Anda. Harap transfer tepat €{amount} dengan referensi di bawah."
+  pl: "Oto szczegóły, aby dodać {credits} kredytów do konta. Proszę przelać dokładnie €{amount} z poniższą referencją."
+  nl: "Hier zijn de gegevens om {credits} tegoed aan uw account toe te voegen. Gelieve exact €{amount} over te schrijven met de onderstaande referentie."
+  ar: "إليك التفاصيل لإضافة {credits} رصيد إلى حسابك. يرجى تحويل €{amount} بالضبط مع المرجع أدناه."
+  hi: "अपने खाते में {credits} क्रेडिट जोड़ने के लिए यहां विवरण हैं। नीचे दिए गए संदर्भ के साथ ठीक €{amount} ट्रांसफर करें।"
+  th: "นี่คือรายละเอียดเพื่อเพิ่ม {credits} เครดิตในบัญชีของคุณ กรุณาโอน €{amount} พร้อมรหัสอ้างอิงด้านล่าง"
+  cs: "Zde jsou podrobnosti pro přidání {credits} kreditů na váš účet. Převeďte prosím přesně €{amount} s níže uvedenou referencí."
+  sv: "Här är uppgifterna för att lägga till {credits} krediter på ditt konto. Vänligen överför exakt €{amount} med referensen nedan."
+  he: "כאן הפרטים להוספת {credits} זיכויים לחשבונך. אנא העבר בדיוק €{amount} עם האסמכתא שלהלן."
+  verified_by_human: []
+bank_transfer_account_holder:
+  context: Label for account holder name row in bank transfer reminder email
+  en: Account Holder
+  de: Kontoinhaber
+  zh: 账户持有人
+  es: Titular de la cuenta
+  fr: Titulaire du compte
+  pt: Titular da conta
+  ru: Владелец счёта
+  ja: 口座名義人
+  ko: 계좌 소유자
+  it: Intestatario del conto
+  tr: Hesap sahibi
+  vi: Chủ tài khoản
+  id: Pemilik rekening
+  pl: Właściciel konta
+  nl: Rekeninghouder
+  ar: صاحب الحساب
+  hi: खाताधारक
+  th: เจ้าของบัญชี
+  cs: Majitel účtu
+  sv: Kontoinnehavare
+  he: בעל החשבון
+  verified_by_human: []
+bank_transfer_amount:
+  context: Label for amount row in bank transfer reminder email
+  en: Amount
+  de: Betrag
+  zh: 金额
+  es: Importe
+  fr: Montant
+  pt: Valor
+  ru: Сумма
+  ja: 金額
+  ko: 금액
+  it: Importo
+  tr: Tutar
+  vi: Số tiền
+  id: Jumlah
+  pl: Kwota
+  nl: Bedrag
+  ar: المبلغ
+  hi: राशि
+  th: จำนวนเงิน
+  cs: Částka
+  sv: Belopp
+  he: סכום
+  verified_by_human: []
+bank_transfer_reference:
+  context: Label for payment reference row in bank transfer reminder email
+  en: "Payment Reference (required)"
+  de: "Verwendungszweck (erforderlich)"
+  zh: "付款参考（必填）"
+  es: "Referencia de pago (obligatoria)"
+  fr: "Référence de paiement (obligatoire)"
+  pt: "Referência de pagamento (obrigatória)"
+  ru: "Назначение платежа (обязательно)"
+  ja: "支払い参照（必須）"
+  ko: "결제 참조 (필수)"
+  it: "Causale (obbligatoria)"
+  tr: "Ödeme referansı (gerekli)"
+  vi: "Mã tham chiếu (bắt buộc)"
+  id: "Referensi (wajib)"
+  pl: "Referencja (wymagana)"
+  nl: "Referentie (verplicht)"
+  ar: "المرجع (مطلوب)"
+  hi: "संदर्भ (आवश्यक)"
+  th: "อ้างอิง (จำเป็น)"
+  cs: "Reference (povinná)"
+  sv: "Referens (obligatorisk)"
+  he: "אסמכתא (חובה)"
+  verified_by_human: []
+bank_transfer_reference_warning_short:
+  context: Short note under the reference in reminder email emphasizing the reference must be included exactly
+  en: Include this reference exactly as shown in your transfer.
+  de: Fügen Sie diesen Verwendungszweck exakt wie angegeben in Ihrer Überweisung ein.
+  zh: 请在您的转账中完全按照所示包含此参考号。
+  es: Incluya esta referencia exactamente como se muestra en su transferencia.
+  fr: Incluez cette référence exactement telle qu'indiquée dans votre virement.
+  pt: Inclua esta referência exatamente como mostrado em sua transferência.
+  ru: Укажите это назначение точно так, как показано, в вашем переводе.
+  ja: 振込時にこの参照番号を正確に記載してください。
+  ko: 송금 시 이 참조번호를 정확히 포함하세요.
+  it: Includi questa causale esattamente come indicato nel tuo bonifico.
+  tr: Bu referansı transferinize tam olarak gösterildiği gibi ekleyin.
+  vi: Bao gồm mã tham chiếu này chính xác như được hiển thị trong chuyển khoản.
+  id: Sertakan referensi ini persis seperti yang ditampilkan dalam transfer Anda.
+  pl: Podaj tę referencję dokładnie tak, jak pokazano, w swoim przelewie.
+  nl: Vermeld deze referentie precies zoals weergegeven in uw overschrijving.
+  ar: قم بتضمين هذا المرجع تمامًا كما هو معروض في تحويلك.
+  hi: इस संदर्भ को अपने ट्रांसफर में ठीक वैसे ही शामिल करें जैसा दिखाया गया है।
+  th: ใส่รหัสอ้างอิงนี้ตามที่แสดงในการโอนของคุณ
+  cs: Uveďte tuto referenci přesně tak, jak je zobrazena, ve svém převodu.
+  sv: Inkludera denna referens exakt som visad i din överföring.
+  he: כלול אסמכתא זו בדיוק כפי שמוצגת בהעברה שלך.
+  verified_by_human: []
+bank_transfer_deadline:
+  context: Label for transfer deadline row in bank transfer reminder email
+  en: Transfer by
+  de: Überweisen bis
+  zh: 转账截止日期
+  es: Transferir antes del
+  fr: Transférer avant le
+  pt: Transferir até
+  ru: Перевести до
+  ja: 振込期限
+  ko: 송금 기한
+  it: Trasferire entro il
+  tr: Son transfer tarihi
+  vi: Chuyển khoản trước
+  id: Transfer sebelum
+  pl: Przelej do
+  nl: Overmaken vóór
+  ar: التحويل قبل
+  hi: इस तारीख तक ट्रांसफर करें
+  th: โอนก่อนวันที่
+  cs: Převeďte do
+  sv: Överför senast
+  he: להעביר עד
+  verified_by_human: []
+bank_transfer_reminder_footer:
+  context: Footer note in the bank transfer reminder email
+  en: Questions? Reply to this email or visit our support page.
+  de: Fragen? Antworten Sie auf diese E-Mail oder besuchen Sie unsere Support-Seite.
+  zh: 有问题？回复此邮件或访问我们的支持页面。
+  es: "¿Preguntas? Responda a este correo o visite nuestra página de soporte."
+  fr: "Des questions ? Répondez à cet e-mail ou visitez notre page de support."
+  pt: Dúvidas? Responda a este e-mail ou visite nossa página de suporte.
+  ru: Вопросы? Ответьте на это письмо или посетите нашу страницу поддержки.
+  ja: ご質問は？このメールに返信するか、サポートページをご覧ください。
+  ko: 질문이 있으신가요? 이 이메일에 답장하거나 지원 페이지를 방문하세요.
+  it: Domande? Rispondi a questa email o visita la nostra pagina di supporto.
+  tr: Sorularınız mı var? Bu e-postayı yanıtlayın veya destek sayfamızı ziyaret edin.
+  vi: Có câu hỏi? Trả lời email này hoặc truy cập trang hỗ trợ của chúng tôi.
+  id: Ada pertanyaan? Balas email ini atau kunjungi halaman dukungan kami.
+  pl: Pytania? Odpowiedz na ten e-mail lub odwiedź naszą stronę pomocy.
+  nl: Vragen? Beantwoord deze e-mail of bezoek onze ondersteuningspagina.
+  ar: أسئلة؟ أجب على هذا البريد الإلكتروني أو قم بزيارة صفحة دعمنا.
+  hi: प्रश्न हैं? इस ईमेल का जवाब दें या हमारे सपोर्ट पेज पर जाएं।
+  th: มีคำถาม? ตอบกลับอีเมลนี้หรือเยี่ยมชมหน้าสนับสนุนของเรา
+  cs: Otázky? Odpovězte na tento e-mail nebo navštivte naši stránku podpory.
+  sv: Frågor? Svara på detta e-postmeddelande eller besök vår supportsida.
+  he: שאלות? השב על מייל זה או בקר בדף התמיכה שלנו.
+  verified_by_human: []

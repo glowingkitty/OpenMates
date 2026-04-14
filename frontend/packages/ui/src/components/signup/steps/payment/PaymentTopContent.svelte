@@ -183,7 +183,13 @@ step_10_top_content_svelte:
     }
     
     function handlePaymentStateChange(event) {
-        // Forward payment state changes to parent component
+        // bank_transfer_pending: user clicked "Continue to app" after seeing bank transfer details.
+        // Treat as success so signup advances — credits will arrive when transfer is received.
+        if (event.detail?.state === 'bank_transfer_pending') {
+            dispatch('paymentStateChange', { ...event.detail, state: 'success' });
+            return;
+        }
+        // Forward all other payment state changes to parent component
         dispatch('paymentStateChange', event.detail);
     }
 
@@ -288,12 +294,13 @@ step_10_top_content_svelte:
                         <button class="gift-card-toggle" onclick={openGiftCardInput}>
                             {@html $text('settings.billing.gift_card.have_code')}
                         </button>
-                        <Payment 
-                            {credits_amount} 
-                            purchasePrice={price * 100} 
+                        <Payment
+                            {credits_amount}
+                            purchasePrice={price * 100}
                             {currency}
                             initialState={isGift ? 'success' : 'idle'}
                             {isGift}
+                            isSignupFlow={true}
                             on:consentGiven={handleConsent}
                             on:openRefundInfo={handleOpenRefundInfo}
                             on:paymentStateChange={handlePaymentStateChange}

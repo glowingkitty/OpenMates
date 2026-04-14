@@ -2856,3 +2856,75 @@ invoices_generating:
   sv: Genererar faktura...
   he: מפיק חשבונית...
   verified_by_human: []
+bank_transfer_account_holder:
+  context: Label for the account holder name field in bank transfer details
+  en: Account Holder
+  de: Kontoinhaber
+  zh: 账户持有人
+  es: Titular de la cuenta
+  fr: Titulaire du compte
+  pt: Titular da conta
+  ru: Владелец счёта
+  ja: 口座名義人
+  ko: 계좌 소유자
+  it: Intestatario del conto
+  tr: Hesap sahibi
+  vi: Chủ tài khoản
+  id: Pemilik rekening
+  pl: Właściciel konta
+  nl: Rekeninghouder
+  ar: صاحب الحساب
+  hi: खाताधारक
+  th: เจ้าของบัญชี
+  cs: Majitel účtu
+  sv: Kontoinnehavare
+  he: בעל החשבון
+  verified_by_human: []
+bank_transfer_continue_to_app:
+  context: Button shown below bank transfer details during signup — user continues into the app while transfer is pending
+  en: Continue to app →
+  de: Weiter zur App →
+  zh: 继续进入应用 →
+  es: Continuar a la app →
+  fr: Continuer vers l'app →
+  pt: Continuar para o app →
+  ru: Продолжить в приложение →
+  ja: アプリを続ける →
+  ko: 앱으로 계속 →
+  it: Continua all'app →
+  tr: Uygulamaya devam et →
+  vi: Tiếp tục vào ứng dụng →
+  id: Lanjutkan ke aplikasi →
+  pl: Przejdź do aplikacji →
+  nl: Doorgaan naar app →
+  ar: متابعة إلى التطبيق →
+  hi: ऐप पर जारी रखें →
+  th: ดำเนินการต่อในแอป →
+  cs: Pokračovat do aplikace →
+  sv: Fortsätt till appen →
+  he: המשך לאפליקציה →
+  verified_by_human: []
+bank_transfer_continue_hint:
+  context: Small hint shown below the 'Continue to app' button explaining credits will be applied when transfer arrives
+  en: Credits will be added automatically once your transfer is received (1-2 business days).
+  de: Credits werden automatisch gutgeschrieben, sobald die Überweisung eingegangen ist (1-2 Werktage).
+  zh: 一旦收到转账（1-2个工作日），积分将自动添加。
+  es: Los créditos se añadirán automáticamente cuando se reciba la transferencia (1-2 días hábiles).
+  fr: Les crédits seront ajoutés automatiquement dès réception du virement (1-2 jours ouvrables).
+  pt: Os créditos serão adicionados automaticamente quando a transferência for recebida (1-2 dias úteis).
+  ru: Кредиты будут добавлены автоматически после получения перевода (1-2 рабочих дня).
+  ja: 振込が受領されると自動的にクレジットが追加されます（1〜2営業日）。
+  ko: 송금이 수신되면 자동으로 크레딧이 추가됩니다 (영업일 1-2일).
+  it: I crediti verranno aggiunti automaticamente quando il bonifico sarà ricevuto (1-2 giorni lavorativi).
+  tr: Transfer alındığında krediler otomatik olarak eklenecektir (1-2 iş günü).
+  vi: Tín dụng sẽ được thêm tự động khi nhận được chuyển khoản (1-2 ngày làm việc).
+  id: Kredit akan ditambahkan secara otomatis setelah transfer diterima (1-2 hari kerja).
+  pl: Kredyty zostaną dodane automatycznie po otrzymaniu przelewu (1-2 dni robocze).
+  nl: Tegoed wordt automatisch bijgeschreven wanneer de overschrijving is ontvangen (1-2 werkdagen).
+  ar: ستتم إضافة الرصيد تلقائياً عند استلام التحويل (1-2 أيام عمل).
+  hi: ट्रांसफर प्राप्त होते ही क्रेडिट स्वचालित रूप से जोड़े जाएंगे (1-2 कार्य दिवस)।
+  th: เครดิตจะถูกเพิ่มโดยอัตโนมัติเมื่อได้รับการโอน (1-2 วันทำการ)
+  cs: Kredity budou připsány automaticky po přijetí převodu (1-2 pracovní dny).
+  sv: Krediter läggs till automatiskt när överföringen mottagits (1-2 arbetsdagar).
+  he: הזיכויים יתווספו אוטומטית עם קבלת ההעברה (1-2 ימי עסקים).
+  verified_by_human: []

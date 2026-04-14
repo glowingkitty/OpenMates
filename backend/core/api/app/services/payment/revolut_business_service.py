@@ -65,6 +65,7 @@ class RevolutBusinessService:
         # Static bank details loaded from Vault (avoids API call on every order)
         self._iban: Optional[str] = None
         self._bic: Optional[str] = None
+        self._account_holder_name: Optional[str] = None
 
     async def initialize(self, is_production: bool) -> None:
         """
@@ -75,6 +76,7 @@ class RevolutBusinessService:
           - {env}_webhook_secret
           - {env}_iban
           - {env}_bic
+          - {env}_account_holder_name  (legal account holder name shown to bank transfer senders)
 
         Production and sandbox use separate IBAN/BIC because the sandbox account
         has a different (test) IBAN. Keeping them strictly separated prevents
@@ -116,9 +118,20 @@ class RevolutBusinessService:
                 f"These are displayed to users when they choose bank transfer."
             )
 
+        # Account holder name — required for SEPA transfers (displayed to user for their banking app)
+        self._account_holder_name = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_account_holder_name"
+        )
+        if not self._account_holder_name:
+            logger.warning(
+                f"Revolut Business account holder name for '{env}' is not configured "
+                f"(key: '{env}_account_holder_name'). It is required for SEPA transfers."
+            )
+
         logger.info(
             f"RevolutBusinessService initialized. Production: {is_production}, "
-            f"IBAN: {self._iban[:8]}...{self._iban[-4:]}"
+            f"IBAN: {self._iban[:8]}...{self._iban[-4:]}, "
+            f"Account holder: {self._account_holder_name or '(not set)'}"
         )
 
     def get_bank_details(self) -> Dict[str, str]:
@@ -126,12 +139,13 @@ class RevolutBusinessService:
         Return company bank details for display in the payment UI.
 
         Returns:
-            Dict with 'iban', 'bic', 'bank_name'
+            Dict with 'iban', 'bic', 'bank_name', 'account_holder_name'
         """
         return {
             "iban": self._iban or "",
             "bic": self._bic or "",
             "bank_name": BANK_NAME,
+            "account_holder_name": self._account_holder_name or "",
         }
 
     async def verify_webhook(
