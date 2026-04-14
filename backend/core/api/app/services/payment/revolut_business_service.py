@@ -261,11 +261,19 @@ class RevolutBusinessService:
                 logger.debug("TransactionCreated event is outgoing — skipping")
                 return None
 
+            # Reference is in data.reference for real SEPA transfers.
+            # For sandbox topups (POST /sandbox/topup), Revolut puts the reference
+            # in the leg's description field instead. Fall back to leg description
+            # when data.reference is empty.
+            reference = data.get("reference", "").strip()
+            if not reference:
+                reference = incoming_leg.get("description", "").strip()
+
             return {
                 "event_type": "TransactionCreated",
                 "transaction_id": data.get("id"),
                 "state": data.get("state"),
-                "reference": data.get("reference", ""),
+                "reference": reference,
                 "amount_cents": int(round(incoming_leg["amount"] * 100)),
                 "currency": incoming_leg.get("currency", "").lower(),
                 "counterparty": incoming_leg.get("counterparty", {}),
