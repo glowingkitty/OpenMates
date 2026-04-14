@@ -123,6 +123,13 @@ HEALTH_CHECK_CACHE_TTL = 600
 HEALTH_CHECK_INTERVAL_WITH_ENDPOINT = 60  # 1 minute for providers with /health endpoint
 HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 300  # 5 minutes for providers without /health endpoint
 
+# Consecutive failures required before marking a provider "unhealthy".
+# A single transient failure (e.g. network blip, 15s timeout) is no longer enough to
+# poison the cache for 5 minutes. The provider stays "healthy" during the grace period
+# and gets re-checked on the next interval. Only when N checks in a row fail do we
+# mark it unhealthy. Credential errors bypass this threshold — they are never transient.
+HEALTH_CHECK_FAILURE_THRESHOLD = 3
+
 # Sightengine is throttled independently: one live API call per 2 hours max.
 # The external-services Celery task fires every 5 min; without this guard we
 # would send ~576 image-POST requests/day (2 servers × 288 checks).
@@ -717,30 +724,7 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
                 error = "No available models for test request"
                 logger.warning(f"Health check: Server '{provider_id}' has no models configured that use this server. Cannot perform health check.")
         
-        # Determine status based on single attempt
-        if success:
-            status = "healthy"
-            last_error = None
-            logger.info(f"Health check: Provider '{provider_id}' is healthy ({response_time_ms:.1f}ms)" if response_time_ms else f"Health check: Provider '{provider_id}' is healthy")
-        else:
-            status = "unhealthy"
-            last_error_raw = error
-            last_error = _sanitize_error_message(last_error_raw)
-            
-            # Log with additional context for credential errors
-            if _is_credential_error(last_error_raw):
-                logger.error(
-                    f"Health check: Provider '{provider_id}' is unhealthy due to credential/authentication error. "
-                    f"Error: {last_error_raw}"
-                )
-                logger.warning(
-                    f"Health check: Provider '{provider_id}' requires valid credentials to be configured. "
-                    f"Please verify the credentials in the secrets manager. Health checks will continue to fail until this is resolved."
-                )
-            else:
-                logger.error(f"Health check: Provider '{provider_id}' is unhealthy. Error: {last_error_raw}")
-        
-        # Get existing health data to preserve response_times_ms
+        # Get existing health data first — needed for consecutive-failure tracking
         cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}{provider_id}"
         existing_health_data = {}
         try:
@@ -753,6 +737,57 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
                     existing_health_data = json.loads(existing_data_json)
         except Exception as e:
             logger.debug(f"Could not retrieve existing health data for '{provider_id}': {e}")
+
+        prev_status = existing_health_data.get("status", "healthy")
+        prev_consecutive_failures = int(existing_health_data.get("consecutive_failures", 0))
+
+        # Determine status — apply consecutive-failure threshold for transient errors.
+        # A single timeout or network blip should NOT mark the provider unhealthy; only
+        # N consecutive failures do. Credential errors skip the threshold since they
+        # are persistent by nature and require operator action.
+        last_error_raw = error if not success else None
+        last_error = _sanitize_error_message(last_error_raw) if last_error_raw else None
+        consecutive_failures = 0
+
+        if success:
+            status = "healthy"
+            consecutive_failures = 0
+            logger.info(
+                f"Health check: Provider '{provider_id}' is healthy "
+                f"({response_time_ms:.1f}ms)" if response_time_ms
+                else f"Health check: Provider '{provider_id}' is healthy"
+            )
+        else:
+            consecutive_failures = prev_consecutive_failures + 1
+            is_credential_err = _is_credential_error(last_error_raw)
+
+            if is_credential_err:
+                # Credential errors are persistent — mark unhealthy immediately
+                status = "unhealthy"
+                logger.error(
+                    f"Health check: Provider '{provider_id}' is unhealthy due to credential/authentication error. "
+                    f"Error: {last_error_raw}"
+                )
+                logger.warning(
+                    f"Health check: Provider '{provider_id}' requires valid credentials to be configured. "
+                    f"Please verify the credentials in the secrets manager. Health checks will continue to fail until this is resolved."
+                )
+            elif consecutive_failures >= HEALTH_CHECK_FAILURE_THRESHOLD:
+                # Threshold reached — mark unhealthy
+                status = "unhealthy"
+                logger.error(
+                    f"Health check: Provider '{provider_id}' is unhealthy after "
+                    f"{consecutive_failures} consecutive failures. Error: {last_error_raw}"
+                )
+            else:
+                # Transient failure within grace period — keep previous status (likely "healthy")
+                # so callers don't get blocked by a flaky single attempt.
+                status = "healthy" if prev_status != "unhealthy" else prev_status
+                logger.warning(
+                    f"Health check: Provider '{provider_id}' failed "
+                    f"({consecutive_failures}/{HEALTH_CHECK_FAILURE_THRESHOLD} consecutive), "
+                    f"keeping status '{status}' until threshold reached. Error: {last_error_raw}"
+                )
         
         # Update response_times_ms array (keep last 5)
         response_times_ms = existing_health_data.get("response_times_ms", {})
