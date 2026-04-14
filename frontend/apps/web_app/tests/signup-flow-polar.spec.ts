@@ -462,86 +462,45 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Polar renders these fields in the checkout iframe. Use broad locator strategies:
 	// label text, placeholder text, and common name/autocomplete attributes.
 	// Wait longer (10s) since fields may render after country selection.
-	await page.waitForTimeout(2000); // Let Polar render address fields after country change
+	await page.waitForTimeout(2000); // Let Stripe re-render billing address fields after country change
 
-	// Diagnostic: enumerate all frames + their inputs to find where address fields live.
-	// This runs once, logs to the checkpoint trail, and tells us the exact frame structure.
-	const allFrames = page.frames();
-	for (const f of allFrames) {
-		const fUrl = f.url();
-		if (fUrl.includes('polar') || fUrl.includes('stripe')) {
-			try {
-				const fields = await f.evaluate(() =>
-					Array.from(document.querySelectorAll('input, select')).map(el => ({
-						tag: el.tagName,
-						name: el.getAttribute('name') || '',
-						id: el.getAttribute('id') || '',
-						ac: el.getAttribute('autocomplete') || '',
-						ph: el.getAttribute('placeholder') || '',
-						al: el.getAttribute('aria-label') || '',
-					}))
-				);
-				logSignupCheckpoint(`[DIAG] Frame ${fUrl.slice(0, 80)}: ${JSON.stringify(fields)}`);
-			} catch (e) {
-				logSignupCheckpoint(`[DIAG] Frame ${fUrl.slice(0, 80)}: error enumerating — ${e}`);
-			}
-		}
-	}
+	// After selecting US, Stripe Payment Element renders billing address fields (street, city,
+	// ZIP) INSIDE the same Stripe sub-iframe as the card fields — not in the outer Polar frame.
+	// Use stripeFrame (already defined above) with Stripe's placeholder values.
+	// State remains a <select> in the outer Polar frame.
 
-	// Polar's address inputs don't have <label for=...> association, so getByLabel returns
-	// nothing and the previous Tab-based fallback mis-routed values into the wrong fields.
-	// Use frame.evaluate to query inputs directly by autocomplete/name/placeholder — same
-	// pattern already used for ZIP below.
-	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
-
-	// Billing address line 1
-	if (polarFrame) {
-		const filled = await polarFrame.evaluate(() => {
-			const inputs = Array.from(document.querySelectorAll('input'));
-			const addrField = inputs.find(i =>
-				(i.autocomplete || '').match(/address-line1/i) ||
-				(i.name || '').match(/address_line1|address1|billing_address/i) ||
-				(i.placeholder || '').match(/street address|address line 1/i)
-			);
-			if (addrField) {
-				addrField.value = '123 Test Street';
-				addrField.dispatchEvent(new Event('input', { bubbles: true }));
-				addrField.dispatchEvent(new Event('change', { bubbles: true }));
-				return true;
-			}
-			return false;
-		});
-		logSignupCheckpoint(filled ? 'Filled billing address line 1 via frame evaluate.' : 'WARNING: Billing address field not found — payment may fail.');
-	}
-
-	// City
-	if (polarFrame) {
-		const filled = await polarFrame.evaluate(() => {
-			const inputs = Array.from(document.querySelectorAll('input'));
-			const cityField = inputs.find(i =>
-				(i.autocomplete || '').match(/address-level2/i) ||
-				(i.name || '').match(/city/i) ||
-				(i.placeholder || '').match(/city/i)
-			);
-			if (cityField) {
-				cityField.value = 'New York';
-				cityField.dispatchEvent(new Event('input', { bubbles: true }));
-				cityField.dispatchEvent(new Event('change', { bubbles: true }));
-				return true;
-			}
-			return false;
-		});
-		logSignupCheckpoint(filled ? 'Filled billing city via frame evaluate.' : 'WARNING: Billing city field not found.');
-	}
-
-	// ZIP / Postal code
-	const zipInput = polarIframe.getByLabel(/zip|postal/i).first()
-		.or(polarIframe.locator('input[name*="postal"], input[name*="zip"]').first());
-	if (await zipInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await zipInput.fill('10001');
-		logSignupCheckpoint('Filled billing ZIP via locator.');
+	// Billing address line 1 — inside Stripe iframe
+	const stripeAddressInput = stripeFrame.locator(
+		'input[placeholder="Street address"], input[id="Field-addressLine1Input"], input[autocomplete="address-line1"]'
+	).first();
+	if (await stripeAddressInput.isVisible({ timeout: 8000 }).catch(() => false)) {
+		await stripeAddressInput.fill('123 Test Street');
+		logSignupCheckpoint('Filled billing address line 1 via stripeFrame.');
 	} else {
-		// Fallback: use frame evaluate to find and fill the postal code input
+		logSignupCheckpoint('WARNING: Billing address field not found in stripeFrame — payment may fail.');
+	}
+
+	// City — inside Stripe iframe
+	const stripeCityInput = stripeFrame.locator(
+		'input[placeholder="City"], input[id="Field-localityInput"], input[autocomplete="address-level2"]'
+	).first();
+	if (await stripeCityInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await stripeCityInput.fill('New York');
+		logSignupCheckpoint('Filled billing city via stripeFrame.');
+	} else {
+		logSignupCheckpoint('WARNING: Billing city field not found in stripeFrame.');
+	}
+
+	// ZIP / Postal code — try Stripe iframe first, fall back to Polar outer frame
+	const stripeZipInput = stripeFrame.locator(
+		'input[placeholder="ZIP"], input[placeholder="Postal code"], input[id="Field-postalCodeInput"]'
+	).first();
+	if (await stripeZipInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await stripeZipInput.fill('10001');
+		logSignupCheckpoint('Filled billing ZIP via stripeFrame.');
+	} else {
+		// Fall back to outer Polar frame (some Polar layouts keep ZIP outside Stripe)
+		const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
 		if (polarFrame) {
 			await polarFrame.evaluate(() => {
 				const inputs = Array.from(document.querySelectorAll('input'));
@@ -556,8 +515,8 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 					zipField.dispatchEvent(new Event('change', { bubbles: true }));
 				}
 			});
-			logSignupCheckpoint('Filled billing ZIP via frame evaluate.');
 		}
+		logSignupCheckpoint('Filled billing ZIP via polarFrame fallback.');
 	}
 
 	// State — Polar uses a <select> dropdown
