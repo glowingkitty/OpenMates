@@ -10423,9 +10423,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     >
                         <DirectVideoEmbedFullscreen
                             mp4Url={forEveryoneChat.metadata.video_mp4_url}
-                            thumbnailUrl={forEveryoneChat.metadata.video_thumbnail_url || ''}
                             title={activeChatDecryptedTitle || ''}
-                            startTime={0}
                             onClose={() => {
                                 closeIntroVideoFullscreen();
                                 history.replaceState(null, '', window.location.pathname + window.location.search);
