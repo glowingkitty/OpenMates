@@ -38,16 +38,46 @@ router = APIRouter(prefix="/v1/wikipedia", tags=["Wikipedia"])
 # Credit cost per API-key request to the Wikipedia proxy
 CREDITS_PER_REQUEST = 1
 
-# Differentiated rate limits (per client IP):
-#   - Authenticated (session cookie or API key): 60/min
-#   - Anonymous origin-only (unauth web-app visitors): 15/min
-# Protects outbound Wikipedia quota from unauth abuse while giving logged-in users
-# reasonable headroom. SlowAPI evaluates the callable on every request.
-def _wiki_rate_limit(request: Request) -> str:
+# Anonymous (origin-only) rate limit — enforced manually via Redis below, since
+# SlowAPI's decorator callable has no access to the request and can't read auth state.
+# Authenticated callers (session cookie OR API key) use the 60/minute slowapi cap.
+ANON_RATE_LIMIT_PER_MINUTE = 15
+
+
+async def _check_anon_rate_limit(request: Request) -> None:
+    """Manually enforce 15/min for anonymous callers (no cookie, no API key).
+    Uses a Redis counter keyed by IP. Raises 429 when exceeded."""
     has_cookie = bool(request.cookies.get("auth_refresh_token"))
     auth_header = request.headers.get("Authorization", "")
     has_api_key = auth_header.startswith("Bearer ")
-    return "60/minute" if (has_cookie or has_api_key) else "15/minute"
+    if has_cookie or has_api_key:
+        return  # authenticated — slowapi's 60/min applies
+
+    # Anonymous — apply stricter 15/min per IP
+    try:
+        from backend.core.api.app.services.cache import CacheService
+        from slowapi.util import get_remote_address
+        ip = get_remote_address(request) or "unknown"
+        # Bucket per current minute so counter auto-rolls
+        import time
+        bucket = int(time.time()) // 60
+        key = f"wiki_anon_rl:{ip}:{bucket}"
+        c = await CacheService().client
+        if not c:
+            return  # Redis unavailable — fail open
+        count = await c.incr(key)
+        if count == 1:
+            await c.expire(key, 90)  # slightly more than 1 minute
+        if count > ANON_RATE_LIMIT_PER_MINUTE:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit exceeded for unauthenticated callers ({ANON_RATE_LIMIT_PER_MINUTE}/min). "
+                       f"Log in or use an API key for higher limits.",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.debug(f"[wikipedia_proxy] anon rate check failed (open): {e}")
 
 
 async def _authorize_request(request: Request) -> Dict[str, Any]:
@@ -114,7 +144,7 @@ async def _charge_if_api_key(auth_info: Dict[str, Any], skill_id: str) -> None:
 
 
 @router.get("/summary")
-@limiter.limit(_wiki_rate_limit)
+@limiter.limit("60/minute")
 async def wikipedia_summary(
     request: Request,
     title: str = Query(..., min_length=1, max_length=300, description="Canonical Wikipedia article title"),
@@ -130,6 +160,7 @@ async def wikipedia_summary(
         raise HTTPException(status_code=400, detail="Invalid language code")
 
     auth_info = await _authorize_request(request)
+    await _check_anon_rate_limit(request)
 
     try:
         data = await fetch_page_summary(title=title, language=language)
@@ -145,7 +176,7 @@ async def wikipedia_summary(
 
 
 @router.get("/wikidata/{qid}")
-@limiter.limit(_wiki_rate_limit)
+@limiter.limit("60/minute")
 async def wikidata_entity(request: Request, qid: str) -> JSONResponse:
     """
     Proxy a Wikidata entity lookup (structured claims, labels, descriptions).
@@ -157,6 +188,7 @@ async def wikidata_entity(request: Request, qid: str) -> JSONResponse:
         raise HTTPException(status_code=400, detail="Invalid QID")
 
     auth_info = await _authorize_request(request)
+    await _check_anon_rate_limit(request)
 
     try:
         data = await fetch_wikidata_entity(qid=qid)
