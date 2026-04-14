@@ -14,7 +14,7 @@
     import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
-    import { parse_message, convertWikiTopicLinksOnDoc } from '../message_parsing/parse_message';
+    import { parse_message } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
@@ -32,8 +32,6 @@
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
     // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
-    import type { WikipediaTopic } from '../message_parsing/types';
-    import { wikiTopicsStore } from '../stores/wikiTopicsStore';
 
     let {
         content,
@@ -42,8 +40,7 @@
         selectable = false,
         piiMappings = undefined,
         piiRevealed = false,
-        role = undefined,
-        wikipediaTopics = undefined
+        role = undefined
     }: {
         content: string | Record<string, unknown> | null;
         isStreaming?: boolean;
@@ -52,15 +49,7 @@
         piiMappings?: PIIMapping[];
         piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
         role?: "user" | "assistant" | "system"; // Message role — passed to parse_message for single-embed large promotion
-        wikipediaTopics?: WikipediaTopic[]; // Validated Wikipedia topics for inline link injection
     } = $props(); // The message content from Tiptap JSON
-
-    // Resolve wikipedia topics: prefer prop (if explicitly passed) → fall back to global store.
-    // The store approach bypasses the prop chain timing issue where the IntersectionObserver
-    // fires createEditor() before the prop has propagated through 4 component levels.
-    let effectiveWikiTopics = $derived(
-        (wikipediaTopics && wikipediaTopics.length > 0) ? wikipediaTopics : ($wikiTopicsStore.length > 0 ? $wikiTopicsStore as WikipediaTopic[] : undefined)
-    );
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
@@ -538,7 +527,7 @@
                 // Handle special translation keys
                 if (inputContent === 'chat.an_error_occured') {
                     const translatedText = $text('chat.an_error_occured');
-                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
+                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true, role });
                 }
 
                 // Performance optimization: Check cache before parsing
@@ -547,8 +536,7 @@
                 // This handles the case where embed data becomes available after initial render
                 // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
-                const wikiCacheFragment = effectiveWikiTopics?.length ? `:wiki${effectiveWikiTopics.length}` : '';
-                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}${wikiCacheFragment}:${inputContent}`;
+                const cacheKey = `${READ_ONLY_PARSE_CACHE_VERSION}:${currentLocale}:${role || 'unknown'}:${inputContent}`;
                 
                 // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
                 // This is necessary because embed NodeViews need to call resolveEmbed() again
@@ -566,7 +554,7 @@
                 }
 
                 // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
-                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
+                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true, role });
                 
                 // Only cache if not bypassing (avoid polluting cache with stale embed state)
                 if (!bypassCache) {
@@ -591,7 +579,7 @@
                     } else if (isMarkdownContent(textContent)) {
                         // If the text content looks like markdown, parse it with unified parsing
                         logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');
-                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
+                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true, role });
                     }
                 }
                 
@@ -600,13 +588,6 @@
                 // Instead, we rely on ChatHistory to re-process messages from original_message when locale changes
                 // Content is already processed by ChatHistory, don't double-process
                 // NOTE: For locale changes, ChatHistory should provide new content with updated translations
-
-                // Apply Wikipedia inline link conversion to pre-parsed TipTap JSON docs.
-                // This handles the case where content arrives as TipTap JSON (e.g. from
-                // ChatHistory's G_mapToInternalMessage) and was never run through parse_message.
-                if (effectiveWikiTopics?.length && role === 'assistant') {
-                    return convertWikiTopicLinksOnDoc(newContent, effectiveWikiTopics);
-                }
                 return newContent;
             }
             
@@ -614,7 +595,7 @@
             const stringContent = String(inputContent);
             if (isMarkdownContent(stringContent)) {
                 logger.debug('Converting unknown content type to markdown');
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
             }
             
             // Fallback: return content as-is (should already be processed)
@@ -626,7 +607,7 @@
             // Final fallback: try to parse as markdown text
             try {
                 const stringContent = typeof inputContent === 'string' ? inputContent : String(inputContent);
-                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role, wikipediaTopics: effectiveWikiTopics });
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true, role });
             } catch (markdownError) {
                 logger.debug("Markdown parsing also failed, returning simple paragraph", markdownError);
                 
@@ -1115,9 +1096,6 @@
         // but become decryptable after send_embed_data finishes processing
         const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
 
-        // Track effectiveWikiTopics so the effect re-runs when topics arrive
-        // (e.g. post-processing completes after editor was already created, or store updates)
-        const hasWikiTopics = effectiveWikiTopics && effectiveWikiTopics.length > 0;
         
         if (localeChanged) {
             previousLocale = currentLocale;
@@ -1184,13 +1162,13 @@
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
             
-            if (contentChanged || localeChanged || hasEmbedUpdate || hasWikiTopics) {
+            if (contentChanged || localeChanged || hasEmbedUpdate) {
                 if (hasEmbedUpdate) {
                     logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
                 }
 
-                // During streaming but with locale/embed/wiki update: use full replacement
-                const forceFullReplace = localeChanged || !!hasEmbedUpdate || !!hasWikiTopics;
+                // During streaming but with locale/embed update: use full replacement
+                const forceFullReplace = localeChanged || !!hasEmbedUpdate;
                 applyContentUpdate(newProcessedContent, isStreaming, forceFullReplace);
             }
         } else if (editor && !content) {

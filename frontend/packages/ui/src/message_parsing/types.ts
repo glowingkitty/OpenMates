@@ -102,21 +102,8 @@ export interface ParseMessageOptions {
   // Only "assistant" messages get this promotion; user messages render as-is.
   role?: "user" | "assistant" | "system";
 
-  // Validated Wikipedia topics for inline link rendering (accumulated per-chat).
-  // When present, text nodes matching topic phrases are wrapped in wikiInline nodes.
-  wikipediaTopics?: WikipediaTopic[];
-
   // Additional options can be added here
-  [key: string]: string | boolean | WikipediaTopic[] | undefined;
-}
-
-/** A validated Wikipedia topic entry from the post-processor. */
-export interface WikipediaTopic {
-  topic: string;
-  wiki_title: string;
-  wikidata_id: string | null;
-  thumbnail_url: string | null;
-  description: string | null;
+  [key: string]: string | boolean | undefined;
 }
 
 export interface EmbedStoreEntry {

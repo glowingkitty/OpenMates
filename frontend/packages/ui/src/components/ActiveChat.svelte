@@ -454,14 +454,6 @@
         lineCount: 0
     });
 
-    // Keep the wikiTopicsStore in sync with the current chat's wikipedia_topics.
-    // ReadOnlyMessage reads from this store directly (bypasses the prop chain which
-    // has timing issues with lazy IntersectionObserver-based TipTap editor init).
-    import { wikiTopicsStore } from '../stores/wikiTopicsStore';
-    $effect(() => {
-        wikiTopicsStore.set(currentChat?.wikipedia_topics ?? []);
-    });
-
     // Wikipedia fullscreen — triggered by clicking a wiki inline link in an assistant message
     let showWikiFullscreen = $state(false);
     let wikiFullscreenData = $state<{
@@ -6457,15 +6449,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug('[ActiveChat] Chat header title updated from post-processing:', decryptedTitle);
                         }
                     }
-                    // Decrypt Wikipedia topics for inline link rendering
-                    if (incomingChatMetadata.encrypted_wikipedia_topics) {
-                        try {
-                            const wikiJson = await decryptWithChatKey(incomingChatMetadata.encrypted_wikipedia_topics, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_wikipedia_topics' });
-                            if (wikiJson && currentChat) {
-                                currentChat = { ...currentChat, wikipedia_topics: JSON.parse(wikiJson) };
-                            }
-                        } catch { /* keep existing topics */ }
-                    }
                 }
             } catch (err) {
                 console.error(`[ActiveChat] handleChatUpdated: Failed to decrypt post-processing metadata: chat_id=${incomingChatId}`, err);
@@ -6984,15 +6967,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               }
                               if (chatForHeader.encrypted_chat_summary) {
                                   try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
-                              }
-                              // Decrypt Wikipedia topics for inline link rendering
-                              if (chatForHeader.encrypted_wikipedia_topics) {
-                                  try {
-                                      const wikiJson = await decryptWithChatKey(chatForHeader.encrypted_wikipedia_topics, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_wikipedia_topics' });
-                                      if (wikiJson) {
-                                          chatForHeader.wikipedia_topics = JSON.parse(wikiJson);
-                                      }
-                                  } catch { /* keep undefined */ }
                               }
                               if (t && c) {
                                   activeChatDecryptedTitle = t;
@@ -10017,7 +9991,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
-                         wikipediaTopics={currentChat?.wikipedia_topics}
                          onSuggestionClick={handleSuggestionClick}
                          on:messagesChange={handleMessagesChange}
                          on:chatUpdated={handleChatUpdated}

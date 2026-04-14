@@ -84,7 +84,6 @@ function exampleChatToChat(example: ExampleChat): Chat {
     unread_count: 0,
     created_at: timestamp,
     updated_at: timestamp,
-    wikipedia_topics: example.wikipedia_topics,
   };
 }
 

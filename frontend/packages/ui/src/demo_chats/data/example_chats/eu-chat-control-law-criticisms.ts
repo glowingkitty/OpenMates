@@ -469,11 +469,4 @@ skill_id: search`,
     featured: true,
     order: 5,
   },
-  wikipedia_topics: [
-    { topic: "end-to-end encryption", wiki_title: "End-to-end encryption", wikidata_id: "Q1340257", thumbnail_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/End-to-End_Encryption.png/330px-End-to-End_Encryption.png", description: "Secure communications method" },
-    { topic: "European Parliament", wiki_title: "European Parliament", wikidata_id: "Q8889", thumbnail_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/European_Parliament_logo.svg/330px-European_Parliament_logo.svg.png", description: "Directly elected legislature of the European Union" },
-    { topic: "European Commission", wiki_title: "European Commission", wikidata_id: "Q8880", thumbnail_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Belgique_-_Bruxelles_-_Schuman_-_Berlaymont_-_01.jpg/330px-Belgique_-_Bruxelles_-_Schuman_-_Berlaymont_-_01.jpg", description: "Executive branch of the European Union" },
-    { topic: "mass surveillance", wiki_title: "Mass surveillance", wikidata_id: "Q1425056", thumbnail_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Globe_eye_icon.svg/330px-Globe_eye_icon.svg.png", description: "Intricate surveillance of an entire or a substantial fraction of a population" },
-    { topic: "General Data Protection Regulation", wiki_title: "General Data Protection Regulation", wikidata_id: "Q1172506", thumbnail_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Flag_of_Europe.svg/330px-Flag_of_Europe.svg.png", description: "EU regulation on information privacy" },
-  ],
 };

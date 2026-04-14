@@ -1875,13 +1875,6 @@ export async function handlePostProcessingCompletedImpl(
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
     updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
-    wikipedia_topics?: Array<{
-      topic: string;
-      wiki_title: string;
-      wikidata_id: string | null;
-      thumbnail_url: string | null;
-      description: string | null;
-    }>; // Validated Wikipedia topic entries for inline link rendering
   },
 ): Promise<void> {
   console.info(
@@ -1896,7 +1889,6 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
     let encryptedUpdatedTitle: string | null = null;
-    let encryptedWikipediaTopics: string | null = null;
 
     const chat = await chatDB.getChat(payload.chat_id);
     if (!chat) {
@@ -2020,39 +2012,13 @@ export async function handlePostProcessingCompletedImpl(
       }
     }
 
-    // Encrypt and merge Wikipedia topics (accumulated per-chat, deduplicated by wiki_title)
-    if (payload.wikipedia_topics && payload.wikipedia_topics.length > 0) {
-      // Merge with existing topics, deduplicate by wiki_title
-      const existing = chat.wikipedia_topics || [];
-      const existingTitles = new Set(
-        existing.map((t: { wiki_title: string }) => t.wiki_title),
-      );
-      const merged = [
-        ...existing,
-        ...payload.wikipedia_topics.filter(
-          (t) => !existingTitles.has(t.wiki_title),
-        ),
-      ];
-      encryptedWikipediaTopics = await encryptWithChatKey(
-        JSON.stringify(merged),
-        chatKey,
-      );
-      chat.encrypted_wikipedia_topics = encryptedWikipediaTopics;
-      chat.wikipedia_topics = merged;
-      console.debug(
-        `[ChatSyncService:AI] Merged ${payload.wikipedia_topics.length} Wikipedia topics ` +
-          `(${merged.length} total) for chat ${payload.chat_id}`,
-      );
-    }
-
     // Update chat with all encrypted metadata at once
     if (
       payload.follow_up_request_suggestions?.length > 0 ||
       payload.chat_summary ||
       payload.chat_tags?.length > 0 ||
       encryptedTopRecommendedApps ||
-      encryptedUpdatedTitle ||
-      encryptedWikipediaTopics
+      encryptedUpdatedTitle
     ) {
       await chatDB.updateChat(chat);
       // CRITICAL: Invalidate metadata cache so context menu shows updated summary
@@ -2082,8 +2048,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedChatSummary ||
       encryptedChatTags ||
       encryptedTopRecommendedApps ||
-      encryptedUpdatedTitle ||
-      encryptedWikipediaTopics
+      encryptedUpdatedTitle
     ) {
       const { sendPostProcessingMetadataImpl } =
         await import("./chatSyncServiceSenders");
@@ -2102,7 +2067,6 @@ export async function handlePostProcessingCompletedImpl(
         encryptedTopRecommendedApps || "",
         encryptedUpdatedTitle || "",
         encryptedChatKeyForValidation,
-        encryptedWikipediaTopics || "",
       );
       console.debug(
         `[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`,
