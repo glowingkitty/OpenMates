@@ -98,7 +98,7 @@ assistant_message_1:
 
     #### 1. The "Backdoor" to Encryption
     The most significant criticism involves **[End-to-End Encryption](wiki:End-to-end_encryption) (E2EE)**. Services like [Signal](wiki:Signal_(software)) and [WhatsApp](wiki:WhatsApp) use E2EE so that only the sender and receiver can read a message.
-    *   **The Conflict:** To scan these messages for illegal content, the EU proposed **"[Client-Side Scanning](wiki:Client-side_scanning)"**—software on your phone that checks your photos and texts *before* they are encrypted and sent.
+    *   **The Conflict:** To scan these messages for illegal content, the EU proposed **"Client-Side Scanning"**—software on your phone that checks your photos and texts *before* they are encrypted and sent.
     *   **The Criticism:** Security experts and [privacy advocates](embed:globalencryption.org-83i) argue that this effectively creates a "backdoor." Once such a mechanism exists, it can be exploited by hackers, foreign intelligence services, or future authoritarian governments to monitor any type of speech.
 
     #### 2. Shift to Mass Surveillance
@@ -160,7 +160,7 @@ assistant_message_1:
 
     #### 1. Die „Hintertür" zur Verschlüsselung
     Die bedeutendste Kritik betrifft die **[Ende-zu-Ende-Verschlüsselung](wiki:Ende-zu-Ende-Verschlüsselung) (E2EE)**. Dienste wie [Signal](wiki:Signal_(Messenger)) und [WhatsApp](wiki:WhatsApp) verwenden E2EE, sodass nur Absender und Empfänger eine Nachricht lesen können.
-    *   **Der Konflikt:** Um diese Nachrichten auf illegale Inhalte zu scannen, schlug die EU das **„[Client-Side Scanning](wiki:Client-Side_Scanning)"** vor – Software auf Ihrem Telefon, die Ihre Fotos und Texte *vor* der Verschlüsselung und dem Versand überprüft.
+    *   **Der Konflikt:** Um diese Nachrichten auf illegale Inhalte zu scannen, schlug die EU das **„Client-Side Scanning"** vor – Software auf Ihrem Telefon, die Ihre Fotos und Texte *vor* der Verschlüsselung und dem Versand überprüft.
     *   **Die Kritik:** Sicherheitsexperten und [Datenschutzbefürworter](embed:globalencryption.org-83i) argumentieren, dass dies faktisch eine „Hintertür" schafft. Sobald ein solcher Mechanismus existiert, kann er von Hackern, ausländischen Geheimdiensten oder künftigen autoritären Regierungen ausgenutzt werden, um jede Art von Kommunikation zu überwachen.
 
     #### 2. Übergang zur Massenüberwachung
