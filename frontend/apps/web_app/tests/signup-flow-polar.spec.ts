@@ -581,6 +581,18 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	// ─── Post-payment flow ────────────────────────────────────────────────────────
 
+	// Dismiss any in-page credential/password-manager overlay that Chrome may inject
+	// after account creation (e.g. "Use your password manager…" advice modal).
+	// These appear on top of the UI and block clicks on #signup-finish-setup.
+	try {
+		await page.keyboard.press('Escape');
+		const credentialContinue = page.getByRole('button', { name: /^continue$/i });
+		if (await credentialContinue.isVisible({ timeout: 2000 })) {
+			await credentialContinue.click();
+			logSignupCheckpoint('Dismissed credential/password-manager overlay.');
+		}
+	} catch { /* not present — proceed */ }
+
 	// For Polar, the "auto top-up" step still shows the "Finish setup" button.
 	await page.locator('#signup-finish-setup').click();
 	await page.waitForURL(/chat/);
