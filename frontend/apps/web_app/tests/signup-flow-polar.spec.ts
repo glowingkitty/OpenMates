@@ -464,68 +464,101 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Wait longer (10s) since fields may render after country selection.
 	await page.waitForTimeout(2000); // Let Stripe re-render billing address fields after country change
 
-	// After selecting US, Stripe Payment Element renders billing address fields (street, city,
-	// ZIP) INSIDE the same Stripe sub-iframe as the card fields — not in the outer Polar frame.
-	// Use stripeFrame (already defined above) with Stripe's placeholder values.
-	// State remains a <select> in the outer Polar frame.
+	// polarFrame is needed here and also further below for the submit scroll.
+	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
 
-	// Billing address line 1 — inside Stripe iframe
-	const stripeAddressInput = stripeFrame.locator(
-		'input[placeholder="Street address"], input[id="Field-addressLine1Input"], input[autocomplete="address-line1"]'
-	).first();
-	if (await stripeAddressInput.isVisible({ timeout: 8000 }).catch(() => false)) {
-		await stripeAddressInput.fill('123 Test Street');
-		logSignupCheckpoint('Filled billing address line 1 via stripeFrame.');
-	} else {
-		logSignupCheckpoint('WARNING: Billing address field not found in stripeFrame — payment may fail.');
-	}
+	// Billing address fields (street, city, ZIP) may appear in any Stripe sub-iframe within
+	// the Polar iframe. Stripe Payment Element can use separate iframes per field group, so
+	// we can't rely on .first() alone. Try each sub-iframe index 0..5 for each field,
+	// then fall back to polarFrame.evaluate for fields that may live in the Polar outer frame.
 
-	// City — inside Stripe iframe
-	const stripeCityInput = stripeFrame.locator(
-		'input[placeholder="City"], input[id="Field-localityInput"], input[autocomplete="address-level2"]'
-	).first();
-	if (await stripeCityInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await stripeCityInput.fill('New York');
-		logSignupCheckpoint('Filled billing city via stripeFrame.');
-	} else {
-		logSignupCheckpoint('WARNING: Billing city field not found in stripeFrame.');
-	}
-
-	// ZIP / Postal code — try Stripe iframe first, fall back to Polar outer frame
-	const stripeZipInput = stripeFrame.locator(
-		'input[placeholder="ZIP"], input[placeholder="Postal code"], input[id="Field-postalCodeInput"]'
-	).first();
-	if (await stripeZipInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await stripeZipInput.fill('10001');
-		logSignupCheckpoint('Filled billing ZIP via stripeFrame.');
-	} else {
-		// Fall back to outer Polar frame (some Polar layouts keep ZIP outside Stripe)
-		const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
-		if (polarFrame) {
-			await polarFrame.evaluate(() => {
-				const inputs = Array.from(document.querySelectorAll('input'));
-				const zipField = inputs.find(i =>
-					(i.name || '').match(/postal|zip/i) ||
-					(i.placeholder || '').match(/postal|zip/i) ||
-					(i.autocomplete || '').match(/postal/i)
-				);
-				if (zipField) {
-					zipField.value = '10001';
-					zipField.dispatchEvent(new Event('input', { bubbles: true }));
-					zipField.dispatchEvent(new Event('change', { bubbles: true }));
+	// Helper: find first visible match across sub-iframes
+	const fillInAnySubIframe = async (
+		selector: string,
+		value: string,
+		label: string
+	): Promise<boolean> => {
+		for (let idx = 0; idx < 6; idx++) {
+			const subFrame = polarIframe.frameLocator('iframe').nth(idx);
+			try {
+				const el = subFrame.locator(selector).first();
+				if (await el.isVisible({ timeout: 1500 }).catch(() => false)) {
+					await el.fill(value);
+					logSignupCheckpoint(`Filled ${label} in Polar sub-iframe[${idx}].`);
+					return true;
 				}
-			});
+			} catch {
+				break;
+			}
 		}
-		logSignupCheckpoint('Filled billing ZIP via polarFrame fallback.');
+		return false;
+	};
+
+	// Billing address line 1
+	const addrFilled = await fillInAnySubIframe(
+		'input[placeholder="Street address"], input[id="Field-addressLine1Input"], input[autocomplete="address-line1"]',
+		'123 Test Street',
+		'billing address'
+	);
+	if (!addrFilled && polarFrame) {
+		const ok = await polarFrame.evaluate(() => {
+			const inputs = Array.from(document.querySelectorAll('input'));
+			const f = inputs.find(i =>
+				(i.autocomplete || '').match(/address-line1/i) ||
+				(i.name || '').match(/address_line1|address1|billing_address/i) ||
+				(i.placeholder || '').match(/street address|address line 1/i)
+			);
+			if (f) { f.value = '123 Test Street'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); return true; }
+			return false;
+		});
+		logSignupCheckpoint(ok ? 'Filled billing address via polarFrame evaluate.' : 'WARNING: Billing address field not found anywhere — payment may fail.');
 	}
 
-	// State — Polar uses a <select> dropdown
+	// City
+	const cityFilled = await fillInAnySubIframe(
+		'input[placeholder="City"], input[id="Field-localityInput"], input[autocomplete="address-level2"]',
+		'New York',
+		'billing city'
+	);
+	if (!cityFilled && polarFrame) {
+		const ok = await polarFrame.evaluate(() => {
+			const inputs = Array.from(document.querySelectorAll('input'));
+			const f = inputs.find(i =>
+				(i.autocomplete || '').match(/address-level2/i) ||
+				(i.name || '').match(/city/i) ||
+				(i.placeholder || '').match(/city/i)
+			);
+			if (f) { f.value = 'New York'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); return true; }
+			return false;
+		});
+		logSignupCheckpoint(ok ? 'Filled billing city via polarFrame evaluate.' : 'WARNING: Billing city field not found anywhere.');
+	}
+
+	// ZIP / Postal code
+	const zipFilled = await fillInAnySubIframe(
+		'input[placeholder="ZIP"], input[placeholder="Postal code"], input[id="Field-postalCodeInput"], input[autocomplete="postal-code"]',
+		'10001',
+		'billing ZIP'
+	);
+	if (!zipFilled && polarFrame) {
+		await polarFrame.evaluate(() => {
+			const inputs = Array.from(document.querySelectorAll('input'));
+			const f = inputs.find(i =>
+				(i.name || '').match(/postal|zip/i) ||
+				(i.placeholder || '').match(/postal|zip/i) ||
+				(i.autocomplete || '').match(/postal/i)
+			);
+			if (f) { f.value = '10001'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); }
+		});
+		logSignupCheckpoint('Filled billing ZIP via polarFrame evaluate fallback.');
+	}
+
+	// State — Polar uses a <select> in the outer Polar frame
 	const stateSelect = polarIframe.locator('select[name*="state"], select[autocomplete*="address-level1"]').first();
 	if (await stateSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await stateSelect.selectOption({ label: 'New York' });
 		logSignupCheckpoint('Selected billing state via select dropdown.');
 	} else if (polarFrame) {
-		// Fallback: find select via frame evaluate
 		await polarFrame.evaluate(() => {
 			const selects = Array.from(document.querySelectorAll('select'));
 			const stateEl = selects.find(s =>
@@ -542,7 +575,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 				}
 			}
 		});
-		logSignupCheckpoint('Selected billing state via frame evaluate.');
+		logSignupCheckpoint('Selected billing state via polarFrame evaluate.');
 	}
 
 	await takeStepScreenshot(page, 'polar-billing-filled');
@@ -556,8 +589,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// The "Pay now" button is in the Polar iframe but may be below the iframe's scroll
 	// viewport after filling billing fields. Scroll the iframe body to the bottom first,
 	// then click the button. (polarFrame was already obtained above for billing fields.)
-	const polarFrameForSubmit = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
-	if (polarFrameForSubmit) {
+	if (polarFrame) {
 		await polarFrame.evaluate(() => {
 			const scrollable = document.querySelector('[class*="checkout"]') ||
 				document.querySelector('form') || document.scrollingElement || document.body;
