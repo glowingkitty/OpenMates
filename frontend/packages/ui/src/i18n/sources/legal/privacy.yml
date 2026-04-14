@@ -3996,6 +3996,22 @@ promises.no_training_on_user_data.description:
   context: Privacy promise description — no training on user data
   en: Our contracts with AI providers such as Anthropic, OpenAI, and Mistral include explicit no-training clauses. Your chats are never used to fine-tune, evaluate, or otherwise train the underlying models.
   verified_by_human: []
+promises.no_external_resources.heading:
+  context: Privacy promise heading — no external images or scripts
+  en: The web app never loads external images or scripts
+  verified_by_human: []
+promises.no_external_resources.description:
+  context: Privacy promise description — no external images or scripts
+  en: "Every external image, favicon, or preview shown in the app is fetched through our own preview.openmates.org proxy — the originating website never sees your IP address. The only third-party scripts the web app loads are the payment SDKs (Stripe and Polar) needed to process a purchase, and those only when you explicitly open the payment flow. There is no ad network, tag manager, CDN font loader, or third-party analytics library."
+  verified_by_human: []
+promises.cli_no_credential_prompts.heading:
+  context: Privacy promise heading — CLI never prompts for credentials
+  en: The command-line tool never asks for your password
+  verified_by_human: []
+promises.cli_no_credential_prompts.description:
+  context: Privacy promise description — CLI never prompts for credentials
+  en: "The OpenMates CLI never prompts you for your email, password, 2FA code, or any other login credential. Authentication uses a browser-based pair-auth handshake: the CLI shows a QR code and URL, you approve the session in your logged-in web browser, and you type a short 6-character binding PIN back into the CLI to confirm. Your credentials never pass through the terminal."
+  verified_by_human: []
 promises.open_source_transparency.heading:
   context: Privacy promise heading — open source transparency
   en: Every claim on this page is independently auditable

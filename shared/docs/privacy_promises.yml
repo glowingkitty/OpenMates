@@ -241,6 +241,56 @@ promises:
     tests: []
     surfaced_in_policy: true
 
+  - id: no-external-resources
+    category: tracking
+    severity: critical
+    i18n_key: legal.privacy.promises.no_external_resources
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 25", "Art. 32"]
+    enforcement:
+      - file: frontend/packages/ui/src/utils/imageProxy.ts
+        what: All external images and favicons route through preview.openmates.org — external hosts never see the user's IP
+      - file: frontend/packages/ui/src/config/api.ts
+        what: Canonical preview-server URL (preview.openmates.org) used by proxyImage/proxyFavicon
+      - file: frontend/apps/web_app/src/hooks.server.ts
+        what: CSP headers restrict frame and base-uri; payment iframes (Stripe/Polar) are the only permitted third-party embeds
+      - file: frontend/packages/ui/src/components/Payment.svelte
+        what: Payment component is the single controlled entry point for third-party scripts (@stripe/stripe-js)
+      - file: .claude/hooks/external-resources-guard.sh
+        what: Pre-edit hook reminds contributors whenever an external URL appears in frontend code outside the approved payment paths
+    tests:
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: no-external-resources
+        assertion: "Scans frontend source (excluding tests, mocks, and payment components) for direct https:// image/script loads that bypass proxyImage/proxyFavicon."
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: cli-no-credential-prompts
+    category: auth
+    severity: high
+    i18n_key: legal.privacy.promises.cli_no_credential_prompts
+    verification: test
+    gdpr_articles: ["Art. 32", "Art. 5(1)(f)"]
+    enforcement:
+      - file: frontend/packages/openmates-cli/src/cli.ts
+        what: CLI command router — `openmates login` delegates to pair-auth only, never to a password flow
+      - file: frontend/packages/openmates-cli/src/client.ts
+        what: Pair-auth handshake implementation — the only interactive prompt is the 6-char binding PIN shown in the browser after approval
+      - file: .claude/hooks/cli-credential-prompt-guard.sh
+        what: Pre-edit hook blocks introduction of password/email/2FA/TOTP/OTP prompts or credential-input libraries in CLI source
+    tests:
+      - kind: e2e
+        path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
+        marker: cli-no-credential-prompts
+        assertion: "End-to-end pair-auth flow — CLI shows QR + pair URL, user approves in browser, CLI receives binding PIN. No password/email/2FA prompt is shown by the CLI."
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: cli-no-credential-prompts
+        assertion: "Scans frontend/packages/openmates-cli/src/**/*.ts for forbidden credential-prompt strings and credential-input library imports."
+    architecture_doc: docs/architecture/apps/cli-package.md
+    surfaced_in_policy: true
+
   - id: open-source-transparency
     category: transparency
     severity: medium

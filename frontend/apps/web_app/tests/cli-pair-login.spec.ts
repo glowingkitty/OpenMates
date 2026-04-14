@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /* eslint-disable no-console */
+// @privacy-promise: cli-no-credential-prompts
 export {};
 
 /**

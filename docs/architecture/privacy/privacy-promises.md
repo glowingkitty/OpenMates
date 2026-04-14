@@ -48,7 +48,7 @@ Shape enforcement lives in `shared/docs/privacy_promises.schema.json`.
 
 ## The promises (current set)
 
-Twelve promises ship today — ten verified by runtime tests, two verified by documentation (contractual / structural). The authoritative list is the registry; this table is a summary.
+Fourteen promises ship today — twelve verified by runtime tests, two verified by documentation (contractual / structural). The authoritative list is the registry; this table is a summary.
 
 | # | ID | Category | Verification |
 |---|------|----------|--------------|
@@ -62,8 +62,10 @@ Twelve promises ship today — ten verified by runtime tests, two verified by do
 | 8 | `payment-data-minimization` | payment | test |
 | 9 | `logging-redaction` | logging | test |
 | 10 | `prompt-injection-defense` | pii | test |
-| 11 | `no-training-on-user-data` | transparency | documentation |
-| 12 | `open-source-transparency` | transparency | documentation |
+| 11 | `no-external-resources` | tracking | test |
+| 12 | `cli-no-credential-prompts` | auth | test |
+| 13 | `no-training-on-user-data` | transparency | documentation |
+| 14 | `open-source-transparency` | transparency | documentation |
 
 ## Verification layers
 
@@ -168,7 +170,9 @@ Never downgrade silently — every change to a public promise belongs in the com
 - `frontend/packages/ui/src/legal/__tests__/privacyPromises.test.ts` — vitest companion
 
 **Guards**
-- `.claude/hooks/privacy-promise-guard.sh` — PreToolUse warn hook
+- `.claude/hooks/privacy-promise-guard.sh` — PreToolUse warn hook (generic, fires whenever an enforcement file is touched)
+- `.claude/hooks/cli-credential-prompt-guard.sh` — blocks password / email / 2FA prompts in CLI source (pair-auth PIN excepted)
+- `.claude/hooks/external-resources-guard.sh` — reminds whenever a non-allowlisted https URL is loaded by the web app
 - `.claude/agents/legal-compliance-auditor.md` — twice-weekly cross-check
 
 **Policy integration**

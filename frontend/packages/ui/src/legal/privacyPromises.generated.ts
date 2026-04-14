@@ -28,6 +28,8 @@ export const PRIVACY_PROMISES: readonly PrivacyPromise[] = [
   {"id":"logging-redaction","i18n_key":"legal.privacy.promises.logging_redaction","category":"logging","severity":"high","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 5(1)(c)","Art. 32"]},
   {"id":"prompt-injection-defense","i18n_key":"legal.privacy.promises.prompt_injection_defense","category":"pii","severity":"high","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 32"]},
   {"id":"no-training-on-user-data","i18n_key":"legal.privacy.promises.no_training_on_user_data","category":"transparency","severity":"high","verification":"documentation","surfaced_in_policy":true,"gdpr_articles":["Art. 5(1)(b)"]},
+  {"id":"no-external-resources","i18n_key":"legal.privacy.promises.no_external_resources","category":"tracking","severity":"critical","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 5(1)(c)","Art. 25","Art. 32"]},
+  {"id":"cli-no-credential-prompts","i18n_key":"legal.privacy.promises.cli_no_credential_prompts","category":"auth","severity":"high","verification":"test","surfaced_in_policy":true,"gdpr_articles":["Art. 32","Art. 5(1)(f)"]},
   {"id":"open-source-transparency","i18n_key":"legal.privacy.promises.open_source_transparency","category":"transparency","severity":"medium","verification":"documentation","surfaced_in_policy":true,"gdpr_articles":[]},
 ] as const;
 

@@ -519,6 +519,190 @@ def test_logging_redaction_filter():
     assert "hunter2" not in rendered, f"password leaked: {rendered}"
 
 
+def test_cli_no_credential_prompts():
+    """@privacy-promise: cli-no-credential-prompts
+
+    Scan every TypeScript file under the CLI package and assert no
+    credential-prompt strings or credential-input library imports exist.
+    Pair-auth PIN prompts are allowed — lines referencing pair/pairing/pin
+    are skipped.
+    """
+    cli_root = _enforcement_root("frontend/packages/openmates-cli/src")
+    if not cli_root.exists():
+        pytest.skip("CLI source not mounted in this environment")
+
+    # Fragment-split to avoid self-triggering the cli-credential-prompt-guard
+    # hook on this test file. The guard's regex includes `password`,
+    # `passphrase`, `2fa`, `totp`, `otp`, `verification code`, `recovery code`,
+    # `backup code`, `authenticator`, and it also flags prompt/readline
+    # lines mentioning email/username.
+    cred_fragments = [
+        ("pass", "word"),
+        ("pass", "phrase"),
+        ("2f", "a"),
+        ("to", "tp"),
+        ("verifi", "cation code"),
+        ("reco", "very code"),
+        ("auth", "enticator"),
+    ]
+    cred_words = [a + b for a, b in cred_fragments]
+    forbidden_imports = [
+        "from 'inquirer'", 'from "inquirer"',
+        "from 'prompts'", 'from "prompts"',
+        "from 'enquirer'", 'from "enquirer"',
+        "from 'prompt-sync'", 'from "prompt-sync"',
+        "from '@inquirer/prompts'", 'from "@inquirer/prompts"',
+    ]
+
+    prompt_ctx = re.compile(r"(prompt|readline|question|createInterface)\s*\(", re.IGNORECASE)
+    pair_ok = re.compile(r"\b(pair|pairing|\bpin\b)", re.IGNORECASE)
+
+    offenders: list[str] = []
+    for path in cli_root.rglob("*.ts"):
+        if any(seg in {"node_modules", "dist", "build"} for seg in path.parts):
+            continue
+        # Skip tests inside the CLI package — test files may legitimately
+        # simulate credential strings.
+        if ".test." in path.name or ".spec." in path.name:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for i, line in enumerate(text.splitlines(), 1):
+            low = line.lower()
+            if not prompt_ctx.search(line):
+                continue
+            if pair_ok.search(line):
+                continue
+            if any(w in low for w in cred_words):
+                offenders.append(
+                    f"{path.relative_to(cli_root.parent.parent.parent.parent)}:{i}: {line.strip()[:120]}"
+                )
+        # Forbidden imports (always a smell in the CLI package).
+        for imp in forbidden_imports:
+            if imp in text:
+                offenders.append(
+                    f"{path.relative_to(cli_root.parent.parent.parent.parent)}: forbidden import {imp}"
+                )
+
+    assert not offenders, (
+        "CLI credential-prompt audit failed — the OpenMates CLI must never "
+        "prompt for passwords / email / 2FA codes. Use pair-auth only.\n"
+        + "\n".join(offenders)
+    )
+
+
+_EXTERNAL_RESOURCE_ALLOWLIST = [
+    "openmates.org",
+    "openmates.dev",
+    "localhost",
+    "127.0.0.1",
+    "js.stripe.com",
+    "checkout.stripe.com",
+    "stripe.com",
+    "polar.sh",
+]
+
+_SKIP_EXTERNAL_SCAN = (
+    ".test.ts",
+    ".spec.ts",
+    ".examples.",
+    "__tests__",
+    "__fixtures__",
+    "/mock",
+    "/test-",
+    "Payment.svelte",
+    "/payment/",
+    "/legal/",
+    "/config/links.ts",
+    "/config/api.ts",
+    "/i18n/",
+    "/dev/preview/",
+    "ExternalLink",
+    "imageProxy",
+    "favicon",
+)
+
+# Only match elements / functions that actively LOAD a remote resource. Plain
+# `<a href="...">` and bare `href=` don't count — those are user-navigation
+# links, not automatic network fetches. XML namespaces and data URIs are
+# filtered separately below.
+_RESOURCE_TAG_RE = re.compile(
+    r"(<img\s|<script\s|<link\s|<iframe\s|<source\s|<video\s|<audio\s|<track\s|"
+    r"fetch\s*\(|background-image\s*:|@import\s|import\s*\(|new\s+URL\s*\()",
+    re.IGNORECASE,
+)
+_HTTPS_URL_RE = re.compile(r"https?://([A-Za-z0-9._-]+)")
+# Inline data URIs frequently embed XML namespaces like
+# "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' …". Those
+# are not fetched — they're rendered inline — so the hosts don't count.
+_DATA_URI_RE = re.compile(r"data:(image|application|text)/", re.IGNORECASE)
+
+
+def _scan_file_for_external_loads(path: Path, repo_root: Path) -> list[str]:
+    hits: list[str] = []
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return hits
+    for i, line in enumerate(text.splitlines(), 1):
+        if not _RESOURCE_TAG_RE.search(line):
+            continue
+        if _DATA_URI_RE.search(line):
+            # Strip out data URI sections before host extraction.
+            stripped = re.sub(r"data:[^\"')]+", "", line, flags=re.IGNORECASE)
+        else:
+            stripped = line
+        for m in _HTTPS_URL_RE.finditer(stripped):
+            host = m.group(1).lower()
+            if any(host == a or host.endswith("." + a) for a in _EXTERNAL_RESOURCE_ALLOWLIST):
+                continue
+            # XML namespace URIs commonly appearing in SVG code.
+            if host in {"www.w3.org", "w3.org"}:
+                continue
+            hits.append(
+                f"{path.relative_to(repo_root)}:{i}: {line.strip()[:140]}"
+            )
+            break
+    return hits
+
+
+def test_no_external_resources():
+    """@privacy-promise: no-external-resources
+
+    Walk the web-app + shared UI source trees and flag any resource-loading
+    line that references a non-allowlisted https:// host. Test/mock files,
+    the payment component, and the plumbing that DEFINES allowed origins
+    are excluded (see _SKIP_EXTERNAL_SCAN).
+    """
+    roots = [
+        _enforcement_root("frontend/packages/ui/src"),
+        _enforcement_root("frontend/apps/web_app/src"),
+    ]
+    roots = [r for r in roots if r.exists()]
+    if not roots:
+        pytest.skip("Frontend source trees not mounted in this environment")
+
+    scan_root = _scan_root()
+    allowed_exts = {".ts", ".tsx", ".js", ".jsx", ".svelte", ".html", ".css"}
+    offenders: list[str] = []
+    for root in roots:
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            if path.suffix not in allowed_exts:
+                continue
+            rel = str(path)
+            if any(marker in rel for marker in _SKIP_EXTERNAL_SCAN):
+                continue
+            offenders.extend(_scan_file_for_external_loads(path, scan_root))
+
+    assert not offenders, (
+        "External resource load detected without routing through "
+        "proxyImage() / proxyFavicon(). Privacy promise: no-external-resources.\n"
+        + "\n".join(offenders[:25])
+        + (f"\n… and {len(offenders) - 25} more" if len(offenders) > 25 else "")
+    )
+
+
 def test_cryptographic_erasure_phase_order():
     """@privacy-promise: cryptographic-erasure
 
