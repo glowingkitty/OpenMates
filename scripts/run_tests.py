@@ -59,6 +59,15 @@ SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
 LOCKFILE_HOURLY_DEV = Path("/tmp/openmates-hourly-dev-tests.lock")
 LOCKFILE_HOURLY_PROD = Path("/tmp/openmates-hourly-prod-tests.lock")
+# Written by the Claude Code docker-restart-marker hook whenever a
+# `docker compose down/restart/stop` command is detected. Hourly smoke
+# runs check this file and skip if Docker was restarted too recently.
+DOCKER_RESTART_MARKER = Path("/tmp/openmates-last-docker-restart")
+DOCKER_GRACE_MINUTES = 10  # skip smoke runs for 10 min after a restart
+# After this many consecutive suppressed ticks (same failure hash), the
+# summary is re-posted even though nothing changed, so the Discord channel
+# doesn't go silent for hours during a prolonged outage.
+RENOTIFY_AFTER_TICKS = 3
 WORKFLOW_NAME = "playwright-spec.yml"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 GH_REPO = "glowingkitty/OpenMates"
@@ -1329,8 +1338,14 @@ class NotificationService:
         # the operator already sees the latest screenshots/timings; a
         # fresh summary post would just be channel noise.
         #
-        # State layout: state["summary"] = {"hash": "<sha>", "last_seen": "<iso>"}
+        # State layout: state["summary"] = {
+        #   "hash": "<sha>", "last_seen": "<iso>", "suppressed_count": N
+        # }
+        # After RENOTIFY_AFTER_TICKS consecutive suppressed ticks we re-post
+        # a "still failing" reminder so the channel doesn't go silent for
+        # hours during a prolonged outage.
         new_summary_hash: Optional[str] = None
+        is_renotify = False
         if state_file is not None and suite_name_for_dedup is not None:
             current_keys: dict[str, str] = {}
             for sname, sdata in result.suites.items():
@@ -1342,24 +1357,58 @@ class NotificationService:
             existing_state = _load_discord_state(state_file)
             prev = existing_state.get("summary", {}) or {}
             prev_hash = prev.get("hash", "")
-            # Skip if: same failure set as last tick AND we've already
-            # posted a summary for it AND there's nothing new to say.
+            prev_suppressed = int(prev.get("suppressed_count", 0))
+            # Same failure set as last tick: either suppress or re-notify.
             if (
                 new_summary_hash
                 and new_summary_hash == prev_hash
                 and not all_passed
             ):
-                _log(
-                    f"Discord ({mode_label}): same failure set as last tick "
-                    f"({new_summary_hash}) — summary suppressed"
-                )
-                return
+                new_suppressed = prev_suppressed + 1
+                if new_suppressed < RENOTIFY_AFTER_TICKS:
+                    # Still within the quiet window — suppress and save count.
+                    if state_file is not None:
+                        try:
+                            s_state = _load_discord_state(state_file)
+                            s_state.setdefault("summary", {})["suppressed_count"] = new_suppressed
+                            _save_discord_state(state_file, s_state)
+                        except Exception as e:
+                            _log(f"Discord summary state write failed: {e}", "WARN")
+                    _log(
+                        f"Discord ({mode_label}): same failure set "
+                        f"({new_summary_hash}) — summary suppressed "
+                        f"({new_suppressed}/{RENOTIFY_AFTER_TICKS - 1})"
+                    )
+                    return
+                else:
+                    # Quiet window exhausted — let the post through as a
+                    # "still failing" reminder and reset the counter.
+                    is_renotify = True
 
         # Red for failures, green for all-passed — matches the email HTML.
         color = 0x22C55E if all_passed else 0xEF4444
-        title_emoji = "✅" if all_passed else "❌"
-        status_suffix = "all passed" if all_passed else f"{s['failed']} failed"
-        title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
+        if is_renotify:
+            title_emoji = "⚠️"
+            # Compute elapsed time since the last summary post.
+            elapsed_h = ""
+            try:
+                last_post = (existing_state.get("summary", {}) or {}).get("last_seen", "")
+                if last_post:
+                    last_dt = datetime.strptime(last_post, "%Y-%m-%dT%H:%M:%SZ").replace(
+                        tzinfo=timezone.utc
+                    )
+                    elapsed_sec = (datetime.now(timezone.utc) - last_dt).total_seconds()
+                    elapsed_h = f", still failing after ~{max(1, int(elapsed_sec / 3600))}h"
+            except Exception:
+                elapsed_h = ", still failing"
+            title = (
+                f"{title_emoji} {result.environment} {mode_label} — "
+                f"{s['failed']} failed{elapsed_h}"
+            )
+        else:
+            title_emoji = "✅" if all_passed else "❌"
+            status_suffix = "all passed" if all_passed else f"{s['failed']} failed"
+            title = f"{title_emoji} {result.environment} {mode_label} — {status_suffix}"
 
         # Build a compact description listing up to the first 10 failed tests
         # AND their error snippets so readers can act on the alert without
@@ -1498,6 +1547,7 @@ class NotificationService:
                     persisted["summary"] = {
                         "hash": new_summary_hash,
                         "last_seen": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "suppressed_count": 0,  # reset after every actual post
                     }
                     _save_discord_state(state_file, persisted)
                 except Exception as state_err:
@@ -2408,12 +2458,38 @@ def _heartbeat_should_fire(archive_dir: Path) -> bool:
     return True
 
 
+def _docker_restarted_recently(grace_minutes: int = DOCKER_GRACE_MINUTES) -> bool:
+    """Return True if Docker was restarted within the last `grace_minutes`.
+
+    The marker file DOCKER_RESTART_MARKER is written by the Claude Code
+    docker-restart-marker hook (PostToolUse on Bash) whenever a
+    `docker compose down/restart/stop` command is detected. Hourly smoke
+    runs call this to avoid false-failure notifications from infra churn.
+    """
+    if not DOCKER_RESTART_MARKER.is_file():
+        return False
+    try:
+        raw = DOCKER_RESTART_MARKER.read_text().strip()
+        restart_dt = datetime.strptime(raw, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        age_sec = (datetime.now(timezone.utc) - restart_dt).total_seconds()
+        return age_sec < grace_minutes * 60
+    except Exception:
+        return False
+
+
 def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     """Hourly dev smoke: dispatch the 4 core specs, post to Discord on failure.
 
     `force=True` (used for manual one-shot runs) bypasses the green-run silence
     so the operator can verify Discord wiring without breaking a spec on purpose.
     """
+    if not force and _docker_restarted_recently():
+        _log(
+            f"Docker restarted within the last {DOCKER_GRACE_MINUTES} min "
+            "— skipping hourly-dev smoke run to avoid false failures"
+        )
+        return 0
+
     git_sha, git_branch = _git_info()
     run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -2641,6 +2717,13 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
     """Hourly prod smoke: dispatch the existing prod-smoke.yml workflow once
     and report its result. The workflow internally runs all 3 prod specs.
     """
+    if not force and _docker_restarted_recently():
+        _log(
+            f"Docker restarted within the last {DOCKER_GRACE_MINUTES} min "
+            "— skipping hourly-prod smoke run to avoid false failures"
+        )
+        return 0
+
     git_sha, git_branch = _git_info()
     run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
