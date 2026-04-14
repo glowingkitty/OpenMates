@@ -50,6 +50,7 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import { get } from 'svelte/store';
   import { openIntroVideoFullscreen, closeIntroVideoFullscreen, introVideoFullscreenStore } from '../stores/introVideoFullscreenStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
@@ -118,7 +119,8 @@
       (entries) => {
         const entry = entries[0];
         if (entry.isIntersecting) {
-          if (!showVideoFullscreen) el.play().catch(() => {});
+          // Use get() to read the store directly — $derived isn't reactive inside closures
+          if (!get(introVideoFullscreenStore)) el.play().catch(() => {});
         } else {
           el.pause();
         }
