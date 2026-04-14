@@ -84,8 +84,35 @@
         font-weight: 600;
         line-height: 1.25;
         cursor: pointer;
-        transition: box-shadow var(--duration-normal) var(--easing-default), background var(--duration-normal) var(--easing-default), opacity var(--duration-normal) var(--easing-default);
+        transition:
+            box-shadow var(--duration-normal) var(--easing-default),
+            background var(--duration-normal) var(--easing-default),
+            opacity var(--duration-normal) var(--easing-default),
+            transform 80ms var(--easing-default);
         box-sizing: border-box;
+    }
+
+    /* Pressed state (applies to all variants) — button pushes in:
+       scale down + tighter shadow so the click is visually confirmed.
+       60ms transition on press for immediate feedback, default on release. */
+    .settings-button:active:not(:disabled) {
+        transform: scale(0.97);
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18);
+        transition:
+            transform 60ms var(--easing-default),
+            box-shadow 60ms var(--easing-default);
+    }
+
+    /* Secondary/ghost use a background-darken on press instead of inset shadow,
+       since they sit on light surfaces where inset shadow looks muddy. */
+    .settings-button.secondary:active:not(:disabled) {
+        background: var(--color-grey-20);
+        box-shadow: none;
+    }
+
+    .settings-button.ghost:active:not(:disabled) {
+        background: var(--color-grey-20);
+        box-shadow: none;
     }
 
     /* ── Sizes ──────────────────────────────────────────────────── */
@@ -181,6 +208,15 @@
     @keyframes settings-button-spin {
         to {
             transform: rotate(360deg);
+        }
+    }
+
+    /* Reduced motion: keep color/shadow feedback, drop the scale. */
+    @media (prefers-reduced-motion: reduce) {
+        .settings-button,
+        .settings-button:active:not(:disabled) {
+            transform: none;
+            transition: background 100ms ease, box-shadow 100ms ease;
         }
     }
 </style>

@@ -453,13 +453,27 @@
     cursor: pointer;
     border: none;
     background: transparent;
-    padding: 0;
+    padding: 4px;
     border-radius: var(--radius-4);
-    transition: background-color var(--duration-fast) var(--easing-default);
+    transition:
+      background-color var(--duration-fast) var(--easing-default),
+      transform 80ms var(--easing-default),
+      box-shadow 120ms var(--easing-default);
   }
 
   .header-icon-button:hover {
     background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Pressed — clearly "pushed in": deeper background, scaled down,
+     subtle inset shadow so the click reads as a tactile response. */
+  .header-icon-button:active {
+    background-color: rgba(0, 0, 0, 0.18);
+    transform: scale(0.92);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+    transition:
+      background-color 60ms var(--easing-default),
+      transform 60ms var(--easing-default);
   }
 
   .header-icon-button:focus-visible {
@@ -592,19 +606,33 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: opacity var(--duration-fast) var(--easing-default);
+    transition:
+      opacity var(--duration-fast) var(--easing-default),
+      background-color var(--duration-fast) var(--easing-default),
+      transform var(--duration-fast) var(--easing-default),
+      box-shadow var(--duration-fast) var(--easing-default);
     z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
     flex-shrink: 0;
   }
 
   .nav-arrow:hover {
-    opacity: 0.75;
+    opacity: 0.85;
+    background-color: var(--color-grey-60) !important;
     scale: none !important;
   }
 
+  /* Pressed — visible scale-down + full opacity + inset shadow so the
+     click registers even on the small 36×36 circular target. */
   .nav-arrow:active {
-    opacity: 0.9;
+    opacity: 1;
+    background-color: var(--color-grey-70) !important;
+    transform: translateY(-50%) scale(0.9);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition:
+      opacity 60ms var(--easing-default),
+      transform 60ms var(--easing-default),
+      background-color 60ms var(--easing-default);
     scale: none !important;
     filter: none !important;
   }

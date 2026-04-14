@@ -773,10 +773,20 @@
     scale: none !important;
   }
 
+  /* Pressed — scale the chevron container in slightly + deepen background
+     to confirm the tap on the full-height transparent hit target. */
   .nav-arrow:active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
+    background-color: rgba(0, 0, 0, 0.18) !important;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.22) !important;
     scale: none !important;
     filter: none !important;
+    transition: background-color 60ms var(--easing-default),
+                box-shadow 60ms var(--easing-default) !important;
+  }
+
+  .nav-arrow:active :global(svg) {
+    transform: scale(0.88);
+    transition: transform 60ms var(--easing-default);
   }
 
   /* Position arrows at the outer edges, rounded on the inner edge only */

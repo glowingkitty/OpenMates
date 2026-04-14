@@ -243,21 +243,26 @@
    * textColorVarsStyle, so the rule below can reference them without knowing
    * the specific app. The .has-app-color guard keeps the fallback colour
    * active for unknown apps. */
+  /* Unified clickable-text colour: brand CTA orange.
+     Matches .markdown-link and .wiki-inline-text so users learn a single
+     visual signal for "this text is clickable" — independent of which app
+     the embed belongs to. The circular badge on the left still carries the
+     per-app gradient for app identification. */
   .embed-inline-text {
     display: inline;
     font-size: inherit;
     font-weight: 500;
     line-height: inherit;
-    color: var(--color-grey-60);
+    color: var(--color-button-primary);
+    transition: color 0.15s ease, opacity 0.15s ease;
   }
 
-  .embed-inline-text.has-app-color {
-    /* Light mode: START colour (darker, readable on light background) */
-    color: var(--_link-color-light);
+  .embed-inline-link:hover .embed-inline-text {
+    color: var(--color-button-primary-hover);
   }
 
-  /* Dark mode: END colour (brighter, readable on dark background) */
-  :global([data-theme="dark"]) .embed-inline-text.has-app-color {
-    color: var(--_link-color-dark);
+  .embed-inline-link:active .embed-inline-text {
+    color: var(--color-button-primary-pressed);
+    opacity: 0.85;
   }
 </style>

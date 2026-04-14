@@ -108,17 +108,26 @@
     background-size: contain !important;
   }
 
-  /* Display text — uses study app start color (darker, readable on light bg) */
+  /* Unified clickable-text colour: brand CTA orange.
+     Matches .markdown-link and .embed-inline-text so users learn a single
+     visual signal for "this text is clickable" — independent of link target
+     (wiki entry, embed fullscreen, or external web page). The study-gradient
+     badge on the left still signals the study-app context. */
   .wiki-inline-text {
     display: inline;
     font-size: inherit;
     font-weight: 500;
     line-height: inherit;
-    color: var(--color-app-study-start);
+    color: var(--color-button-primary);
+    transition: color 0.15s ease, opacity 0.15s ease;
   }
 
-  /* Dark mode: use study app end color (brighter, readable on dark bg) */
-  :global([data-theme="dark"]) .wiki-inline-text {
-    color: var(--color-app-study-end);
+  .wiki-inline-link:hover .wiki-inline-text {
+    color: var(--color-button-primary-hover);
+  }
+
+  .wiki-inline-link:active .wiki-inline-text {
+    color: var(--color-button-primary-pressed);
+    opacity: 0.85;
   }
 </style>

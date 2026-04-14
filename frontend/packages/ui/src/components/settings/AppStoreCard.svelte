@@ -465,6 +465,26 @@
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         transform: translateY(-2px);
     }
+
+    /* Pressed — card pushes in: tighter shadow + slight downward scale.
+       Fast transition (60ms) so the press registers as immediate tactile feedback. */
+    .app-store-card:active {
+        transform: translateY(0) scale(0.97);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25),
+                    inset 0 2px 6px rgba(0, 0, 0, 0.15);
+        transition: transform 60ms var(--easing-default),
+                    box-shadow 60ms var(--easing-default);
+    }
+
+    /* Respect reduced-motion: keep color feedback, drop movement. */
+    @media (prefers-reduced-motion: reduce) {
+        .app-store-card,
+        .app-store-card:hover,
+        .app-store-card:active {
+            transform: none;
+            transition: box-shadow 100ms ease;
+        }
+    }
     
     /* App header row - icon and name side by side */
     /* Move down slightly to accommodate provider icons above */

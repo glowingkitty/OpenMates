@@ -25,8 +25,11 @@ input[type="number"] {
   /* Subtle shadow for depth */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
+  /* Brand-orange caret signals "you can type here" even before focus ring appears */
+  caret-color: var(--color-button-primary);
+
   /* Smooth transitions */
-  transition: all 0.2s ease-in-out;
+  transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out, background-color 0.15s ease-out;
 
   /* Add text overflow handling */
   text-overflow: ellipsis;
@@ -34,19 +37,42 @@ input[type="number"] {
   overflow: hidden;
 }
 
-
-
+/* Hover — subtle border darkening so the field reads as interactive */
+input[type="text"]:hover:not(:focus):not(:disabled),
+input[type="email"]:hover:not(:focus):not(:disabled),
+input[type="password"]:hover:not(:focus):not(:disabled),
+input[type="search"]:hover:not(:focus):not(:disabled),
+input[type="tel"]:hover:not(:focus):not(:disabled),
+input[type="url"]:hover:not(:focus):not(:disabled),
+input[type="number"]:hover:not(:focus):not(:disabled) {
+  border-color: var(--color-grey-30);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+}
 
 input[type="text"]:focus,
 input[type="email"]:focus,
+input[type="password"]:focus,
 input[type="search"]:focus,
 input[type="tel"]:focus,
 input[type="url"]:focus,
 input[type="number"]:focus {
-  /* Focus state enhancements */
+  /* Focus state: brand-orange border + matching soft ring — signals the field
+     has received input focus and matches the primary button color language. */
   outline: none;
-  border-color: var(--color-grey-50);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-button-primary);
+  box-shadow: 0 0 0 3px rgba(255, 85, 59, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Active (mousedown) — brief deeper tint that confirms the click landed
+   before focus settles in. */
+input[type="text"]:active,
+input[type="email"]:active,
+input[type="password"]:active,
+input[type="search"]:active,
+input[type="tel"]:active,
+input[type="url"]:active,
+input[type="number"]:active {
+  background-color: var(--color-grey-10);
 }
 
 .input-group {
