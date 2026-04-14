@@ -131,7 +131,7 @@ assistant_message_1:
     {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
     ```
 
-    Berlin hat eine lebendige Kreativszene mit mehreren Zeichen- und Kunst-Meetups für nächste Woche (13.–19. April 2026). Hier sind einige Highlights:
+    [Berlin](wiki:Berlin) hat eine lebendige Kreativszene mit mehreren Zeichen- und Kunst-Meetups für nächste Woche (13.–19. April 2026). Hier sind einige Highlights:
 
     ### Montag, 13. April
     *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) im Offenen Wohnzimmer, Moabit. Ein entspannter Abend zum Zeichnen, Malen und Austauschen. Materialien wie Kohle, Aquarellfarben und Acryl werden bereitgestellt.
@@ -139,7 +139,7 @@ assistant_message_1:
 
     ### Dienstag, 14. April
     *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) im Studio Good, Prenzlauer Berg. Eine einzigartige Session, bei der die Teilnehmer Zeichnungen rotieren, um gemeinsame Werke zu schaffen, gefolgt von individueller Druckarbeit.
-    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) im kunstraum heartspace, Prenzlauer Berg. Ein kreativer Raum für Linolschnitt-Begeisterte aller Niveaus.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) im kunstraum heartspace, Prenzlauer Berg. Ein kreativer Raum für [Linolschnitt](wiki:Linolschnitt)-Begeisterte aller Niveaus.
     *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) in Friedrichshain. Dieser Workshop verbindet Wissenschaft und Fantasie, um den menschlichen Körper mit Aquarell zu erkunden.
     *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) nahe Wilhelmine-Gemberg-Weg. Eine intime Session, bei der die Teilnehmer sowohl zeichnen als auch Modell stehen können, in einer respektvollen, queer-freundlichen Atmosphäre.
     *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) in der PAKD Gallery, Lichtenberg. Ein Schritt-für-Schritt-Kurs zum realistischen Bleistiftzeichnen mit Perspektive, Licht und Schatten.

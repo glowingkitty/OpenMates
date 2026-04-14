@@ -159,13 +159,13 @@ assistant_message_1:
     Die heftige Kritik resultiert aus mehreren grundlegenden Konflikten zwischen Sicherheitszielen und digitalen Rechten:
 
     #### 1. Die „Hintertür" zur Verschlüsselung
-    Die bedeutendste Kritik betrifft die **Ende-zu-Ende-Verschlüsselung (E2EE)**. Dienste wie Signal und WhatsApp verwenden E2EE, sodass nur Absender und Empfänger eine Nachricht lesen können.
-    *   **Der Konflikt:** Um diese Nachrichten auf illegale Inhalte zu scannen, schlug die EU das **„Client-Side Scanning"** vor – Software auf Ihrem Telefon, die Ihre Fotos und Texte *vor* der Verschlüsselung und dem Versand überprüft.
+    Die bedeutendste Kritik betrifft die **[Ende-zu-Ende-Verschlüsselung](wiki:Ende-zu-Ende-Verschlüsselung) (E2EE)**. Dienste wie [Signal](wiki:Signal_(Messenger)) und [WhatsApp](wiki:WhatsApp) verwenden E2EE, sodass nur Absender und Empfänger eine Nachricht lesen können.
+    *   **Der Konflikt:** Um diese Nachrichten auf illegale Inhalte zu scannen, schlug die EU das **„[Client-Side Scanning](wiki:Client-Side_Scanning)"** vor – Software auf Ihrem Telefon, die Ihre Fotos und Texte *vor* der Verschlüsselung und dem Versand überprüft.
     *   **Die Kritik:** Sicherheitsexperten und [Datenschutzbefürworter](embed:globalencryption.org-83i) argumentieren, dass dies faktisch eine „Hintertür" schafft. Sobald ein solcher Mechanismus existiert, kann er von Hackern, ausländischen Geheimdiensten oder künftigen autoritären Regierungen ausgenutzt werden, um jede Art von Kommunikation zu überwachen.
 
     #### 2. Übergang zur Massenüberwachung
-    Kritiker, darunter [europäische Organisationen für digitale Rechte](embed:fightchatcontrol.eu-YsN), argumentieren, dass das Gesetz von „gezieltem Verdacht" (Ermittlung gegen bestimmte Kriminelle) zur „generalisierten Überwachung" (Scannen des Privatlebens aller Menschen) übergeht.
-    *   **Die Kritik:** Dies behandelt jeden Bürger als potenziellen Verdächtigen. Der [Europäische Gerichtshof für Menschenrechte](embed:globalencryption.org-83i) hat in früheren Fällen wie *Podchasov v. Russia* entschieden, dass die Schwächung von Verschlüsselung zur Ermöglichung von Massenüberwachung einen unverhältnismäßigen Eingriff in Grundrechte darstellt.
+    Kritiker, darunter [europäische Organisationen für digitale Rechte](embed:fightchatcontrol.eu-YsN), argumentieren, dass das Gesetz von „gezieltem Verdacht" (Ermittlung gegen bestimmte Kriminelle) zur „generalisierten [Überwachung](wiki:Massenüberwachung)" (Scannen des Privatlebens aller Menschen) übergeht.
+    *   **Die Kritik:** Dies behandelt jeden Bürger als potenziellen Verdächtigen. Der [Europäische Gerichtshof für Menschenrechte](wiki:Europäischer_Gerichtshof_für_Menschenrechte) hat in früheren Fällen wie *Podchasov v. Russia* entschieden, dass die Schwächung von Verschlüsselung zur Ermöglichung von Massenüberwachung einen unverhältnismäßigen Eingriff in Grundrechte darstellt.
 
     #### 3. Technische Unzuverlässigkeit (Das „Falsch-Positiv"-Problem)
     Der Vorschlag stützt sich stark auf KI zur Erkennung neuer Kindesmissbrauchsmaterialien und „Grooming" (Anbahnungsverhalten).

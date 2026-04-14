@@ -96,7 +96,7 @@ assistant_message_2:
 
     What kind of project are you planning to use this for? I can help you tailor the layout or the color palette (e.g., [Tailwind](https://tailwindcss.com/) colors or [Adobe Color](https://color.adobe.com/) themes) to fit a specific brand!
   de: |
-    Hier ist eine moderne, responsive Einzelseiten-Vorlage mit einem **Glassmorphism**-Design und flüssigen CSS-Animationen. Sie verwendet einen dynamischen Verlaufshintergrund und schwebende dekorative Elemente, um ein „lebendiges" Gefühl zu erzeugen.
+    Hier ist eine moderne, responsive Einzelseiten-Vorlage mit einem **[Glassmorphism](wiki:Glassmorphism)**-Design und flüssigen [CSS](wiki:Cascading_Style_Sheets)-Animationen. Sie verwendet einen dynamischen Verlaufshintergrund und schwebende dekorative Elemente, um ein „lebendiges" Gefühl zu erzeugen.
 
     ```json
     {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
