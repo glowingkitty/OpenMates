@@ -118,11 +118,32 @@ async def _async_process_invoice_and_send_email(
         logger.info(f"User profile details extracted for {user_id}")
 
         # 3. Fetch Full Order Details from PaymentService
-        payment_order_details = await task.payment_service.get_order(order_id)
-        if not payment_order_details:
-            logger.error(f"Failed to fetch payment order details for {order_id} in invoice task.")
-            raise Exception("Failed to fetch payment order details")
-        logger.info(f"Payment order details fetched for {order_id}")
+        # Bank transfer orders (provider="bank_transfer") are not stored in Stripe/Polar.
+        # Supply synthetic order details directly instead of calling payment_service.get_order().
+        if provider == "bank_transfer":
+            payment_order_details = {
+                "amount": credits_purchased,  # not cents — used only for reference; actual amount below
+                "currency": "eur",
+                "payments": [],  # no card payment
+            }
+            # Retrieve the actual amount from the pending_bank_transfers Directus record
+            try:
+                bt_records = await task.directus_service.get_items(
+                    "pending_bank_transfers",
+                    params={"filter[order_id][_eq]": order_id, "fields": "amount_expected_cents,currency", "limit": 1}
+                )
+                if bt_records:
+                    payment_order_details["amount"] = bt_records[0].get("amount_expected_cents", credits_purchased * 100)
+                    payment_order_details["currency"] = bt_records[0].get("currency", "eur")
+            except Exception as bt_err:
+                logger.warning(f"Could not fetch bank transfer amount for {order_id}: {bt_err}")
+            logger.info(f"Bank transfer order details synthesised for {order_id}")
+        else:
+            payment_order_details = await task.payment_service.get_order(order_id)
+            if not payment_order_details:
+                logger.error(f"Failed to fetch payment order details for {order_id} in invoice task.")
+                raise Exception("Failed to fetch payment order details")
+            logger.info(f"Payment order details fetched for {order_id}")
 
         # 4. Extract Payment Details (same as before)
         payment_method_details = {}
@@ -138,16 +159,19 @@ async def _async_process_invoice_and_send_email(
 
         if successful_payment:
             payment_method_details = successful_payment.get('payment_method', {})
-        else:
+        elif provider != "bank_transfer":
             logger.warning(f"Could not find a COMPLETED/CAPTURED/SUCCEEDED payment in order {order_id} details. Invoice may lack payment info.")
 
         cardholder_name = payment_method_details.get('cardholder_name')
         card_last_four = payment_method_details.get('card_last_four')
         card_brand = payment_method_details.get('card_brand')
+        # For bank transfers: show "SEPA Bank Transfer" as the payment method
+        if provider == "bank_transfer" and not card_brand:
+            card_brand = "SEPA Bank Transfer"
 
         # Format card brand name for display
         formatted_card_brand = card_brand if card_brand else ""
-        if card_brand:
+        if card_brand and provider != "bank_transfer":
             card_brand_lower = card_brand.lower()
             if card_brand_lower == 'visa':
                 formatted_card_brand = 'VISA'
@@ -269,6 +293,19 @@ async def _async_process_invoice_and_send_email(
 
             logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
             decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
+
+            # For bank transfer orders: if client-provided key fails (e.g. placeholder key in tests),
+            # try server-side decryption via encrypted_email_auto_topup as fallback.
+            if not decrypted_email and provider == "bank_transfer":
+                logger.warning(f"Bank transfer invoice {order_id}: client key failed, trying server-side fallback")
+                encrypted_email_auto_topup = user_profile.get("encrypted_email_auto_topup")
+                if encrypted_email_auto_topup:
+                    try:
+                        decrypted_email = await task.encryption_service.decrypt_with_user_key(
+                            ciphertext=encrypted_email_auto_topup, key_id=vault_key_id
+                        )
+                    except Exception:
+                        pass
 
         if not decrypted_email:
             logger.error(f"Failed to decrypt email for invoice task {order_id}. Auto top-up: {is_auto_topup}")
