@@ -181,6 +181,14 @@ provider_groups:
         location: EU
         used_for:
           - moderation for every uploaded image and video
+      api_video:
+        privacy_policy: https://api.video/privacy-policy/  # verified 2026-04-14
+        location: EU (France)
+        used_for:
+          - hosting and streaming product demo and feature videos on the website and web app
+        data_shared:
+          - IP address and basic viewing data when you watch a video
+          - Note: Shared without user identifiers
 
   # =====================================================================
   # Group B — Payment providers. Only used when you purchase credits or

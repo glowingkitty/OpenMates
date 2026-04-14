@@ -145,6 +145,7 @@ export const privacyPolicyLinks = {
   brevo: "https://www.brevo.com/legal/privacypolicy",
   ipApi: "https://members.ip-api.com/privacy-policy",
   sightengine: "https://sightengine.com/policies/privacy",
+  apiVideo: "https://api.video/privacy-policy/", // verified 2026-04-14
 
   // Group B — Payments
   stripe: "https://stripe.com/privacy",
