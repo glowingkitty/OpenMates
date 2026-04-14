@@ -464,36 +464,50 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Wait longer (10s) since fields may render after country selection.
 	await page.waitForTimeout(1000); // Let Polar render address fields after country change
 
-	// Billing address line 1 — try label, placeholder, then name attribute patterns
-	const billingAddress = polarIframe.getByLabel(/billing address|address line 1|street address/i).first()
-		.or(polarIframe.locator('input[placeholder*="address" i]').first())
-		.or(polarIframe.locator('input[name*="address_line1"], input[name*="billing_address"], input[name*="address1"]').first());
-	if (await billingAddress.isVisible({ timeout: 10000 }).catch(() => false)) {
-		await billingAddress.fill('123 Test Street');
-		logSignupCheckpoint('Filled billing address line 1.');
-	} else {
-		logSignupCheckpoint('WARNING: Billing address field not found — payment may fail.');
-	}
-
-	// Fill remaining billing fields using the Polar Frame directly.
-	// Tab+type doesn't reliably trigger React change handlers in cross-origin iframes,
-	// causing "Invalid postal code" errors even with valid data. Using frame.fill()
-	// or frame locators ensures proper event dispatch.
+	// Polar's address inputs don't have <label for=...> association, so getByLabel returns
+	// nothing and the previous Tab-based fallback mis-routed values into the wrong fields.
+	// Use frame.evaluate to query inputs directly by autocomplete/name/placeholder — same
+	// pattern already used for ZIP below.
 	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
 
-	// City — use frame locator for reliable input
-	const cityInput = polarIframe.getByLabel(/city/i).first()
-		.or(polarIframe.locator('input[name*="city"]').first());
-	if (await cityInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await cityInput.fill('New York');
-		logSignupCheckpoint('Filled billing city via locator.');
-	} else {
-		// Fallback: Tab from address
-		await billingAddress.click();
-		await page.keyboard.press('Tab');
-		await page.keyboard.press('Tab');
-		await page.keyboard.type('New York');
-		logSignupCheckpoint('Filled billing city via Tab fallback.');
+	// Billing address line 1
+	if (polarFrame) {
+		const filled = await polarFrame.evaluate(() => {
+			const inputs = Array.from(document.querySelectorAll('input'));
+			const addrField = inputs.find(i =>
+				(i.autocomplete || '').match(/address-line1/i) ||
+				(i.name || '').match(/address_line1|address1|billing_address/i) ||
+				(i.placeholder || '').match(/street address|address line 1/i)
+			);
+			if (addrField) {
+				addrField.value = '123 Test Street';
+				addrField.dispatchEvent(new Event('input', { bubbles: true }));
+				addrField.dispatchEvent(new Event('change', { bubbles: true }));
+				return true;
+			}
+			return false;
+		});
+		logSignupCheckpoint(filled ? 'Filled billing address line 1 via frame evaluate.' : 'WARNING: Billing address field not found — payment may fail.');
+	}
+
+	// City
+	if (polarFrame) {
+		const filled = await polarFrame.evaluate(() => {
+			const inputs = Array.from(document.querySelectorAll('input'));
+			const cityField = inputs.find(i =>
+				(i.autocomplete || '').match(/address-level2/i) ||
+				(i.name || '').match(/city/i) ||
+				(i.placeholder || '').match(/city/i)
+			);
+			if (cityField) {
+				cityField.value = 'New York';
+				cityField.dispatchEvent(new Event('input', { bubbles: true }));
+				cityField.dispatchEvent(new Event('change', { bubbles: true }));
+				return true;
+			}
+			return false;
+		});
+		logSignupCheckpoint(filled ? 'Filled billing city via frame evaluate.' : 'WARNING: Billing city field not found.');
 	}
 
 	// ZIP / Postal code

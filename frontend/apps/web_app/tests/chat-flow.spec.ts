@@ -799,11 +799,11 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	expect(firstChatTitleText.toLowerCase()).not.toContain('untitled chat');
 	expect(firstChatTitleText.toLowerCase()).not.toContain('processing');
 
-	// If we captured the ChatHeader title, verify it matches the first sidebar chat
-	if (headerTitleText) {
-		expect(firstChatTitleText).toBe(headerTitleText);
-		logChatCheckpoint(`Sidebar title matches ChatHeader title: "${firstChatTitleText}"`);
-	}
+	// Note: we intentionally do NOT assert firstChatTitleText === headerTitleText.
+	// The post-processor runs a real LLM call (not mocked — see backend/apps/ai/testing/mock_replay.py)
+	// and may emit an `updated_chat_title` after the initial preprocessing title. The sidebar (sourced
+	// from IndexedDB via localChatListChanged) and the ChatHeader (captured earlier in-memory) can
+	// legitimately diverge when that happens.
 
 	// Verify the first chat has a category circle (not the grey "missing" fallback)
 	const firstChatCategory = firstUserChat.getByTestId('category-circle');
