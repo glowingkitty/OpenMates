@@ -119,6 +119,7 @@
   skillIconName="study"
   embedHeaderTitle={articleTitle}
   embedHeaderSubtitle={articleDescription}
+  showShare={false}
   {onClose}
 >
   {#snippet embedHeaderCta()}
