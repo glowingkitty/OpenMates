@@ -9991,6 +9991,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                          videoHlsUrl={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_hls_url ?? null) : null}
                          videoMp4Url={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_mp4_url ?? null) : null}
+                         videoStartTime={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_start_time ?? 0) : 0}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}

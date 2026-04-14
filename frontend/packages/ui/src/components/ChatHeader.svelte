@@ -45,7 +45,8 @@
     chatCreatedAt  - Unix timestamp in seconds of chat creation
 -->
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
@@ -68,8 +69,10 @@
     /** HLS URL stored for future HLS.js integration — not yet used directly in the video element.
      *  Accepted as a prop so the parent can pass it without a type error. */
     videoHlsUrl: _videoHlsUrl = null,
-    /** MP4 fallback URL for the background video and for the fullscreen player. */
+    /** MP4 URL for the background video and fullscreen player. */
     videoMp4Url = null,
+    /** Timestamp in seconds where the background video starts playing (e.g. 17 to skip intro). */
+    videoStartTime = 0,
   }: {
     title?: string;
     category?: string | null;
@@ -86,26 +89,98 @@
     isExampleChat?: boolean;
     /** api.video HLS URL for autoplay-muted background video. */
     videoHlsUrl?: string | null;
-    /** api.video MP4 URL — fallback for background video + used in fullscreen player. */
+    /** api.video MP4 URL — used for background video + fullscreen player. */
     videoMp4Url?: string | null;
+    /** Timestamp in seconds where the background video starts. */
+    videoStartTime?: number;
   } = $props();
 
-  // ─── Video fullscreen state ────────────────────────────────────────────────
+  // ─── Video: background element + state ────────────────────────────────────
 
+  let bgVideoEl = $state<HTMLVideoElement | null>(null);
   let showVideoFullscreen = $state(false);
 
-  function openVideoFullscreen(e: MouseEvent) {
-    e.stopPropagation();
+  /** Seek to videoStartTime once metadata is loaded so the loop starts mid-video. */
+  function handleBgVideoMetadata() {
+    if (bgVideoEl && videoStartTime > 0) {
+      bgVideoEl.currentTime = videoStartTime;
+    }
+  }
+
+  // ─── Video: IntersectionObserver — pause when scrolled out of view ─────────
+
+  let _intersectionObserver: IntersectionObserver | null = null;
+
+  function setupIntersectionObserver(el: HTMLVideoElement) {
+    _intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          if (!showVideoFullscreen) el.play().catch(() => {});
+        } else {
+          el.pause();
+        }
+      },
+      { threshold: 0.1 },
+    );
+    _intersectionObserver.observe(el);
+  }
+
+  // Re-run observer setup whenever bgVideoEl is bound
+  $effect(() => {
+    if (bgVideoEl) {
+      setupIntersectionObserver(bgVideoEl);
+    }
+    return () => {
+      _intersectionObserver?.disconnect();
+      _intersectionObserver = null;
+    };
+  });
+
+  // ─── Video: fullscreen + deep-link via #intro-video hash ──────────────────
+
+  const INTRO_VIDEO_HASH = 'intro-video';
+
+  function openVideoFullscreen(e?: MouseEvent) {
+    e?.stopPropagation();
     showVideoFullscreen = true;
+    bgVideoEl?.pause();
+    if (browser) window.location.hash = INTRO_VIDEO_HASH;
   }
 
   function closeVideoFullscreen() {
     showVideoFullscreen = false;
+    // Resume background video if it's visible
+    if (bgVideoEl) bgVideoEl.play().catch(() => {});
+    if (browser && window.location.hash === `#${INTRO_VIDEO_HASH}`) {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
   }
 
   function handleFullscreenKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') closeVideoFullscreen();
   }
+
+  /** Handle browser back/forward navigation clearing the hash. */
+  function handleHashChange() {
+    if (browser && !window.location.hash.includes(INTRO_VIDEO_HASH) && showVideoFullscreen) {
+      showVideoFullscreen = false;
+      if (bgVideoEl) bgVideoEl.play().catch(() => {});
+    }
+  }
+
+  onMount(() => {
+    if (!browser || !videoMp4Url) return;
+    // Auto-open fullscreen if deep-linked via #intro-video
+    if (window.location.hash === `#${INTRO_VIDEO_HASH}`) {
+      showVideoFullscreen = true;
+    }
+    window.addEventListener('hashchange', handleHashChange);
+  });
+
+  onDestroy(() => {
+    if (browser) window.removeEventListener('hashchange', handleHashChange);
+  });
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
   //
@@ -383,6 +458,7 @@
          Only shown when videoMp4Url is provided; HLS is used as the primary source. -->
     {#if videoMp4Url}
       <video
+        bind:this={bgVideoEl}
         class="header-video"
         src={videoMp4Url}
         autoplay
@@ -391,6 +467,7 @@
         playsinline
         preload="auto"
         aria-hidden="true"
+        onloadedmetadata={handleBgVideoMetadata}
       ></video>
       <div class="header-video-overlay" aria-hidden="true"></div>
     {/if}
@@ -411,7 +488,7 @@
       {#if videoMp4Url}
         <button
           class="video-play-btn"
-          onclick={openVideoFullscreen}
+          onclick={(e) => openVideoFullscreen(e)}
           type="button"
           aria-label="Play video"
           data-testid="chat-header-play-btn"
@@ -425,10 +502,12 @@
         </div>
       {/if}
 
-      <!-- Title (20px, white, bold) -->
-      <!-- SECURITY: Use plain text interpolation — chat titles are AI-generated from user input
-           and must never be rendered as HTML to prevent stored XSS via prompt injection. -->
-      <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+      <!-- Title: hidden when a video background is shown (video speaks for itself).
+           SECURITY: plain text only — chat titles are AI-generated from user input,
+           never render as HTML to prevent stored XSS via prompt injection. -->
+      {#if !videoMp4Url}
+        <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+      {/if}
 
       <!-- "Example chat" badge: shown for pre-made example chats so unauthenticated users
            understand this is not their own chat. Pill-shaped label below the title. -->
@@ -505,6 +584,10 @@
         autoplay
         controls
         playsinline
+        onloadedmetadata={(e) => {
+          const v = e.target as HTMLVideoElement;
+          if (videoStartTime > 0) v.currentTime = videoStartTime;
+        }}
       >
         <track kind="captions" />
       </video>

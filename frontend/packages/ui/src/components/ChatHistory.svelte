@@ -482,6 +482,7 @@
     isExampleChat = false,
     videoHlsUrl = null,
     videoMp4Url = null,
+    videoStartTime = 0,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
   }: {
@@ -523,6 +524,8 @@
     videoHlsUrl?: string | null;
     /** api.video MP4 fallback URL for the background video and fullscreen player. */
     videoMp4Url?: string | null;
+    /** Timestamp in seconds where the background video starts playing. */
+    videoStartTime?: number;
     /** Follow-up suggestions to display below the last assistant message.
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
@@ -1558,6 +1561,7 @@
                 {isExampleChat}
                 {videoHlsUrl}
                 {videoMp4Url}
+                {videoStartTime}
             />
         </div>
     {/if}
