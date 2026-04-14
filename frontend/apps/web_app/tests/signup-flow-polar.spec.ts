@@ -462,7 +462,31 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Polar renders these fields in the checkout iframe. Use broad locator strategies:
 	// label text, placeholder text, and common name/autocomplete attributes.
 	// Wait longer (10s) since fields may render after country selection.
-	await page.waitForTimeout(1000); // Let Polar render address fields after country change
+	await page.waitForTimeout(2000); // Let Polar render address fields after country change
+
+	// Diagnostic: enumerate all frames + their inputs to find where address fields live.
+	// This runs once, logs to the checkpoint trail, and tells us the exact frame structure.
+	const allFrames = page.frames();
+	for (const f of allFrames) {
+		const fUrl = f.url();
+		if (fUrl.includes('polar') || fUrl.includes('stripe')) {
+			try {
+				const fields = await f.evaluate(() =>
+					Array.from(document.querySelectorAll('input, select')).map(el => ({
+						tag: el.tagName,
+						name: el.getAttribute('name') || '',
+						id: el.getAttribute('id') || '',
+						ac: el.getAttribute('autocomplete') || '',
+						ph: el.getAttribute('placeholder') || '',
+						al: el.getAttribute('aria-label') || '',
+					}))
+				);
+				logSignupCheckpoint(`[DIAG] Frame ${fUrl.slice(0, 80)}: ${JSON.stringify(fields)}`);
+			} catch (e) {
+				logSignupCheckpoint(`[DIAG] Frame ${fUrl.slice(0, 80)}: error enumerating — ${e}`);
+			}
+		}
+	}
 
 	// Polar's address inputs don't have <label for=...> association, so getByLabel returns
 	// nothing and the previous Tab-based fallback mis-routed values into the wrong fields.
