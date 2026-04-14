@@ -287,25 +287,30 @@ async def _async_process_invoice_and_send_email(
 
         else:
             # Manual purchase: use client-provided email key
-            if not email_encryption_key:
+            if email_encryption_key:
+                logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
+                decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
+            elif provider != "bank_transfer":
+                # Non-bank-transfer orders always require the client key
                 logger.error(f"Missing email_encryption_key for invoice task {order_id}. Cannot decrypt user email.")
                 raise Exception("Missing email encryption key")
 
-            logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
-            decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
-
-            # For bank transfer orders: if client-provided key fails (e.g. placeholder key in tests),
-            # try server-side decryption via encrypted_email_auto_topup as fallback.
+            # Bank transfer fallback: if client key missing or decryption failed,
+            # try server-side Vault decryption via encrypted_email_auto_topup.
+            # This covers users who enabled auto-topup (key stored server-side)
+            # and edge cases where the client key was unavailable at order creation.
             if not decrypted_email and provider == "bank_transfer":
-                logger.warning(f"Bank transfer invoice {order_id}: client key failed, trying server-side fallback")
+                logger.info(f"Bank transfer invoice {order_id}: trying server-side email fallback")
                 encrypted_email_auto_topup = user_profile.get("encrypted_email_auto_topup")
                 if encrypted_email_auto_topup:
                     try:
                         decrypted_email = await task.encryption_service.decrypt_with_user_key(
                             ciphertext=encrypted_email_auto_topup, key_id=vault_key_id
                         )
-                    except Exception:
-                        pass
+                        if decrypted_email:
+                            logger.info(f"Bank transfer invoice {order_id}: server-side fallback succeeded")
+                    except Exception as fallback_err:
+                        logger.warning(f"Bank transfer invoice {order_id}: server-side fallback failed: {fallback_err}")
 
         if not decrypted_email:
             logger.error(f"Failed to decrypt email for invoice task {order_id}. Auto top-up: {is_auto_topup}")
