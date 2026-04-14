@@ -310,9 +310,10 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 	await screenshot(page, '09-waiting-for-success');
 
 	// Success state: component shows bank_transfer_received text.
-	// We wait up to 70 seconds (2 polling cycles of 30s + buffer).
+	// The component polls /bank-transfer-status every 30s. Poll #1 (t=30s) returns pending,
+	// poll #2 (t=60s) returns completed. Allow 90s for the 2 poll cycles + GHA runner overhead.
 	const successText = page.locator('text=/transfer received|bank transfer received/i');
-	await expect(successText).toBeVisible({ timeout: 70000 });
+	await expect(successText).toBeVisible({ timeout: 90000 });
 	log('Success state shown — bank transfer received message visible.');
 	await screenshot(page, '10-success-state');
 
