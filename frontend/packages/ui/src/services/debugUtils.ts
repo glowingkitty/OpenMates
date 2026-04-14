@@ -3965,7 +3965,9 @@ function showDebugHelp(): void {
       "  window.debug.animation('ai_is_typing_off')— deactivate rainbow glow + typing indicator\n\n" +
       "  UI Tools:\n" +
       "  window.demo_mode.on()                     — demo mode: hide Report Issue & Start Debugging buttons + Server/Logs settings\n" +
-      "  window.demo_mode.off()                    — exit demo mode, restore normal developer UI\n",
+      "  window.demo_mode.off()                    — exit demo mode, restore normal developer UI\n\n" +
+      "  Onboarding:\n" +
+      "  await window.onboarding()                 — create + auto-open a fresh onboarding chat (QA / Firecrawl testing)\n",
     "color: #4CAF50; font-weight: bold; font-size: 14px;",
     "color: #ccc; font-size: 12px;",
   );
@@ -4688,6 +4690,31 @@ export function initDebugUtils(): void {
       console.error("[demo_mode] failed to initialize:", err);
     }
   })();
+
+  // ─── window.onboarding() — trigger onboarding chat from console ──────────
+  // Useful for QA, manual testing, and Firecrawl automation.
+  // Creates a fresh onboarding chat (skipping the duplicate guard) and auto-opens it.
+  // Usage: await window.onboarding()
+  (window as unknown as Record<string, unknown>).onboarding = async () => {
+    try {
+      const { createOnboardingChat } = await import("./onboardingChatService");
+      const { userProfile } = await import("../stores/userProfile");
+      const { get } = await import("svelte/store");
+      const profile = get(userProfile) as unknown as { username?: string } | null;
+      const username = profile?.username ?? "there";
+      console.log("[onboarding] Creating onboarding chat...");
+      const chatId = await createOnboardingChat(username);
+      if (chatId) {
+        console.log(`[onboarding] ✅ Onboarding chat created and opened (id: ${chatId})`);
+      } else {
+        console.error("[onboarding] ❌ Failed to create onboarding chat — check console for errors");
+      }
+      return chatId;
+    } catch (err) {
+      console.error("[onboarding] ❌ Unexpected error:", err);
+      return null;
+    }
+  };
 
   console.info(
     "%c🔧 Debug utilities loaded%c — type %cwindow.debug()%c for health check, %cwindow.debug.help()%c for all commands",
