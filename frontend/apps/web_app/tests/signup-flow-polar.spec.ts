@@ -593,13 +593,13 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 		}
 	} catch { /* not present — proceed */ }
 
-	// For Polar, the post-payment page may still show a "Finish setup" button, OR Polar
-	// may have already navigated directly to /chat. Guard with isVisible before clicking.
+	// For Polar, the post-payment page may still show a "Finish setup" button, OR the app
+	// may have already navigated to the home/chat page. Click only if visible; only wait
+	// for URL change if we triggered a navigation.
 	const finishSetupBtn = page.locator('#signup-finish-setup');
-	if (await finishSetupBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+	const finishSetupVisible = await finishSetupBtn.isVisible({ timeout: 5000 }).catch(() => false);
+	if (finishSetupVisible) {
 		await finishSetupBtn.click();
-	}
-	if (!page.url().includes('/chat')) {
 		await page.waitForURL(/chat/, { timeout: 15000 });
 	}
 	await takeStepScreenshot(page, 'chat');
