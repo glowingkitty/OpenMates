@@ -693,11 +693,24 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 
 	const deleteOtpInput = authModal.getByTestId('tfa-input');
 	await expect(deleteOtpInput).toBeVisible();
-	await deleteOtpInput.fill(generateTotp(tfaSecret));
+
+	// TOTP codes have a 30s window. If generated near the end of a window they may
+	// expire by the time the API validates them. Retry up to 3 times, waiting for
+	// the next window if "invalid or expired token" appears.
+	for (let otpAttempt = 0; otpAttempt < 3; otpAttempt++) {
+		await deleteOtpInput.fill('');
+		await deleteOtpInput.fill(generateTotp(tfaSecret));
+		// Give the API a moment to respond
+		await page.waitForTimeout(1500);
+		const invalidToken = await page.getByText(/invalid or expired/i).isVisible({ timeout: 1000 }).catch(() => false);
+		if (!invalidToken) break;
+		logSignupCheckpoint(`Delete account OTP attempt ${otpAttempt + 1} invalid — waiting for next TOTP window.`);
+		await page.waitForTimeout(10000); // wait ~10s for next window
+	}
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
 	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 10000
+		timeout: 20000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
