@@ -2760,6 +2760,30 @@ bank_transfer_awaiting:
   sv: Väntar på din banköverföring... Krediter läggs till när de mottagits (1-2 arbetsdagar).
   he: ממתינים להעברה הבנקאית שלך... זיכויים יתווספו עם הקבלה (1-2 ימי עסקים).
   verified_by_human: []
+bank_transfer_awaiting_support:
+  context: Status message shown while waiting for a support contribution bank transfer — no credits are involved
+  en: Waiting for your bank transfer... We'll send a confirmation email once received (1-2 business days).
+  de: Warte auf Ihre Überweisung... Wir senden Ihnen eine Bestätigungs-E-Mail nach Erhalt (1-2 Werktage).
+  zh: 等待您的银行转账... 收到后我们将发送确认电子邮件 (1-2个工作日)。
+  es: Esperando su transferencia bancaria... Le enviaremos un correo de confirmación una vez recibida (1-2 días hábiles).
+  fr: En attente de votre virement bancaire... Nous vous enverrons un e-mail de confirmation à réception (1-2 jours ouvrables).
+  pt: Aguardando sua transferência bancária... Enviaremos um e-mail de confirmação quando recebida (1-2 dias úteis).
+  ru: Ожидание вашего банковского перевода... После получения мы вышлем подтверждение по электронной почте (1-2 рабочих дня).
+  ja: 銀行振込を待っています... 受領後に確認メールをお送りします (1-2営業日)。
+  ko: 은행 송금을 기다리는 중... 수신 후 확인 이메일을 보내드립니다 (영업일 1-2일).
+  it: In attesa del tuo bonifico bancario... Ti invieremo un'email di conferma una volta ricevuto (1-2 giorni lavorativi).
+  tr: Banka havalesini bekliyoruz... Alındıktan sonra onay e-postası göndereceğiz (1-2 iş günü).
+  vi: Đang chờ chuyển khoản ngân hàng... Chúng tôi sẽ gửi email xác nhận khi nhận được (1-2 ngày làm việc).
+  id: Menunggu transfer bank Anda... Kami akan mengirim email konfirmasi setelah diterima (1-2 hari kerja).
+  pl: Oczekiwanie na Twój przelew bankowy... Po otrzymaniu wyślemy e-mail z potwierdzeniem (1-2 dni robocze).
+  nl: Wachten op uw bankoverschrijving... We sturen een bevestigingsmail na ontvangst (1-2 werkdagen).
+  ar: في انتظار تحويلك البنكي... سنرسل لك بريدًا إلكترونيًا للتأكيد عند الاستلام (1-2 أيام عمل).
+  hi: आपके बैंक ट्रांसफर की प्रतीक्षा कर रहे हैं... प्राप्त होने के बाद हम एक पुष्टिकरण ईमेल भेजेंगे (1-2 कार्य दिवस)।
+  th: กำลังรอการโอนเงินของคุณ... เราจะส่งอีเมลยืนยันเมื่อได้รับ (1-2 วันทำการ)
+  cs: Čekáme na váš bankovní převod... Po přijetí vám zašleme potvrzovací e-mail (1-2 pracovní dny).
+  sv: Väntar på din banköverföring... Vi skickar ett bekräftelsemail när vi tagit emot den (1-2 arbetsdagar).
+  he: ממתינים להעברה הבנקאית שלך... נשלח אישור במייל עם קבלתה (1-2 ימי עסקים).
+  verified_by_human: []
 bank_transfer_received:
   context: Success message shown when bank transfer has been received and credits applied
   en: Bank transfer received! Your credits have been added.
@@ -2783,6 +2807,30 @@ bank_transfer_received:
   cs: Bankovní převod přijat! Vaše kredity byly připsány.
   sv: Banköverföring mottagen! Dina krediter har lagts till.
   he: ההעברה הבנקאית התקבלה! הזיכויים שלך נוספו.
+  verified_by_human: []
+bank_transfer_received_support:
+  context: Success message shown when a support contribution bank transfer has been received — no credits are involved
+  en: Bank transfer received! Thank you for your support.
+  de: Überweisung erhalten! Vielen Dank für Ihre Unterstützung.
+  zh: 银行转账已收到！感谢您的支持。
+  es: ¡Transferencia bancaria recibida! Gracias por tu apoyo.
+  fr: Virement bancaire reçu ! Merci pour votre soutien.
+  pt: Transferência bancária recebida! Obrigado pelo seu apoio.
+  ru: Банковский перевод получен! Спасибо за вашу поддержку.
+  ja: 銀行振込を受領しました！ご支援ありがとうございます。
+  ko: 은행 송금이 수신되었습니다! 지원해 주셔서 감사합니다.
+  it: Bonifico bancario ricevuto! Grazie per il tuo supporto.
+  tr: Banka havalesi alındı! Desteğiniz için teşekkürler.
+  vi: Đã nhận chuyển khoản ngân hàng! Cảm ơn sự hỗ trợ của bạn.
+  id: Transfer bank diterima! Terima kasih atas dukungan Anda.
+  pl: Przelew bankowy otrzymany! Dziękujemy za wsparcie.
+  nl: Bankoverschrijving ontvangen! Bedankt voor uw steun.
+  ar: تم استلام التحويل البنكي! شكرًا لدعمك.
+  hi: बैंक ट्रांसफर प्राप्त हुआ! आपके समर्थन के लिए धन्यवाद।
+  th: ได้รับการโอนเงินแล้ว! ขอบคุณสำหรับการสนับสนุนของคุณ
+  cs: Bankovní převod přijat! Děkujeme za vaši podporu.
+  sv: Banköverföring mottagen! Tack för ditt stöd.
+  he: ההעברה הבנקאית התקבלה! תודה על תמיכתך.
   verified_by_human: []
 bank_transfer_credits_info:
   context: Info text showing how many credits will be added after transfer

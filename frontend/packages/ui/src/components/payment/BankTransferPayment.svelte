@@ -164,7 +164,7 @@
 {:else if state === 'completed'}
     <div class="bt-completed" in:fade={{ duration: 300 }}>
         <SettingsInfoBox type="success">
-            {$text('settings.billing.bank_transfer_received')}
+            {isSupportContribution ? $text('settings.billing.bank_transfer_received_support') : $text('settings.billing.bank_transfer_received')}
         </SettingsInfoBox>
     </div>
 
@@ -266,13 +266,15 @@
                 </div>
             </div>
 
-            <!-- Deadline -->
-            <div class="detail-copyable">
-                <div class="detail-label">{$text('settings.billing.bank_transfer_deadline')}</div>
-                <div class="detail-value-row">
-                    <span class="detail-value selectable">{formatExpiryDate(expiresAt)}</span>
+            <!-- Deadline — only shown for credit purchases (support contributions have no meaningful deadline to surface) -->
+            {#if !isSupportContribution}
+                <div class="detail-copyable">
+                    <div class="detail-label">{$text('settings.billing.bank_transfer_deadline')}</div>
+                    <div class="detail-value-row">
+                        <span class="detail-value selectable">{formatExpiryDate(expiresAt)}</span>
+                    </div>
                 </div>
-            </div>
+            {/if}
         </SettingsCard>
 
         <!-- Reference hint — different text for support vs credit purchase -->
@@ -286,10 +288,10 @@
             </SettingsInfoBox>
         </div>
 
-        <!-- Awaiting status -->
+        <!-- Awaiting status — different text for support contributions (no credits) -->
         <div class="awaiting-row" data-testid="bank-transfer-awaiting">
             <span class="pulse-dot"></span>
-            <span class="color-grey-60">{$text('settings.billing.bank_transfer_awaiting')}</span>
+            <span class="color-grey-60">{isSupportContribution ? $text('settings.billing.bank_transfer_awaiting_support') : $text('settings.billing.bank_transfer_awaiting')}</span>
         </div>
 
         <!-- Continue to app button (signup flow only) -->
