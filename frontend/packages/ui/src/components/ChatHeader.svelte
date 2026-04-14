@@ -168,7 +168,7 @@
     if (!browser || !videoMp4Url) return;
     // Auto-open fullscreen if deep-linked via #intro-video
     if (window.location.hash === `#${INTRO_VIDEO_HASH}`) {
-      showVideoFullscreen = true;
+      openIntroVideoFullscreen();
     }
     window.addEventListener('hashchange', handleHashChange);
   });
