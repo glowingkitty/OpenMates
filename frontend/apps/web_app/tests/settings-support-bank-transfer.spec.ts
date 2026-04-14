@@ -301,20 +301,20 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 
 	// ─── Wait for success state (mocked polling) ──────────────────────────────
 	// The component polls /bank-transfer-status/<id> every 30 seconds.
-	// Our mock returns "completed" on poll #2.
-	// We reduce the wait by triggering the poll via a short timeout simulation.
-	// Since the polling interval is 30s, we wait up to 70 seconds for the
-	// second poll to fire and the success state to appear.
+	// Poll #1 (t=30s) → pending. Poll #2 (t=60s) → completed.
+	// On completed, BankTransferPayment dispatches paymentStateChange {state:'success'}
+	// → the parent (SettingsSupportOneTime) immediately navigates to the confirmation screen.
+	// We assert the confirmation screen, not the intermediate BankTransferPayment text
+	// (which is unmounted as soon as the parent navigates).
 
-	log('Waiting for mock polling to transition to success state...');
+	log('Waiting for mock polling to trigger success and confirmation screen...');
 	await screenshot(page, '09-waiting-for-success');
 
-	// Success state: component shows bank_transfer_received text.
-	// The component polls /bank-transfer-status every 30s. Poll #1 (t=30s) returns pending,
-	// poll #2 (t=60s) returns completed. Allow 90s for the 2 poll cycles + GHA runner overhead.
-	const successText = page.locator('text=/transfer received|bank transfer received/i');
+	// Confirmation screen shows "Payment successful! Thank you for your support."
+	// Allow 90s for 2 poll cycles (30s each) + GHA runner overhead.
+	const successText = page.locator('text=/payment successful|thank you|support.*received/i').first();
 	await expect(successText).toBeVisible({ timeout: 90000 });
-	log('Success state shown — bank transfer received message visible.');
+	log('Confirmation screen shown — donation completed successfully.');
 	await screenshot(page, '10-success-state');
 
 	log('✅ SEPA bank transfer support flow test passed.');
