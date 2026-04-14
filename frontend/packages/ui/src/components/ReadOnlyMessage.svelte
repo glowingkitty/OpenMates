@@ -1432,25 +1432,29 @@
     }
 
     /* ──────────────────────────────────────────────────────────────
-       Internal deep links (relative URLs like /settings/..., /chats/...)
-       render with a small OpenMates-branded badge before the text —
-       mirrors the badge pattern used in EmbedInlineLink / WikiInlineLink
+       Internal deep links (hash-based: #settings/..., #chat-id=...).
+
+       TipTap's MarkdownLink.renderHTML (extensions/MarkdownExtensions.ts)
+       rewrites the href — e.g. "/#settings/appstore/web" becomes
+       "#settings/appstore/web" — but stamps the anchor with the class
+       `markdown-link-internal` and `data-internal="true"`. We target the
+       class so the selector survives any future href-normalization.
+
+       A small OpenMates-branded badge is rendered before the link text,
+       mirroring the badge pattern used in EmbedInlineLink / WikiInlineLink
        so all three clickable-text types look visually consistent.
 
-       `a[href^="/"]` matches relative-root URLs; `:not([href^="//"])`
-       excludes protocol-relative URLs (//example.com) which are external.
-
-       Technique: ::before is the 20px gradient circle; ::after is the
-       white OpenMates icon layered on top via negative margin so it sits
-       inside the circle. Two pseudo-elements are needed because we want a
-       white icon ON a gradient circle — a single masked element can only
-       render the icon shape IN the gradient (cut out), not on top of it.
+       Technique: ::before is the 20px OpenMates-gradient circle; ::after
+       is the white OpenMates icon layered on top via negative margin so it
+       sits inside the circle. Two pseudo-elements are needed because a
+       single masked element can only render the icon shape IN the gradient
+       (cut out), not on top of it.
        ────────────────────────────────────────────────────────────── */
-    :global(.read-only-message a[href^="/"]:not([href^="//"])) {
+    :global(.read-only-message .markdown-link-internal) {
         text-decoration: none !important;
     }
 
-    :global(.read-only-message a[href^="/"]:not([href^="//"]))::before {
+    :global(.read-only-message .markdown-link-internal)::before {
         content: "";
         display: inline-block;
         width: 20px;
@@ -1462,14 +1466,16 @@
         background: var(--color-app-openmates);
     }
 
-    :global(.read-only-message a[href^="/"]:not([href^="//"]))::after {
+    :global(.read-only-message .markdown-link-internal)::after {
         content: "";
         display: inline-block;
         width: 10px;
         height: 10px;
-        /* Negative margin-left pulls the icon back onto the gradient circle
-           (badge width 20px + margin-right 3px = 23px, icon width 10px:
-           -23px + 5px centers it: -18px); margin-right restores spacing. */
+        /* Negative margin-left pulls the icon back onto the gradient circle.
+           Badge width 20px + its margin-right 3px = 23px of offset. Icon is
+           10px wide; to center it on the 20px circle we shift by -18px
+           (= -23px + (20-10)/2 + margin adjustment), then add margin-right
+           to restore the 3px spacing before the link text. */
         margin-left: -18px;
         margin-right: 11px;
         vertical-align: middle;
