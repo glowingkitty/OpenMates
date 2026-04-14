@@ -17,9 +17,15 @@
 
 <script lang="ts">
   import ChatEmbedPreview from './ChatEmbedPreview.svelte';
+  import ChatContextMenu from '../chats/ChatContextMenu.svelte';
   import { getAllExampleChats, getExampleChat, getExampleChatMessages } from '../../demo_chats/exampleChatStore';
   import { activeChatStore } from '../../stores/activeChatStore';
   import { locale } from 'svelte-i18n';
+  import type { Chat } from '../../types/chat';
+  import { downloadChatAsZip } from '../../services/zipExportService';
+  import { copyChatToClipboard } from '../../services/chatExportService';
+  import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages } from '../../demo_chats';
+  import { notificationStore } from '../../stores/notificationStore';
 
   /**
    * Props interface for ExampleChatsGroup
@@ -69,6 +75,57 @@
     return '';
   }
   
+  // ─── Context menu state ────────────────────────────────────────────────────
+
+  let contextMenuShow = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+  let contextMenuChat = $state<Chat | null>(null);
+  let isDownloading = $state(false);
+
+  function handleCardContextMenu(chatId: string, event: MouseEvent) {
+    const chat = getExampleChat(chatId);
+    if (!chat) return;
+    contextMenuChat = chat;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    contextMenuShow = true;
+  }
+
+  async function handleContextMenuAction(event: CustomEvent<string>) {
+    const action = event.detail;
+    if (action === 'close') {
+      contextMenuShow = false;
+      return;
+    }
+    if (!contextMenuChat) return;
+    const chat = contextMenuChat;
+
+    if (action === 'download') {
+      isDownloading = true;
+      try {
+        const messages = getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+        await downloadChatAsZip(chat, messages);
+        notificationStore.success('Chat downloaded successfully');
+      } catch (err) {
+        console.error('[ExampleChatsGroup] Download failed:', err);
+      } finally {
+        isDownloading = false;
+        contextMenuShow = false;
+      }
+      return;
+    }
+
+    if (action === 'copy') {
+      const messages = getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+      await copyChatToClipboard(chat, messages);
+      contextMenuShow = false;
+      return;
+    }
+
+    contextMenuShow = false;
+  }
+
   // Handle click on a chat card - navigate to the demo chat
   // CRITICAL: Must both update the sidebar highlight AND trigger chat loading
   // activeChatStore.setActiveChat() alone only updates the store + URL hash,
@@ -109,10 +166,25 @@
           category={chat.category || 'general_knowledge'}
           iconName={chat.icon || 'message-circle'}
           onClick={handleChatClick}
+          onContextMenu={handleCardContextMenu}
         />
       {/each}
     </div>
   </div>
+{/if}
+
+{#if contextMenuShow && contextMenuChat}
+  <ChatContextMenu
+    x={contextMenuX}
+    y={contextMenuY}
+    show={contextMenuShow}
+    chat={contextMenuChat}
+    hideDelete={true}
+    downloading={isDownloading}
+    on:close={handleContextMenuAction}
+    on:download={handleContextMenuAction}
+    on:copy={handleContextMenuAction}
+  />
 {/if}
 
 <style>
