@@ -830,7 +830,6 @@ async def create_bank_transfer_order(
         # so the user has them even if they forget to note them during signup.
         if order_data.is_signup:
             try:
-                invoice_sender_path = "kv/data/providers/invoice_sender"
                 app.send_task(
                     name="app.tasks.email_tasks.bank_transfer_reminder_email_task.send_bank_transfer_reminder",
                     kwargs={
@@ -5459,6 +5458,33 @@ async def request_refund(
 # Revolut Business webhook handler (SEPA bank transfers)
 # ──────────────────────────────────────────────────────────────────────
 
+def _notify_admin_bank_transfer(subject: str, body: str) -> None:
+    """
+    Send an alert email to the admin address for bank transfer issues
+    (unmatched transfers, amount mismatches, unexpected currencies).
+
+    Uses the existing alert_notification_email_task so no new email
+    infrastructure is needed. Fire-and-forget — errors are logged, not raised.
+    """
+    try:
+        admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
+        app.send_task(
+            name="app.tasks.email_tasks.alert_notification_email_task.send_alert_notification",
+            kwargs={
+                "admin_email": admin_email,
+                "alertname": "BankTransferAlert",
+                "status": "firing",
+                "severity": "warning",
+                "summary": subject,
+                "starts_at": datetime.now(timezone.utc).isoformat(),
+                "description": body,
+            },
+            queue="email",
+        )
+    except Exception as e:
+        logger.error(f"Failed to dispatch bank transfer admin alert: {e}")
+
+
 async def _handle_revolut_business_webhook(
     event_payload: Dict[str, Any],
     event_type: str,
@@ -5548,7 +5574,17 @@ async def _handle_revolut_business_webhook(
             f"Revolut Business transfer in non-EUR currency ({received_currency}). "
             f"SEPA transfers should be EUR. Flagging for admin review."
         )
-        # TODO: Create admin alert for non-EUR transfers
+        _notify_admin_bank_transfer(
+            subject=f"Bank transfer in unexpected currency: {received_currency.upper()}",
+            body=(
+                f"A bank transfer arrived at the company IBAN in an unexpected currency.\n\n"
+                f"Currency: {received_currency.upper()}\n"
+                f"Amount: {received_amount_cents / 100:.2f}\n"
+                f"Reference: {reference or '(none)'}\n"
+                f"Transaction ID: {transaction_id}\n\n"
+                f"SEPA transfers should be EUR only. Manual review required."
+            ),
+        )
         return {"status": "non_eur_currency_flagged"}
 
     # Match by reference — try Redis cache first, fall back to Directus
@@ -5577,7 +5613,19 @@ async def _handle_revolut_business_webhook(
             f"Amount: {received_amount_cents} cents, transaction_id: {transaction_id}. "
             f"Flagging for admin review."
         )
-        # TODO: Dispatch admin alert email for unmatched transfer
+        _notify_admin_bank_transfer(
+            subject="Unmatched bank transfer received",
+            body=(
+                f"A SEPA bank transfer arrived but could not be matched to any pending order.\n\n"
+                f"Reference: {reference or '(none provided)'}\n"
+                f"Amount: €{received_amount_cents / 100:.2f}\n"
+                f"Transaction ID: {transaction_id}\n\n"
+                f"Action required: Identify the sender and either:\n"
+                f"- Grant credits manually via a gift card\n"
+                f"- Refund the transfer if the sender can be identified\n"
+                f"- Contact the sender for the missing reference"
+            ),
+        )
         return {"status": "unmatched_transfer_flagged"}
 
     order_id = pending_order.get("order_id", "")
@@ -5615,6 +5663,21 @@ async def _handle_revolut_business_webhook(
             )
         except Exception as update_err:
             logger.error(f"Error updating bank transfer {order_id} to admin_review: {update_err}")
+        _notify_admin_bank_transfer(
+            subject=f"Bank transfer amount mismatch — order {order_id}",
+            body=(
+                f"A bank transfer arrived with an amount outside the ±€0.50 tolerance.\n\n"
+                f"Order ID: {order_id}\n"
+                f"Expected: €{expected_amount_cents / 100:.2f}\n"
+                f"Received: €{received_amount_cents / 100:.2f}\n"
+                f"Difference: €{abs(expected_amount_cents - received_amount_cents) / 100:.2f}\n"
+                f"Transaction ID: {transaction_id}\n"
+                f"Reference: {reference}\n\n"
+                f"Order status set to 'admin_review'. Action required:\n"
+                f"- If acceptable (e.g. small bank fee), grant credits manually via gift card\n"
+                f"- Otherwise, refund the difference or contact the sender"
+            ),
+        )
         return {"status": "amount_mismatch_flagged"}
 
     # ── Support contribution path (no credits) ───────────────────────
