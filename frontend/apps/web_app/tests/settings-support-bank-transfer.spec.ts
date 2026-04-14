@@ -107,7 +107,21 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'support-bank-transfer' });
 	await archiveExistingScreenshots(log);
 
-	// ─── Mock bank transfer endpoints ────────────────────────────────────────
+	// ─── Mock endpoints ───────────────────────────────────────────────────────
+
+	// Mock: /config — pass through real response but force bank_transfer_available=true.
+	// This avoids a race condition where the component's async config fetch hasn't
+	// completed yet when the test checks for the bank transfer button.
+	await page.route('**/v1/payments/config', async (route: any) => {
+		const response = await route.fetch();
+		const json = await response.json();
+		json.bank_transfer_available = true;
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify(json),
+		});
+	});
 
 	// Mock: create order — returns predictable sandbox bank details.
 	await page.route('**/v1/payments/create-support-bank-transfer-order', async (route: any) => {
@@ -313,6 +327,14 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	const log = createSignupLogger('BUY_CREDITS_110K_BANK_TRANSFER');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'buy-credits-110k' });
 	await archiveExistingScreenshots(log);
+
+	// Mock: /config — force bank_transfer_available=true to avoid async race
+	await page.route('**/v1/payments/config', async (route: any) => {
+		const response = await route.fetch();
+		const json = await response.json();
+		json.bank_transfer_available = true;
+		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
+	});
 
 	// Mock the bank transfer order creation
 	await page.route('**/v1/payments/create-bank-transfer-order', async (route: any) => {
