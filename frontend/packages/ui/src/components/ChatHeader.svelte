@@ -50,6 +50,7 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import DirectVideoEmbedFullscreen from './embeds/videos/DirectVideoEmbedFullscreen.svelte';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -155,10 +156,6 @@
     if (browser && window.location.hash === `#${INTRO_VIDEO_HASH}`) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
-  }
-
-  function handleFullscreenKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') closeVideoFullscreen();
   }
 
   /** Handle browser back/forward navigation clearing the hash. */
@@ -555,44 +552,14 @@
 
 </div>
 
-<!-- ── Video fullscreen modal ──────────────────────────────────────────────
-     Rendered outside .chat-header-banner so it escapes overflow:hidden.
-     position:fixed covers the entire viewport at high z-index. -->
-{#if showVideoFullscreen}
-  <div
-    class="video-fullscreen-backdrop"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Video player"
-    tabindex="-1"
-    onclick={closeVideoFullscreen}
-    onkeydown={handleFullscreenKeydown}
-  >
-    <button
-      class="video-fullscreen-close"
-      onclick={closeVideoFullscreen}
-      type="button"
-      aria-label="Close video"
-      data-testid="chat-header-video-close"
-    >✕</button>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="video-fullscreen-player-wrapper" onclick={(e) => e.stopPropagation()}>
-      <video
-        class="video-fullscreen-player"
-        src={videoMp4Url ?? undefined}
-        autoplay
-        controls
-        playsinline
-        onloadedmetadata={(e) => {
-          const v = e.target as HTMLVideoElement;
-          if (videoStartTime > 0) v.currentTime = videoStartTime;
-        }}
-      >
-        <track kind="captions" />
-      </video>
-    </div>
-  </div>
+<!-- ── Video fullscreen — uses the standard embed fullscreen shell ───────── -->
+{#if showVideoFullscreen && videoMp4Url}
+  <DirectVideoEmbedFullscreen
+    mp4Url={videoMp4Url}
+    title={title}
+    startTime={videoStartTime}
+    onClose={closeVideoFullscreen}
+  />
 {/if}
 
 <style>
@@ -1211,65 +1178,5 @@
     margin-left: 4px; /* optical centering */
   }
 
-  /* ─── Video fullscreen modal ─────────────────────────────────────────────
-     position:fixed so it escapes all parent overflow:hidden containers.
-     Dark backdrop; click backdrop to close. */
-
-  .video-fullscreen-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-index-modal, 1000);
-    background: rgba(0, 0, 0, 0.88);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.18s ease-out;
-  }
-
-  .video-fullscreen-player-wrapper {
-    position: relative;
-    width: min(92vw, 1280px);
-    max-height: 90vh;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
-  }
-
-  .video-fullscreen-player {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 90vh;
-    border-radius: 10px;
-  }
-
-  .video-fullscreen-close {
-    position: fixed;
-    top: 20px;
-    right: 24px;
-    z-index: calc(var(--z-index-modal, 1000) + 1);
-    width: 40px !important;
-    height: 40px !important;
-    min-width: unset !important;
-    border-radius: 50% !important;
-    background: rgba(255, 255, 255, 0.18) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    color: white;
-    font-size: 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: auto;
-    transition: background var(--duration-fast) var(--easing-default);
-    padding: 0 !important;
-    margin: 0 !important;
-    filter: none !important;
-  }
-
-  .video-fullscreen-close:hover {
-    background: rgba(255, 255, 255, 0.3) !important;
-    scale: none !important;
-    filter: none !important;
-  }
+  /* Video fullscreen is handled by DirectVideoEmbedFullscreen + UnifiedEmbedFullscreen. */
 </style>
