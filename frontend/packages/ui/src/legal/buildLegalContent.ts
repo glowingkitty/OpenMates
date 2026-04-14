@@ -172,6 +172,7 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.always_active.brevo", privacyPolicyLinks.brevo);
   renderProvider("legal.privacy.providers.always_active.ip_api", privacyPolicyLinks.ipApi);
   renderProvider("legal.privacy.providers.always_active.sightengine", privacyPolicyLinks.sightengine);
+  renderProvider("legal.privacy.providers.always_active.api_video", privacyPolicyLinks.apiVideo);
 
   // Group B — Payments
   lines.push(`### ${t("legal.privacy.providers.payments.heading")}`);
