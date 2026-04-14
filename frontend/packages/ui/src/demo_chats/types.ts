@@ -24,6 +24,10 @@ export interface DemoChat {
 		featured: boolean;
 		order: number;
 		lastUpdated: string;
+		/** api.video HLS URL for an autoplay-muted background video in the chat header. */
+		video_hls_url?: string;
+		/** api.video MP4 URL — used as fallback for the background video and for the fullscreen player. */
+		video_mp4_url?: string;
 	};
 }
 
