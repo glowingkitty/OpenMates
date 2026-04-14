@@ -462,98 +462,62 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// Polar renders these fields in the checkout iframe. Use broad locator strategies:
 	// label text, placeholder text, and common name/autocomplete attributes.
 	// Wait longer (10s) since fields may render after country selection.
-	await page.waitForTimeout(2000); // Let Stripe re-render billing address fields after country change
+	await page.waitForTimeout(2000); // Let Polar re-render address fields after country change
 
-	// polarFrame is needed here and also further below for the submit scroll.
+	// polarFrame needed here (billing scroll) and further below (submit scroll).
 	const polarFrame = page.frame({ url: /polar\.sh|sandbox\.polar\.sh/ });
 
-	// Billing address fields (street, city, ZIP) may appear in any Stripe sub-iframe within
-	// the Polar iframe. Stripe Payment Element can use separate iframes per field group, so
-	// we can't rely on .first() alone. Try each sub-iframe index 0..5 for each field,
-	// then fall back to polarFrame.evaluate for fields that may live in the Polar outer frame.
+	// The billing address fields (Street address, City, ZIP) live in the Polar outer frame
+	// but are BELOW THE FOLD — not visible until the iframe is scrolled. Without scrolling,
+	// both frame.evaluate and isVisible() fail to find them, and even when evaluate() does
+	// find them it sets .value silently without triggering React state (React ignores direct
+	// .value assignment). Fix: scroll first, then use polarIframe.locator().fill() which
+	// Playwright dispatches as proper input events that React recognises.
 
-	// Helper: find first visible match across sub-iframes
-	const fillInAnySubIframe = async (
-		selector: string,
-		value: string,
-		label: string
-	): Promise<boolean> => {
-		for (let idx = 0; idx < 6; idx++) {
-			const subFrame = polarIframe.frameLocator('iframe').nth(idx);
-			try {
-				const el = subFrame.locator(selector).first();
-				if (await el.isVisible({ timeout: 1500 }).catch(() => false)) {
-					await el.fill(value);
-					logSignupCheckpoint(`Filled ${label} in Polar sub-iframe[${idx}].`);
-					return true;
-				}
-			} catch {
-				break;
-			}
-		}
-		return false;
-	};
-
-	// Billing address line 1
-	const addrFilled = await fillInAnySubIframe(
-		'input[placeholder="Street address"], input[id="Field-addressLine1Input"], input[autocomplete="address-line1"]',
-		'123 Test Street',
-		'billing address'
-	);
-	if (!addrFilled && polarFrame) {
-		const ok = await polarFrame.evaluate(() => {
-			const inputs = Array.from(document.querySelectorAll('input'));
-			const f = inputs.find(i =>
-				(i.autocomplete || '').match(/address-line1/i) ||
-				(i.name || '').match(/address_line1|address1|billing_address/i) ||
-				(i.placeholder || '').match(/street address|address line 1/i)
-			);
-			if (f) { f.value = '123 Test Street'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); return true; }
-			return false;
+	// Step 1: scroll the Polar iframe body to reveal billing fields
+	if (polarFrame) {
+		await polarFrame.evaluate(() => {
+			const scrollable = document.querySelector('[class*="checkout"]') ||
+				document.querySelector('form') || document.scrollingElement || document.body;
+			if (scrollable) scrollable.scrollTop = scrollable.scrollHeight;
 		});
-		logSignupCheckpoint(ok ? 'Filled billing address via polarFrame evaluate.' : 'WARNING: Billing address field not found anywhere — payment may fail.');
+	}
+	await page.waitForTimeout(500); // allow scroll animation to settle
+
+	// Step 2: fill billing address line 1 — visible in the Polar iframe after scroll
+	const addrInput = polarIframe.locator('input[placeholder="Street address"]').first()
+		.or(polarIframe.locator('input[autocomplete="address-line1"]').first())
+		.or(polarIframe.locator('input[name*="address_line1"], input[name*="address1"]').first());
+	if (await addrInput.isVisible({ timeout: 8000 }).catch(() => false)) {
+		await addrInput.fill('123 Test Street');
+		logSignupCheckpoint('Filled billing address via polarIframe locator.');
+	} else {
+		logSignupCheckpoint('WARNING: Billing address field not found — payment may fail.');
 	}
 
 	// City
-	const cityFilled = await fillInAnySubIframe(
-		'input[placeholder="City"], input[id="Field-localityInput"], input[autocomplete="address-level2"]',
-		'New York',
-		'billing city'
-	);
-	if (!cityFilled && polarFrame) {
-		const ok = await polarFrame.evaluate(() => {
-			const inputs = Array.from(document.querySelectorAll('input'));
-			const f = inputs.find(i =>
-				(i.autocomplete || '').match(/address-level2/i) ||
-				(i.name || '').match(/city/i) ||
-				(i.placeholder || '').match(/city/i)
-			);
-			if (f) { f.value = 'New York'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); return true; }
-			return false;
-		});
-		logSignupCheckpoint(ok ? 'Filled billing city via polarFrame evaluate.' : 'WARNING: Billing city field not found anywhere.');
+	const cityInput = polarIframe.locator('input[placeholder="City"]').first()
+		.or(polarIframe.locator('input[autocomplete="address-level2"]').first())
+		.or(polarIframe.locator('input[name*="city"]').first());
+	if (await cityInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await cityInput.fill('New York');
+		logSignupCheckpoint('Filled billing city via polarIframe locator.');
+	} else {
+		logSignupCheckpoint('WARNING: Billing city field not found.');
 	}
 
 	// ZIP / Postal code
-	const zipFilled = await fillInAnySubIframe(
-		'input[placeholder="ZIP"], input[placeholder="Postal code"], input[id="Field-postalCodeInput"], input[autocomplete="postal-code"]',
-		'10001',
-		'billing ZIP'
-	);
-	if (!zipFilled && polarFrame) {
-		await polarFrame.evaluate(() => {
-			const inputs = Array.from(document.querySelectorAll('input'));
-			const f = inputs.find(i =>
-				(i.name || '').match(/postal|zip/i) ||
-				(i.placeholder || '').match(/postal|zip/i) ||
-				(i.autocomplete || '').match(/postal/i)
-			);
-			if (f) { f.value = '10001'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); }
-		});
-		logSignupCheckpoint('Filled billing ZIP via polarFrame evaluate fallback.');
+	const zipInput = polarIframe.locator('input[placeholder="ZIP"], input[placeholder="Postal code"]').first()
+		.or(polarIframe.locator('input[autocomplete="postal-code"]').first())
+		.or(polarIframe.locator('input[name*="postal"], input[name*="zip"]').first());
+	if (await zipInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await zipInput.fill('10001');
+		logSignupCheckpoint('Filled billing ZIP via polarIframe locator.');
+	} else {
+		logSignupCheckpoint('WARNING: Billing ZIP field not found.');
 	}
 
-	// State — Polar uses a <select> in the outer Polar frame
+	// State — <select> in the Polar outer frame
 	const stateSelect = polarIframe.locator('select[name*="state"], select[autocomplete*="address-level1"]').first();
 	if (await stateSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await stateSelect.selectOption({ label: 'New York' });
