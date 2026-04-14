@@ -38,6 +38,17 @@ router = APIRouter(prefix="/v1/wikipedia", tags=["Wikipedia"])
 # Credit cost per API-key request to the Wikipedia proxy
 CREDITS_PER_REQUEST = 1
 
+# Differentiated rate limits (per client IP):
+#   - Authenticated (session cookie or API key): 60/min
+#   - Anonymous origin-only (unauth web-app visitors): 15/min
+# Protects outbound Wikipedia quota from unauth abuse while giving logged-in users
+# reasonable headroom. SlowAPI evaluates the callable on every request.
+def _wiki_rate_limit(request: Request) -> str:
+    has_cookie = bool(request.cookies.get("auth_refresh_token"))
+    auth_header = request.headers.get("Authorization", "")
+    has_api_key = auth_header.startswith("Bearer ")
+    return "60/minute" if (has_cookie or has_api_key) else "15/minute"
+
 
 async def _authorize_request(request: Request) -> Dict[str, Any]:
     """
@@ -103,7 +114,7 @@ async def _charge_if_api_key(auth_info: Dict[str, Any], skill_id: str) -> None:
 
 
 @router.get("/summary")
-@limiter.limit("60/minute")
+@limiter.limit(_wiki_rate_limit)
 async def wikipedia_summary(
     request: Request,
     title: str = Query(..., min_length=1, max_length=300, description="Canonical Wikipedia article title"),
@@ -134,7 +145,7 @@ async def wikipedia_summary(
 
 
 @router.get("/wikidata/{qid}")
-@limiter.limit("60/minute")
+@limiter.limit(_wiki_rate_limit)
 async def wikidata_entity(request: Request, qid: str) -> JSONResponse:
     """
     Proxy a Wikidata entity lookup (structured claims, labels, descriptions).
