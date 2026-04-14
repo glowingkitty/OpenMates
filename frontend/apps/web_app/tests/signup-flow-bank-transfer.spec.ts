@@ -125,7 +125,7 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 		});
 	});
 
-	// Mock bank transfer order creation — returns predictable details.
+	// Mock bank transfer order creation — returns 110k tier values (€100 / 110000 credits).
 	await page.route('**/v1/payments/create-bank-transfer-order', async (route: any) => {
 		log('Intercepted create-bank-transfer-order (signup flow).');
 		await route.fulfill({
@@ -138,8 +138,8 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 				bic: MOCK_BIC,
 				bank_name: 'Revolut Bank UAB',
 				account_holder_name: MOCK_ACCOUNT_HOLDER,
-				amount_eur: '20.00',
-				credits_amount: 21000,
+				amount_eur: '100.00',
+				credits_amount: 110000,
 				expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 			}),
 		});
