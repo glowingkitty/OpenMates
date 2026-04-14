@@ -82,7 +82,7 @@ test('signup flow: user selects SEPA bank transfer and enters app with transfer 
 	page: any;
 }) => {
 	test.slow();
-	test.setTimeout(360000);
+	test.setTimeout(600000); // 10 min — full signup (email verify + onboarding) + payment step
 
 	if (!SIGNUP_TEST_EMAIL_DOMAINS) {
 		test.skip();
