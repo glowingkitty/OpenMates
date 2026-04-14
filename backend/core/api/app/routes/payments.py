@@ -5481,6 +5481,25 @@ async def _handle_revolut_business_webhook(
             )
         return {"status": f"state_changed_{new_state}"}
 
+    async def _update_bank_transfer(
+        order_id: str, data: dict, ds=directus_service
+    ) -> None:
+        """Update a pending_bank_transfers record by order_id via Directus update_item."""
+        try:
+            # Look up the Directus UUID for this order_id
+            rows = await ds.get_items(
+                "pending_bank_transfers",
+                params={"filter[order_id][_eq]": order_id, "fields": "id", "limit": 1}
+            )
+            if rows:
+                item_uuid = rows[0].get("id")
+                if item_uuid:
+                    await ds.update_item("pending_bank_transfers", item_uuid, data)
+                    return
+            logger.warning(f"Could not find Directus UUID for bank transfer order {order_id}")
+        except Exception as e:
+            logger.error(f"Error updating bank transfer {order_id} in Directus: {e}")
+
     # TransactionCreated — incoming SEPA transfer
     reference = transfer.get("reference", "").strip()
     received_amount_cents = transfer.get("amount_cents", 0)
@@ -5550,16 +5569,12 @@ async def _handle_revolut_business_webhook(
         )
         # Update status in Directus and cache
         try:
-            await directus_service.update_items(
-                "pending_bank_transfers",
-                params={"filter[order_id][_eq]": order_id},
-                data={
-                    "status": "admin_review",
-                    "received_amount_cents": received_amount_cents,
-                    "revolut_transaction_id": transaction_id,
-                    "admin_note": f"Amount mismatch: expected {expected_amount_cents}, received {received_amount_cents}",
-                }
-            )
+            await _update_bank_transfer(order_id, {
+                "status": "admin_review",
+                "received_amount_cents": received_amount_cents,
+                "revolut_transaction_id": transaction_id,
+                "admin_note": f"Amount mismatch: expected {expected_amount_cents}, received {received_amount_cents}",
+            })
             await cache_service.update_bank_transfer_status(
                 order_id=order_id,
                 reference=reference,
@@ -5574,16 +5589,12 @@ async def _handle_revolut_business_webhook(
     if order_type == "support_contribution":
         completed_at = datetime.now(timezone.utc).isoformat()
         try:
-            await directus_service.update_items(
-                "pending_bank_transfers",
-                params={"filter[order_id][_eq]": order_id},
-                data={
-                    "status": "completed",
-                    "completed_at": completed_at,
-                    "received_amount_cents": received_amount_cents,
-                    "revolut_transaction_id": transaction_id,
-                }
-            )
+            await _update_bank_transfer(order_id, {
+                "status": "completed",
+                "completed_at": completed_at,
+                "received_amount_cents": received_amount_cents,
+                "revolut_transaction_id": transaction_id,
+            })
             await cache_service.update_bank_transfer_status(
                 order_id=order_id,
                 reference=reference,
@@ -5663,16 +5674,12 @@ async def _handle_revolut_business_webhook(
             raise Exception("Directus credit update failed")
 
         # Update pending_bank_transfers record
-        await directus_service.update_items(
-            "pending_bank_transfers",
-            params={"filter[order_id][_eq]": order_id},
-            data={
-                "status": "completed",
-                "completed_at": completed_at,
-                "received_amount_cents": received_amount_cents,
-                "revolut_transaction_id": transaction_id,
-            }
-        )
+        await _update_bank_transfer(order_id, {
+            "status": "completed",
+            "completed_at": completed_at,
+            "received_amount_cents": received_amount_cents,
+            "revolut_transaction_id": transaction_id,
+        })
         await cache_service.update_bank_transfer_status(
             order_id=order_id,
             reference=reference,
