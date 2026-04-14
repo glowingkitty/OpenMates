@@ -232,7 +232,7 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 	log('Amount shows €100.00 (110k tier price).');
 
 	// Reference
-	await expect(page.getByTestId('bank-transfer-reference')).toContainText('OM-TEST', { timeout: 5000 });
+	await expect(page.getByTestId('bank-transfer-reference')).toContainText(MOCK_REFERENCE, { timeout: 5000 });
 	log('Reference shown correctly.');
 
 	// Awaiting status indicator
