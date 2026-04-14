@@ -98,7 +98,7 @@ Supports both saved payment methods and new payment form
     // Check if bank transfer is available (from /config response)
     async function checkBankTransferAvailability() {
         try {
-            const response = await fetch(apiEndpoints.payments.config, { credentials: 'include' });
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
             if (response.ok) {
                 const config = await response.json();
                 bankTransferAvailable = config.bank_transfer_available || false;
