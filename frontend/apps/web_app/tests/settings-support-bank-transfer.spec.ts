@@ -284,19 +284,20 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 	// ─── Test copy buttons ────────────────────────────────────────────────────
 
 	// Copy reference button (most important — user must include this)
+	// Buttons are icon-only; feedback is shown via title attribute and .copied CSS class
 	const copyReferenceBtn = page.getByTestId('copy-reference-btn');
 	await expect(copyReferenceBtn).toBeVisible({ timeout: 5000 });
 	await copyReferenceBtn.click();
-	// Button text should briefly change to "Copied!"
-	await expect(copyReferenceBtn).toContainText(/copied/i, { timeout: 3000 });
-	log('Copy reference button works — shows "Copied!" feedback.');
+	// After click, button gets .copied class and title changes to "Copied!"
+	await expect(copyReferenceBtn).toHaveClass(/copied/, { timeout: 3000 });
+	log('Copy reference button works — .copied class applied after click.');
 	await screenshot(page, '08-copy-reference-clicked');
 
 	// Copy IBAN button
 	const copyIbanBtn = page.getByTestId('copy-iban-btn');
 	await expect(copyIbanBtn).toBeVisible({ timeout: 5000 });
 	await copyIbanBtn.click();
-	await expect(copyIbanBtn).toContainText(/copied/i, { timeout: 3000 });
+	await expect(copyIbanBtn).toHaveClass(/copied/, { timeout: 3000 });
 	log('Copy IBAN button works.');
 
 	// ─── Wait for success state (mocked polling) ──────────────────────────────
