@@ -80,11 +80,11 @@ assistant_message_1:
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
     ```
 
-    For your trip from Berlin to Bangkok on April 14, 2026, here are some of the best flight options available:
+    For your trip from [Berlin](wiki:Berlin) to [Bangkok](wiki:Bangkok) on April 14, 2026, here are some of the best flight options available:
 
     ### Recommended Flights
-    *   **Qatar Airways** offers the most affordable options starting at **€636**. You can choose between a [morning departure at 10:00](embed:qatar-2026-OlW) or an [afternoon departure at 16:45](embed:qatar-2026-X5r), both with a single layover in Doha.
-    *   **Turkish Airlines** provides the fastest connection with a total travel time of **13h 25m**, departing at [10:40](embed:turkish-2026-yrG) with a quick stop in Istanbul for **€741**.
+    *   **[Qatar Airways](wiki:Qatar_Airways)** offers the most affordable options starting at **€636**. You can choose between a [morning departure at 10:00](embed:qatar-2026-OlW) or an [afternoon departure at 16:45](embed:qatar-2026-X5r), both with a single layover in [Doha](wiki:Doha).
+    *   **[Turkish Airlines](wiki:Turkish_Airlines)** provides the fastest connection with a total travel time of **13h 25m**, departing at [10:40](embed:turkish-2026-yrG) with a quick stop in [Istanbul](wiki:Istanbul) for **€741**.
     *   Other reliable choices include [Air France via Paris](embed:air-2026-u4K) and [KLM via Amsterdam](embed:klm-2026-oxW), both priced around €715–€725.
 
     [!](embed:qatar-2026-OlW)

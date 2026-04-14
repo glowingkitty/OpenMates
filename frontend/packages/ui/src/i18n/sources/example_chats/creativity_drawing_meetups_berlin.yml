@@ -92,7 +92,7 @@ assistant_message_1:
     {"type": "app_skill_use", "embed_id": "21ca5a92-705a-46c2-b6f8-a5cfd030dc14", "app_id": "events", "skill_id": "search", "query": "art sketching meetup", "provider": "Meetup"}
     ```
 
-    Berlin has a vibrant creative scene with several drawing and art-related meetups scheduled for next week (April 13–19, 2026). Here are some of the highlights:
+    [Berlin](wiki:Berlin) has a vibrant creative scene with several drawing and art-related meetups scheduled for next week (April 13–19, 2026). Here are some of the highlights:
 
     ### Monday, April 13
     *   **[Open Draw](embed:open-draw-iPc)** (18:00 – 21:00) at Offenes Wohnzimmer, Moabit. A relaxed evening for drawing, painting, and socialising. Materials like charcoal, watercolors, and acrylics are provided.
@@ -100,7 +100,7 @@ assistant_message_1:
 
     ### Tuesday, April 14
     *   **[Collaborative Drawing & Printing](embed:collaborative-drawing-printing-651)** (18:00 – 19:30) at Studio Good, Prenzlauer Berg. A unique session where participants rotate drawings to create collaborative pieces, followed by individual printing work.
-    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) at kunstraum heartspace, Prenzlauer Berg. A creative space dedicated to linocut enthusiasts of all levels.
+    *   **[Lino Café](embed:lino-caf-51i)** (18:00 – 20:00) at kunstraum heartspace, Prenzlauer Berg. A creative space dedicated to [linocut](wiki:Linocut) enthusiasts of all levels.
     *   **[Fantastic Anatomy Watercolour Workshop](embed:fantastic-anatomy-watercolour-Sq3)** (18:00 – 19:30) in Friedrichshain. This workshop combines science and imagination to explore the human body through watercolor.
     *   **[Cozy Life Drawing Session](embed:cozy-life-drawing-ASz)** (18:15 – 21:45) near Wilhelmine-Gemberg-Weg. An intimate session for participants to both draw and model in a respectful, queer-friendly atmosphere.
     *   **[Classical Drawing Course](embed:klassisches-zeichnen-kurs-ia6)** (18:30 – 21:30) at PAKD Gallery, Lichtenberg. A step-by-step course on realistic pencil drawing, covering perspective, light, and shadow.
