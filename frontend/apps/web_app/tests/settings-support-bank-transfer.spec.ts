@@ -109,17 +109,30 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 
 	// ─── Mock endpoints ───────────────────────────────────────────────────────
 
-	// Mock: /config — pass through real response but force bank_transfer_available=true.
-	// This avoids a race condition where the component's async config fetch hasn't
-	// completed yet when the test checks for the bank transfer button.
+	// Mock: /config — return polar provider (no Stripe key needed) + bank_transfer_available=true.
+	// Using polar avoids the "Stripe Public Key not found" error that would occur with an empty key.
+	// We don't use route.fetch() because GHA's outbound IP may get an HTML error page from the
+	// dev server's rate limiter, causing a JSON parse failure.
 	await page.route('**/v1/payments/config', async (route: any) => {
-		const response = await route.fetch();
-		const json = await response.json();
-		json.bank_transfer_available = true;
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify(json),
+			body: JSON.stringify({
+				provider: 'polar',
+				public_key: '',
+				environment: 'sandbox',
+				bank_transfer_available: true,
+			}),
+		});
+	});
+
+	// Mock: create-support-order (called by Payment.svelte when provider=polar).
+	// Prevents network errors in the console while we wait for the bank transfer button.
+	await page.route('**/v1/payments/create-support-order', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ provider: 'polar', order_id: 'mock_support_order', client_secret: '', checkout_url: '' }),
 		});
 	});
 
@@ -328,12 +341,19 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'buy-credits-110k' });
 	await archiveExistingScreenshots(log);
 
-	// Mock: /config — force bank_transfer_available=true to avoid async race
+	// Mock: /config — force bank_transfer_available=true. Hardcoded (no route.fetch) because
+	// GHA's IP may receive an HTML error page from the dev server's rate limiter.
 	await page.route('**/v1/payments/config', async (route: any) => {
-		const response = await route.fetch();
-		const json = await response.json();
-		json.bank_transfer_available = true;
-		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				provider: 'polar',
+				public_key: '',
+				environment: 'sandbox',
+				bank_transfer_available: true,
+			}),
+		});
 	});
 
 	// Mock the bank transfer order creation
