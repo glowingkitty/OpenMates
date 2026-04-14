@@ -104,23 +104,17 @@ test('settings support: completes one-time donation via Stripe card', async ({
 	await archiveExistingScreenshots(log);
 
 	// ─── Force Stripe provider (GHA has US IPs → defaults to Polar) ──────────
-
+	// Hardcoded response to avoid route.fetch() HTML error from GHA's IP.
+	// The Stripe publishable key is intentionally public (pk_test_* prefix).
 	await page.route('**/v1/payments/config', async (route: any) => {
-		// Fetch the real config to preserve Stripe public key, then force stripe provider
-		let config: any;
-		try {
-			const response = await route.fetch();
-			config = await response.json();
-		} catch {
-			config = {};
-		}
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
 			body: JSON.stringify({
-				...config,
 				provider: 'stripe',
-				bank_transfer_available: false, // not needed for this test
+				public_key: 'pk_test_51RG0OnRxFvyhqY5pj03qMj6CnWrmI2Thcm8RkEBo7zHIJ7bobKs9jCwcbF0tcNUcP9fcswKSYs01kTqyIJsFMkMr00k9PWB2ZP',
+				environment: 'sandbox',
+				bank_transfer_available: false,
 			}),
 		});
 	});
@@ -176,20 +170,22 @@ test('settings support: completes one-time donation via Stripe card', async ({
 
 	// For authenticated users, payment form auto-starts.
 	const stripeIframe = page.frameLocator('iframe[title="Secure payment input frame"]');
-	await expect(stripeIframe.locator('[placeholder="Card number"]')).toBeVisible({ timeout: 30000 });
+	await expect(
+		stripeIframe.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]').first()
+	).toBeVisible({ timeout: 30000 });
 	log('Stripe Payment Element iframe loaded.');
 	await screenshot(page, '05-stripe-form-loaded');
 
 	// ─── Fill Stripe card details ─────────────────────────────────────────────
 
-	await fillStripeCardDetails(page, stripeIframe, STRIPE_TEST_CARD, '12/34', '123', log, screenshot);
+	await fillStripeCardDetails(page, STRIPE_TEST_CARD);
 	log('Filled Stripe card details.');
 	await screenshot(page, '06-card-filled');
 
 	// ─── Submit payment ───────────────────────────────────────────────────────
 
-	// Find the submit button — in the support form it's the "Send {amount} {currency}" button
-	const submitButton = page.locator('button').filter({ hasText: /send|pay|donate|support/i }).last();
+	// Find and click the submit button (PaymentForm renders "Send X EUR" for support contributions)
+	const submitButton = page.locator('button[type="submit"], button').filter({ hasText: /send|pay/i }).last();
 	await expect(submitButton).toBeEnabled({ timeout: 10000 });
 	await submitButton.click();
 	log('Submitted payment form.');
