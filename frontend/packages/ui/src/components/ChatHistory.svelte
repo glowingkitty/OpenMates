@@ -480,6 +480,8 @@
     onResend = undefined,
     isIncognito = false,
     isExampleChat = false,
+    videoHlsUrl = null,
+    videoMp4Url = null,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
   }: {
@@ -517,6 +519,10 @@
     /** True when the active chat is a pre-made example chat.
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
+    /** api.video HLS URL for autoplay-muted background video in the chat header. */
+    videoHlsUrl?: string | null;
+    /** api.video MP4 fallback URL for the background video and fullscreen player. */
+    videoMp4Url?: string | null;
     /** Follow-up suggestions to display below the last assistant message.
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
@@ -1550,6 +1556,8 @@
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
                 {isExampleChat}
+                {videoHlsUrl}
+                {videoMp4Url}
             />
         </div>
     {/if}

@@ -65,6 +65,11 @@
     isIncognito = false,
     /** When true, shows an "Example chat" badge/pill in the loaded header state. */
     isExampleChat = false,
+    /** HLS URL stored for future HLS.js integration — not yet used directly in the video element.
+     *  Accepted as a prop so the parent can pass it without a type error. */
+    videoHlsUrl: _videoHlsUrl = null,
+    /** MP4 fallback URL for the background video and for the fullscreen player. */
+    videoMp4Url = null,
   }: {
     title?: string;
     category?: string | null;
@@ -79,7 +84,28 @@
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
     isExampleChat?: boolean;
+    /** api.video HLS URL for autoplay-muted background video. */
+    videoHlsUrl?: string | null;
+    /** api.video MP4 URL — fallback for background video + used in fullscreen player. */
+    videoMp4Url?: string | null;
   } = $props();
+
+  // ─── Video fullscreen state ────────────────────────────────────────────────
+
+  let showVideoFullscreen = $state(false);
+
+  function openVideoFullscreen(e: MouseEvent) {
+    e.stopPropagation();
+    showVideoFullscreen = true;
+  }
+
+  function closeVideoFullscreen() {
+    showVideoFullscreen = false;
+  }
+
+  function handleFullscreenKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') closeVideoFullscreen();
+  }
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
   //
@@ -352,9 +378,26 @@
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
+    <!-- Video background: autoplay muted loop, fills the banner.
+         api.video is our own CDN provider (added to privacy policy) — not proxied.
+         Only shown when videoMp4Url is provided; HLS is used as the primary source. -->
+    {#if videoMp4Url}
+      <video
+        class="header-video"
+        src={videoMp4Url}
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+        aria-hidden="true"
+      ></video>
+      <div class="header-video-overlay" aria-hidden="true"></div>
+    {/if}
+
     <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
-         Animate in from below: translateY(50px) → translateY(0), opacity 0 → 0.4. -->
-    {#if IconComponent}
+         Hidden when a video is shown — video fills the background instead. -->
+    {#if IconComponent && !videoMp4Url}
       <div class="deco-icon deco-icon-left">
         <IconComponent size={126} color="white" />
       </div>
@@ -364,8 +407,19 @@
     {/if}
 
     <div class="loaded-content">
-      <!-- Category icon (38×38px) -->
-      {#if IconComponent}
+      <!-- Play button replaces the category icon when a video is set -->
+      {#if videoMp4Url}
+        <button
+          class="video-play-btn"
+          onclick={openVideoFullscreen}
+          type="button"
+          aria-label="Play video"
+          data-testid="chat-header-play-btn"
+        >
+          <div class="video-play-icon" aria-hidden="true"></div>
+        </button>
+      {:else if IconComponent}
+        <!-- Category icon (38×38px) -->
         <div class="loaded-icon" data-testid="chat-header-icon">
           <IconComponent size={38} color="white" />
         </div>
@@ -421,6 +475,42 @@
   {/if}
 
 </div>
+
+<!-- ── Video fullscreen modal ──────────────────────────────────────────────
+     Rendered outside .chat-header-banner so it escapes overflow:hidden.
+     position:fixed covers the entire viewport at high z-index. -->
+{#if showVideoFullscreen}
+  <div
+    class="video-fullscreen-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Video player"
+    tabindex="-1"
+    onclick={closeVideoFullscreen}
+    onkeydown={handleFullscreenKeydown}
+  >
+    <button
+      class="video-fullscreen-close"
+      onclick={closeVideoFullscreen}
+      type="button"
+      aria-label="Close video"
+      data-testid="chat-header-video-close"
+    >✕</button>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="video-fullscreen-player-wrapper" onclick={(e) => e.stopPropagation()}>
+      <video
+        class="video-fullscreen-player"
+        src={videoMp4Url ?? undefined}
+        autoplay
+        controls
+        playsinline
+      >
+        <track kind="captions" />
+      </video>
+    </div>
+  </div>
+{/if}
 
 <style>
   /* ─── Banner container ──────────────────────────────────────────────────── */
@@ -965,5 +1055,138 @@
     .deco-icon-right {
       right: calc(50% - 180px - 70px);
     }
+  }
+
+  /* ─── Background video ──────────────────────────────────────────────────── */
+
+  .header-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  /* Dark gradient overlay so title text stays readable over the video */
+  .header-video-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.15) 0%,
+      rgba(0, 0, 0, 0.45) 100%
+    );
+    z-index: 1;
+  }
+
+  /* ─── Play button ──────────────────────────────────────────────────────── */
+
+  .video-play-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px !important;
+    height: 72px !important;
+    min-width: unset !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.22) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 2px solid rgba(255, 255, 255, 0.55) !important;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background var(--duration-fast) var(--easing-default),
+                transform var(--duration-fast) var(--easing-default);
+    flex-shrink: 0;
+    padding: 0 !important;
+    margin: 0 !important;
+    filter: none !important;
+  }
+
+  .video-play-btn:hover {
+    background: rgba(255, 255, 255, 0.35) !important;
+    transform: scale(1.06);
+    filter: none !important;
+    scale: none !important;
+  }
+
+  .video-play-btn:active {
+    background: rgba(255, 255, 255, 0.45) !important;
+    transform: scale(0.97);
+    filter: none !important;
+    scale: none !important;
+  }
+
+  /* Triangle play icon via CSS border trick */
+  .video-play-icon {
+    width: 0;
+    height: 0;
+    border-top: 13px solid transparent;
+    border-bottom: 13px solid transparent;
+    border-left: 22px solid rgba(255, 255, 255, 0.95);
+    margin-left: 4px; /* optical centering */
+  }
+
+  /* ─── Video fullscreen modal ─────────────────────────────────────────────
+     position:fixed so it escapes all parent overflow:hidden containers.
+     Dark backdrop; click backdrop to close. */
+
+  .video-fullscreen-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-index-modal, 1000);
+    background: rgba(0, 0, 0, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.18s ease-out;
+  }
+
+  .video-fullscreen-player-wrapper {
+    position: relative;
+    width: min(92vw, 1280px);
+    max-height: 90vh;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+  }
+
+  .video-fullscreen-player {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 90vh;
+    border-radius: 10px;
+  }
+
+  .video-fullscreen-close {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    z-index: calc(var(--z-index-modal, 1000) + 1);
+    width: 40px !important;
+    height: 40px !important;
+    min-width: unset !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    transition: background var(--duration-fast) var(--easing-default);
+    padding: 0 !important;
+    margin: 0 !important;
+    filter: none !important;
+  }
+
+  .video-fullscreen-close:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    scale: none !important;
+    filter: none !important;
   }
 </style>
