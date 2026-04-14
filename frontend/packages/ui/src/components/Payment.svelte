@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, createEventDispatcher, untrack } from 'svelte';
     import { fade } from 'svelte/transition';
     import { apiEndpoints, getApiEndpoint } from '../config/api';
     import { userProfile, updateProfile } from '../stores/userProfile';
@@ -12,6 +12,7 @@
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
     import ProcessingPayment from './payment/ProcessingPayment.svelte';
+    import BankTransferPayment from './payment/BankTransferPayment.svelte';
 
     const dispatch = createEventDispatcher();
 
@@ -47,7 +48,9 @@
     } = $props();
 
     let hasConsentedToLimitedRefund = $state(false);
-    let paymentState: 'idle' | 'processing' | 'success' = $state(initialState);
+    // untrack() prevents Svelte from treating initialState as a reactive dependency here.
+    // It is intentionally a one-time seed; paymentState is mutated by event handlers only.
+    let paymentState: 'idle' | 'processing' | 'success' = $state(untrack(() => initialState));
     let paymentFormComponent = $state();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,6 +82,9 @@
     let activeProvider: 'stripe' | 'polar' | null = $state(null);
     // providerOverride is set when the user explicitly switches providers via the switch button
     let providerOverride: 'stripe' | 'polar' | null = $state(null);
+    // Bank transfer state
+    let bankTransferAvailable = $state(false);
+    let showBankTransfer = $state(false);
     // isPolarLoading is true while Polar create-order is in flight before showing inline iframe
     let isPolarLoading = $state(false);
     // polarCheckoutUrl: when set, renders the Polar checkout as an inline iframe inside the
@@ -130,6 +136,7 @@
             const config = await response.json();
 
             activeProvider = config.provider as 'stripe' | 'polar';
+            bankTransferAvailable = config.bank_transfer_available || false;
 
             if (config.provider === 'stripe') {
                 if (!config.public_key) throw new Error('Stripe Public Key not found in config response.');
@@ -1068,6 +1075,20 @@
             {showDelayedMessage}
             provider={activeProvider || 'stripe'}
         />
+    {:else if showBankTransfer}
+        <!-- Bank transfer flow — shows IBAN, BIC, reference, and polls for completion -->
+        <div class="bank-transfer-wrapper">
+            <button class="provider-switch-btn" onclick={() => { showBankTransfer = false; }} data-testid="bank-transfer-back">
+                &larr; {$text('signup.switch_to_eu_card')}
+            </button>
+            <BankTransferPayment
+                credits_amount={credits_amount}
+                price={purchasePrice}
+                currency={currency}
+                emailEncryptionKey=""
+                on:paymentStateChange={(e) => dispatch('paymentStateChange', e.detail)}
+            />
+        </div>
     {:else if activeProvider === 'polar' && !supportContribution}
         <!-- Polar embedded checkout (inline iframe, no full-screen overlay).
              We bypass PolarEmbedCheckout.create() entirely because it always appends a
@@ -1146,6 +1167,16 @@
                         >
                             {$text('signup.switch_to_non_eu_card')}
                         </button>
+                        {#if bankTransferAvailable}
+                            <button
+                                class="provider-switch-btn"
+                                onclick={() => { showBankTransfer = true; }}
+                                disabled={isLoading}
+                                data-testid="switch-to-bank-transfer"
+                            >
+                                {$text('settings.billing.bank_transfer')}
+                            </button>
+                        {/if}
                     </div>
                 {/if}
                 <PaymentForm
@@ -1182,7 +1213,7 @@
             </div>
         {:else}
         <div class="payment-form-overlay-wrapper">
-            <!-- Switch to Polar (non-EU card) — shown at top so it's visible on mobile without scrolling -->
+            <!-- Switch to Polar (non-EU card) or Bank Transfer — shown at top so it's visible on mobile without scrolling -->
             {#if !supportContribution}
                 <div class="provider-switch-container">
                     <button
@@ -1192,6 +1223,16 @@
                     >
                         {$text('signup.switch_to_non_eu_card')}
                     </button>
+                    {#if bankTransferAvailable}
+                        <button
+                            class="provider-switch-btn"
+                            onclick={() => { showBankTransfer = true; }}
+                            disabled={isLoading}
+                            data-testid="switch-to-bank-transfer"
+                        >
+                            {$text('settings.billing.bank_transfer')}
+                        </button>
+                    {/if}
                 </div>
             {/if}
             <div id="payment-element"></div>

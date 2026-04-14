@@ -4,15 +4,16 @@ export interface PricingTier {
   credits: number;
   price: {
     eur: number;
-    usd: number;
+    usd?: number; // Optional — bank-transfer-only tiers are EUR-only (SEPA)
   };
   label?: string; // Optional - will be generated dynamically
   monthly_auto_top_up_extra_credits?: number;
   recommended?: boolean; // Optional - marks the recommended pricing tier
+  bank_transfer_only?: boolean; // If true, this tier is only available via SEPA bank transfer (EUR only)
 }
 
 // Load shared pricing configuration
-let pricingData: Record<string, any> = { pricingTiers: [] };
+let pricingData: Record<string, PricingTier[]> = { pricingTiers: [] };
 
 // Try to load the shared YAML file
 try {
@@ -49,7 +50,7 @@ export const generateCreditsLabel = (credits: number): string => {
  * Get pricing tiers with generated labels for frontend display
  * @returns Array of pricing tiers with generated labels
  */
-const getPricingTiersWithLabels = (): PricingTier[] => {
+const _getPricingTiersWithLabels = (): PricingTier[] => {
   return pricingTiers.map((tier) => ({
     ...tier,
     label: generateCreditsLabel(tier.credits), // Always generate labels dynamically
@@ -62,16 +63,39 @@ const getPricingTiersWithLabels = (): PricingTier[] => {
  * @returns Array of pricing tiers formatted for CreditsBottomContent
  */
 export const getPricingTiersForSignup = (currency: "eur" | "usd" = "eur") => {
-  return pricingTiers.map((tier) => ({
-    credits_amount: tier.credits,
-    price: tier.price[currency],
-    currency: currency.toUpperCase(),
-    recommended: tier.recommended || false, // Use recommended flag from YAML configuration
-    label: generateCreditsLabel(tier.credits), // Always generate labels dynamically
-  }));
+  return pricingTiers
+    .filter((tier) => !tier.bank_transfer_only) // Exclude bank-transfer-only tiers from signup
+    .filter((tier) => tier.price[currency] !== undefined) // Skip tiers missing the requested currency
+    .map((tier) => ({
+      credits_amount: tier.credits,
+      price: tier.price[currency] as number,
+      currency: currency.toUpperCase(),
+      recommended: tier.recommended || false, // Use recommended flag from YAML configuration
+      label: generateCreditsLabel(tier.credits), // Always generate labels dynamically
+    }));
 };
 
-const getCreditsByPrice = (
+/**
+ * Get all pricing tiers including bank-transfer-only tiers, for settings billing.
+ * Tiers without a price for the requested currency (e.g. SEPA-only tiers in USD)
+ * are filtered out.
+ * @param currency - Currency to use for pricing
+ * @returns Array of pricing tiers formatted for settings
+ */
+export const getPricingTiersForSettings = (currency: "eur" | "usd" = "eur") => {
+  return pricingTiers
+    .filter((tier) => tier.price[currency] !== undefined)
+    .map((tier) => ({
+      credits_amount: tier.credits,
+      price: tier.price[currency] as number,
+      currency: currency.toUpperCase(),
+      recommended: tier.recommended || false,
+      label: generateCreditsLabel(tier.credits),
+      bank_transfer_only: tier.bank_transfer_only || false,
+    }));
+};
+
+const _getCreditsByPrice = (
   price: number,
   currency: "eur" | "usd",
 ): number | undefined => {
@@ -79,7 +103,7 @@ const getCreditsByPrice = (
   return tier?.credits;
 };
 
-const getPriceByCredits = (
+const _getPriceByCredits = (
   credits: number,
   currency: "eur" | "usd",
 ): number | undefined => {

@@ -78,6 +78,7 @@ class PaymentConfigResponse(BaseModel):
     provider: str
     public_key: str
     environment: str
+    bank_transfer_available: bool = False
 
 class CreateOrderRequest(BaseModel):
     currency: str
@@ -376,8 +377,14 @@ async def get_payment_config(
         else:
             raise HTTPException(status_code=503, detail="Payment provider not configured.")
 
-        logger.info(f"Payment config: provider={provider_name}, environment={environment}, is_eu={is_eu}")
-        return PaymentConfigResponse(provider=provider_name, public_key=public_key, environment=environment)
+        bank_transfer_available = payment_service.is_bank_transfer_available
+        logger.info(f"Payment config: provider={provider_name}, environment={environment}, is_eu={is_eu}, bank_transfer={bank_transfer_available}")
+        return PaymentConfigResponse(
+            provider=provider_name,
+            public_key=public_key,
+            environment=environment,
+            bank_transfer_available=bank_transfer_available,
+        )
 
     except HTTPException:
         raise
@@ -645,8 +652,374 @@ async def create_support_order(
         logger.error(f"Error creating support order: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during support payment initiation.")
 
+# ──────────────────────────────────────────────────────────────────────
+# SEPA Bank Transfer endpoints
+# ──────────────────────────────────────────────────────────────────────
+
+class CreateBankTransferOrderRequest(BaseModel):
+    credits_amount: int
+    currency: str = "eur"
+    email_encryption_key: str  # Stored with the order; needed when transfer arrives 1-2 days later
+
+
+class CreateBankTransferOrderResponse(BaseModel):
+    order_id: str
+    reference: str          # Structured reference user must include in the transfer
+    iban: str
+    bic: str
+    bank_name: str
+    amount_eur: str         # Display amount (e.g. "100.00")
+    credits_amount: int
+    expires_at: str         # ISO datetime
+
+
+class CreateSupportBankTransferRequest(BaseModel):
+    amount: int             # Amount in cents
+    currency: str = "eur"
+    support_email: str      # Plaintext email (same as existing support flow)
+
+
+class BankTransferStatusResponse(BaseModel):
+    order_id: str
+    status: str             # pending / completed / expired / admin_review
+    credits_amount: int
+    amount_eur: str
+    reference: str
+    expires_at: str
+    created_at: str
+
+
+class PendingBankTransferSummary(BaseModel):
+    order_id: str
+    credits_amount: int
+    amount_eur: str
+    reference: str
+    status: str
+    expires_at: str
+
+
+@router.post("/create-bank-transfer-order", response_model=CreateBankTransferOrderResponse)
+@limiter.limit("5/hour")
+async def create_bank_transfer_order(
+    request: Request,
+    order_data: CreateBankTransferOrderRequest,
+    payment_service: PaymentService = Depends(get_payment_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Create a pending SEPA bank transfer order.
+
+    Returns the company's bank details (IBAN, BIC) and a structured reference
+    that the user must include in their bank transfer. When the transfer is
+    received (detected via Revolut Business webhook), credits are applied
+    automatically.
+
+    SEPA bank transfers bypass the payment tier system entirely — they are
+    available to all users regardless of tier, including Tier 0.
+    """
+    import uuid
+
+    # Validate bank transfer is available
+    if not payment_service.is_bank_transfer_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Bank transfer payments are currently unavailable. Please try card payment instead."
+        )
+
+    # Validate currency — SEPA is EUR only
+    if order_data.currency.lower() != "eur":
+        raise HTTPException(
+            status_code=400,
+            detail="Bank transfers are only available in EUR (SEPA)."
+        )
+
+    # Validate credits amount exists in pricing tiers
+    price_cents = get_price_for_credits(order_data.credits_amount, "eur")
+    if price_cents is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No pricing tier found for {order_data.credits_amount} credits."
+        )
+
+    # Validate email encryption key
+    if not order_data.email_encryption_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Email encryption key is required for bank transfer orders."
+        )
+
+    # Check for existing pending order for same user + same credits amount → return it (idempotent)
+    existing_orders = await cache_service.get_user_pending_bank_transfers(str(current_user.id))
+    for existing in existing_orders:
+        if existing.get("credits_amount") == order_data.credits_amount:
+            bank_details = payment_service.get_bank_transfer_details()
+            logger.info(
+                f"Returning existing pending bank transfer {existing['order_id']} "
+                f"for user {current_user.id}"
+            )
+            return CreateBankTransferOrderResponse(
+                order_id=existing["order_id"],
+                reference=existing["reference"],
+                iban=bank_details["iban"],
+                bic=bank_details["bic"],
+                bank_name=bank_details["bank_name"],
+                amount_eur=f"{price_cents / 100:.2f}",
+                credits_amount=order_data.credits_amount,
+                expires_at=existing.get("expires_at", ""),
+            )
+
+    # Generate order ID and structured reference
+    order_id = f"bt_{uuid.uuid4().hex[:16]}"
+    # Reference format: OM-{account_id_prefix}-{order_id_short}
+    # Short enough to fit in SEPA remittance info (max 140 chars)
+    account_id = str(current_user.account_id) if hasattr(current_user, "account_id") else str(current_user.id)[:8]
+    reference = f"OM-{account_id}-{order_id[3:11]}"
+
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    created_at = datetime.now(timezone.utc).isoformat()
+
+    try:
+        # Save to Directus (durable store)
+        directus_record = await directus_service.create_item(
+            "pending_bank_transfers",
+            {
+                "order_id": order_id,
+                "user_id": str(current_user.id),
+                "credits_amount": order_data.credits_amount,
+                "amount_expected_cents": price_cents,
+                "currency": "eur",
+                "reference": reference,
+                "status": "pending",
+                "order_type": "credit_purchase",
+                "created_at": created_at,
+                "expires_at": expires_at,
+                "email_encryption_key": order_data.email_encryption_key,
+            }
+        )
+
+        if not directus_record:
+            logger.error(f"Failed to create pending_bank_transfers record for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="Failed to create bank transfer order.")
+
+        # Cache in Redis for fast webhook matching
+        await cache_service.set_bank_transfer_order(
+            order_id=order_id,
+            user_id=str(current_user.id),
+            credits_amount=order_data.credits_amount,
+            amount_expected_cents=price_cents,
+            reference=reference,
+            currency="eur",
+            email_encryption_key=order_data.email_encryption_key,
+            order_type="credit_purchase",
+            expires_at=expires_at,
+        )
+
+        bank_details = payment_service.get_bank_transfer_details()
+        logger.info(
+            f"Created bank transfer order {order_id} for user {current_user.id}: "
+            f"{order_data.credits_amount} credits, €{price_cents / 100:.2f}, ref={reference}"
+        )
+
+        return CreateBankTransferOrderResponse(
+            order_id=order_id,
+            reference=reference,
+            iban=bank_details["iban"],
+            bic=bank_details["bic"],
+            bank_name=bank_details["bank_name"],
+            amount_eur=f"{price_cents / 100:.2f}",
+            credits_amount=order_data.credits_amount,
+            expires_at=expires_at,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating bank transfer order for user {current_user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error creating bank transfer order.")
+
+
+@router.post("/create-support-bank-transfer-order", response_model=CreateBankTransferOrderResponse)
+@limiter.limit("5/hour")
+async def create_support_bank_transfer_order(
+    request: Request,
+    order_data: CreateSupportBankTransferRequest,
+    payment_service: PaymentService = Depends(get_payment_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
+    """
+    Create a pending bank transfer order for a one-time support contribution (donation).
+
+    Similar to create-bank-transfer-order but:
+    - Auth is optional (guest donations allowed)
+    - No credits are granted — this is a donation
+    - Uses support_email (plaintext) instead of email_encryption_key
+    """
+    import uuid
+
+    if not payment_service.is_bank_transfer_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Bank transfer payments are currently unavailable."
+        )
+
+    if order_data.currency.lower() != "eur":
+        raise HTTPException(status_code=400, detail="Bank transfers are only available in EUR (SEPA).")
+
+    email = (order_data.support_email or "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required for support contributions.")
+
+    min_amount = 100  # €1.00 minimum
+    if order_data.amount < min_amount:
+        raise HTTPException(status_code=400, detail=f"Minimum support amount is €{min_amount / 100:.2f}")
+
+    order_id = f"bt_{uuid.uuid4().hex[:16]}"
+    user_id = str(current_user.id) if current_user else "guest"
+    reference = f"OM-SUP-{order_id[3:11]}"
+
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    created_at = datetime.now(timezone.utc).isoformat()
+
+    try:
+        directus_record = await directus_service.create_item(
+            "pending_bank_transfers",
+            {
+                "order_id": order_id,
+                "user_id": user_id,
+                "credits_amount": 0,
+                "amount_expected_cents": order_data.amount,
+                "currency": "eur",
+                "reference": reference,
+                "status": "pending",
+                "order_type": "support_contribution",
+                "created_at": created_at,
+                "expires_at": expires_at,
+                "support_email": email,
+            }
+        )
+
+        if not directus_record:
+            raise HTTPException(status_code=500, detail="Failed to create support bank transfer order.")
+
+        await cache_service.set_bank_transfer_order(
+            order_id=order_id,
+            user_id=user_id,
+            credits_amount=0,
+            amount_expected_cents=order_data.amount,
+            reference=reference,
+            currency="eur",
+            order_type="support_contribution",
+            support_email=email,
+            expires_at=expires_at,
+        )
+
+        bank_details = payment_service.get_bank_transfer_details()
+        logger.info(f"Created support bank transfer order {order_id}: €{order_data.amount / 100:.2f}, ref={reference}")
+
+        return CreateBankTransferOrderResponse(
+            order_id=order_id,
+            reference=reference,
+            iban=bank_details["iban"],
+            bic=bank_details["bic"],
+            bank_name=bank_details["bank_name"],
+            amount_eur=f"{order_data.amount / 100:.2f}",
+            credits_amount=0,
+            expires_at=expires_at,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating support bank transfer order: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error.")
+
+
+@router.get("/bank-transfer-status/{order_id}", response_model=BankTransferStatusResponse)
+@limiter.limit("30/minute")
+async def get_bank_transfer_status(
+    request: Request,
+    order_id: str,
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Get the current status of a pending bank transfer order."""
+    # Try cache first, fall back to Directus
+    order = await cache_service.get_bank_transfer_by_order_id(order_id)
+
+    if not order:
+        # Cache miss — query Directus
+        results = await directus_service.get_items(
+            "pending_bank_transfers",
+            params={"filter[order_id][_eq]": order_id, "limit": 1}
+        )
+        if results:
+            order = results[0]
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Bank transfer order not found.")
+
+    # Security: ensure the order belongs to the requesting user
+    if order.get("user_id") != str(current_user.id):
+        raise HTTPException(status_code=404, detail="Bank transfer order not found.")
+
+    amount_cents = order.get("amount_expected_cents", 0)
+    return BankTransferStatusResponse(
+        order_id=order.get("order_id", order_id),
+        status=order.get("status", "pending"),
+        credits_amount=order.get("credits_amount", 0),
+        amount_eur=f"{amount_cents / 100:.2f}",
+        reference=order.get("reference", ""),
+        expires_at=order.get("expires_at", ""),
+        created_at=order.get("created_at", ""),
+    )
+
+
+@router.get("/bank-transfer-pending", response_model=List[PendingBankTransferSummary])
+@limiter.limit("30/minute")
+async def get_pending_bank_transfers(
+    request: Request,
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all pending bank transfer orders for the current user."""
+    # Try cache first
+    pending = await cache_service.get_user_pending_bank_transfers(str(current_user.id))
+
+    if not pending:
+        # Cache miss — query Directus for pending orders
+        results = await directus_service.get_items(
+            "pending_bank_transfers",
+            params={
+                "filter[user_id][_eq]": str(current_user.id),
+                "filter[status][_eq]": "pending",
+                "sort": "-created_at",
+                "limit": 10,
+            }
+        )
+        pending = results or []
+
+    return [
+        PendingBankTransferSummary(
+            order_id=o.get("order_id", ""),
+            credits_amount=o.get("credits_amount", 0),
+            amount_eur=f"{o.get('amount_expected_cents', 0) / 100:.2f}",
+            reference=o.get("reference", ""),
+            status=o.get("status", "pending"),
+            expires_at=o.get("expires_at", ""),
+        )
+        for o in pending
+    ]
+
+
 @router.post("/webhook", status_code=200)
-# Note: Webhook endpoint is called by payment providers (Stripe/Polar)
+# Note: Webhook endpoint is called by payment providers (Stripe/Polar/Revolut Business)
 # Rate limiting is handled by signature verification - providers have their own rate limits
 # We don't apply strict rate limits here to avoid blocking legitimate webhook deliveries
 # Security is ensured through signature verification in verify_and_parse_webhook
@@ -668,6 +1041,11 @@ async def payment_webhook(
     if "Stripe-Signature" in request.headers:
         provider_name = "stripe"
         sig_header = request.headers.get("Stripe-Signature")
+    elif "Revolut-Signature" in request.headers:
+        # Revolut Business uses HMAC-SHA256 with headers:
+        #   Revolut-Request-Timestamp, Revolut-Signature
+        provider_name = "revolut_business"
+        sig_header = request.headers.get("Revolut-Signature")
     elif "webhook-signature" in request.headers:
         # Polar uses Standard Webhooks (standardwebhooks.com) — headers are:
         #   webhook-id, webhook-timestamp, webhook-signature
@@ -690,6 +1068,12 @@ async def payment_webhook(
             event_payload = await payment_service.verify_and_parse_webhook(
                 payload_bytes, sig_header
             )
+        elif provider_name == "revolut_business":
+            # Revolut Business uses HMAC-SHA256 — needs timestamp + signature headers
+            timestamp_header = request.headers.get("Revolut-Request-Timestamp")
+            event_payload = await payment_service.verify_revolut_business_webhook(
+                payload_bytes, timestamp_header, sig_header
+            )
         elif provider_name == "polar":
             # Polar uses Standard Webhooks — pass the full headers dict so
             # PolarService can extract webhook-id, webhook-timestamp, webhook-signature.
@@ -707,6 +1091,9 @@ async def payment_webhook(
         elif provider_name == "polar":
             # Polar event structure: {"type": "checkout.updated", "data": {...}}
             event_type = event_payload.get("type")
+        elif provider_name == "revolut_business":
+            # Revolut Business event structure: {"event": "TransactionCreated", "data": {...}}
+            event_type = event_payload.get("event")
         else:
             event_type = event_payload.get("event")
 
@@ -728,6 +1115,11 @@ async def payment_webhook(
             elif event_type == "refund.failed":
                 # refund.failed: data.object is a Refund, payment_intent is our order_id
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
+        elif provider_name == "revolut_business":
+            # Revolut Business events use a completely different matching flow:
+            # - TransactionCreated/TransactionStateChanged: match by reference in the transfer
+            # - The handler is invoked as an early-return branch below, before Stripe/Polar processing
+            webhook_order_id = f"revolut_biz_{(event_payload.get('data') or {}).get('id', 'unknown')}"
         elif provider_name == "polar":
             # Polar events use different ID fields depending on the event type:
             #   - checkout.updated: data.id = checkout session ID (our order_id)
@@ -760,6 +1152,21 @@ async def payment_webhook(
                 return {"status": "received_missing_order_id"}
 
         logger.info(f"Processing verified webhook event: {event_type} for Order ID: {webhook_order_id} from {provider_name}")
+
+        # ── Revolut Business handler (early return) ──────────────────────
+        # Revolut Business webhooks have a fundamentally different flow:
+        # they match pending orders by transfer reference, not by webhook order_id.
+        if provider_name == "revolut_business":
+            return await _handle_revolut_business_webhook(
+                event_payload=event_payload,
+                event_type=event_type,
+                payment_service=payment_service,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                secrets_manager=secrets_manager,
+                tier_service=tier_service,
+            )
 
         # Determine if this is a successful payment event across all providers
         is_polar_success = (
@@ -5014,3 +5421,399 @@ async def request_refund(
             reason=f"Internal error: {str(e)}"
         )
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Revolut Business webhook handler (SEPA bank transfers)
+# ──────────────────────────────────────────────────────────────────────
+
+async def _handle_revolut_business_webhook(
+    event_payload: Dict[str, Any],
+    event_type: str,
+    payment_service: PaymentService,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    secrets_manager: SecretsManager,
+    tier_service: PaymentTierService,
+) -> Dict[str, str]:
+    """
+    Handle incoming Revolut Business webhook events for SEPA bank transfers.
+
+    Flow:
+    1. Parse the incoming transfer from the webhook event
+    2. Match it to a pending bank transfer order by reference
+    3. Validate the amount (±€0.50 tolerance for intermediary fees)
+    4. Apply credits to the user's account
+    5. Dispatch invoice email task
+    6. Broadcast WebSocket payment_completed event
+
+    This is invoked as an early-return branch from payment_webhook() when
+    the Revolut-Signature header is detected.
+    """
+    from backend.core.api.app.services.payment.revolut_business_service import RevolutBusinessService
+
+    revolut_service = payment_service.revolut_business
+    if not revolut_service:
+        logger.error("Revolut Business webhook received but service not initialized")
+        return {"status": "provider_not_configured"}
+
+    # Parse the event into a normalized transfer dict
+    transfer = RevolutBusinessService.parse_incoming_transfer(event_payload)
+    if not transfer:
+        logger.info(f"Revolut Business event '{event_type}' is not a relevant incoming transfer — ignoring")
+        return {"status": "ignored_irrelevant_event"}
+
+    if transfer["event_type"] == "TransactionStateChanged":
+        # State change events (e.g. pending → completed/reverted).
+        # We only process TransactionCreated for credit granting.
+        # TransactionStateChanged with new_state="reverted" could trigger cleanup,
+        # but for Phase 1 we just log it.
+        new_state = transfer.get("new_state", "")
+        logger.info(
+            f"Revolut Business transaction {transfer['transaction_id']} "
+            f"state changed: {transfer.get('old_state')} → {new_state}"
+        )
+        if new_state == "reverted":
+            logger.warning(
+                f"Revolut Business transaction {transfer['transaction_id']} was reverted. "
+                f"If credits were already granted, manual review may be needed."
+            )
+        return {"status": f"state_changed_{new_state}"}
+
+    # TransactionCreated — incoming SEPA transfer
+    reference = transfer.get("reference", "").strip()
+    received_amount_cents = transfer.get("amount_cents", 0)
+    received_currency = transfer.get("currency", "")
+    transaction_id = transfer.get("transaction_id", "")
+
+    logger.info(
+        f"Revolut Business incoming transfer: {received_amount_cents} cents {received_currency}, "
+        f"reference='{reference}', transaction_id={transaction_id}"
+    )
+
+    if received_currency != "eur":
+        logger.warning(
+            f"Revolut Business transfer in non-EUR currency ({received_currency}). "
+            f"SEPA transfers should be EUR. Flagging for admin review."
+        )
+        # TODO: Create admin alert for non-EUR transfers
+        return {"status": "non_eur_currency_flagged"}
+
+    # Match by reference — try Redis cache first, fall back to Directus
+    pending_order = await cache_service.get_bank_transfer_by_reference(reference)
+
+    if not pending_order:
+        # Cache miss — query Directus
+        try:
+            results = await directus_service.get_items(
+                "pending_bank_transfers",
+                params={
+                    "filter[reference][_eq]": reference,
+                    "filter[status][_eq]": "pending",
+                    "limit": 1,
+                }
+            )
+            if results:
+                pending_order = results[0]
+                logger.info(f"Found pending bank transfer in Directus for reference '{reference}'")
+        except Exception as db_err:
+            logger.error(f"Error querying Directus for bank transfer reference '{reference}': {db_err}")
+
+    if not pending_order:
+        logger.warning(
+            f"Revolut Business transfer with reference '{reference}' does not match any pending order. "
+            f"Amount: {received_amount_cents} cents, transaction_id: {transaction_id}. "
+            f"Flagging for admin review."
+        )
+        # TODO: Dispatch admin alert email for unmatched transfer
+        return {"status": "unmatched_transfer_flagged"}
+
+    order_id = pending_order.get("order_id", "")
+    order_status = pending_order.get("status", "")
+    expected_amount_cents = pending_order.get("amount_expected_cents", 0)
+    user_id = pending_order.get("user_id", "")
+    credits_amount = pending_order.get("credits_amount", 0)
+    order_type = pending_order.get("order_type", "credit_purchase")
+
+    # Idempotency: skip if already completed
+    if order_status == "completed":
+        logger.info(f"Bank transfer order {order_id} already completed. Skipping duplicate webhook.")
+        return {"status": "already_completed"}
+
+    # Amount tolerance check
+    if not RevolutBusinessService.is_amount_within_tolerance(expected_amount_cents, received_amount_cents):
+        logger.warning(
+            f"Bank transfer amount mismatch for order {order_id}: "
+            f"expected={expected_amount_cents} cents, received={received_amount_cents} cents. "
+            f"Flagging for admin review."
+        )
+        # Update status in Directus and cache
+        try:
+            await directus_service.update_items(
+                "pending_bank_transfers",
+                params={"filter[order_id][_eq]": order_id},
+                data={
+                    "status": "admin_review",
+                    "received_amount_cents": received_amount_cents,
+                    "revolut_transaction_id": transaction_id,
+                    "admin_note": f"Amount mismatch: expected {expected_amount_cents}, received {received_amount_cents}",
+                }
+            )
+            await cache_service.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="admin_review",
+                extra_fields={"received_amount_cents": received_amount_cents},
+            )
+        except Exception as update_err:
+            logger.error(f"Error updating bank transfer {order_id} to admin_review: {update_err}")
+        return {"status": "amount_mismatch_flagged"}
+
+    # ── Support contribution path (no credits) ───────────────────────
+    if order_type == "support_contribution":
+        completed_at = datetime.now(timezone.utc).isoformat()
+        try:
+            await directus_service.update_items(
+                "pending_bank_transfers",
+                params={"filter[order_id][_eq]": order_id},
+                data={
+                    "status": "completed",
+                    "completed_at": completed_at,
+                    "received_amount_cents": received_amount_cents,
+                    "revolut_transaction_id": transaction_id,
+                }
+            )
+            await cache_service.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="completed",
+                extra_fields={"completed_at": completed_at, "received_amount_cents": received_amount_cents},
+            )
+
+            # Dispatch support contribution email task
+            support_email = pending_order.get("support_email", "")
+            if support_email:
+                invoice_sender_path = "kv/data/providers/invoice_sender"
+                app.send_task(
+                    name="app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email",
+                    kwargs={
+                        "order_id": order_id,
+                        "support_email": support_email,
+                        "amount": received_amount_cents,
+                        "currency": "eur",
+                        "sender_addressline1": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1"),
+                        "sender_addressline2": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2"),
+                        "sender_addressline3": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3"),
+                        "sender_country": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country"),
+                        "sender_email": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email") or "support@openmates.org",
+                        "sender_vat": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat"),
+                    },
+                    queue="email",
+                )
+
+            logger.info(f"Support bank transfer {order_id} completed. Amount: {received_amount_cents} cents.")
+            return {"status": "support_contribution_completed"}
+
+        except Exception as e:
+            logger.error(f"Error completing support bank transfer {order_id}: {e}", exc_info=True)
+            return {"status": "processing_error"}
+
+    # ── Credit purchase path ─────────────────────────────────────────
+    user_cache_data = await cache_service.get_user_by_id(user_id)
+    if not user_cache_data:
+        logger.error(f"User {user_id} not found in cache for bank transfer {order_id}")
+        # Return 500 so Revolut retries
+        raise HTTPException(status_code=500, detail="User data temporarily unavailable")
+
+    vault_key_id = user_cache_data.get("vault_key_id")
+    if not vault_key_id:
+        logger.error(f"Vault key ID missing from cache for user {user_id}")
+        raise HTTPException(status_code=500, detail="User encryption key unavailable")
+
+    current_credits = user_cache_data.get("credits")
+    if current_credits is None:
+        logger.error(f"Credits field missing from cache for user {user_id}")
+        raise HTTPException(status_code=500, detail="User credits data unavailable")
+
+    # Set payment in progress flag
+    user_cache_data["payment_in_progress"] = True
+    user_cache_data["payment_in_progress_timestamp"] = int(time.time())
+    user_cache_data["pending_order_id"] = order_id
+    await cache_service.set_user(user_cache_data, user_id=user_id)
+
+    directus_update_success = False
+    new_total_credits = 0
+    completed_at = datetime.now(timezone.utc).isoformat()
+
+    try:
+        # Update user credits
+        new_total_credits = current_credits + credits_amount
+        new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(
+            str(new_total_credits), vault_key_id
+        )
+        update_payload = {
+            "encrypted_credit_balance": new_encrypted_credits,
+            "last_opened": "/chat/new",
+        }
+        directus_update_success = await directus_service.update_user(user_id, update_payload)
+
+        if not directus_update_success:
+            logger.error(f"Failed to update credits in Directus for bank transfer {order_id}")
+            raise Exception("Directus credit update failed")
+
+        # Update pending_bank_transfers record
+        await directus_service.update_items(
+            "pending_bank_transfers",
+            params={"filter[order_id][_eq]": order_id},
+            data={
+                "status": "completed",
+                "completed_at": completed_at,
+                "received_amount_cents": received_amount_cents,
+                "revolut_transaction_id": transaction_id,
+            }
+        )
+        await cache_service.update_bank_transfer_status(
+            order_id=order_id,
+            reference=reference,
+            status="completed",
+            extra_fields={"completed_at": completed_at, "received_amount_cents": received_amount_cents},
+        )
+
+        # Update tier system (SEPA is tier-unrestricted, but we still track for analytics)
+        try:
+            calculated_amount_cents = get_price_for_credits(credits_amount, "eur")
+            if calculated_amount_cents:
+                calculated_amount_decimal = float(calculated_amount_cents) / 100.0
+                await tier_service.update_monthly_spending(
+                    user_id=user_id,
+                    purchase_amount_eur=calculated_amount_decimal,
+                    vault_key_id=vault_key_id,
+                )
+                await tier_service.handle_successful_payment(
+                    user_id=user_id,
+                    payment_date=datetime.now(timezone.utc),
+                )
+        except Exception as tier_err:
+            logger.error(f"Error updating tier for bank transfer {order_id}: {tier_err}")
+
+        # Update server stats
+        try:
+            # Note: server_stats_service is not available in this function scope
+            # (it's on request.app.state), so we use cache_service stats directly
+            income_cents = get_price_for_credits(credits_amount, "eur")
+            if income_cents:
+                await cache_service.increment_stat("income_eur_cents", int(income_cents))
+            await cache_service.increment_stat("credits_sold", int(credits_amount))
+            await cache_service.update_liability(int(credits_amount))
+            await cache_service.increment_stat("purchase_count")
+            await cache_service.increment_json_stat("purchases_by_provider", "bank_transfer")
+        except Exception as stats_err:
+            logger.error(f"Error updating stats for bank transfer {order_id}: {stats_err}")
+
+        # Broadcast WebSocket events
+        try:
+            await cache_service.publish_event(
+                channel=f"user_updates::{user_id}",
+                event_data={
+                    "event_for_client": "user_credits_updated",
+                    "user_id_uuid": user_id,
+                    "payload": {"credits": new_total_credits},
+                }
+            )
+            await manager.broadcast_to_user_specific_event(
+                user_id=user_id,
+                event_name="user_credits_updated",
+                payload={"credits": new_total_credits},
+            )
+            # Also broadcast payment_completed for frontend navigation
+            await cache_service.publish_event(
+                channel=f"user_updates::{user_id}",
+                event_data={
+                    "event_for_client": "payment_completed",
+                    "user_id_uuid": user_id,
+                    "payload": {
+                        "order_id": order_id,
+                        "credits_purchased": credits_amount,
+                        "current_credits": new_total_credits,
+                    },
+                }
+            )
+            await manager.broadcast_to_user_specific_event(
+                user_id=user_id,
+                event_name="payment_completed",
+                payload={
+                    "order_id": order_id,
+                    "credits_purchased": credits_amount,
+                    "current_credits": new_total_credits,
+                },
+            )
+        except Exception as ws_err:
+            logger.error(f"Error broadcasting payment events for bank transfer {order_id}: {ws_err}")
+
+        # Dispatch invoice email task
+        invoice_sender_path = "kv/data/providers/invoice_sender"
+        email_encryption_key = pending_order.get("email_encryption_key")
+
+        task_payload = {
+            "order_id": order_id,
+            "user_id": user_id,
+            "credits_purchased": credits_amount,
+            "sender_addressline1": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1"),
+            "sender_addressline2": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2"),
+            "sender_addressline3": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3"),
+            "sender_country": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country"),
+            "sender_email": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email") or "support@openmates.org",
+            "sender_vat": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat"),
+            "email_encryption_key": email_encryption_key,
+            "is_gift_card": False,
+            "is_auto_topup": False,
+            "provider": "bank_transfer",
+        }
+        app.send_task(
+            name="app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email",
+            kwargs=task_payload,
+            queue="email",
+        )
+
+        # Log compliance
+        try:
+            ComplianceService.log_financial_transaction(
+                user_id=user_id,
+                transaction_type="credit_purchase",
+                amount=credits_amount,
+                currency="eur",
+                status="success",
+                details={
+                    "order_id": order_id,
+                    "provider": "bank_transfer",
+                    "previous_credits": current_credits,
+                    "new_credits": new_total_credits,
+                    "revolut_transaction_id": transaction_id,
+                },
+            )
+        except Exception as compliance_err:
+            logger.error(f"Error logging compliance for bank transfer {order_id}: {compliance_err}")
+
+        logger.info(
+            f"Bank transfer {order_id} completed successfully. "
+            f"User {user_id}: {current_credits} → {new_total_credits} credits "
+            f"(+{credits_amount}). Revolut txn: {transaction_id}"
+        )
+        return {"status": "bank_transfer_completed"}
+
+    except Exception as e:
+        logger.error(f"Error processing bank transfer {order_id}: {e}", exc_info=True)
+        return {"status": "processing_error"}
+
+    finally:
+        # Clear payment in progress flag
+        final_cache_data = await cache_service.get_user_by_id(user_id) or {}
+        final_cache_data["payment_in_progress"] = False
+        final_cache_data.pop("payment_in_progress_timestamp", None)
+        if final_cache_data.get("pending_order_id") == order_id:
+            final_cache_data.pop("pending_order_id", None)
+        if directus_update_success:
+            final_cache_data["credits"] = new_total_credits
+            final_cache_data["last_opened"] = "/chat/new"
+        await cache_service.set_user(final_cache_data, user_id=user_id)

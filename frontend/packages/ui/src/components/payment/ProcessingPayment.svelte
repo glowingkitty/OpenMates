@@ -43,7 +43,11 @@
             </div>
             <!-- "Powered by" subtitle below shimmer — replaces old bottom-container button -->
             <p class="powered-by-text color-grey-40">
-                Powered by {provider === 'polar' ? 'Polar' : 'Stripe'}
+                {#if provider === 'bank_transfer'}
+                    SEPA Bank Transfer
+                {:else}
+                    Powered by {provider === 'polar' ? 'Polar' : 'Stripe'}
+                {/if}
             </p>
         </div>
     </div>

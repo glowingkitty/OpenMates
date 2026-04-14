@@ -82,14 +82,19 @@ sequenceDiagram
 - **User-initiated payments:** `encrypted_email_address` decrypted with client-provided `email_encryption_key`.
 - **Auto top-up payments:** No client key available; uses `encrypted_email_auto_topup` (Vault-transit encrypted server-side when user enables auto top-up).
 
-### SEPA Transfer (Planned)
+### SEPA Bank Transfer
 
-For high-volume users and Tier 0 users:
-- Regular SEPA: credits added when transfer received (1-2 business days).
-- SEPA Instant: credits added immediately on confirmation.
-- Transaction purpose format: `Account: {user_account_id}, Transaction: {transaction_id}`.
-- Incoming transfers monitored via the bank's API (provider TBD — Revolut Business integration was removed with the GDPR cleanup).
-- Mismatched amounts auto-refunded; user notified if account ID present.
+Available to all users regardless of payment tier (tier system only limits card payments).
+
+- **Provider:** Revolut Business API — webhooks detect incoming transfers.
+- **Reference format:** `OM-{account_id}-{order_id_short}` (shown to user, must be included in transfer).
+- **Flow:** User selects bank transfer → backend creates pending order in Directus + Redis → shows IBAN/BIC/reference → user transfers from their bank → Revolut webhook (`TransactionCreated`) fires → match by reference → validate amount (±€0.50 tolerance) → apply credits → send invoice email.
+- **Order persistence:** `pending_bank_transfers` Directus collection (7-day TTL), Redis cache for fast webhook matching.
+- **Expiry:** Celery beat task runs every 6 hours, expires pending orders past 7-day deadline.
+- **Amount tolerance:** ±€0.50 to absorb intermediary bank fees. Outside tolerance → flagged for admin review.
+- **Support contributions:** Separate endpoint, same flow but no credits granted — dispatches support receipt email.
+- **Webhook verification:** HMAC-SHA256 via `Revolut-Signature` + `Revolut-Request-Timestamp` headers, 5-minute replay protection.
+- **Vault secrets:** `kv/data/providers/revolut_business` — `{env}_webhook_secret`, `iban`, `bic`, `bank_name`.
 
 ## Edge Cases
 

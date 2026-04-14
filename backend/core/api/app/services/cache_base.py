@@ -54,6 +54,9 @@ class CacheServiceBase:
         self.USER_DEVICE_KEY_PREFIX = cache_config.USER_DEVICE_KEY_PREFIX
         self.USER_DEVICE_LIST_KEY_PREFIX = cache_config.USER_DEVICE_LIST_KEY_PREFIX
         self.ORDER_KEY_PREFIX = cache_config.ORDER_KEY_PREFIX
+        self.BANK_TRANSFER_REF_KEY_PREFIX = cache_config.BANK_TRANSFER_REF_KEY_PREFIX
+        self.BANK_TRANSFER_ORDER_KEY_PREFIX = cache_config.BANK_TRANSFER_ORDER_KEY_PREFIX
+        self.BANK_TRANSFER_TTL = cache_config.BANK_TRANSFER_TTL
         # self.USER_APP_MEMORY_KEY_PREFIX = cache_config.USER_APP_MEMORY_KEY_PREFIX # Old, removed
         # self.USER_APP_SETTINGS_KEY_PREFIX = cache_config.USER_APP_SETTINGS_KEY_PREFIX # Old, removed
         self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX = cache_config.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX # New combined prefix
