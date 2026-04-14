@@ -1348,6 +1348,10 @@ def create_app() -> FastAPI:
     app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
+
+    # Wikipedia proxy — web app only; prevents user IP from being exposed to Wikimedia
+    from backend.core.api.app.routes import wikipedia_proxy
+    app.include_router(wikipedia_proxy.router, include_in_schema=False)
     
     # API routers - explicitly included in schema (support API key authentication)
     from backend.core.api.app.routes import tasks_api

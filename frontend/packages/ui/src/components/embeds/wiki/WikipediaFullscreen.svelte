@@ -21,6 +21,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import { getApiEndpoint } from '../../../config/api';
 
   interface Props {
     /** Canonical Wikipedia article title (e.g. "Albert_Einstein") */
@@ -60,14 +61,15 @@
 
   onMount(async () => {
     try {
-      const response = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}`,
-        {
-          headers: {
-            'Accept': 'application/json',
-          },
-        },
+      // Route through the OpenMates backend proxy — never hit Wikipedia directly
+      // from the user's browser (protects user IP from the Wikimedia Foundation).
+      const proxyUrl = getApiEndpoint(
+        `/v1/wikipedia/summary?title=${encodeURIComponent(wikiTitle)}&language=en`,
       );
+      const response = await fetch(proxyUrl, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' },
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
