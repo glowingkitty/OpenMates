@@ -12,7 +12,7 @@
     import { fade } from 'svelte/transition';
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { copyToClipboard } from '../../utils/clipboardUtils';
-    import { apiEndpoints } from '../../config/api';
+    import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { webSocketService } from '../../services/websocketService';
 
     const dispatch = createEventDispatcher();
@@ -72,9 +72,9 @@
     async function createOrder() {
         state = 'loading';
         try {
-            const endpoint = isSupportContribution
+            const endpoint = getApiEndpoint(isSupportContribution
                 ? apiEndpoints.payments.createSupportBankTransferOrder
-                : apiEndpoints.payments.createBankTransferOrder;
+                : apiEndpoints.payments.createBankTransferOrder);
 
             const body = isSupportContribution
                 ? { amount: price, currency: currency.toLowerCase(), support_email: supportEmail }
@@ -124,7 +124,7 @@
 
         try {
             const response = await fetch(
-                `${apiEndpoints.payments.bankTransferStatus}/${orderId}`,
+                `${getApiEndpoint(apiEndpoints.payments.bankTransferStatus)}/${orderId}`,
                 { credentials: 'include' }
             );
             if (!response.ok) return;
