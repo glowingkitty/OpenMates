@@ -13,7 +13,7 @@
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { apiEndpoints } from '../../config/api';
-    import { webSocketService } from '../../services/webSocketService';
+    import { webSocketService } from '../../services/websocketService';
 
     const dispatch = createEventDispatcher();
 
