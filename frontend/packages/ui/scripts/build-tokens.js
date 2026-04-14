@@ -190,9 +190,10 @@ function generateCSS() {
     rootLines.push("  );");
 
     // Dark mode overrides for specific apps
-    if (grad.dark_start) {
+    if (grad.dark_start || grad.dark_end) {
       darkLines.push(`  /* App/${pascalCase(name)} - dark mode */`);
-      darkLines.push(`  --color-app-${cssName}-start: ${grad.dark_start};`);
+      if (grad.dark_start) darkLines.push(`  --color-app-${cssName}-start: ${grad.dark_start};`);
+      if (grad.dark_end)   darkLines.push(`  --color-app-${cssName}-end: ${grad.dark_end};`);
     }
   }
   rootLines.push("");

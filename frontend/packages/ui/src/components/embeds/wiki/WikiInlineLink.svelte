@@ -108,19 +108,19 @@
     background-size: contain !important;
   }
 
-  /* Display text — uses study app start color (darker, readable on light bg)
-   * Wiki links use the study-app colour scheme because Wikipedia topics are
-   * study-related knowledge references. */
+  /* Display text — matches EmbedInlineLink web-app colour scheme so all
+   * inline web-style links share a consistent look.
+   * Light mode: START colour (darker stop, better contrast on light bg).
+   * Dark mode:  END colour   (brighter stop, better contrast on dark bg). */
   .wiki-inline-text {
     display: inline;
     font-size: inherit;
     font-weight: 500;
     line-height: inherit;
-    color: var(--color-app-study-start);
+    color: var(--color-app-web-start);
   }
 
-  /* Dark mode: use study app end color (brighter, readable on dark bg) */
   :global([data-theme="dark"]) .wiki-inline-text {
-    color: var(--color-app-study-end);
+    color: var(--color-app-web-end);
   }
 </style>

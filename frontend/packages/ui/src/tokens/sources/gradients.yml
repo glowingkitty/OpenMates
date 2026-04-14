@@ -50,8 +50,8 @@ apps:
   pdf:               { start: "#8f0808", end: "#e84545" }
   pdfeditor:         { start: "#8f0808", end: "#e84545" }
   shopping:          { start: "#ea9e39", end: "#ae6301" }
-  photos:            { start: "#001a30", end: "#1a5a8f" }
-  images:            { start: "#001a30", end: "#1a5a8f", legacy: true }  # Legacy alias for photos
+  photos:            { start: "#001a30", end: "#1a5a8f", dark_end: "#4db8ff" }
+  images:            { start: "#001a30", end: "#1a5a8f", dark_end: "#4db8ff", legacy: true }  # Legacy alias for photos
   publishing:        { start: "#49021f", end: "#eb2d5c" }
   socialmedia:       { start: "#044595", end: "#0281fa" }
   projectmanagement: { start: "#a84647", end: "#f16e6f" }
