@@ -109,6 +109,7 @@ class TestWebhookSignatureVerification:
         svc._is_production = False
         svc._iban = "DE89370400440532013000"
         svc._bic = "COBADEFFXXX"
+        svc._account_holder_name = "OpenMates GmbH"
         svc.provider_name = "bank_transfer"
         return svc
 
@@ -334,20 +335,24 @@ class TestBankDetails:
         svc = RevolutBusinessService.__new__(RevolutBusinessService)
         svc._iban = "DE89370400440532013000"
         svc._bic = "COBADEFFXXX"
+        svc._account_holder_name = "OpenMates GmbH"
 
         details = svc.get_bank_details()
 
         assert details["iban"] == "DE89370400440532013000"
         assert details["bic"] == "COBADEFFXXX"
         assert details["bank_name"] == "Revolut Bank UAB"
+        assert details["account_holder_name"] == "OpenMates GmbH"
 
     def test_defaults_when_unconfigured(self):
         svc = RevolutBusinessService.__new__(RevolutBusinessService)
         svc._iban = None
         svc._bic = None
+        svc._account_holder_name = None
 
         details = svc.get_bank_details()
 
         assert details["iban"] == ""
         assert details["bic"] == ""
         assert details["bank_name"] == "Revolut Bank UAB"
+        assert details["account_holder_name"] == ""
