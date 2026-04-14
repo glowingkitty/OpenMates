@@ -315,4 +315,76 @@ test.describe('Unauthenticated app load', () => {
 
 		console.log('[unauthenticated-load] AI model deep link test passed');
 	});
+
+	test('for-everyone chat header play button opens intro video in embed fullscreen', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		// ─── 1. Load as fresh unauthenticated user ───────────────────────
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone'),
+			null,
+			{ timeout: 15000 }
+		);
+		console.log('[unauthenticated-load] for-everyone intro chat loaded');
+
+		// ─── 2. Play button must be visible in the chat header ───────────
+		const playBtn = page.getByTestId('chat-header-play-btn');
+		await expect(playBtn).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Play button visible in chat header');
+
+		// ─── 3. Click play — expect embed fullscreen to open ────────────
+		await playBtn.click();
+
+		const videoFullscreen = page.getByTestId('intro-video-fullscreen');
+		await expect(videoFullscreen).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Intro video fullscreen opened');
+
+		// Verify it uses the embed fullscreen shell (UnifiedEmbedFullscreen top bar)
+		const embedTopBar = page.getByTestId('embed-fullscreen-overlay');
+		await expect(embedTopBar).toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Embed fullscreen shell visible');
+
+		// Verify video element is present and autoplaying
+		const videoEl = videoFullscreen.locator('video');
+		await expect(videoEl).toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Video element rendered');
+
+		// ─── 4. Close button dismisses the fullscreen ────────────────────
+		// EmbedTopBar uses data-testid="embed-minimize" for the close/minimize button
+		const closeBtn = page.getByTestId('embed-minimize');
+		await expect(closeBtn).toBeVisible({ timeout: 5000 });
+		await closeBtn.click();
+
+		await expect(videoFullscreen).not.toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Intro video fullscreen closed');
+
+		// ─── 5. Deep link — #intro-video hash opens fullscreen on load ───
+		await page.goto(getE2EDebugUrl('/#intro-video'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone') || window.location.hash.includes('intro-video'),
+			null,
+			{ timeout: 15000 }
+		);
+
+		const videoFullscreenDeepLink = page.getByTestId('intro-video-fullscreen');
+		await expect(videoFullscreenDeepLink).toBeVisible({ timeout: 15000 });
+		console.log('[unauthenticated-load] #intro-video deep link auto-opened fullscreen');
+
+		console.log('[unauthenticated-load] Intro video fullscreen test passed');
+	});
 });
