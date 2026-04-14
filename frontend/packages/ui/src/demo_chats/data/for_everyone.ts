@@ -47,6 +47,7 @@ export const forEveryoneChat: DemoChat = {
     lastUpdated: new Date().toISOString(),
     video_hls_url: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/hls/manifest.m3u8",
     video_mp4_url: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4",
+    video_thumbnail_url: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/thumbnail.jpg",
     video_start_time: 17,
   },
 };

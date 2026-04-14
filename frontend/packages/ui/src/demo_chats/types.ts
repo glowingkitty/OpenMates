@@ -28,6 +28,8 @@ export interface DemoChat {
 		video_hls_url?: string;
 		/** api.video MP4 URL — used as fallback for the background video and for the fullscreen player. */
 		video_mp4_url?: string;
+		/** Thumbnail image URL for the video (shown in the fullscreen embed before play). */
+		video_thumbnail_url?: string;
 		/** Timestamp in seconds where the background video should start playing. */
 		video_start_time?: number;
 	};
