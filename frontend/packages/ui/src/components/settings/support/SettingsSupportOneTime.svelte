@@ -13,7 +13,7 @@
     import Payment from '../../Payment.svelte';
     import BankTransferPayment from '../../payment/BankTransferPayment.svelte';
     import { authStore } from '../../../stores/authStore';
-    import { apiEndpoints } from '../../../config/api';
+    import { apiEndpoints, getApiEndpoint } from '../../../config/api';
     import InputWarning from '../../common/InputWarning.svelte';
     import { SettingsInput, SettingsInfoBox } from '../elements';
     import SettingsSupportOneTimeConfirmation from './SettingsSupportOneTimeConfirmation.svelte';
@@ -39,7 +39,7 @@
     // Check bank transfer availability on mount
     (async () => {
         try {
-            const response = await fetch(apiEndpoints.payments.config, { credentials: 'include' });
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
             if (response.ok) {
                 const config = await response.json();
                 bankTransferAvailable = config.bank_transfer_available || false;
