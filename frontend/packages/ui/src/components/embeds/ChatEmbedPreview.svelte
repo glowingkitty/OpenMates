@@ -47,15 +47,18 @@
     iconName: string;
     /** Click handler - called when the card is clicked */
     onClick?: (chatId: string) => void;
+    /** Context menu handler - called on right-click or long-press */
+    onContextMenu?: (chatId: string, event: MouseEvent) => void;
   }
-  
+
   let {
     chatId,
     title,
     previewText,
     category,
     iconName,
-    onClick
+    onClick,
+    onContextMenu
   }: Props = $props();
   
   // ─── Category gradient + icon ──────────────────────────────────────────────
@@ -140,6 +143,14 @@
       }
     }
   }
+
+  function handleContextMenu(e: MouseEvent) {
+    if (onContextMenu) {
+      e.preventDefault();
+      e.stopPropagation();
+      onContextMenu(chatId, e);
+    }
+  }
 </script>
 
 <div
@@ -152,6 +163,7 @@
   tabindex={0}
   onclick={handleClick}
   onkeydown={handleKeydown}
+  oncontextmenu={handleContextMenu}
   onmouseenter={handleMouseEnter}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
