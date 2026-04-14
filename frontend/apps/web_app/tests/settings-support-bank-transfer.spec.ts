@@ -191,9 +191,10 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 
 	// ─── Select €10 donation tier ─────────────────────────────────────────────
 
+	// Use exact: true to avoid matching €100 (bank-transfer-only tier also shows in support).
 	const tenEurItem = page
 		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
-		.filter({ hasText: /€10|10 EUR/i });
+		.getByText('€10', { exact: true });
 	await expect(tenEurItem).toBeVisible({ timeout: 10000 });
 	await tenEurItem.click();
 	log('Selected €10 donation tier.');
