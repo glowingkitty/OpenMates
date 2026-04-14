@@ -1235,7 +1235,10 @@
         }
     }
     
-    // Handler for Wikipedia fullscreen events (from WikiInlineLink)
+    // Handler for Wikipedia fullscreen events (from WikiInlineLink).
+    // Only one fullscreen can be open at a time — close any regular embed fullscreen
+    // before opening the wiki fullscreen. Updating wikiFullscreenData while wiki is
+    // already open replaces the article (via the {#key} block in the template).
     function handleWikiFullscreen(event: CustomEvent) {
         const detail = event.detail as {
             wikiTitle: string;
@@ -1244,6 +1247,11 @@
             thumbnailUrl?: string | null;
             description?: string | null;
         };
+        // Close any regular embed fullscreen first (mutual exclusivity)
+        if (showEmbedFullscreen) {
+            showEmbedFullscreen = false;
+            embedFullscreenData = null;
+        }
         wikiFullscreenData = detail;
         showWikiFullscreen = true;
         console.debug('[ActiveChat] Opening Wikipedia fullscreen for:', detail.wikiTitle);
@@ -1254,6 +1262,12 @@
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange } = detail;
+
+        // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
+        if (showWikiFullscreen) {
+            showWikiFullscreen = false;
+            wikiFullscreenData = null;
+        }
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
@@ -10185,16 +10199,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                     class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
                 >
-                    {#await import('./embeds/wiki/WikipediaFullscreen.svelte') then module}
-                        <module.default
-                            wikiTitle={wikiFullscreenData.wikiTitle}
-                            wikidataId={wikiFullscreenData.wikidataId}
-                            displayText={wikiFullscreenData.displayText}
-                            thumbnailUrl={wikiFullscreenData.thumbnailUrl}
-                            description={wikiFullscreenData.description}
-                            onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
-                        />
-                    {/await}
+                    <!-- Key on wikiTitle so clicking another wiki link remounts the fullscreen
+                         with the new article (fresh fetch, reset state) — same pattern as
+                         regular embed fullscreen keyed on ${embedId}:${focusChildEmbedId}. -->
+                    {#key wikiFullscreenData.wikiTitle}
+                        {#await import('./embeds/wiki/WikipediaFullscreen.svelte') then module}
+                            <module.default
+                                wikiTitle={wikiFullscreenData.wikiTitle}
+                                wikidataId={wikiFullscreenData.wikidataId}
+                                displayText={wikiFullscreenData.displayText}
+                                thumbnailUrl={wikiFullscreenData.thumbnailUrl}
+                                description={wikiFullscreenData.description}
+                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
+                            />
+                        {/await}
+                    {/key}
                 </div>
             {/if}
 

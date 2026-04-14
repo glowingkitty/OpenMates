@@ -114,9 +114,9 @@
 <UnifiedEmbedFullscreen
   appId="study"
   skillId="study"
+  skillIconName="study"
   embedHeaderTitle={articleTitle}
   embedHeaderSubtitle={articleDescription}
-  showSkillIcon={false}
   {onClose}
 >
   {#snippet embedHeaderCta()}
@@ -234,6 +234,15 @@
     color: var(--color-grey-80);
     line-height: 1.65;
     margin: 0;
+  }
+
+  /* Study skill icon mapping — renders the flat study.svg as mask-image (white fill)
+     on the EmbedHeader's center + decorative icons, instead of the gradient circle. */
+  :global(.skill-icon[data-skill-icon="study"]),
+  :global(.header-skill-icon[data-skill-icon="study"]),
+  :global(.deco-skill-icon[data-skill-icon="study"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/study.svg');
+    mask-image: url('@openmates/ui/static/icons/study.svg');
   }
 
   /* Attribution */
