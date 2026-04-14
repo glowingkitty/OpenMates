@@ -250,9 +250,9 @@
                 </div>
             </div>
 
-            <!-- Reference — highlighted, most critical -->
+            <!-- Reference — highlighted; required for credit purchases, optional for support contributions -->
             <div class="detail-copyable reference-row" data-testid="bank-transfer-reference">
-                <div class="detail-label">{$text('settings.billing.bank_transfer_reference')}</div>
+                <div class="detail-label">{isSupportContribution ? $text('settings.billing.bank_transfer_reference_support') : $text('settings.billing.bank_transfer_reference')}</div>
                 <div class="detail-value-row">
                     <span class="detail-value selectable monospace reference-value">{reference}</span>
                     <button

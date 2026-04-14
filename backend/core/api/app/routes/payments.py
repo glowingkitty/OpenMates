@@ -882,11 +882,11 @@ async def create_support_bank_transfer_order(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
-    Create a pending bank transfer order for a one-time support contribution (donation).
+    Create a pending bank transfer order for a one-time support contribution.
 
     Similar to create-bank-transfer-order but:
-    - Auth is optional (guest donations allowed)
-    - No credits are granted — this is a donation
+    - Auth is optional (guest contributions allowed)
+    - No credits are granted — this is a support contribution
     - Uses support_email (plaintext) instead of email_encryption_key
     """
     import uuid
