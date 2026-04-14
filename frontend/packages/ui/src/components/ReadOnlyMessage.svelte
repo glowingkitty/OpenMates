@@ -1376,63 +1376,113 @@
         border-radius: 7px; 
     }
 
-    /* Link styling - target actual anchor tags with high specificity */
+    /* ──────────────────────────────────────────────────────────────
+       Unified clickable-text styling for assistant responses.
+
+       All link text (external URLs, internal deep links, any <a>) uses
+       the brand CTA orange — matches EmbedInlineLink and WikiInlineLink
+       so users learn a single visual signal: "orange text = clickable".
+       Reset any inherited gradient/background-clip from older styles.
+       ────────────────────────────────────────────────────────────── */
     :global(.read-only-message .ProseMirror .markdown-link),
     :global(.read-only-message .ProseMirror .markdown-paragraph a),
     :global(.read-only-message .ProseMirror a),
     :global(.read-only-message .markdown-link),
     :global(.read-only-message .markdown-paragraph a),
     :global(.read-only-message a) {
-        background: var(--color-primary) !important;
-        background-clip: text !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
+        background: none !important;
+        background-clip: initial !important;
+        -webkit-background-clip: initial !important;
+        -webkit-text-fill-color: currentColor !important;
+        color: var(--color-button-primary) !important;
         text-decoration: none !important;
-        color: transparent !important; /* Fallback for browsers that don't support background-clip */
-        transition: none !important; /* Remove transition that might interfere */
+        font-weight: 500;
+        transition: color 0.15s ease, opacity 0.15s ease !important;
     }
 
-    /* Hover states with high specificity */
     :global(.read-only-message .ProseMirror .markdown-link:hover),
     :global(.read-only-message .ProseMirror .markdown-paragraph a:hover),
     :global(.read-only-message .ProseMirror a:hover),
     :global(.read-only-message .markdown-link:hover),
     :global(.read-only-message .markdown-paragraph a:hover),
     :global(.read-only-message a:hover) {
-        background: var(--color-primary) !important;
-        background-clip: text !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
+        color: var(--color-button-primary-hover) !important;
         text-decoration: underline !important;
-        color: transparent !important;
     }
 
-    /* Focus states */
-    :global(.read-only-message .ProseMirror .markdown-link:focus),
-    :global(.read-only-message .ProseMirror .markdown-paragraph a:focus),
-    :global(.read-only-message .ProseMirror a:focus),
-    :global(.read-only-message .markdown-link:focus),
-    :global(.read-only-message .markdown-paragraph a:focus),
-    :global(.read-only-message a:focus) {
-        background: var(--color-primary) !important;
-        background-clip: text !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        outline: 2px solid var(--color-primary) !important;
+    :global(.read-only-message .ProseMirror .markdown-link:active),
+    :global(.read-only-message .ProseMirror .markdown-paragraph a:active),
+    :global(.read-only-message .ProseMirror a:active),
+    :global(.read-only-message .markdown-link:active),
+    :global(.read-only-message .markdown-paragraph a:active),
+    :global(.read-only-message a:active) {
+        color: var(--color-button-primary-pressed) !important;
+        opacity: 0.85;
+    }
+
+    :global(.read-only-message .ProseMirror .markdown-link:focus-visible),
+    :global(.read-only-message .ProseMirror .markdown-paragraph a:focus-visible),
+    :global(.read-only-message .ProseMirror a:focus-visible),
+    :global(.read-only-message .markdown-link:focus-visible),
+    :global(.read-only-message .markdown-paragraph a:focus-visible),
+    :global(.read-only-message a:focus-visible) {
+        outline: 2px solid var(--color-button-primary) !important;
         outline-offset: 2px !important;
-        color: transparent !important;
+        border-radius: 3px;
     }
 
-    /* Brighter link gradient for dark mode readability */
-    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-link),
-    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-paragraph a),
-    :global([data-theme="dark"] .read-only-message .ProseMirror a),
-    :global([data-theme="dark"] .read-only-message .markdown-link),
-    :global([data-theme="dark"] .read-only-message .markdown-paragraph a),
-    :global([data-theme="dark"] .read-only-message a) {
-        background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%) !important;
-        -webkit-background-clip: text !important;
-        background-clip: text !important;
+    /* ──────────────────────────────────────────────────────────────
+       Internal deep links (relative URLs like /settings/..., /chats/...)
+       render with a small OpenMates-branded badge before the text —
+       mirrors the badge pattern used in EmbedInlineLink / WikiInlineLink
+       so all three clickable-text types look visually consistent.
+
+       `a[href^="/"]` matches relative-root URLs; `:not([href^="//"])`
+       excludes protocol-relative URLs (//example.com) which are external.
+
+       Technique: ::before is the 20px gradient circle; ::after is the
+       white OpenMates icon layered on top via negative margin so it sits
+       inside the circle. Two pseudo-elements are needed because we want a
+       white icon ON a gradient circle — a single masked element can only
+       render the icon shape IN the gradient (cut out), not on top of it.
+       ────────────────────────────────────────────────────────────── */
+    :global(.read-only-message a[href^="/"]:not([href^="//"])) {
+        text-decoration: none !important;
+    }
+
+    :global(.read-only-message a[href^="/"]:not([href^="//"]))::before {
+        content: "";
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        border-radius: 50%;
+        vertical-align: middle;
+        margin-right: 3px;
+        background: var(--color-app-openmates);
+    }
+
+    :global(.read-only-message a[href^="/"]:not([href^="//"]))::after {
+        content: "";
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        /* Negative margin-left pulls the icon back onto the gradient circle
+           (badge width 20px + margin-right 3px = 23px, icon width 10px:
+           -23px + 5px centers it: -18px); margin-right restores spacing. */
+        margin-left: -18px;
+        margin-right: 11px;
+        vertical-align: middle;
+        background-color: white;
+        -webkit-mask-image: var(--icon-url-openmates);
+        mask-image: var(--icon-url-openmates);
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        pointer-events: none;
     }
 
     /* Alternative approach for browsers that don't support :has() */
