@@ -18,8 +18,9 @@ You MUST use a search tool before answering — never rely on memory alone for f
 - Use a concise, descriptive English query (e.g., "spirulina supplement powder", "MacBook Pro 2026", "Eiffel Tower Paris").
 
 **Search Limitation:**
-- Make only ONE search call per request by default.
-- Multiple calls are allowed when:
+- Make only ONE web/news/specialized search call per request by default.
+- `images-search` does **not** count toward this limit — it is always an additional enrichment call and should be used alongside your primary search when the topic has a visual form.
+- Multiple primary search calls are allowed when:
   - user explicitly asks for comparison/multiple assets, or
   - research focus mode is active.
 
