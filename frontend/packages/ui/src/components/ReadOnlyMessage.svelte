@@ -1457,35 +1457,40 @@
        single masked element can only render the icon shape IN the gradient
        (cut out), not on top of it.
        ────────────────────────────────────────────────────────────── */
+    /* Anchor is a positioning context; reserve 23px of inline-start padding
+       (20px badge + 3px gap) for the absolutely-positioned pseudo-elements.
+       Absolute positioning keeps the badge and icon rock-solid regardless of
+       where the text wraps — previous negative-margin approach made the icon
+       drift to the right edge of the text when the anchor spanned more than
+       one line. */
     :global(.read-only-message .markdown-link-internal) {
+        position: relative;
+        padding-inline-start: 23px;
         text-decoration: none !important;
     }
 
+    /* Gradient circle, pinned to the inline-start edge of the first line. */
     :global(.read-only-message .markdown-link-internal)::before {
         content: "";
-        display: inline-block;
+        position: absolute;
+        inset-inline-start: 0;
+        top: 0.15em;
         width: 20px;
         height: 20px;
-        min-width: 20px;
         border-radius: 50%;
-        vertical-align: middle;
-        margin-right: 3px;
         background: var(--color-app-openmates);
     }
 
+    /* White OpenMates icon, pinned to the same edge but offset 5px so it
+       centers inside the 20px circle (20-10)/2 = 5. Vertical centering
+       matches the ::before offset. */
     :global(.read-only-message .markdown-link-internal)::after {
         content: "";
-        display: inline-block;
+        position: absolute;
+        inset-inline-start: 5px;
+        top: calc(0.15em + 5px);
         width: 10px;
         height: 10px;
-        /* Negative margin-left pulls the icon back onto the gradient circle.
-           Badge width 20px + its margin-right 3px = 23px of offset. Icon is
-           10px wide; to center it on the 20px circle we shift by -18px
-           (= -23px + (20-10)/2 + margin adjustment), then add margin-right
-           to restore the 3px spacing before the link text. */
-        margin-left: -18px;
-        margin-right: 11px;
-        vertical-align: middle;
         background-color: white;
         -webkit-mask-image: var(--icon-url-openmates);
         mask-image: var(--icon-url-openmates);
