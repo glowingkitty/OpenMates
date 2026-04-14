@@ -1376,28 +1376,25 @@
         border-radius: 7px; 
     }
 
-    /* ──────────────────────────────────────────────────────────────
-       Unified clickable-text styling for assistant responses.
-
-       All link text (external URLs, internal deep links, any <a>) uses
-       the brand CTA orange — matches EmbedInlineLink and WikiInlineLink
-       so users learn a single visual signal: "orange text = clickable".
-       Reset any inherited gradient/background-clip from older styles.
-       ────────────────────────────────────────────────────────────── */
+    /* Link styling - target actual anchor tags with high specificity.
+       External markdown links use the brand primary gradient (blue).
+       Per-app-coloured links (embed/wiki inline) are rendered by their own
+       Svelte components and set their own colours inline, so they're not
+       affected by this rule. Internal deep links keep this gradient too
+       but are also decorated with an OpenMates badge further below. */
     :global(.read-only-message .ProseMirror .markdown-link),
     :global(.read-only-message .ProseMirror .markdown-paragraph a),
     :global(.read-only-message .ProseMirror a),
     :global(.read-only-message .markdown-link),
     :global(.read-only-message .markdown-paragraph a),
     :global(.read-only-message a) {
-        background: none !important;
-        background-clip: initial !important;
-        -webkit-background-clip: initial !important;
-        -webkit-text-fill-color: currentColor !important;
-        color: var(--color-button-primary) !important;
+        background: var(--color-primary) !important;
+        background-clip: text !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
         text-decoration: none !important;
-        font-weight: 500;
-        transition: color 0.15s ease, opacity 0.15s ease !important;
+        color: transparent !important;
+        transition: none !important;
     }
 
     :global(.read-only-message .ProseMirror .markdown-link:hover),
@@ -1406,29 +1403,39 @@
     :global(.read-only-message .markdown-link:hover),
     :global(.read-only-message .markdown-paragraph a:hover),
     :global(.read-only-message a:hover) {
-        color: var(--color-button-primary-hover) !important;
+        background: var(--color-primary) !important;
+        background-clip: text !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
         text-decoration: underline !important;
+        color: transparent !important;
     }
 
-    :global(.read-only-message .ProseMirror .markdown-link:active),
-    :global(.read-only-message .ProseMirror .markdown-paragraph a:active),
-    :global(.read-only-message .ProseMirror a:active),
-    :global(.read-only-message .markdown-link:active),
-    :global(.read-only-message .markdown-paragraph a:active),
-    :global(.read-only-message a:active) {
-        color: var(--color-button-primary-pressed) !important;
-        opacity: 0.85;
-    }
-
-    :global(.read-only-message .ProseMirror .markdown-link:focus-visible),
-    :global(.read-only-message .ProseMirror .markdown-paragraph a:focus-visible),
-    :global(.read-only-message .ProseMirror a:focus-visible),
-    :global(.read-only-message .markdown-link:focus-visible),
-    :global(.read-only-message .markdown-paragraph a:focus-visible),
-    :global(.read-only-message a:focus-visible) {
-        outline: 2px solid var(--color-button-primary) !important;
+    :global(.read-only-message .ProseMirror .markdown-link:focus),
+    :global(.read-only-message .ProseMirror .markdown-paragraph a:focus),
+    :global(.read-only-message .ProseMirror a:focus),
+    :global(.read-only-message .markdown-link:focus),
+    :global(.read-only-message .markdown-paragraph a:focus),
+    :global(.read-only-message a:focus) {
+        background: var(--color-primary) !important;
+        background-clip: text !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        outline: 2px solid var(--color-primary) !important;
         outline-offset: 2px !important;
-        border-radius: 3px;
+        color: transparent !important;
+    }
+
+    /* Brighter link gradient for dark mode readability */
+    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-link),
+    :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-paragraph a),
+    :global([data-theme="dark"] .read-only-message .ProseMirror a),
+    :global([data-theme="dark"] .read-only-message .markdown-link),
+    :global([data-theme="dark"] .read-only-message .markdown-paragraph a),
+    :global([data-theme="dark"] .read-only-message a) {
+        background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%) !important;
+        -webkit-background-clip: text !important;
+        background-clip: text !important;
     }
 
     /* ──────────────────────────────────────────────────────────────

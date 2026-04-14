@@ -108,26 +108,19 @@
     background-size: contain !important;
   }
 
-  /* Unified clickable-text colour: brand CTA orange.
-     Matches .markdown-link and .embed-inline-text so users learn a single
-     visual signal for "this text is clickable" — independent of link target
-     (wiki entry, embed fullscreen, or external web page). The study-gradient
-     badge on the left still signals the study-app context. */
+  /* Display text — uses study app start color (darker, readable on light bg)
+   * Wiki links use the study-app colour scheme because Wikipedia topics are
+   * study-related knowledge references. */
   .wiki-inline-text {
     display: inline;
     font-size: inherit;
     font-weight: 500;
     line-height: inherit;
-    color: var(--color-button-primary);
-    transition: color 0.15s ease, opacity 0.15s ease;
+    color: var(--color-app-study-start);
   }
 
-  .wiki-inline-link:hover .wiki-inline-text {
-    color: var(--color-button-primary-hover);
-  }
-
-  .wiki-inline-link:active .wiki-inline-text {
-    color: var(--color-button-primary-pressed);
-    opacity: 0.85;
+  /* Dark mode: use study app end color (brighter, readable on dark bg) */
+  :global([data-theme="dark"]) .wiki-inline-text {
+    color: var(--color-app-study-end);
   }
 </style>

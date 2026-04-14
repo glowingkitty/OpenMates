@@ -78,28 +78,20 @@
   border-radius: 3px;
 }
 
-/* Unified clickable-text color across assistant responses — brand CTA orange.
-   Applies to external links in markdown, embed inline links, and wiki inline
-   links so users learn a single visual signal for "this text is clickable". */
 .markdown-link {
-  color: var(--color-button-primary, #ff553b);
+  color: var(--color-link, #0969da);
   text-decoration: none;
   border-radius: 3px;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  transition: color 0.2s ease;
 }
 
 .markdown-link:hover {
-  color: var(--color-button-primary-hover, #ff7961);
+  color: var(--color-link-hover, #0550ae);
   text-decoration: underline;
 }
 
-.markdown-link:active {
-  color: var(--color-button-primary-pressed, #e54a33);
-  opacity: 0.85;
-}
-
-.markdown-link:focus-visible {
-  outline: 2px solid var(--color-button-primary, #ff553b);
+.markdown-link:focus {
+  outline: 2px solid var(--color-focus, #0969da);
   outline-offset: 2px;
 }
 
@@ -349,18 +341,16 @@
     color: var(--color-font-primary-dark, #fff);
   }
 
-  /* Dark mode: keep the unified CTA orange for clickable text.
-     The brand orange reads well on dark backgrounds already. */
   .markdown-link {
-    color: var(--color-button-primary, #ff553b);
+    color: var(--color-link-dark, #58a6ff);
   }
 
   .markdown-link:hover {
-    color: var(--color-button-primary-hover, #ff7961);
+    color: var(--color-link-hover-dark, #79c0ff);
   }
 
-  .markdown-link:focus-visible {
-    outline-color: var(--color-button-primary, #ff553b);
+  .markdown-link:focus {
+    outline-color: var(--color-focus-dark, #58a6ff);
   }
 
   /* SVG images in legal documents - invert colors for dark mode */
