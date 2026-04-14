@@ -2593,7 +2593,7 @@ bank_transfer_amount:
   he: סכום
   verified_by_human: []
 bank_transfer_reference:
-  context: Label for the payment reference field that user must include in their bank transfer
+  context: Label for the payment reference field — shown on credit purchase bank transfers where including it is required
   en: Payment Reference (required)
   de: Verwendungszweck (erforderlich)
   zh: 付款参考 (必填)
@@ -2616,29 +2616,53 @@ bank_transfer_reference:
   sv: Betalningsreferens (obligatorisk)
   he: אסמכתא לתשלום (חובה)
   verified_by_human: []
+bank_transfer_reference_support:
+  context: Label for the payment reference field on support contribution bank transfers — the reference is optional
+  en: Payment Reference (optional)
+  de: Verwendungszweck (optional)
+  zh: 付款参考 (可选)
+  es: Referencia de pago (opcional)
+  fr: Référence de paiement (facultative)
+  pt: Referência de pagamento (opcional)
+  ru: Назначение платежа (необязательно)
+  ja: 支払い参照 (任意)
+  ko: 결제 참조 (선택사항)
+  it: Causale di pagamento (facoltativa)
+  tr: Ödeme referansı (isteğe bağlı)
+  vi: Mã tham chiếu thanh toán (tùy chọn)
+  id: Referensi pembayaran (opsional)
+  pl: Referencja płatności (opcjonalna)
+  nl: Betalingsreferentie (optioneel)
+  ar: مرجع الدفع (اختياري)
+  hi: भुगतान संदर्भ (वैकल्पिक)
+  th: อ้างอิงการชำระเงิน (ไม่บังคับ)
+  cs: Platební reference (volitelná)
+  sv: Betalningsreferens (valfri)
+  he: אסמכתא לתשלום (אופציונלי)
+  verified_by_human: []
 bank_transfer_reference_hint_support:
-  context: Info hint shown for support/donation bank transfers explaining the reference is optional but needed for confirmation email
-  en: Include this reference in your transfer if you'd like to receive a confirmation email once we receive your support payment. It's optional for donations.
-  de: Fügen Sie diesen Verwendungszweck in Ihre Überweisung ein, wenn Sie eine Bestätigungs-E-Mail erhalten möchten, sobald wir Ihre Unterstützungszahlung erhalten. Er ist optional für Spenden.
-  zh: 如果您希望在我们收到您的支持付款后收到确认电子邮件，请在转账中包含此参考号。对于捐款，这是可选的。
-  es: Incluya esta referencia en su transferencia si desea recibir un correo de confirmación una vez que recibamos su pago de apoyo. Es opcional para donaciones.
-  fr: Incluez cette référence dans votre virement si vous souhaitez recevoir un e-mail de confirmation une fois votre paiement de soutien reçu. C'est facultatif pour les dons.
-  pt: Inclua esta referência em sua transferência se desejar receber um e-mail de confirmação assim que recebermos seu pagamento de suporte. É opcional para doações.
-  ru: Укажите эту ссылку в переводе, если хотите получить подтверждение по электронной почте после получения вашего платежа. Для пожертвований это необязательно.
-  ja: サポート支払いを受領した際に確認メールを受け取りたい場合は、振込にこの参照番号を含めてください。寄付の場合は任意です。
-  ko: 지원 결제를 받으면 확인 이메일을 받으시려면 이 참조번호를 송금에 포함해 주세요. 기부의 경우 선택사항입니다.
-  it: Includi questo riferimento nel tuo bonifico se desideri ricevere un'email di conferma una volta ricevuto il tuo pagamento di supporto. È facoltativo per le donazioni.
-  tr: Destek ödemenizi aldığımızda bir onay e-postası almak istiyorsanız bu referansı transferinize ekleyin. Bağışlar için isteğe bağlıdır.
-  vi: Bao gồm mã tham chiếu này trong chuyển khoản nếu bạn muốn nhận email xác nhận khi chúng tôi nhận được khoản thanh toán hỗ trợ. Tùy chọn cho quyên góp.
-  id: Sertakan referensi ini dalam transfer Anda jika ingin menerima email konfirmasi setelah kami menerima pembayaran dukungan Anda. Opsional untuk donasi.
-  pl: Podaj tę referencję w przelewie, jeśli chcesz otrzymać e-mail z potwierdzeniem po otrzymaniu płatności. Jest opcjonalna dla darowizn.
-  nl: Vermeld deze referentie in uw overschrijving als u een bevestigingsmail wilt ontvangen zodra we uw steunbetaling ontvangen. Optioneel voor donaties.
-  ar: أدرج هذا المرجع في تحويلك إذا كنت تريد تلقي بريد تأكيد عند استلام دفعة الدعم. اختياري للتبرعات.
-  hi: यदि आप हमारा समर्थन भुगतान प्राप्त होने पर एक पुष्टिकरण ईमेल प्राप्त करना चाहते हैं, तो इस संदर्भ को अपने ट्रांसफर में शामिल करें। दान के लिए वैकल्पिक है।
-  th: รวมรหัสอ้างอิงนี้ในการโอนของคุณหากต้องการรับอีเมลยืนยันเมื่อเราได้รับการชำระเงินสนับสนุน ไม่บังคับสำหรับการบริจาค
-  cs: Uveďte tuto referenci v převodu, pokud chcete obdržet potvrzovací e-mail po přijetí platby. Je volitelná pro dary.
-  sv: Inkludera denna referens i din överföring om du vill få ett bekräftelsemail när vi har mottagit din supportbetalning. Valfritt för donationer.
-  he: כלול אסמכתא זו בהעברה אם ברצונך לקבל אישור במייל עם קבלת תשלום התמיכה. אופציונלי לתרומות.
+  context: Info hint shown for support contribution bank transfers explaining the reference is optional but needed for a confirmation email
+  en: Include this reference in your transfer if you'd like to receive a confirmation email once we receive your support payment. The reference is optional.
+  de: Fügen Sie diesen Verwendungszweck in Ihre Überweisung ein, wenn Sie eine Bestätigungs-E-Mail erhalten möchten, sobald wir Ihre Unterstützungszahlung erhalten. Der Verwendungszweck ist optional.
+  zh: 如果您希望在我们收到您的支持付款后收到确认电子邮件，请在转账中包含此参考号。参考号是可选的。
+  es: Incluya esta referencia en su transferencia si desea recibir un correo de confirmación una vez que recibamos su pago de apoyo. La referencia es opcional.
+  fr: Incluez cette référence dans votre virement si vous souhaitez recevoir un e-mail de confirmation une fois votre paiement de soutien reçu. La référence est facultative.
+  pt: Inclua esta referência em sua transferência se desejar receber um e-mail de confirmação assim que recebermos seu pagamento de suporte. A referência é opcional.
+  ru: Укажите эту ссылку в переводе, если хотите получить подтверждение по электронной почте после получения вашего платежа. Ссылка необязательна.
+  ja: サポート支払いを受領した際に確認メールを受け取りたい場合は、振込にこの参照番号を含めてください。参照番号は任意です。
+  ko: 지원 결제를 받으면 확인 이메일을 받으시려면 이 참조번호를 송금에 포함해 주세요. 참조번호는 선택사항입니다.
+  it: Includi questo riferimento nel tuo bonifico se desideri ricevere un'email di conferma una volta ricevuto il tuo pagamento di supporto. Il riferimento è facoltativo.
+  tr: Destek ödemenizi aldığımızda bir onay e-postası almak istiyorsanız bu referansı transferinize ekleyin. Referans isteğe bağlıdır.
+  vi: Bao gồm mã tham chiếu này trong chuyển khoản nếu bạn muốn nhận email xác nhận khi chúng tôi nhận được khoản thanh toán hỗ trợ. Mã tham chiếu là tùy chọn.
+  id: Sertakan referensi ini dalam transfer Anda jika ingin menerima email konfirmasi setelah kami menerima pembayaran dukungan Anda. Referensi ini bersifat opsional.
+  pl: Podaj tę referencję w przelewie, jeśli chcesz otrzymać e-mail z potwierdzeniem po otrzymaniu płatności. Referencja jest opcjonalna.
+  nl: Vermeld deze referentie in uw overschrijving als u een bevestigingsmail wilt ontvangen zodra we uw steunbetaling ontvangen. De referentie is optioneel.
+  ar: أدرج هذا المرجع في تحويلك إذا كنت تريد تلقي بريد تأكيد عند استلام دفعة الدعم. المرجع اختياري.
+  hi: यदि आप हमारा समर्थन भुगतान प्राप्त होने पर एक पुष्टिकरण ईमेल प्राप्त करना चाहते हैं, तो इस संदर्भ को अपने ट्रांसफर में शामिल करें। संदर्भ वैकल्पिक है।
+  th: รวมรหัสอ้างอิงนี้ในการโอนของคุณหากต้องการรับอีเมลยืนยันเมื่อเราได้รับการชำระเงินสนับสนุน รหัสอ้างอิงเป็นตัวเลือก
+  cs: Uveďte tuto referenci v převodu, pokud chcete obdržet potvrzovací e-mail po přijetí platby. Reference je volitelná.
+  sv: Inkludera denna referens i din överföring om du vill få ett bekräftelsemail när vi har mottagit din supportbetalning. Referensen är valfri.
+  he: כלול אסמכתא זו בהעברה אם ברצונך לקבל אישור במייל עם קבלת תשלום התמיכה. האסמכתא היא אופציונלית.
   verified_by_human: []
 bank_transfer_reference_warning:
   context: Warning text emphasizing user must include the reference exactly as shown in their bank transfer
