@@ -38,7 +38,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -83,9 +83,12 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	// ── Step 4: Wait for AI response ──────────────────────────────────────
 	logCheckpoint('Waiting for assistant response...');
+	await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: 'Paris',
+		logCheckpoint
+	});
 	const assistantMessage = page.getByTestId('message-assistant');
-	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
-	await expect(assistantMessage.last()).toContainText('Paris', { timeout: 45000 });
 	logCheckpoint('Assistant response received and contains "Paris".');
 	await takeStepScreenshot(page, 'assistant-response');
 

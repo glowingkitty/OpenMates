@@ -37,6 +37,8 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
+const { waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+
 /**
  * Fork Conversation test: login, send two messages, fork after the first,
  * then verify the forked chat contains the first message but not the second.
@@ -163,8 +165,12 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 9. Wait for first AI response containing "alpha" ────────────────────
 	log('Waiting for first AI response...');
+	await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: 'alpha',
+		logCheckpoint: log
+	});
 	const assistantMessages = page.getByTestId('message-assistant');
-	await expect(assistantMessages.last()).toContainText('alpha', { timeout: 45000 });
 	log('First response confirmed: contains "alpha".');
 	await screenshot(page, 'first-response');
 

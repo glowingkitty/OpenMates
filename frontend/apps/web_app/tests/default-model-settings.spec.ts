@@ -46,7 +46,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -148,8 +148,10 @@ async function sendMessageAndGetModel(
 
 	// Wait for the assistant response to complete (generated-by element appears after streaming ends)
 	logCheckpoint('Waiting for assistant response...');
-	const assistantMessage = page.getByTestId('message-assistant').last();
-	await expect(assistantMessage).toBeVisible({ timeout: 10000 });
+	const assistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		logCheckpoint
+	});
 
 	// Wait for substantive content before checking for generated-by
 	await expect(async () => {
