@@ -10,8 +10,8 @@
     "icon_names": [
       "map"
     ],
-    "selected_model_id": "google/gemini-3-flash-preview",
-    "selected_model_name": "Gemini 3 Flash",
+    "selected_model_id": "mistral/mistral-small-2506",
+    "selected_model_name": "Mistral Small 3.2",
     "mate_id": "george",
     "chat_summary": "User asks about the capital of Germany.",
     "chat_tags": [
@@ -28,8 +28,8 @@
   },
   "typing_started": {
     "category": "general_knowledge",
-    "model_name": "Gemini 3 Flash",
-    "provider_name": "Google AI Studio",
+    "model_name": "Mistral Small 3.2",
+    "provider_name": "Mistral AI",
     "server_region": "US",
     "icon_names": [
       "map"
@@ -87,6 +87,6 @@
     "prompt_tokens": null,
     "completion_tokens": null,
     "total_credits": null,
-    "model_name": "Gemini 3 Flash"
+    "model_name": "Mistral Small 3.2"
   }
 }
