@@ -97,10 +97,13 @@ class RevolutBusinessService:
             secret_key=f"{env}_webhook_secret",
         )
         if not self._webhook_secret:
-            raise ValueError(
-                f"Revolut Business webhook secret for '{env}' environment is missing. "
-                f"Please add SECRET__REVOLUT_BUSINESS__{env.upper()}_WEBHOOK_SECRET "
-                f"to your Vault configuration."
+            # Webhook secret is optional — bank transfer display and manual processing
+            # work without it. Incoming webhooks from Revolut will be rejected until
+            # SECRET__REVOLUT_BUSINESS__{ENV}_WEBHOOK_SECRET is configured.
+            logger.warning(
+                f"Revolut Business webhook secret for '{env}' is not configured. "
+                f"Incoming Revolut webhooks will be rejected. "
+                f"Use apply_bank_transfer.py for manual processing in the meantime."
             )
 
         # IBAN/BIC are environment-specific — sandbox uses a separate test IBAN

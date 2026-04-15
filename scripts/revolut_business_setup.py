@@ -4,20 +4,15 @@ Revolut Business API Setup Helper
 
 Interactive helper to set up Revolut Business webhooks for SEPA bank transfer
 monitoring. Handles the full OAuth + JWT flow, creates the webhook, fetches
-the EUR account IBAN/BIC, and prints Vault-ready secrets.
+the EUR account IBAN/BIC, and writes secrets to .env.
 
 Usage:
     python3 scripts/revolut_business_setup.py --env sandbox
     python3 scripts/revolut_business_setup.py --env production
+    python3 scripts/revolut_business_setup.py --env sandbox --simulate-topup --reference OM-XXX --amount 100
 
-Prerequisites:
-    1. Generated an X509 self-signed certificate (publickey.cer + privatekey.pem)
-       Default location: ~/revolut-sandbox/  or  ~/revolut-prod/
-    2. Uploaded publickey.cer to Revolut Business → API Keys → Add API certificate
-    3. Got a Client ID from Revolut
-
-The script is interactive — it walks you through each step and saves artifacts
-(refresh token, webhook ID) to a JSON file for later management.
+The script is fully guided — it walks through every step including certificate
+generation, OAuth browser flow, account detection, and webhook creation.
 
 Required pip packages: cryptography, PyJWT, requests
     pip install cryptography PyJWT requests
@@ -26,9 +21,11 @@ Required pip packages: cryptography, PyJWT, requests
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import uuid
+import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
@@ -68,26 +65,134 @@ DEFAULT_CERT_DIRS = {
     "production": "~/revolut-prod",
 }
 
+REDIRECT_URIS = {
+    "sandbox": "https://api.dev.openmates.org/v1/payments/webhook",
+    "production": "https://api.openmates.org/v1/payments/webhook",
+}
+
+ISSUERS = {
+    "sandbox": "api.dev.openmates.org",
+    "production": "api.openmates.org",
+}
+
 # Webhook events we need for SEPA monitoring
 WEBHOOK_EVENTS = ["TransactionCreated", "TransactionStateChanged"]
 
 
 # ────────────────────────────────────────────────────────────────────
-# JWT generation (Revolut requires a JWT signed with the private key
-# as the client_assertion in OAuth2 token requests)
+# Terminal helpers
 # ────────────────────────────────────────────────────────────────────
 
-def generate_client_assertion(client_id: str, private_key: str, env: str, issuer: str) -> str:
-    """Generate a JWT to authenticate the client during OAuth token exchange.
+def section(title: str) -> None:
+    print(f"\n{'─' * 70}")
+    print(f"  {title}")
+    print(f"{'─' * 70}")
 
-    Note: Revolut requires:
-      - `aud=https://revolut.com` for BOTH sandbox and production
-      - `iss` must match the domain of the OAuth redirect URI registered with the
-        certificate (without https://). E.g. `api.dev.openmates.org`.
+
+def step(n: int, total: int, title: str) -> None:
+    print(f"\n[{n}/{total}] {title}")
+    print("  " + "·" * 50)
+
+
+def ok(msg: str) -> None:
+    print(f"  ✓  {msg}")
+
+
+def info(msg: str) -> None:
+    print(f"  →  {msg}")
+
+
+def warn(msg: str) -> None:
+    print(f"  ⚠  {msg}")
+
+
+def prompt(message: str, default: str = "") -> str:
+    suffix = f" [{default}]" if default else ""
+    value = input(f"\n  {message}{suffix}: ").strip()
+    return value or default
+
+
+def prompt_enter(message: str = "Press Enter to continue") -> None:
+    input(f"\n  {message}...")
+
+
+# ────────────────────────────────────────────────────────────────────
+# Certificate generation
+# ────────────────────────────────────────────────────────────────────
+
+def check_openssl() -> bool:
+    """Return True if openssl is available on PATH."""
+    try:
+        subprocess.run(
+            ["openssl", "version"],
+            check=True,
+            capture_output=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def generate_certificates(cert_dir: Path) -> tuple[Path, Path]:
+    """
+    Generate a self-signed X509 certificate pair using openssl.
+
+    Returns (private_key_path, public_cert_path).
+    Revolut requires:
+      - RSA 2048-bit key
+      - Self-signed X509 certificate (uploaded as publickey.cer)
+      - Private key never leaves your machine
+    """
+    private_key_path = cert_dir / "privatekey.pem"
+    public_cert_path = cert_dir / "publickey.cer"
+
+    cert_dir.mkdir(parents=True, exist_ok=True)
+
+    print("\n  Generating RSA 2048-bit private key...")
+    subprocess.run(
+        ["openssl", "genrsa", "-out", str(private_key_path), "2048"],
+        check=True,
+        capture_output=True,
+    )
+    os.chmod(private_key_path, 0o600)
+    ok(f"Private key saved to {private_key_path}")
+
+    print("\n  Generating self-signed X509 certificate (valid 5 years)...")
+
+    # Revolut does not validate any certificate subject fields, so we pass
+    # a minimal -subj to avoid the interactive prompts entirely.
+    subprocess.run(
+        [
+            "openssl", "req", "-new", "-x509",
+            "-key", str(private_key_path),
+            "-out", str(public_cert_path),
+            "-days", "1825",
+            "-subj", "/O=OpenMates",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    ok(f"Certificate saved to {public_cert_path}")
+
+    return private_key_path, public_cert_path
+
+
+# ────────────────────────────────────────────────────────────────────
+# JWT generation
+# ────────────────────────────────────────────────────────────────────
+
+def generate_client_assertion(client_id: str, private_key: str, env: str) -> str:
+    """
+    Generate a JWT to authenticate the client during OAuth token exchange.
+
+    Revolut requires:
+      - aud=https://revolut.com for BOTH sandbox and production
+      - iss must match the domain of the OAuth redirect URI registered with the
+        certificate (without https://). E.g. api.dev.openmates.org.
     """
     now = int(time.time())
     payload = {
-        "iss": issuer,
+        "iss": ISSUERS[env],
         "sub": client_id,
         "aud": "https://revolut.com",
         "exp": now + 60 * 60,
@@ -103,22 +208,20 @@ def generate_client_assertion(client_id: str, private_key: str, env: str, issuer
 
 def get_authorization_url(client_id: str, env: str) -> str:
     """Build the URL the user must visit in their browser to authorize the app."""
-    host = REVOLUT_HOSTS[env]["authorize"]
     params = {
         "client_id": client_id,
         "response_type": "code",
-        "redirect_uri": "https://api.dev.openmates.org/v1/payments/webhook",
+        "redirect_uri": REDIRECT_URIS[env],
         "scope": "READ,WRITE",
     }
-    return f"{host}?{urlencode(params)}"
+    return f"{REVOLUT_HOSTS[env]['authorize']}?{urlencode(params)}"
 
 
 def exchange_auth_code_for_tokens(
     client_id: str, auth_code: str, private_key: str, env: str
 ) -> dict:
     """Exchange the authorization code (from the redirect URL) for refresh + access tokens."""
-    issuer = "api.dev.openmates.org" if env == "sandbox" else "api.openmates.org"
-    assertion = generate_client_assertion(client_id, private_key, env, issuer)
+    assertion = generate_client_assertion(client_id, private_key, env)
     response = requests.post(
         REVOLUT_HOSTS[env]["auth"],
         data={
@@ -140,8 +243,7 @@ def refresh_access_token(
     client_id: str, refresh_token: str, private_key: str, env: str
 ) -> dict:
     """Use a stored refresh token to get a fresh access token (refresh tokens last ~90 days)."""
-    issuer = "api.dev.openmates.org" if env == "sandbox" else "api.openmates.org"
-    assertion = generate_client_assertion(client_id, private_key, env, issuer)
+    assertion = generate_client_assertion(client_id, private_key, env)
     response = requests.post(
         REVOLUT_HOSTS[env]["auth"],
         data={
@@ -226,7 +328,7 @@ def delete_webhook(access_token: str, env: str, webhook_id: str) -> None:
 
 
 # ────────────────────────────────────────────────────────────────────
-# State persistence (refresh token + webhook ID for later management)
+# State persistence
 # ────────────────────────────────────────────────────────────────────
 
 def project_root() -> Path:
@@ -242,10 +344,6 @@ def write_env_secrets(env: str, secrets: dict) -> None:
       - If the line already exists in .env (any value, including ""), replaces in place
       - If the line does not exist, appends after the last SECRET__REVOLUT_BUSINESS__ line
         (or at the end of the file if none exist)
-
-    Args:
-        env: 'sandbox' or 'production'
-        secrets: dict with keys 'webhook_secret', 'iban', 'bic'
     """
     env_upper = env.upper()
     target = {
@@ -256,14 +354,13 @@ def write_env_secrets(env: str, secrets: dict) -> None:
 
     env_path = project_root() / ".env"
     if not env_path.exists():
-        print(f"  ✗ .env not found at {env_path} — skipping auto-write")
+        warn(f".env not found at {env_path} — skipping auto-write")
         return
 
     lines = env_path.read_text().splitlines()
     existing_keys = set()
     last_revolut_idx = -1
 
-    # First pass: replace existing lines
     for i, line in enumerate(lines):
         stripped = line.strip()
         if stripped.startswith("SECRET__REVOLUT_BUSINESS__"):
@@ -274,18 +371,16 @@ def write_env_secrets(env: str, secrets: dict) -> None:
                 existing_keys.add(key)
                 break
 
-    # Second pass: append any keys that didn't exist
     missing = [(k, v) for k, v in target.items() if k not in existing_keys]
     if missing:
-        # Insert right after the last SECRET__REVOLUT_BUSINESS__ line
         insert_at = last_revolut_idx + 1 if last_revolut_idx >= 0 else len(lines)
         new_lines = [f'{k}="{v}"' for k, v in missing]
         lines = lines[:insert_at] + new_lines + lines[insert_at:]
 
     env_path.write_text("\n".join(lines) + ("\n" if lines and lines[-1] else ""))
 
-    print(f"  ✓ Wrote {len(target)} secrets to {env_path}")
-    print(f"    ({len(existing_keys)} updated in place, {len(missing)} appended)")
+    ok(f"Wrote {len(target)} secrets to {env_path}")
+    info(f"{len(existing_keys)} updated in place, {len(missing)} appended")
 
 
 def state_path(env: str) -> Path:
@@ -302,7 +397,7 @@ def save_state(env: str, data: dict) -> None:
     existing["updated_at"] = datetime.now(timezone.utc).isoformat()
     path.write_text(json.dumps(existing, indent=2))
     os.chmod(path, 0o600)
-    print(f"  → State saved to {path}")
+    info(f"State saved to {path}")
 
 
 def load_state(env: str) -> dict:
@@ -313,102 +408,182 @@ def load_state(env: str) -> dict:
 
 
 # ────────────────────────────────────────────────────────────────────
-# Interactive flow
+# Interactive setup flow
 # ────────────────────────────────────────────────────────────────────
 
-def prompt(message: str, default: str = "") -> str:
-    suffix = f" [{default}]" if default else ""
-    value = input(f"{message}{suffix}: ").strip()
-    return value or default
-
-
-def section(title: str) -> None:
-    print(f"\n{'─' * 70}")
-    print(f"  {title}")
-    print(f"{'─' * 70}")
-
-
 def setup(env: str, write_env: bool = False) -> None:
-    section(f"Revolut Business Setup — {env.upper()}")
-
-    # ── Step 1: Locate certificate ────────────────────────────────
+    env_upper = env.upper()
     cert_dir = Path(os.path.expanduser(DEFAULT_CERT_DIRS[env]))
-    private_key_path = cert_dir / "privatekey.pem"
+    state = load_state(env)
 
-    if not private_key_path.exists():
-        print(f"\nPrivate key not found at {private_key_path}")
-        custom = prompt("Enter path to privatekey.pem")
-        private_key_path = Path(os.path.expanduser(custom))
-        if not private_key_path.exists():
-            print(f"Error: file not found at {private_key_path}")
-            sys.exit(1)
+    # ── Checklist overview ────────────────────────────────────────
+    section(f"Revolut Business Setup — {env_upper}")
+
+    has_certs = (cert_dir / "privatekey.pem").exists()
+    has_client_id = bool(state.get("client_id"))
+    has_tokens = bool(state.get("refresh_token"))
+    has_account = bool(state.get("eur_account_id"))
+    has_webhook = bool(state.get("webhook_signing_secret"))
+
+    print(f"""
+  Steps overview:
+    {'✓' if has_certs   else '○'}  1. Generate API certificate
+    {'✓' if has_client_id else '○'}  2. Upload certificate to Revolut → get Client ID
+    {'✓' if has_tokens  else '○'}  3. Authorize the app (OAuth)
+    {'✓' if has_account else '○'}  4. Find EUR account (IBAN / BIC)
+    {'✓' if has_webhook else '○'}  5. Create webhook → get signing secret
+    ○  6. Write secrets to .env
+""")
+
+    TOTAL = 6
+
+    # ── Step 1: Certificate ───────────────────────────────────────
+    step(1, TOTAL, "API Certificate")
+
+    private_key_path = cert_dir / "privatekey.pem"
+    public_cert_path = cert_dir / "publickey.cer"
+
+    if private_key_path.exists():
+        ok(f"Private key found at {private_key_path}")
+    else:
+        warn(f"No private key found at {private_key_path}")
+
+        if check_openssl():
+            generate_now = prompt(
+                "Generate a new certificate pair with openssl now? (Y/n)", "y"
+            )
+            if generate_now.lower() != "n":
+                private_key_path, public_cert_path = generate_certificates(cert_dir)
+            else:
+                custom = prompt("Enter path to existing privatekey.pem")
+                private_key_path = Path(os.path.expanduser(custom))
+                if not private_key_path.exists():
+                    print(f"\n  Error: file not found at {private_key_path}")
+                    sys.exit(1)
+                public_cert_path = private_key_path.parent / "publickey.cer"
+        else:
+            warn("openssl not found — please install it or provide an existing key.")
+            custom = prompt("Enter path to existing privatekey.pem")
+            private_key_path = Path(os.path.expanduser(custom))
+            if not private_key_path.exists():
+                print(f"\n  Error: file not found at {private_key_path}")
+                sys.exit(1)
+            public_cert_path = private_key_path.parent / "publickey.cer"
 
     private_key = private_key_path.read_text()
-    print(f"\n✓ Loaded private key from {private_key_path}")
 
-    # ── Step 2: Get Client ID ────────────────────────────────────
-    state = load_state(env)
-    client_id = state.get("client_id") or prompt(
-        "\nClient ID from Revolut Business (paste here)"
-    )
-    if not client_id:
-        print("Error: Client ID required")
-        sys.exit(1)
+    # ── Step 2: Upload cert + get Client ID ──────────────────────
+    step(2, TOTAL, "Upload Certificate → Get Client ID")
 
-    # ── Step 3: OAuth flow (or use existing refresh token) ────────
+    if state.get("client_id"):
+        ok(f"Client ID already stored: {state['client_id'][:8]}…")
+        client_id = state["client_id"]
+    else:
+        revolut_api_settings = (
+            "https://sandbox-business.revolut.com/settings/api"
+            if env == "sandbox"
+            else "https://business.revolut.com/settings/api"
+        )
+
+        print(f"""
+  You need to upload your public certificate to Revolut Business to get a Client ID.
+
+  1. Open Revolut Business API settings:
+     {revolut_api_settings}
+
+  2. Click "Add API certificate"
+
+  3. Upload this file:
+     {public_cert_path}
+
+  4. Set the redirect URI to:
+     {REDIRECT_URIS[env]}
+
+  5. Copy the Client ID that Revolut shows you.
+""")
+
+        open_browser = prompt("Open Revolut API settings in browser now? (Y/n)", "y")
+        if open_browser.lower() != "n":
+            webbrowser.open(revolut_api_settings)
+
+        prompt_enter("Complete the steps above, then press Enter")
+
+        client_id = prompt("Paste your Client ID from Revolut")
+        if not client_id:
+            print("\n  Error: Client ID required")
+            sys.exit(1)
+
+        save_state(env, {"client_id": client_id})
+        ok("Client ID saved")
+
+    # ── Step 3: OAuth ─────────────────────────────────────────────
+    step(3, TOTAL, "Authorize the App (OAuth)")
+
     refresh_token = state.get("refresh_token")
 
     if refresh_token:
-        print("\n✓ Using stored refresh token from previous setup")
+        ok("Using stored refresh token from previous setup")
         try:
             tokens = refresh_access_token(client_id, refresh_token, private_key, env)
             access_token = tokens["access_token"]
-            # Refresh token may rotate — store the new one
             if tokens.get("refresh_token") and tokens["refresh_token"] != refresh_token:
                 save_state(env, {"refresh_token": tokens["refresh_token"]})
-            print(f"  → Got fresh access token (expires in {tokens.get('expires_in', '?')}s)")
+            ok(f"Got fresh access token (expires in {tokens.get('expires_in', '?')}s)")
         except RuntimeError as e:
-            print(f"  → Refresh failed ({e}). Re-authorizing...")
+            warn(f"Refresh failed ({e}). Re-authorizing...")
             refresh_token = None
 
     if not refresh_token:
-        section("Authorize the App (one-time)")
         auth_url = get_authorization_url(client_id, env)
-        print(f"\n1. Open this URL in your browser:\n\n   {auth_url}\n")
-        print("2. Approve the app for your Revolut Business profile.")
-        print("3. You'll be redirected to a URL like:\n")
-        print("     https://api.dev.openmates.org/v1/payments/webhook?code=oa_sand_XXX...\n")
-        print("4. The page will show an error (that's expected — the redirect URI is")
-        print("   just a placeholder). Copy the `code` parameter from the URL.\n")
-        auth_code = prompt("Paste the authorization code (the value after `code=`)")
+
+        print(f"""
+  You need to authorize this app to access your Revolut Business account.
+  This is a one-time step — the refresh token is stored for future runs.
+
+  Authorization URL:
+  {auth_url}
+
+  After approving, you'll be redirected to a URL like:
+    {REDIRECT_URIS[env]}?code=oa_{env[:4]}_XXX...
+
+  The page will show an error (expected — the redirect URI is just a placeholder).
+  Copy the value of the `code=` parameter from the URL.
+""")
+
+        open_browser = prompt("Open the authorization URL in browser now? (Y/n)", "y")
+        if open_browser.lower() != "n":
+            webbrowser.open(auth_url)
+
+        auth_code = prompt("Paste the authorization code (value after `code=`)")
         if not auth_code:
-            print("Error: authorization code required")
+            print("\n  Error: authorization code required")
             sys.exit(1)
 
-        print("\n  → Exchanging code for tokens...")
+        info("Exchanging code for tokens...")
         tokens = exchange_auth_code_for_tokens(client_id, auth_code, private_key, env)
         access_token = tokens["access_token"]
         refresh_token = tokens["refresh_token"]
-        print("  ✓ Got refresh token (saved for future runs)")
+        ok("Got refresh token (saved for future runs)")
 
         save_state(env, {
             "client_id": client_id,
             "refresh_token": refresh_token,
         })
 
-    # ── Step 4: List accounts → find EUR account ────────────────
-    section("Find EUR Account")
+    # ── Step 4: EUR account ───────────────────────────────────────
+    step(4, TOTAL, "Find EUR Account (IBAN / BIC)")
+
     accounts = list_accounts(access_token, env)
     eur_accounts = [a for a in accounts if a.get("currency") == "EUR"]
 
     if not eur_accounts:
-        print("Error: No EUR account found on this Revolut Business profile.")
-        print("Available currencies:", [a.get("currency") for a in accounts])
+        print("\n  Error: No EUR account found on this Revolut Business profile.")
+        print("  Available currencies:", [a.get("currency") for a in accounts])
         sys.exit(1)
 
-    print(f"\nFound {len(eur_accounts)} EUR account(s):")
+    print(f"\n  Found {len(eur_accounts)} EUR account(s):")
     for i, acc in enumerate(eur_accounts):
-        print(f"  [{i}] {acc.get('name', '(unnamed)')} — ID: {acc['id']}")
+        print(f"    [{i}]  {acc.get('name', '(unnamed)')}  —  ID: {acc['id']}")
 
     if len(eur_accounts) == 1:
         eur_account = eur_accounts[0]
@@ -418,19 +593,19 @@ def setup(env: str, write_env: bool = False) -> None:
 
     bank_details_list = get_account_bank_details(access_token, env, eur_account["id"])
     if not bank_details_list:
-        print(f"Error: No bank details found for account {eur_account['id']}")
+        print(f"\n  Error: No bank details found for account {eur_account['id']}")
         sys.exit(1)
 
-    # bank-details endpoint returns a list (one entry per local scheme: SEPA, SWIFT, etc.)
     sepa_details = next(
         (d for d in bank_details_list if d.get("scheme") in ("SEPA", "BACS", None)),
         bank_details_list[0],
     )
     iban = sepa_details.get("iban", "")
     bic = sepa_details.get("bic", "")
-    print(f"\n  ✓ EUR account: {eur_account['id']}")
-    print(f"  ✓ IBAN: {iban}")
-    print(f"  ✓ BIC:  {bic}")
+
+    ok(f"EUR account: {eur_account['id']}")
+    ok(f"IBAN: {iban}")
+    ok(f"BIC:  {bic}")
 
     save_state(env, {
         "eur_account_id": eur_account["id"],
@@ -438,39 +613,37 @@ def setup(env: str, write_env: bool = False) -> None:
         "bic": bic,
     })
 
-    # ── Step 5: Create webhook (or reuse existing) ────────────────
-    section("Configure Webhook")
+    # ── Step 5: Webhook ───────────────────────────────────────────
+    step(5, TOTAL, "Create Webhook")
 
-    default_url = (
-        "https://api.dev.openmates.org/v1/payments/webhook"
-        if env == "sandbox"
-        else "https://api.openmates.org/v1/payments/webhook"
-    )
+    default_url = REDIRECT_URIS[env]
     webhook_url = prompt("Webhook URL", default_url)
 
     existing_webhooks = list_webhooks(access_token, env)
     matching = [w for w in existing_webhooks if w.get("url") == webhook_url]
 
     if matching:
-        print(f"\n⚠  Webhook for {webhook_url} already exists (ID: {matching[0]['id']}).")
+        warn(f"Webhook for {webhook_url} already exists (ID: {matching[0]['id']})")
         recreate = prompt("Delete and recreate to get a fresh signing secret? (y/N)", "n")
         if recreate.lower() == "y":
             delete_webhook(access_token, env, matching[0]["id"])
-            print(f"  → Deleted existing webhook {matching[0]['id']}")
+            info(f"Deleted existing webhook {matching[0]['id']}")
             webhook = create_webhook(access_token, env, webhook_url)
+            ok(f"Created new webhook (ID: {webhook['id']})")
         else:
             stored_secret = state.get("webhook_signing_secret")
             if not stored_secret:
-                print("\n⚠  Existing webhook found but no signing secret stored locally.")
-                print("   You must recreate the webhook to get a new signing secret.")
+                warn("Existing webhook found but no signing secret stored locally.")
+                print("  You must recreate the webhook to get a new signing secret.")
                 sys.exit(1)
             webhook = {
                 "id": matching[0]["id"],
                 "signing_secret": stored_secret,
             }
+            ok(f"Using existing webhook (ID: {webhook['id']})")
     else:
         webhook = create_webhook(access_token, env, webhook_url)
-        print(f"  ✓ Created webhook (ID: {webhook['id']})")
+        ok(f"Created webhook (ID: {webhook['id']})")
 
     signing_secret = webhook["signing_secret"]
     save_state(env, {
@@ -479,12 +652,10 @@ def setup(env: str, write_env: bool = False) -> None:
         "webhook_signing_secret": signing_secret,
     })
 
-    # ── Step 6: Write secrets to .env (or print) ──────────────────
-    section("✓ Setup Complete")
-    env_upper = env.upper()
+    # ── Step 6: Write secrets ─────────────────────────────────────
+    step(6, TOTAL, "Write Secrets to .env")
 
     if write_env:
-        print("\nWriting secrets to .env...")
         write_env_secrets(env, {
             "webhook_secret": signing_secret,
             "iban": iban,
@@ -492,28 +663,30 @@ def setup(env: str, write_env: bool = False) -> None:
         })
     else:
         print(f"""
-Add these secrets to your `.env` (cloud only — not in .env.example):
+  Add these secrets to your `.env` (cloud only — not in .env.example):
 
-  SECRET__REVOLUT_BUSINESS__{env_upper}_WEBHOOK_SECRET={signing_secret}
-  SECRET__REVOLUT_BUSINESS__{env_upper}_IBAN={iban}
-  SECRET__REVOLUT_BUSINESS__{env_upper}_BIC={bic}
+    SECRET__REVOLUT_BUSINESS__{env_upper}_WEBHOOK_SECRET={signing_secret}
+    SECRET__REVOLUT_BUSINESS__{env_upper}_IBAN={iban}
+    SECRET__REVOLUT_BUSINESS__{env_upper}_BIC={bic}
 
-Tip: re-run with --write-env to update .env automatically.""")
+  Tip: re-run with --write-env to update .env automatically.""")
 
+    section("✓ Setup Complete")
     print(f"""
-Next: run your Vault import flow to push secrets to kv/data/providers/revolut_business
+  Local artifacts saved to: {state_path(env)}
+    - Refresh token (rotates ~90 days — re-run this script when needed)
+    - Webhook ID, URL, signing secret
+    - EUR account ID, IBAN, BIC
 
-Local artifacts saved to: {state_path(env)}
-  - Refresh token (rotates ~90 days — re-run this script when needed)
-  - Webhook ID, URL, signing secret
-  - EUR account ID, IBAN, BIC
-  - Permissions: 0600 (private key + state file)
+  For sandbox testing, simulate an incoming SEPA transfer:
 
-For sandbox testing, simulate an incoming SEPA transfer:
-
-  python3 scripts/revolut_business_setup.py --env sandbox --simulate-topup --reference OM-XXX --amount 100
+    python3 scripts/revolut_business_setup.py --env sandbox --simulate-topup --reference OM-XXX --amount 100
 """)
 
+
+# ────────────────────────────────────────────────────────────────────
+# Simulate topup (sandbox only)
+# ────────────────────────────────────────────────────────────────────
 
 def simulate_topup(env: str, reference: str, amount: float) -> None:
     """Simulate an incoming SEPA transfer (sandbox only)."""
