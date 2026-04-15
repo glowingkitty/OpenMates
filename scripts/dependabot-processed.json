@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-04-15T15:30:02Z",
+  "last_run": "2026-04-15T21:30:02Z",
   "processed": [
     {
       "ghsa_id": "GHSA-c427-h43c-vf67",
@@ -118,6 +118,32 @@
       "last_dispatched_at": null,
       "re_dispatch_count": 0,
       "resolved_via_commit": "997ffd85c"
+    },
+    {
+      "ghsa_id": "GHSA-mj87-hwqh-73pj",
+      "severity": "medium",
+      "package": "python-multipart",
+      "summary": "python-multipart affected by Denial of Service via large multipart preamble or epilogue data",
+      "alert_numbers": [
+        185,
+        184
+      ],
+      "first_seen_at": "2026-04-15T21:30:02Z",
+      "last_dispatched_at": "2026-04-15T21:30:02Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": null
+    },
+    {
+      "ghsa_id": "GHSA-mj87-hwqh-73pj",
+      "package": "python-multipart",
+      "ecosystem": "pip",
+      "from_version": "0.0.22",
+      "to_version": "0.0.26",
+      "processed_at": "2026-04-15T00:00:00Z",
+      "files": [
+        "backend/upload/requirements.txt",
+        "backend/core/api/requirements.txt"
+      ]
     }
   ]
 }
