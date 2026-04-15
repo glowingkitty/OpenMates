@@ -121,10 +121,18 @@ async def batch_validate_topics(
     for r in redirects:
         redirect_map[r.get("from", "").lower()] = r.get("to", "")
 
-    # Build a lookup from canonical title (lowercase) -> page data
+    # Build a lookup from canonical title (lowercase) -> page data.
+    # Skip missing pages and disambiguation pages — both are useless link targets.
+    # Wikipedia flags disambiguation pages with a "disambiguation" key in pageprops
+    # (value is always "", so we check key presence, not truthiness).
     page_by_title: dict[str, dict] = {}
     for page in pages:
         if page.get("missing"):
+            continue
+        if "disambiguation" in page.get("pageprops", {}):
+            logger.info(
+                f"Wikipedia: skipping disambiguation page '{page.get('title')}'"
+            )
             continue
         page_by_title[page.get("title", "").lower()] = page
 
