@@ -508,52 +508,60 @@
       </div>
     {/if}
 
-    <!-- Play button: centered over the video, outside .loaded-content so
-         the content can sit at the bottom without competing for center space -->
-    {#if videoMp4Url}
-      <button
-        class="video-play-btn"
-        onclick={(e) => openVideoFullscreen(e)}
-        type="button"
-        aria-label="Play video"
-        data-testid="chat-header-play-btn"
-      >
-        <div class="video-play-icon" aria-hidden="true"></div>
-      </button>
-    {/if}
+    <!-- When header media is present: stack play button above title, both centered.
+         Otherwise: standard loaded-content layout with icon, title, summary, time. -->
+    {#if hasHeaderMedia}
+      <div class="media-center-group">
+        {#if videoMp4Url}
+          <button
+            class="video-play-btn"
+            onclick={(e) => openVideoFullscreen(e)}
+            type="button"
+            aria-label="Play video"
+            data-testid="chat-header-play-btn"
+          >
+            <div class="video-play-icon" aria-hidden="true"></div>
+          </button>
+        {/if}
 
-    <div class="loaded-content">
-      <!-- Category icon: only shown when no header media (video or slideshow) -->
-      {#if !hasHeaderMedia && IconComponent}
-        <!-- Category icon (38×38px) -->
-        <div class="loaded-icon" data-testid="chat-header-icon">
-          <IconComponent size={38} color="white" />
+        <div class="loaded-content">
+          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+               never render as HTML to prevent stored XSS via prompt injection. -->
+          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+
+          {#if isExampleChat}
+            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {/if}
         </div>
-      {/if}
+      </div>
+    {:else}
+      <div class="loaded-content">
+        <!-- Category icon: only shown when no header media (video or slideshow) -->
+        {#if IconComponent}
+          <div class="loaded-icon" data-testid="chat-header-icon">
+            <IconComponent size={38} color="white" />
+          </div>
+        {/if}
 
-      <!-- Title: always shown using the standard loaded-title style.
-           When a video is set, .loaded-content is pinned to the bottom so the
-           title sits 15px above the banner edge without blocking the video.
-           SECURITY: plain text only — chat titles are AI-generated from user input,
-           never render as HTML to prevent stored XSS via prompt injection. -->
-      <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+        <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+             never render as HTML to prevent stored XSS via prompt injection. -->
+        <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
-      <!-- "Example chat" badge: shown for pre-made example chats so unauthenticated users
-           understand this is not their own chat. Pill-shaped label below the title. -->
-      {#if isExampleChat}
-        <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-      {/if}
+        {#if isExampleChat}
+          <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+        {/if}
 
-      <!-- Summary: fades in with max-height expand when available -->
-      {#if showSummary}
-        <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
-      {/if}
+        <!-- Summary: fades in with max-height expand when available -->
+        {#if showSummary}
+          <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
+        {/if}
 
-      <!-- Creation time -->
-      {#if showTime}
-        <span class="loaded-time">{formattedTime}</span>
-      {/if}
-    </div>
+        <!-- Creation time -->
+        {#if showTime}
+          <span class="loaded-time">{formattedTime}</span>
+        {/if}
+      </div>
+    {/if}
   {/if}
 
   <!-- ── Chat navigation arrows ──
@@ -1147,9 +1155,17 @@
   /* ─── Background slideshow (static-image Ken Burns) ─────────────────────────
      Replaces the autoplay video on the public intro chat to avoid per-visitor
      video delivery cost. All N frames share the same keyframe animation; each
-     frame's start is offset by a negative animation-delay so they crossfade in
-     sequence. A subtle scale transform gives a slow Ken-Burns-style motion.
-     Pure CSS — no JS timers, no IntersectionObserver needed. */
+     frame's start is offset by a negative animation-delay so they sequence in.
+     A subtle scale transform gives a slow Ken-Burns-style motion.
+     Pure CSS — no JS timers, no IntersectionObserver needed.
+
+     Crossfade design (12 frames, slot = 8.333% of 96s cycle):
+       • Incoming frame uses z-index 2 (on top) while fading in → old frame stays
+         fully opaque below it, so the background is never visible during transition.
+       • Old frame drops z-index to 1 once successor is fading in over it, then
+         becomes opacity 0 after successor is fully covering it at 10.13%.
+       • At the wrap-around (frame 11 → frame 0), frame 0 fades in with z-index 2
+         on top of frame 11 (z-index 1) — same seamless result. */
   .header-slideshow {
     position: absolute;
     inset: 0;
@@ -1166,36 +1182,40 @@
     height: 100%;
     object-fit: cover;
     opacity: 0;
-    /* Each frame occupies an 8s slot (~6s held visible + ~2s crossfade).
-       Negative animation-delay staggers the frames across the full cycle. */
+    /* Each frame occupies an 8s slot. Negative delay staggers across the full cycle. */
     animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear,
                headerSlideKenBurns calc(var(--slide-count) * 8s) infinite ease-in-out;
     animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
     will-change: opacity, transform;
   }
 
-  /* Fade window per frame: 1/N of the cycle = ~9.09% for 11 frames.
-     Each frame: fade in over first ~20% of its slot, hold, fade out over last ~20%.
-     In cycle-percent terms (with 11 frames, slot = 9.09%):
-       0%    → opacity 0
-       1.8%  → opacity 1  (end of fade-in, ~1.6s)
-       7.3%  → opacity 1  (start of fade-out, ~6.4s)
-       9.09% → opacity 0  (end of slot, ~8s)
-       100%  → opacity 0 */
+  /* Timing based on 12 frames (slot = 8.333% of cycle, fade-in window = 1.8%).
+     Incoming frame holds z-index: 2 while fading in over the still-opaque outgoing
+     frame (z-index: 1). Outgoing drops to opacity 0 only after successor fully covers
+     it at 10.13% — background is never peeking through.
+       0%      → opacity 0, z-index 2  (about to appear on top)
+       1.8%    → opacity 1, z-index 2  (fully in, ~1.73s)
+       8.333%  → opacity 1, z-index 2  (hold; successor now starting its fade-in below)
+       8.334%  → opacity 1, z-index 1  (drop below incoming successor)
+       10.13%  → opacity 1, z-index 1  (successor now fully opaque above)
+       10.14%  → opacity 0, z-index 0  (gone; covered by successor)
+       100%    → opacity 0, z-index 0 */
   @keyframes headerSlideFade {
-    0%     { opacity: 0; }
-    1.8%   { opacity: 1; }
-    7.3%   { opacity: 1; }
-    9.09%  { opacity: 0; }
-    100%   { opacity: 0; }
+    0%      { opacity: 0; z-index: 2; }
+    1.8%    { opacity: 1; z-index: 2; }
+    8.333%  { opacity: 1; z-index: 2; }
+    8.334%  { opacity: 1; z-index: 1; }
+    10.13%  { opacity: 1; z-index: 1; }
+    10.14%  { opacity: 0; z-index: 0; }
+    100%    { opacity: 0; z-index: 0; }
   }
 
-  /* Ken-Burns motion — larger, slower drift that plays only during the
-     frame's visible slot. Alternates direction per frame for variety. */
+  /* Ken-Burns motion — drift covers the full visible window (0% → 10.13%).
+     Alternates direction per frame for variety. */
   @keyframes headerSlideKenBurns {
-    0%    { transform: scale(1.02) translate3d(2%, 1%, 0); }
-    9.09% { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
-    100%  { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+    0%      { transform: scale(1.02) translate3d(2%, 1%, 0); }
+    10.13%  { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+    100%    { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
   }
 
   /* Alternate drift direction on every other frame so the motion doesn't
@@ -1205,9 +1225,9 @@
   }
 
   @keyframes headerSlideKenBurnsAlt {
-    0%    { transform: scale(1.02) translate3d(-2%, -1%, 0); }
-    9.09% { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
-    100%  { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+    0%      { transform: scale(1.02) translate3d(-2%, -1%, 0); }
+    10.13%  { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+    100%    { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1280,22 +1300,27 @@
 
   /* Video fullscreen is handled by DirectVideoEmbedFullscreen + UnifiedEmbedFullscreen. */
 
-  /* ─── Title on video — bottom-aligned, subtle overlay ───────────────────── */
+  /* ─── Media header: play button + title stacked and centered ────────────── */
 
-  /* When a video is playing, pin .loaded-content to the bottom of the banner.
-     Existing .loaded-title styles are reused unchanged — no overrides needed.
-     A gradient underlay preserves text readability against the video. */
-  :global(.chat-header-banner:has(.header-video)) .loaded-content,
-  :global(.chat-header-banner:has(.header-slideshow)) .loaded-content {
-    position: absolute;
-    bottom: 15px;
-    left: 0;
-    right: 0;
-    align-items: center;
-    justify-content: flex-end;
-    padding: var(--spacing-4) var(--spacing-8) 0;
-    max-width: unset;
-    background: none;
+  /* Groups the play button and title in a vertical flex column centered over
+     the slideshow/video background. Ensures the title always sits just below
+     the play button rather than at the bottom of the banner. */
+  .media-center-group {
+    position: relative;
     z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-5);
+    pointer-events: auto;
+    padding: var(--spacing-4) var(--spacing-8);
+  }
+
+  /* Scoped override: inside the media group, loaded-content is inline (not
+     absolutely positioned) and inherits the group's centering. */
+  .media-center-group .loaded-content {
+    position: static;
+    padding: 0;
+    animation: fadeIn 0.35s ease-out;
   }
 </style>

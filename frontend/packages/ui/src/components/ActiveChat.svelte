@@ -96,7 +96,7 @@
     import type { PIIMapping } from '../types/chat'; // PII mapping type
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
-    import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
+    import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     import { searchTextHighlightStore, codeLineHighlightStore } from '../stores/messageHighlightStore'; // For source quote text + code line highlighting in embed fullscreen
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
@@ -10408,14 +10408,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
             
             <!-- Intro video fullscreen — for-everyone demo chat header play button.
-                 Rendered here (ActiveChat level) so UnifiedEmbedFullscreen's
-                 position:absolute fills this container correctly. -->
-            <!-- Intro video fullscreen — for-everyone demo chat header play button.
                  Uses the same .fullscreen-embed-container as wiki/embed fullscreens
-                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute). -->
+                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute).
+                 German locale uses a separate localised video. -->
             {#if $introVideoFullscreenStore}
                 {@const forEveryoneChat = DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')}
-                {#if forEveryoneChat?.metadata.video_mp4_url}
+                {@const isGerman = $locale?.startsWith('de')}
+                {@const introMp4Url = isGerman
+                    ? 'https://vod.api.video/vod/vi1LdNC1NrHlKyANrOUDsfX6/mp4/source.mp4'
+                    : forEveryoneChat?.metadata.video_mp4_url}
+                {#if introMp4Url}
                     <div
                         class="fullscreen-embed-container"
                         class:side-panel={showSideBySideLayout}
@@ -10423,7 +10425,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         data-testid="intro-video-fullscreen"
                     >
                         <DirectVideoEmbedFullscreen
-                            mp4Url={forEveryoneChat.metadata.video_mp4_url}
+                            mp4Url={introMp4Url}
                             title={activeChatDecryptedTitle || ''}
                             onClose={() => {
                                 closeIntroVideoFullscreen();
