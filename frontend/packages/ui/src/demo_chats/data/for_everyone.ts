@@ -64,6 +64,7 @@ export const forEveryoneChat: DemoChat = {
       "/intro-frames/frame-09.jpg",
       "/intro-frames/frame-10.jpg",
       "/intro-frames/frame-11.jpg",
+      "/intro-frames/frame-12.jpg",
     ],
   },
 };
