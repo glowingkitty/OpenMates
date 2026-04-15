@@ -1210,29 +1210,48 @@
     100%    { opacity: 0; z-index: 0; }
   }
 
-  /* Ken-Burns motion — drift covers the full visible window (0% → 10.13%).
-     Alternates direction per frame for variety. */
+  /* Ken-Burns motion — 4 directional variants cycling across frames via nth-child.
+     Scale moves from ~1.08 to ~1.28, giving ~20% extra image area to pan through.
+     Large Y-translations (up to ±12%) reveal top/bottom portions hidden at rest.
+     Each variant covers the full visible window (0% → 10.13%). */
+
+  /* A (frames 1, 5, 9): pan bottom → top */
   @keyframes headerSlideKenBurns {
-    0%      { transform: scale(1.02) translate3d(2%, 1%, 0); }
-    10.13%  { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
-    100%    { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+    0%      { transform: scale(1.1)  translate3d(0%,   12%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(0%,  -12%, 0); }
+    100%    { transform: scale(1.28) translate3d(0%,  -12%, 0); }
   }
 
-  /* Alternate drift direction on every other frame so the motion doesn't
-     always feel like the camera is panning the same way. */
-  .header-slide:nth-child(even) {
-    animation-name: headerSlideFade, headerSlideKenBurnsAlt;
+  /* B (frames 2, 6, 10): pan top-right → bottom-left */
+  @keyframes headerSlideKenBurnsB {
+    0%      { transform: scale(1.1)  translate3d( 6%, -10%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(-6%,  10%, 0); }
+    100%    { transform: scale(1.28) translate3d(-6%,  10%, 0); }
   }
 
-  @keyframes headerSlideKenBurnsAlt {
-    0%      { transform: scale(1.02) translate3d(-2%, -1%, 0); }
-    10.13%  { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
-    100%    { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+  /* C (frames 3, 7, 11): pan top → bottom */
+  @keyframes headerSlideKenBurnsC {
+    0%      { transform: scale(1.1)  translate3d(0%,  -12%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(0%,   12%, 0); }
+    100%    { transform: scale(1.28) translate3d(0%,   12%, 0); }
   }
+
+  /* D (frames 4, 8, 12): pan bottom-left → top-right */
+  @keyframes headerSlideKenBurnsD {
+    0%      { transform: scale(1.1)  translate3d(-6%,  10%, 0); }
+    10.13%  { transform: scale(1.28) translate3d( 6%, -10%, 0); }
+    100%    { transform: scale(1.28) translate3d( 6%, -10%, 0); }
+  }
+
+  .header-slide:nth-child(4n+2) { animation-name: headerSlideFade, headerSlideKenBurnsB; }
+  .header-slide:nth-child(4n+3) { animation-name: headerSlideFade, headerSlideKenBurnsC; }
+  .header-slide:nth-child(4n+4) { animation-name: headerSlideFade, headerSlideKenBurnsD; }
 
   @media (prefers-reduced-motion: reduce) {
     .header-slide,
-    .header-slide:nth-child(even) {
+    .header-slide:nth-child(4n+2),
+    .header-slide:nth-child(4n+3),
+    .header-slide:nth-child(4n+4) {
       animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear;
       animation-delay: calc(var(--slide-index) * -8s);
     }
