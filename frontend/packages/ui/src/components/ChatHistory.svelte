@@ -483,6 +483,7 @@
     videoHlsUrl = null,
     videoMp4Url = null,
     videoStartTime = 0,
+    backgroundFrames = null,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
   }: {
@@ -526,6 +527,9 @@
     videoMp4Url?: string | null;
     /** Timestamp in seconds where the background video starts playing. */
     videoStartTime?: number;
+    /** Optional list of background frame image URLs. When provided, the chat header
+     *  renders a crossfading Ken-Burns slideshow instead of an autoplay video. */
+    backgroundFrames?: string[] | null;
     /** Follow-up suggestions to display below the last assistant message.
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
@@ -1562,6 +1566,7 @@
                 {videoHlsUrl}
                 {videoMp4Url}
                 {videoStartTime}
+                {backgroundFrames}
             />
         </div>
     {/if}

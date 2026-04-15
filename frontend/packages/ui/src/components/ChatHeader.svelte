@@ -75,6 +75,11 @@
     videoMp4Url = null,
     /** Timestamp in seconds where the background video starts playing (e.g. 17 to skip intro). */
     videoStartTime = 0,
+    /** Optional list of image URLs rendered as a crossfading Ken-Burns slideshow in the
+     *  header background. When non-empty, replaces the autoplay background video
+     *  (the real video is still available via the play button → fullscreen embed).
+     *  This avoids per-visitor video delivery cost on the public intro chat. */
+    backgroundFrames = null,
   }: {
     title?: string;
     category?: string | null;
@@ -95,7 +100,14 @@
     videoMp4Url?: string | null;
     /** Timestamp in seconds where the background video starts. */
     videoStartTime?: number;
+    /** Image URLs for the crossfading Ken-Burns slideshow. */
+    backgroundFrames?: string[] | null;
   } = $props();
+
+  /** True when we should render the static-image slideshow instead of an autoplay video. */
+  const useSlideshow = $derived(Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
+  /** True when a header background (video or slideshow) should be shown at all. */
+  const hasHeaderMedia = $derived(useSlideshow || !!videoMp4Url);
 
   // ─── Video: background element + state ────────────────────────────────────
 
@@ -450,10 +462,26 @@
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
-    <!-- Video background: autoplay muted loop, fills the banner.
-         api.video is our own CDN provider (added to privacy policy) — not proxied.
-         Only shown when videoMp4Url is provided; HLS is used as the primary source. -->
-    {#if videoMp4Url}
+    <!-- Background media: either a crossfading static-image slideshow (preferred for the
+         public intro chat to avoid per-visitor video delivery cost) or, as a fallback,
+         an autoplay muted video. The real video is always available via the play button
+         below, which opens the fullscreen embed on demand. -->
+    {#if useSlideshow}
+      <div class="header-slideshow" aria-hidden="true">
+        {#each backgroundFrames as frameUrl, i (frameUrl)}
+          <img
+            class="header-slide"
+            src={frameUrl}
+            alt=""
+            loading={i === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
+          />
+        {/each}
+      </div>
+      <div class="header-video-overlay" aria-hidden="true"></div>
+    {:else if videoMp4Url}
+      <!-- api.video is our own CDN provider (added to privacy policy) — not proxied. -->
       <video
         bind:this={bgVideoEl}
         class="header-video"
@@ -470,8 +498,8 @@
     {/if}
 
     <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
-         Hidden when a video is shown — video fills the background instead. -->
-    {#if IconComponent && !videoMp4Url}
+         Hidden when header media (slideshow or video) fills the background instead. -->
+    {#if IconComponent && !hasHeaderMedia}
       <div class="deco-icon deco-icon-left">
         <IconComponent size={126} color="white" />
       </div>
@@ -495,8 +523,8 @@
     {/if}
 
     <div class="loaded-content">
-      <!-- Category icon: only shown when no video -->
-      {#if !videoMp4Url && IconComponent}
+      <!-- Category icon: only shown when no header media (video or slideshow) -->
+      {#if !hasHeaderMedia && IconComponent}
         <!-- Category icon (38×38px) -->
         <div class="loaded-icon" data-testid="chat-header-icon">
           <IconComponent size={38} color="white" />
@@ -1116,6 +1144,57 @@
     z-index: 0;
   }
 
+  /* ─── Background slideshow (static-image Ken Burns) ─────────────────────────
+     Replaces the autoplay video on the public intro chat to avoid per-visitor
+     video delivery cost. All N frames share the same keyframe animation; each
+     frame's start is offset by a negative animation-delay so they crossfade in
+     sequence. A subtle scale transform gives a slow Ken-Burns-style motion.
+     Pure CSS — no JS timers, no IntersectionObserver needed. */
+  .header-slideshow {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .header-slide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    /* Total cycle = 4s per frame × N frames. Each frame is visible ~3s with
+       a ~1s crossfade on either side. The negative delay staggers the frames. */
+    animation: headerSlideFade calc(var(--slide-count) * 4s) infinite linear,
+               headerSlideKenBurns calc(var(--slide-count) * 4s) infinite linear;
+    animation-delay: calc(var(--slide-index) * -4s), calc(var(--slide-index) * -4s);
+    will-change: opacity, transform;
+  }
+
+  @keyframes headerSlideFade {
+    0%   { opacity: 0; }
+    3%   { opacity: 1; }
+    22%  { opacity: 1; }
+    25%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes headerSlideKenBurns {
+    0%   { transform: scale(1.0) translate3d(0, 0, 0); }
+    25%  { transform: scale(1.08) translate3d(-1%, -0.5%, 0); }
+    100% { transform: scale(1.08) translate3d(-1%, -0.5%, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .header-slide {
+      animation: headerSlideFade calc(var(--slide-count) * 4s) infinite linear;
+      animation-delay: calc(var(--slide-index) * -4s);
+    }
+  }
+
   /* Dark gradient overlay so title text stays readable over the video */
   .header-video-overlay {
     position: absolute;
@@ -1183,7 +1262,8 @@
   /* When a video is playing, pin .loaded-content to the bottom of the banner.
      Existing .loaded-title styles are reused unchanged — no overrides needed.
      A gradient underlay preserves text readability against the video. */
-  :global(.chat-header-banner:has(.header-video)) .loaded-content {
+  :global(.chat-header-banner:has(.header-video)) .loaded-content,
+  :global(.chat-header-banner:has(.header-slideshow)) .loaded-content {
     position: absolute;
     bottom: 15px;
     left: 0;

@@ -49,5 +49,21 @@ export const forEveryoneChat: DemoChat = {
     video_mp4_url: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4",
     video_thumbnail_url: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/thumbnail.jpg",
     video_start_time: 17,
+    // Crossfading Ken-Burns slideshow for the chat header background.
+    // Replaces autoplay video to avoid per-visitor video delivery cost.
+    // Real video remains available via the header play button (fullscreen).
+    background_frames: [
+      "/intro-frames/frame-01.jpg",
+      "/intro-frames/frame-02.jpg",
+      "/intro-frames/frame-03.jpg",
+      "/intro-frames/frame-04.jpg",
+      "/intro-frames/frame-05.jpg",
+      "/intro-frames/frame-06.jpg",
+      "/intro-frames/frame-07.jpg",
+      "/intro-frames/frame-08.jpg",
+      "/intro-frames/frame-09.jpg",
+      "/intro-frames/frame-10.jpg",
+      "/intro-frames/frame-11.jpg",
+    ],
   },
 };

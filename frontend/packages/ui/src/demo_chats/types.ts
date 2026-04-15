@@ -32,6 +32,10 @@ export interface DemoChat {
 		video_thumbnail_url?: string;
 		/** Timestamp in seconds where the background video should start playing. */
 		video_start_time?: number;
+		/** Optional list of static image URLs used as a crossfading Ken-Burns slideshow in the
+		 *  chat header. When provided, replaces the autoplay background video (the real video
+		 *  is still available via the play button / fullscreen embed). Saves video delivery cost. */
+		background_frames?: string[];
 	};
 }
 
