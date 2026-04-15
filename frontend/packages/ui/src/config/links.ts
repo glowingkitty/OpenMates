@@ -145,13 +145,15 @@ export const privacyPolicyLinks = {
   brevo: "https://www.brevo.com/legal/privacypolicy",
   ipApi: "https://members.ip-api.com/privacy-policy",
   sightengine: "https://sightengine.com/policies/privacy",
+  apiVideo: "https://api.video/privacy-policy/", // verified 2026-04-14
 
   // Group B — Payments
   stripe: "https://stripe.com/privacy",
-  polar: "https://polar.sh/legal/privacy",
+  polar: "https://polar.sh/legal/privacy-policy",
+  revolutBusiness: "https://www.revolut.com/en-LT/legal/privacy/", // Revolut Bank UAB (Lithuania) — verified 2026-04-14
 
   // Group C — AI models
-  mistral: "https://mistral.ai/privacy-policy",
+  mistral: "https://legal.mistral.ai/terms/privacy-policy", // moved to legal.mistral.ai subdomain — verified 2026-04-14
   aws: "https://aws.amazon.com/privacy/",
   anthropic: "https://www.anthropic.com/legal/privacy",
   openai: "https://openai.com/policies/privacy-policy",
@@ -163,8 +165,8 @@ export const privacyPolicyLinks = {
   groq: "https://groq.com/privacy-policy",
 
   // Group D — Image generation
-  fal: "https://fal.ai/privacy-policy",
-  recraft: "https://www.recraft.ai/privacy-policy",
+  fal: "https://fal.ai/legal/privacy-policy", // verified 2026-04-14
+  recraft: "https://www.recraft.ai/privacy", // verified 2026-04-14
 
   // Group E — Web, search, content retrieval
   brave: "https://brave.com/privacy/",
@@ -173,7 +175,7 @@ export const privacyPolicyLinks = {
   googleMaps: "https://policies.google.com/privacy",
 
   // Group F — Travel
-  serpapi: "https://serpapi.com/legal/privacy-policy",
+  serpapi: "https://serpapi.com/legal#privacy-policy", // embedded in legal page — verified 2026-04-14
   flightradar24: "https://www.flightradar24.com/terms-and-conditions",
 
   // Group G — Events

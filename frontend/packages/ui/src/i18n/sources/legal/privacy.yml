@@ -1318,6 +1318,78 @@ polar.privacy_policy_link:
   sv: Polars integritetspolicy
   verified_by_human: []
   he: מדיניות פרטיות של Polar
+revolut_business.heading:
+  context: Section heading for Revolut Bank UAB as a payment provider in the privacy policy
+  en: "3.16 Revolut Business (SEPA Bank Transfer)"
+  de: "3.16 Revolut Business (SEPA-Banküberweisung)"
+  zh: "3.16 Revolut Business（SEPA银行转账）"
+  es: "3.16 Revolut Business (Transferencia bancaria SEPA)"
+  fr: "3.16 Revolut Business (Virement bancaire SEPA)"
+  pt: "3.16 Revolut Business (Transferência bancária SEPA)"
+  ru: "3.16 Revolut Business (SEPA банковский перевод)"
+  ja: "3.16 Revolut Business（SEPA銀行振込）"
+  ko: "3.16 Revolut Business (SEPA 은행 송금)"
+  it: "3.16 Revolut Business (Bonifico bancario SEPA)"
+  tr: "3.16 Revolut Business (SEPA Banka Havalesi)"
+  vi: "3.16 Revolut Business (Chuyển khoản ngân hàng SEPA)"
+  id: "3.16 Revolut Business (Transfer bank SEPA)"
+  pl: "3.16 Revolut Business (Przelew bankowy SEPA)"
+  nl: "3.16 Revolut Business (SEPA-bankoverschrijving)"
+  ar: "3.16 Revolut Business (التحويل البنكي SEPA)"
+  hi: "3.16 Revolut Business (SEPA बैंक ट्रांसफर)"
+  th: "3.16 Revolut Business (โอนเงินผ่านธนาคาร SEPA)"
+  cs: "3.16 Revolut Business (Bankovní převod SEPA)"
+  sv: "3.16 Revolut Business (SEPA-banköverföring)"
+  he: "3.16 Revolut Business (העברה בנקאית SEPA)"
+  verified_by_human: []
+revolut_business.description:
+  context: Description of Revolut Bank UAB as a receiving bank for SEPA transfers — clarifies minimal data sharing
+  en: We use Revolut Bank UAB (Lithuania, EU) as our receiving bank for SEPA bank transfers. When you choose to pay via bank transfer, we display our Revolut IBAN to you. Revolut notifies us via a cryptographically signed webhook when a transfer arrives. We do not send your personal data to Revolut — only the transaction reference, amount, and Revolut's own transaction ID are processed.
+  de: Wir nutzen Revolut Bank UAB (Litauen, EU) als Empfangsbank für SEPA-Überweisungen. Wenn Sie per Banküberweisung zahlen, zeigen wir Ihnen unsere Revolut-IBAN. Revolut benachrichtigt uns per kryptografisch signiertem Webhook, wenn eine Überweisung eingeht. Wir übermitteln keine persönlichen Daten an Revolut — nur Verwendungszweck, Betrag und Revoluts eigene Transaktions-ID werden verarbeitet.
+  zh: 我们使用 Revolut Bank UAB（立陶宛，欧盟）作为 SEPA 银行转账的收款银行。当您选择银行转账付款时，我们会向您显示我们的 Revolut IBAN。当转账到达时，Revolut 通过加密签名的 Webhook 通知我们。我们不会向 Revolut 发送您的个人数据——只处理交易参考、金额和 Revolut 自己的交易 ID。
+  es: Utilizamos Revolut Bank UAB (Lituania, UE) como banco receptor para transferencias bancarias SEPA. Cuando elige pagar mediante transferencia bancaria, le mostramos nuestro IBAN de Revolut. Revolut nos notifica mediante un webhook firmado criptográficamente cuando llega una transferencia. No enviamos sus datos personales a Revolut — solo se procesan la referencia de transacción, el importe y el ID de transacción propio de Revolut.
+  fr: Nous utilisons Revolut Bank UAB (Lituanie, UE) comme banque réceptrice pour les virements bancaires SEPA. Lorsque vous choisissez de payer par virement bancaire, nous vous affichons notre IBAN Revolut. Revolut nous notifie via un webhook signé cryptographiquement lorsqu'un virement arrive. Nous ne transmettons pas vos données personnelles à Revolut — seuls la référence de transaction, le montant et l'ID de transaction de Revolut sont traités.
+  pt: Usamos o Revolut Bank UAB (Lituânia, UE) como banco receptor para transferências bancárias SEPA. Quando opta por pagar via transferência bancária, exibimos o nosso IBAN Revolut. O Revolut notifica-nos via webhook assinado criptograficamente quando uma transferência chega. Não enviamos os seus dados pessoais ao Revolut — apenas a referência de transação, o montante e o ID de transação do próprio Revolut são processados.
+  ru: Мы используем Revolut Bank UAB (Литва, ЕС) в качестве банка-получателя для SEPA-переводов. Когда вы выбираете оплату банковским переводом, мы показываем вам наш IBAN Revolut. Revolut уведомляет нас через криптографически подписанный вебхук о поступлении перевода. Мы не передаём ваши личные данные в Revolut — обрабатываются только назначение платежа, сумма и собственный ID транзакции Revolut.
+  ja: 当社はSEPA銀行振込の受取銀行としてRevolut Bank UAB（リトアニア、EU）を使用しています。銀行振込でのお支払いを選択された場合、当社のRevolut IBANをお知らせします。振込が到着した際、Revoltは暗号署名されたWebhookで当社に通知します。当社はお客様の個人データをRevolutに送信しません。処理されるのは取引参照、金額、RevolutのトランザクションIDのみです。
+  ko: 우리는 SEPA 은행 송금의 수취 은행으로 Revolut Bank UAB(리투아니아, EU)를 사용합니다. 은행 송금으로 결제를 선택하면 Revolut IBAN을 표시합니다. 송금이 도착하면 Revolut은 암호화 서명된 웹훅을 통해 알려줍니다. 귀하의 개인 정보를 Revolut에 보내지 않습니다 — 거래 참조, 금액 및 Revolut의 거래 ID만 처리됩니다.
+  it: Utilizziamo Revolut Bank UAB (Lituania, UE) come banca ricevente per i bonifici bancari SEPA. Quando scegli di pagare tramite bonifico, ti mostriamo il nostro IBAN Revolut. Revolut ci notifica tramite webhook firmato crittograficamente quando arriva un bonifico. Non inviamo i tuoi dati personali a Revolut — vengono elaborati solo il riferimento della transazione, l'importo e l'ID transazione di Revolut.
+  tr: SEPA banka havaleleri için alıcı banka olarak Revolut Bank UAB'ı (Litvanya, AB) kullanıyoruz. Banka havalesiyle ödemeyi seçtiğinizde, Revolut IBAN'ımızı gösteririz. Havale geldiğinde Revolut bizi kriptografik olarak imzalanmış bir webhook aracılığıyla bilgilendirir. Kişisel verilerinizi Revolut'a göndermiyoruz — yalnızca işlem referansı, tutar ve Revolut'un kendi işlem kimliği işlenir.
+  vi: Chúng tôi sử dụng Revolut Bank UAB (Litva, EU) làm ngân hàng nhận tiền cho các giao dịch chuyển khoản ngân hàng SEPA. Khi bạn chọn thanh toán qua chuyển khoản ngân hàng, chúng tôi hiển thị IBAN Revolut của mình. Revolut thông báo cho chúng tôi qua webhook được ký mật mã khi có chuyển khoản đến. Chúng tôi không gửi dữ liệu cá nhân của bạn cho Revolut — chỉ mã tham chiếu giao dịch, số tiền và ID giao dịch của Revolut được xử lý.
+  id: Kami menggunakan Revolut Bank UAB (Lithuania, EU) sebagai bank penerima untuk transfer bank SEPA. Ketika Anda memilih pembayaran melalui transfer bank, kami menampilkan IBAN Revolut kami. Revolut memberi tahu kami melalui webhook yang ditandatangani secara kriptografi ketika transfer tiba. Kami tidak mengirimkan data pribadi Anda ke Revolut — hanya referensi transaksi, jumlah, dan ID transaksi Revolut yang diproses.
+  pl: Używamy Revolut Bank UAB (Litwa, UE) jako banku odbierającego przelewy bankowe SEPA. Gdy wybierzesz płatność przelewem bankowym, wyświetlamy nasz IBAN Revolut. Revolut powiadamia nas przez kryptograficznie podpisany webhook, gdy przelew dotrze. Nie przesyłamy Twoich danych osobowych do Revolut — przetwarzane są tylko referencja transakcji, kwota i własny identyfikator transakcji Revolut.
+  nl: We gebruiken Revolut Bank UAB (Litouwen, EU) als ontvangende bank voor SEPA-bankoverschrijvingen. Wanneer u kiest voor betaling via bankoverschrijving, tonen wij u ons Revolut-IBAN. Revolut stelt ons op de hoogte via een cryptografisch ondertekende webhook wanneer een overschrijving aankomt. Wij sturen uw persoonlijke gegevens niet naar Revolut — alleen de transactiereferentie, het bedrag en het eigen transactie-ID van Revolut worden verwerkt.
+  ar: نستخدم Revolut Bank UAB (ليتوانيا، الاتحاد الأوروبي) كبنك مستقبل لتحويلات SEPA المصرفية. عند اختيار الدفع عبر التحويل المصرفي، نعرض لك رقم IBAN الخاص بـ Revolut. يُخطرنا Revolut عبر webhook موقّع تشفيريًا عند وصول التحويل. لا نرسل بياناتك الشخصية إلى Revolut — تُعالج فقط مرجع المعاملة والمبلغ ومعرّف معاملة Revolut الخاص.
+  hi: हम SEPA बैंक ट्रांसफर के लिए Revolut Bank UAB (लिथुआनिया, EU) को रिसीविंग बैंक के रूप में उपयोग करते हैं। जब आप बैंक ट्रांसफर से भुगतान चुनते हैं, हम आपको अपना Revolut IBAN दिखाते हैं। ट्रांसफर आने पर Revolut हमें क्रिप्टोग्राफिक रूप से हस्ताक्षरित Webhook से सूचित करता है। हम आपका कोई व्यक्तिगत डेटा Revolut को नहीं भेजते — केवल लेनदेन संदर्भ, राशि और Revolut का ट्रांजेक्शन ID प्रोसेस होता है।
+  th: เราใช้ Revolut Bank UAB (ลิทัวเนีย, EU) เป็นธนาคารรับสำหรับการโอนเงินผ่านธนาคาร SEPA เมื่อคุณเลือกชำระด้วยการโอนเงิน เราจะแสดง IBAN Revolut ของเรา Revolut แจ้งเราผ่าน webhook ที่เซ็นด้วยการเข้ารหัสเมื่อการโอนมาถึง เราไม่ส่งข้อมูลส่วนตัวของคุณไปยัง Revolut — ประมวลผลเพียงรหัสอ้างอิงธุรกรรม จำนวนเงิน และ ID ธุรกรรมของ Revolut
+  cs: Jako přijímající banku pro bankovní převody SEPA používáme Revolut Bank UAB (Litva, EU). Když zvolíte platbu bankovním převodem, zobrazíme vám naše Revolut IBAN. Revolut nás informuje prostřednictvím kryptograficky podepsaného webhooku, když převod dorazí. Vaše osobní údaje Revolut nepředáváme — zpracovává se pouze reference transakce, částka a vlastní ID transakce Revolut.
+  sv: Vi använder Revolut Bank UAB (Litauen, EU) som mottagarbank för SEPA-banköverföringar. När du väljer att betala via banköverföring visar vi vår Revolut-IBAN. Revolut meddelar oss via en kryptografiskt signerad webhook när en överföring anländer. Vi skickar inte dina personuppgifter till Revolut — endast transaktionsreferens, belopp och Revoluts eget transaktions-ID behandlas.
+  he: אנו משתמשים ב-Revolut Bank UAB (ליטא, האיחוד האירופי) כבנק מקבל להעברות בנקאיות SEPA. כאשר אתה בוחר לשלם באמצעות העברה בנקאית, אנו מציגים לך את ה-IBAN של Revolut שלנו. Revolut מודיע לנו דרך webhook חתום קריפטוגרפית כאשר העברה מגיעה. אנו לא שולחים את הנתונים האישיים שלך ל-Revolut — רק אסמכתא לעסקה, סכום ומזהה עסקה של Revolut עצמם מעובדים.
+  verified_by_human: []
+revolut_business.privacy_policy_link:
+  context: Link text for Revolut Bank UAB's privacy policy
+  en: Revolut Privacy Policy
+  de: Revolut Datenschutzerklärung
+  zh: Revolut 隐私政策
+  es: Política de privacidad de Revolut
+  fr: Politique de confidentialité de Revolut
+  pt: Política de Privacidade do Revolut
+  ru: Политика конфиденциальности Revolut
+  ja: Revolutプライバシーポリシー
+  ko: Revolut 개인정보 보호정책
+  it: Informativa sulla Privacy di Revolut
+  tr: Revolut Gizlilik Politikası
+  vi: Chính sách Bảo mật của Revolut
+  id: Kebijakan Privasi Revolut
+  pl: Polityka Prywatności Revolut
+  nl: Privacybeleid van Revolut
+  ar: سياسة خصوصية Revolut
+  hi: Revolut गोपनीयता नीति
+  th: นโยบายความเป็นส่วนตัวของ Revolut
+  cs: Zásady ochrany osobních údajů Revolut
+  sv: Revoluts integritetspolicy
+  he: מדיניות פרטיות של Revolut
+  verified_by_human: []
 flightradar24.heading:
   context: Section heading for Flightradar24 as a data provider in the privacy policy
   en: 3.16 Flightradar24
@@ -3899,6 +3971,127 @@ protection.observability_without_tracking.description:
   pt: Nosso pipeline de rastreamento interno (OpenTelemetry) substitui seu ID de usuário por um hash que muda a cada 24 horas, remove cabeçalhos de autenticação e cookies de cada span e oculta o conteúdo do chat antes que qualquer rastro saia do backend. Nossas análises web utilizam um beacon do lado do servidor sem cookies e sem identificadores individuais armazenados. Não utilizamos Google Analytics, Plausible, PostHog ou qualquer plataforma de análise de terceiros.
   fr: "Notre pipeline de traçage interne (OpenTelemetry) remplace ton identifiant utilisateur par un hachage qui change toutes les 24 heures, supprime les en-têtes d'authentification et les cookies de chaque segment (span), et occulte le contenu du chat avant que toute trace ne quitte le backend. Nos analyses web utilisent une balise côté serveur sans cookies et sans identifiants individuels stockés. Nous n'utilisons pas Google Analytics, Plausible, PostHog ou toute autre plateforme d'analyse tierce."
   verified_by_human: []
+# ─────────────────────────────────────────────────────────────────────────────
+# Privacy Promises — user-facing claims surfaced in Section 2 of the policy.
+# Source of truth: shared/docs/privacy_promises.yml.
+# Regenerated translations are produced by the auto-rebuild-translations hook.
+# ─────────────────────────────────────────────────────────────────────────────
+promises.intro:
+  context: Intro paragraph for the Privacy Promises section
+  en: Below are the privacy promises we make to every user. Each one is backed by code in our open-source repository and verified by automated tests. When the enforcing code changes, a registry-linked check reminds us to rerun those tests before release.
+  verified_by_human: []
+promises.client_side_chat_encryption.heading:
+  context: Privacy promise heading — client-side chat encryption
+  en: Client-side chat encryption
+  verified_by_human: []
+promises.client_side_chat_encryption.description:
+  context: Privacy promise description — client-side chat encryption
+  en: "Your chats, settings, and memories are encrypted on your device with AES-256-GCM before they leave your browser. The server stores only ciphertext on disk, in caches, and in backups. This is not end-to-end encryption: when a server-side task needs to read content (to run an AI response, render an invoice, or deliver a reminder), it decrypts in memory via HashiCorp Vault and discards the plaintext immediately after use."
+  verified_by_human: []
+promises.email_encryption_at_rest.heading:
+  context: Privacy promise heading — email encryption at rest
+  en: Email addresses encrypted at rest
+  verified_by_human: []
+promises.email_encryption_at_rest.description:
+  context: Privacy promise description — email encryption at rest
+  en: Your email address is stored only as ciphertext. The server decrypts it transiently in memory during login, billing, and notification delivery, and never writes plaintext to disk or logs.
+  verified_by_human: []
+promises.no_third_party_tracking.heading:
+  context: Privacy promise heading — no third-party tracking
+  en: No third-party tracking cookies or analytics
+  verified_by_human: []
+promises.no_third_party_tracking.description:
+  context: Privacy promise description — no third-party tracking
+  en: We do not use Google Analytics, Plausible, PostHog, Mixpanel, Amplitude, Segment, or any other third-party analytics platform. Our telemetry is server-side, cookie-free, and contains no individually stored identifiers. A pre-edit check in our repository blocks the introduction of analytics SDKs.
+  verified_by_human: []
+promises.pii_placeholder_substitution.heading:
+  context: Privacy promise heading — PII placeholder substitution
+  en: Personal information never reaches AI providers
+  verified_by_human: []
+promises.pii_placeholder_substitution.description:
+  context: Privacy promise description — PII placeholder substitution
+  en: Before any message is sent to an AI provider, your browser detects 32 categories of personal data — emails, phone numbers, credit card numbers, API keys, and more — and replaces them with placeholders like `[EMAIL_com]`. The substitution map is encrypted with your chat key so only your devices can restore the original values.
+  verified_by_human: []
+promises.telemetry_privacy_filter.heading:
+  context: Privacy promise heading — telemetry privacy filter
+  en: Telemetry stripped of sensitive data
+  verified_by_human: []
+promises.telemetry_privacy_filter.description:
+  context: Privacy promise description — telemetry privacy filter
+  en: Our internal tracing pipeline (OpenTelemetry) strips authentication headers, cookies, and database statements from every span, and pseudonymises your user ID with a salt that rotates every 24 hours. Regular users never have their raw identifiers in telemetry.
+  verified_by_human: []
+promises.cryptographic_erasure.heading:
+  context: Privacy promise heading — cryptographic erasure
+  en: Deleted accounts are cryptographically erased
+  verified_by_human: []
+promises.cryptographic_erasure.description:
+  context: Privacy promise description — cryptographic erasure
+  en: When you delete your account, the first step destroys your encryption keys. Any residual ciphertext in backups, caches, or audit logs is rendered permanently unreadable — no key, no content.
+  verified_by_human: []
+promises.argon2_password_hashing.heading:
+  context: Privacy promise heading — Argon2 password hashing
+  en: Passwords stored as Argon2 hashes
+  verified_by_human: []
+promises.argon2_password_hashing.description:
+  context: Privacy promise description — Argon2 password hashing
+  en: We store password and backup-code verifiers as Argon2 hashes. Plaintext passwords are never persisted to disk, never written to logs, and never recoverable — even by us.
+  verified_by_human: []
+promises.payment_data_minimization.heading:
+  context: Privacy promise heading — payment data minimization
+  en: No card numbers ever touch our servers
+  verified_by_human: []
+promises.payment_data_minimization.description:
+  context: Privacy promise description — payment data minimization
+  en: Payments flow directly from your browser to Stripe or Polar. We store only their provider tokens and customer identifiers. We never see, receive, or persist full card numbers, security codes, or bank account details.
+  verified_by_human: []
+promises.logging_redaction.heading:
+  context: Privacy promise heading — logging redaction
+  en: Logs are scrubbed of sensitive data
+  verified_by_human: []
+promises.logging_redaction.description:
+  context: Privacy promise description — logging redaction
+  en: Every log line passes through a redaction filter that strips email addresses, IP addresses, bearer tokens, and password values. Compliance logs preserve pseudonymous user IDs but remove all other personal data.
+  verified_by_human: []
+promises.prompt_injection_defense.heading:
+  context: Privacy promise heading — prompt injection defense
+  en: Defense against prompt injection
+  verified_by_human: []
+promises.prompt_injection_defense.description:
+  context: Privacy promise description — prompt injection defense
+  en: Two layers protect your conversations from malicious content in web pages, files, and URLs you reference. Invisible Unicode characters are stripped first, then a dedicated safety model detects semantic injection attempts and blocks or replaces high-risk content before it reaches your assistant.
+  verified_by_human: []
+promises.no_training_on_user_data.heading:
+  context: Privacy promise heading — no training on user data
+  en: Your conversations are not used to train AI models
+  verified_by_human: []
+promises.no_training_on_user_data.description:
+  context: Privacy promise description — no training on user data
+  en: Our contracts with AI providers such as Anthropic, OpenAI, and Mistral include explicit no-training clauses. Your chats are never used to fine-tune, evaluate, or otherwise train the underlying models.
+  verified_by_human: []
+promises.no_external_resources.heading:
+  context: Privacy promise heading — no external images or scripts
+  en: The web app never loads external images or scripts
+  verified_by_human: []
+promises.no_external_resources.description:
+  context: Privacy promise description — no external images or scripts
+  en: "Every external image, favicon, or preview shown in the app is fetched through our own preview.openmates.org proxy — the originating website never sees your IP address. The only third-party scripts the web app loads are the payment SDKs (Stripe and Polar) needed to process a purchase, and those only when you explicitly open the payment flow. There is no ad network, tag manager, CDN font loader, or third-party analytics library."
+  verified_by_human: []
+promises.cli_no_credential_prompts.heading:
+  context: Privacy promise heading — CLI never prompts for credentials
+  en: The command-line tool never asks for your password
+  verified_by_human: []
+promises.cli_no_credential_prompts.description:
+  context: Privacy promise description — CLI never prompts for credentials
+  en: "The OpenMates CLI never prompts you for your email, password, 2FA code, or any other login credential. Authentication uses a browser-based pair-auth handshake: the CLI shows a QR code and URL, you approve the session in your logged-in web browser, and you type a short 6-character binding PIN back into the CLI to confirm. Your credentials never pass through the terminal."
+  verified_by_human: []
+promises.open_source_transparency.heading:
+  context: Privacy promise heading — open source transparency
+  en: Every claim on this page is independently auditable
+  verified_by_human: []
+promises.open_source_transparency.description:
+  context: Privacy promise description — open source transparency
+  en: OpenMates is open source. Every promise above is backed by code you can read, tests you can run, and architecture documents you can audit in our public repository. Our privacy-promises registry links each claim to the exact files that enforce it.
+  verified_by_human: []
 providers.heading:
   context: Section heading for the conditional provider list
   en: When each provider is used
@@ -4258,6 +4451,140 @@ providers.always_active.sightengine.description:
   he: כל תמונה ווידאו שאתה מעלה נסרקים על ידי Sightengine לצורך סינון תוכן לפני שהם נשמרים. Sightengine רואה את תוכן התמונה או הווידאו.
   pt: Cada imagem e vídeo que você carrega é verificado pela Sightengine para moderação de segurança antes de ser armazenado. A Sightengine vê o conteúdo da imagem ou vídeo.
   fr: "Chaque image et vidéo que tu télécharges est scannée par Sightengine pour la modération de sécurité avant d'être stockée. Sightengine voit le contenu de l'image ou de la vidéo."
+  verified_by_human: []
+providers.always_active.api_video.heading:
+  context: Heading for api.video provider entry
+  en: api.video (product video hosting)
+  de: api.video (Produktvideo-Hosting)
+  zh: api.video（产品视频托管）
+  es: api.video (alojamiento de vídeos de producto)
+  ru: api.video (хостинг видео продукта)
+  ja: api.video（製品動画ホスティング）
+  ko: api.video (제품 동영상 호스팅)
+  it: api.video (hosting di video di prodotto)
+  tr: api.video (ürün videosu barındırma)
+  vi: api.video (lưu trữ video sản phẩm)
+  id: api.video (hosting video produk)
+  pl: api.video (hosting wideo produktowego)
+  nl: api.video (productvideohosting)
+  ar: api.video (استضافة مقاطع فيديو المنتج)
+  hi: api.video (उत्पाद वीडियो होस्टिंग)
+  th: api.video (โฮสติ้งวิดีโอผลิตภัณฑ์)
+  cs: api.video (hosting produktových videí)
+  sv: api.video (värdtjänst för produktvideor)
+  he: api.video (אירוח סרטוני מוצר)
+  pt: api.video (hospedagem de vídeos de produto)
+  fr: api.video (hébergement de vidéos de produit)
+  verified_by_human: []
+providers.always_active.api_video.description:
+  context: Description of api.video service — product video hosting used on the website and web app
+  en: >-
+    We use api.video (EU company, France) to host and stream product demo and
+    feature walkthrough videos shown on our website and web app. When you watch
+    a video, your IP address and basic viewing data are processed by api.video.
+    No user account identifiers are shared.
+  de: >-
+    Wir verwenden api.video (EU-Unternehmen, Frankreich) zum Hosten und Streamen
+    von Produkt-Demo- und Feature-Walkthrough-Videos auf unserer Website und
+    Web-App. Wenn du ein Video anschaust, werden deine IP-Adresse und
+    grundlegende Ansichtsdaten von api.video verarbeitet. Es werden keine
+    Benutzerkonto-Kennungen weitergegeben.
+  zh: >-
+    我们使用 api.video（欧盟公司，法国）在网站和网页应用中托管和播放产品演示及功能介绍视频。当你观看视频时，你的 IP 地址和基本观看数据会由
+    api.video 处理。不共享任何用户账号标识符。
+  es: >-
+    Utilizamos api.video (empresa de la UE, Francia) para alojar y transmitir vídeos de
+    demostración de productos y guías de funciones en nuestro sitio web y aplicación
+    web. Cuando ves un vídeo, tu dirección IP y los datos básicos de visualización son
+    procesados por api.video. No se comparten identificadores de cuenta de usuario.
+  ru: >-
+    Мы используем api.video (компания ЕС, Франция) для хостинга и трансляции
+    демонстрационных и обучающих видеороликов о продукте на нашем сайте и
+    веб-приложении. При просмотре видео твой IP-адрес и базовые данные просмотра
+    обрабатываются api.video. Идентификаторы учётных записей пользователей не
+    передаются.
+  ja: >-
+    api.video（EUの企業、フランス）を使用して、ウェブサイトおよびウェブアプリに製品デモや機能紹介動画をホストおよびストリーミングしています。動画を再生すると、あなたのIPアドレスと基本的な視聴データがapi.videoによって処理されます。ユーザーアカウントの識別子は共有されません。
+  ko: >-
+    api.video(EU 기업, 프랑스)를 사용하여 웹사이트 및 웹 앱에서 제품 데모 및 기능 소개 동영상을 호스팅하고 스트리밍합니다.
+    동영상을 시청할 때 귀하의 IP 주소와 기본 시청 데이터가 api.video에 의해 처리됩니다. 사용자 계정 식별자는 공유되지 않습니다.
+  it: >-
+    Utilizziamo api.video (azienda UE, Francia) per ospitare e trasmettere in streaming
+    video dimostrativi dei prodotti e guide alle funzionalità mostrate sul nostro sito
+    web e sull'app web. Quando guardi un video, il tuo indirizzo IP e i dati di
+    visualizzazione di base vengono elaborati da api.video. Non vengono condivisi
+    identificatori di account utente.
+  tr: >-
+    Web sitemizde ve web uygulamamızda gösterilen ürün demo ve özellik tanıtım
+    videolarını barındırmak ve yayın yapmak için api.video (AB şirketi, Fransa)
+    kullanıyoruz. Bir video izlediğinde, IP adresin ve temel izleme verilerin
+    api.video tarafından işlenir. Kullanıcı hesabı tanımlayıcıları paylaşılmaz.
+  vi: >-
+    Chúng tôi sử dụng api.video (công ty EU, Pháp) để lưu trữ và phát trực tuyến
+    các video demo sản phẩm và hướng dẫn tính năng được hiển thị trên trang web
+    và ứng dụng web của chúng tôi. Khi bạn xem video, địa chỉ IP và dữ liệu xem
+    cơ bản của bạn được xử lý bởi api.video. Không có mã định danh tài khoản người
+    dùng nào được chia sẻ.
+  id: >-
+    Kami menggunakan api.video (perusahaan UE, Prancis) untuk menghosting dan
+    melakukan streaming video demo produk dan panduan fitur yang ditampilkan di
+    situs web dan aplikasi web kami. Saat kamu menonton video, alamat IP dan data
+    penayangan dasar kamu diproses oleh api.video. Tidak ada pengidentifikasi
+    akun pengguna yang dibagikan.
+  pl: >-
+    Używamy api.video (firma UE, Francja) do hostowania i streamowania
+    demonstracyjnych filmów produktowych i przewodników po funkcjach
+    wyświetlanych na naszej stronie i w aplikacji webowej. Gdy oglądasz film,
+    Twój adres IP i podstawowe dane oglądalności są przetwarzane przez api.video.
+    Identyfikatory kont użytkowników nie są udostępniane.
+  nl: >-
+    We gebruiken api.video (EU-bedrijf, Frankrijk) voor het hosten en streamen van
+    productdemovideo's en functierondleidingen op onze website en web-app. Wanneer
+    je een video bekijkt, worden je IP-adres en basisweergavegegevens verwerkt door
+    api.video. Er worden geen gebruikersaccount-ID's gedeeld.
+  ar: >-
+    نستخدم api.video (شركة أوروبية، فرنسا) لاستضافة وبث مقاطع الفيديو التجريبية
+    للمنتجات وإرشادات الميزات المعروضة على موقعنا الإلكتروني وتطبيق الويب. عند
+    مشاهدة مقطع فيديو، تتم معالجة عنوان IP الخاص بك وبيانات المشاهدة الأساسية
+    بواسطة api.video. لا يتم مشاركة معرّفات حسابات المستخدمين.
+  hi: >-
+    हम api.video (EU कंपनी, फ्रांस) का उपयोग हमारी वेबसाइट और वेब ऐप पर दिखाए
+    गए उत्पाद डेमो और फीचर वॉकथ्रू वीडियो को होस्ट और स्ट्रीम करने के लिए
+    करते हैं। जब आप कोई वीडियो देखते हैं, तो आपका IP पता और बुनियादी देखने का
+    डेटा api.video द्वारा संसाधित किया जाता है। उपयोगकर्ता खाता पहचानकर्ता साझा
+    नहीं किए जाते।
+  th: >-
+    เราใช้ api.video (บริษัทในสหภาพยุโรป ประเทศฝรั่งเศส) เพื่อโฮสต์และสตรีมวิดีโอสาธิตผลิตภัณฑ์
+    และคำแนะนำการใช้งานฟีเจอร์ที่แสดงบนเว็บไซต์และเว็บแอปของเรา เมื่อคุณดูวิดีโอ ที่อยู่ IP
+    และข้อมูลการรับชมพื้นฐานของคุณจะถูกประมวลผลโดย api.video ไม่มีการแชร์ตัวระบุบัญชีผู้ใช้
+  cs: >-
+    Používáme api.video (společnost EU, Francie) pro hostování a streamování
+    ukázkových a prezentačních videí produktů zobrazených na našem webu a
+    webové aplikaci. Když sledujete video, vaše IP adresa a základní data
+    sledování jsou zpracovávána společností api.video. Identifikátory uživatelských
+    účtů nejsou sdíleny.
+  sv: >-
+    Vi använder api.video (EU-företag, Frankrike) för att vara värd för och strömma
+    produktdemo- och funktionsgenomgångsvideor som visas på vår webbplats och
+    webbapp. När du tittar på ett videoklipp behandlas din IP-adress och grundläggande
+    visningsdata av api.video. Inga användarkonto-identifierare delas.
+  he: >-
+    אנו משתמשים ב-api.video (חברה אירופאית, צרפת) לאחסון ולשידור סרטוני הדגמת
+    מוצרים ומדריכי תכונות המוצגים באתר ובאפליקציית האינטרנט שלנו. כאשר אתה צופה
+    בסרטון, כתובת ה-IP שלך ונתוני הצפייה הבסיסיים מעובדים על ידי api.video. לא
+    משותפים מזהי חשבון משתמש.
+  pt: >-
+    Usamos api.video (empresa da UE, França) para hospedar e transmitir vídeos de
+    demonstração de produtos e tutoriais de funcionalidades exibidos no nosso site
+    e aplicativo web. Quando você assiste a um vídeo, seu endereço IP e dados
+    básicos de visualização são processados pelo api.video. Nenhum identificador
+    de conta de usuário é compartilhado.
+  fr: >-
+    Nous utilisons api.video (entreprise UE, France) pour héberger et diffuser des
+    vidéos de démonstration de produits et des tutoriels de fonctionnalités affichés
+    sur notre site web et notre application web. Lorsque tu regardes une vidéo,
+    ton adresse IP et les données de visionnage de base sont traitées par api.video.
+    Aucun identifiant de compte utilisateur n'est partagé.
   verified_by_human: []
 providers.payments.heading:
   context: Subheading for Group B providers (payments)

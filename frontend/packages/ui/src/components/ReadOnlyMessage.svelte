@@ -9,6 +9,7 @@
     import { GenericMentionNode } from '../components/enter_message/extensions/GenericMentionNode';
     import { BestModelMentionNode } from '../components/enter_message/extensions/BestModelMentionNode';
     import { EmbedInlineNode } from '../components/enter_message/extensions/EmbedInlineNode';
+    import { WikiInlineNode } from '../components/enter_message/extensions/WikiInlineNode';
     import { SourceQuoteNode } from '../components/enter_message/extensions/SourceQuoteNode';
     import { EmbedPreviewLargeNode } from '../components/enter_message/extensions/EmbedPreviewLargeNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
@@ -31,17 +32,18 @@
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
     // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
-    let { 
-        content, 
-        isStreaming = false, 
+
+    let {
+        content,
+        isStreaming = false,
         _embedUpdateTimestamp = 0,
         selectable = false,
         piiMappings = undefined,
         piiRevealed = false,
         role = undefined
-    }: { 
-        content: string | Record<string, unknown> | null; 
-        isStreaming?: boolean; 
+    }: {
+        content: string | Record<string, unknown> | null;
+        isStreaming?: boolean;
         _embedUpdateTimestamp?: number;
         selectable?: boolean;
         piiMappings?: PIIMapping[];
@@ -664,6 +666,7 @@
             BestModelMentionNode, // For @best-model:best, @best-model:fast alias mentions
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
             EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
+            WikiInlineNode, // For Wikipedia topic inline links from post-processing
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
             EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
             ...MarkdownExtensions, // Spread the array of markdown extensions
@@ -1087,11 +1090,12 @@
         // Include $locale in the effect to trigger re-processing on language change
         const currentLocale = $locale || 'en';
         const localeChanged = currentLocale !== previousLocale;
-        
+
         // CRITICAL: Track embed update timestamp to force re-render when embed data arrives
         // This handles the race condition where embeds are initially unreadable (keys not cached)
         // but become decryptable after send_embed_data finishes processing
         const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
+
         
         if (localeChanged) {
             previousLocale = currentLocale;
@@ -1162,7 +1166,7 @@
                 if (hasEmbedUpdate) {
                     logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
                 }
-                
+
                 // During streaming but with locale/embed update: use full replacement
                 const forceFullReplace = localeChanged || !!hasEmbedUpdate;
                 applyContentUpdate(newProcessedContent, isStreaming, forceFullReplace);
@@ -1350,7 +1354,12 @@
         border-radius: 7px; 
     }
 
-    /* Link styling - target actual anchor tags with high specificity */
+    /* Link styling - target actual anchor tags with high specificity.
+       External markdown links use the brand primary gradient (blue).
+       Per-app-coloured links (embed/wiki inline) are rendered by their own
+       Svelte components and set their own colours inline, so they're not
+       affected by this rule. Internal deep links keep this gradient too
+       but are also decorated with an OpenMates badge further below. */
     :global(.read-only-message .ProseMirror .markdown-link),
     :global(.read-only-message .ProseMirror .markdown-paragraph a),
     :global(.read-only-message .ProseMirror a),
@@ -1362,11 +1371,10 @@
         -webkit-background-clip: text !important;
         -webkit-text-fill-color: transparent !important;
         text-decoration: none !important;
-        color: transparent !important; /* Fallback for browsers that don't support background-clip */
-        transition: none !important; /* Remove transition that might interfere */
+        color: transparent !important;
+        transition: none !important;
     }
 
-    /* Hover states with high specificity */
     :global(.read-only-message .ProseMirror .markdown-link:hover),
     :global(.read-only-message .ProseMirror .markdown-paragraph a:hover),
     :global(.read-only-message .ProseMirror a:hover),
@@ -1381,7 +1389,6 @@
         color: transparent !important;
     }
 
-    /* Focus states */
     :global(.read-only-message .ProseMirror .markdown-link:focus),
     :global(.read-only-message .ProseMirror .markdown-paragraph a:focus),
     :global(.read-only-message .ProseMirror a:focus),
@@ -1407,6 +1414,71 @@
         background: linear-gradient(135deg, #6387ff 9.04%, #7ea4ff 90.06%) !important;
         -webkit-background-clip: text !important;
         background-clip: text !important;
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+       Internal deep links (hash-based: #settings/..., #chat-id=...).
+
+       TipTap's MarkdownLink.renderHTML (extensions/MarkdownExtensions.ts)
+       rewrites the href — e.g. "/#settings/appstore/web" becomes
+       "#settings/appstore/web" — but stamps the anchor with the class
+       `markdown-link-internal` and `data-internal="true"`. We target the
+       class so the selector survives any future href-normalization.
+
+       A small OpenMates-branded badge is rendered before the link text,
+       mirroring the badge pattern used in EmbedInlineLink / WikiInlineLink
+       so all three clickable-text types look visually consistent.
+
+       Technique: ::before is the 20px OpenMates-gradient circle; ::after
+       is the white OpenMates icon layered on top via negative margin so it
+       sits inside the circle. Two pseudo-elements are needed because a
+       single masked element can only render the icon shape IN the gradient
+       (cut out), not on top of it.
+       ────────────────────────────────────────────────────────────── */
+    /* Anchor is a positioning context; reserve 23px of inline-start padding
+       (20px badge + 3px gap) for the absolutely-positioned pseudo-elements.
+       Absolute positioning keeps the badge and icon rock-solid regardless of
+       where the text wraps — previous negative-margin approach made the icon
+       drift to the right edge of the text when the anchor spanned more than
+       one line. */
+    :global(.read-only-message .markdown-link-internal) {
+        position: relative;
+        padding-inline-start: 23px;
+        text-decoration: none !important;
+    }
+
+    /* Gradient circle, pinned to the inline-start edge of the first line. */
+    :global(.read-only-message .markdown-link-internal)::before {
+        content: "";
+        position: absolute;
+        inset-inline-start: 0;
+        top: 0.15em;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--color-app-openmates);
+    }
+
+    /* White OpenMates icon, pinned to the same edge but offset 5px so it
+       centers inside the 20px circle (20-10)/2 = 5. Vertical centering
+       matches the ::before offset. */
+    :global(.read-only-message .markdown-link-internal)::after {
+        content: "";
+        position: absolute;
+        inset-inline-start: 5px;
+        top: calc(0.15em + 5px);
+        width: 10px;
+        height: 10px;
+        background-color: white;
+        -webkit-mask-image: var(--icon-url-openmates);
+        mask-image: var(--icon-url-openmates);
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        pointer-events: none;
     }
 
     /* Alternative approach for browsers that don't support :has() */

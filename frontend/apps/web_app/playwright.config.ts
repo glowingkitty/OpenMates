@@ -29,7 +29,16 @@ const config: PlaywrightTestConfig = {
 		// (test-results/reports/) to show inline screenshots per step.
 		// Uploaded to GHA artifacts and synced to test-results/screenshots/.
 		screenshot: 'on',
-		trace: 'off'
+		trace: 'off',
+		launchOptions: {
+			args: [
+				// Suppress Chrome's in-page credential/password-manager overlays.
+				// These appear after account creation and block clicks on the underlying UI.
+				'--disable-save-password-bubble',
+				'--disable-features=AutofillSaveCardInfoToAccountSignedIn,PasswordImport',
+				'--use-mock-keychain'
+			]
+		}
 	},
 	testDir: 'tests',
 	testMatch: /(.+\.)?(test|spec)\.[jt]s/,

@@ -76,7 +76,7 @@ user_message_1:
 assistant_message_2:
   context: "Assistant response with a glassmorphism HTML template featuring CSS animations. Contains code blocks."
   en: |
-    Here is a modern, responsive single-page template featuring a **Glassmorphism** design and smooth CSS animations. It uses a dynamic gradient background and floating decorative elements to create a "living" feel.
+    Here is a modern, responsive single-page template featuring a **Glassmorphism** design and smooth [CSS](wiki:CSS) animations. It uses a dynamic gradient background and floating decorative elements to create a "living" feel.
 
     ```json
     {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}
@@ -92,11 +92,11 @@ assistant_message_2:
 
     ### How to expand this:
     *   **Scroll Reveal:** To make this a longer page, you might want to use a library like [AOS (Animate on Scroll)](https://michalsnik.github.io/aos/) or the native CSS `view-timeline` property (in modern browsers) to trigger animations as you scroll down.
-    *   **Interactivity:** You could add a simple JavaScript listener to move the "blobs" slightly based on the user's mouse position to create a parallax effect.
+    *   **Interactivity:** You could add a simple [JavaScript](wiki:JavaScript) listener to move the "blobs" slightly based on the user's mouse position to create a [parallax](wiki:Parallax) effect.
 
     What kind of project are you planning to use this for? I can help you tailor the layout or the color palette (e.g., [Tailwind](https://tailwindcss.com/) colors or [Adobe Color](https://color.adobe.com/) themes) to fit a specific brand!
   de: |
-    Hier ist eine moderne, responsive Einzelseiten-Vorlage mit einem **Glassmorphism**-Design und flüssigen CSS-Animationen. Sie verwendet einen dynamischen Verlaufshintergrund und schwebende dekorative Elemente, um ein „lebendiges" Gefühl zu erzeugen.
+    Hier ist eine moderne, responsive Einzelseiten-Vorlage mit einem **Glassmorphism**-Design und flüssigen [CSS](wiki:Cascading_Style_Sheets)-Animationen. Sie verwendet einen dynamischen Verlaufshintergrund und schwebende dekorative Elemente, um ein „lebendiges" Gefühl zu erzeugen.
 
     ```json
     {"type": "code", "embed_id": "994ca928-9170-43ef-90b9-93d7cb00b14d"}

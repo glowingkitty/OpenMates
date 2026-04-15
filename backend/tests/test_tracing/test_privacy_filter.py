@@ -1,4 +1,5 @@
 # backend/tests/test_tracing/test_privacy_filter.py
+# @privacy-promise: telemetry-privacy-filter
 """
 Tests for TracePrivacyFilter (wrapping SpanExporter) and determine_user_tier().
 
@@ -15,7 +16,6 @@ Bug history this test suite guards against:
 import os
 from datetime import date
 from unittest.mock import patch, MagicMock
-import pytest
 from opentelemetry.sdk.trace.export import SpanExportResult
 
 

@@ -68,12 +68,14 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(pwInput).toBeVisible();
 	await pwInput.fill(TEST_PASSWORD);
 
+	// Submit password first — OTP field appears after backend confirms 2FA required
+	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(submitBtn).toBeVisible();
+	await submitBtn.click();
+
 	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	await otpInput.fill(generateTotp(TEST_OTP_KEY));
-
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible();
 	await submitBtn.click();
 
 	await page.waitForURL(/chat/);

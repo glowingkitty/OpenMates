@@ -243,6 +243,18 @@
    * textColorVarsStyle, so the rule below can reference them without knowing
    * the specific app. The .has-app-color guard keeps the fallback colour
    * active for unknown apps. */
+  /* Display text — solid colour link using the embed's app colour.
+   *
+   * Light mode: START colour (darker stop of the gradient, better contrast
+   *             against light backgrounds).
+   * Dark mode:  END colour (brighter stop of the gradient, better contrast
+   *             against dark backgrounds).
+   *
+   * The per-app colour reinforces which app the embed belongs to — e.g. a
+   * travel embed inline link renders in the travel-app orange/red, a web
+   * embed in the web-app blue, etc. Values are set as CSS custom properties
+   * on the element so the CSS rule can reference them generically.
+   * Fallback var(--color-grey-60) applies when appId is unknown. */
   .embed-inline-text {
     display: inline;
     font-size: inherit;
@@ -252,11 +264,9 @@
   }
 
   .embed-inline-text.has-app-color {
-    /* Light mode: START colour (darker, readable on light background) */
     color: var(--_link-color-light);
   }
 
-  /* Dark mode: END colour (brighter, readable on dark background) */
   :global([data-theme="dark"]) .embed-inline-text.has-app-color {
     color: var(--_link-color-dark);
   }

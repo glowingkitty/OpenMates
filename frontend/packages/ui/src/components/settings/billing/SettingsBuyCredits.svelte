@@ -31,8 +31,17 @@ Buy Credits - Credit tier selection
     // Helper to get price for a tier in selected currency
     function getTierPrice(tier: PricingTier): number {
         const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
-        return tier.price[currencyKey];
+        return tier.price[currencyKey] ?? 0;
     }
+
+    // Filter tiers that have a price for the selected currency.
+    // Bank-transfer-only tiers (SEPA) are EUR-only and hidden when USD is selected.
+    let visibleTiers = $derived(
+        pricingTiers.filter(tier => {
+            const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
+            return tier.price[currencyKey] !== undefined;
+        })
+    );
 
     // Navigate to payment view for a specific tier
     function selectCreditTier(tier: PricingTier) {
@@ -54,12 +63,14 @@ Buy Credits - Credit tier selection
 <p class="credits-explainer">{$text('settings.billing.buy_credits_explainer')}</p>
 
 <!-- Credit Tier Selection as Menu Items -->
-{#each pricingTiers as tier}
+{#each visibleTiers as tier}
     <SettingsItem
         type="submenu"
         icon="subsetting_icon coins"
         title="{formatCredits(tier.credits)} {$text('common.credits')}"
-        subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
+        subtitle={tier.bank_transfer_only
+            ? `${formatCurrency(getTierPrice(tier), selectedCurrency)} · ${$text('settings.billing.bank_transfer_only_tag')}`
+            : formatCurrency(getTierPrice(tier), selectedCurrency)}
         onClick={() => selectCreditTier(tier)}
     />
 {/each}

@@ -2448,6 +2448,486 @@ invoices_error_loading:
   sv: Fel vid laddning av fakturor
   he: שגיאה בטעינת חשבוניות
   verified_by_human: []
+bank_transfer_only_tag:
+  context: Tag/badge shown next to credit tiers that are only available via SEPA bank transfer
+  en: Bank transfer only
+  de: Nur per Banküberweisung
+  zh: 仅限银行转账
+  es: Solo transferencia bancaria
+  fr: Virement bancaire uniquement
+  pt: Apenas transferência bancária
+  ru: Только банковский перевод
+  ja: 銀行振込のみ
+  ko: 은행 송금 전용
+  it: Solo bonifico bancario
+  tr: Yalnızca banka havalesi
+  vi: Chỉ chuyển khoản ngân hàng
+  id: Hanya transfer bank
+  pl: Tylko przelew bankowy
+  nl: Alleen bankoverschrijving
+  ar: التحويل البنكي فقط
+  hi: केवल बैंक ट्रांसफर
+  th: เฉพาะการโอนเงินผ่านธนาคาร
+  cs: Pouze bankovní převod
+  sv: Endast banköverföring
+  he: העברה בנקאית בלבד
+  verified_by_human: []
+bank_transfer:
+  context: Button label to switch to SEPA bank transfer payment
+  en: Pay via Bank Transfer
+  de: Per Banküberweisung zahlen
+  zh: 通过银行转账支付
+  es: Pagar por transferencia bancaria
+  fr: Payer par virement bancaire
+  pt: Pagar por transferência bancária
+  ru: Оплатить банковским переводом
+  ja: 銀行振込で支払う
+  ko: 은행 송금으로 결제
+  it: Paga tramite bonifico bancario
+  tr: Banka havalesiyle öde
+  vi: Thanh toán bằng chuyển khoản
+  id: Bayar via transfer bank
+  pl: Zapłać przelewem bankowym
+  nl: Betaal via bankoverschrijving
+  ar: الدفع عبر التحويل البنكي
+  hi: बैंक ट्रांसफर से भुगतान करें
+  th: ชำระผ่านการโอนเงินผ่านธนาคาร
+  cs: Zaplatit bankovním převodem
+  sv: Betala via banköverföring
+  he: שלם באמצעות העברה בנקאית
+  verified_by_human: []
+bank_transfer_details:
+  context: Heading for bank transfer payment details screen showing IBAN and reference
+  en: Bank Transfer Details
+  de: Überweisungsdetails
+  zh: 银行转账详情
+  es: Detalles de la transferencia bancaria
+  fr: Détails du virement bancaire
+  pt: Detalhes da transferência bancária
+  ru: Реквизиты для перевода
+  ja: 銀行振込の詳細
+  ko: 은행 송금 세부 정보
+  it: Dettagli del bonifico bancario
+  tr: Banka havalesi detayları
+  vi: Chi tiết chuyển khoản ngân hàng
+  id: Detail transfer bank
+  pl: Szczegóły przelewu bankowego
+  nl: Overschrijvingsgegevens
+  ar: تفاصيل التحويل البنكي
+  hi: बैंक ट्रांसफर विवरण
+  th: รายละเอียดการโอนเงินผ่านธนาคาร
+  cs: Podrobnosti bankovního převodu
+  sv: Banköverlöringsuppgifter
+  he: פרטי העברה בנקאית
+  verified_by_human: []
+bank_transfer_iban:
+  context: Label for the IBAN field in bank transfer details
+  en: IBAN
+  de: IBAN
+  zh: IBAN
+  es: IBAN
+  fr: IBAN
+  pt: IBAN
+  ru: IBAN
+  ja: IBAN
+  ko: IBAN
+  it: IBAN
+  tr: IBAN
+  vi: IBAN
+  id: IBAN
+  pl: IBAN
+  nl: IBAN
+  ar: IBAN
+  hi: IBAN
+  th: IBAN
+  cs: IBAN
+  sv: IBAN
+  he: IBAN
+  verified_by_human: []
+bank_transfer_bic:
+  context: Label for the BIC/SWIFT code field in bank transfer details
+  en: BIC / SWIFT
+  de: BIC / SWIFT
+  zh: BIC / SWIFT
+  es: BIC / SWIFT
+  fr: BIC / SWIFT
+  pt: BIC / SWIFT
+  ru: BIC / SWIFT
+  ja: BIC / SWIFT
+  ko: BIC / SWIFT
+  it: BIC / SWIFT
+  tr: BIC / SWIFT
+  vi: BIC / SWIFT
+  id: BIC / SWIFT
+  pl: BIC / SWIFT
+  nl: BIC / SWIFT
+  ar: BIC / SWIFT
+  hi: BIC / SWIFT
+  th: BIC / SWIFT
+  cs: BIC / SWIFT
+  sv: BIC / SWIFT
+  he: BIC / SWIFT
+  verified_by_human: []
+bank_transfer_amount:
+  context: Label for the transfer amount field in bank transfer details
+  en: Amount
+  de: Betrag
+  zh: 金额
+  es: Importe
+  fr: Montant
+  pt: Valor
+  ru: Сумма
+  ja: 金額
+  ko: 금액
+  it: Importo
+  tr: Tutar
+  vi: Số tiền
+  id: Jumlah
+  pl: Kwota
+  nl: Bedrag
+  ar: المبلغ
+  hi: राशि
+  th: จำนวนเงิน
+  cs: Částka
+  sv: Belopp
+  he: סכום
+  verified_by_human: []
+bank_transfer_reference:
+  context: Label for the payment reference field — shown on credit purchase bank transfers where including it is required
+  en: Payment Reference (required)
+  de: Verwendungszweck (erforderlich)
+  zh: 付款参考 (必填)
+  es: Referencia de pago (obligatoria)
+  fr: Référence de paiement (obligatoire)
+  pt: Referência de pagamento (obrigatória)
+  ru: Назначение платежа (обязательно)
+  ja: 支払い参照 (必須)
+  ko: 결제 참조 (필수)
+  it: Causale di pagamento (obbligatoria)
+  tr: Ödeme referansı (gerekli)
+  vi: Mã tham chiếu thanh toán (bắt buộc)
+  id: Referensi pembayaran (wajib)
+  pl: Referencja płatności (wymagana)
+  nl: Betalingsreferentie (verplicht)
+  ar: مرجع الدفع (مطلوب)
+  hi: भुगतान संदर्भ (आवश्यक)
+  th: อ้างอิงการชำระเงิน (จำเป็น)
+  cs: Platební reference (povinná)
+  sv: Betalningsreferens (obligatorisk)
+  he: אסמכתא לתשלום (חובה)
+  verified_by_human: []
+bank_transfer_reference_support:
+  context: Label for the payment reference field on support contribution bank transfers — the reference is optional
+  en: Payment Reference (optional)
+  de: Verwendungszweck (optional)
+  zh: 付款参考 (可选)
+  es: Referencia de pago (opcional)
+  fr: Référence de paiement (facultative)
+  pt: Referência de pagamento (opcional)
+  ru: Назначение платежа (необязательно)
+  ja: 支払い参照 (任意)
+  ko: 결제 참조 (선택사항)
+  it: Causale di pagamento (facoltativa)
+  tr: Ödeme referansı (isteğe bağlı)
+  vi: Mã tham chiếu thanh toán (tùy chọn)
+  id: Referensi pembayaran (opsional)
+  pl: Referencja płatności (opcjonalna)
+  nl: Betalingsreferentie (optioneel)
+  ar: مرجع الدفع (اختياري)
+  hi: भुगतान संदर्भ (वैकल्पिक)
+  th: อ้างอิงการชำระเงิน (ไม่บังคับ)
+  cs: Platební reference (volitelná)
+  sv: Betalningsreferens (valfri)
+  he: אסמכתא לתשלום (אופציונלי)
+  verified_by_human: []
+bank_transfer_reference_hint_support:
+  context: Info hint shown for support contribution bank transfers explaining the reference is optional but needed for a confirmation email
+  en: Include this reference in your transfer if you'd like to receive a confirmation email once we receive your support payment. The reference is optional.
+  de: Fügen Sie diesen Verwendungszweck in Ihre Überweisung ein, wenn Sie eine Bestätigungs-E-Mail erhalten möchten, sobald wir Ihre Unterstützungszahlung erhalten. Der Verwendungszweck ist optional.
+  zh: 如果您希望在我们收到您的支持付款后收到确认电子邮件，请在转账中包含此参考号。参考号是可选的。
+  es: Incluya esta referencia en su transferencia si desea recibir un correo de confirmación una vez que recibamos su pago de apoyo. La referencia es opcional.
+  fr: Incluez cette référence dans votre virement si vous souhaitez recevoir un e-mail de confirmation une fois votre paiement de soutien reçu. La référence est facultative.
+  pt: Inclua esta referência em sua transferência se desejar receber um e-mail de confirmação assim que recebermos seu pagamento de suporte. A referência é opcional.
+  ru: Укажите эту ссылку в переводе, если хотите получить подтверждение по электронной почте после получения вашего платежа. Ссылка необязательна.
+  ja: サポート支払いを受領した際に確認メールを受け取りたい場合は、振込にこの参照番号を含めてください。参照番号は任意です。
+  ko: 지원 결제를 받으면 확인 이메일을 받으시려면 이 참조번호를 송금에 포함해 주세요. 참조번호는 선택사항입니다.
+  it: Includi questo riferimento nel tuo bonifico se desideri ricevere un'email di conferma una volta ricevuto il tuo pagamento di supporto. Il riferimento è facoltativo.
+  tr: Destek ödemenizi aldığımızda bir onay e-postası almak istiyorsanız bu referansı transferinize ekleyin. Referans isteğe bağlıdır.
+  vi: Bao gồm mã tham chiếu này trong chuyển khoản nếu bạn muốn nhận email xác nhận khi chúng tôi nhận được khoản thanh toán hỗ trợ. Mã tham chiếu là tùy chọn.
+  id: Sertakan referensi ini dalam transfer Anda jika ingin menerima email konfirmasi setelah kami menerima pembayaran dukungan Anda. Referensi ini bersifat opsional.
+  pl: Podaj tę referencję w przelewie, jeśli chcesz otrzymać e-mail z potwierdzeniem po otrzymaniu płatności. Referencja jest opcjonalna.
+  nl: Vermeld deze referentie in uw overschrijving als u een bevestigingsmail wilt ontvangen zodra we uw steunbetaling ontvangen. De referentie is optioneel.
+  ar: أدرج هذا المرجع في تحويلك إذا كنت تريد تلقي بريد تأكيد عند استلام دفعة الدعم. المرجع اختياري.
+  hi: यदि आप हमारा समर्थन भुगतान प्राप्त होने पर एक पुष्टिकरण ईमेल प्राप्त करना चाहते हैं, तो इस संदर्भ को अपने ट्रांसफर में शामिल करें। संदर्भ वैकल्पिक है।
+  th: รวมรหัสอ้างอิงนี้ในการโอนของคุณหากต้องการรับอีเมลยืนยันเมื่อเราได้รับการชำระเงินสนับสนุน รหัสอ้างอิงเป็นตัวเลือก
+  cs: Uveďte tuto referenci v převodu, pokud chcete obdržet potvrzovací e-mail po přijetí platby. Reference je volitelná.
+  sv: Inkludera denna referens i din överföring om du vill få ett bekräftelsemail när vi har mottagit din supportbetalning. Referensen är valfri.
+  he: כלול אסמכתא זו בהעברה אם ברצונך לקבל אישור במייל עם קבלת תשלום התמיכה. האסמכתא היא אופציונלית.
+  verified_by_human: []
+bank_transfer_reference_warning:
+  context: Warning text emphasizing user must include the reference exactly as shown in their bank transfer
+  en: You must include this reference exactly as shown in your bank transfer. Without it, your payment cannot be matched to your account.
+  de: Sie müssen diesen Verwendungszweck exakt wie angezeigt in Ihrer Überweisung angeben. Ohne ihn kann Ihre Zahlung nicht Ihrem Konto zugeordnet werden.
+  zh: 您必须在银行转账中精确输入此参考号。没有它，您的付款将无法匹配到您的账户。
+  es: Debe incluir esta referencia exactamente como se muestra en su transferencia bancaria. Sin ella, su pago no podrá asociarse a su cuenta.
+  fr: Vous devez inclure cette référence exactement comme indiqué dans votre virement bancaire. Sans elle, votre paiement ne pourra pas être associé à votre compte.
+  pt: Você deve incluir esta referência exatamente como mostrado na sua transferência bancária. Sem ela, seu pagamento não poderá ser vinculado à sua conta.
+  ru: Вы должны указать эту ссылку в точности как показано в вашем банковском переводе. Без неё ваш платёж не может быть привязан к вашему аккаунту.
+  ja: 銀行振込にこの参照番号を正確に記載してください。これがないと、お支払いをアカウントに紐づけることができません。
+  ko: 은행 송금 시 이 참조번호를 정확히 포함해야 합니다. 이것이 없으면 결제를 계정에 연결할 수 없습니다.
+  it: Devi includere questo riferimento esattamente come mostrato nel tuo bonifico bancario. Senza di esso, il tuo pagamento non potrà essere associato al tuo account.
+  tr: Bu referansı banka havalesinde tam olarak gösterildiği gibi eklemelisiniz. Bu olmadan ödemeniz hesabınızla eşleştirilemez.
+  vi: Bạn phải bao gồm mã tham chiếu này chính xác như được hiển thị trong chuyển khoản ngân hàng. Nếu không có mã này, khoản thanh toán của bạn không thể được khớp với tài khoản.
+  id: Anda harus menyertakan referensi ini persis seperti yang ditampilkan dalam transfer bank Anda. Tanpa referensi ini, pembayaran Anda tidak dapat dicocokkan dengan akun Anda.
+  pl: Musisz dołączyć tę referencję dokładnie tak, jak jest pokazana, w swoim przelewie bankowym. Bez niej Twoja płatność nie może zostać przypisana do Twojego konta.
+  nl: U moet deze referentie exact zoals getoond opnemen in uw bankoverschrijving. Zonder deze referentie kan uw betaling niet aan uw account worden gekoppeld.
+  ar: يجب تضمين هذا المرجع تمامًا كما هو معروض في التحويل البنكي الخاص بك. بدونه، لا يمكن مطابقة دفعتك مع حسابك.
+  hi: आपको अपने बैंक ट्रांसफर में यह संदर्भ ठीक वैसे ही शामिल करना होगा जैसा दिखाया गया है। इसके बिना, आपका भुगतान आपके खाते से मिलान नहीं किया जा सकता।
+  th: คุณต้องใส่รหัสอ้างอิงนี้ตามที่แสดงในการโอนเงินของคุณ หากไม่มีรหัสนี้ การชำระเงินของคุณจะไม่สามารถจับคู่กับบัญชีของคุณได้
+  cs: Tuto referenci musíte uvést přesně tak, jak je zobrazena, ve svém bankovním převodu. Bez ní nelze vaši platbu přiřadit k vašemu účtu.
+  sv: Du måste inkludera denna referens exakt som visad i din banköverföring. Utan den kan din betalning inte matchas till ditt konto.
+  he: עליך לכלול את האסמכתא הזו בדיוק כפי שמוצגת בהעברה הבנקאית שלך. בלעדיה, לא ניתן להתאים את התשלום שלך לחשבונך.
+  verified_by_human: []
+bank_transfer_bank_name:
+  context: Label for the bank name field
+  en: Bank
+  de: Bank
+  zh: 银行
+  es: Banco
+  fr: Banque
+  pt: Banco
+  ru: Банк
+  ja: 銀行
+  ko: 은행
+  it: Banca
+  tr: Banka
+  vi: Ngân hàng
+  id: Bank
+  pl: Bank
+  nl: Bank
+  ar: البنك
+  hi: बैंक
+  th: ธนาคาร
+  cs: Banka
+  sv: Bank
+  he: בנק
+  verified_by_human: []
+bank_transfer_deadline:
+  context: Label for the transfer deadline date
+  en: Transfer by
+  de: Überweisen bis
+  zh: 转账截止日期
+  es: Transferir antes del
+  fr: Transférer avant le
+  pt: Transferir até
+  ru: Перевести до
+  ja: 振込期限
+  ko: 송금 기한
+  it: Trasferire entro il
+  tr: Son transfer tarihi
+  vi: Chuyển khoản trước
+  id: Transfer sebelum
+  pl: Przelej do
+  nl: Overmaken vóór
+  ar: التحويل قبل
+  hi: इस तारीख तक ट्रांसफर करें
+  th: โอนก่อนวันที่
+  cs: Převeďte do
+  sv: Överför senast
+  he: להעביר עד
+  verified_by_human: []
+bank_transfer_awaiting:
+  context: Status message shown while waiting for the bank transfer to arrive
+  en: Waiting for your bank transfer... Credits will be added once received (1-2 business days).
+  de: Warte auf Ihre Überweisung... Credits werden nach Erhalt gutgeschrieben (1-2 Werktage).
+  zh: 等待您的银行转账... 收到后将添加积分 (1-2个工作日)。
+  es: Esperando su transferencia bancaria... Los créditos se añadirán una vez recibida (1-2 días hábiles).
+  fr: En attente de votre virement bancaire... Les crédits seront ajoutés une fois reçus (1-2 jours ouvrables).
+  pt: Aguardando sua transferência bancária... Os créditos serão adicionados quando recebidos (1-2 dias úteis).
+  ru: Ожидание вашего банковского перевода... Кредиты будут добавлены после получения (1-2 рабочих дня).
+  ja: 銀行振込を待っています... 受領後にクレジットが追加されます (1-2営業日)。
+  ko: 은행 송금을 기다리는 중... 수신 후 크레딧이 추가됩니다 (영업일 1-2일).
+  it: In attesa del tuo bonifico bancario... I crediti verranno aggiunti una volta ricevuti (1-2 giorni lavorativi).
+  tr: Banka havalesini bekliyoruz... Alındıktan sonra krediler eklenecektir (1-2 iş günü).
+  vi: Đang chờ chuyển khoản ngân hàng... Tín dụng sẽ được thêm khi nhận được (1-2 ngày làm việc).
+  id: Menunggu transfer bank Anda... Kredit akan ditambahkan setelah diterima (1-2 hari kerja).
+  pl: Oczekiwanie na Twój przelew bankowy... Kredyty zostaną dodane po otrzymaniu (1-2 dni robocze).
+  nl: Wachten op uw bankoverschrijving... Tegoed wordt bijgeschreven na ontvangst (1-2 werkdagen).
+  ar: في انتظار تحويلك البنكي... سيتم إضافة الرصيد عند الاستلام (1-2 أيام عمل).
+  hi: आपके बैंक ट्रांसफर की प्रतीक्षा कर रहे हैं... प्राप्त होने के बाद क्रेडिट जोड़े जाएंगे (1-2 कार्य दिवस)।
+  th: กำลังรอการโอนเงินของคุณ... เครดิตจะถูกเพิ่มเมื่อได้รับ (1-2 วันทำการ)
+  cs: Čekáme na váš bankovní převod... Kredity budou připsány po přijetí (1-2 pracovní dny).
+  sv: Väntar på din banköverföring... Krediter läggs till när de mottagits (1-2 arbetsdagar).
+  he: ממתינים להעברה הבנקאית שלך... זיכויים יתווספו עם הקבלה (1-2 ימי עסקים).
+  verified_by_human: []
+bank_transfer_awaiting_support:
+  context: Status message shown while waiting for a support contribution bank transfer — no credits are involved
+  en: Waiting for your bank transfer... We'll send a confirmation email once received (1-2 business days).
+  de: Warte auf Ihre Überweisung... Wir senden Ihnen eine Bestätigungs-E-Mail nach Erhalt (1-2 Werktage).
+  zh: 等待您的银行转账... 收到后我们将发送确认电子邮件 (1-2个工作日)。
+  es: Esperando su transferencia bancaria... Le enviaremos un correo de confirmación una vez recibida (1-2 días hábiles).
+  fr: En attente de votre virement bancaire... Nous vous enverrons un e-mail de confirmation à réception (1-2 jours ouvrables).
+  pt: Aguardando sua transferência bancária... Enviaremos um e-mail de confirmação quando recebida (1-2 dias úteis).
+  ru: Ожидание вашего банковского перевода... После получения мы вышлем подтверждение по электронной почте (1-2 рабочих дня).
+  ja: 銀行振込を待っています... 受領後に確認メールをお送りします (1-2営業日)。
+  ko: 은행 송금을 기다리는 중... 수신 후 확인 이메일을 보내드립니다 (영업일 1-2일).
+  it: In attesa del tuo bonifico bancario... Ti invieremo un'email di conferma una volta ricevuto (1-2 giorni lavorativi).
+  tr: Banka havalesini bekliyoruz... Alındıktan sonra onay e-postası göndereceğiz (1-2 iş günü).
+  vi: Đang chờ chuyển khoản ngân hàng... Chúng tôi sẽ gửi email xác nhận khi nhận được (1-2 ngày làm việc).
+  id: Menunggu transfer bank Anda... Kami akan mengirim email konfirmasi setelah diterima (1-2 hari kerja).
+  pl: Oczekiwanie na Twój przelew bankowy... Po otrzymaniu wyślemy e-mail z potwierdzeniem (1-2 dni robocze).
+  nl: Wachten op uw bankoverschrijving... We sturen een bevestigingsmail na ontvangst (1-2 werkdagen).
+  ar: في انتظار تحويلك البنكي... سنرسل لك بريدًا إلكترونيًا للتأكيد عند الاستلام (1-2 أيام عمل).
+  hi: आपके बैंक ट्रांसफर की प्रतीक्षा कर रहे हैं... प्राप्त होने के बाद हम एक पुष्टिकरण ईमेल भेजेंगे (1-2 कार्य दिवस)।
+  th: กำลังรอการโอนเงินของคุณ... เราจะส่งอีเมลยืนยันเมื่อได้รับ (1-2 วันทำการ)
+  cs: Čekáme na váš bankovní převod... Po přijetí vám zašleme potvrzovací e-mail (1-2 pracovní dny).
+  sv: Väntar på din banköverföring... Vi skickar ett bekräftelsemail när vi tagit emot den (1-2 arbetsdagar).
+  he: ממתינים להעברה הבנקאית שלך... נשלח אישור במייל עם קבלתה (1-2 ימי עסקים).
+  verified_by_human: []
+bank_transfer_received:
+  context: Success message shown when bank transfer has been received and credits applied
+  en: Bank transfer received! Your credits have been added.
+  de: Überweisung erhalten! Ihre Credits wurden gutgeschrieben.
+  zh: 银行转账已收到！您的积分已添加。
+  es: ¡Transferencia bancaria recibida! Sus créditos han sido añadidos.
+  fr: Virement bancaire reçu ! Vos crédits ont été ajoutés.
+  pt: Transferência bancária recebida! Seus créditos foram adicionados.
+  ru: Банковский перевод получен! Ваши кредиты были добавлены.
+  ja: 銀行振込を受領しました！クレジットが追加されました。
+  ko: 은행 송금이 수신되었습니다! 크레딧이 추가되었습니다.
+  it: Bonifico bancario ricevuto! I tuoi crediti sono stati aggiunti.
+  tr: Banka havalesi alındı! Kredileriniz eklendi.
+  vi: Đã nhận chuyển khoản ngân hàng! Tín dụng của bạn đã được thêm.
+  id: Transfer bank diterima! Kredit Anda telah ditambahkan.
+  pl: Przelew bankowy otrzymany! Twoje kredyty zostały dodane.
+  nl: Bankoverschrijving ontvangen! Uw tegoed is bijgeschreven.
+  ar: تم استلام التحويل البنكي! تمت إضافة رصيدك.
+  hi: बैंक ट्रांसफर प्राप्त हुआ! आपके क्रेडिट जोड़ दिए गए हैं।
+  th: ได้รับการโอนเงินแล้ว! เครดิตของคุณถูกเพิ่มแล้ว
+  cs: Bankovní převod přijat! Vaše kredity byly připsány.
+  sv: Banköverföring mottagen! Dina krediter har lagts till.
+  he: ההעברה הבנקאית התקבלה! הזיכויים שלך נוספו.
+  verified_by_human: []
+bank_transfer_received_support:
+  context: Success message shown when a support contribution bank transfer has been received — no credits are involved
+  en: Bank transfer received! Thank you for your support.
+  de: Überweisung erhalten! Vielen Dank für Ihre Unterstützung.
+  zh: 银行转账已收到！感谢您的支持。
+  es: ¡Transferencia bancaria recibida! Gracias por tu apoyo.
+  fr: Virement bancaire reçu ! Merci pour votre soutien.
+  pt: Transferência bancária recebida! Obrigado pelo seu apoio.
+  ru: Банковский перевод получен! Спасибо за вашу поддержку.
+  ja: 銀行振込を受領しました！ご支援ありがとうございます。
+  ko: 은행 송금이 수신되었습니다! 지원해 주셔서 감사합니다.
+  it: Bonifico bancario ricevuto! Grazie per il tuo supporto.
+  tr: Banka havalesi alındı! Desteğiniz için teşekkürler.
+  vi: Đã nhận chuyển khoản ngân hàng! Cảm ơn sự hỗ trợ của bạn.
+  id: Transfer bank diterima! Terima kasih atas dukungan Anda.
+  pl: Przelew bankowy otrzymany! Dziękujemy za wsparcie.
+  nl: Bankoverschrijving ontvangen! Bedankt voor uw steun.
+  ar: تم استلام التحويل البنكي! شكرًا لدعمك.
+  hi: बैंक ट्रांसफर प्राप्त हुआ! आपके समर्थन के लिए धन्यवाद।
+  th: ได้รับการโอนเงินแล้ว! ขอบคุณสำหรับการสนับสนุนของคุณ
+  cs: Bankovní převod přijat! Děkujeme za vaši podporu.
+  sv: Banköverföring mottagen! Tack för ditt stöd.
+  he: ההעברה הבנקאית התקבלה! תודה על תמיכתך.
+  verified_by_human: []
+bank_transfer_credits_info:
+  context: Info text showing how many credits will be added after transfer
+  en: "{credits} credits will be added to your account when the transfer is received."
+  de: "{credits} Credits werden Ihrem Konto gutgeschrieben, wenn die Überweisung eingeht."
+  zh: "转账到账后，{credits} 积分将添加到您的账户。"
+  es: "{credits} créditos se añadirán a su cuenta cuando se reciba la transferencia."
+  fr: "{credits} crédits seront ajoutés à votre compte à la réception du virement."
+  pt: "{credits} créditos serão adicionados à sua conta quando a transferência for recebida."
+  ru: "{credits} кредитов будут добавлены на ваш аккаунт при получении перевода."
+  ja: "振込が受領されると、{credits} クレジットがアカウントに追加されます。"
+  ko: "송금이 수신되면 {credits} 크레딧이 계정에 추가됩니다."
+  it: "{credits} crediti verranno aggiunti al tuo account quando il bonifico sarà ricevuto."
+  tr: "Transfer alındığında hesabınıza {credits} kredi eklenecektir."
+  vi: "{credits} tín dụng sẽ được thêm vào tài khoản của bạn khi nhận được chuyển khoản."
+  id: "{credits} kredit akan ditambahkan ke akun Anda saat transfer diterima."
+  pl: "{credits} kredytów zostanie dodanych do Twojego konta po otrzymaniu przelewu."
+  nl: "{credits} tegoed wordt aan uw account toegevoegd wanneer de overschrijving is ontvangen."
+  ar: "سيتم إضافة {credits} رصيد إلى حسابك عند استلام التحويل."
+  hi: "ट्रांसफर प्राप्त होने पर {credits} क्रेडिट आपके खाते में जोड़े जाएंगे।"
+  th: "เครดิต {credits} จะถูกเพิ่มในบัญชีของคุณเมื่อได้รับการโอน"
+  cs: "{credits} kreditů bude připsáno na váš účet po přijetí převodu."
+  sv: "{credits} krediter kommer att läggas till på ditt konto när överföringen mottagits."
+  he: "{credits} זיכויים יתווספו לחשבונך כאשר ההעברה תתקבל."
+  verified_by_human: []
+copied:
+  context: Feedback text shown briefly after successfully copying a value to clipboard
+  en: Copied!
+  de: Kopiert!
+  zh: 已复制！
+  es: "¡Copiado!"
+  fr: "Copié !"
+  pt: Copiado!
+  ru: Скопировано!
+  ja: コピーしました！
+  ko: 복사됨!
+  it: Copiato!
+  tr: Kopyalandı!
+  vi: Đã sao chép!
+  id: Disalin!
+  pl: Skopiowano!
+  nl: Gekopieerd!
+  ar: تم النسخ!
+  hi: कॉपी किया गया!
+  th: คัดลอกแล้ว!
+  cs: Zkopírováno!
+  sv: Kopierat!
+  he: הועתק!
+  verified_by_human: []
+copy:
+  context: Button label to copy a value to clipboard
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  he: העתק
+  verified_by_human: []
+copy_reference:
+  context: Button label to copy the payment reference to clipboard
+  en: Copy Reference
+  de: Referenz kopieren
+  zh: 复制参考号
+  es: Copiar referencia
+  fr: Copier la référence
+  pt: Copiar referência
+  ru: Копировать номер
+  ja: 参照番号をコピー
+  ko: 참조번호 복사
+  it: Copia riferimento
+  tr: Referansı kopyala
+  vi: Sao chép mã tham chiếu
+  id: Salin referensi
+  pl: Kopiuj referencję
+  nl: Referentie kopiëren
+  ar: نسخ المرجع
+  hi: संदर्भ कॉपी करें
+  th: คัดลอกอ้างอิง
+  cs: Kopírovat referenci
+  sv: Kopiera referens
+  he: העתק אסמכתא
+  verified_by_human: []
 invoices_generating:
   context: Message shown on invoice download button while invoice PDF is being generated after payment
   en: Generating invoice...
@@ -2471,4 +2951,76 @@ invoices_generating:
   cs: Generování faktury...
   sv: Genererar faktura...
   he: מפיק חשבונית...
+  verified_by_human: []
+bank_transfer_account_holder:
+  context: Label for the account holder name field in bank transfer details
+  en: Account Holder
+  de: Kontoinhaber
+  zh: 账户持有人
+  es: Titular de la cuenta
+  fr: Titulaire du compte
+  pt: Titular da conta
+  ru: Владелец счёта
+  ja: 口座名義人
+  ko: 계좌 소유자
+  it: Intestatario del conto
+  tr: Hesap sahibi
+  vi: Chủ tài khoản
+  id: Pemilik rekening
+  pl: Właściciel konta
+  nl: Rekeninghouder
+  ar: صاحب الحساب
+  hi: खाताधारक
+  th: เจ้าของบัญชี
+  cs: Majitel účtu
+  sv: Kontoinnehavare
+  he: בעל החשבון
+  verified_by_human: []
+bank_transfer_continue_to_app:
+  context: Button shown below bank transfer details during signup — user continues into the app while transfer is pending
+  en: Continue to app →
+  de: Weiter zur App →
+  zh: 继续进入应用 →
+  es: Continuar a la app →
+  fr: Continuer vers l'app →
+  pt: Continuar para o app →
+  ru: Продолжить в приложение →
+  ja: アプリを続ける →
+  ko: 앱으로 계속 →
+  it: Continua all'app →
+  tr: Uygulamaya devam et →
+  vi: Tiếp tục vào ứng dụng →
+  id: Lanjutkan ke aplikasi →
+  pl: Przejdź do aplikacji →
+  nl: Doorgaan naar app →
+  ar: متابعة إلى التطبيق →
+  hi: ऐप पर जारी रखें →
+  th: ดำเนินการต่อในแอป →
+  cs: Pokračovat do aplikace →
+  sv: Fortsätt till appen →
+  he: המשך לאפליקציה →
+  verified_by_human: []
+bank_transfer_continue_hint:
+  context: Small hint shown below the 'Continue to app' button explaining credits will be applied when transfer arrives
+  en: Credits will be added automatically once your transfer is received (1-2 business days).
+  de: Credits werden automatisch gutgeschrieben, sobald die Überweisung eingegangen ist (1-2 Werktage).
+  zh: 一旦收到转账（1-2个工作日），积分将自动添加。
+  es: Los créditos se añadirán automáticamente cuando se reciba la transferencia (1-2 días hábiles).
+  fr: Les crédits seront ajoutés automatiquement dès réception du virement (1-2 jours ouvrables).
+  pt: Os créditos serão adicionados automaticamente quando a transferência for recebida (1-2 dias úteis).
+  ru: Кредиты будут добавлены автоматически после получения перевода (1-2 рабочих дня).
+  ja: 振込が受領されると自動的にクレジットが追加されます（1〜2営業日）。
+  ko: 송금이 수신되면 자동으로 크레딧이 추가됩니다 (영업일 1-2일).
+  it: I crediti verranno aggiunti automaticamente quando il bonifico sarà ricevuto (1-2 giorni lavorativi).
+  tr: Transfer alındığında krediler otomatik olarak eklenecektir (1-2 iş günü).
+  vi: Tín dụng sẽ được thêm tự động khi nhận được chuyển khoản (1-2 ngày làm việc).
+  id: Kredit akan ditambahkan secara otomatis setelah transfer diterima (1-2 hari kerja).
+  pl: Kredyty zostaną dodane automatycznie po otrzymaniu przelewu (1-2 dni robocze).
+  nl: Tegoed wordt automatisch bijgeschreven wanneer de overschrijving is ontvangen (1-2 werkdagen).
+  ar: ستتم إضافة الرصيد تلقائياً عند استلام التحويل (1-2 أيام عمل).
+  hi: ट्रांसफर प्राप्त होते ही क्रेडिट स्वचालित रूप से जोड़े जाएंगे (1-2 कार्य दिवस)।
+  th: เครดิตจะถูกเพิ่มโดยอัตโนมัติเมื่อได้รับการโอน (1-2 วันทำการ)
+  cs: Kredity budou připsány automaticky po přijetí převodu (1-2 pracovní dny).
+  sv: Krediter läggs till automatiskt när överföringen mottagits (1-2 arbetsdagar).
+  he: הזיכויים יתווספו אוטומטית עם קבלת ההעברה (1-2 ימי עסקים).
   verified_by_human: []

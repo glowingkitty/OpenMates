@@ -2196,7 +2196,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <!-- Debug mode: render raw stored content without any processing -->
           <pre class="debug-raw-content selectable">{debugRawContent}</pre>
         {:else if showFullMessage && fullContent}
-          <ReadOnlyMessage 
+          <ReadOnlyMessage
               bind:this={readOnlyMessageComponent}
               content={fullContent}
               isStreaming={status === 'streaming'}
@@ -2216,7 +2216,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               {selectable}
           />
         {:else}
-          <ReadOnlyMessage 
+          <ReadOnlyMessage
               bind:this={readOnlyMessageComponent}
               {content}
               isStreaming={status === 'streaming'}

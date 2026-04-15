@@ -150,40 +150,50 @@ class WebSocketService extends EventTarget {
 
   constructor() {
     super();
-    // Listen to auth changes to connect/disconnect
-    authStore.subscribe((auth) => {
-      if (auth.isAuthenticated) {
-        // Only attempt to connect if not already connected AND no connection attempt is in progress.
-        if (!this.isConnected() && !this.connectionPromise) {
-          console.debug(
-            "[WebSocketService] Auth detected, no active connection or pending attempt, connecting...",
-          );
-          this.connect().catch((err) => {
-            // Catch errors from connect() here if it's called without await
-            // and we don't want them to be unhandled.
-            console.warn(
-              "[WebSocketService] Connection attempt triggered by authStore failed:",
-              err,
+    // Defer authStore subscription to avoid a Temporal Dead Zone (TDZ) crash
+    // when this module is loaded as part of a circular import chain:
+    //   panelStateStore → authStore → authLoginLogoutActions → webSocketService
+    // In that chain, authStore's const binding hasn't been initialized yet when
+    // the WebSocketService constructor runs. queueMicrotask defers until after
+    // the synchronous module-evaluation stack completes, at which point authStore
+    // is fully initialized. Behaviour is identical — the initial auth check fires
+    // before any user events, just one microtask later.
+    queueMicrotask(() => {
+      // Listen to auth changes to connect/disconnect
+      authStore.subscribe((auth) => {
+        if (auth.isAuthenticated) {
+          // Only attempt to connect if not already connected AND no connection attempt is in progress.
+          if (!this.isConnected() && !this.connectionPromise) {
+            console.debug(
+              "[WebSocketService] Auth detected, no active connection or pending attempt, connecting...",
             );
-          });
-        } else if (this.isConnected()) {
-          console.debug("[WebSocketService] Auth detected, already connected.");
-        } else if (this.connectionPromise) {
+            this.connect().catch((err) => {
+              // Catch errors from connect() here if it's called without await
+              // and we don't want them to be unhandled.
+              console.warn(
+                "[WebSocketService] Connection attempt triggered by authStore failed:",
+                err,
+              );
+            });
+          } else if (this.isConnected()) {
+            console.debug("[WebSocketService] Auth detected, already connected.");
+          } else if (this.connectionPromise) {
+            console.debug(
+              "[WebSocketService] Auth detected, connection attempt already in progress.",
+            );
+          }
+        } else if (
+          !auth.isAuthenticated &&
+          (this.isConnected() || this.connectionPromise)
+        ) {
+          // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
           console.debug(
-            "[WebSocketService] Auth detected, connection attempt already in progress.",
+            "[WebSocketService] No longer authenticated, disconnecting active/pending connection...",
           );
+          this.disconnect(); // disconnect() handles nulling out ws and connectionPromise
+          websocketStatus.setStatus("disconnected");
         }
-      } else if (
-        !auth.isAuthenticated &&
-        (this.isConnected() || this.connectionPromise)
-      ) {
-        // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
-        console.debug(
-          "[WebSocketService] No longer authenticated, disconnecting active/pending connection...",
-        );
-        this.disconnect(); // disconnect() handles nulling out ws and connectionPromise
-        websocketStatus.setStatus("disconnected");
-      }
+      });
     });
     this.registerDefaultErrorHandlers();
     this.registerPongHandler(); // Add call to new pong handler registration

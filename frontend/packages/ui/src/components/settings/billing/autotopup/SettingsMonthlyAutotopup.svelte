@@ -14,7 +14,7 @@ Allows creating new subscriptions if user has a saved payment method
     let isLoading = $state(false);
     let hasSubscription = $state(false);
     let hasActiveSubscription = $state(false);
-    let subscriptionDetails: any = $state(null);
+    let subscriptionDetails: Record<string, unknown> | null = $state(null);
     let hasPaymentMethod = $state(false);
     let showCreateForm = $state(false);
 
@@ -35,7 +35,7 @@ Allows creating new subscriptions if user has a saved payment method
         return normalized === 'active' || normalized === 'trialing';
     }
 
-    function parseNextChargeDate(details: any): Date | null {
+    function parseNextChargeDate(details: Record<string, unknown> | null): Date | null {
         const raw =
             details?.next_billing_date ??
             details?.nextBillingDate ??
@@ -76,13 +76,16 @@ Allows creating new subscriptions if user has a saved payment method
         return `${symbol}${mainCurrencyAmount.toFixed(2)}`;
     }
 
-    // Get available subscription tiers (tiers with bonus credits > 0)
+    // Get available subscription tiers (tiers with bonus credits > 0).
+    // Bank-transfer-only tiers (SEPA) are excluded — subscriptions require recurring card payments.
     function getAvailableSubscriptionTiers() {
-        return pricingTiers.filter(tier => (tier.monthly_auto_top_up_extra_credits || 0) > 0);
+        return pricingTiers.filter(
+            tier => (tier.monthly_auto_top_up_extra_credits || 0) > 0 && !tier.bank_transfer_only
+        );
     }
 
     // Get price for a tier in selected currency
-    function getTierPrice(tier: any): number {
+    function getTierPrice(tier: import('../../../../../config/pricing').PricingTier): number {
         const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
         return tier.price[currencyKey];
     }
@@ -628,26 +631,6 @@ Allows creating new subscriptions if user has a saved payment method
         font-weight: 500;
     }
 
-    .form-group select {
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-30);
-        border-radius: var(--radius-3);
-        color: var(--color-grey-100);
-        padding: var(--spacing-5) var(--spacing-6);
-        font-size: var(--font-size-small);
-        cursor: pointer;
-        transition: border-color var(--duration-normal) var(--easing-default);
-    }
-
-    .form-group select:focus {
-        border-color: var(--color-primary);
-    }
-
-    .form-group select:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
     .help-text {
         color: var(--color-grey-60);
         font-size: var(--font-size-xxs);
@@ -673,26 +656,6 @@ Allows creating new subscriptions if user has a saved payment method
         border: 1px solid var(--color-grey-20);
     }
 
-
-    .billing-day-select {
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-30);
-        border-radius: var(--radius-3);
-        color: var(--color-grey-100);
-        padding: var(--spacing-5) var(--spacing-6);
-        font-size: var(--font-size-small);
-        cursor: pointer;
-        transition: border-color var(--duration-normal) var(--easing-default);
-    }
-
-    .billing-day-select:focus {
-        border-color: var(--color-primary);
-    }
-
-    .billing-day-select:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
 
     /* Info Boxes */
     .info-box {

@@ -5278,6 +5278,17 @@ def _discover_interrupted_sessions(
     return results
 
 
+def cmd_git_stats(args: argparse.Namespace) -> None:
+    """Delegate to scripts/git_stats.py for commit-activity and quality analytics."""
+    script = Path(__file__).parent / "git_stats.py"
+    cmd = [sys.executable, str(script), "--since", args.since, "--hotspots", str(args.hotspots)]
+    if args.author:
+        cmd += ["--author", args.author]
+    if args.json:
+        cmd += ["--json"]
+    os.execvp(cmd[0], cmd)
+
+
 def cmd_restore(args: argparse.Namespace) -> None:
     """Restore an interrupted Claude Code session in a new Zellij tab.
 
@@ -6010,6 +6021,18 @@ def main() -> None:
     p_task_track.add_argument("--id", "-i", required=True, metavar="TASK_ID", help="Task ID")
     p_task_track.add_argument("--file", "-f", required=True, help="File path")
 
+    p_git_stats = sub.add_parser(
+        "git-stats",
+        help="Show per-week commit activity, churn hotspots, and quality signals",
+    )
+    p_git_stats.add_argument("--since", default="6 months ago",
+                             help="git log --since value (default: '6 months ago')")
+    p_git_stats.add_argument("--author", default=None, help="Restrict to one author")
+    p_git_stats.add_argument("--hotspots", type=int, default=20,
+                             help="Number of churn hotspot files to show (default: 20)")
+    p_git_stats.add_argument("--json", action="store_true",
+                             help="Emit JSON instead of tables")
+
     args = parser.parse_args()
 
     commands = {
@@ -6047,6 +6070,7 @@ def main() -> None:
         "task-track": cmd_task_track,
         "spawn-chat": cmd_spawn_chat,
         "restore": cmd_restore,
+        "git-stats": cmd_git_stats,
     }
 
     cmd_func = commands.get(args.command)

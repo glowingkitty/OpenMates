@@ -1,16 +1,16 @@
 """
 Payment Service
 
-Top-level orchestrator that holds both the Stripe and Polar providers
-simultaneously and selects the correct one based on user region and
-any explicit override.
+Top-level orchestrator that holds all payment providers simultaneously
+and selects the correct one based on user region and any explicit override.
 
 Routing logic:
   - EU/EEA/CH/GB users → Stripe (default)
   - All other countries → Polar (handles global tax compliance as MoR)
   - Either provider can be overridden explicitly via the `provider_override` param
+  - SEPA bank transfers → Revolut Business (separate flow, not region-based)
 
-Both providers are always initialized at startup so provider switching
+All providers are always initialized at startup so provider switching
 is instant (no re-initialization on override).
 """
 
@@ -19,6 +19,7 @@ from typing import Optional, Dict, Any, Tuple
 
 from backend.core.api.app.services.payment.stripe_service import StripeService
 from backend.core.api.app.services.payment.polar_service import PolarService
+from backend.core.api.app.services.payment.revolut_business_service import RevolutBusinessService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
@@ -36,15 +37,16 @@ class PaymentService:
     def __init__(self, secrets_manager: SecretsManager) -> None:
         self.secrets_manager = secrets_manager
 
-        # Dual-provider mode: Stripe (EU) + Polar (non-EU)
+        # Multi-provider mode: Stripe (EU) + Polar (non-EU) + Revolut Business (SEPA transfers)
         self._stripe_provider: Optional[StripeService] = StripeService(secrets_manager)
         self._polar_provider: Optional[PolarService] = PolarService(secrets_manager)
+        self._revolut_business: Optional[RevolutBusinessService] = RevolutBusinessService(secrets_manager)
         # Default provider_name for legacy callers (e.g. /payments/config without override)
         self.provider_name = "stripe"
         # Legacy .provider points to Stripe for backwards compatibility
         # (StripeProductSync accesses payment_service.provider directly)
         self.provider = self._stripe_provider
-        logger.info("PaymentService: running in dual-provider mode (Stripe EU + Polar non-EU)")
+        logger.info("PaymentService: running in multi-provider mode (Stripe EU + Polar non-EU + Revolut Business SEPA)")
 
     async def initialize(self, is_production: bool) -> None:
         """
@@ -70,6 +72,20 @@ class PaymentService:
                     f"Non-EU users will fall back to Stripe until Polar is configured."
                 )
                 self._polar_provider = None
+
+        if self._revolut_business:
+            try:
+                await self._revolut_business.initialize(is_production)
+                logger.info("PaymentService: Revolut Business provider initialized (SEPA transfers)")
+            except ValueError as exc:
+                # Revolut Business credentials missing — log warning but don't fail startup.
+                # SEPA bank transfers won't be available until credentials are added to Vault.
+                logger.warning(
+                    f"PaymentService: Revolut Business provider could not be initialized "
+                    f"(credentials missing from Vault): {exc}. "
+                    f"SEPA bank transfer option will be disabled."
+                )
+                self._revolut_business = None
 
     def get_provider(
         self,
@@ -246,6 +262,55 @@ class PaymentService:
             return None
         return await self._polar_provider.verify_and_parse_webhook(payload, headers)
 
+    async def verify_revolut_business_webhook(
+        self,
+        payload: bytes,
+        timestamp_header: Optional[str],
+        signature_header: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Verify and parse a Revolut Business webhook event.
+
+        Called from payments.py when Revolut-Signature header is detected.
+
+        Args:
+            payload: Raw request body bytes
+            timestamp_header: Value of Revolut-Request-Timestamp header
+            signature_header: Value of Revolut-Signature header
+
+        Returns:
+            Parsed event dict if signature valid, None otherwise
+        """
+        if not self._revolut_business:
+            logger.error(
+                "PaymentService: received Revolut Business webhook but provider not initialized"
+            )
+            return None
+        return await self._revolut_business.verify_webhook(
+            payload, timestamp_header, signature_header
+        )
+
+    def get_bank_transfer_details(self) -> Optional[Dict[str, str]]:
+        """
+        Get company bank details for SEPA transfer display.
+
+        Returns:
+            Dict with 'iban', 'bic', 'bank_name', or None if Revolut Business not configured
+        """
+        if not self._revolut_business:
+            return None
+        return self._revolut_business.get_bank_details()
+
+    @property
+    def revolut_business(self) -> Optional[RevolutBusinessService]:
+        """Direct access to the Revolut Business service for transfer parsing."""
+        return self._revolut_business
+
+    @property
+    def is_bank_transfer_available(self) -> bool:
+        """Whether SEPA bank transfer payments are available."""
+        return self._revolut_business is not None
+
     async def refund_payment(
         self,
         payment_intent_id: str,
@@ -335,3 +400,5 @@ class PaymentService:
             await self._stripe_provider.close()
         if self._polar_provider:
             await self._polar_provider.close()
+        if self._revolut_business:
+            await self._revolut_business.close()

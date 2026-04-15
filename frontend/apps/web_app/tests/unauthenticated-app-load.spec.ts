@@ -139,6 +139,128 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] All checks passed');
 	});
 
+	test('example chat loads with Wikipedia inline links', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		// ─── 1. Load as fresh user, wait for intro chat ────────────────
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		// Wait for the for-everyone intro chat to load (default for new visitors)
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone'),
+			null,
+			{ timeout: 15000 }
+		);
+		console.log('[unauthenticated-load] Intro chat loaded');
+
+		// ─── 2. Find and click the Artemis II example chat card ─────────
+		// Example chats are shown in an ExampleChatsGroup inside the intro chat.
+		// Scroll down to find them and click the Artemis II card.
+		const exampleChatsGroup = page.getByTestId('example-chats-group');
+		await exampleChatsGroup.scrollIntoViewIfNeeded({ timeout: 15000 });
+		await expect(exampleChatsGroup).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Example chats group visible');
+
+		// Click the Artemis II example chat card (find by its title text)
+		const artemisCard = exampleChatsGroup.getByTestId('chat-embed-card').filter({
+			hasText: /artemis/i
+		}).first();
+		await expect(artemisCard).toBeVisible({ timeout: 10000 });
+		await artemisCard.click();
+		console.log('[unauthenticated-load] Clicked Artemis II example chat card');
+
+		// Wait for the example chat to load
+		await page.waitForFunction(
+			() => window.location.hash.includes('example-artemis'),
+			null,
+			{ timeout: 10000 }
+		);
+
+		const activeChatContainer = page.getByTestId('active-chat-container');
+		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Artemis II example chat loaded');
+
+		// ─── 3. Verify assistant message is visible ────────────────────
+		const assistantMessage = page.getByTestId('mate-message-content').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Assistant message content visible');
+
+		// ─── 4. Scroll down to reveal the prose text (below embed preview cards) ──
+		// The assistant message starts with large embed previews (search cards).
+		// The prose text with wiki-linkable topics is below them.
+		// The TipTap editor is lazy-initialized via IntersectionObserver, so the
+		// text must scroll near the viewport before wiki inline nodes are created.
+		await assistantMessage.evaluate((el: HTMLElement) => {
+			el.scrollIntoView({ block: 'end', behavior: 'instant' });
+		});
+		// Give the IntersectionObserver + TipTap editor time to initialize
+		await page.waitForTimeout(3000);
+		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
+
+		// ─── 5. Verify Wikipedia inline links are rendered ──────────────
+		// The Artemis II example chat has wikipedia_topics defined (10 topics).
+		// convertWikiTopicLinksOnDoc applies wiki links to the TipTap JSON doc,
+		// rendering as WikiInlineLink.svelte with data-testid="wiki-inline-link".
+		const wikiLinks = page.getByTestId('wiki-inline-link');
+		const wikiLinkCount = await wikiLinks.count();
+		expect(
+			wikiLinkCount,
+			`Expected at least one Wikipedia inline link in the Artemis II example chat, found ${wikiLinkCount}`
+		).toBeGreaterThan(0);
+		console.log(
+			`[unauthenticated-load] Found ${wikiLinkCount} Wikipedia inline link(s)`
+		);
+
+		// Verify the first wiki link has display text (badge is rendered as icon, not text)
+		const firstLink = wikiLinks.first();
+		await expect(firstLink).toBeVisible();
+		const linkText = await firstLink.textContent();
+		expect(
+			linkText && linkText.trim().length > 0,
+			'Wiki inline link should have display text (topic phrase)'
+		).toBe(true);
+		console.log(
+			`[unauthenticated-load] First wiki link text: "${linkText}"`
+		);
+
+		// ─── 5. Click a wiki link to verify fullscreen opens ────────────
+		await firstLink.click();
+
+		// WikipediaFullscreen should appear (it fetches data from Wikipedia API on mount)
+		// Look for the fullscreen container — it uses UnifiedEmbedFullscreen which has
+		// the embed-fullscreen-container structure
+		const wikiFullscreen = page.getByTestId('wiki-fullscreen-content');
+		await expect(wikiFullscreen).toBeVisible({ timeout: 15000 });
+		console.log('[unauthenticated-load] Wikipedia fullscreen opened');
+
+		// Verify the fullscreen loaded content (article title should appear)
+		const wikiTitle = page.getByTestId('wiki-fullscreen-title');
+		await expect(wikiTitle).toBeVisible({ timeout: 10000 });
+		const titleText = await wikiTitle.textContent();
+		expect(
+			titleText && titleText.length > 0,
+			'Wikipedia fullscreen should show an article title'
+		).toBe(true);
+		console.log(
+			`[unauthenticated-load] Wikipedia article title: "${titleText}"`
+		);
+
+		// ─── 6. No missing translations ─────────────────────────────────
+		await assertNoMissingTranslations(page);
+		console.log('[unauthenticated-load] Wikipedia inline links test passed');
+	});
+
 	test('AI model card in for-everyone chat opens settings deep link', async ({
 		page
 	}: {
@@ -192,5 +314,77 @@ test.describe('Unauthenticated app load', () => {
 		await expect(bannerShell.first()).toBeVisible({ timeout: 5000 });
 
 		console.log('[unauthenticated-load] AI model deep link test passed');
+	});
+
+	test('for-everyone chat header play button opens intro video in embed fullscreen', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		// ─── 1. Load as fresh unauthenticated user ───────────────────────
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone'),
+			null,
+			{ timeout: 15000 }
+		);
+		console.log('[unauthenticated-load] for-everyone intro chat loaded');
+
+		// ─── 2. Play button must be visible in the chat header ───────────
+		const playBtn = page.getByTestId('chat-header-play-btn');
+		await expect(playBtn).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Play button visible in chat header');
+
+		// ─── 3. Click play — expect embed fullscreen to open ────────────
+		await playBtn.click();
+
+		const videoFullscreen = page.getByTestId('intro-video-fullscreen');
+		await expect(videoFullscreen).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Intro video fullscreen opened');
+
+		// Verify it uses the embed fullscreen shell (UnifiedEmbedFullscreen top bar)
+		const embedTopBar = page.getByTestId('embed-fullscreen-overlay');
+		await expect(embedTopBar).toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Embed fullscreen shell visible');
+
+		// Verify video element is present and autoplaying
+		const videoEl = videoFullscreen.locator('video');
+		await expect(videoEl).toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Video element rendered');
+
+		// ─── 4. Close button dismisses the fullscreen ────────────────────
+		// EmbedTopBar uses data-testid="embed-minimize" for the close/minimize button
+		const closeBtn = page.getByTestId('embed-minimize');
+		await expect(closeBtn).toBeVisible({ timeout: 5000 });
+		await closeBtn.click();
+
+		await expect(videoFullscreen).not.toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Intro video fullscreen closed');
+
+		// ─── 5. Deep link — #intro-video hash opens fullscreen on load ───
+		await page.goto(getE2EDebugUrl('/#intro-video'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await page.waitForFunction(
+			() => window.location.hash.includes('demo-for-everyone') || window.location.hash.includes('intro-video'),
+			null,
+			{ timeout: 15000 }
+		);
+
+		const videoFullscreenDeepLink = page.getByTestId('intro-video-fullscreen');
+		await expect(videoFullscreenDeepLink).toBeVisible({ timeout: 15000 });
+		console.log('[unauthenticated-load] #intro-video deep link auto-opened fullscreen');
+
+		console.log('[unauthenticated-load] Intro video fullscreen test passed');
 	});
 });

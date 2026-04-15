@@ -46,7 +46,7 @@
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
-    import { createOnboardingChat, hasOnboardingChat } from '../../services/onboardingChatService'; // Import onboarding chat creation
+    import { createOnboardingChat, hasOnboardingChat, ONBOARDING_ENABLED } from '../../services/onboardingChatService'; // Import onboarding chat creation
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -1128,7 +1128,12 @@
         // After creation, the chat is auto-opened on ALL devices (mobile + desktop) by
         // setting it as the active chat via activeChatStore. This is a one-time action
         // that only runs during signup, never on subsequent page loads.
-        try {
+        //
+        // Gated by ONBOARDING_ENABLED while we rework the onboarding experience.
+        // window.onboarding() still works for manual QA.
+        if (!ONBOARDING_ENABLED) {
+            console.debug("[Signup] Onboarding disabled — skipping auto-create");
+        } else try {
             const alreadyExists = await hasOnboardingChat();
             if (!alreadyExists) {
                 const username = $signupStore.username || '';

@@ -11,7 +11,9 @@
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
     import Payment from '../../Payment.svelte';
+    import BankTransferPayment from '../../payment/BankTransferPayment.svelte';
     import { authStore } from '../../../stores/authStore';
+    import { apiEndpoints, getApiEndpoint } from '../../../config/api';
     import InputWarning from '../../common/InputWarning.svelte';
     import { SettingsInput, SettingsInfoBox } from '../elements';
     import SettingsSupportOneTimeConfirmation from './SettingsSupportOneTimeConfirmation.svelte';
@@ -31,6 +33,19 @@
     let showConfirmation = $state(false);
     let currency = $state('EUR');
     let paymentStarted = $state(false);
+    let showBankTransfer = $state(false);
+    let bankTransferAvailable = $state(false);
+
+    // Check bank transfer availability on mount
+    (async () => {
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
+            if (response.ok) {
+                const config = await response.json();
+                bankTransferAvailable = config.bank_transfer_available || false;
+            }
+        } catch { /* silently ignore */ }
+    })();
 
     // Email field for non-authenticated users
     let email = $state('');
@@ -207,7 +222,7 @@
             </div>
         {/if}
 
-        {#if paymentStarted}
+        {#if paymentStarted && !showBankTransfer}
             <div class="payment-component-container">
                 <Payment
                     purchasePrice={selectedTier.amount * 100}
@@ -218,6 +233,27 @@
                     disableWebSocketHandlers={true}
                     supportContribution={true}
                     supportEmail={isAuthenticated ? null : trimmedEmail}
+                    on:paymentStateChange={handlePaymentComplete}
+                />
+                {#if bankTransferAvailable}
+                    <div class="provider-switch-container">
+                        <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="support-switch-to-bank-transfer">
+                            {$text('settings.billing.bank_transfer')}
+                        </button>
+                    </div>
+                {/if}
+            </div>
+        {:else if paymentStarted && showBankTransfer}
+            <div class="payment-component-container">
+                <button class="provider-switch-btn" onclick={() => { showBankTransfer = false; }} data-testid="support-bank-transfer-back">
+                    &larr; {$text('common.back')}
+                </button>
+                <BankTransferPayment
+                    credits_amount={0}
+                    price={selectedTier.amount * 100}
+                    currency={currency}
+                    isSupportContribution={true}
+                    supportEmail={isAuthenticated ? '' : trimmedEmail}
                     on:paymentStateChange={handlePaymentComplete}
                 />
             </div>

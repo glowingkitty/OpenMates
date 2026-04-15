@@ -1,0 +1,305 @@
+# OpenMates Privacy Promises — Source of Truth
+# -----------------------------------------------------------------------------
+# Canonical registry of user-facing privacy claims. Every promise links to the
+# code that enforces it and the tests that verify it. Consumed by:
+#
+#   - backend/tests/test_privacy_promises.py (meta-test: validates registry
+#     integrity, forbidden terms, zero-knowledge gate)
+#   - .claude/hooks/privacy-promise-guard.sh (warn-only pre-edit reminder)
+#   - frontend/packages/ui/src/legal/buildLegalContent.ts (auto-generated
+#     "Technical Privacy Measures" section of the public privacy policy —
+#     Phase 2)
+#   - .claude/agents/legal-compliance-auditor.md (twice-weekly cross-check —
+#     Phase 3)
+#
+# Terminology rules (enforced by meta-test):
+#   - "client-side encryption" is the accurate claim.
+#   - "zero-knowledge encryption" MAY be used only when the checklist in
+#     docs/architecture/core/encryption-architecture.md is satisfied.
+#   - "end-to-end encryption" / "E2EE" / "E2E encryption" is FORBIDDEN —
+#     OpenMates is not an E2EE system (no recipient-only key model).
+#
+# Adding a promise: append an entry below, add the i18n keys under
+# `legal.privacy.promises.<id>.{heading,description}` in
+# frontend/packages/ui/src/i18n/sources/legal/privacy.yml, add the
+# `@privacy-promise: <id>` marker to at least one test (or set
+# `verification: documentation` if the promise is contractual).
+#
+# Meta-test: `python3 scripts/run_tests.py --spec backend/tests/test_privacy_promises.py`
+
+version: 1
+
+promises:
+  - id: client-side-chat-encryption
+    category: encryption
+    severity: critical
+    i18n_key: legal.privacy.promises.client_side_chat_encryption
+    verification: test
+    gdpr_articles: ["Art. 32"]
+    enforcement:
+      - file: frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+        what: AES-256-GCM key derivation and per-chat key unwrap on the client
+      - file: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+        what: Server persists ciphertext only; never sees plaintext chat content
+    tests:
+      - kind: unit
+        path: frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+        marker: client-side-chat-encryption
+      - kind: e2e
+        path: frontend/apps/web_app/tests/chat-flow.spec.ts
+        marker: client-side-chat-encryption
+        assertion: "Sends a message and validates zero-knowledge encryption health across lifecycle phases"
+    architecture_doc: docs/architecture/core/encryption-architecture.md
+    surfaced_in_policy: true
+
+  - id: email-encryption-at-rest
+    category: encryption
+    severity: critical
+    i18n_key: legal.privacy.promises.email_encryption_at_rest
+    verification: test
+    gdpr_articles: ["Art. 32", "Art. 5(1)(f)"]
+    enforcement:
+      - file: backend/core/api/app/utils/encryption.py
+        what: Email-address encryption primitives; server holds keys only in memory
+      - file: backend/core/api/app/routes/auth_routes/auth_login.py
+        what: Ephemeral in-memory decryption during login; key discarded immediately after use
+    tests:
+      - kind: unit
+        path: backend/tests/test_encryption_service.py
+        marker: email-encryption-at-rest
+    architecture_doc: docs/architecture/privacy/email-privacy.md
+    surfaced_in_policy: true
+
+  - id: no-third-party-tracking
+    category: tracking
+    severity: high
+    i18n_key: legal.privacy.promises.no_third_party_tracking
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 25"]
+    enforcement:
+      - file: frontend/apps/web_app/src/hooks.server.ts
+        what: CSP and cookie headers forbid third-party tracking origins
+      - file: .claude/hooks/analytics-sdk-forbidden.sh
+        what: Pre-edit hook blocks introduction of analytics SDKs (gtag, segment, mixpanel, posthog, plausible, amplitude)
+      - file: frontend/apps/web_app/tests/helpers/cookie-audit.ts
+        what: Per-test cookie snapshots + inline assertNoThirdPartyCookies helper enforce first-party-only domains
+    tests:
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: no-third-party-tracking
+        assertion: "Scans frontend package.json files; asserts no analytics SDK dependencies"
+      - kind: e2e
+        path: frontend/apps/web_app/tests/signup-flow.spec.ts
+        marker: no-third-party-tracking
+        assertion: "End of signup/purchase/deletion flow calls assertNoThirdPartyCookies()"
+    architecture_doc: docs/architecture/privacy/pii-protection.md
+    surfaced_in_policy: true
+
+  - id: pii-placeholder-substitution
+    category: pii
+    severity: critical
+    i18n_key: legal.privacy.promises.pii_placeholder_substitution
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 25"]
+    enforcement:
+      - file: frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+        what: Client-side detection of 32 PII categories before any server transmission
+      - file: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+        what: Final scan + placeholder substitution at send-time; mappings encrypted with chat key
+    tests:
+      - kind: e2e
+        path: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+        marker: pii-placeholder-substitution
+    architecture_doc: docs/architecture/privacy/pii-protection.md
+    surfaced_in_policy: true
+
+  - id: telemetry-privacy-filter
+    category: logging
+    severity: high
+    i18n_key: legal.privacy.promises.telemetry_privacy_filter
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 32"]
+    enforcement:
+      - file: backend/shared/python_utils/tracing/privacy_filter.py
+        what: Strips auth headers/cookies/db statements from OTel spans; pseudonymizes enduser.id with daily-rotated salt
+    tests:
+      - kind: unit
+        path: backend/tests/test_tracing/test_privacy_filter.py
+        marker: telemetry-privacy-filter
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: cryptographic-erasure
+    category: deletion
+    severity: critical
+    i18n_key: legal.privacy.promises.cryptographic_erasure
+    verification: test
+    gdpr_articles: ["Art. 17"]
+    enforcement:
+      - file: backend/core/api/app/tasks/user_cache_tasks.py
+        what: Phased account deletion — encryption keys destroyed before content; renders any residual ciphertext permanently unreadable
+    tests:
+      - kind: unit
+        path: backend/tests/test_privacy_promises.py
+        marker: cryptographic-erasure
+        assertion: "Static source check: asserts key-deletion phase precedes content deletion by inspecting user_cache_tasks.py for phase order"
+      - kind: e2e
+        path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+        marker: cryptographic-erasure
+        assertion: "Exercises the full account deletion flow end-to-end (email OTP + success confirmation)"
+    architecture_doc: docs/architecture/core/encryption-architecture.md
+    surfaced_in_policy: true
+
+  - id: argon2-password-hashing
+    category: auth
+    severity: critical
+    i18n_key: legal.privacy.promises.argon2_password_hashing
+    verification: test
+    gdpr_articles: ["Art. 32"]
+    enforcement:
+      - file: backend/core/api/app/routes/auth_routes/auth_2fa_utils.py
+        what: Argon2 verification for backup codes and credentials; plaintext never persisted
+    tests:
+      - kind: unit
+        path: backend/tests/test_rest_api_auth.py
+        marker: argon2-password-hashing
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: payment-data-minimization
+    category: payment
+    severity: high
+    i18n_key: legal.privacy.promises.payment_data_minimization
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)"]
+    enforcement:
+      - file: backend/core/api/app/services/payment/stripe_service.py
+        what: Only Stripe tokens/customer IDs stored; raw card data never touches our servers
+      - file: backend/core/api/app/services/payment/polar_service.py
+        what: Only Polar tokens stored; no PAN/CVV ever persisted
+    tests:
+      - kind: unit
+        path: backend/tests/test_payment_provider_routing.py
+        marker: payment-data-minimization
+      - kind: e2e
+        path: frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+        marker: payment-data-minimization
+        assertion: "Full Stripe EU-card purchase flow; Stripe iframe handles the card number so it never touches our origin"
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: logging-redaction
+    category: logging
+    severity: high
+    i18n_key: legal.privacy.promises.logging_redaction
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 32"]
+    enforcement:
+      - file: backend/core/api/app/utils/log_filters.py
+        what: SensitiveDataFilter regex-redacts emails, IPs, tokens, passwords from all application logs
+    tests:
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: logging-redaction
+        assertion: "Instantiates SensitiveDataFilter, asserts a log record with email/token is redacted"
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: prompt-injection-defense
+    category: pii
+    severity: high
+    i18n_key: legal.privacy.promises.prompt_injection_defense
+    verification: test
+    gdpr_articles: ["Art. 32"]
+    enforcement:
+      - file: backend/core/api/app/utils/text_sanitization.py
+        what: Layer 0 — strips invisible Unicode (ASCII smuggling, zero-width chars, BiDi controls)
+      - file: backend/apps/ai/processing/content_sanitization.py
+        what: Layer 1 — LLM-based semantic injection detection with scored block/replace thresholds
+    tests:
+      - kind: unit
+        path: backend/core/api/app/utils/__tests__/test_text_sanitization.py
+        marker: prompt-injection-defense
+      - kind: unit
+        path: backend/tests/test_content_sanitization.py
+        marker: prompt-injection-defense
+    architecture_doc: docs/architecture/privacy/prompt-injection.md
+    surfaced_in_policy: true
+
+  - id: no-training-on-user-data
+    category: transparency
+    severity: high
+    i18n_key: legal.privacy.promises.no_training_on_user_data
+    verification: documentation
+    gdpr_articles: ["Art. 5(1)(b)"]
+    enforcement:
+      - file: shared/docs/privacy_policy.yml
+        what: Canonical privacy policy discloses provider contracts with no-training clauses
+    docs:
+      - docs/architecture/privacy/pii-protection.md
+      - shared/docs/privacy_policy.yml
+    tests: []
+    surfaced_in_policy: true
+
+  - id: no-external-resources
+    category: tracking
+    severity: critical
+    i18n_key: legal.privacy.promises.no_external_resources
+    verification: test
+    gdpr_articles: ["Art. 5(1)(c)", "Art. 25", "Art. 32"]
+    enforcement:
+      - file: frontend/packages/ui/src/utils/imageProxy.ts
+        what: All external images and favicons route through preview.openmates.org — external hosts never see the user's IP
+      - file: frontend/packages/ui/src/config/api.ts
+        what: Canonical preview-server URL (preview.openmates.org) used by proxyImage/proxyFavicon
+      - file: frontend/apps/web_app/src/hooks.server.ts
+        what: CSP headers restrict frame and base-uri; payment iframes (Stripe/Polar) are the only permitted third-party embeds
+      - file: frontend/packages/ui/src/components/Payment.svelte
+        what: Payment component is the single controlled entry point for third-party scripts (@stripe/stripe-js)
+      - file: .claude/hooks/external-resources-guard.sh
+        what: Pre-edit hook reminds contributors whenever an external URL appears in frontend code outside the approved payment paths
+    tests:
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: no-external-resources
+        assertion: "Scans frontend source (excluding tests, mocks, and payment components) for direct https:// image/script loads that bypass proxyImage/proxyFavicon."
+    architecture_doc: docs/architecture/core/security.md
+    surfaced_in_policy: true
+
+  - id: cli-no-credential-prompts
+    category: auth
+    severity: high
+    i18n_key: legal.privacy.promises.cli_no_credential_prompts
+    verification: test
+    gdpr_articles: ["Art. 32", "Art. 5(1)(f)"]
+    enforcement:
+      - file: frontend/packages/openmates-cli/src/cli.ts
+        what: CLI command router — `openmates login` delegates to pair-auth only, never to a password flow
+      - file: frontend/packages/openmates-cli/src/client.ts
+        what: Pair-auth handshake implementation — the only interactive prompt is the 6-char binding PIN shown in the browser after approval
+      - file: .claude/hooks/cli-credential-prompt-guard.sh
+        what: Pre-edit hook blocks introduction of password/email/2FA/TOTP/OTP prompts or credential-input libraries in CLI source
+    tests:
+      - kind: e2e
+        path: frontend/apps/web_app/tests/cli-pair-login.spec.ts
+        marker: cli-no-credential-prompts
+        assertion: "End-to-end pair-auth flow — CLI shows QR + pair URL, user approves in browser, CLI receives binding PIN. No password/email/2FA prompt is shown by the CLI."
+      - kind: static
+        path: backend/tests/test_privacy_promises.py
+        marker: cli-no-credential-prompts
+        assertion: "Scans frontend/packages/openmates-cli/src/**/*.ts for forbidden credential-prompt strings and credential-input library imports."
+    architecture_doc: docs/architecture/apps/cli-package.md
+    surfaced_in_policy: true
+
+  - id: open-source-transparency
+    category: transparency
+    severity: medium
+    i18n_key: legal.privacy.promises.open_source_transparency
+    verification: documentation
+    enforcement:
+      - file: LICENSE
+        what: Entire codebase published under an open-source license; every claim above is independently auditable
+    docs:
+      - LICENSE
+    tests: []
+    surfaced_in_policy: true

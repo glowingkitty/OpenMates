@@ -98,6 +98,15 @@ You also have your full file-reading toolkit (`Read`, `Grep`, `Glob`, `Bash`) to
 
 7. **Resolved items** (in prior Top 10 but no longer applicable) — list separately under `resolved_since_last_run` in the JSON.
 
+8. **Privacy Promises cross-check** — load `shared/docs/privacy_promises.yml` and verify each promise still has:
+   - All listed `enforcement[].file` paths present in the working tree
+   - At least one linked `tests[]` entry (for `verification: test`), with the test file containing a `@privacy-promise: <id>` marker
+   - The `i18n_key` resolvable under `frontend/packages/ui/src/i18n/sources/legal/privacy.yml` (both `.heading` and `.description`)
+   - No forbidden terminology (`end-to-end encryption` / `E2EE`) appearing affirmatively in the i18n description or linked architecture doc
+   - On the Thursday delta scan, also compare the set of changed files in the commit range against every promise's `enforcement[].file` list — if an enforcement file was modified in the delta window but its linked tests were NOT re-run (per `test-results/last-run.json`), emit a **high-severity** `code-fix` finding titled *"Privacy-promise enforcement file changed without test rerun"* referencing the promise id(s).
+   - If any of the first four checks fail in a way that the pytest meta-test (`backend/tests/test_privacy_promises.py`) would also fail, emit a **critical-severity** `code-fix` finding ahead of normal scoring.
+   - Emit a non-scored section `privacy_promises_status` in the JSON output (see File 1 schema) summarising total promises, missing enforcement files, missing markers, and any broken i18n keys.
+
 ### Monday full scan — additional duties
 
 - **Update `gdpr-audit.md` recommendation:** after producing the Top 10, assess whether the baseline audit file is materially stale. If yes, set `gdpr_audit_update_recommended: true` in the JSON with a short justification. Do NOT modify `gdpr-audit.md` directly unless at least 3 critical findings have been resolved OR at least 5 new critical findings have been introduced since the last audit — in those cases, write a concise amendment section at the bottom of `gdpr-audit.md` under a `## Amendments` header dated `YYYY-MM-DD`.

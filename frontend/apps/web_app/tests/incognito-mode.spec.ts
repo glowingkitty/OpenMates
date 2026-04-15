@@ -156,10 +156,13 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
+	// Submit password first — OTP field appears after backend confirms 2FA required
+	const submitLoginButton = page.locator(SELECTORS.submitLoginButton);
+	await submitLoginButton.click();
+
 	const otpInput = page.locator(SELECTORS.otpInput);
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 
-	const submitLoginButton = page.locator(SELECTORS.submitLoginButton);
 	let loginSuccess = false;
 	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
 		const otpCode = generateTotp(TEST_OTP_KEY);
@@ -342,6 +345,8 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 		const passwordInput2 = page.locator(SELECTORS.passwordInput);
 		await expect(passwordInput2).toBeVisible({ timeout: 15000 });
 		await passwordInput2.fill(TEST_PASSWORD);
+		// Submit password first — OTP field appears after backend confirms 2FA required
+		await page.locator(SELECTORS.submitLoginButton).click();
 		const otpInput2 = page.locator(SELECTORS.otpInput);
 		await expect(otpInput2).toBeVisible({ timeout: 15000 });
 		for (let attempt = 1; attempt <= 3; attempt++) {

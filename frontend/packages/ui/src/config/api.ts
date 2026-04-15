@@ -225,6 +225,11 @@ export const apiEndpoints = {
     downloadInvoice: "/v1/payments/invoices/{id}/download", // Download specific invoice PDF
     downloadCreditNote: "/v1/payments/invoices/{id}/credit-note/download", // Download credit note PDF for refunded invoice
     requestRefund: "/v1/payments/refund", // Request refund for unused credits
+    // SEPA bank transfer endpoints
+    createBankTransferOrder: "/v1/payments/create-bank-transfer-order", // Create a pending bank transfer order
+    createSupportBankTransferOrder: "/v1/payments/create-support-bank-transfer-order", // Create a support contribution bank transfer
+    bankTransferStatus: "/v1/payments/bank-transfer-status", // Get status of a bank transfer order (append /{order_id})
+    bankTransferPending: "/v1/payments/bank-transfer-pending", // Get all pending bank transfers for current user
     // Webhook endpoint is only called by payment providers, not the frontend
   },
   apps: {

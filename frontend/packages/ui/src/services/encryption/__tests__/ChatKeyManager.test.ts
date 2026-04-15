@@ -1,4 +1,5 @@
 // frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+// @privacy-promise: client-side-chat-encryption
 // Integration tests for ChatKeyManager — covers every known bug pattern from git history.
 //
 // Bug history this test suite guards against:

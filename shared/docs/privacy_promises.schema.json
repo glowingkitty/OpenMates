@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openmates.org/schemas/privacy_promises.schema.json",
+  "title": "OpenMates Privacy Promises Registry",
+  "description": "Canonical schema for shared/docs/privacy_promises.yml. Validated by backend/tests/test_privacy_promises.py.",
+  "type": "object",
+  "required": ["version", "promises"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "promises": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/promise" }
+    }
+  },
+  "$defs": {
+    "promise": {
+      "type": "object",
+      "required": ["id", "category", "severity", "i18n_key", "verification", "enforcement", "tests", "surfaced_in_policy"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+          "description": "Stable identifier (kebab-case). Used in test markers and hook output."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["encryption", "pii", "logging", "deletion", "auth", "payment", "tracking", "transparency"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium"]
+        },
+        "i18n_key": {
+          "type": "string",
+          "pattern": "^legal\\.privacy\\.promises\\.[a-z0-9_]+$"
+        },
+        "verification": {
+          "type": "string",
+          "enum": ["test", "documentation"],
+          "description": "'test' requires at least one linked test with a marker. 'documentation' allows empty tests[] but requires docs[]."
+        },
+        "gdpr_articles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "enforcement": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["file", "what"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string" },
+              "what": { "type": "string", "minLength": 5 }
+            }
+          }
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "path", "marker"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "type": "string", "enum": ["unit", "e2e", "static"] },
+              "path": { "type": "string" },
+              "marker": { "type": "string" },
+              "assertion": { "type": "string" }
+            }
+          }
+        },
+        "docs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "architecture_doc": { "type": "string" },
+        "surfaced_in_policy": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "verification": { "const": "test" } } },
+          "then": {
+            "properties": { "tests": { "minItems": 1 } }
+          }
+        },
+        {
+          "if": { "properties": { "verification": { "const": "documentation" } } },
+          "then": {
+            "required": ["docs"],
+            "properties": { "docs": { "minItems": 1 } }
+          }
+        }
+      ]
+    }
+  }
+}

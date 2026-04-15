@@ -3914,6 +3914,58 @@ async def _consume_main_processing_stream(
                     f"Broken URLs may not have been in expected format."
                 )
     
+    # ======================================================================
+    # Wikipedia link validation — strip invalid (wiki:Article_Title) refs
+    # ======================================================================
+    # The main processor emits inline Wikipedia links via `[text](wiki:Title)` syntax.
+    # The LLM may hallucinate titles that don't exist. Batch-validate all unique wiki
+    # refs against Wikipedia; replace any (wiki:BadTitle) with plain text so the user
+    # never sees a clickable link that 404s. Valid links pass through unchanged and
+    # render as wiki inline nodes on the frontend.
+    import re as _re_wiki
+    _wiki_pattern = _re_wiki.compile(r"\[([^\]]+)\]\(wiki:([^)]+)\)")
+    _matches = _wiki_pattern.findall(aggregated_response)
+    if _matches:
+        _unique_titles = list({title for _text, title in _matches})
+        logger.info(
+            f"{log_prefix} Found {len(_matches)} wiki link(s) with {len(_unique_titles)} unique title(s) — validating..."
+        )
+        try:
+            from backend.shared.providers.wikipedia.wikipedia_api import batch_validate_topics
+            _validated = await batch_validate_topics(topics=_unique_titles, language="en")
+            _valid_titles = {t.wiki_title for t in _validated} | {t.topic for t in _validated}
+            _invalid_titles = [t for t in _unique_titles if t not in _valid_titles]
+
+            if _invalid_titles:
+                logger.info(
+                    f"{log_prefix} Stripping {len(_invalid_titles)} invalid wiki link(s): "
+                    f"{_invalid_titles[:5]}{'...' if len(_invalid_titles) > 5 else ''}"
+                )
+                # Replace [text](wiki:BadTitle) with just `text`
+                def _strip_invalid(m: _re_wiki.Match) -> str:
+                    text, title = m.group(1), m.group(2)
+                    return text if title in _invalid_titles else m.group(0)
+                _corrected = _wiki_pattern.sub(_strip_invalid, aggregated_response)
+                if _corrected != aggregated_response:
+                    aggregated_response = _corrected
+                    final_response_chunks = [_corrected]
+                    # Push the corrected response to the client so stale invalid links are removed
+                    correction_payload = _create_redis_payload(
+                        task_id, request_data, _corrected, stream_chunk_count + 3,
+                        is_final=False,
+                        model_name=stream_model_name,
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, correction_payload, log_prefix,
+                        f"Published wiki-corrected response ({len(_invalid_titles)} invalid link(s) stripped). "
+                        f"Length: {len(_corrected)}"
+                    )
+            else:
+                logger.debug(f"{log_prefix} All {len(_unique_titles)} wiki title(s) valid — no corrections needed")
+        except Exception as _e:
+            # Never let wiki validation break the stream — fall through with original content
+            logger.warning(f"{log_prefix} Wiki link validation failed (keeping all links as-is): {_e}")
+
     # NOTE: Embed references are now streamed as chunks during skill execution
     # They appear in final_response_chunks and are already part of aggregated_response
     # No need to prepend - they're already in the stream at the correct position

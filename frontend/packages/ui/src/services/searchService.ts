@@ -889,8 +889,9 @@ async function indexChatMessages(chatId: string): Promise<void> {
   try {
     let messages: Message[];
 
-    if (isDemoChat(chatId) || isLegalChat(chatId)) {
-      // Demo and legal chats have messages in-memory, NOT in chatDB
+    if (isDemoChat(chatId) || isLegalChat(chatId) || isExampleChat(chatId)) {
+      // Demo, legal, and example chats have messages in-memory, NOT in chatDB
+      // getDemoMessages handles all three cases (example chats via getExampleChatMessages fallback)
       messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
     } else {
       // Authenticated user chats — decrypt from IndexedDB
@@ -1583,8 +1584,8 @@ export async function search(
     let decryptedTitle: string | null = null;
     let activeFocusId: string | null = null;
 
-    if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
-      // Demo/legal chats have plaintext titles (translation key resolved at build time)
+    if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id) || isExampleChat(chat.chat_id)) {
+      // Demo/legal/example chats have plaintext titles (already resolved from i18n)
       decryptedTitle = chat.title || null;
     } else {
       // Authenticated user chats — get decrypted title from cache
@@ -1617,7 +1618,7 @@ export async function search(
     let metadataSnippets: MetadataMatchSnippet[] = [];
     if (chat.is_metadata_only) {
       metadataSnippets = searchMetadataInChat(chat.chat_id, trimmedQuery);
-    } else if (!isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id)) {
+    } else if (!isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id) && !isExampleChat(chat.chat_id)) {
       // Full authenticated chats — search metadata inline using already-fetched cache data
       const meta = await chatMetadataCache.getDecryptedMetadata(chat);
       if (meta) {

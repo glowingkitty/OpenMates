@@ -30,13 +30,29 @@
 		name="description"
 		content="OpenMates documentation — guides, architecture documentation, and API reference for OpenMates."
 	/>
+	<meta name="robots" content="index, follow" />
+	<link rel="canonical" href="https://openmates.org/docs" />
+
+	<!-- Open Graph -->
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://openmates.org/docs" />
 	<meta property="og:title" content="OpenMates Documentation" />
 	<meta
 		property="og:description"
 		content="Guides, architecture documentation, and API reference for OpenMates."
 	/>
-	<meta property="og:type" content="website" />
-	<link rel="canonical" href="https://openmates.org/docs" />
+	<meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
+	<meta property="og:site_name" content="OpenMates" />
+
+	<!-- Twitter Card -->
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:url" content="https://openmates.org/docs" />
+	<meta name="twitter:title" content="OpenMates Documentation" />
+	<meta
+		name="twitter:description"
+		content="Guides, architecture documentation, and API reference for OpenMates."
+	/>
+	<meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
 </svelte:head>
 
 <div class="welcome-container">

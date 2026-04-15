@@ -29,6 +29,7 @@ Supports both saved payment methods and new payment form
     import { text } from '@repo/ui';
     import { pricingTiers } from '../../../config/pricing';
     import Payment from '../../Payment.svelte';
+    import BankTransferPayment from '../../payment/BankTransferPayment.svelte';
     import Toggle from '../../Toggle.svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import * as cryptoService from '../../../services/cryptoService';
@@ -54,10 +55,12 @@ Supports both saved payment methods and new payment form
     let selectedCreditsAmount = $derived(tier.credits);
     let selectedPrice = $derived(() => {
         const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd';
-        const amount = tier.price[currencyKey];
+        const amount = tier.price[currencyKey] ?? 0;
         // Convert to cents (EUR and USD both use 2 decimal places)
         return amount * 100;
     });
+    // SEPA-only tier auto-routes to bank transfer (cards can't process this tier)
+    let isSepaOnlyTier = $derived(!!tier.bank_transfer_only);
 
     // Payment method state
     let hasSavedPaymentMethods = $state(false);
@@ -87,6 +90,23 @@ Supports both saved payment methods and new payment form
 
     // providerOverride: if the user explicitly switches provider from the saved-method view
     let savedMethodProviderOverride: 'stripe' | 'polar' | null = $state(null);
+
+    // Bank transfer state
+    let showBankTransfer = $state(false);
+    let bankTransferAvailable = $state(false);
+
+    // Check if bank transfer is available (from /config response)
+    async function checkBankTransferAvailability() {
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
+            if (response.ok) {
+                const config = await response.json();
+                bankTransferAvailable = config.bank_transfer_available || false;
+            }
+        } catch {
+            bankTransferAvailable = false;
+        }
+    }
 
     // Format card brand name
     function formatCardBrand(brand: string): string {
@@ -136,7 +156,10 @@ Supports both saved payment methods and new payment form
         // Listen for payment_completed WebSocket events so we can navigate instantly
         // instead of waiting for the 30-second timeout in Payment.svelte
         webSocketService.on('payment_completed', handlePaymentCompleted);
-        await detectProviderAndLoadMethods();
+        await Promise.all([
+            detectProviderAndLoadMethods(),
+            checkBankTransferAvailability(),
+        ]);
     });
 
     // Cleanup WebSocket listener when component is destroyed
@@ -368,7 +391,23 @@ Supports both saved payment methods and new payment form
     }
 </script>
 
-{#if isLoadingPaymentMethods}
+{#if showBankTransfer || isSepaOnlyTier}
+    <!-- Bank transfer payment flow -->
+    <div class="bank-transfer-container">
+        {#if !isSepaOnlyTier}
+            <button class="back-btn" onclick={() => { showBankTransfer = false; }} data-testid="bank-transfer-back">
+                &larr; {$text('common.back')}
+            </button>
+        {/if}
+        <BankTransferPayment
+            credits_amount={selectedCreditsAmount}
+            price={selectedPrice()}
+            currency="EUR"
+            emailEncryptionKey=""
+            on:paymentStateChange={handlePaymentComplete}
+        />
+    </div>
+{:else if isLoadingPaymentMethods}
     <div class="loading-container">
         <p>{$text('settings.billing.loading_payment_methods')}</p>
     </div>
@@ -412,11 +451,16 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
-        <!-- Switch to Polar for non-EU cards -->
+        <!-- Provider switch buttons -->
         <div class="provider-switch-container">
             <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
                 {$text('signup.switch_to_non_eu_card')}
             </button>
+            {#if bankTransferAvailable}
+                <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="switch-to-bank-transfer">
+                    {$text('settings.billing.bank_transfer')}
+                </button>
+            {/if}
         </div>
     </div>
 
@@ -444,6 +488,13 @@ Supports both saved payment methods and new payment form
             initialProviderOverride={savedMethodProviderOverride}
             on:paymentStateChange={handlePaymentComplete}
         />
+        {#if bankTransferAvailable}
+            <div class="provider-switch-container">
+                <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="switch-to-bank-transfer">
+                    {$text('settings.billing.bank_transfer')}
+                </button>
+            </div>
+        {/if}
     </div>
 {/if}
 
@@ -451,6 +502,22 @@ Supports both saved payment methods and new payment form
     .loading-container {
         padding: var(--spacing-10);
         text-align: center;
+    }
+
+    .bank-transfer-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .back-btn {
+        align-self: flex-start;
+        background: none;
+        border: none;
+        color: var(--ds-color-text-accent);
+        cursor: pointer;
+        padding: 4px 0;
+        font-size: var(--ds-font-size-s);
     }
 
     .payment-methods-container {

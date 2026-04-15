@@ -24,6 +24,18 @@ export interface DemoChat {
 		featured: boolean;
 		order: number;
 		lastUpdated: string;
+		/** api.video HLS URL for an autoplay-muted background video in the chat header. */
+		video_hls_url?: string;
+		/** api.video MP4 URL — used as fallback for the background video and for the fullscreen player. */
+		video_mp4_url?: string;
+		/** Thumbnail image URL for the video (shown in the fullscreen embed before play). */
+		video_thumbnail_url?: string;
+		/** Timestamp in seconds where the background video should start playing. */
+		video_start_time?: number;
+		/** Optional list of static image URLs used as a crossfading Ken-Burns slideshow in the
+		 *  chat header. When provided, replaces the autoplay background video (the real video
+		 *  is still available via the play button / fullscreen embed). Saves video delivery cost. */
+		background_frames?: string[];
 	};
 }
 

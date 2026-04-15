@@ -873,6 +873,31 @@ retry:
   he: נסה שוב
   verified_by_human: []
 
+try_again:
+  context: "Generic UI text: Try Again button"
+  en: Try Again
+  de: Erneut versuchen
+  zh: 重试
+  es: Intentar de nuevo
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Попробовать снова
+  ja: もう一度試す
+  ko: 다시 시도
+  it: Riprova
+  tr: Tekrar dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: حاول مرة أخرى
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: נסה שוב
+  verified_by_human: []
+
 share:
   context: "Generic UI text: Share"
   en: Share

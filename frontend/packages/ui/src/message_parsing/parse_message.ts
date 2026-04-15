@@ -132,8 +132,35 @@ function convertEmbedLinksInNode(
   node: any,
   fallbackAppId: string | null,
 ): any | any[] {
-  // Leaf text node — check for embed: link mark
+  // Leaf text node — check for embed: or wiki: link mark
   if (node.type === "text" && Array.isArray(node.marks)) {
+    // ── Wikipedia inline link: [display text](wiki:Article_Title) ─────────
+    // The main processor includes Wikipedia topic references inline in its
+    // response (see base_wikipedia_linking_instruction.md). Invalid titles
+    // have already been stripped by the backend before this runs.
+    const wikiMarkIndex = node.marks.findIndex(
+      (m: any) =>
+        m.type === "link" &&
+        typeof m.attrs?.href === "string" &&
+        m.attrs.href.startsWith("wiki:"),
+    );
+    if (wikiMarkIndex !== -1) {
+      const linkMark = node.marks[wikiMarkIndex];
+      const href: string = linkMark.attrs.href as string;
+      const wikiTitle = decodeURIComponent(href.slice("wiki:".length));
+      const displayText = node.text || wikiTitle.replace(/_/g, " ");
+      return {
+        type: "wikiInline",
+        attrs: {
+          displayText,
+          wikiTitle,
+          wikidataId: null,
+          thumbnailUrl: null,
+          description: null,
+        },
+      };
+    }
+
     const linkMarkIndex = node.marks.findIndex(
       (m: any) =>
         m.type === "link" &&

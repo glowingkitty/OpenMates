@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
+// @privacy-promise: pii-placeholder-substitution
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');

@@ -1,0 +1,96 @@
+# Pending Bank Transfers — tracks SEPA bank transfer orders awaiting receipt.
+#
+# Unlike card payments (instant), bank transfers take 1-2 business days.
+# Orders are created when a user requests to pay via bank transfer and
+# resolved when the Revolut Business webhook confirms receipt.
+#
+# Only accessed by the backend service role (admin token), not by regular users.
+pending_bank_transfers:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    order_id:
+      type: string
+      length: 64
+      unique: true
+      note: "Internal order ID (format: bt_<uuid4>)"
+
+    user_id:
+      type: uuid
+      note: "The user who initiated the bank transfer"
+
+    credits_amount:
+      type: integer
+      note: "Number of credits to grant when transfer is received"
+
+    amount_expected_cents:
+      type: integer
+      note: "Expected transfer amount in cents (e.g. 10000 = €100.00)"
+
+    currency:
+      type: string
+      length: 3
+      default: "eur"
+      note: "ISO currency code — always EUR for SEPA"
+
+    reference:
+      type: string
+      length: 128
+      unique: true
+      note: "Structured reference the user must include in the transfer (format: OM-{account_id}-{short_id})"
+
+    status:
+      type: string
+      length: 20
+      default: "pending"
+      note: "Order status: 'pending' (awaiting transfer), 'completed' (credits granted), 'expired' (past deadline), 'admin_review' (amount mismatch or unmatched)"
+
+    order_type:
+      type: string
+      length: 30
+      default: "credit_purchase"
+      note: "Type of order: 'credit_purchase' (default) or 'support_contribution'"
+
+    created_at:
+      type: datetime
+      note: "When the bank transfer order was created"
+
+    expires_at:
+      type: datetime
+      note: "Deadline for the transfer (7 days from creation)"
+
+    completed_at:
+      type: datetime
+      nullable: true
+      note: "When the transfer was received and credits were applied (null if pending)"
+
+    received_amount_cents:
+      type: integer
+      nullable: true
+      note: "Actual amount received from the bank (null until transfer arrives)"
+
+    revolut_transaction_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "Revolut's transaction ID from the webhook (null until transfer arrives)"
+
+    email_encryption_key:
+      type: string
+      length: 512
+      nullable: true
+      note: "Client-provided email encryption key, captured at order creation time. Needed to decrypt user email when the transfer arrives 1-2 days later (no active client session at that point)."
+
+    support_email:
+      type: string
+      length: 512
+      nullable: true
+      note: "Plaintext email for support contribution orders (guest checkout — no user account). Null for credit purchases."
+
+    admin_note:
+      type: text
+      nullable: true
+      note: "Admin notes for orders in 'admin_review' status"

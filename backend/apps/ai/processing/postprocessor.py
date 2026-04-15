@@ -620,7 +620,6 @@ async def handle_postprocessing(
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
-
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
     )
 

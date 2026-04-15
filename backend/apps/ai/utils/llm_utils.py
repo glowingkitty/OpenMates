@@ -1022,7 +1022,7 @@ async def call_preprocessing_llm(
         return False  # If cache miss or error, proceed (don't block on missing health data)
     
     # Helper function to call a single provider
-    async def _call_single_provider(provider_model_id: str) -> LLMPreprocessingCallResult:
+    async def _call_single_provider(provider_model_id: str, is_last_provider: bool = False) -> LLMPreprocessingCallResult:
         """Calls a single provider with the given model_id. Returns result with error if provider fails."""
         provider_prefix = ""
         actual_model_id = provider_model_id
@@ -1058,10 +1058,19 @@ async def call_preprocessing_llm(
             logger.warning(f"[{task_id}] LLM Utils: model_id '{provider_model_id}' does not contain a provider prefix.")
             return LLMPreprocessingCallResult(error_message=f"Invalid model_id format: '{provider_model_id}'")
         
-        # Check health status from cache before attempting
+        # Check health status from cache before attempting.
+        # Skip unhealthy providers unless this is the last available fallback —
+        # the cache may be stale (e.g. provider recovered after transient blip) and
+        # blocking user requests unconditionally causes worse outages than wasted
+        # attempts. Main LLM path follows the same policy (see line ~1556).
         is_unhealthy = await _is_provider_unhealthy_preprocessing(provider_prefix)
-        if is_unhealthy:
+        if is_unhealthy and not is_last_provider:
             return LLMPreprocessingCallResult(error_message=f"Provider '{provider_prefix}' is marked as unhealthy in cache")
+        if is_unhealthy and is_last_provider:
+            logger.warning(
+                f"[{task_id}] LLM Utils: Provider '{provider_prefix}' is marked unhealthy but it's the "
+                f"last available fallback — attempting anyway."
+            )
 
         try:
             # Sanitize tool definition for provider-agnostic compatibility (remove min/max from integer schemas)
@@ -1177,10 +1186,11 @@ async def call_preprocessing_llm(
     attempted_providers = []
     last_error = None
 
-    for provider_model_id in providers_to_try:
+    for provider_idx, provider_model_id in enumerate(providers_to_try):
         # Allow one same-provider retry for wrong-tool errors; infra errors go straight to fallback.
         WRONG_TOOL_SAME_PROVIDER_RETRIES = 1
         attempts_for_this_provider = WRONG_TOOL_SAME_PROVIDER_RETRIES + 1  # updated after first call
+        is_last_provider = (provider_idx == len(providers_to_try) - 1)
 
         attempt = 0
         while attempt < attempts_for_this_provider:
@@ -1191,7 +1201,7 @@ async def call_preprocessing_llm(
                 f"(attempt {len(attempted_providers)}/{len(providers_to_try) + WRONG_TOOL_SAME_PROVIDER_RETRIES})"
             )
 
-            result = await _call_single_provider(provider_model_id)
+            result = await _call_single_provider(provider_model_id, is_last_provider=is_last_provider)
 
             # Success — return immediately.
             # Note: result.arguments can be an empty dict {} which is falsy, so check None explicitly.

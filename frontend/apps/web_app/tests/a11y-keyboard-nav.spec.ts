@@ -168,13 +168,15 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await expect(passwordInput).toBeVisible({ timeout: 15000 });
 		await passwordInput.fill(TEST_PASSWORD);
 
+		// Submit password first — OTP field appears after backend confirms 2FA required
+		const submitButton = page.locator('#login-submit-button');
+		await expect(submitButton).toBeVisible();
+		await submitButton.click();
+
 		const otpCode = generateTotp(TEST_OTP_KEY);
 		const otpInput = page.locator('#login-otp-input');
 		await expect(otpInput).toBeVisible({ timeout: 15000 });
 		await otpInput.fill(otpCode);
-
-		const submitButton = page.locator('#login-submit-button');
-		await expect(submitButton).toBeVisible();
 		await submitButton.click();
 
 		await page.waitForURL(/chat/, { timeout: 30000 });

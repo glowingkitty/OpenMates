@@ -1363,5 +1363,11 @@ app.conf.beat_schedule = {
         'schedule': timedelta(seconds=3600),  # Every 1 hour
         'options': {'queue': 'server_stats'},
     },
+    # Expire stale pending bank transfer orders past their 7-day deadline
+    'expire-stale-bank-transfers': {
+        'task': 'app.tasks.bank_transfer_expiry_task.expire_stale_bank_transfers',
+        'schedule': crontab(hour='*/6', minute=30),  # Every 6 hours at :30
+        'options': {'queue': 'persistence'},
+    },
 }
 app.conf.timezone = 'UTC'

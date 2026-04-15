@@ -1,4 +1,5 @@
 # backend/tests/test_rest_api_auth.py
+# @privacy-promise: argon2-password-hashing
 #
 # Integration tests for authentication REST API endpoints.
 # These tests call the REAL API at api.dev.openmates.org with ZERO mocks.

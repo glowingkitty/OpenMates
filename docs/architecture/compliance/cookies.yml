@@ -38,6 +38,33 @@
 #          docs/architecture/compliance/browser-storage.yml (non-cookie inventory)
 
 cookies:
+- name: __cf_bm
+  domain: .hcaptcha.com
+  path: /
+  http_only: true
+  secure: true
+  same_site: None
+  value_length: 170
+  first_observed: '2026-04-14'
+  last_observed: '2026-04-15'
+  seen_in_specs:
+  - signup-flow.spec.ts
+  - settings-support-stripe.spec.ts
+  purpose: 'Cloudflare Bot Management cookie set by Cloudflare on hCaptcha''s own infrastructure (hcaptcha.com
+    is protected by Cloudflare). Distinguishes automated bots from human users during requests to hcaptcha.com.
+    Contains only encrypted bot-score data — no user ID, no personal data. Expires after 30 minutes of
+    inactivity. '
+  consent_exempt: true
+  exemption_basis: 'Strictly necessary under ePrivacy Art. 5(3) / TTDSG §25. This cookie is set by Cloudflare
+    on hCaptcha''s own domain (.hcaptcha.com) as a side-effect of the user initiating signup — a service
+    explicitly requested by the user. OpenMates has no control over it and cannot suppress it. Bot-detection
+    cookies that protect a service from abuse are broadly accepted as strictly necessary by EU DPAs. Cloudflare
+    themselves classify __cf_bm as strictly necessary. It contains no personal data and does not track
+    users across sites. '
+  notes: 'Set by Cloudflare (not hCaptcha) on hCaptcha''s own infrastructure. OpenMates does not embed
+    Cloudflare directly — this cookie appears because hcaptcha.com runs behind Cloudflare Bot Management.
+    Disclose under the hCaptcha subprocessor entry in the privacy policy, noting Cloudflare as hCaptcha''s
+    infrastructure provider. '
 - name: __stripe_mid
   domain: .app.dev.openmates.org
   path: /
@@ -46,7 +73,7 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-13'
+  last_observed: '2026-04-15'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -84,7 +111,7 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-13'
+  last_observed: '2026-04-15'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -112,7 +139,7 @@ cookies:
   same_site: Lax
   value_length: 64
   first_observed: '2026-04-08'
-  last_observed: '2026-04-13'
+  last_observed: '2026-04-15'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -156,7 +183,7 @@ cookies:
   same_site: None
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-13'
+  last_observed: '2026-04-15'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -178,3 +205,18 @@ cookies:
     m.stripe.com. Disclosed in the privacy policy under Stripe.
 
     '
+- name: preferredLanguage
+  domain: app.dev.openmates.org
+  path: /
+  http_only: false
+  secure: false
+  same_site: Lax
+  value_length: 2
+  first_observed: '2026-04-14'
+  last_observed: '2026-04-15'
+  seen_in_specs:
+  - language-settings-flow.spec.ts
+  purpose: null
+  consent_exempt: null
+  exemption_basis: null
+  notes: null

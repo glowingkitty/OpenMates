@@ -1,4 +1,6 @@
 """
+@privacy-promise: email-encryption-at-rest
+
 Comprehensive unit tests for the EncryptionService class.
 
 Tests the zero-knowledge encryption architecture including:

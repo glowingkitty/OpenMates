@@ -56,6 +56,10 @@ All data has been gathered automatically. Review each section below — this is 
 
 {{PII_LEAK_AUDIT}}
 
+### SEO Health (Production)
+
+{{SEO_HEALTH}}
+
 ### Large File Check
 
 {{LARGE_FILES}}
@@ -158,6 +162,7 @@ Using the gathered health data:
 - **Browser error context**: Review the ephemeral error-context data — are there error patterns across multiple anonymous sessions? This shows errors happening to real users, not just admins.
 - **🔴 PII LEAK AUDIT IS CRITICAL**: If the PII leak audit found ANY matches, this is the #1 priority. Create a HIGH priority Linear task immediately. Investigate which log statement is leaking PII and fix the sanitization.
 - **Warning log review**: WARNING-level server logs are now included in the OpenObserve data. Flag any new warnings (deprecations, retries, near-failures) that appeared for the first time.
+- **SEO health**: Report the SEO health check results — sitemap URL count, missing meta tags, SSR rendering issues. Only flag if there are issues; if all green, one line: "SEO: ✅". If issues found, create a Linear task if none exists.
 - If a broken item has no Linear task, create one with HIGH priority
 
 Wait for user input (they may know about issues the data missed).

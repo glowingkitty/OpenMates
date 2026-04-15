@@ -41,7 +41,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     }
 
     // Helper to get price for a tier in the configured currency
-    function getTierPrice(tier: any): number {
+    function getTierPrice(tier: import('../../../../../config/pricing').PricingTier): number {
         const currencyKey = lowBalanceCurrency.toLowerCase() as 'eur' | 'usd';
         return tier.price[currencyKey];
     }
@@ -138,12 +138,15 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         checkPaymentMethod();
     });
 
-    // Dropdown options derived from pricingTiers — recomputed when currency changes
+    // Dropdown options derived from pricingTiers — recomputed when currency changes.
+    // Bank-transfer-only tiers (SEPA) are excluded — auto-topup requires recurring card payments.
     let tierAmountOptions = $derived(
-        pricingTiers.map(tier => ({
-            value: String(tier.credits),
-            label: `${formatCredits(tier.credits)} credits - ${formatCurrency(getTierPrice(tier), lowBalanceCurrency)}`
-        }))
+        pricingTiers
+            .filter(tier => !tier.bank_transfer_only)
+            .map(tier => ({
+                value: String(tier.credits),
+                label: `${formatCredits(tier.credits)} credits - ${formatCurrency(getTierPrice(tier), lowBalanceCurrency)}`
+            }))
     );
 
     const currencyOptions = [

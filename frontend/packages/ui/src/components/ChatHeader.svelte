@@ -45,10 +45,13 @@
     chatCreatedAt  - Unix timestamp in seconds of chat creation
 -->
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import { get } from 'svelte/store';
+  import { openIntroVideoFullscreen, closeIntroVideoFullscreen, introVideoFullscreenStore } from '../stores/introVideoFullscreenStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -65,6 +68,18 @@
     isIncognito = false,
     /** When true, shows an "Example chat" badge/pill in the loaded header state. */
     isExampleChat = false,
+    /** HLS URL stored for future HLS.js integration — not yet used directly in the video element.
+     *  Accepted as a prop so the parent can pass it without a type error. */
+    videoHlsUrl: _videoHlsUrl = null,
+    /** MP4 URL for the background video and fullscreen player. */
+    videoMp4Url = null,
+    /** Timestamp in seconds where the background video starts playing (e.g. 17 to skip intro). */
+    videoStartTime = 0,
+    /** Optional list of image URLs rendered as a crossfading Ken-Burns slideshow in the
+     *  header background. When non-empty, replaces the autoplay background video
+     *  (the real video is still available via the play button → fullscreen embed).
+     *  This avoids per-visitor video delivery cost on the public intro chat. */
+    backgroundFrames = null,
   }: {
     title?: string;
     category?: string | null;
@@ -79,7 +94,102 @@
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
     isExampleChat?: boolean;
+    /** api.video HLS URL for autoplay-muted background video. */
+    videoHlsUrl?: string | null;
+    /** api.video MP4 URL — used for background video + fullscreen player. */
+    videoMp4Url?: string | null;
+    /** Timestamp in seconds where the background video starts. */
+    videoStartTime?: number;
+    /** Image URLs for the crossfading Ken-Burns slideshow. */
+    backgroundFrames?: string[] | null;
   } = $props();
+
+  /** True when we should render the static-image slideshow instead of an autoplay video. */
+  const useSlideshow = $derived(Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
+  /** True when a header background (video or slideshow) should be shown at all. */
+  const hasHeaderMedia = $derived(useSlideshow || !!videoMp4Url);
+
+  // ─── Video: background element + state ────────────────────────────────────
+
+  let bgVideoEl = $state<HTMLVideoElement | null>(null);
+  /** Mirror of introVideoFullscreenStore — used to pause bg video when fullscreen opens. */
+  let showVideoFullscreen = $derived($introVideoFullscreenStore);
+
+  /** Seek to videoStartTime once metadata is loaded so the loop starts mid-video. */
+  function handleBgVideoMetadata() {
+    if (bgVideoEl && videoStartTime > 0) {
+      bgVideoEl.currentTime = videoStartTime;
+    }
+  }
+
+  // ─── Video: IntersectionObserver — pause when scrolled out of view ─────────
+
+  let _intersectionObserver: IntersectionObserver | null = null;
+
+  function setupIntersectionObserver(el: HTMLVideoElement) {
+    _intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          // Use get() to read the store directly — $derived isn't reactive inside closures
+          if (!get(introVideoFullscreenStore)) el.play().catch(() => {});
+        } else {
+          el.pause();
+        }
+      },
+      { threshold: 0.1 },
+    );
+    _intersectionObserver.observe(el);
+  }
+
+  // Re-run observer setup whenever bgVideoEl is bound
+  $effect(() => {
+    if (bgVideoEl) {
+      setupIntersectionObserver(bgVideoEl);
+    }
+    return () => {
+      _intersectionObserver?.disconnect();
+      _intersectionObserver = null;
+    };
+  });
+
+  // ─── Video: fullscreen + deep-link via #intro-video hash ──────────────────
+
+  const INTRO_VIDEO_HASH = 'intro-video';
+
+  function openVideoFullscreen(e?: MouseEvent) {
+    e?.stopPropagation();
+    openIntroVideoFullscreen();
+    bgVideoEl?.pause();
+    if (browser) window.location.hash = INTRO_VIDEO_HASH;
+  }
+
+  /** Called by ActiveChat (via store) when the fullscreen closes — resume bg video. */
+  $effect(() => {
+    if (!showVideoFullscreen && bgVideoEl) {
+      bgVideoEl.play().catch(() => {});
+    }
+  });
+
+  /** Handle browser back/forward navigation clearing the hash. */
+  function handleHashChange() {
+    if (browser && !window.location.hash.includes(INTRO_VIDEO_HASH) && $introVideoFullscreenStore) {
+      closeIntroVideoFullscreen();
+    }
+  }
+
+  onMount(() => {
+    if (!browser || !videoMp4Url) return;
+    // Auto-open fullscreen if deep-linked via #intro-video
+    if (window.location.hash === `#${INTRO_VIDEO_HASH}`) {
+      openIntroVideoFullscreen();
+    }
+    window.addEventListener('hashchange', handleHashChange);
+  });
+
+  onDestroy(() => {
+    if (browser) window.removeEventListener('hashchange', handleHashChange);
+  });
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
   //
@@ -352,9 +462,44 @@
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
+    <!-- Background media: either a crossfading static-image slideshow (preferred for the
+         public intro chat to avoid per-visitor video delivery cost) or, as a fallback,
+         an autoplay muted video. The real video is always available via the play button
+         below, which opens the fullscreen embed on demand. -->
+    {#if useSlideshow}
+      <div class="header-slideshow" aria-hidden="true">
+        {#each backgroundFrames as frameUrl, i (frameUrl)}
+          <img
+            class="header-slide"
+            src={frameUrl}
+            alt=""
+            loading={i === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
+          />
+        {/each}
+      </div>
+      <div class="header-video-overlay" aria-hidden="true"></div>
+    {:else if videoMp4Url}
+      <!-- api.video is our own CDN provider (added to privacy policy) — not proxied. -->
+      <video
+        bind:this={bgVideoEl}
+        class="header-video"
+        src={videoMp4Url}
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+        aria-hidden="true"
+        onloadedmetadata={handleBgVideoMetadata}
+      ></video>
+      <div class="header-video-overlay" aria-hidden="true"></div>
+    {/if}
+
     <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
-         Animate in from below: translateY(50px) → translateY(0), opacity 0 → 0.4. -->
-    {#if IconComponent}
+         Hidden when header media (slideshow or video) fills the background instead. -->
+    {#if IconComponent && !hasHeaderMedia}
       <div class="deco-icon deco-icon-left">
         <IconComponent size={126} color="white" />
       </div>
@@ -363,35 +508,60 @@
       </div>
     {/if}
 
-    <div class="loaded-content">
-      <!-- Category icon (38×38px) -->
-      {#if IconComponent}
-        <div class="loaded-icon" data-testid="chat-header-icon">
-          <IconComponent size={38} color="white" />
+    <!-- When header media is present: stack play button above title, both centered.
+         Otherwise: standard loaded-content layout with icon, title, summary, time. -->
+    {#if hasHeaderMedia}
+      <div class="media-center-group">
+        {#if videoMp4Url}
+          <button
+            class="video-play-btn"
+            onclick={(e) => openVideoFullscreen(e)}
+            type="button"
+            aria-label="Play video"
+            data-testid="chat-header-play-btn"
+          >
+            <div class="video-play-icon" aria-hidden="true"></div>
+          </button>
+        {/if}
+
+        <div class="loaded-content">
+          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+               never render as HTML to prevent stored XSS via prompt injection. -->
+          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+
+          {#if isExampleChat}
+            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {/if}
         </div>
-      {/if}
+      </div>
+    {:else}
+      <div class="loaded-content">
+        <!-- Category icon: only shown when no header media (video or slideshow) -->
+        {#if IconComponent}
+          <div class="loaded-icon" data-testid="chat-header-icon">
+            <IconComponent size={38} color="white" />
+          </div>
+        {/if}
 
-      <!-- Title (20px, white, bold) -->
-      <!-- SECURITY: Use plain text interpolation — chat titles are AI-generated from user input
-           and must never be rendered as HTML to prevent stored XSS via prompt injection. -->
-      <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+        <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+             never render as HTML to prevent stored XSS via prompt injection. -->
+        <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
-      <!-- "Example chat" badge: shown for pre-made example chats so unauthenticated users
-           understand this is not their own chat. Pill-shaped label below the title. -->
-      {#if isExampleChat}
-        <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-      {/if}
+        {#if isExampleChat}
+          <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+        {/if}
 
-      <!-- Summary: fades in with max-height expand when available -->
-      {#if showSummary}
-        <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
-      {/if}
+        <!-- Summary: fades in with max-height expand when available -->
+        {#if showSummary}
+          <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
+        {/if}
 
-      <!-- Creation time -->
-      {#if showTime}
-        <span class="loaded-time">{formattedTime}</span>
-      {/if}
-    </div>
+        <!-- Creation time -->
+        {#if showTime}
+          <span class="loaded-time">{formattedTime}</span>
+        {/if}
+      </div>
+    {/if}
   {/if}
 
   <!-- ── Chat navigation arrows ──
@@ -421,6 +591,10 @@
   {/if}
 
 </div>
+
+<!-- DirectVideoEmbedFullscreen is rendered by ActiveChat.svelte at its level
+     (UnifiedEmbedFullscreen needs position:absolute within ActiveChat, not here).
+     ChatHeader only signals open/close via introVideoFullscreenStore. -->
 
 <style>
   /* ─── Banner container ──────────────────────────────────────────────────── */
@@ -773,10 +947,20 @@
     scale: none !important;
   }
 
+  /* Pressed — scale the chevron container in slightly + deepen background
+     to confirm the tap on the full-height transparent hit target. */
   .nav-arrow:active {
-    background-color: rgba(255, 255, 255, 0.18) !important;
+    background-color: rgba(0, 0, 0, 0.18) !important;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.22) !important;
     scale: none !important;
     filter: none !important;
+    transition: background-color 60ms var(--easing-default),
+                box-shadow 60ms var(--easing-default) !important;
+  }
+
+  .nav-arrow:active :global(svg) {
+    transform: scale(0.88);
+    transition: transform 60ms var(--easing-default);
   }
 
   /* Position arrows at the outer edges, rounded on the inner edge only */
@@ -955,5 +1139,188 @@
     .deco-icon-right {
       right: calc(50% - 180px - 70px);
     }
+  }
+
+  /* ─── Background video ──────────────────────────────────────────────────── */
+
+  .header-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  /* ─── Background slideshow (static-image Ken Burns) ─────────────────────────
+     Replaces the autoplay video on the public intro chat to avoid per-visitor
+     video delivery cost. All N frames share the same keyframe animation; each
+     frame's start is offset by a negative animation-delay so they sequence in.
+     A subtle scale transform gives a slow Ken-Burns-style motion.
+     Pure CSS — no JS timers, no IntersectionObserver needed.
+
+     Crossfade design (12 frames, slot = 8.333% of 96s cycle):
+       • Incoming frame uses z-index 2 (on top) while fading in → old frame stays
+         fully opaque below it, so the background is never visible during transition.
+       • Old frame drops z-index to 1 once successor is fading in over it, then
+         becomes opacity 0 after successor is fully covering it at 10.13%.
+       • At the wrap-around (frame 11 → frame 0), frame 0 fades in with z-index 2
+         on top of frame 11 (z-index 1) — same seamless result. */
+  .header-slideshow {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .header-slide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    /* Each frame occupies an 8s slot. Negative delay staggers across the full cycle. */
+    animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear,
+               headerSlideKenBurns calc(var(--slide-count) * 8s) infinite ease-in-out;
+    animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
+    will-change: opacity, transform;
+  }
+
+  /* Timing based on 12 frames (slot = 8.333% of cycle, fade-in window = 1.8%).
+     Incoming frame holds z-index: 2 while fading in over the still-opaque outgoing
+     frame (z-index: 1). Outgoing drops to opacity 0 only after successor fully covers
+     it at 10.13% — background is never peeking through.
+       0%      → opacity 0, z-index 2  (about to appear on top)
+       1.8%    → opacity 1, z-index 2  (fully in, ~1.73s)
+       8.333%  → opacity 1, z-index 2  (hold; successor now starting its fade-in below)
+       8.334%  → opacity 1, z-index 1  (drop below incoming successor)
+       10.13%  → opacity 1, z-index 1  (successor now fully opaque above)
+       10.14%  → opacity 0, z-index 0  (gone; covered by successor)
+       100%    → opacity 0, z-index 0 */
+  @keyframes headerSlideFade {
+    0%      { opacity: 0; z-index: 2; }
+    1.8%    { opacity: 1; z-index: 2; }
+    8.333%  { opacity: 1; z-index: 2; }
+    8.334%  { opacity: 1; z-index: 1; }
+    10.13%  { opacity: 1; z-index: 1; }
+    10.14%  { opacity: 0; z-index: 0; }
+    100%    { opacity: 0; z-index: 0; }
+  }
+
+  /* Ken-Burns motion — drift covers the full visible window (0% → 10.13%).
+     Alternates direction per frame for variety. */
+  @keyframes headerSlideKenBurns {
+    0%      { transform: scale(1.02) translate3d(2%, 1%, 0); }
+    10.13%  { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+    100%    { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+  }
+
+  /* Alternate drift direction on every other frame so the motion doesn't
+     always feel like the camera is panning the same way. */
+  .header-slide:nth-child(even) {
+    animation-name: headerSlideFade, headerSlideKenBurnsAlt;
+  }
+
+  @keyframes headerSlideKenBurnsAlt {
+    0%      { transform: scale(1.02) translate3d(-2%, -1%, 0); }
+    10.13%  { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+    100%    { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .header-slide,
+    .header-slide:nth-child(even) {
+      animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear;
+      animation-delay: calc(var(--slide-index) * -8s);
+    }
+  }
+
+  /* Dark gradient overlay so title text stays readable over the video */
+  .header-video-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.15) 0%,
+      rgba(0, 0, 0, 0.45) 100%
+    );
+    z-index: 1;
+  }
+
+  /* ─── Play button ──────────────────────────────────────────────────────── */
+
+  .video-play-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px !important;
+    height: 72px !important;
+    min-width: unset !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.22) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 2px solid rgba(255, 255, 255, 0.55) !important;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background var(--duration-fast) var(--easing-default),
+                transform var(--duration-fast) var(--easing-default);
+    flex-shrink: 0;
+    padding: 0 !important;
+    margin: 0 !important;
+    filter: none !important;
+  }
+
+  .video-play-btn:hover {
+    background: rgba(255, 255, 255, 0.35) !important;
+    transform: scale(1.06);
+    filter: none !important;
+    scale: none !important;
+  }
+
+  .video-play-btn:active {
+    background: rgba(255, 255, 255, 0.45) !important;
+    transform: scale(0.97);
+    filter: none !important;
+    scale: none !important;
+  }
+
+  /* Triangle play icon via CSS border trick */
+  .video-play-icon {
+    width: 0;
+    height: 0;
+    border-top: 13px solid transparent;
+    border-bottom: 13px solid transparent;
+    border-left: 22px solid rgba(255, 255, 255, 0.95);
+    margin-left: 4px; /* optical centering */
+  }
+
+  /* Video fullscreen is handled by DirectVideoEmbedFullscreen + UnifiedEmbedFullscreen. */
+
+  /* ─── Media header: play button + title stacked and centered ────────────── */
+
+  /* Groups the play button and title in a vertical flex column centered over
+     the slideshow/video background. Ensures the title always sits just below
+     the play button rather than at the bottom of the banner. */
+  .media-center-group {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-5);
+    pointer-events: auto;
+    padding: var(--spacing-4) var(--spacing-8);
+  }
+
+  /* Scoped override: inside the media group, loaded-content is inline (not
+     absolutely positioned) and inherits the group's centering. */
+  .media-center-group .loaded-content {
+    position: static;
+    padding: 0;
+    animation: fadeIn 0.35s ease-out;
   }
 </style>

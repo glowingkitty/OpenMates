@@ -74,6 +74,11 @@
         skillStoreExampleFullscreenStore,
         closeSkillStoreExampleFullscreen,
     } from '../stores/skillStoreExampleFullscreenStore'; // Synthetic fullscreen state from app-store skill examples
+    import {
+        introVideoFullscreenStore,
+        closeIntroVideoFullscreen,
+    } from '../stores/introVideoFullscreenStore'; // Intro video fullscreen for the for-everyone demo chat
+    import DirectVideoEmbedFullscreen from '../components/embeds/videos/DirectVideoEmbedFullscreen.svelte';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
@@ -91,7 +96,7 @@
     import type { PIIMapping } from '../types/chat'; // PII mapping type
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
-    import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
+    import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     import { searchTextHighlightStore, codeLineHighlightStore } from '../stores/messageHighlightStore'; // For source quote text + code line highlighting in embed fullscreen
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
@@ -453,6 +458,16 @@
         language: '',
         lineCount: 0
     });
+
+    // Wikipedia fullscreen — triggered by clicking a wiki inline link in an assistant message
+    let showWikiFullscreen = $state(false);
+    let wikiFullscreenData = $state<{
+        wikiTitle: string;
+        wikidataId?: string | null;
+        displayText: string;
+        thumbnailUrl?: string | null;
+        description?: string | null;
+    } | null>(null);
 
     // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
     let showPdfEmbedFullscreen = $state(false);
@@ -1217,11 +1232,39 @@
         }
     }
     
+    // Handler for Wikipedia fullscreen events (from WikiInlineLink).
+    // Only one fullscreen can be open at a time — close any regular embed fullscreen
+    // before opening the wiki fullscreen. Updating wikiFullscreenData while wiki is
+    // already open replaces the article (via the {#key} block in the template).
+    function handleWikiFullscreen(event: CustomEvent) {
+        const detail = event.detail as {
+            wikiTitle: string;
+            wikidataId?: string | null;
+            displayText: string;
+            thumbnailUrl?: string | null;
+            description?: string | null;
+        };
+        // Close any regular embed fullscreen first (mutual exclusivity)
+        if (showEmbedFullscreen) {
+            showEmbedFullscreen = false;
+            embedFullscreenData = null;
+        }
+        wikiFullscreenData = detail;
+        showWikiFullscreen = true;
+        console.debug('[ActiveChat] Opening Wikipedia fullscreen for:', detail.wikiTitle);
+    }
+
     // Handler for embed fullscreen events (from embed renderers)
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange } = detail;
+
+        // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
+        if (showWikiFullscreen) {
+            showWikiFullscreen = false;
+            wikiFullscreenData = null;
+        }
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
@@ -3588,12 +3631,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let forceOverlayMode = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND an embed fullscreen is open AND not forcing overlay mode
-    let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && !forceOverlayMode);
-    
+    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed, wiki, or intro video) AND not forcing overlay mode
+    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $introVideoFullscreenStore) && !forceOverlayMode);
+
     // Determine if we should show the "Show Chat" button in fullscreen embed views
-    // Shows when ultra-wide screen has an embed fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && forceOverlayMode);
+    // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
+    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $introVideoFullscreenStore) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -6729,6 +6772,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showEmbedFullscreen = false;
             embedFullscreenData = null;
         }
+        if (showWikiFullscreen) {
+            showWikiFullscreen = false;
+            wikiFullscreenData = null;
+        }
         
         // CRITICAL: Close video player when switching chats (only if NOT in PiP mode)
         // In PiP mode, video should keep playing as user browses other chats
@@ -7895,6 +7942,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleEmbedFullscreen(event);
         };
         document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+
+        // Wikipedia fullscreen event — fired by WikiInlineLink when user clicks a wiki topic
+        const wikiFullscreenHandler = (event: Event) => {
+            handleWikiFullscreen(event as CustomEvent);
+        };
+        document.addEventListener('wikifullscreen', wikiFullscreenHandler as EventListenerCallback);
 
         // Add document-level listeners for image/PDF/recording fullscreen events.
         // These events bubble from TipTap node views (both editor and read-only messages).
@@ -9330,6 +9383,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('setRetryMessage', handleSetRetryMessage);
             // Remove embed and video PiP fullscreen listeners
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListenerCallback);
+            document.removeEventListener('wikifullscreen', wikiFullscreenHandler as EventListenerCallback);
             document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListenerCallback);
             // Remove image/PDF/recording fullscreen document listeners
             document.removeEventListener('imagefullscreen', imagefullscreenHandler);
@@ -9940,6 +9994,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
+                         videoHlsUrl={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_hls_url ?? null) : null}
+                         videoMp4Url={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_mp4_url ?? null) : null}
+                         videoStartTime={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_start_time ?? 0) : 0}
+                         backgroundFrames={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.background_frames ?? null) : null}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
@@ -10111,6 +10169,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 </div>
                 {/if}
             </div>
+            {/if}
+
+            {#if showWikiFullscreen && wikiFullscreenData}
+                <div
+                    class="fullscreen-embed-container"
+                    class:side-panel={showSideBySideLayout}
+                    class:overlay-mode={!showSideBySideLayout}
+                    class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
+                    class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
+                    class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
+                    class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
+                >
+                    <!-- Key on wikiTitle so clicking another wiki link remounts the fullscreen
+                         with the new article (fresh fetch, reset state) — same pattern as
+                         regular embed fullscreen keyed on ${embedId}:${focusChildEmbedId}. -->
+                    {#key wikiFullscreenData.wikiTitle}
+                        {#await import('./embeds/wiki/WikipediaFullscreen.svelte') then module}
+                            <module.default
+                                wikiTitle={wikiFullscreenData.wikiTitle}
+                                wikidataId={wikiFullscreenData.wikidataId}
+                                displayText={wikiFullscreenData.displayText}
+                                thumbnailUrl={wikiFullscreenData.thumbnailUrl}
+                                description={wikiFullscreenData.description}
+                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
+                            />
+                        {/await}
+                    {/key}
+                </div>
             {/if}
 
             {#if showCodeFullscreen}
@@ -10321,6 +10407,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/await}
             {/if}
             
+            <!-- Intro video fullscreen — for-everyone demo chat header play button.
+                 Uses the same .fullscreen-embed-container as wiki/embed fullscreens
+                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute).
+                 German locale uses a separate localised video. -->
+            {#if $introVideoFullscreenStore}
+                {@const forEveryoneChat = DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')}
+                {@const isGerman = $locale?.startsWith('de')}
+                {@const introMp4Url = isGerman
+                    ? 'https://vod.api.video/vod/vi1LdNC1NrHlKyANrOUDsfX6/mp4/source.mp4'
+                    : forEveryoneChat?.metadata.video_mp4_url}
+                {#if introMp4Url}
+                    <div
+                        class="fullscreen-embed-container"
+                        class:side-panel={showSideBySideLayout}
+                        class:overlay-mode={!showSideBySideLayout}
+                        data-testid="intro-video-fullscreen"
+                    >
+                        <DirectVideoEmbedFullscreen
+                            mp4Url={introMp4Url}
+                            title={activeChatDecryptedTitle || ''}
+                            onClose={() => {
+                                closeIntroVideoFullscreen();
+                                history.replaceState(null, '', window.location.pathname + window.location.search);
+                            }}
+                        />
+                    </div>
+                {/if}
+            {/if}
+
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}
                 on:focusInput={() => messageInputFieldRef.focus()}

@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
+// @privacy-promise: client-side-chat-encryption
 /**
  * Chat flow test: login with existing account + 2FA, then send a message and validate
  * zero-knowledge encryption health through multiple lifecycle phases:
@@ -466,7 +467,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	});
 
 	test.slow();
-	test.setTimeout(300000); // 5 minutes: covers send + reload + logout + relogin + delete
+	// 7 minutes: covers send + message count check + header check + reload + logout + relogin + delete.
+	// 300s was insufficient — Phase 7 (re-login) consistently timed out on GHA runners.
+	test.setTimeout(420000);
 
 	const logChatCheckpoint = createSignupLogger('CHAT_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logChatCheckpoint);
@@ -640,6 +643,17 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
 
+	// CRITICAL: Verify exactly 2 messages in the DOM (1 user + 1 assistant).
+	// This catches the "for-everyone" demo message bleed-through bug where the
+	// demo intro message leaks into the real chat after demo→real conversion.
+	const userMessages = page.getByTestId('message-user');
+	const assistantMessages = page.getByTestId('message-assistant');
+	const userCount = await userMessages.count();
+	const assistantCount = await assistantMessages.count();
+	logChatCheckpoint(`Message count: ${userCount} user, ${assistantCount} assistant`);
+	expect(userCount, 'Expected exactly 1 user message — no demo messages should be present').toBe(1);
+	expect(assistantCount, 'Expected exactly 1 assistant message — no demo intro should bleed through').toBe(1);
+
 	// =========================================================================
 	// PHASE 2: Console warn/error check — save logs if any occurred during send
 	// =========================================================================
@@ -785,11 +799,11 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	expect(firstChatTitleText.toLowerCase()).not.toContain('untitled chat');
 	expect(firstChatTitleText.toLowerCase()).not.toContain('processing');
 
-	// If we captured the ChatHeader title, verify it matches the first sidebar chat
-	if (headerTitleText) {
-		expect(firstChatTitleText).toBe(headerTitleText);
-		logChatCheckpoint(`Sidebar title matches ChatHeader title: "${firstChatTitleText}"`);
-	}
+	// Note: we intentionally do NOT assert firstChatTitleText === headerTitleText.
+	// The post-processor runs a real LLM call (not mocked — see backend/apps/ai/testing/mock_replay.py)
+	// and may emit an `updated_chat_title` after the initial preprocessing title. The sidebar (sourced
+	// from IndexedDB via localChatListChanged) and the ChatHeader (captured earlier in-memory) can
+	// legitimately diverge when that happens.
 
 	// Verify the first chat has a category circle (not the grey "missing" fallback)
 	const firstChatCategory = firstUserChat.getByTestId('category-circle');

@@ -408,6 +408,7 @@ export async function sendPostProcessingMetadataImpl(
 			payload.encrypted_chat_key = encrypted_chat_key;
 		}
 
+
 		console.debug(
 			"[ChatSyncService:Senders] Sending encrypted post-processing metadata for sync to Directus"
 		);

@@ -202,6 +202,23 @@
 <svelte:head>
     <title>API Reference | OpenMates Docs</title>
     <meta name="description" content="OpenMates REST API documentation - interactive endpoint reference with try-it-out functionality" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://openmates.org/docs/api" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://openmates.org/docs/api" />
+    <meta property="og:title" content="API Reference | OpenMates Docs" />
+    <meta property="og:description" content="OpenMates REST API documentation - interactive endpoint reference with try-it-out functionality" />
+    <meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
+    <meta property="og:site_name" content="OpenMates" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://openmates.org/docs/api" />
+    <meta name="twitter:title" content="API Reference | OpenMates Docs" />
+    <meta name="twitter:description" content="OpenMates REST API documentation - interactive endpoint reference with try-it-out functionality" />
+    <meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
 </svelte:head>
 
 <div class="api-docs">

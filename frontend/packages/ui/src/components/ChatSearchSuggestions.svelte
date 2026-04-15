@@ -2,14 +2,16 @@
   ChatSearchSuggestions.svelte — Horizontal search result cards for open chats.
 
   When the user types in the message input while an existing chat is open,
-  this component searches across all existing chats (titles + messages) and
-  shows matching results as horizontally scrollable gradient cards — same
-  visual style as NewChatSuggestions. Unlike NewChatSuggestions, this does
-  NOT show new-chat suggestion cards — only existing chat matches.
+  this component searches across chats and shows matching results as
+  horizontally scrollable gradient cards — same visual style as NewChatSuggestions.
   The container is hidden entirely when there are no results.
 
+  Authenticated users: searches all personal chats (demo/legal/example excluded).
+  Unauthenticated users: searches intro and example chats (public static content only),
+    using cleartext category/icon fields instead of the encrypted metadata cache.
+
   Architecture: reuses searchService for full-text search, chatMetadataCache
-  for icon/category resolution, and categoryUtils for gradient colors.
+  for icon/category resolution (authenticated only), and categoryUtils for gradient colors.
 -->
 <script lang="ts">
   import { search as performSearch } from '../services/searchService';
@@ -19,7 +21,12 @@
   import { authStore } from '../stores/authStore';
   import { text } from '@repo/ui';
   import { get } from 'svelte/store';
-  import { isDemoChat, isLegalChat } from '../demo_chats';
+  import {
+    isDemoChat, isLegalChat, isExampleChat,
+    INTRO_CHATS, translateDemoChats, getAllExampleChats,
+    convertDemoChatToChat,
+  } from '../demo_chats';
+  import type { Chat } from '../types/chat';
 
   /** Maximum number of existing chat results to show */
   const MAX_CHAT_RESULTS = 5;
@@ -84,46 +91,64 @@
 
   /**
    * Search existing chats when filterQuery changes.
-   * Uses the existing searchService for full-text search across titles + messages.
+   * - Authenticated users: searches all personal chats (demo/legal/example excluded).
+   * - Unauthenticated users: searches intro and example chats (public static content only).
    */
   $effect(() => {
     const query = filterQuery;
-    if (!query || !$authStore.isAuthenticated) {
+    if (!query) {
       chatSearchResults = [];
       return;
     }
 
     const gen = ++searchGeneration;
     const textFn = get(text);
+    const isAuthenticated = $authStore.isAuthenticated;
 
     (async () => {
       try {
-        await chatDB.init();
-        const allChats = await chatDB.getAllChats();
-        const results = await performSearch(query, allChats, textFn);
+        let chatsToSearch: Chat[];
+
+        if (isAuthenticated) {
+          await chatDB.init();
+          chatsToSearch = await chatDB.getAllChats();
+        } else {
+          // Unauthenticated: search only public static chats (intro + example)
+          const translatedIntroChats = translateDemoChats(INTRO_CHATS).map(convertDemoChatToChat);
+          chatsToSearch = [...translatedIntroChats, ...getAllExampleChats()];
+        }
+
+        const results = await performSearch(query, chatsToSearch, textFn);
         // Stale guard — a newer search was triggered while this one ran
         if (gen !== searchGeneration) return;
 
-        // Filter out demo/legal chats and the currently open chat
-        const userChatResults = results.chats.filter(
-          r => !isDemoChat(r.chat.chat_id) &&
-               !isLegalChat(r.chat.chat_id) &&
-               r.chat.chat_id !== currentChatId
-        );
+        // Authenticated: exclude demo/legal/example chats and the current chat
+        // Unauthenticated: only exclude the currently open chat (all results are public)
+        const filteredResults = results.chats.filter((r) => {
+          if (r.chat.chat_id === currentChatId) return false;
+          if (isAuthenticated) {
+            return !isDemoChat(r.chat.chat_id) && !isLegalChat(r.chat.chat_id) && !isExampleChat(r.chat.chat_id);
+          }
+          return true;
+        });
 
-        // Resolve metadata (icon, category) for each result
+        // Resolve metadata (icon, category) for each result.
+        // For authenticated user chats: use chatMetadataCache (encrypted metadata).
+        // For public chats (intro/example): use the cleartext fields on the Chat object directly.
         const processed = await Promise.all(
-          userChatResults.slice(0, MAX_CHAT_RESULTS).map(async (result) => {
-            const metadata = await chatMetadataCache.getDecryptedMetadata(result.chat);
-            const category = metadata?.category || 'general_knowledge';
-            const icon = metadata?.icon || getFallbackIconForCategory(category);
+          filteredResults.slice(0, MAX_CHAT_RESULTS).map(async (result) => {
+            const metadata = isAuthenticated
+              ? await chatMetadataCache.getDecryptedMetadata(result.chat)
+              : null;
+            const category = metadata?.category || result.chat.category || 'general_knowledge';
+            const icon = metadata?.icon || result.chat.icon || getFallbackIconForCategory(category);
             const validIcon = getValidIconName(icon, category);
             const gradient = getCategoryGradientColors(category) || { start: '#DE1E66', end: '#FF763B' };
             const timestamp = result.chat.last_edited_overall_timestamp || result.chat.created_at || 0;
 
             return {
               chatId: result.chat.chat_id,
-              title: result.decryptedTitle || metadata?.title || 'Untitled',
+              title: result.decryptedTitle || metadata?.title || result.chat.title || 'Untitled',
               iconName: validIcon,
               gradientStart: gradient.start,
               gradientEnd: gradient.end,

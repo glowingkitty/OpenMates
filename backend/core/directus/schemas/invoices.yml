@@ -93,7 +93,7 @@ invoices:
       type: string
       length: 50
       nullable: true
-      note: "Payment provider used for this purchase: 'stripe' or 'polar'. May also be 'revolut' for historical rows; the Revolut integration was removed. Null for legacy invoices created before this field was added."
+      note: "Payment provider used for this purchase: 'stripe', 'polar', or 'bank_transfer' (SEPA via Revolut Business). May also be 'revolut' for historical rows from the old Revolut integration. Null for legacy invoices created before this field was added."
 
     provider_order_id:
       type: string

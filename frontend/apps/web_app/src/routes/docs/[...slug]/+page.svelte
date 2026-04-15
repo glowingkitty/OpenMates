@@ -94,10 +94,23 @@
 <svelte:head>
     <title>{pageTitle} | OpenMates Docs</title>
     <meta name="description" content={pageDescription} />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://openmates.org/docs/{currentSlug}" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://openmates.org/docs/{currentSlug}" />
     <meta property="og:title" content="{pageTitle} | OpenMates Docs" />
     <meta property="og:description" content={pageDescription} />
-    <meta property="og:type" content="article" />
-    <link rel="canonical" href="https://openmates.org/docs/{currentSlug}" />
+    <meta property="og:image" content="https://openmates.org/images/og-image.jpg" />
+    <meta property="og:site_name" content="OpenMates" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://openmates.org/docs/{currentSlug}" />
+    <meta name="twitter:title" content="{pageTitle} | OpenMates Docs" />
+    <meta name="twitter:description" content={pageDescription} />
+    <meta name="twitter:image" content="https://openmates.org/images/og-image.jpg" />
 </svelte:head>
 
 {#if pageData?.type === 'file'}

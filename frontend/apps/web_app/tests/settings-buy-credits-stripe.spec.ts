@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
+// @privacy-promise: payment-data-minimization
 export {};
 // NOTE:
 // This file is executed inside the official Playwright Docker image, which

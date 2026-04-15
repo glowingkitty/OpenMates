@@ -24,6 +24,20 @@ import { chatDB } from "./db";
 import type { Chat, Message } from "../types/chat";
 
 /**
+ * Master switch for the onboarding flow.
+ *
+ * While `false`:
+ *   - Signup.svelte skips auto-creating the onboarding chat after signup.
+ *   - The welcome focus mode is also marked stage: planning in its SKILL.md
+ *     so it's excluded from the App Store, @mention dropdown, and settings UI.
+ *   - `window.onboarding()` still works for manual QA testing.
+ *
+ * Flip to `true` once the reworked onboarding (sub-chat based) is ready.
+ * Disabled while we design a better onboarding experience.
+ */
+export const ONBOARDING_ENABLED = false;
+
+/**
  * Category identifier for the onboarding/support mate (Suki).
  * Must match the category in mates.yml and matesMetadata.ts.
  */

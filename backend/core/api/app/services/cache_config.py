@@ -19,6 +19,11 @@ ORDER_KEY_PREFIX = "order_status:"
 USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX = "user_app_settings_and_memories:"
 GIFT_CARD_KEY_PREFIX = "gift_card:"
 
+# Bank transfer cache keys — longer TTL than card orders because SEPA takes 1-2 days
+BANK_TRANSFER_REF_KEY_PREFIX = "bt_ref:"      # bt_ref:{reference} → order data (for webhook matching)
+BANK_TRANSFER_ORDER_KEY_PREFIX = "bt_order:"   # bt_order:{order_id} → order data (for status polling)
+BANK_TRANSFER_TTL = 7 * 24 * 3600             # 7 days (matches order expiry)
+
 # Obsolete/Legacy chat prefixes
 CHAT_LIST_META_KEY_PREFIX = "chat_list_meta:"
 USER_ACTIVE_CHATS_LRU_PREFIX = "user_active_chats_lru:"

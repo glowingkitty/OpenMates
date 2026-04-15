@@ -53,8 +53,9 @@ Buy Gift Cards - Credit tier selection for purchasing gift cards
     <p>{$text('settings.gift_cards.buy_info')}</p>
 </div>
 
-<!-- Credit Tier Selection as Menu Items -->
-{#each pricingTiers as tier}
+<!-- Credit Tier Selection as Menu Items.
+     Bank-transfer-only tiers (SEPA) are excluded — gift cards need instant payment. -->
+{#each pricingTiers.filter(t => !t.bank_transfer_only) as tier}
     <SettingsItem
         type="submenu"
         icon="subsetting_icon coins"

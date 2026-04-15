@@ -64,7 +64,8 @@
 <!-- Credit Packages Section -->
 <SettingsSectionHeading title={$text('settings.pricing.packages_heading')} icon="coins" />
 
-{#each pricingTiers as tier}
+<!-- Bank-transfer-only tiers (SEPA) are EUR-only — hidden when USD is selected. -->
+{#each pricingTiers.filter(t => t.price[selectedCurrency as 'eur' | 'usd'] !== undefined) as tier}
     <div class="pricing-tier" class:recommended={tier.recommended}>
         <div class="tier-main">
             <span class="tier-credits">
@@ -72,6 +73,9 @@
             </span>
             {#if tier.recommended}
                 <span class="tier-badge">{$text('settings.pricing.recommended')}</span>
+            {/if}
+            {#if tier.bank_transfer_only}
+                <span class="tier-badge">{$text('settings.billing.bank_transfer_only_tag')}</span>
             {/if}
         </div>
         <div class="tier-details">
