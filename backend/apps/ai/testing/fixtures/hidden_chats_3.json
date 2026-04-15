@@ -1,0 +1,47 @@
+{
+  "fixture_id": "hidden_chats_3",
+  "recorded_at": "2026-04-15T20:15:17.523966+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "What is photosynthesis?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "science",
+    "title": "What is photosynthesis?",
+    "icon_names": [
+      "flask",
+      "leaf"
+    ],
+    "selected_model_id": "mistral/mistral-small-2506",
+    "selected_model_name": "Mistral Small 3.2",
+    "mate_id": "scarlett",
+    "chat_summary": "User asks about photosynthesis.",
+    "chat_tags": [
+      "photosynthesis",
+      "biology",
+      "science"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "science",
+    "model_name": "Mistral Small 3.2",
+    "provider_name": "Mistral",
+    "server_region": "EU",
+    "icon_names": [
+      "flask",
+      "leaf"
+    ]
+  },
+  "response": "Photosynthesis is a biological process used by plants, algae, and some bacteria to convert light energy, usually from the sun, into chemical energy stored in glucose or other sugars. This process is fundamental to life on Earth as it is the primary means by which organisms produce food and release oxygen into the atmosphere.\n\nThe general equation for photosynthesis is:\n\n\\[ 6CO_2 + 6H_2O + light \\ energy \\rightarrow C_6H_{12}O_6 + 6O_2 \\]\n\nIn this equation:\n- \\( CO_2 \\) represents carbon dioxide\n- \\( H_2O \\) represents water\n- \\( C_6H_{12}O_6 \\) represents glucose (a sugar)\n- \\( O_2 \\) represents oxygen\n\nThe process occurs in two main stages: the light-dependent reactions and the Calvin cycle (light-independent reactions). During the light-dependent reactions, light energy is absorbed by chlorophyll and other pigments, leading to the production of ATP and NADPH. In the Calvin cycle, the ATP and NADPH produced are used to convert carbon dioxide into glucose.\n\nPhotosynthesis is crucial for maintaining the balance of oxygen and carbon dioxide in the Earth's atmosphere and is the foundation of the food chain, providing the primary food source for nearly all organisms on the planet.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Mistral Small 3.2"
+  }
+}

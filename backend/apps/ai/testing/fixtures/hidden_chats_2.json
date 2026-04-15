@@ -1,0 +1,47 @@
+{
+  "fixture_id": "hidden_chats_2",
+  "recorded_at": "2026-04-15T20:13:58.180754+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "What is the speed of light?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "science",
+    "title": "Speed of light explained",
+    "icon_names": [
+      "lightbulb",
+      "speedometer"
+    ],
+    "selected_model_id": "mistral/mistral-small-2506",
+    "selected_model_name": "Mistral Small 3.2",
+    "mate_id": "scarlett",
+    "chat_summary": "User asked about the speed of light.",
+    "chat_tags": [
+      "physics",
+      "speed of light",
+      "science"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "science",
+    "model_name": "Mistral Small 3.2",
+    "provider_name": "Mistral",
+    "server_region": "EU",
+    "icon_names": [
+      "lightbulb",
+      "speedometer"
+    ]
+  },
+  "response": "The speed of light in a vacuum is approximately 299,792 kilometers per second (km/s), or about 186,282 miles per second (mi/s). This is often denoted by the letter \"c\" in physics equations. It's a fundamental physical constant that is exactly 299,792,458 meters per second (m/s) by definition since the meter is defined from this constant.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Mistral Small 3.2"
+  }
+}

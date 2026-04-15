@@ -1,0 +1,31 @@
+{
+  "fixture_id": "focus_career_6",
+  "recorded_at": "2026-04-15T20:17:46.299428+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": " I've been stuck in my career for years and need help deciding what to do next professionally. Can you help me?",
+  "preprocessing": {
+    "can_proceed": false,
+    "category": null,
+    "title": null,
+    "icon_names": null,
+    "selected_model_id": null,
+    "selected_model_name": null,
+    "mate_id": null,
+    "chat_summary": null,
+    "chat_tags": null,
+    "relevant_app_skills": null,
+    "llm_response_temp": null,
+    "complexity": null,
+    "steps": []
+  },
+  "typing_started": {},
+  "response": "The AI service encountered an error while processing your request. Please try again in a moment.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": null
+  }
+}
