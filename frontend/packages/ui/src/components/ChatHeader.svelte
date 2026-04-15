@@ -1166,32 +1166,55 @@
     height: 100%;
     object-fit: cover;
     opacity: 0;
-    /* Total cycle = 4s per frame × N frames. Each frame is visible ~3s with
-       a ~1s crossfade on either side. The negative delay staggers the frames. */
-    animation: headerSlideFade calc(var(--slide-count) * 4s) infinite linear,
-               headerSlideKenBurns calc(var(--slide-count) * 4s) infinite linear;
-    animation-delay: calc(var(--slide-index) * -4s), calc(var(--slide-index) * -4s);
+    /* Each frame occupies an 8s slot (~6s held visible + ~2s crossfade).
+       Negative animation-delay staggers the frames across the full cycle. */
+    animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear,
+               headerSlideKenBurns calc(var(--slide-count) * 8s) infinite ease-in-out;
+    animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
     will-change: opacity, transform;
   }
 
+  /* Fade window per frame: 1/N of the cycle = ~9.09% for 11 frames.
+     Each frame: fade in over first ~20% of its slot, hold, fade out over last ~20%.
+     In cycle-percent terms (with 11 frames, slot = 9.09%):
+       0%    → opacity 0
+       1.8%  → opacity 1  (end of fade-in, ~1.6s)
+       7.3%  → opacity 1  (start of fade-out, ~6.4s)
+       9.09% → opacity 0  (end of slot, ~8s)
+       100%  → opacity 0 */
   @keyframes headerSlideFade {
-    0%   { opacity: 0; }
-    3%   { opacity: 1; }
-    22%  { opacity: 1; }
-    25%  { opacity: 0; }
-    100% { opacity: 0; }
+    0%     { opacity: 0; }
+    1.8%   { opacity: 1; }
+    7.3%   { opacity: 1; }
+    9.09%  { opacity: 0; }
+    100%   { opacity: 0; }
   }
 
+  /* Ken-Burns motion — larger, slower drift that plays only during the
+     frame's visible slot. Alternates direction per frame for variety. */
   @keyframes headerSlideKenBurns {
-    0%   { transform: scale(1.0) translate3d(0, 0, 0); }
-    25%  { transform: scale(1.08) translate3d(-1%, -0.5%, 0); }
-    100% { transform: scale(1.08) translate3d(-1%, -0.5%, 0); }
+    0%    { transform: scale(1.02) translate3d(2%, 1%, 0); }
+    9.09% { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+    100%  { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+  }
+
+  /* Alternate drift direction on every other frame so the motion doesn't
+     always feel like the camera is panning the same way. */
+  .header-slide:nth-child(even) {
+    animation-name: headerSlideFade, headerSlideKenBurnsAlt;
+  }
+
+  @keyframes headerSlideKenBurnsAlt {
+    0%    { transform: scale(1.02) translate3d(-2%, -1%, 0); }
+    9.09% { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+    100%  { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .header-slide {
-      animation: headerSlideFade calc(var(--slide-count) * 4s) infinite linear;
-      animation-delay: calc(var(--slide-index) * -4s);
+    .header-slide,
+    .header-slide:nth-child(even) {
+      animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear;
+      animation-delay: calc(var(--slide-index) * -8s);
     }
   }
 
