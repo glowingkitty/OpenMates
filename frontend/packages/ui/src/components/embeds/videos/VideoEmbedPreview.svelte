@@ -333,7 +333,7 @@
   {isMobile}
   onFullscreen={handleFullscreen}
   onStop={handleStop}
-  showStatus={true}
+  showStatus={!!customStatusText}
   showSkillIcon={false}
   hasFullWidthImage={true}
   faviconUrl={channelThumbnailUrl || undefined}
