@@ -16,7 +16,7 @@ python-json-logger==3.3.0
 pyyaml==6.0.3
 aiohttp==3.13.4
 boto3==1.42.56
-python-multipart==0.0.22
+python-multipart==0.0.26
 cryptography==46.0.7
 toon-format @ git+https://github.com/toon-format/toon-python.git
 
