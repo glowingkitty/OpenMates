@@ -14,13 +14,17 @@ from unittest.mock import AsyncMock, MagicMock
 
 _IMPORTS_OK = True
 try:
-    from backend.apps.ai.tasks.stream_consumer import _SOURCE_QUOTE_PATTERN
+    from backend.apps.ai.tasks.stream_consumer import (
+        _SOURCE_QUOTE_PATTERN,
+        _extract_source_citations,
+    )
     from backend.core.api.app.services.embed_service import EmbedService
 except ImportError as _exc:
     _IMPORTS_OK = False
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
     # Stubs so module-level references don't raise NameError during collection
     _SOURCE_QUOTE_PATTERN = None  # type: ignore[assignment]
+    _extract_source_citations = None  # type: ignore[assignment]
     EmbedService = None  # type: ignore[assignment,misc]
 
 
@@ -225,3 +229,101 @@ class TestVerifyQuoteNormalization:
             {"description": '"It\'s clear... the leader\u2014who won\u201420 seats\u2014is confident," he said.'},
             '\u201cIt\u2019s clear\u2026 the leader\u2014who won\u201420 seats\u2014is confident,\u201d he said.',
         ) is True, "Combined typography differences should match"
+
+
+# ---------------------------------------------------------------------------
+# 4. NON-CANONICAL QUOTE FORMAT DETECTION
+#    _extract_source_citations must detect embed-linked blockquotes even when
+#    the LLM doesn't use the canonical > [text](embed:ref) format.
+# ---------------------------------------------------------------------------
+
+
+class TestExtractSourceCitations:
+    """
+    _extract_source_citations returns a list of (quoted_text, embed_ref, full_match)
+    tuples for ALL blockquote lines that reference an embed, regardless of format.
+    """
+
+    def test_canonical_format(self):
+        """Standard format: > [text](embed:ref)"""
+        text = '> [Flights start at 29 euros](embed:skyscanner.com-p3R)'
+        results = _extract_source_citations(text)
+        assert len(results) == 1
+        assert results[0][0] == "Flights start at 29 euros"
+        assert results[0][1] == "skyscanner.com-p3R"
+
+    def test_multiple_canonical(self):
+        text = (
+            "Intro.\n"
+            "\n"
+            "> [First quote](embed:source-a1B)\n"
+            "\n"
+            "> [Second quote](embed:source-c3D)\n"
+        )
+        results = _extract_source_citations(text)
+        assert len(results) == 2
+
+    # ---- NON-CANONICAL FORMATS (the blind spot) ----
+
+    def test_quoted_text_then_source_link(self):
+        """Format: > "quoted text" [source](embed:ref) — text outside brackets."""
+        text = '> "We want a country where everyone is free" [PinkNews](embed:thepinknews.com-XSi)'
+        results = _extract_source_citations(text)
+        assert len(results) == 1
+        assert results[0][1] == "thepinknews.com-XSi"
+        # Quoted text should be the blockquote content minus the embed link
+        assert "We want a country" in results[0][0]
+
+    def test_quoted_text_with_bare_embed_ref(self):
+        """Format: > "quoted text" (embed:ref) — no brackets around source label."""
+        text = '> "We want a country where everyone is free" (embed:thepinknews.com-XSi)'
+        results = _extract_source_citations(text)
+        assert len(results) == 1
+        assert results[0][1] == "thepinknews.com-XSi"
+
+    def test_blockquote_with_trailing_source(self):
+        """Format: > Some claim about policy. [source](embed:ref)"""
+        text = '> Magyar stated they want freedom for all. [source](embed:thepinknews.com-XSi)'
+        results = _extract_source_citations(text)
+        assert len(results) == 1
+        assert results[0][1] == "thepinknews.com-XSi"
+        assert "Magyar stated" in results[0][0]
+
+    def test_attribution_line_after_quote(self):
+        """Format: > "quoted text"\\n> — [Source](embed:ref)"""
+        text = (
+            '> "We want a country where everyone is free"\n'
+            '> \u2014 [PinkNews](embed:thepinknews.com-XSi)'
+        )
+        results = _extract_source_citations(text)
+        assert len(results) >= 1
+        assert any(r[1] == "thepinknews.com-XSi" for r in results)
+
+    def test_no_match_plain_blockquote(self):
+        """Plain blockquote without any embed reference."""
+        text = '> This is just a regular blockquote with no embed link.'
+        results = _extract_source_citations(text)
+        assert len(results) == 0
+
+    def test_no_match_non_blockquote_embed(self):
+        """Embed link NOT inside a blockquote should not be caught."""
+        text = 'Check out [this article](embed:example.com-x1Y) for more info.'
+        results = _extract_source_citations(text)
+        assert len(results) == 0
+
+    def test_mixed_canonical_and_noncanonical(self):
+        """Response containing both formats — both should be detected."""
+        text = (
+            "Here are the findings:\n"
+            "\n"
+            "> [Exact snippet from source A](embed:source-a1B)\n"
+            "\n"
+            'He also noted:\n'
+            '\n'
+            '> "Another important finding from the research" [Source B](embed:source-c3D)\n'
+        )
+        results = _extract_source_citations(text)
+        assert len(results) == 2
+        refs = {r[1] for r in results}
+        assert "source-a1B" in refs
+        assert "source-c3D" in refs

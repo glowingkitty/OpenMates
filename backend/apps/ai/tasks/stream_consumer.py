@@ -60,7 +60,7 @@ _TOOL_CALL_XML_PATTERN = re.compile(
 # Matches 200+ consecutive characters of digits, commas, hyphens, spaces, and newlines.
 _GARBLED_NUMBER_SEQUENCE_PATTERN = re.compile(r'[\d,\-\s\n]{200,}')
 
-# Regex pattern to detect source quotes in blockquotes.
+# Regex pattern to detect source quotes in blockquotes — canonical format.
 # Matches lines like: > [quoted text](embed:some-ref-k8D)
 # Group 1 = quoted text, Group 2 = embed_ref slug.
 _SOURCE_QUOTE_PATTERN = re.compile(
@@ -68,8 +68,93 @@ _SOURCE_QUOTE_PATTERN = re.compile(
     re.MULTILINE
 )
 
+# Fallback pattern: any blockquote line containing (embed:ref) or [label](embed:ref)
+# where the format isn't the canonical > [text](embed:ref).
+# Used by _extract_source_citations to catch non-canonical LLM output.
+_BLOCKQUOTE_EMBED_REF_PATTERN = re.compile(
+    r'^(>\s*.+?)'            # blockquote line content (non-greedy)
+    r'\(embed:([^)]+)\)',    # (embed:ref) anywhere on the line
+    re.MULTILINE
+)
+
 # Maximum number of quotes to verify per response to avoid excessive latency
 _MAX_QUOTES_TO_VERIFY = 10
+
+
+def _extract_source_citations(
+    text: str,
+) -> List[tuple]:
+    """
+    Extract all source-quote citations from blockquote lines.
+
+    Returns a list of (quoted_text, embed_ref, full_match_string) tuples.
+
+    Handles two layers:
+      1. Canonical format: > [exact text](embed:ref)
+      2. Fallback: any blockquote line containing (embed:ref) — extracts the
+         blockquote text minus the embed link as the "quoted text".
+
+    Multi-line blockquote blocks (consecutive > lines) are also handled:
+    if one line in a block has the embed ref, adjacent lines provide the
+    quoted text.
+    """
+    results: List[tuple] = []
+    seen_spans: set = set()
+
+    # Pass 1: canonical pattern (most precise — group structure is well-defined)
+    for m in _SOURCE_QUOTE_PATTERN.finditer(text):
+        results.append((m.group(1), m.group(2), m.group(0)))
+        seen_spans.add((m.start(), m.end()))
+
+    # Pass 2: fallback — any blockquote line with (embed:ref) not caught above
+    for m in _BLOCKQUOTE_EMBED_REF_PATTERN.finditer(text):
+        # Skip if this span overlaps with a canonical match
+        if any(m.start() < end and m.end() > start for start, end in seen_spans):
+            continue
+
+        embed_ref = m.group(2)
+        full_match = m.group(0)
+
+        # Extract quoted text: strip the > prefix, the embed link, and any
+        # [label](embed:ref) or (embed:ref) suffix.
+        raw_line = m.group(1)
+        # Remove "> " prefix
+        quoted = re.sub(r'^>\s*', '', raw_line).strip()
+        # Remove [label](embed:...) patterns
+        quoted = re.sub(r'\[[^\]]*\]\(embed:[^)]*\)', '', quoted).strip()
+        # Remove bare (embed:...) patterns
+        quoted = re.sub(r'\(embed:[^)]*\)', '', quoted).strip()
+        # Remove leading/trailing punctuation used for attribution (—, -, :)
+        quoted = re.sub(r'^[\u2014\u2013\-:]+\s*', '', quoted).strip()
+        quoted = re.sub(r'\s*[\u2014\u2013\-:]+$', '', quoted).strip()
+        # Strip surrounding quotes if present (", ", ', ')
+        quoted = re.sub(r'^[\"\u201c\u201d\u201e\u201f\'\u2018\u2019]+', '', quoted)
+        quoted = re.sub(r'[\"\u201c\u201d\u201e\u201f\'\u2018\u2019]+$', '', quoted)
+        quoted = quoted.strip()
+
+        if not quoted:
+            # The line was just an embed link with no quotable text —
+            # check adjacent blockquote lines above for the quoted text.
+            lines = text[:m.start()].split('\n')
+            adjacent_quote_lines = []
+            for line in reversed(lines):
+                if line.strip().startswith('>'):
+                    line_text = re.sub(r'^>\s*', '', line).strip()
+                    if line_text:
+                        adjacent_quote_lines.insert(0, line_text)
+                else:
+                    break
+            if adjacent_quote_lines:
+                quoted = ' '.join(adjacent_quote_lines)
+                # Strip surrounding quotes from combined text
+                quoted = re.sub(r'^[\"\u201c\u201d\'\u2018\u2019]+', '', quoted)
+                quoted = re.sub(r'[\"\u201c\u201d\'\u2018\u2019]+$', '', quoted)
+                quoted = quoted.strip()
+
+        if quoted:
+            results.append((quoted, embed_ref, full_match))
+
+    return results
 
 # Regex pattern to detect non-blockquote inline embed links: [display text](embed:ref)
 # Negative lookbehind ensures we skip source-quote blockquotes (handled by _SOURCE_QUOTE_PATTERN).
@@ -227,19 +312,19 @@ async def _verify_and_strip_bad_quotes(
     if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
         return aggregated_response
 
-    # Find all source quotes in the response
-    matches = list(_SOURCE_QUOTE_PATTERN.finditer(aggregated_response))
-    if not matches:
+    # Find all source quotes — canonical + non-canonical blockquote formats
+    citations = _extract_source_citations(aggregated_response)
+    if not citations:
         return aggregated_response
 
-    if len(matches) > _MAX_QUOTES_TO_VERIFY:
+    if len(citations) > _MAX_QUOTES_TO_VERIFY:
         logger.info(
-            f"{log_prefix} [QUOTE_VERIFY] Found {len(matches)} quotes, "
+            f"{log_prefix} [QUOTE_VERIFY] Found {len(citations)} quotes, "
             f"only verifying first {_MAX_QUOTES_TO_VERIFY}"
         )
-        matches = matches[:_MAX_QUOTES_TO_VERIFY]
+        citations = citations[:_MAX_QUOTES_TO_VERIFY]
 
-    logger.info(f"{log_prefix} [QUOTE_VERIFY] Verifying {len(matches)} source quote(s)")
+    logger.info(f"{log_prefix} [QUOTE_VERIFY] Verifying {len(citations)} source quote(s)")
 
     # Build embed_ref → embed_id map from the response's JSON embed reference blocks
     # and from tool_calls_info
@@ -327,12 +412,12 @@ async def _verify_and_strip_bad_quotes(
         # No embed map means zero real embeds exist in this response — any source quotes
         # referencing embed:... are fabricated. Strip them all.
         logger.warning(
-            f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built but {len(matches)} source quote(s) found — "
+            f"{log_prefix} [QUOTE_VERIFY] No embed_ref→id map built but {len(citations)} source quote(s) found — "
             f"stripping all as hallucinated (no real embeds in this response)"
         )
         modified = aggregated_response
-        for match in matches:
-            modified = modified.replace(match.group(0), "")
+        for _qt, _ref, full_match in citations:
+            modified = modified.replace(full_match, "")
         modified = re.sub(r'\n{3,}', '\n\n', modified)
         return modified
 
@@ -343,11 +428,7 @@ async def _verify_and_strip_bad_quotes(
 
     # Verify each quote
     bad_quote_lines: List[str] = []
-    for match in matches:
-        quoted_text = match.group(1)
-        embed_ref = match.group(2)
-        full_line = match.group(0)
-
+    for quoted_text, embed_ref, full_match in citations:
         embed_id = embed_ref_to_id.get(embed_ref)
         if not embed_id:
             # embed_ref doesn't map to any real embed produced in this response —
@@ -356,7 +437,7 @@ async def _verify_and_strip_bad_quotes(
                 f"{log_prefix} [QUOTE_VERIFY] embed_ref '{embed_ref}' not found in embed map — "
                 f"stripping hallucinated source quote: '{quoted_text[:60]}...'"
             )
-            bad_quote_lines.append(full_line)
+            bad_quote_lines.append(full_match)
             continue
 
         try:
@@ -376,7 +457,7 @@ async def _verify_and_strip_bad_quotes(
                     f"{log_prefix} [QUOTE_VERIFY] ✗ Quote NOT found in embed {embed_ref}: "
                     f"'{quoted_text[:60]}...'"
                 )
-                bad_quote_lines.append(full_line)
+                bad_quote_lines.append(full_match)
         except Exception as e:
             logger.warning(
                 f"{log_prefix} [QUOTE_VERIFY] Error verifying quote for {embed_ref}: {e}"
