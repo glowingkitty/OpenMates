@@ -170,6 +170,62 @@ models:
         price: 0.50
         currency: USD
 
+  - id: "claude-opus-4-7" # Official model ID
+    name: "Claude Opus 4.7"
+    description: "Most capable Claude model with step-change improvement in agentic coding, 1M context (new tokenizer), 128k max output, and adaptive thinking."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-04-16"
+    allow_auto_select: true
+    external_ids:
+      lmarena: "claude-opus-4-7"
+      openrouter: "anthropic/claude-opus-4-7"
+    search_aliases:
+      - "opus 4.6"
+      - "claude 4.6 opus"
+      - "opus 4.5"
+      - "claude 4.5 opus"
+      - "claude-opus-4-6"
+      - "claude-opus-4-5"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    # NOTE: temperature parameter is deprecated for this model — handled in anthropic_direct_api.py
+    default_server: "anthropic" # Bedrock is in research preview; use Anthropic Direct as default
+    servers:
+      - id: "anthropic"
+        name: "Anthropic API"
+        model_id: "claude-opus-4-7"
+        region: "US"
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "eu.anthropic.claude-opus-4-7" # Research preview on AWS
+        aws_region: "eu-central-1"
+        region: "EU"
+    pricing: # Same pricing as Opus 4.6
+      tokens:
+        input:
+          per_credit_unit: 70
+        output:
+          per_credit_unit: 15
+    costs:
+      input_per_million_token:
+        price: 5.00
+        currency: USD
+        max_context: 1000000 # 1M context window (new tokenizer)
+      output_per_million_token:
+        price: 25.00
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 6.25
+        currency: USD
+      cache_read_per_million_token:
+        price: 0.50
+        currency: USD
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token

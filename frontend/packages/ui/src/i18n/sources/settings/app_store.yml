@@ -2379,6 +2379,31 @@ ai.skill.ask.model.claude_sonnet_4_6:
   he: Claude Sonnet 4.6
   verified_by_human: []
 
+ai.skill.ask.model.claude_opus_4_7:
+  context: Display name for the Claude Opus 4.7 AI model, shown as the settings page title when navigating directly to this model
+  en: Claude Opus 4.7
+  de: Claude Opus 4.7
+  zh: Claude Opus 4.7
+  es: Claude Opus 4.7
+  fr: Claude Opus 4.7
+  pt: Claude Opus 4.7
+  ru: Claude Opus 4.7
+  ja: Claude Opus 4.7
+  ko: Claude Opus 4.7
+  it: Claude Opus 4.7
+  tr: Claude Opus 4.7
+  vi: Claude Opus 4.7
+  id: Claude Opus 4.7
+  pl: Claude Opus 4.7
+  nl: Claude Opus 4.7
+  ar: Claude Opus 4.7
+  hi: Claude Opus 4.7
+  th: Claude Opus 4.7
+  cs: Claude Opus 4.7
+  sv: Claude Opus 4.7
+  he: Claude Opus 4.7
+  verified_by_human: []
+
 ai.skill.ask.model.claude_opus_4_6:
   context: Display name for the Claude Opus 4.6 AI model, shown as the settings page title when navigating directly to this model
   en: Claude Opus 4.6
