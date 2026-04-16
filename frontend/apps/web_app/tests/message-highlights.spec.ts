@@ -71,7 +71,9 @@ const SELECTORS = {
 	commentSave: '[data-testid="highlight-comment-save"]',
 	commentDelete: '[data-testid="highlight-comment-delete"]',
 	commentEdit: '[data-testid="highlight-comment-edit"]',
-	commentText: '[data-testid="highlight-comment-text"]'
+	commentText: '[data-testid="highlight-comment-text"]',
+	selectionToolbar: '[data-testid="message-selection-toolbar"]',
+	selectionToolbarHighlight: '[data-testid="message-selection-highlight"]'
 };
 
 function setupPageListeners(page: any): void {
@@ -305,6 +307,66 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	logCheckpoint(`ChatHeader pill after delete: "${pillText3}"`);
 	expect(pillText3).toMatch(/1/);
 	await takeStepScreenshot(page, 'after-delete');
+
+	// ───────────────────────────────────────────────────────────
+	// STEP 6 — Touch-device entry point: selection toolbar
+	// ───────────────────────────────────────────────────────────
+	// The floating toolbar is the only workable entry point on iOS/iPadOS
+	// (the native OS menu replaces our contextmenu on long-press). Verify
+	// it appears on selection and that clicking "Highlight" creates a box,
+	// using the same selection-only flow a touch user would trigger.
+	logCheckpoint('Verifying the floating selection toolbar (touch-device path)...');
+	await page.evaluate((sel: string) => {
+		const el = document.querySelector(sel) as HTMLElement | null;
+		el?.scrollIntoView({ block: 'center', inline: 'nearest' });
+	}, SELECTORS.userMessageContent);
+	await page.waitForTimeout(150);
+
+	// Select the word "dog" without dispatching contextmenu — toolbar should
+	// appear purely off the selectionchange event.
+	const selToolbarSelected = await page.evaluate(
+		({ sel, needle }: { sel: string; needle: string }) => {
+			const container = document.querySelector(sel) as HTMLElement | null;
+			if (!container) return false;
+			const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+			let node: Node | null = walker.nextNode();
+			while (node) {
+				const t = node as Text;
+				const nodeText = t.nodeValue ?? '';
+				const idx = nodeText.indexOf(needle);
+				if (idx !== -1) {
+					const range = document.createRange();
+					range.setStart(t, idx);
+					range.setEnd(t, idx + needle.length);
+					const selection = window.getSelection();
+					if (!selection) return false;
+					selection.removeAllRanges();
+					selection.addRange(range);
+					return true;
+				}
+				node = walker.nextNode();
+			}
+			return false;
+		},
+		{ sel: SELECTORS.userMessageContent, needle: 'lazy' }
+	);
+	expect(selToolbarSelected).toBe(true);
+
+	const toolbar = page.locator(SELECTORS.selectionToolbar);
+	await expect(toolbar).toBeVisible({ timeout: 5000 });
+	logCheckpoint('Selection toolbar appeared after selectionchange.');
+	await takeStepScreenshot(page, 'selection-toolbar-visible');
+
+	// Tap the Highlight button — it uses mousedown to preempt selection clear.
+	const toolbarHighlight = page.locator(SELECTORS.selectionToolbarHighlight);
+	await toolbarHighlight.dispatchEvent('mousedown');
+	logCheckpoint('Tapped toolbar Highlight button.');
+	// A third highlight should now exist (we have 1 from step 5 + this one = 2).
+	await expect(highlightBox).toHaveCount(2, { timeout: 10000 });
+	const pillText4 = (await pill.textContent())?.trim() ?? '';
+	logCheckpoint(`ChatHeader pill after toolbar-highlight: "${pillText4}"`);
+	expect(pillText4).toMatch(/2/);
+	await takeStepScreenshot(page, 'after-toolbar-highlight');
 
 	// Cleanup
 	logCheckpoint('Cleaning up the test chat.');
