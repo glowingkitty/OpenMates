@@ -20,6 +20,34 @@ const store = writable<HighlightsByChatId>({});
 
 export const messageHighlightsStore = { subscribe: store.subscribe };
 
+/**
+ * Ids of highlights this client created locally. Used by the popover to
+ * decide whether to show Edit/Delete buttons — more reliable than comparing
+ * userProfile.user_id against the server-echoed author_user_id, which can
+ * race (local optimistic version arrives before userProfile is populated,
+ * or the id formats differ subtly).
+ *
+ * The set is memory-only. After reload, authorship falls back to the
+ * user_id comparison in the parent component.
+ */
+const myHighlightIdsStore = writable<Set<string>>(new Set());
+
+export function markHighlightAsMine(id: string): void {
+  myHighlightIdsStore.update((s) => {
+    const next = new Set(s);
+    next.add(id);
+    return next;
+  });
+}
+
+export function isMyHighlight(id: string): boolean {
+  let v = false;
+  myHighlightIdsStore.subscribe((s) => (v = s.has(id)))();
+  return v;
+}
+
+export { myHighlightIdsStore };
+
 function cloneByMessage(
   byMessage: HighlightsByMessageId | undefined,
 ): HighlightsByMessageId {

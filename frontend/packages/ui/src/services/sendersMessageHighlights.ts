@@ -19,6 +19,7 @@ import {
 import {
   upsertHighlight as storeUpsertHighlight,
   removeHighlight as storeRemoveHighlight,
+  markHighlightAsMine,
 } from "../stores/messageHighlightsStore";
 import type {
   MessageHighlight,
@@ -60,6 +61,7 @@ export async function sendAddMessageHighlightImpl(
 
   // Optimistic local persistence
   storeUpsertHighlight(highlight);
+  markHighlightAsMine(highlight.id);
   try {
     await idbUpsertHighlight(chatDB, highlight);
   } catch (e) {

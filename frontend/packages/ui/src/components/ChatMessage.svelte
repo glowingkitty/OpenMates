@@ -11,7 +11,7 @@
   import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
   import HighlightCommentPopover from './HighlightCommentPopover.svelte';
   import { domSelectionToSourceRange } from '../utils/messageHighlights';
-  import { selectHighlightsForMessage } from '../stores/messageHighlightsStore';
+  import { selectHighlightsForMessage, myHighlightIdsStore } from '../stores/messageHighlightsStore';
   import {
     sendAddMessageHighlightImpl,
     sendUpdateMessageHighlightImpl,
@@ -2382,7 +2382,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <HighlightCommentPopover
             highlight={activeHighlight}
             anchorRect={activeHighlightRect}
-            isAuthor={$userProfile.user_id === activeHighlight.author_user_id}
+            isAuthor={$myHighlightIdsStore.has(activeHighlight.id) || $userProfile.user_id === activeHighlight.author_user_id}
             initialEditMode={popoverInEditMode}
             onSaveComment={handlePopoverSave}
             onDelete={handlePopoverDelete}
