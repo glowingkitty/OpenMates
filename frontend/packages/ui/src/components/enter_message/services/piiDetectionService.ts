@@ -578,12 +578,15 @@ const PII_PATTERNS: PIIPattern[] = [
     //   Requires \b boundaries to avoid matching inside longer strings.
     //
     // Branch 2 — Context-dependent: matches when preceded by keywords like
-    //   "tax id", "tax number", "steuer", "steuernummer", "tin", "vat",
-    //   "tax identification", followed by a colon/equals/space and a number.
+    //   "tax id", "tax number", "steuernummer", "steuer-nr", "tin number",
+    //   "vat id", "vat number", "tax identification", followed by a
+    //   colon/equals/space and a number. All keywords require a qualifier
+    //   suffix (e.g., "vat id" not bare "vat") to prevent false positives
+    //   on common words like "vat Konto" or "tin can".
     //   This catches national tax IDs like US EIN (XX-XXXXXXX), German
     //   Steuernummer (XXX/XXX/XXXXX), etc.
     regex:
-      /\b(?:AT ?U\d{8}|BE ?0?\d{9,10}|BG ?\d{9,10}|HR ?\d{11}|CY ?\d{8}[A-Z]|CZ ?\d{8,10}|DK ?\d{8}|EE ?\d{9}|FI ?\d{8}|FR ?[0-9A-Z]{2}\d{9}|DE ?\d{9}|EL ?\d{9}|HU ?\d{8}|IE ?\d{7}[A-Z]{1,2}|IT ?\d{11}|LV ?\d{11}|LT ?\d{9,12}|LU ?\d{8}|MT ?\d{8}|NL ?\d{9}B\d{2}|PL ?\d{10}|PT ?\d{9}|RO ?\d{2,10}|SK ?\d{10}|SI ?\d{8}|ES ?[A-Z0-9]\d{7}[A-Z0-9]|SE ?\d{12}|GB ?\d{9}(?:\d{3})?)\b|(?:tax[\s_-]?(?:id|number|no|nr)|steuer(?:nummer|identifikationsnummer|nr|ident(?:nummer)?)?|tin|vat[\s_-]?(?:id|number|no|nr)?|tax[\s_-]?identification(?:[\s_-]?number)?)[:\s#=]+([A-Z0-9\s/-]{5,20})/gi,
+      /\b(?:AT ?U\d{8}|BE ?0?\d{9,10}|BG ?\d{9,10}|HR ?\d{11}|CY ?\d{8}[A-Z]|CZ ?\d{8,10}|DK ?\d{8}|EE ?\d{9}|FI ?\d{8}|FR ?[0-9A-Z]{2}\d{9}|DE ?\d{9}|EL ?\d{9}|HU ?\d{8}|IE ?\d{7}[A-Z]{1,2}|IT ?\d{11}|LV ?\d{11}|LT ?\d{9,12}|LU ?\d{8}|MT ?\d{8}|NL ?\d{9}B\d{2}|PL ?\d{10}|PT ?\d{9}|RO ?\d{2,10}|SK ?\d{10}|SI ?\d{8}|ES ?[A-Z0-9]\d{7}[A-Z0-9]|SE ?\d{12}|GB ?\d{9}(?:\d{3})?)\b|(?:tax[\s_-]?(?:id|number|no|nr)|steuer(?:nummer|identifikationsnummer|nr|ident(?:nummer)?)|tin[\s_-]?(?:number|no|nr)|vat[\s_-]?(?:id|number|no|nr)|tax[\s_-]?identification(?:[\s_-]?number)?)[:\s#=]+([A-Z0-9\s/-]{5,20})/gi,
     label: "Tax ID",
     getPlaceholder: (match, counter) => `[TAX_ID_${counter}_${getSecretSuffix(match)}]`,
   },
