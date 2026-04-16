@@ -752,6 +752,8 @@
 		const publicSettings = [
 			'app_store',
 			'appstore', // Alias
+			'ai', // AI settings (models, pricing, providers — browse for non-auth users)
+			'pricing', // Pricing overview (non-auth only, replaced by billing for auth users)
 			'mates', // Mates browsing (read-only for unauthenticated users)
 			'interface',
 			'main', // Main settings page
