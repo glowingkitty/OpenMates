@@ -632,6 +632,12 @@
   /* ─── Processing state ──────────────────────────────────────────────────── */
 
   .processing-content {
+    /* position:relative is REQUIRED for z-index to apply — without it the text
+       content paints in the default stacking layer and the blurred orbs (which
+       are position:absolute with z-index:0) can composite over the top of it
+       after a layout disturbance (e.g. closing a fullscreen embed), leaving
+       title/summary/time invisible until a scroll/resize forces a recomposite. */
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -722,6 +728,15 @@
   /* ─── Loaded state ──────────────────────────────────────────────────────── */
 
   .loaded-content {
+    /* position:relative is REQUIRED for z-index to apply — without it the
+       content paints in the default stacking layer and the blurred orbs
+       (which are position:absolute with z-index:0) composite over the top of
+       it. Normally the orbs are semi-transparent enough for text to show
+       through, but after a compositor disturbance (e.g. the layout change
+       when closing a fullscreen embed while the header is scrolled
+       off-screen) the orb layer goes opaque over the text region and stays
+       that way until a scroll/resize forces a full recomposite. */
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -731,12 +746,6 @@
     /* Narrow text block so it doesn't stretch the full banner width */
     max-width: 480px;
     width: 100%;
-    /* Explicit opacity so the element is visible even if a CSS entrance animation
-       is throttled by the browser's offscreen-compositor optimizations. A prior
-       `animation: fadeIn 0.35s ease-out` could get stuck at the 0% keyframe when
-       the header was rendered while scrolled out of view (e.g. right after a
-       fullscreen embed closes), leaving title/summary/icon invisibly mounted
-       until a scroll forced a recomposite. */
     opacity: 1;
   }
 
