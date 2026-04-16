@@ -12,6 +12,7 @@
 import { replaceState } from "$app/navigation";
 import { createEntryPrefillStore } from "../stores/createEntryPrefillStore";
 import { updateEntryPrefillStore } from "../stores/updateEntryPrefillStore";
+import { allAppsInitialFilter, type AllAppsFilterType } from "../stores/allAppsFilterStore";
 
 export type DeepLinkType =
   | "chat"
@@ -536,6 +537,18 @@ export function processSettingsDeepLink(
     }
     // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
     path = path.replace(/-/g, "_");
+
+    // Deep link to All Apps with a filter: app_store/all/{filter}
+    // e.g. #settings/appstore/all/focus-modes → app_store/all with filter 'focus_modes'
+    const allAppsFilterMatch = path.match(/^app_store\/all\/(.+)$/);
+    if (allAppsFilterMatch) {
+      const filterValue = allAppsFilterMatch[1] as AllAppsFilterType;
+      const validFilters: AllAppsFilterType[] = ['all', 'settings_memories', 'focus_modes', 'skills'];
+      if (validFilters.includes(filterValue)) {
+        allAppsInitialFilter.set(filterValue);
+      }
+      path = "app_store/all";
+    }
 
     // Normalize app store sub-routes from plural to singular form
     // Deep links may use plural forms (e.g., 'skills', 'focuses') but routes use singular ('skill', 'focus')
