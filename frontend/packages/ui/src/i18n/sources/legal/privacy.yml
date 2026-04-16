@@ -408,8 +408,8 @@ brevo.heading:
   he: 3.3 Brevo (שירותי דוא"ל)
 brevo.description:
   context: Description of Brevo service
-  en: We use Brevo (EU company) to send emails. This includes account-related transactional emails (e.g., account verification, security alerts) and, if you subscribe, newsletter emails. Your email address and the email content are shared with Brevo for delivery.
-  de: Wir verwenden Brevo (EU-Unternehmen) zum Versenden von E-Mails. Dazu gehören transaktionale E-Mails rund um dein Konto (z. B. Kontoverifizierung, Sicherheitswarnungen) sowie – falls du dich anmeldest – Newsletter-E-Mails. Deine E-Mail-Adresse und der Inhalt der E-Mail werden zum Versand an Brevo übermittelt.
+  en: We use Brevo (EU company) to send emails. This includes account-related transactional emails (e.g., account verification, security alerts), newsletter emails if you subscribed, and — for existing OpenMates customers — occasional product announcements and service updates under the existing-customer exception (§7 Abs. 3 UWG / ePrivacy Directive Art. 13(2)). Your email address and the email content are shared with Brevo for delivery.
+  de: Wir verwenden Brevo (EU-Unternehmen) zum Versenden von E-Mails. Dazu gehören transaktionale E-Mails rund um dein Konto (z. B. Kontoverifizierung, Sicherheitswarnungen), Newsletter-E-Mails, falls du dich angemeldet hast, sowie – für OpenMates-Bestandskunden – gelegentliche Produktankündigungen und Service-Updates auf Grundlage der Bestandskunden-Ausnahme (§ 7 Abs. 3 UWG / ePrivacy-Richtlinie Art. 13(2)). Deine E-Mail-Adresse und der Inhalt der E-Mail werden zum Versand an Brevo übermittelt.
   zh: 我们使用 Brevo（欧盟公司）发送电子邮件。这包括与账户相关的交易邮件（例如账户验证、安全警报）以及（如果你订阅）新闻通讯邮件。为实现投递，你的电子邮件地址和邮件内容会被提供给 Brevo。
   es: Utilizamos Brevo (empresa de la UE) para enviar correos electrónicos. Esto incluye correos transaccionales relacionados con la cuenta (p. ej., verificación de cuenta, alertas de seguridad) y, si te suscribes, correos del boletín. Tu dirección de correo electrónico y el contenido del correo se comparten con Brevo para su entrega.
   fr: Nous utilisons Brevo (entreprise de l'UE) pour envoyer des e-mails. Cela inclut des e-mails transactionnels liés au compte (p. ex. vérification de compte, alertes de sécurité) et, si vous vous abonnez, des e-mails de newsletter. Votre adresse e-mail et le contenu de l'e-mail sont partagés avec Brevo pour la délivrance.
@@ -1751,8 +1751,8 @@ data_categories.payments:
   he: 'תשלומים: טוקנים של אמצעי תשלום, מזהי עסקאות, כתובת חיוב ומידע מע"מ כנדרש לחיוב (מעובד בעיקר על ידי Stripe). איננו מאחסנים מספרי כרטיס מלאים.'
 data_categories.newsletter:
   context: Newsletter subscription data category
-  en: "Newsletter: If you choose to subscribe to our newsletter, we store your email address in encrypted form. Newsletter subscription is optional and separate from account creation. Creating an account does not automatically subscribe you to the newsletter."
-  de: "Newsletter: Wenn Sie sich für unseren Newsletter anmelden, speichern wir Ihre E-Mail-Adresse in verschlüsselter Form. Die Newsletter-Anmeldung ist optional und getrennt von der Kontenerstellung. Die Erstellung eines Kontos abonniert Sie nicht automatisch für den Newsletter."
+  en: "Newsletter: If you choose to subscribe to our newsletter, we store your email address in encrypted form. Newsletter subscription is optional and separate from account creation — creating an account does not automatically subscribe you to the newsletter. If you are an OpenMates customer (i.e. you have completed a purchase), we may additionally send you occasional product announcements and service updates about OpenMates' own similar services under the existing-customer exception (§7 Abs. 3 UWG / ePrivacy Directive Art. 13(2)). You can object to this at any time in Settings → Newsletter or via the one-click unsubscribe link in any such email, without affecting your account."
+  de: "Newsletter: Wenn Sie sich für unseren Newsletter anmelden, speichern wir Ihre E-Mail-Adresse in verschlüsselter Form. Die Newsletter-Anmeldung ist optional und getrennt von der Kontenerstellung – die Erstellung eines Kontos abonniert Sie nicht automatisch für den Newsletter. Wenn Sie OpenMates-Kunde sind (d. h. einen Kauf abgeschlossen haben), senden wir Ihnen zusätzlich gelegentlich Produktankündigungen und Service-Updates zu eigenen ähnlichen Diensten von OpenMates auf Grundlage der Bestandskunden-Ausnahme (§ 7 Abs. 3 UWG / ePrivacy-Richtlinie Art. 13(2)). Sie können dem jederzeit in Einstellungen → Newsletter oder über den Ein-Klick-Abmeldelink in jeder dieser E-Mails widersprechen, ohne dass Ihrem Konto Nachteile entstehen."
   zh: "新闻通讯：如果您选择订阅我们的新闻通讯，我们会以加密形式存储您的电子邮件地址。新闻通讯订阅是可选的，与帐户创建分开。创建帐户不会自动订阅新闻通讯。"
   es: "Boletín: Si elige suscribirse a nuestro boletín, almacenamos su dirección de correo electrónico en forma cifrada. La suscripción al boletín es opcional y está separada de la creación de cuenta. Crear una cuenta no le suscribe automáticamente al boletín."
   fr: "Newsletter : Si vous choisissez de vous abonner à notre newsletter, nous stockons votre adresse e-mail sous forme cryptée. L'abonnement à la newsletter est facultatif et distinct de la création de compte. La création d'un compte ne vous abonne pas automatiquement à la newsletter."
@@ -2037,6 +2037,30 @@ legal_basis.legitimate_interests:
   sv: "Berättigade intressen: Behandling som är nödvändig för våra berättigade intressen, såsom tjänstesäkerhet, bedrägeriförebyggande, missbruks­detektion och förbättring av tjänsten, förutsatt att dessa intressen inte åsidosätts av dina rättigheter och intressen."
   verified_by_human: []
   he: 'אינטרסים לגיטימיים: עיבוד הנחוץ לאינטרסים הלגיטימיים שלנו, כגון אבטחת שירות, מניעת הונאה ושיפור המוצר.'
+legal_basis.direct_marketing:
+  context: Direct marketing to existing customers — §7 Abs. 3 UWG / ePrivacy Art. 13(2) soft opt-in basis
+  en: "Direct marketing to existing customers: For existing OpenMates customers (users who have completed a purchase), we may rely on Art. 6(1)(f) GDPR (legitimate interests) in combination with §7 Abs. 3 UWG and ePrivacy Directive Art. 13(2) to send occasional product announcements, service updates, and marketing about OpenMates' own similar services. Each such email includes a clearly visible one-click unsubscribe link, and you can also manage these preferences at any time in Settings → Newsletter. You can object to this processing at any time without giving reasons (Art. 21 GDPR)."
+  de: "Direktwerbung an Bestandskunden: Für bestehende OpenMates-Kunden (Nutzer, die einen Kauf abgeschlossen haben) stützen wir gelegentliche Produktankündigungen, Service-Updates und Werbung für ähnliche eigene Dienste von OpenMates auf Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse) in Verbindung mit § 7 Abs. 3 UWG und ePrivacy-Richtlinie Art. 13(2). Jede solche E-Mail enthält einen deutlich erkennbaren Ein-Klick-Abmeldelink, und Sie können diese Präferenzen jederzeit in Einstellungen → Newsletter verwalten. Sie können dieser Verarbeitung jederzeit ohne Angabe von Gründen widersprechen (Art. 21 DSGVO)."
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
 legal_basis.legal_obligation:
   context: Legal obligation basis
   en: "Legal obligation: Processing necessary to comply with legal obligations (e.g., tax and accounting requirements for invoices and transaction records)."
@@ -4327,9 +4351,14 @@ providers.always_active.brevo.description:
   en: >-
     We use Brevo to send transactional email — account verification, password
     reset links, payment receipts, and credit notes — and, if you opt in, the
-    OpenMates newsletter. Brevo sees recipient email addresses and the content
-    of the emails we send you.
-  de: Wir nutzen Brevo zum Versenden von Transaktions-E-Mails – Kontoverifizierung, Links zum Zurücksetzen des Passworts, Zahlungsbelege und Gutschriften – sowie, falls du dich dafür entscheidest, für den OpenMates-Newsletter. Brevo sieht die E-Mail-Adressen der Empfänger und den Inhalt der E-Mails, die wir dir senden.
+    OpenMates newsletter. If you are an existing OpenMates customer (i.e. you
+    have completed a purchase), we may also send you occasional product
+    announcements and service updates about OpenMates' own similar services
+    under the existing-customer exception (§7 Abs. 3 UWG / ePrivacy Directive
+    Art. 13(2)); you can object in Settings → Newsletter or via the one-click
+    unsubscribe link in any such email. Brevo sees recipient email addresses
+    and the content of the emails we send you.
+  de: Wir nutzen Brevo zum Versenden von Transaktions-E-Mails – Kontoverifizierung, Links zum Zurücksetzen des Passworts, Zahlungsbelege und Gutschriften – sowie, falls du dich dafür entscheidest, für den OpenMates-Newsletter. Wenn du bestehender OpenMates-Kunde bist (d. h. einen Kauf abgeschlossen hast), senden wir dir zusätzlich gelegentlich Produktankündigungen und Service-Updates zu eigenen ähnlichen Diensten von OpenMates auf Grundlage der Bestandskunden-Ausnahme (§ 7 Abs. 3 UWG / ePrivacy-Richtlinie Art. 13(2)); du kannst dem in Einstellungen → Newsletter oder über den Ein-Klick-Abmeldelink in jeder solchen E-Mail widersprechen. Brevo sieht die E-Mail-Adressen der Empfänger und den Inhalt der E-Mails, die wir dir senden.
   zh: 我们使用 Brevo 发送事务性邮件——账户验证、密码重置链接、付款收据和贷记单——以及（如果你选择订阅）OpenMates 时事通讯。Brevo 会看到收件人的电子邮件地址以及我们发送给你的邮件内容。
   es: Utilizamos Brevo para enviar correos electrónicos transaccionales (verificación de cuenta, enlaces de restablecimiento de contraseña, recibos de pago y notas de crédito) y, si te suscribes, el boletín de OpenMates. Brevo ve las direcciones de correo electrónico de los destinatarios y el contenido de los correos que te enviamos.
   ru: Мы используем Brevo для отправки транзакционных писем — подтверждения аккаунта, ссылок для сброса пароля, квитанций об оплате и кредитовых авизо — а также, если ты подпишешься, рассылки OpenMates. Brevo видит адреса электронной почты получателей и содержание писем, которые мы тебе отправляем.

@@ -375,6 +375,7 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.legal_basis.contract")}`);
   lines.push(`- ${t("legal.privacy.legal_basis.consent")}`);
   lines.push(`- ${t("legal.privacy.legal_basis.legitimate_interests")}`);
+  lines.push(`- ${t("legal.privacy.legal_basis.direct_marketing")}`);
   lines.push(`- ${t("legal.privacy.legal_basis.legal_obligation")}`);
   lines.push("");
 

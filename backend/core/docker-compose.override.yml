@@ -2,6 +2,13 @@
 # Overrides for development/local access via SSH port forwarding
 
 services:
+  api:
+    volumes:
+      # Read-only access to the openmates-marketing sibling repo so
+      # send_newsletter.py can render issues authored outside this repo.
+      # Only used on the dev machine; prod never runs send_newsletter.py.
+      - ../../../openmates-marketing:/openmates-marketing:ro
+
   cms:
     ports:
       # Expose Directus only on localhost for SSH forwarding

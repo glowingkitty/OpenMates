@@ -111,7 +111,7 @@ class BrevoProvider(BaseEmailProvider):
         if ext_lower in BREVO_SUPPORTED_EXTENSIONS:
             logger.debug(f"Attachment '{filename}' has supported extension: {ext_lower}")
             return attachment
-        
+
         # Check if it's a text-based format we can convert to .txt
         if ext_lower in TEXT_FORMATS_TO_CONVERT:
             # Convert to .txt extension
@@ -121,10 +121,16 @@ class BrevoProvider(BaseEmailProvider):
                 f"Converting attachment '{filename}' to '{new_filename}' "
                 f"(Brevo does not support {ext_lower} format)"
             )
-            return {
+            converted = {
                 'filename': new_filename,
                 'content': attachment['content']  # Content is already base64 encoded
             }
+            # Preserve optional inline/CID metadata if the caller set it.
+            if 'contentId' in attachment:
+                converted['contentId'] = attachment['contentId']
+            if attachment.get('inline'):
+                converted['inline'] = True
+            return converted
         
         # Unsupported format - log warning and skip
         logger.error(
@@ -228,12 +234,19 @@ class BrevoProvider(BaseEmailProvider):
             if attachments:
                 processed_attachments = self._process_attachments(attachments)
                 if processed_attachments:
-                    email_data["attachment"] = [
-                        {
+                    brevo_attachments = []
+                    for att in processed_attachments:
+                        # Brevo API v3 accepts `name`, `content` (base64), and an
+                        # optional `contentId` for inline/CID-referenced images.
+                        # See https://developers.brevo.com/reference/sendtransacemail
+                        entry = {
                             "name": att["filename"],
-                            "content": att["content"]  # Already base64 encoded
-                        } for att in processed_attachments
-                    ]
+                            "content": att["content"],  # Already base64 encoded
+                        }
+                        if att.get("contentId"):
+                            entry["contentId"] = att["contentId"]
+                        brevo_attachments.append(entry)
+                    email_data["attachment"] = brevo_attachments
                 else:
                     logger.warning(
                         "All attachments were filtered out due to unsupported formats. "

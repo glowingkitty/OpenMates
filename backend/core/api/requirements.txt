@@ -47,6 +47,7 @@ pymupdf==1.27.1  # Required by app-pdf-worker for PDF page screenshot rendering
 sympy==1.14.0    # Required by app-math for symbolic math (calculate skill)
 mpmath==1.3.0    # Required by app-math for high-precision numeric evaluation (sympy 1.14 requires mpmath<1.4)
 pywebpush==2.3.0 # Web Push Protocol (VAPID) for browser push notifications
+markdown-it-py==3.0.0 # Markdown→HTML for send_newsletter.py body rendering
 
 # OpenTelemetry — distributed tracing with privacy-aware export to OpenObserve
 opentelemetry-sdk==1.40.0

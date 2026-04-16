@@ -1,440 +1,511 @@
 #!/usr/bin/env python3
 """
-Script to send newsletter emails to all confirmed newsletter subscribers.
+Send an OpenMates newsletter issue to confirmed subscribers.
 
-This script:
-1. Fetches all confirmed newsletter subscribers from Directus
-2. Decrypts their email addresses
-3. Checks if emails are in the ignored list (skips if ignored)
-4. Sends newsletter emails to each subscriber using the specified template
-5. Provides progress feedback and error handling
+Each issue lives in its own directory (typically under the
+`openmates-marketing/campaigns/<slug>/` folder OUTSIDE this repo) with:
 
-The script must be run inside the Docker container (api service) to have access
-to the necessary environment variables and services.
+    <issue-dir>/
+        meta.yml           # slug, category, cta_url, video_id, video_thumbnail
+        newsletter_EN.md   # body for English, with optional YAML frontmatter
+        newsletter_DE.md   # body for German, with optional YAML frontmatter
+        (optional video-thumbnail.jpg referenced from meta.yml)
+
+The workflow is three-stepped and mandatory in this order:
+
+    1. --dry-run [--render-to preview.html]
+       Render without sending. Inspect locally.
+
+    2. --test-to <your@email>
+       Send only to this address (ignores subscriber list). Inspect in your
+       inbox on multiple clients. Safe to re-run.
+
+    3. --confirm-send
+       Real broadcast to the eligible subscriber list. Requires typing
+       "SEND" when prompted — even the flag alone will not broadcast.
+
+Guardrails:
+    - Without --confirm-send, the script never broadcasts.
+    - --test-to short-circuits to the single recipient; --confirm-send is
+      irrelevant for test-to sends.
+    - Every run writes an audit log to /app/logs/newsletters/<slug>-<ts>.jsonl.
+    - 500ms delay between sends to avoid Brevo rate limiting.
 
 Usage:
-    docker exec -it api python /app/backend/scripts/send_newsletter.py
-    docker exec -it api python /app/backend/scripts/send_newsletter.py --template newsletter
-    docker exec -it api python /app/backend/scripts/send_newsletter.py --template newsletter --dry-run
-    docker exec -it api python /app/backend/scripts/send_newsletter.py --template newsletter --limit 10
+    docker exec -it api python /app/backend/scripts/send_newsletter.py \\
+        --issue-dir /path/to/openmates-marketing/campaigns/<slug>/ \\
+        --dry-run --render-to /tmp/preview.html
+
+    docker exec -it api python /app/backend/scripts/send_newsletter.py \\
+        --issue-dir /path/to/openmates-marketing/campaigns/<slug>/ \\
+        --test-to anthropic939jdq1@openmates.org
+
+    docker exec -it api python /app/backend/scripts/send_newsletter.py \\
+        --issue-dir /path/to/openmates-marketing/campaigns/<slug>/ \\
+        --confirm-send
 """
 
-import asyncio
 import argparse
+import asyncio
+import json
 import logging
-import sys
 import os
-from typing import Dict, Any, List, Optional
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-# Add the backend directory to the Python path
 sys.path.insert(0, '/app/backend')
 
-from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.email_template import EmailTemplateService
-from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from backend.core.api.app.utils.newsletter_utils import check_ignored_email
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.scripts.newsletter_md_renderer import (  # noqa: E402
+    IssueMeta,
+    LocalizedIssue,
+    SUPPORTED_LANGS,
+    build_video_thumbnail_attachment,
+    load_issue_meta,
+    render_issue,
+)
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+# Auto-redact emails/tokens that slip into log messages (defence in depth —
+# all direct recipient logging in this script already masks, but the filter
+# protects against future regressions per .claude/rules/privacy.md).
+logger.addFilter(SensitiveDataFilter())
 
 
-async def get_all_newsletter_subscribers(
-    directus_service: DirectusService,
-    limit: Optional[int] = None
-) -> List[Dict[str, Any]]:
-    """
-    Fetch all newsletter subscribers from Directus.
-    
-    All entries in the newsletter_subscribers collection have already confirmed
-    their subscription (they are only added after confirmation).
-    
-    Args:
-        directus_service: The DirectusService instance
-        limit: Optional limit on number of subscribers to fetch (for testing)
-        
-    Returns:
-        List of subscriber dictionaries
-    """
-    logger.info("Fetching newsletter subscribers from Directus...")
-    
-    collection_name = "newsletter_subscribers"
-    url = f"{directus_service.base_url}/items/{collection_name}"
-    
-    # All entries in newsletter_subscribers are confirmed (only added after confirmation)
-    params = {
-        "fields": "*,id,encrypted_email_address,hashed_email,language,darkmode,unsubscribe_token,confirmed_at,subscribed_at",
-        "sort": "subscribed_at"  # Sort by subscription date
-    }
-    
-    # Add limit if specified (useful for testing)
-    if limit:
-        params["limit"] = limit
-        logger.info(f"Limiting to {limit} subscribers for testing")
-    
-    try:
-        response = await directus_service._make_api_request("GET", url, params=params)
-        
-        if response.status_code != 200:
-            logger.error(f"Failed to fetch newsletter subscribers: {response.status_code} - {response.text}")
-            return []
-        
-        data = response.json()
-        subscribers = data.get("data", [])
-        
-        logger.info(f"Fetched {len(subscribers)} newsletter subscriber(s)")
-        return subscribers
-        
-    except Exception as e:
-        logger.error(f"Error fetching newsletter subscribers: {str(e)}", exc_info=True)
-        return []
+def _mask_email(email: str) -> str:
+    """Return a redacted form of an email address for safe logging."""
+    if not email or "@" not in email:
+        return "***"
+    local, _, domain = email.partition("@")
+    visible = local[:2] if len(local) >= 2 else local
+    return f"{visible}***@{domain}"
+
+AUDIT_LOG_DIR = Path("/app/logs/newsletters")
+SEND_DELAY_SECONDS = 0.5
+CONFIRM_TOKEN = "SEND"
 
 
-async def decrypt_subscriber_email(
-    encryption_service: EncryptionService,
-    encrypted_email: str
-) -> Optional[str]:
-    """
-    Decrypt a subscriber's email address.
-    
-    Args:
-        encryption_service: The EncryptionService instance
-        encrypted_email: Encrypted email address from Directus
-        
-    Returns:
-        Decrypted email address or None if decryption fails
-    """
-    if not encrypted_email:
-        logger.warning("No encrypted email provided")
-        return None
-    
-    try:
-        decrypted_email = await encryption_service.decrypt_newsletter_email(encrypted_email)
-        return decrypted_email
-    except Exception as e:
-        logger.error(f"Error decrypting email: {str(e)}", exc_info=True)
-        return None
-
-
-async def build_unsubscribe_url(
-    subscriber: Dict[str, Any],
-    base_url: str
-) -> Optional[str]:
-    """
-    Build the unsubscribe URL for a subscriber.
-    
-    Args:
-        subscriber: Subscriber dictionary containing unsubscribe_token
-        base_url: Base URL for the frontend application
-        
-    Returns:
-        Unsubscribe URL or None if token is missing
-    """
-    unsubscribe_token = subscriber.get("unsubscribe_token")
-    if not unsubscribe_token:
-        logger.warning(f"Subscriber {subscriber.get('id', 'unknown')} has no unsubscribe token")
-        return None
-    
-    # Build unsubscribe URL using settings deep link format
-    # Format: {base_url}/#settings/newsletter/unsubscribe/{token}
-    unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{unsubscribe_token}"
-    return unsubscribe_url
-
-
-async def send_newsletter_to_subscriber(
-    email_template_service: EmailTemplateService,
-    subscriber: Dict[str, Any],
-    email: str,
-    template_name: str,
-    context: Dict[str, Any],
-    dry_run: bool = False
-) -> bool:
-    """
-    Send newsletter email to a single subscriber.
-    
-    Args:
-        email_template_service: The EmailTemplateService instance
-        subscriber: Subscriber dictionary
-        email: Decrypted email address
-        template_name: Name of the email template to use
-        context: Context variables for the template
-        dry_run: If True, only log what would be sent without actually sending
-        
-    Returns:
-        True if email was sent successfully (or dry-run), False otherwise
-    """
-    language = subscriber.get("language", "en")
-    
-    # Log subscriber info (masked for privacy)
-    masked_email = f"{email[:2]}***" if len(email) > 2 else "***"
-    logger.info(f"Processing subscriber: {masked_email} (language: {language})")
-    
-    if dry_run:
-        logger.info(f"[DRY RUN] Would send newsletter to {masked_email} using template '{template_name}'")
-        logger.info(f"[DRY RUN] Context: {list(context.keys())}")
-        return True
-    
-    try:
-        # Send the newsletter email
-        success = await email_template_service.send_email(
-            template=template_name,
-            recipient_email=email,
-            context=context,
-            lang=language
-        )
-        
-        if success:
-            logger.info(f"Successfully sent newsletter to {masked_email}")
-            return True
-        else:
-            logger.error(f"Failed to send newsletter to {masked_email}")
-            return False
-            
-    except Exception as e:
-        logger.error(f"Error sending newsletter to {masked_email}: {str(e)}", exc_info=True)
-        return False
-
-
-async def send_newsletter_to_all(
-    template_name: str = "newsletter",
-    dry_run: bool = False,
-    limit: Optional[int] = None
-) -> None:
-    """
-    Main function to send newsletter emails to all confirmed subscribers.
-    
-    Args:
-        template_name: Name of the email template to use (default: "newsletter")
-        dry_run: If True, only simulate sending without actually sending emails
-        limit: Optional limit on number of subscribers to process (for testing)
-    """
-    logger.info("=" * 80)
-    logger.info("Newsletter Sending Script")
-    logger.info("=" * 80)
-    
-    if dry_run:
-        logger.info("DRY RUN MODE - No emails will be sent")
-    
-    logger.info(f"Template: {template_name}")
-    if limit:
-        logger.info(f"Limit: {limit} subscribers")
-    
-    # Initialize services
-    logger.info("Initializing services...")
-    try:
-        # Initialize SecretsManager for email service
-        secrets_manager = SecretsManager()
-        await secrets_manager.initialize()
-        
-        # Initialize services
-        directus_service = DirectusService()
-        cache_service = CacheService()
-        encryption_service = EncryptionService(cache_service=cache_service)
-        await encryption_service.initialize()
-        email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
-        
-        logger.info("Services initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize services: {str(e)}", exc_info=True)
-        sys.exit(1)
-    
-    # Get base URL for unsubscribe links from shared config
+def resolve_base_url() -> str:
+    """Return the deployed webapp origin for building landing/unsubscribe URLs."""
     from backend.core.api.app.services.email.config_loader import load_shared_urls
+
     shared_urls = load_shared_urls()
-    
-    # Determine environment (development or production)
-    is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
-             "localhost" in os.getenv("WEBAPP_URL", "").lower()
-    env_name = "development" if is_dev else "production"
-    
-    # Get webapp URL from shared config
-    base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
-    
-    # Fallback to environment variable or default
-    if not base_url:
-        base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
-    
-    if not base_url.startswith("http"):
-        base_url = f"https://{base_url}"
-    logger.info(f"Base URL: {base_url}")
-    
-    # Validate template exists (try to render it with empty context)
-    if not dry_run:
-        try:
-            logger.info(f"Validating template '{template_name}'...")
-            test_context = {"unsubscribe_url": base_url, "darkmode": False}
-            email_template_service.render_template(template_name, test_context, "en")
-            logger.info(f"Template '{template_name}' validated successfully")
-        except Exception as e:
-            logger.error(f"Template '{template_name}' validation failed: {str(e)}")
-            logger.error("Please ensure the template exists in /backend/core/api/templates/email/")
-            sys.exit(1)
-    
-    # Fetch all subscribers
-    subscribers = await get_all_newsletter_subscribers(directus_service, limit=limit)
-    
-    if not subscribers:
-        logger.warning("No newsletter subscribers found")
-        return
-    
-    logger.info(f"Found {len(subscribers)} confirmed subscriber(s) to process")
-    
-    # Statistics
-    stats = {
-        "total": len(subscribers),
-        "sent": 0,
-        "failed": 0,
-        "skipped_ignored": 0,
-        "skipped_decrypt_failed": 0
-    }
-    
-    # Process each subscriber
-    logger.info("=" * 80)
-    logger.info("Processing subscribers...")
-    logger.info("=" * 80)
-    
-    for index, subscriber in enumerate(subscribers, 1):
-        subscriber_id = subscriber.get("id", "unknown")
-        hashed_email = subscriber.get("hashed_email", "")
-        encrypted_email = subscriber.get("encrypted_email_address", "")
-        
-        logger.info(f"\n[{index}/{stats['total']}] Processing subscriber {subscriber_id}")
-        
-        # Check if email is in ignored list
-        if hashed_email:
-            is_ignored = await check_ignored_email(hashed_email, directus_service)
-            if is_ignored:
-                logger.info(f"Subscriber {subscriber_id} is in ignored list, skipping")
-                stats["skipped_ignored"] += 1
-                continue
-        
-        # Decrypt email
-        email = await decrypt_subscriber_email(encryption_service, encrypted_email)
-        if not email:
-            logger.error(f"Failed to decrypt email for subscriber {subscriber_id}")
-            stats["skipped_decrypt_failed"] += 1
-            continue
-        
-        # Build unsubscribe URL
-        unsubscribe_url = await build_unsubscribe_url(subscriber, base_url)
-        
-        # Get subscriber's darkmode preference (default to False if not set)
-        darkmode = subscriber.get("darkmode", False)
-        
-        # Prepare email context
-        # Add any custom context variables here that your newsletter template needs
-        context = {
-            "unsubscribe_url": unsubscribe_url,
-            "darkmode": darkmode,  # Use subscriber's stored darkmode preference
-            # Add any additional context variables your newsletter template requires
-            # For example:
-            # "newsletter_title": "Monthly Update",
-            # "newsletter_content": "...",
-            # etc.
-        }
-        
-        # Send newsletter email
-        success = await send_newsletter_to_subscriber(
-            email_template_service=email_template_service,
-            subscriber=subscriber,
-            email=email,
-            template_name=template_name,
-            context=context,
-            dry_run=dry_run
+    env_name = (
+        "development"
+        if os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test")
+        or "localhost" in os.getenv("WEBAPP_URL", "").lower()
+        else "production"
+    )
+    base = shared_urls.get("urls", {}).get("base", {}).get("webapp", {}).get(env_name)
+    if not base:
+        base = os.getenv("WEBAPP_URL") or (
+            "http://localhost:5173" if env_name == "development" else "https://openmates.org"
         )
-        
+    if not base.startswith("http"):
+        base = f"https://{base}"
+    return base
+
+
+async def fetch_subscribers(directus: DirectusService) -> List[Dict[str, Any]]:
+    """Fetch all confirmed newsletter subscribers (sorted by subscribe date).
+
+    The ``confirmed_at`` filter is defence in depth: although the
+    ``newsletter_subscribers`` collection is only written after double
+    opt-in, an explicit filter guarantees we never broadcast to a row
+    that (due to a future bug or manual DB edit) slipped in without
+    valid Art. 6(1)(a) consent. ``limit=-1`` disables Directus' default
+    page size so large subscriber lists aren't silently truncated.
+    """
+    url = f"{directus.base_url}/items/newsletter_subscribers"
+    params = {
+        "fields": (
+            "id,encrypted_email_address,hashed_email,language,darkmode,"
+            "unsubscribe_token,confirmed_at,subscribed_at,user_registration_status"
+        ),
+        "filter[confirmed_at][_nnull]": "true",
+        "sort": "subscribed_at",
+        "limit": "-1",
+    }
+    resp = await directus._make_api_request("GET", url, params=params)
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Failed to fetch subscribers: {resp.status_code} {resp.text[:500]}"
+        )
+    return resp.json().get("data", [])
+
+
+def build_unsubscribe_url(token: Optional[str], base_url: str) -> Optional[str]:
+    if not token:
+        return None
+    return f"{base_url}/#settings/newsletter/unsubscribe/{token}"
+
+
+def render_localized(issue_dir: Path, meta: IssueMeta, base_url: str) -> Dict[str, LocalizedIssue]:
+    """Render each supported language, erroring out if a body file is missing.
+
+    Raising for missing files is intentional — silently skipping a language
+    would let a half-translated newsletter ship.
+    """
+    rendered: Dict[str, LocalizedIssue] = {}
+    for lang in SUPPORTED_LANGS:
+        rendered[lang] = render_issue(issue_dir, lang, meta, base_url)
+    return rendered
+
+
+def build_full_html_preview(
+    email_template_service: EmailTemplateService,
+    localized: LocalizedIssue,
+    meta: IssueMeta,
+    unsubscribe_url: str,
+    base_url: str,
+    darkmode: bool,
+) -> str:
+    """Render the MJML template to final HTML for preview or sending."""
+    context = {
+        "newsletter_content": localized.html_body,
+        "newsletter_subtitle": localized.subtitle,
+        "cta_url": meta.cta_url,
+        "cta_text": localized.cta_text,
+        "show_social_media": meta.show_social_media,
+        "unsubscribe_url": unsubscribe_url,
+        "block_list_url": f"{base_url}/#settings/newsletter/block",
+        "darkmode": darkmode,
+    }
+    return email_template_service.render_template("newsletter", context, localized.lang)
+
+
+def prompt_confirmation(eligible_count: int, categories_note: str) -> bool:
+    """Interactive confirmation prompt for real broadcasts.
+
+    Refuses to broadcast when stdin is not a TTY — this blocks naive
+    automation like ``echo SEND | docker exec api ...`` from bypassing
+    the typed confirmation the operator is meant to read.
+    """
+    if not sys.stdin.isatty():
+        logger.error(
+            "Refusing to broadcast: stdin is not a TTY. "
+            "Run `docker exec -it api python ...` so the confirmation prompt "
+            "is interactive; piped/automated input is not allowed."
+        )
+        return False
+    print("\n" + "=" * 72)
+    print(f"About to broadcast newsletter to {eligible_count} subscribers.")
+    print(categories_note)
+    print("This will send REAL EMAILS via Brevo and cannot be undone.")
+    print("=" * 72)
+    answer = input(f'Type "{CONFIRM_TOKEN}" in uppercase to proceed (anything else cancels): ').strip()
+    return answer == CONFIRM_TOKEN
+
+
+def open_audit_log(slug: str) -> Path:
+    AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return AUDIT_LOG_DIR / f"{slug}-{ts}.jsonl"
+
+
+def append_audit(path: Path, record: Dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, default=str) + "\n")
+
+
+async def send_one(
+    email_template_service: EmailTemplateService,
+    recipient_email: str,
+    recipient_lang: str,
+    darkmode: bool,
+    rendered: Dict[str, LocalizedIssue],
+    meta: IssueMeta,
+    unsubscribe_url: Optional[str],
+    base_url: str,
+    attachments: Optional[List[Dict[str, Any]]],
+) -> bool:
+    """Send a single newsletter email using the MJML template + our MD body."""
+    localized = rendered.get(recipient_lang) or rendered["en"]
+    context = {
+        "newsletter_content": localized.html_body,
+        "newsletter_subtitle": localized.subtitle,
+        "cta_url": meta.cta_url,
+        "cta_text": localized.cta_text,
+        "show_social_media": meta.show_social_media,
+        "unsubscribe_url": unsubscribe_url,
+        "block_list_url": f"{base_url}/#settings/newsletter/block" if unsubscribe_url else None,
+        "darkmode": darkmode,
+    }
+    return await email_template_service.send_email(
+        template="newsletter",
+        recipient_email=recipient_email,
+        context=context,
+        subject=localized.subject,
+        lang=localized.lang,
+        attachments=attachments,
+    )
+
+
+async def run(args: argparse.Namespace) -> int:
+    issue_dir = Path(args.issue_dir).expanduser().resolve()
+    if not issue_dir.is_dir():
+        logger.error(f"Issue directory does not exist: {issue_dir}")
+        return 2
+
+    meta = load_issue_meta(issue_dir)
+    logger.info(f"Loaded issue {meta.slug!r} (category={meta.category})")
+
+    secrets_manager = SecretsManager()
+    await secrets_manager.initialize()
+    directus = DirectusService()
+    cache = CacheService()
+    encryption = EncryptionService(cache_service=cache)
+    await encryption.initialize()
+    email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
+
+    base_url = resolve_base_url()
+    logger.info(f"Webapp base URL: {base_url}")
+
+    rendered = render_localized(issue_dir, meta, base_url)
+    for lang, issue in rendered.items():
+        logger.info(
+            f"Rendered {lang}: subject={issue.subject!r} subtitle={issue.subtitle!r} "
+            f"has_video={issue.has_video} body_chars={len(issue.html_body)}"
+        )
+
+    attachments: Optional[List[Dict[str, Any]]] = None
+    thumb_attachment = build_video_thumbnail_attachment(meta)
+    if thumb_attachment:
+        attachments = [thumb_attachment]
+        logger.info(f"Attached video thumbnail: {meta.video_thumbnail_path.name}")
+
+    # ---- Dry-run / render-only path ----------------------------------------
+    if args.dry_run or args.render_to:
+        preview_lang = args.lang or "en"
+        preview = rendered.get(preview_lang)
+        if preview is None:
+            logger.error(f"--lang {preview_lang} not in rendered languages {list(rendered)}")
+            return 2
+
+        fake_unsub = f"{base_url}/#settings/newsletter/unsubscribe/DRY-RUN-TOKEN"
+        html = build_full_html_preview(
+            email_template_service, preview, meta, fake_unsub, base_url, darkmode=False
+        )
+
+        if args.render_to:
+            out = Path(args.render_to).expanduser().resolve()
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(html, encoding="utf-8")
+            logger.info(f"Wrote preview HTML ({len(html)} chars) to {out}")
+
+        if args.dry_run:
+            logger.info("[DRY RUN] No emails sent. Re-run with --test-to <email> to test-send.")
+        return 0
+
+    # ---- Test-to-self path --------------------------------------------------
+    if args.test_to:
+        logger.info(f"Test-send to {_mask_email(args.test_to)} (will NOT touch subscriber list)")
+        audit_path = open_audit_log(meta.slug)
+        append_audit(
+            audit_path,
+            {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "mode": "test",
+                "slug": meta.slug,
+                # Audit log keeps the full recipient so we can correlate a failed
+                # test-send with a later delivery issue. The audit directory is
+                # container-local and not shipped to OpenObserve.
+                "recipient": args.test_to,
+            },
+        )
+        # Pick the user's preferred language via --lang flag (default en).
+        lang = args.lang or "en"
+        success = await send_one(
+            email_template_service=email_template_service,
+            recipient_email=args.test_to,
+            recipient_lang=lang,
+            darkmode=False,
+            rendered=rendered,
+            meta=meta,
+            unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/TEST-TOKEN",
+            base_url=base_url,
+            attachments=attachments,
+        )
+        logger.info("Test send: %s", "OK" if success else "FAILED")
+        return 0 if success else 1
+
+    # ---- Real broadcast path ------------------------------------------------
+    if not args.confirm_send:
+        logger.error(
+            "Refusing to broadcast without --confirm-send. "
+            "Run with --dry-run, --test-to <email>, or --confirm-send."
+        )
+        return 2
+
+    subscribers = await fetch_subscribers(directus)
+    if args.limit:
+        subscribers = subscribers[: args.limit]
+    if not subscribers:
+        logger.warning("No subscribers found; nothing to send.")
+        return 0
+
+    lang_breakdown: Dict[str, int] = {}
+    for sub in subscribers:
+        lang_breakdown[sub.get("language", "en")] = lang_breakdown.get(sub.get("language", "en"), 0) + 1
+
+    categories_note = (
+        f"Category: {meta.category}. "
+        f"(Per-category preference filtering lands with Part B — for now every confirmed "
+        f"subscriber receives every category.)"
+    )
+    print("\nSubscriber language breakdown:")
+    for lang_code, count in sorted(lang_breakdown.items(), key=lambda kv: -kv[1]):
+        print(f"  {lang_code}: {count}")
+    if not prompt_confirmation(len(subscribers), categories_note):
+        logger.info("Broadcast cancelled by user.")
+        return 0
+
+    audit_path = open_audit_log(meta.slug)
+    logger.info(f"Audit log: {audit_path}")
+
+    stats = {"sent": 0, "failed": 0, "skipped_ignored": 0, "skipped_decrypt_failed": 0}
+    total = len(subscribers)
+
+    for idx, sub in enumerate(subscribers, 1):
+        sub_id = sub.get("id", "unknown")
+        hashed_email = sub.get("hashed_email", "")
+        encrypted_email = sub.get("encrypted_email_address", "")
+
+        if hashed_email and await check_ignored_email(hashed_email, directus):
+            stats["skipped_ignored"] += 1
+            append_audit(audit_path, {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_ignored"})
+            continue
+
+        try:
+            email = await encryption.decrypt_newsletter_email(encrypted_email)
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"[{idx}/{total}] decrypt failed for {sub_id}: {exc}")
+            stats["skipped_decrypt_failed"] += 1
+            append_audit(audit_path, {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_decrypt_failed"})
+            continue
+
+        lang = sub.get("language", "en")
+        if lang not in rendered:
+            lang = "en"
+        unsub = build_unsubscribe_url(sub.get("unsubscribe_token"), base_url)
+        darkmode = bool(sub.get("darkmode", False))
+
+        success = await send_one(
+            email_template_service=email_template_service,
+            recipient_email=email,
+            recipient_lang=lang,
+            darkmode=darkmode,
+            rendered=rendered,
+            meta=meta,
+            unsubscribe_url=unsub,
+            base_url=base_url,
+            attachments=attachments,
+        )
+
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "subscriber_id": sub_id,
+            "lang": lang,
+            "status": "sent" if success else "failed",
+        }
+        append_audit(audit_path, record)
+
         if success:
             stats["sent"] += 1
+            logger.info(f"[{idx}/{total}] sent to {_mask_email(email)} ({lang})")
         else:
             stats["failed"] += 1
-        
-        # Small delay to avoid overwhelming the email service
-        if not dry_run and index < stats["total"]:
-            await asyncio.sleep(0.5)  # 500ms delay between emails
-    
-    # Print summary
-    logger.info("=" * 80)
-    logger.info("Newsletter Sending Summary")
-    logger.info("=" * 80)
-    logger.info(f"Total subscribers: {stats['total']}")
-    logger.info(f"Successfully sent: {stats['sent']}")
-    logger.info(f"Failed: {stats['failed']}")
-    logger.info(f"Skipped (ignored): {stats['skipped_ignored']}")
-    logger.info(f"Skipped (decrypt failed): {stats['skipped_decrypt_failed']}")
-    logger.info("=" * 80)
-    
-    # Cleanup
+            logger.error(f"[{idx}/{total}] FAILED send to {_mask_email(email)} ({lang})")
+
+        if idx < total:
+            await asyncio.sleep(SEND_DELAY_SECONDS)
+
+    logger.info("=" * 72)
+    logger.info(f"Broadcast complete: {stats}")
+    logger.info(f"Audit log: {audit_path}")
+    logger.info("=" * 72)
+
     try:
-        await directus_service.close()
-        await cache_service.close()
-        await encryption_service.close()
-    except Exception as e:
-        logger.warning(f"Error during cleanup: {str(e)}")
+        await directus.close()
+        await cache.close()
+        await encryption.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Cleanup error: {exc}")
+
+    return 0 if stats["failed"] == 0 else 1
 
 
-def main():
-    """Main entry point for the script."""
+def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Send newsletter emails to all confirmed newsletter subscribers",
+        description="Send an OpenMates newsletter issue (MD-driven)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Send newsletter to all subscribers using default template
-  docker exec -it api python /app/backend/scripts/send_newsletter.py
-  
-  # Send newsletter using specific template
-  docker exec -it api python /app/backend/scripts/send_newsletter.py --template newsletter-monthly
-  
-  # Dry run (test without sending emails)
-  docker exec -it api python /app/backend/scripts/send_newsletter.py --dry-run
-  
-  # Test with limited number of subscribers
-  docker exec -it api python /app/backend/scripts/send_newsletter.py --limit 5
-        """
+        epilog=__doc__,
     )
-    
     parser.add_argument(
-        "--template",
+        "--issue-dir",
         type=str,
-        default="newsletter",
-        help="Name of the email template to use (default: 'newsletter')"
+        required=True,
+        help="Absolute path to the newsletter issue directory (containing meta.yml + newsletter_{EN,DE}.md)",
     )
-    
+    parser.add_argument(
+        "--lang",
+        type=str,
+        default=None,
+        choices=list(SUPPORTED_LANGS),
+        help="Language for --dry-run preview or --test-to send (default: en)",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Simulate sending without actually sending emails"
+        help="Render only; do not send. Pair with --render-to to dump preview HTML.",
     )
-    
+    parser.add_argument(
+        "--render-to",
+        type=str,
+        default=None,
+        help="Write rendered preview HTML to this path (implies --dry-run semantics).",
+    )
+    parser.add_argument(
+        "--test-to",
+        type=str,
+        default=None,
+        help="Send only to this one email address (ignores subscriber list).",
+    )
+    parser.add_argument(
+        "--confirm-send",
+        action="store_true",
+        help="Required to broadcast to real subscribers. Still prompts for typed confirmation.",
+    )
     parser.add_argument(
         "--limit",
         type=int,
         default=None,
-        help="Limit the number of subscribers to process (useful for testing)"
+        help="Cap the number of real-broadcast recipients (only meaningful with --confirm-send).",
     )
-    
+
     args = parser.parse_args()
-    
-    # Run the async function
+
     try:
-        asyncio.run(send_newsletter_to_all(
-            template_name=args.template,
-            dry_run=args.dry_run,
-            limit=args.limit
-        ))
+        return asyncio.run(run(args))
     except KeyboardInterrupt:
-        logger.info("\nScript interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"Script failed: {str(e)}", exc_info=True)
-        sys.exit(1)
+        logger.info("Interrupted by user")
+        return 130
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"Fatal: {exc}", exc_info=True)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
-
+    sys.exit(main())
