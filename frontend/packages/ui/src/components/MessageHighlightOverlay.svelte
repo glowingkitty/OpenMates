@@ -225,17 +225,21 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
+    /* Raise the whole overlay above the rendered message content so the yellow
+       boxes are hit-testable. Individual boxes re-enable pointer-events so the
+       rest of the layer stays click-through (links, embed cards, mentions). */
+    z-index: 2;
   }
   .highlight-box {
     all: unset;
     position: absolute;
     background: var(--color-highlight-yellow, rgba(255, 213, 0, 0.4));
+    /* Yellow at 40% opacity renders on top of the text but stays readable —
+       this matches standard annotation UX (Google Docs, Kindle). */
+    mix-blend-mode: multiply;
     pointer-events: auto;
     cursor: pointer;
     border-radius: 2px;
-    /* Sit behind the text so glyphs stay on top — z-index 0 is enough because
-       the parent content sits on top in document order. */
-    z-index: 0;
   }
   .highlight-box.focused {
     outline: 2px solid var(--color-highlight-yellow-solid, #ffd500);
