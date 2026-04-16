@@ -1154,9 +1154,10 @@
 
   /* ─── Background slideshow (static-image Ken Burns) ─────────────────────────
      Replaces the autoplay video on the public intro chat to avoid per-visitor
-     video delivery cost. All N frames share the same keyframe animation; each
+     video delivery cost. All N frames share the same fade keyframe; each
      frame's start is offset by a negative animation-delay so they sequence in.
-     A subtle scale transform gives a slow Ken-Burns-style motion.
+     Per-frame Ken Burns keyframes (headerSlideKB1–12) give each frame a unique
+     pan/zoom direction. Dark #1a1a1a background prevents gradient bleed.
      Pure CSS — no JS timers, no IntersectionObserver needed.
 
      Crossfade design (12 frames, slot = 8.333% of 96s cycle):
@@ -1173,6 +1174,8 @@
     height: 100%;
     overflow: hidden;
     z-index: 0;
+    /* Dark fallback so the blue banner gradient never peeks through during crossfades */
+    background: #1a1a1a;
   }
 
   .header-slide {
@@ -1182,9 +1185,10 @@
     height: 100%;
     object-fit: cover;
     opacity: 0;
-    /* Each frame occupies an 8s slot. Negative delay staggers across the full cycle. */
+    /* Each frame occupies an 8s slot. Negative delay staggers across the full cycle.
+       Per-frame Ken Burns keyframes are assigned via nth-child selectors below. */
     animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear,
-               headerSlideKenBurns calc(var(--slide-count) * 8s) infinite ease-in-out;
+               headerSlideKB1 calc(var(--slide-count) * 8s) infinite ease-in-out;
     animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
     will-change: opacity, transform;
   }
@@ -1210,50 +1214,114 @@
     100%    { opacity: 0; z-index: 0; }
   }
 
-  /* Ken-Burns motion — 4 directional variants cycling across frames via nth-child.
-     Scale moves from ~1.08 to ~1.28, giving ~20% extra image area to pan through.
-     Large Y-translations (up to ±12%) reveal top/bottom portions hidden at rest.
+  /* Ken-Burns motion — per-frame directional variants assigned via nth-child.
+     Scale moves from ~1.05 to ~1.3, giving extra image area to pan through.
+     Large translations reveal portions hidden at rest.
      Each variant covers the full visible window (0% → 10.13%). */
 
-  /* A (frames 1, 5, 9): pan bottom → top */
-  @keyframes headerSlideKenBurns {
-    0%      { transform: scale(1.1)  translate3d(0%,   12%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(0%,  -12%, 0); }
-    100%    { transform: scale(1.28) translate3d(0%,  -12%, 0); }
+  /* Frame 1: pan right → left */
+  @keyframes headerSlideKB1 {
+    0%      { transform: scale(1.15) translate3d(8%, 0, 0); }
+    10.13%  { transform: scale(1.15) translate3d(-8%, 0, 0); }
+    100%    { transform: scale(1.15) translate3d(-8%, 0, 0); }
   }
 
-  /* B (frames 2, 6, 10): pan top-right → bottom-left */
-  @keyframes headerSlideKenBurnsB {
-    0%      { transform: scale(1.1)  translate3d( 6%, -10%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(-6%,  10%, 0); }
-    100%    { transform: scale(1.28) translate3d(-6%,  10%, 0); }
+  /* Frame 2: zoom out, stay centered */
+  @keyframes headerSlideKB2 {
+    0%      { transform: scale(1.3) translate3d(0, 0, 0); }
+    10.13%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
   }
 
-  /* C (frames 3, 7, 11): pan top → bottom */
-  @keyframes headerSlideKenBurnsC {
-    0%      { transform: scale(1.1)  translate3d(0%,  -12%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(0%,   12%, 0); }
-    100%    { transform: scale(1.28) translate3d(0%,   12%, 0); }
+  /* Frame 3: pan bottom → top */
+  @keyframes headerSlideKB3 {
+    0%      { transform: scale(1.12) translate3d(0, 12%, 0); }
+    10.13%  { transform: scale(1.12) translate3d(0, -12%, 0); }
+    100%    { transform: scale(1.12) translate3d(0, -12%, 0); }
   }
 
-  /* D (frames 4, 8, 12): pan bottom-left → top-right */
-  @keyframes headerSlideKenBurnsD {
-    0%      { transform: scale(1.1)  translate3d(-6%,  10%, 0); }
-    10.13%  { transform: scale(1.28) translate3d( 6%, -10%, 0); }
-    100%    { transform: scale(1.28) translate3d( 6%, -10%, 0); }
+  /* Frame 4: pan top-right → bottom-left */
+  @keyframes headerSlideKB4 {
+    0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+    100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
   }
 
-  .header-slide:nth-child(4n+2) { animation-name: headerSlideFade, headerSlideKenBurnsB; }
-  .header-slide:nth-child(4n+3) { animation-name: headerSlideFade, headerSlideKenBurnsC; }
-  .header-slide:nth-child(4n+4) { animation-name: headerSlideFade, headerSlideKenBurnsD; }
+  /* Frame 5: pan bottom → top (default A) */
+  @keyframes headerSlideKB5 {
+    0%      { transform: scale(1.1) translate3d(0, 12%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(0, -12%, 0); }
+    100%    { transform: scale(1.28) translate3d(0, -12%, 0); }
+  }
+
+  /* Frame 6: pan left → right */
+  @keyframes headerSlideKB6 {
+    0%      { transform: scale(1.15) translate3d(-8%, 0, 0); }
+    10.13%  { transform: scale(1.15) translate3d(8%, 0, 0); }
+    100%    { transform: scale(1.15) translate3d(8%, 0, 0); }
+  }
+
+  /* Frame 7: pan top → bottom */
+  @keyframes headerSlideKB7 {
+    0%      { transform: scale(1.12) translate3d(0, -12%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(0, 12%, 0); }
+    100%    { transform: scale(1.28) translate3d(0, 12%, 0); }
+  }
+
+  /* Frame 8: pan bottom-left → top-right */
+  @keyframes headerSlideKB8 {
+    0%      { transform: scale(1.12) translate3d(-6%, 10%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(6%, -10%, 0); }
+    100%    { transform: scale(1.28) translate3d(6%, -10%, 0); }
+  }
+
+  /* Frame 9: zoom out from bottom (content at bottom of image) */
+  @keyframes headerSlideKB9 {
+    0%      { transform: scale(1.3) translate3d(0, 12%, 0); }
+    10.13%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
+  }
+
+  /* Frame 10: pan top-right → bottom-left */
+  @keyframes headerSlideKB10 {
+    0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
+    10.13%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+    100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+  }
+
+  /* Frame 11: show top part, pan down to bottom */
+  @keyframes headerSlideKB11 {
+    0%      { transform: scale(1.15) translate3d(0, -12%, 0); }
+    10.13%  { transform: scale(1.15) translate3d(0, 12%, 0); }
+    100%    { transform: scale(1.15) translate3d(0, 12%, 0); }
+  }
+
+  /* Frame 12: focus on right side, zoom out from there */
+  @keyframes headerSlideKB12 {
+    0%      { transform: scale(1.3) translate3d(10%, 0, 0); }
+    10.13%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
+  }
+
+  /* Per-frame Ken Burns assignment (frame 1 uses default from .header-slide rule) */
+  .header-slide:nth-child(1)  { animation-name: headerSlideFade, headerSlideKB1; }
+  .header-slide:nth-child(2)  { animation-name: headerSlideFade, headerSlideKB2; }
+  .header-slide:nth-child(3)  { animation-name: headerSlideFade, headerSlideKB3; }
+  .header-slide:nth-child(4)  { animation-name: headerSlideFade, headerSlideKB4; }
+  .header-slide:nth-child(5)  { animation-name: headerSlideFade, headerSlideKB5; }
+  .header-slide:nth-child(6)  { animation-name: headerSlideFade, headerSlideKB6; }
+  .header-slide:nth-child(7)  { animation-name: headerSlideFade, headerSlideKB7; }
+  .header-slide:nth-child(8)  { animation-name: headerSlideFade, headerSlideKB8; }
+  .header-slide:nth-child(9)  { animation-name: headerSlideFade, headerSlideKB9; }
+  .header-slide:nth-child(10) { animation-name: headerSlideFade, headerSlideKB10; }
+  .header-slide:nth-child(11) { animation-name: headerSlideFade, headerSlideKB11; }
+  .header-slide:nth-child(12) { animation-name: headerSlideFade, headerSlideKB12; }
 
   @media (prefers-reduced-motion: reduce) {
     .header-slide,
-    .header-slide:nth-child(4n+2),
-    .header-slide:nth-child(4n+3),
-    .header-slide:nth-child(4n+4) {
-      animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear;
-      animation-delay: calc(var(--slide-index) * -8s);
+    .header-slide:nth-child(n) {
+      animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear !important;
+      animation-delay: calc(var(--slide-index) * -8s) !important;
     }
   }
 
