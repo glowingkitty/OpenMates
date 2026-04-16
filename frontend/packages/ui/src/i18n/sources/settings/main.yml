@@ -5982,6 +5982,51 @@ newsletter_info:
   sv: Efter prenumeration får du ett bekräftelsemejl. Klicka på länken i e-postmeddelandet för att slutföra din prenumeration.
   he: לאחר ההרשמה, תקבל אימייל אישור. לחץ על הקישור באימייל כדי להשלים את ההרשמה.
   verified_by_human: []
+newsletter_categories.heading:
+  context: Heading for the per-category newsletter toggles section in Settings → Newsletter
+  en: What do you want to receive?
+  de: Was möchtest du erhalten?
+  verified_by_human: []
+newsletter_categories.description:
+  context: Short description under the newsletter categories heading
+  en: Choose which types of newsletter emails you'd like to get. You can change these anytime.
+  de: Wähle aus, welche Newsletter-E-Mails du erhalten möchtest. Du kannst das jederzeit ändern.
+  verified_by_human: []
+newsletter_categories.updates_and_announcements.title:
+  context: Title for the Updates & Announcements newsletter category toggle
+  en: Updates & Announcements
+  de: Updates & Ankündigungen
+  verified_by_human: []
+newsletter_categories.updates_and_announcements.description:
+  context: Description for the Updates & Announcements newsletter category
+  en: 1–2 emails per month about new features, OpenMates news, and important changes.
+  de: 1–2 E-Mails pro Monat über neue Funktionen, OpenMates-Neuigkeiten und wichtige Änderungen.
+  verified_by_human: []
+newsletter_categories.tips_and_tricks.title:
+  context: Title for the Tips & Tricks newsletter category toggle
+  en: Tips & Tricks
+  de: Tipps & Tricks
+  verified_by_human: []
+newsletter_categories.tips_and_tricks.description:
+  context: Description for the Tips & Tricks newsletter category
+  en: Occasional tips on how to get more out of OpenMates, with short explainer clips.
+  de: Gelegentliche Tipps, wie du mehr aus OpenMates herausholst, mit kurzen Erklär-Clips.
+  verified_by_human: []
+newsletter_categories.daily_inspirations.title:
+  context: Title for the Daily Inspirations newsletter category toggle
+  en: Daily Inspirations
+  de: Tägliche Inspirationen
+  verified_by_human: []
+newsletter_categories.daily_inspirations.description:
+  context: Description for the Daily Inspirations newsletter category
+  en: A daily email with a curated inspiration based on your interests. Off by default.
+  de: Eine tägliche E-Mail mit einer kuratierten Inspiration passend zu deinen Interessen. Standardmäßig aus.
+  verified_by_human: []
+newsletter_categories.save_error:
+  context: Error message shown when saving a newsletter category toggle fails
+  en: We couldn't save your preference. Please try again.
+  de: Deine Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
 support.description:
   context: Short description shown in the support settings page gradient banner header
   en: Get help and contact the OpenMates team

@@ -264,6 +264,7 @@ export const apiEndpoints = {
     subscribe: "/v1/newsletter/subscribe", // Subscribe to newsletter (sends confirmation email)
     confirm: "/v1/newsletter/confirm", // Confirm newsletter subscription (via token)
     unsubscribe: "/v1/newsletter/unsubscribe", // Unsubscribe from newsletter (via persistent token stored in Directus)
+    categories: "/v1/newsletter/categories", // GET+PATCH per-category opt-in preferences for the authenticated user
   },
   emailBlock: {
     blockEmail: "/v1/block-email", // Block email address from all emails (signup, newsletter, etc.)

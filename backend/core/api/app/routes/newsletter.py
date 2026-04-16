@@ -27,7 +27,13 @@ from backend.core.api.app.utils.newsletter_utils import (
     hash_email,
     check_ignored_email,
     update_newsletter_registration_status,
+    NEWSLETTER_CATEGORIES,
+    DEFAULT_NEWSLETTER_CATEGORIES,
+    normalize_newsletter_categories,
 )
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.models.user import User
+from typing import Dict, Optional
 
 router = APIRouter(
     prefix="/v1",
@@ -535,3 +541,130 @@ async def newsletter_unsubscribe(
             success=False,
             message="An error occurred while processing your unsubscribe request."
         )
+
+
+# ─── Category preferences ─────────────────────────────────────────────────
+# Auth-based routes let a signed-in user manage their own per-category
+# opt-outs (Settings → Newsletter). We match the newsletter subscriber row by
+# the user's ``hashed_email`` — the same hash stored on both tables, so no
+# email decryption is needed on the backend.
+
+class NewsletterCategoriesResponse(BaseModel):
+    success: bool
+    subscribed: bool  # False when the authenticated user never subscribed
+    categories: Dict[str, bool]  # Always keyed by every NEWSLETTER_CATEGORIES entry
+
+
+class NewsletterCategoriesUpdateRequest(BaseModel):
+    # Partial update: only keys present are applied; unknown keys are ignored.
+    categories: Dict[str, bool]
+
+
+async def _find_subscriber_by_hashed_email(
+    hashed_email: str,
+    directus_service: DirectusService,
+) -> Optional[Dict]:
+    """Return the subscriber row (or None) for a confirmed opt-in subscriber."""
+    url = f"{directus_service.base_url}/items/newsletter_subscribers"
+    params = {
+        "filter[hashed_email][_eq]": hashed_email,
+        "filter[confirmed_at][_nnull]": "true",
+        "fields": "id,categories",
+        "limit": 1,
+    }
+    resp = await directus_service._make_api_request("GET", url, params=params)
+    if resp.status_code != 200:
+        logger.warning(f"Subscriber lookup failed: HTTP {resp.status_code}")
+        return None
+    rows = resp.json().get("data", [])
+    return rows[0] if rows else None
+
+
+@router.get("/newsletter/categories", response_model=NewsletterCategoriesResponse)
+async def get_newsletter_categories(
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Return the authenticated user's per-category newsletter preferences.
+
+    If the user has never subscribed (no newsletter_subscribers row), we still
+    return the defaults with ``subscribed=false`` so the frontend can render
+    the UI in a disabled/subscribe-first state without a second round-trip.
+    """
+    hashed_email = getattr(current_user, "hashed_email", None)
+    if not hashed_email:
+        # Treat as not-subscribed rather than 500 — matches the UX for users
+        # whose accounts predate hashed_email backfill.
+        return NewsletterCategoriesResponse(
+            success=True,
+            subscribed=False,
+            categories=dict(DEFAULT_NEWSLETTER_CATEGORIES),
+        )
+
+    row = await _find_subscriber_by_hashed_email(hashed_email, directus_service)
+    if not row:
+        return NewsletterCategoriesResponse(
+            success=True,
+            subscribed=False,
+            categories=dict(DEFAULT_NEWSLETTER_CATEGORIES),
+        )
+
+    return NewsletterCategoriesResponse(
+        success=True,
+        subscribed=True,
+        categories=normalize_newsletter_categories(row.get("categories")),
+    )
+
+
+@router.patch("/newsletter/categories", response_model=NewsletterCategoriesResponse)
+@limiter.limit("20/minute")
+async def update_newsletter_categories(
+    request: Request,
+    payload: NewsletterCategoriesUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Patch the authenticated user's category preferences.
+
+    Only keys in ``NEWSLETTER_CATEGORIES`` are applied; unknown keys are
+    silently dropped. Missing keys keep their previous value. A 404 is
+    returned if the user is not a confirmed subscriber — the UI should
+    prompt them to subscribe first.
+    """
+    hashed_email = getattr(current_user, "hashed_email", None)
+    if not hashed_email:
+        return NewsletterCategoriesResponse(
+            success=False,
+            subscribed=False,
+            categories=dict(DEFAULT_NEWSLETTER_CATEGORIES),
+        )
+
+    row = await _find_subscriber_by_hashed_email(hashed_email, directus_service)
+    if not row:
+        return NewsletterCategoriesResponse(
+            success=False,
+            subscribed=False,
+            categories=dict(DEFAULT_NEWSLETTER_CATEGORIES),
+        )
+
+    current = normalize_newsletter_categories(row.get("categories"))
+    for key, value in payload.categories.items():
+        if key in NEWSLETTER_CATEGORIES and isinstance(value, bool):
+            current[key] = value
+
+    patch_url = f"{directus_service.base_url}/items/newsletter_subscribers/{row['id']}"
+    resp = await directus_service._make_api_request(
+        "PATCH", patch_url, json={"categories": current}
+    )
+    if resp.status_code not in (200, 204):
+        logger.error(
+            f"Failed to update newsletter categories for subscriber {row['id']}: "
+            f"HTTP {resp.status_code}"
+        )
+        return NewsletterCategoriesResponse(
+            success=False,
+            subscribed=True,
+            categories=current,
+        )
+
+    return NewsletterCategoriesResponse(success=True, subscribed=True, categories=current)

@@ -12,8 +12,25 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import InputWarning from '../common/InputWarning.svelte';
-    import { SettingsInput, SettingsInfoBox } from './elements';
+    import { SettingsInput, SettingsInfoBox, SettingsItem } from './elements';
     import { replaceState } from '$app/navigation';
+    import { authStore } from '../../stores/authStore';
+
+    // Category toggles
+    type CategoryKey = 'updates_and_announcements' | 'tips_and_tricks' | 'daily_inspirations';
+    const CATEGORY_ORDER: CategoryKey[] = [
+        'updates_and_announcements',
+        'tips_and_tricks',
+        'daily_inspirations',
+    ];
+    let categoriesLoaded = $state(false);
+    let isSubscribedToNewsletter = $state(false);
+    let categoryPrefs = $state<Record<CategoryKey, boolean>>({
+        updates_and_announcements: true,
+        tips_and_tricks: true,
+        daily_inspirations: false,
+    });
+    let savingCategory = $state<CategoryKey | null>(null);
     
     // State for email input and form submission
     let email = $state('');
@@ -33,7 +50,7 @@ changes to the documentation (to keep the documentation up to date).
     /**
      * Debounce helper function for email validation
      */
-    function debounce<T extends (...args: any[]) => void>(
+    function debounce<T extends (...args: unknown[]) => void>(
         fn: T,
         delay: number
     ): (...args: Parameters<T>) => void {
@@ -203,6 +220,9 @@ changes to the documentation (to keep the documentation up to date).
             
             if (response.ok && data.success) {
                 successMessage = data.message || $text('settings.newsletter_confirm_success');
+                // Refresh the category toggles — the user is now a confirmed
+                // subscriber, so the UI should switch from disabled to active.
+                void loadCategoryPreferences();
             } else {
                 errorMessage = data.message || $text('settings.newsletter_confirm_error');
             }
@@ -236,6 +256,8 @@ changes to the documentation (to keep the documentation up to date).
             
             if (response.ok && data.success) {
                 successMessage = data.message || $text('settings.newsletter_unsubscribe_success');
+                // Reset UI — they're no longer a subscriber, hide toggles.
+                isSubscribedToNewsletter = false;
             } else {
                 errorMessage = data.message || $text('settings.newsletter_unsubscribe_error');
             }
@@ -284,6 +306,79 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
     
+    /**
+     * Load the authenticated user's current category preferences. Anonymous
+     * visitors of the page skip this — their subscribe form still works but
+     * the toggles are hidden (there's no subscriber row to attach them to).
+     */
+    async function loadCategoryPreferences() {
+        if (!$authStore.isAuthenticated) {
+            categoriesLoaded = true;
+            isSubscribedToNewsletter = false;
+            return;
+        }
+        try {
+            const resp = await fetch(getApiEndpoint(apiEndpoints.newsletter.categories), {
+                method: 'GET',
+                headers: { Accept: 'application/json' },
+                credentials: 'include',
+            });
+            if (!resp.ok) {
+                categoriesLoaded = true;
+                return;
+            }
+            const data = await resp.json();
+            isSubscribedToNewsletter = Boolean(data?.subscribed);
+            if (data?.categories && typeof data.categories === 'object') {
+                categoryPrefs = { ...categoryPrefs, ...data.categories };
+            }
+        } catch (err) {
+            console.error('[SettingsNewsletter] Failed to load category prefs:', err);
+        } finally {
+            categoriesLoaded = true;
+        }
+    }
+
+    async function toggleCategory(key: CategoryKey) {
+        if (!isSubscribedToNewsletter || savingCategory) return;
+        const next = !categoryPrefs[key];
+        savingCategory = key;
+        // Optimistic update so the toggle feels instant.
+        const prev = categoryPrefs[key];
+        categoryPrefs = { ...categoryPrefs, [key]: next };
+        try {
+            const resp = await fetch(getApiEndpoint(apiEndpoints.newsletter.categories), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ categories: { [key]: next } }),
+            });
+            if (!resp.ok) {
+                categoryPrefs = { ...categoryPrefs, [key]: prev };
+                errorMessage = $text('settings.newsletter_categories.save_error');
+                return;
+            }
+            const data = await resp.json();
+            if (data?.categories) {
+                categoryPrefs = { ...categoryPrefs, ...data.categories };
+            }
+        } catch (err) {
+            categoryPrefs = { ...categoryPrefs, [key]: prev };
+            console.error('[SettingsNewsletter] Failed to save category pref:', err);
+            errorMessage = $text('settings.newsletter_categories.save_error');
+        } finally {
+            savingCategory = null;
+        }
+    }
+
+    $effect(() => {
+        // Runs once on mount (and on re-auth) to hydrate the toggles.
+        void loadCategoryPreferences();
+    });
+
     // Handle deep link actions - format: #settings/newsletter/confirm/{token}, #settings/newsletter/unsubscribe/{token}, #settings/email/block/{email}
     // Similar to how SettingsInvoices handles refund deep links
     // Process immediately when component is ready (no need to wait for data like invoices)
@@ -414,6 +509,31 @@ changes to the documentation (to keep the documentation up to date).
         {/if}
     </div>
     
+    <!-- Per-category toggles (visible only for confirmed subscribers) -->
+    {#if $authStore.isAuthenticated && categoriesLoaded && isSubscribedToNewsletter}
+        <div class="newsletter-categories" data-testid="newsletter-categories-section">
+            <h3 class="categories-heading">
+                {$text('settings.newsletter_categories.heading')}
+            </h3>
+            <p class="categories-description">
+                {$text('settings.newsletter_categories.description')}
+            </p>
+            {#each CATEGORY_ORDER as key (key)}
+                <SettingsItem
+                    type="submenu"
+                    icon={key === 'daily_inspirations' ? 'subsetting_icon sparkles' : key === 'tips_and_tricks' ? 'subsetting_icon info' : 'subsetting_icon mail'}
+                    title={$text(`settings.newsletter_categories.${key}.title`)}
+                    subtitleTop={$text(`settings.newsletter_categories.${key}.description`)}
+                    hasToggle={true}
+                    checked={categoryPrefs[key]}
+                    disabled={savingCategory !== null && savingCategory !== key}
+                    onClick={() => toggleCategory(key)}
+                    data-testid={`newsletter-category-toggle-${key}`}
+                />
+            {/each}
+        </div>
+    {/if}
+
     <!-- Additional information -->
     <div class="newsletter-info">
         <p class="info-text">{$text('settings.newsletter_info')}</p>
@@ -441,6 +561,25 @@ changes to the documentation (to keep the documentation up to date).
         margin-bottom: var(--spacing-5);
     }
     
+    .newsletter-categories {
+        margin-top: var(--spacing-8);
+        padding-top: var(--spacing-6);
+        border-top: 1px solid var(--color-grey-80, #e0e0e0);
+    }
+
+    .categories-heading {
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        margin: 0 0 var(--spacing-2) 0;
+    }
+
+    .categories-description {
+        font-size: var(--font-size-xxs);
+        color: var(--color-grey-50);
+        margin: 0 0 var(--spacing-4) 0;
+        line-height: 1.4;
+    }
+
     .newsletter-info {
         margin-top: var(--spacing-4);
     }

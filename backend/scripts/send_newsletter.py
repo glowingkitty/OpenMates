@@ -62,7 +62,10 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
-from backend.core.api.app.utils.newsletter_utils import check_ignored_email
+from backend.core.api.app.utils.newsletter_utils import (
+    check_ignored_email,
+    is_subscriber_allowed_for_category,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.scripts.newsletter_md_renderer import (  # noqa: E402
     IssueMeta,
@@ -132,7 +135,8 @@ async def fetch_subscribers(directus: DirectusService) -> List[Dict[str, Any]]:
     params = {
         "fields": (
             "id,encrypted_email_address,hashed_email,language,darkmode,"
-            "unsubscribe_token,confirmed_at,subscribed_at,user_registration_status"
+            "unsubscribe_token,confirmed_at,subscribed_at,user_registration_status,"
+            "categories"
         ),
         "filter[confirmed_at][_nnull]": "true",
         "sort": "subscribed_at",
@@ -375,7 +379,13 @@ async def run(args: argparse.Namespace) -> int:
     audit_path = open_audit_log(meta.slug)
     logger.info(f"Audit log: {audit_path}")
 
-    stats = {"sent": 0, "failed": 0, "skipped_ignored": 0, "skipped_decrypt_failed": 0}
+    stats = {
+        "sent": 0,
+        "failed": 0,
+        "skipped_ignored": 0,
+        "skipped_decrypt_failed": 0,
+        "skipped_category_off": 0,
+    }
     total = len(subscribers)
 
     for idx, sub in enumerate(subscribers, 1):
@@ -386,6 +396,22 @@ async def run(args: argparse.Namespace) -> int:
         if hashed_email and await check_ignored_email(hashed_email, directus):
             stats["skipped_ignored"] += 1
             append_audit(audit_path, {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_ignored"})
+            continue
+
+        # Per-category opt-out: skip recipients who turned off this issue's
+        # category in Settings → Newsletter. NULL categories (pre-migration
+        # rows) fall back to DEFAULT_NEWSLETTER_CATEGORIES.
+        if not is_subscriber_allowed_for_category(sub.get("categories"), meta.category):
+            stats["skipped_category_off"] += 1
+            append_audit(
+                audit_path,
+                {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "subscriber_id": sub_id,
+                    "status": "skipped_category_off",
+                    "category": meta.category,
+                },
+            )
             continue
 
         try:
