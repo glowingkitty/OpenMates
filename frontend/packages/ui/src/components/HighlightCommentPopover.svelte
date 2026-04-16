@@ -40,16 +40,15 @@
 
   let popoverEl = $state<HTMLDivElement>();
   let textareaEl = $state<HTMLTextAreaElement>();
-  // Initialise to literal false / empty — the $effect below syncs with props on
-  // mount. This keeps Svelte 5's `state_referenced_locally` rule happy (it
-  // flags $state() that captures a prop at initialization time).
+  // Initialise to literal false / empty — the onMount block below syncs with
+  // props once, AFTER the component is mounted. We intentionally do NOT use a
+  // reactive $effect here: the `highlight` prop identity changes whenever the
+  // store upserts (e.g. when the server-side add_message_highlight broadcast
+  // comes back), and re-running the effect would wipe whatever the user had
+  // typed in the textarea.
   let editing = $state(false);
   let draft = $state('');
   let saving = $state(false);
-  $effect(() => {
-    editing = initialEditMode;
-    draft = highlight.comment ?? '';
-  });
 
   // Position: default above the highlight; flip below if not enough room.
   let top = $state(0);
@@ -87,6 +86,10 @@
   }
 
   onMount(() => {
+    // One-shot sync with the incoming props — see the comment above the
+    // declarations for why this is NOT done inside a reactive $effect.
+    editing = initialEditMode;
+    draft = highlight.comment ?? '';
     recomputePosition();
     if (editing) textareaEl?.focus();
     function onDocKey(e: KeyboardEvent) {
