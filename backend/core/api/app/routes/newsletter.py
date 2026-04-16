@@ -112,6 +112,72 @@ async def get_total_newsletter_subscribers_count(directus_service: DirectusServi
         return 0
 
 
+async def get_newsletter_subscriber_breakdown(directus_service: DirectusService) -> dict:
+    """
+    Cross-reference newsletter subscribers with user registration and payment data.
+    Returns a breakdown: total, never_registered, signup_incomplete,
+    completed_not_paying, paying_customers, and non-subscriber paying count.
+    Uses hashed_email (SHA-256/base64) for matching — no decryption needed.
+    """
+    try:
+        # Fetch all confirmed subscriber hashed emails
+        nl_url = f"{directus_service.base_url}/items/newsletter_subscribers"
+        nl_resp = await directus_service._make_api_request("GET", nl_url, params={
+            "fields": "hashed_email",
+            "limit": -1,
+            "filter[confirmed_at][_nnull]": "true",
+        })
+        nl_hashes = set()
+        if nl_resp.status_code == 200:
+            nl_hashes = {
+                s["hashed_email"] for s in nl_resp.json().get("data", [])
+                if s.get("hashed_email")
+            }
+
+        # Fetch all users with registration + payment fields
+        users_url = f"{directus_service.base_url}/users"
+        users_resp = await directus_service._make_api_request("GET", users_url, params={
+            "fields": "hashed_email,signup_completed,last_successful_payment_date",
+            "limit": -1,
+        })
+        users = users_resp.json().get("data", []) if users_resp.status_code == 200 else []
+
+        all_user_hashes = set()
+        completed_hashes = set()
+        paying_hashes = set()
+        for u in users:
+            h = u.get("hashed_email")
+            if not h:
+                continue
+            all_user_hashes.add(h)
+            if u.get("signup_completed"):
+                completed_hashes.add(h)
+            if u.get("last_successful_payment_date"):
+                paying_hashes.add(h)
+
+        total = len(nl_hashes)
+        nl_not_registered = len(nl_hashes - all_user_hashes)
+        nl_registered = nl_hashes & all_user_hashes
+        nl_incomplete = len(nl_registered - completed_hashes)
+        nl_paying = len(nl_hashes & paying_hashes)
+        nl_completed_not_paying = len((nl_hashes & completed_hashes) - paying_hashes)
+
+        return {
+            "confirmed_subscribers": total,
+            "never_registered": nl_not_registered,
+            "signup_incomplete": nl_incomplete,
+            "completed_not_paying": nl_completed_not_paying,
+            "paying_customers": nl_paying,
+            "total_paying_users": len(paying_hashes),
+            "paying_not_subscribed": len(paying_hashes - nl_hashes),
+        }
+    except Exception as e:
+        logger.error(f"Error getting newsletter subscriber breakdown: {e}", exc_info=True)
+        # Fall back to just the count
+        count = await get_total_newsletter_subscribers_count(directus_service)
+        return {"confirmed_subscribers": count, "error": str(e)}
+
+
 # Request/Response models
 class NewsletterSubscribeRequest(BaseModel):
     email: EmailStr
