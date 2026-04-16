@@ -731,7 +731,13 @@
     /* Narrow text block so it doesn't stretch the full banner width */
     max-width: 480px;
     width: 100%;
-    animation: fadeIn 0.35s ease-out;
+    /* Explicit opacity so the element is visible even if a CSS entrance animation
+       is throttled by the browser's offscreen-compositor optimizations. A prior
+       `animation: fadeIn 0.35s ease-out` could get stuck at the 0% keyframe when
+       the header was rendered while scrolled out of view (e.g. right after a
+       fullscreen embed closes), leaving title/summary/icon invisibly mounted
+       until a scroll forced a recomposite. */
+    opacity: 1;
   }
 
   @keyframes fadeIn {
@@ -781,10 +787,14 @@
     letter-spacing: 0.02em;
   }
 
-  /* Summary: 14px, white, centered. Animates height from 0.
-     Always white regardless of theme — sits on the branded gradient header. */
+  /* Summary: 14px, white, centered. Always white regardless of theme — sits on
+     the branded gradient header. No entrance animation: the previous
+     `summaryExpand` keyframe (opacity + max-height 0 → 1 / 100px) could get
+     stuck at the 0% keyframe when the header mounted while scrolled out of view
+     (e.g. right after closing a fullscreen embed), leaving the summary
+     collapsed and invisible until a scroll forced a recomposite. */
   .loaded-summary {
-    margin: 2px 0 0;
+    margin: calc(var(--spacing-1) + 2px) 0 0;
     font-size: var(--font-size-small);
     font-weight: 500;
     color: var(--color-font-button);
@@ -796,31 +806,20 @@
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    /* Smooth expand animation using max-height */
-    animation: summaryExpand 0.5s ease-out;
+    opacity: 1;
+    max-height: 100px; /* enough for 3 lines */
   }
 
-  @keyframes summaryExpand {
-    from {
-      opacity: 0;
-      max-height: 0;
-      margin-top: 0;
-    }
-    to {
-      opacity: 1;
-      max-height: 100px; /* enough for 3 lines */
-      margin-top: var(--spacing-1);
-    }
-  }
-
-  /* Creation time: 14px, white at 0.7 opacity */
+  /* Creation time: 14px, white at 0.7 opacity.
+     No entrance animation — see note on .loaded-content above for why offscreen
+     CSS animations were causing title/summary/time to render invisibly. */
   .loaded-time {
     font-size: var(--font-size-small);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.85);
     text-align: center;
     margin-top: var(--spacing-1);
-    animation: fadeIn 0.4s ease-out 0.15s both;
+    opacity: 1;
   }
 
   /* ─── Incognito header icon (38×38px) — uses anonym.svg via CSS mask ─── */
@@ -1413,10 +1412,11 @@
   }
 
   /* Scoped override: inside the media group, loaded-content is inline (not
-     absolutely positioned) and inherits the group's centering. */
+     absolutely positioned) and inherits the group's centering. No entrance
+     animation — see .loaded-content rule above for rationale. */
   .media-center-group .loaded-content {
     position: static;
     padding: 0;
-    animation: fadeIn 0.35s ease-out;
+    opacity: 1;
   }
 </style>
