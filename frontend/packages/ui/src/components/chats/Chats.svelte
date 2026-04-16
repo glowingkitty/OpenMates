@@ -44,7 +44,7 @@
 	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
 
 	// --- Chat navigation store (prev/next arrow state for ChatHeader) ---
-	import { chatNavigationStore, setChatNavigationList } from '../../stores/chatNavigationStore';
+	import { chatNavigationStore, setChatNavigationList, releaseChatNavigationOwnership } from '../../stores/chatNavigationStore';
 
 	const dispatch = createEventDispatcher();
 
@@ -2022,6 +2022,12 @@ let _chatUpdatedFlushPending = false;
 		// call on remount will force a fresh DB read to pick up missed changes (e.g. new
 		// draft chats created while sidebar was closed).
 		chatListCache.notifySidebarDestroyed();
+
+		// Release our ownership of the chatNavigationStore list so the store resumes
+		// self-healing from LOCAL_CHAT_LIST_CHANGED_EVENT and updateNavFromCache calls.
+		// Without this, newly-created chats would be invisible to ChatHeader's prev/next
+		// arrows on mobile (sidebar closed / unmounted) until the sidebar is reopened.
+		releaseChatNavigationOwnership();
 
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);

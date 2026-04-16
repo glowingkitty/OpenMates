@@ -6744,14 +6744,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          const isSameActiveChat = chat.chat_id === currentChat?.chat_id;
          const isNewChatHeaderActive = isNewChatGeneratingTitle || isNewChatCreditsError;
          const hasStreamingMessages = currentMessages.some(m => m.status === 'streaming');
-         if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages))) {
+         // When loadChat re-runs for the already-active chat (e.g. after closing a fullscreen
+         // embed that restored the URL hash, or any hashchange echo), the decrypted header
+         // fields already reflect this chat. Resetting them would blank the title/summary
+         // until the async decrypt branch below refills them — a visible flicker. Skip the
+         // reset whenever the header is already valid for this chat.
+         const headerAlreadyLoadedForSameChat = isSameActiveChat
+             && !!activeChatDecryptedTitle
+             && !!activeChatDecryptedCategory;
+         if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages || headerAlreadyLoadedForSameChat))) {
              resetChatHeaderState();
          } else {
-             console.debug('[ActiveChat] loadChat: skipping resetChatHeaderState — same chat, header/streaming active', {
+             console.debug('[ActiveChat] loadChat: skipping resetChatHeaderState — same chat, header/streaming active or header already loaded', {
                  chat_id: chat.chat_id,
                  isNewChatGeneratingTitle,
                  isNewChatCreditsError,
                  hasStreamingMessages,
+                 headerAlreadyLoadedForSameChat,
              });
          }
 

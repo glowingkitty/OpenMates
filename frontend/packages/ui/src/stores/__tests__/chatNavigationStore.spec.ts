@@ -188,6 +188,7 @@ import {
   chatNavigationStore,
   setChatNavigationList,
   resetChatNavigationList,
+  releaseChatNavigationOwnership,
   updateNavFromCache,
   navigateNext,
   navigatePrev,
@@ -469,6 +470,88 @@ describe("chatNavigationStore — example chat navigation", () => {
           `Chat ${demo.chat_id} should have at least one navigable neighbor`,
         ).toBe(true);
       }
+    });
+  });
+
+  describe("new-chat-creation self-healing (Fix #1)", () => {
+    /**
+     * Regression: before the fix, chatListOwnedByChatsComponent stayed true
+     * forever once Chats.svelte had mounted once. After Chats.svelte unmounts
+     * (sidebar closed on mobile), newly-created chats never became part of
+     * the navigation list — ChatHeader prev/next arrows would compute from
+     * a stale list and report findIndex=-1 → hasPrev/hasNext false.
+     *
+     * With releaseChatNavigationOwnership() called on sidebar destroy, the
+     * store resumes self-managing and picks up new chats from cache/DB.
+     */
+    it("releaseChatNavigationOwnership lets subsequent updateNavFromCache rebuild from fresh sources", async () => {
+      // 1. Simulate sidebar mounting and taking ownership with an initial list
+      //    that only contains the 3 intro chats.
+      const introOnly = [
+        makeChat("demo-for-everyone", { group_key: "intro" }),
+        makeChat("demo-for-developers", { group_key: "intro" }),
+        makeChat("demo-who-develops-openmates", { group_key: "intro" }),
+      ];
+      setChatNavigationList(introOnly, "demo-for-everyone");
+
+      // 2. User creates a new chat while sidebar is still open — sidebar's
+      //    $effect would call setChatNavigationList again. We skip that step
+      //    to simulate the race where the sidebar has unmounted between the
+      //    DB write and the effect re-run (mobile: send message then sidebar
+      //    closes in a layout change).
+      releaseChatNavigationOwnership();
+
+      // 3. DB now contains the new chat. updateNavFromCache should rebuild.
+      sharedState.exampleChats = makeExampleChats();
+      updateNavFromCache("demo-for-everyone");
+      await new Promise((r) => setTimeout(r, 150));
+
+      // The example chats must now be reachable from the intro chat.
+      const state = get(chatNavigationStore);
+      expect(state.hasNext).toBe(true);
+
+      // Walk forward — we should reach every example chat.
+      let count = 1;
+      let s = get(chatNavigationStore);
+      let safety = 0;
+      while (s.hasNext && safety < 20) {
+        await navigateNext();
+        count++;
+        s = get(chatNavigationStore);
+        safety++;
+      }
+      // 3 intro + 5 example + 3 legal
+      expect(count).toBe(11);
+    });
+
+    it("without releasing ownership, stale sidebar list still shadows fresh sources", async () => {
+      // Negative-control test: verifies the bug reproduces when ownership
+      // is NOT released (proves the fix above is doing real work).
+      const introOnly = [
+        makeChat("demo-for-everyone", { group_key: "intro" }),
+        makeChat("demo-for-developers", { group_key: "intro" }),
+      ];
+      setChatNavigationList(introOnly, "demo-for-everyone");
+
+      // No releaseChatNavigationOwnership() call — simulates the old bug.
+      sharedState.exampleChats = makeExampleChats();
+      updateNavFromCache("demo-for-everyone");
+      await new Promise((r) => setTimeout(r, 150));
+
+      // hasNext is true for "demo-for-developers" (the second intro chat),
+      // but when we navigate forward to its end, we should be stuck there
+      // instead of reaching the example chats.
+      let count = 1;
+      let s = get(chatNavigationStore);
+      let safety = 0;
+      while (s.hasNext && safety < 20) {
+        await navigateNext();
+        count++;
+        s = get(chatNavigationStore);
+        safety++;
+      }
+      // Still stuck on the stale 2-chat list
+      expect(count).toBe(2);
     });
   });
 });
