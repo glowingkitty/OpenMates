@@ -327,8 +327,20 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // surface a small floating toolbar (Highlight / Highlight & comment) just
   // above the current selection whenever it lives inside this message. The
   // toolbar also shows on desktop as a convenience — both entry points coexist.
+  //
+  // The toolbar is a "committed affordance" — the range it anchors to is
+  // snapshotted on the LEADING edge (first selectionchange with a valid
+  // range) and ALSO refreshed whenever the user drags the selection handle
+  // to a new position. Crucially, when the user then taps a toolbar button
+  // we commit the last-known non-collapsed range — iOS can otherwise fire
+  // spurious selectionchange events during the tap that shrink/move the
+  // selection and would cause us to highlight the wrong text.
   let selectionToolbarRect = $state<DOMRect | null>(null);
   let selectionToolbarVisible = $state(false);
+  /** The source-offset range committed for the current toolbar instance.
+   *  Updated on each valid selectionchange while the toolbar is live. Read
+   *  at tap time. Cleared when the toolbar dismisses. */
+  let committedToolbarRange = $state<{ start: number; end: number } | null>(null);
 
   function updateSelectionToolbarFromSelection() {
     if (!messageContentElement || !messageId) {
@@ -345,10 +357,23 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       selectionToolbarVisible = false;
       return;
     }
-    // Cache the source-offset range up front so the toolbar handler doesn't
-    // depend on the selection still being alive when the button is tapped
-    // (iOS clears the selection the moment you tap outside the text).
-    captureSelectionRange();
+    // Compute offsets from the CURRENT live selection and commit them to the
+    // toolbar's snapshot. We update on every valid non-collapsed selection
+    // change — so user-driven handle drags are respected — but we do NOT
+    // touch the snapshot on collapsed/out-of-message events, which is the
+    // whole point: the tap-path can still read the last good value even if
+    // iOS briefly clears the selection during the tap itself.
+    const srcRange = domSelectionToSourceRange(
+      messageContentElement,
+      range,
+      rawSourceForHighlights,
+    );
+    if (!srcRange) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    committedToolbarRange = srcRange;
+    cachedSelectionRange = srcRange;
     const rect = range.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       selectionToolbarVisible = false;
@@ -366,13 +391,19 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   });
 
   function handleToolbarHighlight() {
-    // captureSelectionRange already ran on selectionchange, so the source
-    // range is cached even after the selection collapses.
+    // Commit the toolbar's snapshot — ignore the current live selection which
+    // iOS may have already shifted during the tap. `cachedSelectionRange`
+    // drives createHighlightFromSelection and is left untouched below so the
+    // final write matches what the user actually saw when they tapped.
+    if (committedToolbarRange) cachedSelectionRange = committedToolbarRange;
     selectionToolbarVisible = false;
+    committedToolbarRange = null;
     void createHighlightFromSelection(false);
   }
   function handleToolbarHighlightAndComment() {
+    if (committedToolbarRange) cachedSelectionRange = committedToolbarRange;
     selectionToolbarVisible = false;
+    committedToolbarRange = null;
     void createHighlightFromSelection(true);
   }
   // ─── End highlights ────────────────────────────────────────────────────────
