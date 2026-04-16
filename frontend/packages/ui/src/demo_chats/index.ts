@@ -3,6 +3,10 @@ import { forEveryoneChat } from "./data/for_everyone";
 import { forDevelopersChat } from "./data/for_developers";
 import { whoDevelopsOpenmatesChat } from "./data/who_develops_openmates";
 import { LEGAL_CHATS } from "../legal";
+import {
+  getNewsletterChatById as _getNewsletterChatById,
+  getAllActiveNewsletterChats as _getAllActiveNewsletterChats,
+} from "./newsletterChatStore";
 
 // Export types
 export type { DemoChat, DemoMessage, ExampleChat, ExampleChatEmbed, ExampleChatMessage } from "./types";
@@ -98,14 +102,10 @@ export const getFeaturedDemoChats = getFeaturedIntroChats;
  * Searches INTRO_CHATS, LEGAL_CHATS, and ALL_NEWSLETTER_CHATS.
  */
 export function getPublicChatById(id: string): DemoChat | undefined {
-  // Lazy import to avoid a circular dep with newsletterChatStore if it ever
-  // grows to import from this module.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getNewsletterChatById } = require("./newsletterChatStore");
   return (
     getIntroChatById(id) ||
     LEGAL_CHATS.find((chat) => chat.chat_id === id) ||
-    getNewsletterChatById(id)
+    _getNewsletterChatById(id)
   );
 }
 
@@ -114,7 +114,5 @@ export function getPublicChatById(id: string): DemoChat | undefined {
  * Useful for loading messages from static bundle
  */
 export function getAllPublicChats(): DemoChat[] {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getAllActiveNewsletterChats } = require("./newsletterChatStore");
-  return [...INTRO_CHATS, ...LEGAL_CHATS, ...getAllActiveNewsletterChats()];
+  return [...INTRO_CHATS, ...LEGAL_CHATS, ..._getAllActiveNewsletterChats()];
 }
