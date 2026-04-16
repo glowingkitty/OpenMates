@@ -6932,3 +6932,48 @@ legal_rights.gdpr.manual_note:
   sv: "Följande rättigheter är tillgängliga på begäran (vänligen kontakta oss via e-post på contact@openmates.org så hanterar vi dem manuellt):"
   he: "הזכויות הבאות זמינות לפי בקשה (אנא צור איתנו קשר בדוא\"ל בכתובת contact@openmates.org ונטפל בהן ידנית):"
   verified_by_human: []
+training_policies.heading:
+  context: Section heading for per-provider model training disclosure table in privacy policy
+  en: AI Provider Model Training Disclosure
+  de: Offenlegung der KI-Anbieter-Modelltrainings
+  verified_by_human: []
+training_policies.intro:
+  context: Introductory paragraph before the per-provider training policy table
+  en: "The following table shows, for each AI provider we use, whether they claim to use API request data for model training. We verify these policies periodically by reading each provider's terms of service and privacy policy. The 'Last checked' column shows when we last reviewed the policy."
+  de: "Die folgende Tabelle zeigt für jeden von uns genutzten KI-Anbieter, ob dieser API-Anfragedaten für das Modelltraining verwendet. Wir überprüfen diese Richtlinien regelmäßig, indem wir die Nutzungsbedingungen und Datenschutzerklärungen der einzelnen Anbieter lesen. Die Spalte 'Zuletzt geprüft' zeigt, wann wir die Richtlinie zuletzt überprüft haben."
+  verified_by_human: []
+training_policies.col_provider:
+  context: Column header for provider name in training policy table
+  en: Provider
+  de: Anbieter
+  verified_by_human: []
+training_policies.col_status:
+  context: Column header for training status in training policy table
+  en: Uses data for training?
+  de: Nutzt Daten für Training?
+  verified_by_human: []
+training_policies.col_details:
+  context: Column header for details/source in training policy table
+  en: Details
+  de: Details
+  verified_by_human: []
+training_policies.col_last_checked:
+  context: Column header for last verification date in training policy table
+  en: Last checked
+  de: Zuletzt geprüft
+  verified_by_human: []
+training_policies.status_no_training:
+  context: Status label — provider does not use API data for training
+  en: No
+  de: Nein
+  verified_by_human: []
+training_policies.status_no_training_opt_out:
+  context: Status label — provider trains by default but we opted out
+  en: No (opted out)
+  de: Nein (abgemeldet)
+  verified_by_human: []
+training_policies.status_limited_use:
+  context: Status label — provider may use anonymized/aggregated derivatives
+  en: Anonymized derivatives may be used
+  de: Anonymisierte Ableitungen können genutzt werden
+  verified_by_human: []

@@ -54,14 +54,15 @@
     "generate-providers-metadata": "node scripts/generate-providers-metadata.js",
     "generate-icon-urls": "node scripts/generate-icon-urls.js",
     "generate-privacy-promises": "node scripts/generate-privacy-promises.js",
+    "generate-training-policies": "node scripts/generate-training-policies.js",
     "build:tokens": "node scripts/build-tokens.js",
     "build:translations": "node scripts/build-translations.js",
     "validate:locales": "node scripts/validate-locales.js",
     "validate:icon-refs": "node scripts/validate-icon-refs.js",
     "update:translations": "node scripts/update-yaml-files.js",
-    "prepare": "npm run build:tokens && npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run validate:icon-refs",
-    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run validate:icon-refs",
-    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run validate:icon-refs"
+    "prepare": "npm run build:tokens && npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run generate-training-policies && npm run validate:icon-refs",
+    "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run generate-training-policies && npm run validate:icon-refs",
+    "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run generate-training-policies && npm run validate:icon-refs"
   },
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",
