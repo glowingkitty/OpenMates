@@ -17,14 +17,14 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import type { MessageHighlight } from '../types/chat';
-  import { normalizeRenderedText } from '../utils/messageHighlights';
 
   interface Props {
     /** The element whose text nodes host the rendered message. */
     contentRoot: HTMLElement | null;
-    /** Raw markdown source — used for source offset ↔ rendered character mapping. */
-    rawSource: string;
-    /** Highlights to render. */
+    /** Highlights to render. `start`/`end` on text-kind highlights are offsets
+     *  into the concatenated text nodes of `contentRoot` — i.e. exactly what
+     *  the user sees on screen. See ChatMessage.getRenderedTextSource for the
+     *  source-of-truth rationale. */
     highlights: MessageHighlight[];
     /** Trigger recomputation: bump a counter whenever the message's DOM may
      *  have changed (re-render, font load, resize, etc.). */
@@ -40,7 +40,6 @@
 
   let {
     contentRoot,
-    rawSource,
     highlights,
     recomputeKey = 0,
     focusedId = null,
@@ -60,74 +59,55 @@
   let boxes = $state<Box[]>([]);
 
   /**
-   * Walk the DOM text nodes inside `root`, build a rendered-char → text-node
-   * offset map, then locate each highlight's rendered substring and return
-   * its Range. Returns null if the highlight's source text can't be matched
-   * inside the rendered DOM (e.g. markdown was rewritten on render).
+   * Build a DOM Range for a highlight whose offsets are positions in the
+   * concatenated rendered text of `root` (the source-of-truth defined by
+   * ChatMessage.getRenderedTextSource — `start`/`end` are 1:1 with what the
+   * user sees on screen).
+   *
+   * Implementation: walk the text nodes, accumulate their rendered length,
+   * binary-seek the text node that contains each offset, and set the Range
+   * to the (node, offset-within-node) pair.
    */
   function rangeForHighlight(
     root: HTMLElement,
     highlight: Extract<MessageHighlight, { kind: 'text' }>,
   ): Range | null {
-    // 1. Extract the substring we need from raw source using the offsets.
-    const sub = rawSource.slice(highlight.start, highlight.end);
-    if (!sub) return null;
+    if (highlight.end <= highlight.start) return null;
 
-    // 2. Walk text nodes, accumulate normalized rendered text + offsets.
     const textNodes: Text[] = [];
+    const nodeStarts: number[] = [];
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node: Node | null = walker.nextNode();
-    const nodeStarts: number[] = [];
-    let rendered = '';
+    let rendered = 0;
     while (node) {
       const t = node as Text;
-      const chunk = t.nodeValue ?? '';
-      nodeStarts.push(rendered.length);
-      rendered += chunk;
+      nodeStarts.push(rendered);
+      rendered += (t.nodeValue ?? '').length;
       textNodes.push(t);
       node = walker.nextNode();
     }
-    if (rendered.length === 0) return null;
+    if (rendered === 0) return null;
 
-    // 3. Locate the normalized version of the substring in the normalized
-    //    rendered text; then back-project the match position to pre-normalised
-    //    rendered coordinates by a best-effort substring search on the raw
-    //    rendered string (which is what we'll Range against).
-    const renderedNorm = normalizeRenderedText(rendered);
-    const subNorm = normalizeRenderedText(sub).trim();
-    if (!subNorm) return null;
+    // If the rendered DOM has shrunk below the saved end (e.g. message was
+    // edited or streaming cut off), clamp rather than bail — we still draw
+    // whatever portion of the highlight still maps.
+    const start = Math.max(0, Math.min(highlight.start, rendered));
+    const end = Math.max(start, Math.min(highlight.end, rendered));
+    if (end <= start) return null;
 
-    // Look up occurrence in the unnormalised rendered text. When rendering
-    // strips asterisks / brackets, we fall back to matching on subNorm within
-    // renderedNorm and then walking forward in rendered to land on a real
-    // text-node offset.
-    let matchInRendered = rendered.indexOf(sub);
-    let matchLen = sub.length;
-    if (matchInRendered === -1) {
-      // Try normalised match.
-      const idx = renderedNorm.indexOf(subNorm);
-      if (idx === -1) return null;
-      // Map the normalised offset back to the rendered offset approximately —
-      // it's the same position because normalizeRenderedText only collapses
-      // runs of whitespace (no insertions/deletions beyond that).
-      matchInRendered = idx;
-      matchLen = subNorm.length;
-    }
-
-    // 4. Convert rendered offset → (text-node, offset within node).
-    function locate(renderedOffset: number): { node: Text; offset: number } | null {
+    function locate(offset: number): { node: Text; offset: number } | null {
       for (let i = 0; i < textNodes.length; i++) {
-        const start = nodeStarts[i];
-        const end = start + (textNodes[i].nodeValue?.length ?? 0);
-        if (renderedOffset >= start && renderedOffset <= end) {
-          return { node: textNodes[i], offset: renderedOffset - start };
+        const s = nodeStarts[i];
+        const e = s + (textNodes[i].nodeValue?.length ?? 0);
+        if (offset >= s && offset <= e) {
+          return { node: textNodes[i], offset: offset - s };
         }
       }
       return null;
     }
 
-    const startLoc = locate(matchInRendered);
-    const endLoc = locate(matchInRendered + matchLen);
+    const startLoc = locate(start);
+    const endLoc = locate(end);
     if (!startLoc || !endLoc) return null;
 
     const range = document.createRange();
@@ -174,7 +154,6 @@
   $effect(() => {
     // Re-run whenever inputs change
     void contentRoot;
-    void rawSource;
     void highlights;
     void recomputeKey;
     void focusedId;

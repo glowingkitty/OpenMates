@@ -30,50 +30,67 @@ export function normalizeRenderedText(s: string): string {
 }
 
 /**
- * Map a DOM Range inside a message content root to offsets in the raw markdown
- * source. Returns null when:
- *   - range is collapsed (no selection)
- *   - range leaves `contentRoot`
- *   - selected text cannot be located in the source (edge case: heavy markdown
- *     reshaping; callers treat this as "can't highlight this selection")
+ * Map a DOM Range inside a message content root to offsets in the
+ * concatenated rendered text of that root (i.e. the text the user sees —
+ * what `getRenderedTextSource()` returns). Returns null when the range is
+ * collapsed or leaves `contentRoot`.
  *
- * Strategy: read the selection's visible text, then find it in the raw source
- * using a prefix/suffix context window to disambiguate when the text appears
- * more than once. This is resilient to markdown syntax (asterisks for bold,
- * brackets for links) because we search the source *as source* and pick the
- * occurrence whose surrounding characters best match the DOM context.
+ * The second parameter is accepted but unused for the actual offset math:
+ * offsets come directly from counting characters in preceding text nodes,
+ * which always matches the render-time source. The arg is kept for API
+ * symmetry so callers can log/diagnose when the computed rendered source
+ * differs from what they expected.
  */
 export function domSelectionToSourceRange(
   contentRoot: HTMLElement,
   range: Range,
-  rawSource: string,
+  _renderedSource: string,
 ): { start: number; end: number } | null {
+  // _renderedSource is kept for API symmetry but unused; underscore prefix
+  // opts into the allowed-unused convention in the workspace eslint config.
+  void _renderedSource;
   if (range.collapsed) return null;
   if (!contentRoot.contains(range.commonAncestorContainer)) return null;
 
-  const selectedText = normalizeRenderedText(range.toString()).trim();
-  if (!selectedText) return null;
+  // Count rendered characters that precede range.startContainer + startOffset,
+  // walking text nodes in document order. This gives the absolute offset into
+  // contentRoot's rendered text — the same coordinate system the highlight
+  // overlay uses when resolving offsets back to a DOM Range.
+  const walker = document.createTreeWalker(contentRoot, NodeFilter.SHOW_TEXT);
+  let start: number | null = null;
+  let end: number | null = null;
+  let offset = 0;
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    const t = node as Text;
+    const len = (t.nodeValue ?? "").length;
+    if (start === null && t === range.startContainer) {
+      start = offset + Math.min(range.startOffset, len);
+    }
+    if (end === null && t === range.endContainer) {
+      end = offset + Math.min(range.endOffset, len);
+    }
+    offset += len;
+    if (start !== null && end !== null) break;
+    node = walker.nextNode();
+  }
 
-  // Build the full rendered text once so we can compute what appears before /
-  // after the selection — used as context to disambiguate duplicate matches.
-  const fullRenderedText = normalizeRenderedText(
-    contentRoot.textContent ?? "",
-  );
-  const preRange = document.createRange();
-  preRange.selectNodeContents(contentRoot);
-  preRange.setEnd(range.startContainer, range.startOffset);
-  const beforeRendered = normalizeRenderedText(preRange.toString());
+  // Fallbacks when startContainer/endContainer are element nodes (rare —
+  // e.g. selection boundary lands exactly between text nodes). Playwright's
+  // synthetic selection uses text nodes directly, so this is mostly a guard.
+  if (start === null || end === null) {
+    const pre = document.createRange();
+    pre.selectNodeContents(contentRoot);
+    pre.setEnd(range.startContainer, range.startOffset);
+    if (start === null) start = pre.toString().length;
+    const post = document.createRange();
+    post.selectNodeContents(contentRoot);
+    post.setEnd(range.endContainer, range.endOffset);
+    if (end === null) end = post.toString().length;
+  }
 
-  const CONTEXT_LEN = 16;
-  const prefix = beforeRendered.slice(-CONTEXT_LEN);
-  const suffixStartInRendered =
-    beforeRendered.length + selectedText.length;
-  const suffix = fullRenderedText.slice(
-    suffixStartInRendered,
-    suffixStartInRendered + CONTEXT_LEN,
-  );
-
-  return locateInSource(rawSource, selectedText, prefix, suffix);
+  if (start === null || end === null || end <= start) return null;
+  return { start, end };
 }
 
 /**

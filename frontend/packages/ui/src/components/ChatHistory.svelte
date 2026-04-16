@@ -496,6 +496,7 @@
     backgroundFrames = null,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
+    canAnnotate = true,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -528,6 +529,11 @@
     /** True when the active chat is an incognito chat.
      *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
     isIncognito?: boolean;
+    /** False when the viewer is looking at a shared chat they don't own.
+     *  Passed through to every ChatMessage to hide the Highlight entry points
+     *  (context menu + selection toolbar). Mirrors the backend owner-only
+     *  enforcement in message_highlight_handlers. Defaults to true. */
+    canAnnotate?: boolean;
     /** True when the active chat is a pre-made example chat.
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
@@ -1705,6 +1711,7 @@
                         isFirstMessage={msgIndex === 0}
                         {isCreditsRestored}
                         {onResend}
+                        {canAnnotate}
                     />
 
                 </div>

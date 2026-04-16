@@ -109,7 +109,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     onDeleteMessage = undefined,
     isFirstMessage = false,
     isCreditsRestored = false,
-    onResend = undefined
+    onResend = undefined,
+    canAnnotate = true
   }: {
     role?: MessageRole;
     category?: string;
@@ -144,6 +145,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     /** Callback to resend the original message after credits are restored.
      *  Called when the user clicks "Resend message" in the credits-restored banner. */
     onResend?: () => void;
+    /** False when the viewer is reading a shared chat they don't own. Hides
+     *  the Highlight entry points (context menu + selection toolbar) so the
+     *  UI mirrors the backend's owner-only enforcement. Defaults to true. */
+    canAnnotate?: boolean;
   } = $props();
   
   // State for thinking section expansion
@@ -174,16 +179,34 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let popoverInEditMode = $state(false);
   let cachedSelectionRange = $state<{ start: number; end: number } | null>(null);
 
-  /** Raw source for offset mapping. For user messages we use the original
-   *  content (string); for assistant messages we fall back to the TipTap JSON
-   *  stringified — matches how ReadOnlyMessage serializes. */
-  let rawSourceForHighlights = $derived(
-    typeof original_message?.content === 'string'
-      ? original_message.content
-      : typeof content === 'string'
-        ? content
-        : '',
-  );
+  /** Source string used for highlight offset anchoring.
+   *
+   *  We anchor to the RENDERED text (concatenation of all descendant text
+   *  nodes inside messageContentElement), not the raw markdown. Rationale:
+   *  assistant messages contain markdown (**bold**, [links](url), lists,
+   *  code, etc.) whose source string has a different length and different
+   *  character positions than what the user sees. The user selects visible
+   *  characters — so our offsets MUST be positions in the visible text for
+   *  selection-to-highlight mapping to be 1:1 correct.
+   *
+   *  Read via a function (computed on demand) because the rendered text is
+   *  not a reactive value and reading $state during a DOM read is cheap. */
+  function getRenderedTextSource(): string {
+    if (!messageContentElement) return '';
+    const walker = document.createTreeWalker(messageContentElement, NodeFilter.SHOW_TEXT);
+    let out = '';
+    let n = walker.nextNode();
+    while (n) {
+      out += (n as Text).nodeValue ?? '';
+      n = walker.nextNode();
+    }
+    return out;
+  }
+
+  // `canAnnotate` is wired from the parent (ChatHistory) based on the chat's
+  // is_shared_by_others flag. Mirrors the backend's owner-only enforcement
+  // in message_highlight_handlers._verify_chat_accessible.
+  let isSharedReadOnly = $derived(!(canAnnotate ?? true));
 
   /** The highlight the popover is bound to (or null). */
   let activeHighlight = $derived(
@@ -222,7 +245,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     const r = domSelectionToSourceRange(
       messageContentElement,
       range,
-      rawSourceForHighlights,
+      getRenderedTextSource(),
     );
     cachedSelectionRange = r;
     return r;
@@ -366,7 +389,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     const srcRange = domSelectionToSourceRange(
       messageContentElement,
       range,
-      rawSourceForHighlights,
+      getRenderedTextSource(),
     );
     if (!srcRange) {
       selectionToolbarVisible = false;
@@ -2460,7 +2483,6 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <MessageHighlightOverlay
             bind:this={overlayRef}
             contentRoot={messageContentElement ?? null}
-            rawSource={rawSourceForHighlights}
             highlights={messageHighlights}
             recomputeKey={highlightRecomputeKey + contentReadyCounter}
             focusedId={activeHighlightId}
@@ -2482,7 +2504,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
              a non-collapsed text selection. Primary entry point for touch
              devices (iOS/iPadOS suppress our contextmenu path). -->
         <MessageSelectionToolbar
-          show={selectionToolbarVisible && !!messageId && $authStore.isAuthenticated}
+          show={selectionToolbarVisible && !!messageId && $authStore.isAuthenticated && !isSharedReadOnly}
           anchorRect={selectionToolbarRect}
           onHighlight={handleToolbarHighlight}
           onHighlightAndComment={handleToolbarHighlightAndComment}
@@ -2618,9 +2640,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            onEdit={role === 'user' && messageId ? handleEdit : undefined}
            onFork={handleFork}
            disableFork={isForkDisabled}
-           onHighlight={messageId ? handleHighlightAction : undefined}
-           onHighlightAndComment={messageId ? handleHighlightAndCommentAction : undefined}
-           hideHighlight={!cachedSelectionRange}
+           onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
+           onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
+           hideHighlight={!cachedSelectionRange || isSharedReadOnly}
            {messageId}
            {userMessageId}
            {role}
