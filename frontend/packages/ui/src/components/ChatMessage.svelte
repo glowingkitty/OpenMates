@@ -10,6 +10,7 @@
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
   import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
   import HighlightCommentPopover from './HighlightCommentPopover.svelte';
+  import MessageSelectionToolbar from './MessageSelectionToolbar.svelte';
   import { domSelectionToSourceRange } from '../utils/messageHighlights';
   import { selectHighlightsForMessage, myHighlightIdsStore } from '../stores/messageHighlightsStore';
   import {
@@ -18,6 +19,7 @@
     sendRemoveMessageHighlightImpl,
   } from '../services/sendersMessageHighlights';
   import { userProfile } from '../stores/userProfile';
+  import { authStore } from '../stores/authStore';
   import type { MessageHighlight } from '../types/chat';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
@@ -317,6 +319,62 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   /** Reference to the overlay so we can ask it for a highlight's DOMRect. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let overlayRef = $state<any>(null);
+
+  // ─── Selection toolbar (touch-first entry point for Highlight) ───────────
+  // iOS/iPadOS suppresses `contextmenu` on long-press and shows the native
+  // OS menu instead — so on touch devices the MessageContextMenu path is
+  // unreachable. We listen to the cross-platform `selectionchange` event and
+  // surface a small floating toolbar (Highlight / Highlight & comment) just
+  // above the current selection whenever it lives inside this message. The
+  // toolbar also shows on desktop as a convenience — both entry points coexist.
+  let selectionToolbarRect = $state<DOMRect | null>(null);
+  let selectionToolbarVisible = $state(false);
+
+  function updateSelectionToolbarFromSelection() {
+    if (!messageContentElement || !messageId) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!messageContentElement.contains(range.commonAncestorContainer)) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    // Cache the source-offset range up front so the toolbar handler doesn't
+    // depend on the selection still being alive when the button is tapped
+    // (iOS clears the selection the moment you tap outside the text).
+    captureSelectionRange();
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    selectionToolbarRect = rect;
+    selectionToolbarVisible = true;
+  }
+
+  $effect(() => {
+    if (typeof document === 'undefined') return;
+    const onSelChange = () => updateSelectionToolbarFromSelection();
+    document.addEventListener('selectionchange', onSelChange);
+    return () => document.removeEventListener('selectionchange', onSelChange);
+  });
+
+  function handleToolbarHighlight() {
+    // captureSelectionRange already ran on selectionchange, so the source
+    // range is cached even after the selection collapses.
+    selectionToolbarVisible = false;
+    void createHighlightFromSelection(false);
+  }
+  function handleToolbarHighlightAndComment() {
+    selectionToolbarVisible = false;
+    void createHighlightFromSelection(true);
+  }
   // ─── End highlights ────────────────────────────────────────────────────────
   
   /**
@@ -2389,6 +2447,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             onClose={handlePopoverClose}
           />
         {/if}
+        <!-- Floating selection toolbar — appears whenever this message owns
+             a non-collapsed text selection. Primary entry point for touch
+             devices (iOS/iPadOS suppress our contextmenu path). -->
+        <MessageSelectionToolbar
+          show={selectionToolbarVisible && !!messageId && $authStore.isAuthenticated}
+          anchorRect={selectionToolbarRect}
+          onHighlight={handleToolbarHighlight}
+          onHighlightAndComment={handleToolbarHighlightAndComment}
+        />
 
         <!-- Thinking Section: Displayed above message content for thinking models -->
         {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
