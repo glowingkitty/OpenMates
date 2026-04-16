@@ -146,14 +146,39 @@ export interface Message {
  *   - kind='embed' → references the embed by id; renders as a yellow ring on the
  *     preview card.
  */
+/**
+ * Text-quote anchor for a text highlight — the W3C Web Annotation pattern,
+ * same as Hypothesis.is / Readwise / Kindle Web. Robust against DOM offset
+ * drift caused by re-renders, responsive reflow, and streaming content:
+ * instead of "characters 47..63 in the rendered text", we store "the string
+ * 'lazy dog' that sits between context 'the ' and ' near'". At render time
+ * we find that text in the current DOM. Same approach every serious
+ * annotation system uses, precisely because offsets are fragile.
+ */
+export interface HighlightAnchor {
+  /** The selected passage verbatim. Trimmed of leading/trailing whitespace. */
+  exact: string;
+  /** Up to ~20 chars immediately before `exact` in the rendered text. Used
+   *  to disambiguate when `exact` appears more than once in the message. */
+  prefix: string;
+  /** Up to ~20 chars immediately after `exact` in the rendered text. */
+  suffix: string;
+}
+
 export type MessageHighlight =
   | {
       id: string; // uuid, generated client-side
       kind: "text";
       chat_id: string;
       message_id: string;
-      start: number; // inclusive offset in raw markdown source
-      end: number; // exclusive
+      /** Text-quote anchor — primary source of truth for render-time lookup. */
+      anchor: HighlightAnchor;
+      /** Offsets into the rendered text of the message at create time. Kept
+       *  only as an in-memory hint to speed up the first render — NEVER the
+       *  persistence source of truth. May be stale after reflow/streaming;
+       *  the overlay always falls back to text-anchor search. */
+      start?: number;
+      end?: number;
       author_user_id: string;
       author_display_name?: string; // denormalised for offline render
       comment?: string; // ≤500 chars, trimmed; undefined = no comment
@@ -176,14 +201,20 @@ export type MessageHighlight =
     };
 
 /**
- * The encrypted-payload shape that lives inside `encrypted_payload` for one highlight
- * row. Only the semantic fields — everything the server must not see.
+ * The encrypted-payload shape that lives inside `encrypted_payload` for one
+ * highlight row. Only the semantic fields — everything the server must not see.
+ *
+ * Mirrors MessageHighlight but is a flat DTO (no kind-level field splits)
+ * so it stays stable across type refactors. `anchor` is the primary
+ * persistence format for text highlights.
  */
 export interface MessageHighlightPayload {
   kind: "text" | "embed";
-  start?: number;
-  end?: number;
+  // text kind
+  anchor?: HighlightAnchor;
+  // embed kind
   embed_id?: string;
+  // annotation
   comment?: string;
   author_display_name?: string;
   created_at: number;

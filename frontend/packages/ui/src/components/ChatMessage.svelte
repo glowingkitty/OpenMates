@@ -11,7 +11,7 @@
   import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
   import HighlightCommentPopover from './HighlightCommentPopover.svelte';
   import MessageSelectionToolbar from './MessageSelectionToolbar.svelte';
-  import { domSelectionToSourceRange } from '../utils/messageHighlights';
+  import { captureHighlightAnchor } from '../utils/messageHighlights';
   import { selectHighlightsForMessage, myHighlightIdsStore } from '../stores/messageHighlightsStore';
   import {
     sendAddMessageHighlightImpl,
@@ -20,7 +20,7 @@
   } from '../services/sendersMessageHighlights';
   import { userProfile } from '../stores/userProfile';
   import { authStore } from '../stores/authStore';
-  import type { MessageHighlight } from '../types/chat';
+  import type { HighlightAnchor, MessageHighlight } from '../types/chat';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
@@ -177,31 +177,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let activeHighlightId = $state<string | null>(null);
   let activeHighlightRect = $state<DOMRect | null>(null);
   let popoverInEditMode = $state(false);
-  let cachedSelectionRange = $state<{ start: number; end: number } | null>(null);
-
-  /** Source string used for highlight offset anchoring.
-   *
-   *  We anchor to the RENDERED text (concatenation of all descendant text
-   *  nodes inside messageContentElement), not the raw markdown. Rationale:
-   *  assistant messages contain markdown (**bold**, [links](url), lists,
-   *  code, etc.) whose source string has a different length and different
-   *  character positions than what the user sees. The user selects visible
-   *  characters — so our offsets MUST be positions in the visible text for
-   *  selection-to-highlight mapping to be 1:1 correct.
-   *
-   *  Read via a function (computed on demand) because the rendered text is
-   *  not a reactive value and reading $state during a DOM read is cheap. */
-  function getRenderedTextSource(): string {
-    if (!messageContentElement) return '';
-    const walker = document.createTreeWalker(messageContentElement, NodeFilter.SHOW_TEXT);
-    let out = '';
-    let n = walker.nextNode();
-    while (n) {
-      out += (n as Text).nodeValue ?? '';
-      n = walker.nextNode();
-    }
-    return out;
-  }
+  /** Text-quote anchor captured when the user opens the context menu. Read
+   *  by handleHighlightAction / handleHighlightAndCommentAction because the
+   *  live DOM selection may be cleared by the menu's focus change. */
+  let cachedSelectionAnchor = $state<HighlightAnchor | null>(null);
 
   // `canAnnotate` is wired from the parent (ChatHistory) based on the chat's
   // is_shared_by_others flag. Mirrors the backend's owner-only enforcement
@@ -236,25 +215,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     return messageContentElement.contains(range.commonAncestorContainer);
   }
 
-  /** Compute source-offset range from the current selection and cache it. */
-  function captureSelectionRange(): { start: number; end: number } | null {
+  /** Capture a text-quote anchor from the current live selection. Returns
+   *  null when the selection is empty, collapsed, or outside this message. */
+  function captureAnchorNow(): HighlightAnchor | null {
     if (!messageContentElement) return null;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
     const range = sel.getRangeAt(0);
-    const r = domSelectionToSourceRange(
-      messageContentElement,
-      range,
-      getRenderedTextSource(),
-    );
-    cachedSelectionRange = r;
-    return r;
+    return captureHighlightAnchor(messageContentElement, range);
   }
 
-  async function createHighlightFromSelection(openPopover: boolean) {
+  async function createHighlightFromAnchor(anchor: HighlightAnchor, openPopover: boolean) {
     if (!messageId || !original_message?.chat_id) return;
-    const range = cachedSelectionRange ?? captureSelectionRange();
-    if (!range) return;
     const chatId = original_message.chat_id;
     const now = Math.floor(Date.now() / 1000);
     const uid = $userProfile.user_id ?? '';
@@ -264,20 +236,17 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       kind: 'text',
       chat_id: chatId,
       message_id: messageId,
-      start: range.start,
-      end: range.end,
+      anchor,
       author_user_id: uid,
       author_display_name: displayName,
       created_at: now,
     };
     try {
       await sendAddMessageHighlightImpl(highlight);
-      // Clear native selection — highlight box now represents it
       window.getSelection()?.removeAllRanges();
-      cachedSelectionRange = null;
-      // After the overlay re-computes, open popover if requested.
+      cachedSelectionAnchor = null;
+      committedToolbarAnchor = null;
       if (openPopover) {
-        // Defer until the overlay has painted the boxes so we can anchor to one.
         setTimeout(() => {
           activeHighlightId = highlight.id;
           popoverInEditMode = true;
@@ -290,16 +259,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     }
   }
 
-  /** Wired to MessageContextMenu.onHighlight. Captures selection BEFORE we
-   *  close the menu (which would otherwise blow away the selection via focus
-   *  changes). */
+  /** Context-menu handlers: use whatever anchor was cached when the menu was
+   *  opened (focus may have since cleared the selection). */
   function handleHighlightAction() {
-    captureSelectionRange();
-    void createHighlightFromSelection(false);
+    const anchor = cachedSelectionAnchor ?? captureAnchorNow();
+    if (anchor) void createHighlightFromAnchor(anchor, false);
   }
   function handleHighlightAndCommentAction() {
-    captureSelectionRange();
-    void createHighlightFromSelection(true);
+    const anchor = cachedSelectionAnchor ?? captureAnchorNow();
+    if (anchor) void createHighlightFromAnchor(anchor, true);
   }
 
   /** Open popover on click of an existing highlight. */
@@ -360,10 +328,17 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // selection and would cause us to highlight the wrong text.
   let selectionToolbarRect = $state<DOMRect | null>(null);
   let selectionToolbarVisible = $state(false);
-  /** The source-offset range committed for the current toolbar instance.
-   *  Updated on each valid selectionchange while the toolbar is live. Read
-   *  at tap time. Cleared when the toolbar dismisses. */
-  let committedToolbarRange = $state<{ start: number; end: number } | null>(null);
+  /** Text-quote anchor committed for the current toolbar instance. Updated
+   *  via the debounced handler below so spurious iOS selectionchange events
+   *  during a toolbar tap can be cancelled before they overwrite. */
+  let committedToolbarAnchor = $state<HighlightAnchor | null>(null);
+  /** Pending debounce timer for committedToolbarAnchor updates. */
+  let _toolbarCommitTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Commit window — selectionchange events batch within this window.
+   *  80ms is short enough to feel instantaneous while being wide enough
+   *  to swallow the stray event iOS fires when the user lifts their finger
+   *  from a selection handle and during a tap on the toolbar button. */
+  const TOOLBAR_COMMIT_DEBOUNCE_MS = 80;
 
   function updateSelectionToolbarFromSelection() {
     if (!messageContentElement || !messageId) {
@@ -372,6 +347,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     }
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      // Don't overwrite the committed anchor on collapsed events — the tap
+      // path still needs the last good value even if iOS briefly clears the
+      // selection during the tap itself.
       selectionToolbarVisible = false;
       return;
     }
@@ -380,23 +358,14 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       selectionToolbarVisible = false;
       return;
     }
-    // Compute offsets from the CURRENT live selection and commit them to the
-    // toolbar's snapshot. We update on every valid non-collapsed selection
-    // change — so user-driven handle drags are respected — but we do NOT
-    // touch the snapshot on collapsed/out-of-message events, which is the
-    // whole point: the tap-path can still read the last good value even if
-    // iOS briefly clears the selection during the tap itself.
-    const srcRange = domSelectionToSourceRange(
-      messageContentElement,
-      range,
-      getRenderedTextSource(),
-    );
-    if (!srcRange) {
+    const anchor = captureHighlightAnchor(messageContentElement, range);
+    if (!anchor) {
       selectionToolbarVisible = false;
       return;
     }
-    committedToolbarRange = srcRange;
-    cachedSelectionRange = srcRange;
+    // Show the toolbar immediately with the rect, but DEBOUNCE the commit
+    // of the text anchor so a stray selectionchange fired during a toolbar
+    // tap has a chance to be cancelled by the tap's onmousedown handler.
     const rect = range.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       selectionToolbarVisible = false;
@@ -404,6 +373,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     }
     selectionToolbarRect = rect;
     selectionToolbarVisible = true;
+    if (_toolbarCommitTimer !== null) clearTimeout(_toolbarCommitTimer);
+    _toolbarCommitTimer = setTimeout(() => {
+      committedToolbarAnchor = anchor;
+      cachedSelectionAnchor = anchor;
+      _toolbarCommitTimer = null;
+    }, TOOLBAR_COMMIT_DEBOUNCE_MS);
   }
 
   $effect(() => {
@@ -413,21 +388,42 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     return () => document.removeEventListener('selectionchange', onSelChange);
   });
 
-  function handleToolbarHighlight() {
-    // Commit the toolbar's snapshot — ignore the current live selection which
-    // iOS may have already shifted during the tap. `cachedSelectionRange`
-    // drives createHighlightFromSelection and is left untouched below so the
-    // final write matches what the user actually saw when they tapped.
-    if (committedToolbarRange) cachedSelectionRange = committedToolbarRange;
+  /**
+   * Tap-handler for the floating toolbar buttons. Called on touchstart/
+   * mousedown — i.e. the instant the user's finger or mouse lands on the
+   * button, BEFORE iOS has any chance to fire a spurious selectionchange
+   * or collapse the selection.
+   *
+   * Resolution order for the anchor (first non-null wins):
+   *   1. The live DOM selection, captured SYNCHRONOUSLY right now. This is
+   *      the most reliable snapshot — the selection is guaranteed alive at
+   *      this exact instant.
+   *   2. committedToolbarAnchor — the debounced anchor from the last stable
+   *      selectionchange. Used if the live selection has already collapsed
+   *      (can happen on some Android browsers between mousedown and the
+   *      handler running).
+   *   3. cachedSelectionAnchor — the older context-menu path's cache.
+   */
+  function commitToolbarAction(openPopover: boolean) {
+    // Cancel any pending debounced commit so it doesn't land stale.
+    if (_toolbarCommitTimer !== null) {
+      clearTimeout(_toolbarCommitTimer);
+      _toolbarCommitTimer = null;
+    }
+    const liveAnchor = captureAnchorNow();
+    const anchor =
+      liveAnchor ?? committedToolbarAnchor ?? cachedSelectionAnchor;
     selectionToolbarVisible = false;
-    committedToolbarRange = null;
-    void createHighlightFromSelection(false);
+    committedToolbarAnchor = null;
+    if (!anchor) return;
+    void createHighlightFromAnchor(anchor, openPopover);
+  }
+
+  function handleToolbarHighlight() {
+    commitToolbarAction(false);
   }
   function handleToolbarHighlightAndComment() {
-    if (committedToolbarRange) cachedSelectionRange = committedToolbarRange;
-    selectionToolbarVisible = false;
-    committedToolbarRange = null;
-    void createHighlightFromSelection(true);
+    commitToolbarAction(true);
   }
   // ─── End highlights ────────────────────────────────────────────────────────
   
@@ -1054,11 +1050,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       return;
     }
 
-    // If a selection exists inside THIS message, capture the source-offset range
-    // up front so the Highlight button has somewhere to anchor — the menu opens
-    // *above* the selection and the native selection is cleared by focus changes.
+    // If a selection exists inside THIS message, capture a text-quote anchor
+    // up front so the Highlight button has somewhere to commit — the menu
+    // opens above the selection and the native selection is cleared by
+    // focus changes.
     const hasSelection = hasValidSelectionInMessage();
-    if (hasSelection) captureSelectionRange();
+    if (hasSelection) cachedSelectionAnchor = captureAnchorNow();
 
     event.preventDefault();
     event.stopPropagation();
@@ -1068,7 +1065,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     showMessageMenu = true;
     console.debug('[ChatMessage] Message context menu triggered (right-click)', {
       hasSelection,
-      cachedRange: cachedSelectionRange,
+      cachedAnchor: cachedSelectionAnchor,
     });
   }
 
@@ -2642,7 +2639,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            disableFork={isForkDisabled}
            onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
            onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
-           hideHighlight={!cachedSelectionRange || isSharedReadOnly}
+           hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
            {messageId}
            {userMessageId}
            {role}

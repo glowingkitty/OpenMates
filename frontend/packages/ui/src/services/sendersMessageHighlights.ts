@@ -46,8 +46,7 @@ export async function sendAddMessageHighlightImpl(
 
   const payload: MessageHighlightPayload = {
     kind: highlight.kind,
-    start: highlight.kind === "text" ? highlight.start : undefined,
-    end: highlight.kind === "text" ? highlight.end : undefined,
+    anchor: highlight.kind === "text" ? highlight.anchor : undefined,
     embed_id: highlight.kind === "embed" ? highlight.embed_id : undefined,
     comment: highlight.comment,
     author_display_name: highlight.author_display_name,
@@ -102,8 +101,7 @@ export async function sendUpdateMessageHighlightImpl(
 
   const payload: MessageHighlightPayload = {
     kind: merged.kind,
-    start: merged.kind === "text" ? merged.start : undefined,
-    end: merged.kind === "text" ? merged.end : undefined,
+    anchor: merged.kind === "text" ? merged.anchor : undefined,
     embed_id: merged.kind === "embed" ? merged.embed_id : undefined,
     comment: merged.comment,
     author_display_name: merged.author_display_name,

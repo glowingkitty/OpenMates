@@ -17,6 +17,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import type { MessageHighlight } from '../types/chat';
+  import { findAnchorInRendered } from '../utils/messageHighlights';
 
   interface Props {
     /** The element whose text nodes host the rendered message. */
@@ -59,65 +60,17 @@
   let boxes = $state<Box[]>([]);
 
   /**
-   * Build a DOM Range for a highlight whose offsets are positions in the
-   * concatenated rendered text of `root` (the source-of-truth defined by
-   * ChatMessage.getRenderedTextSource — `start`/`end` are 1:1 with what the
-   * user sees on screen).
+   * Resolve a text highlight to a DOM Range using its text-quote anchor.
+   * This is the primary lookup — immune to re-render offset drift because
+   * we find the matching text in the CURRENT rendered DOM every time.
    *
-   * Implementation: walk the text nodes, accumulate their rendered length,
-   * binary-seek the text node that contains each offset, and set the Range
-   * to the (node, offset-within-node) pair.
+   * See utils/messageHighlights.ts:findAnchorInRendered for the algorithm.
    */
   function rangeForHighlight(
     root: HTMLElement,
     highlight: Extract<MessageHighlight, { kind: 'text' }>,
   ): Range | null {
-    if (highlight.end <= highlight.start) return null;
-
-    const textNodes: Text[] = [];
-    const nodeStarts: number[] = [];
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let node: Node | null = walker.nextNode();
-    let rendered = 0;
-    while (node) {
-      const t = node as Text;
-      nodeStarts.push(rendered);
-      rendered += (t.nodeValue ?? '').length;
-      textNodes.push(t);
-      node = walker.nextNode();
-    }
-    if (rendered === 0) return null;
-
-    // If the rendered DOM has shrunk below the saved end (e.g. message was
-    // edited or streaming cut off), clamp rather than bail — we still draw
-    // whatever portion of the highlight still maps.
-    const start = Math.max(0, Math.min(highlight.start, rendered));
-    const end = Math.max(start, Math.min(highlight.end, rendered));
-    if (end <= start) return null;
-
-    function locate(offset: number): { node: Text; offset: number } | null {
-      for (let i = 0; i < textNodes.length; i++) {
-        const s = nodeStarts[i];
-        const e = s + (textNodes[i].nodeValue?.length ?? 0);
-        if (offset >= s && offset <= e) {
-          return { node: textNodes[i], offset: offset - s };
-        }
-      }
-      return null;
-    }
-
-    const startLoc = locate(start);
-    const endLoc = locate(end);
-    if (!startLoc || !endLoc) return null;
-
-    const range = document.createRange();
-    try {
-      range.setStart(startLoc.node, startLoc.offset);
-      range.setEnd(endLoc.node, endLoc.offset);
-    } catch {
-      return null;
-    }
-    return range;
+    return findAnchorInRendered(root, highlight.anchor);
   }
 
   async function recompute() {

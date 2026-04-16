@@ -16,7 +16,156 @@
 // `editor.state.doc` for embed-aware offset mapping is layered on in Phase 4
 // of the plan (see plans/when-a-user-is-fuzzy-turing.md → Build order).
 
-import type { MessageHighlight } from "../types/chat";
+import type { HighlightAnchor, MessageHighlight } from "../types/chat";
+
+const CONTEXT_LEN = 20;
+
+/**
+ * Build a text-quote anchor from the current DOM selection. Returns the
+ * selected text verbatim (trimmed of surrounding whitespace) plus up to
+ * ~20 characters of rendered-text context before and after, used to
+ * disambiguate repeated occurrences at render time.
+ *
+ * The snapshot is taken SYNCHRONOUSLY from the live selection — so callers
+ * that run this in a `touchstart` handler capture the selection as it
+ * exists at that exact instant, beating iOS's tendency to clear or shift
+ * the selection a tick later.
+ */
+export function captureHighlightAnchor(
+  contentRoot: HTMLElement,
+  range: Range,
+): HighlightAnchor | null {
+  if (range.collapsed) return null;
+  if (!contentRoot.contains(range.commonAncestorContainer)) return null;
+
+  const exact = range.toString().trim();
+  if (!exact) return null;
+
+  const pre = document.createRange();
+  pre.selectNodeContents(contentRoot);
+  pre.setEnd(range.startContainer, range.startOffset);
+  const before = pre.toString();
+
+  const post = document.createRange();
+  post.selectNodeContents(contentRoot);
+  post.setStart(range.endContainer, range.endOffset);
+  const after = post.toString();
+
+  return {
+    exact,
+    prefix: before.slice(-CONTEXT_LEN),
+    suffix: after.slice(0, CONTEXT_LEN),
+  };
+}
+
+/**
+ * Locate a text-quote anchor inside `contentRoot`'s rendered text and return
+ * a DOM Range that spans exactly the matched `exact` string. Returns null
+ * when the anchor cannot be resolved — callers should skip rendering the
+ * highlight for that one row (the store entry stays, so a later re-render
+ * with updated DOM may resolve it).
+ *
+ * Strategy: walk text nodes to build the concatenated rendered text, enumerate
+ * all occurrences of `anchor.exact`, score each by how well its surrounding
+ * characters match `anchor.prefix`/`anchor.suffix`, pick the best match, and
+ * convert that offset back to (text-node, offset-within-node) coordinates.
+ *
+ * This is the W3C Web Annotation text-quote-selector algorithm, minus the
+ * fuzzy approximation (we require an exact substring match — fast, and good
+ * enough for chat messages which don't get re-edited).
+ */
+export function findAnchorInRendered(
+  contentRoot: HTMLElement,
+  anchor: HighlightAnchor,
+): Range | null {
+  if (!anchor.exact) return null;
+
+  const textNodes: Text[] = [];
+  const nodeStarts: number[] = [];
+  const walker = document.createTreeWalker(contentRoot, NodeFilter.SHOW_TEXT);
+  let n: Node | null = walker.nextNode();
+  let rendered = "";
+  while (n) {
+    const t = n as Text;
+    nodeStarts.push(rendered.length);
+    rendered += t.nodeValue ?? "";
+    textNodes.push(t);
+    n = walker.nextNode();
+  }
+  if (!rendered) return null;
+
+  // Enumerate all occurrences of the exact text.
+  const occurrences: number[] = [];
+  let from = 0;
+  while (from <= rendered.length) {
+    const idx = rendered.indexOf(anchor.exact, from);
+    if (idx === -1) break;
+    occurrences.push(idx);
+    from = idx + 1;
+  }
+  if (occurrences.length === 0) return null;
+
+  // Pick the occurrence whose surrounding context best matches the anchor.
+  let best = occurrences[0];
+  if (occurrences.length > 1) {
+    let bestScore = -1;
+    for (const idx of occurrences) {
+      const beforeAt = rendered.slice(Math.max(0, idx - anchor.prefix.length), idx);
+      const afterAt = rendered.slice(
+        idx + anchor.exact.length,
+        idx + anchor.exact.length + anchor.suffix.length,
+      );
+      const score =
+        _commonSuffixLen(beforeAt, anchor.prefix) +
+        _commonPrefixLen(afterAt, anchor.suffix);
+      if (score > bestScore) {
+        bestScore = score;
+        best = idx;
+      }
+    }
+  }
+
+  const startAt = best;
+  const endAt = best + anchor.exact.length;
+
+  function locate(offset: number): { node: Text; off: number } | null {
+    for (let i = 0; i < textNodes.length; i++) {
+      const s = nodeStarts[i];
+      const e = s + (textNodes[i].nodeValue?.length ?? 0);
+      if (offset >= s && offset <= e) {
+        return { node: textNodes[i], off: offset - s };
+      }
+    }
+    return null;
+  }
+
+  const startLoc = locate(startAt);
+  const endLoc = locate(endAt);
+  if (!startLoc || !endLoc) return null;
+
+  const range = document.createRange();
+  try {
+    range.setStart(startLoc.node, startLoc.off);
+    range.setEnd(endLoc.node, endLoc.off);
+  } catch {
+    return null;
+  }
+  return range;
+}
+
+function _commonPrefixLen(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i++;
+  return i;
+}
+
+function _commonSuffixLen(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[a.length - 1 - i] === b[b.length - 1 - i]) i++;
+  return i;
+}
 
 /**
  * Collapse whitespace the way the browser's text rendering does so that

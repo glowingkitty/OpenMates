@@ -15,6 +15,7 @@ import {
   removeHighlight as storeRemoveHighlight,
 } from "../stores/messageHighlightsStore";
 import type {
+  HighlightAnchor,
   MessageHighlight,
   MessageHighlightAddedPayload,
   MessageHighlightRemovedPayload,
@@ -47,16 +48,27 @@ async function decryptInto(
 
   const kind = plain["kind"] as "text" | "embed";
   if (kind === "text") {
-    const start = typeof plain["start"] === "number" ? (plain["start"] as number) : undefined;
-    const end = typeof plain["end"] === "number" ? (plain["end"] as number) : undefined;
-    if (start === undefined || end === undefined) return null;
+    const anchorRaw = plain["anchor"] as Record<string, unknown> | undefined;
+    let anchor: HighlightAnchor | null = null;
+    if (anchorRaw && typeof anchorRaw["exact"] === "string") {
+      anchor = {
+        exact: String(anchorRaw["exact"]),
+        prefix: typeof anchorRaw["prefix"] === "string" ? String(anchorRaw["prefix"]) : "",
+        suffix: typeof anchorRaw["suffix"] === "string" ? String(anchorRaw["suffix"]) : "",
+      };
+    }
+    if (!anchor) {
+      console.warn(
+        `[handlersMessageHighlights] dropping text highlight ${id} — no anchor in payload (legacy offset-only row?)`,
+      );
+      return null;
+    }
     return {
       id,
       kind: "text",
       chat_id,
       message_id,
-      start,
-      end,
+      anchor,
       author_user_id,
       author_display_name:
         typeof plain["author_display_name"] === "string"
