@@ -90,21 +90,22 @@ function setupPageListeners(page: any): void {
 }
 
 /**
- * Select a contiguous substring inside a rendered message element. Uses the
- * browser's Selection/Range APIs directly (reliable across layouts) rather
- * than trying to compute coordinates for a drag-select.
+ * Select a contiguous substring inside a rendered message element and return
+ * the DOMRect of the selection (in viewport coordinates). Returns null when
+ * the text isn't found. The rect is used to right-click directly on the
+ * highlighted text so browsers keep the selection alive when the context
+ * menu opens.
  */
 async function selectTextInsideMessage(
 	page: any,
 	messageSelector: string,
 	textToSelect: string
-): Promise<boolean> {
+): Promise<{ x: number; y: number; width: number; height: number } | null> {
 	return page.evaluate(
 		({ sel, needle }: { sel: string; needle: string }) => {
 			const container = document.querySelector(sel) as HTMLElement | null;
-			if (!container) return false;
+			if (!container) return null;
 
-			// Walk text nodes, find one containing the needle.
 			const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
 			let node: Node | null = walker.nextNode();
 			while (node) {
@@ -116,34 +117,28 @@ async function selectTextInsideMessage(
 					range.setStart(t, idx);
 					range.setEnd(t, idx + needle.length);
 					const selection = window.getSelection();
-					if (!selection) return false;
+					if (!selection) return null;
 					selection.removeAllRanges();
 					selection.addRange(range);
-					return true;
+					const r = range.getBoundingClientRect();
+					return { x: r.x, y: r.y, width: r.width, height: r.height };
 				}
 				node = walker.nextNode();
 			}
-			return false;
+			return null;
 		},
 		{ sel: messageSelector, needle: textToSelect }
 	);
 }
 
-/** Dispatch a contextmenu event at the centre of the given locator. */
-async function openMessageContextMenu(page: any, messageSelector: string): Promise<void> {
-	await page.evaluate(({ sel }: { sel: string }) => {
-		const el = document.querySelector(sel) as HTMLElement | null;
-		if (!el) return;
-		const rect = el.getBoundingClientRect();
-		const ev = new MouseEvent('contextmenu', {
-			bubbles: true,
-			cancelable: true,
-			clientX: rect.left + rect.width / 2,
-			clientY: rect.top + rect.height / 2,
-			button: 2
-		});
-		el.dispatchEvent(ev);
-	}, { sel: messageSelector });
+/** Right-click at a given viewport coordinate. Used to open the message
+ *  context menu directly over a selected text range so the browser keeps the
+ *  selection alive. */
+async function rightClickAt(
+	page: any,
+	rect: { x: number; y: number; width: number; height: number }
+): Promise<void> {
+	await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2, { button: 'right' });
 }
 
 test('message highlights: add, comment, navigate, delete', async ({ page }: { page: any }) => {
@@ -182,16 +177,16 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	// STEP 2 — First highlight (no comment) via "Highlight"
 	// ───────────────────────────────────────────────────────────
 	logCheckpoint('Selecting "quick brown fox" for first highlight...');
-	const selected1 = await selectTextInsideMessage(
+	const selection1Rect = await selectTextInsideMessage(
 		page,
 		SELECTORS.userMessageContent,
 		'quick brown fox'
 	);
-	expect(selected1).toBe(true);
+	expect(selection1Rect).not.toBeNull();
 	await takeStepScreenshot(page, 'selection-1');
 
-	// Open context menu on the message bubble.
-	await openMessageContextMenu(page, SELECTORS.userMessageContent);
+	// Right-click directly on the selected text so the selection survives.
+	await rightClickAt(page, selection1Rect!);
 	const highlightBtn = page.locator(SELECTORS.messageContextHighlight);
 	await expect(highlightBtn).toBeVisible({ timeout: 5000 });
 	await highlightBtn.click();

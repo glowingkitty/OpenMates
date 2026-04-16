@@ -91,6 +91,24 @@ async def handle_add_message_highlight(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
 ):
+    _otel_span, _otel_token = None, None
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("add_message_highlight", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        await _impl_add(websocket, manager, directus_service, user_id, device_fingerprint_hash, payload)
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span
+                end_ws_handler_span(_otel_span, _otel_token)
+            except Exception:
+                pass
+
+
+async def _impl_add(websocket, manager, directus_service, user_id, device_fingerprint_hash, payload):
     chat_id = payload.get("chat_id")
     message_id = payload.get("message_id")
     highlight_id = payload.get("id")
@@ -181,6 +199,24 @@ async def handle_update_message_highlight(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
 ):
+    _otel_span, _otel_token = None, None
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("update_message_highlight", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        await _impl_update(manager, directus_service, user_id, device_fingerprint_hash, payload)
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span
+                end_ws_handler_span(_otel_span, _otel_token)
+            except Exception:
+                pass
+
+
+async def _impl_update(manager, directus_service, user_id, device_fingerprint_hash, payload):
     chat_id = payload.get("chat_id")
     message_id = payload.get("message_id")
     highlight_id = payload.get("id")
@@ -265,6 +301,24 @@ async def handle_remove_message_highlight(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
 ):
+    _otel_span, _otel_token = None, None
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+        _otel_span, _otel_token = start_ws_handler_span("remove_message_highlight", user_id, payload, user_otel_attrs)
+    except Exception:
+        pass
+    try:
+        await _impl_remove(manager, directus_service, user_id, device_fingerprint_hash, payload)
+    finally:
+        if _otel_span is not None:
+            try:
+                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span
+                end_ws_handler_span(_otel_span, _otel_token)
+            except Exception:
+                pass
+
+
+async def _impl_remove(manager, directus_service, user_id, device_fingerprint_hash, payload):
     chat_id = payload.get("chat_id")
     message_id = payload.get("message_id")
     highlight_id = payload.get("id")
