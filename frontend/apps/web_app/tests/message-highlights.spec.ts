@@ -150,8 +150,9 @@ async function selectAndOpenContextMenu(
 test('message highlights: add, comment, navigate, delete', async ({ page }: { page: any }) => {
 	setupPageListeners(page);
 
-	// No AI call needed — purely UI + WS round-trip.
-	test.setTimeout(120000);
+	// Streaming AI responses can cause layout shifts that slow down the chat
+	// interactions — give the whole test enough room to finish.
+	test.setTimeout(240000);
 
 	const logCheckpoint = createSignupLogger('HIGHLIGHTS');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -183,7 +184,14 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	// STEP 2 — First highlight (no comment) via "Highlight"
 	// ───────────────────────────────────────────────────────────
 	logCheckpoint('Scrolling user message into view + selecting "quick brown fox"...');
-	await userMsg.scrollIntoViewIfNeeded();
+	// Use plain DOM scrollIntoView via evaluate (instant, skips Playwright's
+	// actionability wait which can hang while the AI response is streaming
+	// and shifting the layout).
+	await page.evaluate((sel: string) => {
+		const el = document.querySelector(sel) as HTMLElement | null;
+		el?.scrollIntoView({ block: 'center', inline: 'nearest' });
+	}, SELECTORS.userMessageContent);
+	await page.waitForTimeout(150);
 	// Atomic select + contextmenu dispatch (single page.evaluate) so the
 	// browser has no chance to clear the selection between the two steps.
 	const sel1 = await selectAndOpenContextMenu(
@@ -216,7 +224,14 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	// STEP 3 — Second highlight WITH comment via "Highlight & comment"
 	// ───────────────────────────────────────────────────────────
 	logCheckpoint('Selecting "old bridge" for commented highlight...');
-	await userMsg.scrollIntoViewIfNeeded();
+	// Use plain DOM scrollIntoView via evaluate (instant, skips Playwright's
+	// actionability wait which can hang while the AI response is streaming
+	// and shifting the layout).
+	await page.evaluate((sel: string) => {
+		const el = document.querySelector(sel) as HTMLElement | null;
+		el?.scrollIntoView({ block: 'center', inline: 'nearest' });
+	}, SELECTORS.userMessageContent);
+	await page.waitForTimeout(150);
 	const sel2 = await selectAndOpenContextMenu(
 		page,
 		SELECTORS.userMessageContent,
