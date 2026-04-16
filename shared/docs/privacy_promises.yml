@@ -233,9 +233,12 @@ promises:
     verification: documentation
     gdpr_articles: ["Art. 5(1)(b)"]
     enforcement:
+      - file: shared/docs/provider_training_policies.yml
+        what: Per-provider audit of training policies with verbatim quotes, verification dates, and opt-out actions taken
       - file: shared/docs/privacy_policy.yml
         what: Canonical privacy policy discloses provider contracts with no-training clauses
     docs:
+      - shared/docs/provider_training_policies.yml
       - docs/architecture/privacy/pii-protection.md
       - shared/docs/privacy_policy.yml
     tests: []

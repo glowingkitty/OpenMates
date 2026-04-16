@@ -4066,7 +4066,7 @@ promises.no_training_on_user_data.heading:
   verified_by_human: []
 promises.no_training_on_user_data.description:
   context: Privacy promise description — no training on user data
-  en: Our contracts with AI providers such as Anthropic, OpenAI, and Mistral include explicit no-training clauses. Your chats are never used to fine-tune, evaluate, or otherwise train the underlying models.
+  en: "All AI chat providers we use (Anthropic, OpenAI, Mistral, Google Gemini, Google Vertex AI, Together AI, Groq, Cerebras, and OpenRouter) have explicit no-training clauses in their terms — your conversations are never used to fine-tune, evaluate, or otherwise train AI models. For image generation, Recraft has a training opt-out which we have activated. fal.ai (used for draft image generation) may use anonymized, aggregated derivatives of prompts for model improvement under their standard API terms; no full opt-out is available outside an enterprise contract. A per-provider audit with verbatim policy quotes and verification dates is published in our open-source repository."
   verified_by_human: []
 promises.no_external_resources.heading:
   context: Privacy promise heading — no external images or scripts
