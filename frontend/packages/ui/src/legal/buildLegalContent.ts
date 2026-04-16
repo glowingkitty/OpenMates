@@ -118,7 +118,7 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   lines.push(t("legal.privacy.overview.summary"));
   lines.push("");
-  lines.push(t("legal.privacy.overview.website_vs_webapp"));
+  lines.push(t("legal.privacy.data_protection.website_vs_webapp"));
   lines.push("");
 
   // ──────────────────────────────────────────────────────────────
