@@ -37,6 +37,12 @@ semantic:
   error-light:  { light: "rgba(231, 76, 60, 0.1)", dark: "rgba(255, 107, 107, 0.15)" }
   warning:      { light: "#e67e22", dark: "#f0a050" }
   warning-bg:   { light: "rgba(230, 126, 34, 0.1)", dark: "rgba(240, 160, 80, 0.15)" }
+  # Highlight yellow — used for search/snippet match marks AND the message-highlight
+  # annotation layer (MessageContextMenu → Highlight). Single source of truth so
+  # every "yellow highlight" in the app stays visually consistent. Same colour in
+  # both themes: the yellow overlay must remain recognisable on any background.
+  highlight-yellow:        { light: "rgba(255, 213, 0, 0.4)", dark: "rgba(255, 213, 0, 0.4)" }
+  highlight-yellow-solid:  { light: "#ffd500", dark: "#ffd500" }
 
 button:
   primary:           { value: "#ff553b" }

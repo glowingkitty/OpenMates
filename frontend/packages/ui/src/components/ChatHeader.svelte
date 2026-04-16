@@ -80,6 +80,13 @@
      *  (the real video is still available via the play button → fullscreen embed).
      *  This avoids per-visitor video delivery cost on the public intro chat. */
     backgroundFrames = null,
+    /** Aggregated highlight counts across all messages in this chat. When
+     *  `highlights > 0`, a yellow pill is rendered below the summary. Clicking
+     *  the pill fires `onHighlightJump` so the parent can scroll to the first
+     *  highlight and activate the navigation overlay. */
+    highlightStats = null,
+    /** Called when the user clicks the highlights pill. */
+    onHighlightJump = undefined,
   }: {
     title?: string;
     category?: string | null;
@@ -102,6 +109,10 @@
     videoStartTime?: number;
     /** Image URLs for the crossfading Ken-Burns slideshow. */
     backgroundFrames?: string[] | null;
+    /** Aggregated highlight counts across all messages in this chat. */
+    highlightStats?: { highlights: number; comments: number } | null;
+    /** Click handler for the highlights pill. */
+    onHighlightJump?: (() => void) | undefined;
   } = $props();
 
   /** True when we should render the static-image slideshow instead of an autoplay video. */
@@ -399,6 +410,32 @@
 
   /** Whether to show the creation time line. Only shown once we have a title+category. */
   let showTime = $derived(isLoaded && !!formattedTime);
+
+  // ─── Highlights pill ───────────────────────────────────────────────────────
+  /** True when at least one highlight exists in the chat — render the yellow pill. */
+  let showHighlightPill = $derived(
+    isLoaded && !!highlightStats && highlightStats.highlights > 0,
+  );
+  /** Pill label: "3 highlights" or "3 highlights, 2 comments". Picks the
+   *  comments variant only when at least one comment actually exists. */
+  let highlightPillLabel = $derived.by(() => {
+    if (!highlightStats || highlightStats.highlights <= 0) return '';
+    if (highlightStats.comments > 0) {
+      return $text('chat.header.highlights_with_comments', {
+        values: {
+          count: highlightStats.highlights,
+          comments: highlightStats.comments,
+        },
+      });
+    }
+    return $text('chat.header.highlights', {
+      values: { count: highlightStats.highlights },
+    });
+  });
+  function handleHighlightPillClick(e: MouseEvent) {
+    e.stopPropagation();
+    onHighlightJump?.();
+  }
 </script>
 
 <!-- Banner container: always rendered when either loading or loaded.
@@ -556,6 +593,20 @@
           <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
         {/if}
 
+        <!-- Highlights pill: yellow annotation-layer count. Clickable when an
+             onHighlightJump handler is wired; falls back to a static badge
+             otherwise so the count is still visible in read-only contexts
+             (e.g. shared-chat preview rendered without the nav overlay). -->
+        {#if showHighlightPill}
+          <button
+            class="highlight-count-pill"
+            type="button"
+            data-testid="chat-header-highlight-count"
+            onclick={handleHighlightPillClick}
+            disabled={!onHighlightJump}
+          >{highlightPillLabel}</button>
+        {/if}
+
         <!-- Creation time -->
         {#if showTime}
           <span class="loaded-time">{formattedTime}</span>
@@ -611,8 +662,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Smooth background + height transition when switching states */
-    transition: background 0.5s ease, height 0.3s ease, min-height 0.3s ease;
+    /* Create an independent stacking + paint context for the banner. Without
+       `isolation: isolate`, the blurred orbs (filter:blur(28px), mix with
+       animated gradient) share a compositor layer with the outer page, and
+       Chrome can leave that layer in a stale state after a neighbouring
+       layout disturbance (closing a fullscreen embed while the banner is
+       scrolled off-screen) — the symptom is title/summary/icon rendered in
+       the DOM but invisible until scroll/resize forces a recomposite. */
+    isolation: isolate;
+    /* Only the background gradient transitions — height / min-height changes
+       (triggered by the `.side-by-side-active` / `.menu-open` overrides) are
+       applied instantly. The previous `height 0.3s, min-height 0.3s`
+       transition could interpolate while the banner was off-screen and leave
+       the flex-centered `.loaded-content` at a stale Y position inside the
+       overflow-hidden banner, clipping all content until the next reflow. */
+    transition: background 0.5s ease;
     box-shadow: var(--shadow-xl);
     /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
     pointer-events: none;
@@ -794,6 +858,42 @@
     background: rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     letter-spacing: 0.02em;
+  }
+
+  /* Highlights pill: yellow chip showing "N highlights" or "N highlights, M
+     comments". Sits below the summary inside .loaded-content. Dark text on the
+     yellow token so it stays legible against any category gradient. When the
+     parent wires onHighlightJump it becomes clickable with a subtle hover. */
+  .highlight-count-pill {
+    all: unset;
+    display: inline-block;
+    margin-top: var(--spacing-4);
+    padding: 3px 12px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-grey-100, #000);
+    background: var(--color-highlight-yellow, rgba(255, 213, 0, 0.4));
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    /* Pill sits on top of banner media / orbs; re-enable pointer events
+       (banner container uses pointer-events:none for decorative content). */
+    pointer-events: auto;
+    transition: background-color var(--duration-fast) var(--easing-default),
+                transform var(--duration-fast) var(--easing-default);
+  }
+
+  .highlight-count-pill:hover {
+    background: var(--color-highlight-yellow-solid, #ffd500);
+  }
+
+  .highlight-count-pill:active {
+    transform: scale(0.97);
+  }
+
+  .highlight-count-pill:disabled {
+    cursor: default;
+    opacity: 0.85;
   }
 
   /* Summary: 14px, white, centered. Always white regardless of theme — sits on

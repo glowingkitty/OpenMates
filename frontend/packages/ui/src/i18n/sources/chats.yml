@@ -2293,6 +2293,181 @@ context_menu.edit:
   he: עריכה
   verified_by_human: []
 
+context_menu.highlight:
+  context: Message context menu option to mark the selected text with a yellow highlight. Stored as part of the message, visible to everyone with access to the chat. 1 word.
+  en: Highlight
+  de: Markieren
+  zh: 标亮
+  es: Resaltar
+  fr: Surligner
+  pt: Destacar
+  ru: Выделить
+  ja: ハイライト
+  ko: 강조
+  it: Evidenzia
+  tr: Vurgula
+  vi: Đánh dấu
+  id: Sorot
+  pl: Wyróżnij
+  nl: Markeren
+  ar: تمييز
+  hi: हाइलाइट करें
+  th: ไฮไลต์
+  cs: Zvýraznit
+  sv: Markera
+  he: הדגשה
+  verified_by_human: []
+
+context_menu.highlight_and_comment:
+  context: Message context menu option that highlights the selection AND immediately opens a comment popover so the user can add a note about the highlighted passage.
+  en: Highlight & comment
+  de: Markieren & kommentieren
+  zh: 标亮并评论
+  es: Resaltar y comentar
+  fr: Surligner et commenter
+  pt: Destacar e comentar
+  ru: Выделить и прокомментировать
+  ja: ハイライト & コメント
+  ko: 강조 및 의견
+  it: Evidenzia e commenta
+  tr: Vurgula ve yorumla
+  vi: Đánh dấu & bình luận
+  id: Sorot & komentar
+  pl: Wyróżnij i skomentuj
+  nl: Markeren & opmerking
+  ar: تمييز وتعليق
+  hi: हाइलाइट करें और टिप्पणी करें
+  th: ไฮไลต์และแสดงความคิดเห็น
+  cs: Zvýraznit a komentovat
+  sv: Markera & kommentera
+  he: הדגשה ותגובה
+  verified_by_human: []
+
+highlight.comment_placeholder:
+  context: Placeholder text inside the comment textarea of the highlight comment popover, inviting the user to write a short note about the highlighted passage.
+  en: Add a comment…
+  de: Kommentar hinzufügen…
+  zh: 添加评论…
+  es: Añadir un comentario…
+  fr: Ajouter un commentaire…
+  pt: Adicionar um comentário…
+  ru: Добавить комментарий…
+  ja: コメントを追加…
+  ko: 의견 추가…
+  it: Aggiungi un commento…
+  tr: Bir yorum ekle…
+  vi: Thêm bình luận…
+  id: Tambahkan komentar…
+  pl: Dodaj komentarz…
+  nl: Voeg een opmerking toe…
+  ar: إضافة تعليق…
+  hi: टिप्पणी जोड़ें…
+  th: เพิ่มความคิดเห็น…
+  cs: Přidat komentář…
+  sv: Lägg till en kommentar…
+  he: הוסף תגובה…
+  verified_by_human: []
+
+highlight.save:
+  context: Button label to save the comment on a highlighted passage.
+  en: Save
+  de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
+  ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
+  he: שמירה
+  verified_by_human: []
+
+highlight.cancel:
+  context: Button label to cancel editing a comment on a highlighted passage.
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  he: ביטול
+  verified_by_human: []
+
+highlight.edit:
+  context: Button label to edit an existing comment on a highlighted passage. Shown only to the comment author.
+  en: Edit
+  de: Bearbeiten
+  zh: 编辑
+  es: Editar
+  fr: Modifier
+  pt: Editar
+  ru: Изменить
+  ja: 編集
+  ko: 편집
+  it: Modifica
+  tr: Düzenle
+  vi: Chỉnh sửa
+  id: Edit
+  pl: Edytuj
+  nl: Bewerken
+  ar: تعديل
+  hi: संपादित करें
+  th: แก้ไข
+  cs: Upravit
+  sv: Redigera
+  he: עריכה
+  verified_by_human: []
+
+highlight.delete:
+  context: Button label to delete an existing highlight (and its comment, if any). Shown only to the highlight author.
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Ta bort
+  he: מחיקה
+  verified_by_human: []
+
 edit_banner.editing:
   context: Banner text shown above the message input when editing a previous message
   en: Editing message

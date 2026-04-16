@@ -841,6 +841,56 @@ creating_new_chat:
   sv: Skapar ny chatt ...
   he: "יוצר צ'אט חדש..."
   verified_by_human: []
+header.highlights:
+  context: Yellow pill shown in the chat header when the chat has at least one highlighted passage. {count} is the total number of highlights across all messages. Clicking the pill scrolls to the first highlight. Plural form — handle {count} == 1 appropriately in each locale.
+  en: "{count} highlights"
+  de: "{count} Markierungen"
+  zh: "{count} 条标亮"
+  es: "{count} resaltados"
+  fr: "{count} surlignages"
+  pt: "{count} destaques"
+  ru: "{count} выделений"
+  ja: "{count} 件のハイライト"
+  ko: "하이라이트 {count}개"
+  it: "{count} evidenziazioni"
+  tr: "{count} vurgulama"
+  vi: "{count} mục đánh dấu"
+  id: "{count} sorotan"
+  pl: "{count} wyróżnień"
+  nl: "{count} markeringen"
+  ar: "{count} تمييزات"
+  hi: "{count} हाइलाइट"
+  th: "{count} ไฮไลต์"
+  cs: "{count} zvýraznění"
+  sv: "{count} markeringar"
+  he: "{count} הדגשות"
+  verified_by_human: []
+
+header.highlights_with_comments:
+  context: Yellow pill shown in the chat header when the chat has highlights AND at least one of them has a comment. {count} is total highlights, {comments} is total comments. Both shown in one pill separated by a comma.
+  en: "{count} highlights, {comments} comments"
+  de: "{count} Markierungen, {comments} Kommentare"
+  zh: "{count} 条标亮, {comments} 条评论"
+  es: "{count} resaltados, {comments} comentarios"
+  fr: "{count} surlignages, {comments} commentaires"
+  pt: "{count} destaques, {comments} comentários"
+  ru: "{count} выделений, {comments} комментариев"
+  ja: "{count} 件のハイライト, {comments} 件のコメント"
+  ko: "하이라이트 {count}개, 의견 {comments}개"
+  it: "{count} evidenziazioni, {comments} commenti"
+  tr: "{count} vurgulama, {comments} yorum"
+  vi: "{count} mục đánh dấu, {comments} bình luận"
+  id: "{count} sorotan, {comments} komentar"
+  pl: "{count} wyróżnień, {comments} komentarzy"
+  nl: "{count} markeringen, {comments} opmerkingen"
+  ar: "{count} تمييزات، {comments} تعليقات"
+  hi: "{count} हाइलाइट, {comments} टिप्पणियां"
+  th: "{count} ไฮไลต์, {comments} ความคิดเห็น"
+  cs: "{count} zvýraznění, {comments} komentářů"
+  sv: "{count} markeringar, {comments} kommentarer"
+  he: "{count} הדגשות, {comments} תגובות"
+  verified_by_human: []
+
 header.not_enough_credits:
   context: Text shown in the chat header banner when user has no credits and a new chat message was rejected. Replaces the "Creating new chat..." shimmer text.
   en: Not enough credits
