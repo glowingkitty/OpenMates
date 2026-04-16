@@ -90,21 +90,23 @@ function setupPageListeners(page: any): void {
 }
 
 /**
- * Select a contiguous substring inside a rendered message element and return
- * the DOMRect of the selection (in viewport coordinates). Returns null when
- * the text isn't found. The rect is used to right-click directly on the
- * highlighted text so browsers keep the selection alive when the context
- * menu opens.
+ * Select text inside a rendered message AND atomically dispatch a contextmenu
+ * event on the message element, all from within a single page.evaluate call so
+ * the selection is still live when the event fires. Returns { selected, rect }
+ * where `selected` is true when the substring was found.
+ *
+ * This is more reliable than the physical-mouse approach because we're not
+ * racing against layout shifts from streaming AI responses.
  */
-async function selectTextInsideMessage(
+async function selectAndOpenContextMenu(
 	page: any,
 	messageSelector: string,
 	textToSelect: string
-): Promise<{ x: number; y: number; width: number; height: number } | null> {
+): Promise<{ selected: boolean; rect: { x: number; y: number; width: number; height: number } | null }> {
 	return page.evaluate(
 		({ sel, needle }: { sel: string; needle: string }) => {
 			const container = document.querySelector(sel) as HTMLElement | null;
-			if (!container) return null;
+			if (!container) return { selected: false, rect: null };
 
 			const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
 			let node: Node | null = walker.nextNode();
@@ -117,29 +119,33 @@ async function selectTextInsideMessage(
 					range.setStart(t, idx);
 					range.setEnd(t, idx + needle.length);
 					const selection = window.getSelection();
-					if (!selection) return null;
+					if (!selection) return { selected: false, rect: null };
 					selection.removeAllRanges();
 					selection.addRange(range);
 					const r = range.getBoundingClientRect();
-					return { x: r.x, y: r.y, width: r.width, height: r.height };
+					// Immediately dispatch contextmenu — the selection is still live.
+					const ev = new MouseEvent('contextmenu', {
+						bubbles: true,
+						cancelable: true,
+						view: window,
+						clientX: Math.max(0, r.x + r.width / 2),
+						clientY: Math.max(0, r.y + r.height / 2),
+						button: 2
+					});
+					container.dispatchEvent(ev);
+					return {
+						selected: true,
+						rect: { x: r.x, y: r.y, width: r.width, height: r.height }
+					};
 				}
 				node = walker.nextNode();
 			}
-			return null;
+			return { selected: false, rect: null };
 		},
 		{ sel: messageSelector, needle: textToSelect }
 	);
 }
 
-/** Right-click at a given viewport coordinate. Used to open the message
- *  context menu directly over a selected text range so the browser keeps the
- *  selection alive. */
-async function rightClickAt(
-	page: any,
-	rect: { x: number; y: number; width: number; height: number }
-): Promise<void> {
-	await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2, { button: 'right' });
-}
 
 test('message highlights: add, comment, navigate, delete', async ({ page }: { page: any }) => {
 	setupPageListeners(page);
@@ -176,17 +182,17 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	// ───────────────────────────────────────────────────────────
 	// STEP 2 — First highlight (no comment) via "Highlight"
 	// ───────────────────────────────────────────────────────────
-	logCheckpoint('Selecting "quick brown fox" for first highlight...');
-	const selection1Rect = await selectTextInsideMessage(
+	logCheckpoint('Scrolling user message into view + selecting "quick brown fox"...');
+	await userMsg.scrollIntoViewIfNeeded();
+	// Atomic select + contextmenu dispatch (single page.evaluate) so the
+	// browser has no chance to clear the selection between the two steps.
+	const sel1 = await selectAndOpenContextMenu(
 		page,
 		SELECTORS.userMessageContent,
 		'quick brown fox'
 	);
-	expect(selection1Rect).not.toBeNull();
+	expect(sel1.selected).toBe(true);
 	await takeStepScreenshot(page, 'selection-1');
-
-	// Right-click directly on the selected text so the selection survives.
-	await rightClickAt(page, selection1Rect!);
 	const highlightBtn = page.locator(SELECTORS.messageContextHighlight);
 	await expect(highlightBtn).toBeVisible({ timeout: 5000 });
 	await highlightBtn.click();
@@ -210,14 +216,14 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	// STEP 3 — Second highlight WITH comment via "Highlight & comment"
 	// ───────────────────────────────────────────────────────────
 	logCheckpoint('Selecting "old bridge" for commented highlight...');
-	const selected2 = await selectTextInsideMessage(
+	await userMsg.scrollIntoViewIfNeeded();
+	const sel2 = await selectAndOpenContextMenu(
 		page,
 		SELECTORS.userMessageContent,
 		'old bridge'
 	);
-	expect(selected2).toBe(true);
+	expect(sel2.selected).toBe(true);
 
-	await openMessageContextMenu(page, SELECTORS.userMessageContent);
 	const commentBtn = page.locator(SELECTORS.messageContextHighlightAndComment);
 	await expect(commentBtn).toBeVisible({ timeout: 5000 });
 	await commentBtn.click();
