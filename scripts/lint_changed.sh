@@ -449,6 +449,20 @@ run_eslint_file() {
   elif [[ -f "${repo_root}/node_modules/eslint/bin/eslint.js" ]]; then
     eslint_bin_path="${repo_root}/node_modules/eslint/bin/eslint.js"
     eslint_root="${repo_root}"
+  else
+    # Walk upward from pkg_root until we find an eslint binary. Handles the
+    # monorepo case where a nested `package.json` (e.g. tests/package.json with
+    # just `{"type":"commonjs"}` for Playwright's CJS require()) causes
+    # find_pkg_root to stop short of the real workspace root that holds deps.
+    local probe_dir="${pkg_root}"
+    while [[ "${probe_dir}" != "/" && "${probe_dir}" != "${repo_root}" ]]; do
+      probe_dir="$(dirname "${probe_dir}")"
+      if [[ -f "${probe_dir}/node_modules/eslint/bin/eslint.js" ]]; then
+        eslint_bin_path="${probe_dir}/node_modules/eslint/bin/eslint.js"
+        eslint_root="${probe_dir}"
+        break
+      fi
+    done
   fi
 
   if [[ "${pnpm_cmd}" == "pnpm" ]]; then
@@ -459,6 +473,18 @@ run_eslint_file() {
     eslint_target="${pkg_root}/${rel_file}"
     if [[ -f "${pkg_root}/eslint.config.js" ]]; then
       eslint_config_args=(--config "${pkg_root}/eslint.config.js")
+    else
+      # Walk upward to find the nearest eslint.config.js — matches the eslint
+      # binary lookup above so a nested package.json without its own config
+      # still gets linted with the surrounding workspace rules.
+      local cfg_dir="${pkg_root}"
+      while [[ "${cfg_dir}" != "/" && "${cfg_dir}" != "${repo_root}" ]]; do
+        cfg_dir="$(dirname "${cfg_dir}")"
+        if [[ -f "${cfg_dir}/eslint.config.js" ]]; then
+          eslint_config_args=(--config "${cfg_dir}/eslint.config.js")
+          break
+        fi
+      done
     fi
   fi
 

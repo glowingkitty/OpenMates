@@ -116,7 +116,11 @@ class ChatDatabase {
   //             that may have been saved to chats_db before the server migrated to word-slug IDs.
   // Version 22: key_version + key_fingerprint fields on chats store (no migration needed — new nullable fields).
   //             Enables key rotation, decryption failure diagnosis, and audit trail.
-  private readonly VERSION = 22;
+  // Version 23: message_highlights store — per-row E2EE highlight/annotation rows.
+  //             Primary key: id (uuid). Indexed by message_id and chat_id for
+  //             bulk load on chat open + per-message decoration rendering.
+  private readonly VERSION = 23;
+  public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private initializationPromise: Promise<void> | null = null;
 
@@ -840,6 +844,21 @@ class ChatDatabase {
         unique: false,
       });
       console.warn("[ChatDatabase] Created pending_embed_operations store");
+    }
+
+    // Message highlights store (v23) — per-row E2EE highlight/annotation rows.
+    // Each row is one highlight on one message. Author creates locally, encrypts
+    // with chat key, syncs via WS. On load we pull rows by message_id and apply
+    // decorations in ReadOnlyMessage. See docs/architecture and the feature plan.
+    if (!db.objectStoreNames.contains(this.MESSAGE_HIGHLIGHTS_STORE_NAME)) {
+      const highlightsStore = db.createObjectStore(
+        this.MESSAGE_HIGHLIGHTS_STORE_NAME,
+        { keyPath: "id" },
+      );
+      highlightsStore.createIndex("chat_id", "chat_id", { unique: false });
+      highlightsStore.createIndex("message_id", "message_id", { unique: false });
+      highlightsStore.createIndex("chat_id_message_id", ["chat_id", "message_id"], { unique: false });
+      console.warn("[ChatDatabase] Created message_highlights store (v23)");
     }
 
     // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.

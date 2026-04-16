@@ -6769,7 +6769,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // starts closed, so the store would otherwise have hasPrev=false/hasNext=false
          // until the user opens the sidebar at least once.
          updateNavFromCache(chat.chat_id);
-        
+
+         // Load this chat's highlights from IndexedDB into the in-memory store
+         // so the ChatHeader pill + in-message overlays render without waiting
+         // for a WS round-trip. Fire-and-forget — highlight render isn't on the
+         // critical path for opening the chat.
+         void (async () => {
+             try {
+                 const { getHighlightsForChat } = await import('../services/db/messageHighlights');
+                 const { loadHighlightsForChat } = await import('../stores/messageHighlightsStore');
+                 const rows = await getHighlightsForChat(chatDB, chat.chat_id);
+                 loadHighlightsForChat(chat.chat_id, rows);
+             } catch (err) {
+                 console.warn('[ActiveChat] Failed to load message_highlights for chat', chat.chat_id, err);
+             }
+         })();
+
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
         if (showCodeFullscreen) {

@@ -8,6 +8,17 @@
   import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
+  import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
+  import HighlightCommentPopover from './HighlightCommentPopover.svelte';
+  import { domSelectionToSourceRange } from '../utils/messageHighlights';
+  import { selectHighlightsForMessage } from '../stores/messageHighlightsStore';
+  import {
+    sendAddMessageHighlightImpl,
+    sendUpdateMessageHighlightImpl,
+    sendRemoveMessageHighlightImpl,
+  } from '../services/sendersMessageHighlights';
+  import { userProfile } from '../stores/userProfile';
+  import type { MessageHighlight } from '../types/chat';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
@@ -135,6 +146,178 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   
   // State for thinking section expansion
   let thinkingExpanded = $state(false);
+
+  // ─── Highlights ────────────────────────────────────────────────────────────
+  // Reactive list of highlights for THIS message, from the shared store.
+  let highlightsStore = $derived(
+    messageId && original_message?.chat_id
+      ? selectHighlightsForMessage(original_message.chat_id, messageId)
+      : null,
+  );
+  let messageHighlights = $state<MessageHighlight[]>([]);
+  $effect(() => {
+    if (!highlightsStore) { messageHighlights = []; return; }
+    const unsub = highlightsStore.subscribe((v) => { messageHighlights = v; });
+    return unsub;
+  });
+
+  /** Bump to force MessageHighlightOverlay to recompute rects (after TipTap
+   *  content lands, window resize, etc.). */
+  let highlightRecomputeKey = $state(0);
+
+  /** Popover state — open when user clicks an existing highlight or uses
+   *  "Highlight & comment". */
+  let activeHighlightId = $state<string | null>(null);
+  let activeHighlightRect = $state<DOMRect | null>(null);
+  let popoverInEditMode = $state(false);
+  let cachedSelectionRange = $state<{ start: number; end: number } | null>(null);
+
+  /** Raw source for offset mapping. For user messages we use the original
+   *  content (string); for assistant messages we fall back to the TipTap JSON
+   *  stringified — matches how ReadOnlyMessage serializes. */
+  let rawSourceForHighlights = $derived(
+    typeof original_message?.content === 'string'
+      ? original_message.content
+      : typeof content === 'string'
+        ? content
+        : '',
+  );
+
+  /** The highlight the popover is bound to (or null). */
+  let activeHighlight = $derived(
+    activeHighlightId
+      ? messageHighlights.find((h) => h.id === activeHighlightId) ?? null
+      : null,
+  );
+
+  function makeUuid(): string {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+    // RFC4122 v4 fallback (rare)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  /** True when there's a non-empty user selection inside this message. */
+  function hasValidSelectionInMessage(): boolean {
+    if (!messageContentElement) return false;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
+    const range = sel.getRangeAt(0);
+    return messageContentElement.contains(range.commonAncestorContainer);
+  }
+
+  /** Compute source-offset range from the current selection and cache it. */
+  function captureSelectionRange(): { start: number; end: number } | null {
+    if (!messageContentElement) return null;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    const r = domSelectionToSourceRange(
+      messageContentElement,
+      range,
+      rawSourceForHighlights,
+    );
+    cachedSelectionRange = r;
+    return r;
+  }
+
+  async function createHighlightFromSelection(openPopover: boolean) {
+    if (!messageId || !original_message?.chat_id) return;
+    const range = cachedSelectionRange ?? captureSelectionRange();
+    if (!range) return;
+    const chatId = original_message.chat_id;
+    const now = Math.floor(Date.now() / 1000);
+    const uid = $userProfile.user_id ?? '';
+    const displayName = $userProfile.username || undefined;
+    const highlight: MessageHighlight = {
+      id: makeUuid(),
+      kind: 'text',
+      chat_id: chatId,
+      message_id: messageId,
+      start: range.start,
+      end: range.end,
+      author_user_id: uid,
+      author_display_name: displayName,
+      created_at: now,
+    };
+    try {
+      await sendAddMessageHighlightImpl(highlight);
+      // Clear native selection — highlight box now represents it
+      window.getSelection()?.removeAllRanges();
+      cachedSelectionRange = null;
+      // After the overlay re-computes, open popover if requested.
+      if (openPopover) {
+        // Defer until the overlay has painted the boxes so we can anchor to one.
+        setTimeout(() => {
+          activeHighlightId = highlight.id;
+          popoverInEditMode = true;
+          activeHighlightRect = overlayRef?.getHighlightRect(highlight.id) ?? null;
+        }, 30);
+      }
+      highlightRecomputeKey += 1;
+    } catch (err) {
+      console.error('[ChatMessage] Failed to add highlight', err);
+    }
+  }
+
+  /** Wired to MessageContextMenu.onHighlight. Captures selection BEFORE we
+   *  close the menu (which would otherwise blow away the selection via focus
+   *  changes). */
+  function handleHighlightAction() {
+    captureSelectionRange();
+    void createHighlightFromSelection(false);
+  }
+  function handleHighlightAndCommentAction() {
+    captureSelectionRange();
+    void createHighlightFromSelection(true);
+  }
+
+  /** Open popover on click of an existing highlight. */
+  function handleHighlightBoxClick(id: string, rect: DOMRect) {
+    activeHighlightId = id;
+    activeHighlightRect = rect;
+    popoverInEditMode = false;
+  }
+
+  async function handlePopoverSave(newComment: string | undefined) {
+    if (!activeHighlight) return;
+    const updated: MessageHighlight = { ...activeHighlight, comment: newComment };
+    try {
+      await sendUpdateMessageHighlightImpl(updated);
+    } catch (err) {
+      console.error('[ChatMessage] Failed to update highlight', err);
+    }
+  }
+
+  async function handlePopoverDelete() {
+    if (!activeHighlight) return;
+    try {
+      await sendRemoveMessageHighlightImpl(
+        activeHighlight.chat_id,
+        activeHighlight.message_id,
+        activeHighlight.id,
+      );
+    } finally {
+      activeHighlightId = null;
+      activeHighlightRect = null;
+    }
+  }
+
+  function handlePopoverClose() {
+    activeHighlightId = null;
+    activeHighlightRect = null;
+    popoverInEditMode = false;
+  }
+
+  /** Reference to the overlay so we can ask it for a highlight's DOMRect. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let overlayRef = $state<any>(null);
+  // ─── End highlights ────────────────────────────────────────────────────────
   
   /**
    * Get display name for an app settings/memories category.
@@ -759,23 +942,22 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       return;
     }
 
-    // CRITICAL: If selection mode is active and there is a selection, allow browser context menu
-    // This allows users to use browser's native Copy/Look up for selected text
-    if (selectable) {
-      const selection = window.getSelection();
-      if (selection && selection.toString().length > 0) {
-        // Selection exists, don't prevent default, don't show custom menu
-        return;
-      }
-    }
+    // If a selection exists inside THIS message, capture the source-offset range
+    // up front so the Highlight button has somewhere to anchor — the menu opens
+    // *above* the selection and the native selection is cleared by focus changes.
+    const hasSelection = hasValidSelectionInMessage();
+    if (hasSelection) captureSelectionRange();
 
     event.preventDefault();
     event.stopPropagation();
-    
+
     messageMenuX = event.clientX;
     messageMenuY = event.clientY;
     showMessageMenu = true;
-    console.debug('[ChatMessage] Message context menu triggered (right-click)');
+    console.debug('[ChatMessage] Message context menu triggered (right-click)', {
+      hasSelection,
+      cachedRange: cachedSelectionRange,
+    });
   }
 
   /**
@@ -2183,6 +2365,31 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       {/if}
 
       <div class="chat-message-text">
+        <!-- Highlight overlay: yellow boxes drawn over rendered text. The
+             container is already position:relative so `inset: 0` matches. -->
+        {#if messageId && messageHighlights.length > 0}
+          <MessageHighlightOverlay
+            bind:this={overlayRef}
+            contentRoot={messageContentElement ?? null}
+            rawSource={rawSourceForHighlights}
+            highlights={messageHighlights}
+            recomputeKey={highlightRecomputeKey + contentReadyCounter}
+            focusedId={activeHighlightId}
+            onHighlightClick={handleHighlightBoxClick}
+          />
+        {/if}
+        {#if activeHighlight && activeHighlightRect}
+          <HighlightCommentPopover
+            highlight={activeHighlight}
+            anchorRect={activeHighlightRect}
+            isAuthor={$userProfile.user_id === activeHighlight.author_user_id}
+            initialEditMode={popoverInEditMode}
+            onSaveComment={handlePopoverSave}
+            onDelete={handlePopoverDelete}
+            onClose={handlePopoverClose}
+          />
+        {/if}
+
         <!-- Thinking Section: Displayed above message content for thinking models -->
         {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
           <ThinkingSection
@@ -2313,6 +2520,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            onEdit={role === 'user' && messageId ? handleEdit : undefined}
            onFork={handleFork}
            disableFork={isForkDisabled}
+           onHighlight={messageId ? handleHighlightAction : undefined}
+           onHighlightAndComment={messageId ? handleHighlightAndCommentAction : undefined}
+           hideHighlight={!cachedSelectionRange}
            {messageId}
            {userMessageId}
            {role}

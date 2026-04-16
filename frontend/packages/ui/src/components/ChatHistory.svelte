@@ -29,6 +29,16 @@
     
   // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
   import ChatHeader from './ChatHeader.svelte';
+  import HighlightNavigationOverlay from './HighlightNavigationOverlay.svelte';
+  import {
+    selectHighlightStatsForChat,
+    selectHighlightsForChatFlat,
+  } from '../stores/messageHighlightsStore';
+  import {
+    highlightNavigationStore,
+    setOrderedHighlights,
+    jumpToFirstHighlight,
+  } from '../stores/highlightNavigationStore';
   import WebhookPendingBanner from './WebhookPendingBanner.svelte';
   // Note: Icon was previously used for preprocessing step cards (now removed).
   // If Icon is needed elsewhere in future, re-import it.
@@ -690,6 +700,58 @@
   //   c) isNewChatCreditsError is true (credits error state), or
   //   d) isIncognito is true (always show the incognito header immediately)
   let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+
+  // ─── Highlights aggregation for ChatHeader pill + navigation overlay ─────
+  // Per-chat reactive selectors. The store is keyed by chat_id so switching
+  // chats just re-binds the derived to a new slice.
+  let highlightStatsStore = $derived(
+    currentChatId ? selectHighlightStatsForChat(currentChatId) : null,
+  );
+  let highlightStats = $state<{ highlights: number; comments: number } | null>(null);
+  $effect(() => {
+    if (!highlightStatsStore) { highlightStats = null; return; }
+    const unsub = highlightStatsStore.subscribe((v) => { highlightStats = v; });
+    return unsub;
+  });
+
+  // Sync ordered highlight list into the navigation store whenever it changes.
+  let highlightsFlatStore = $derived(
+    currentChatId ? selectHighlightsForChatFlat(currentChatId) : null,
+  );
+  $effect(() => {
+    if (!highlightsFlatStore || !currentChatId) return;
+    const unsub = highlightsFlatStore.subscribe((list) => {
+      setOrderedHighlights(currentChatId!, list);
+    });
+    return unsub;
+  });
+
+  function handleHighlightJump() {
+    jumpToFirstHighlight();
+  }
+
+  // Active highlight DOM rect for the navigation overlay. The overlay needs
+  // a DOMRect anchor, so on every `jumpRequestId` tick we re-query the page
+  // for the currently-focused highlight box via its data-testid + data id.
+  let overlayAnchorRect = $state<DOMRect | null>(null);
+  $effect(() => {
+    const navState = $highlightNavigationStore;
+    void navState.jumpRequestId;
+    if (!navState.focusedHighlightId) { overlayAnchorRect = null; return; }
+    // Defer to next frame so the box has rendered after scrollIntoView.
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `[data-testid="message-highlight-box"][data-highlight-id="${navState.focusedHighlightId}"]`,
+      ) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Defer rect capture until after smooth-scroll settles.
+        setTimeout(() => {
+          overlayAnchorRect = el.getBoundingClientRect();
+        }, 350);
+      }
+    });
+  });
   
   // Message ID waiting to be scrolled into view after the new-chat title arrives.
   // When a message is sent to a brand-new chat we activate the spacer immediately
@@ -1567,9 +1629,15 @@
                 {videoMp4Url}
                 {videoStartTime}
                 {backgroundFrames}
+                {highlightStats}
+                onHighlightJump={handleHighlightJump}
             />
         </div>
     {/if}
+
+    <!-- Floating up/down arrows for highlight navigation. Only visible when
+         more than one highlight exists and the user has opened navigation. -->
+    <HighlightNavigationOverlay anchorRect={overlayAnchorRect} />
 
     <!-- Pending webhook approval banner. Visible only when the active chat
          originates from a webhook key with require_confirmation=true and the

@@ -18,6 +18,11 @@ from .handlers.websocket_handlers.draft_update_handler import handle_update_draf
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
+from .handlers.websocket_handlers.message_highlight_handlers import (
+    handle_add_message_highlight,
+    handle_update_message_highlight,
+    handle_remove_message_highlight,
+)
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
@@ -1991,6 +1996,45 @@ async def websocket_endpoint(
             
             elif message_type == "delete_message":
                 await handle_delete_message(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "add_message_highlight":
+                await handle_add_message_highlight(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "update_message_highlight":
+                await handle_update_message_highlight(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "remove_message_highlight":
+                await handle_remove_message_highlight(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,
