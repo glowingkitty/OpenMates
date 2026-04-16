@@ -39,6 +39,18 @@ export {
   registerExampleChatEmbedRefs,
 } from "./exampleChatStore";
 
+// Export newsletter chat store — DemoChats generated from newsletter issues.
+// Each issue of Updates & Announcements or Tips & Tricks becomes one entry.
+export {
+  ALL_NEWSLETTER_CHATS,
+  getNewsletterChatById,
+  getNewsletterChatBySlug,
+  getAllActiveNewsletterChats,
+  getActiveNewsletterChatsByKind,
+  newsletterKindFromChatId,
+} from "./newsletterChatStore";
+export type { NewsletterKind } from "./newsletterChatStore";
+
 /** Load published default Daily Inspirations from server on page load. */
 export { loadDefaultInspirations } from "./loadDefaultInspirations";
 
@@ -82,19 +94,27 @@ export const getDemoChatById = getIntroChatById;
 export const getFeaturedDemoChats = getFeaturedIntroChats;
 
 /**
- * Get a public chat (intro or legal) by ID
- * Searches both INTRO_CHATS and LEGAL_CHATS
+ * Get a public chat (intro, legal, or newsletter) by ID.
+ * Searches INTRO_CHATS, LEGAL_CHATS, and ALL_NEWSLETTER_CHATS.
  */
 export function getPublicChatById(id: string): DemoChat | undefined {
+  // Lazy import to avoid a circular dep with newsletterChatStore if it ever
+  // grows to import from this module.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getNewsletterChatById } = require("./newsletterChatStore");
   return (
-    getIntroChatById(id) || LEGAL_CHATS.find((chat) => chat.chat_id === id)
+    getIntroChatById(id) ||
+    LEGAL_CHATS.find((chat) => chat.chat_id === id) ||
+    getNewsletterChatById(id)
   );
 }
 
 /**
- * Get all public chats (intro + legal) combined
+ * Get all public chats (intro + legal + newsletter) combined
  * Useful for loading messages from static bundle
  */
 export function getAllPublicChats(): DemoChat[] {
-  return [...INTRO_CHATS, ...LEGAL_CHATS];
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getAllActiveNewsletterChats } = require("./newsletterChatStore");
+  return [...INTRO_CHATS, ...LEGAL_CHATS, ...getAllActiveNewsletterChats()];
 }

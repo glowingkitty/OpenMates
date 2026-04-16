@@ -2,60 +2,66 @@
 """
 Send an OpenMates newsletter issue to confirmed subscribers.
 
-Each issue lives in its own directory (typically under the
-`openmates-marketing/campaigns/<slug>/` folder OUTSIDE this repo) with:
+The authoring workspace (openmates-marketing/) lives on the admin's dev
+machine. Before sending, the admin runs ``publish_newsletter.py``, which
+captures every file the dispatcher needs into the OpenMates repo:
 
-    <issue-dir>/
-        meta.yml           # slug, category, cta_url, video_id, video_thumbnail
-        newsletter_EN.md   # body for English, with optional YAML frontmatter
-        newsletter_DE.md   # body for German, with optional YAML frontmatter
-        (optional video-thumbnail.jpg referenced from meta.yml)
+    backend/newsletters/issues/<slug>.yml
+        Email-level metadata: subject/subtitle/cta_text per language,
+        category, body i18n key, video info, and ``sent_at`` (this script
+        writes it after a successful broadcast to block double-sends).
 
-The workflow is three-stepped and mandatory in this order:
+    frontend/packages/ui/src/i18n/sources/demo_chats/<kind>_<slug>.yml
+        Translation keys incl. the markdown body for the chat + email.
 
-    1. --dry-run [--render-to preview.html]
-       Render without sending. Inspect locally.
+This script therefore only ever reads committed repo state — prod doesn't
+need access to openmates-marketing/.
 
-    2. --test-to <your@email>
-       Send only to this address (ignores subscriber list). Inspect in your
-       inbox on multiple clients. Safe to re-run.
+Three-step workflow on dev (mandatory order):
+
+    1. --dry-run [--render-to <path>]
+       Render a preview; no email sent.
+
+    2. --test-to <email>
+       One email via Brevo to a single address (no subscriber list,
+       no sent_at write).
 
     3. --confirm-send
-       Real broadcast to the eligible subscriber list. Requires typing
-       "SEND" when prompted — even the flag alone will not broadcast.
-
-Guardrails:
-    - Without --confirm-send, the script never broadcasts.
-    - --test-to short-circuits to the single recipient; --confirm-send is
-      irrelevant for test-to sends.
-    - Every run writes an audit log to /app/logs/newsletters/<slug>-<ts>.jsonl.
-    - 500ms delay between sends to avoid Brevo rate limiting.
+       Broadcast to every confirmed subscriber whose
+       ``categories[<this issue's category>]`` is true. Prompts for a
+       typed ``SEND`` confirmation, refuses piped stdin, and writes
+       ``sent_at`` to the manifest so the next accidental re-run aborts.
 
 Usage:
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
-        --issue-dir /path/to/openmates-marketing/campaigns/<slug>/ \\
-        --dry-run --render-to /tmp/preview.html
+        --slug <slug> --dry-run --render-to /tmp/preview.html --lang en
 
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
-        --issue-dir /path/to/openmates-marketing/campaigns/<slug>/ \\
-        --test-to anthropic939jdq1@openmates.org
+        --slug <slug> --test-to testing@openmates.org --lang en
 
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
-        --issue-dir /path/to/openmates-marketing/campaigns/<slug>/ \\
-        --confirm-send
+        --slug <slug> --confirm-send
 """
+
+from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
+import html
 import json
 import logging
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-sys.path.insert(0, '/app/backend')
+import aiohttp
+import yaml
+
+sys.path.insert(0, "/app/backend")
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -67,37 +73,143 @@ from backend.core.api.app.utils.newsletter_utils import (
     is_subscriber_allowed_for_category,
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.scripts.newsletter_md_renderer import (  # noqa: E402
-    IssueMeta,
-    LocalizedIssue,
-    SUPPORTED_LANGS,
-    build_video_thumbnail_attachment,
-    load_issue_meta,
-    render_issue,
-)
+
+try:
+    # markdown-it-py is required for body rendering.
+    from markdown_it import MarkdownIt
+except ImportError as exc:  # pragma: no cover
+    raise SystemExit(
+        "markdown-it-py is required. Rebuild the api image (it is listed in requirements.txt)."
+    ) from exc
+
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-# Auto-redact emails/tokens that slip into log messages (defence in depth —
-# all direct recipient logging in this script already masks, but the filter
-# protects against future regressions per .claude/rules/privacy.md).
 logger.addFilter(SensitiveDataFilter())
+
+REPO_ROOT = Path("/app")
+ISSUES_DIR = REPO_ROOT / "backend" / "newsletters" / "issues"
+I18N_DIR = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "i18n" / "sources" / "demo_chats"
+AUDIT_LOG_DIR = Path("/app/logs/newsletters")
+SEND_DELAY_SECONDS = 0.5
+CONFIRM_TOKEN = "SEND"
+SUPPORTED_LANGS = ("en", "de")
+
+# CID used for the inline video thumbnail. One CID per email is enough —
+# we only ever attach a single thumbnail per issue.
+VIDEO_THUMBNAIL_CID = "newsletter-video-thumbnail@openmates"
 
 
 def _mask_email(email: str) -> str:
-    """Return a redacted form of an email address for safe logging."""
     if not email or "@" not in email:
         return "***"
     local, _, domain = email.partition("@")
     visible = local[:2] if len(local) >= 2 else local
     return f"{visible}***@{domain}"
 
-AUDIT_LOG_DIR = Path("/app/logs/newsletters")
-SEND_DELAY_SECONDS = 0.5
-CONFIRM_TOKEN = "SEND"
+
+def load_manifest(slug: str) -> Dict[str, Any]:
+    path = ISSUES_DIR / f"{slug}.yml"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Newsletter manifest not found: {path}. Run publish_newsletter.py first."
+        )
+    manifest = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Invalid manifest (not a mapping): {path}")
+
+    required = ("slug", "kind", "category", "chat_id", "subject", "body_i18n_key")
+    for field in required:
+        if field not in manifest:
+            raise ValueError(f"Manifest {path.name} missing required field: {field}")
+    if manifest["kind"] not in ("announcements", "tips"):
+        raise ValueError(f"Manifest kind must be announcements|tips (got {manifest['kind']!r})")
+    return manifest
+
+
+def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
+    """Read the raw markdown body for the given language from the i18n YAML.
+
+    We parse the committed YAML file directly (rather than going through
+    TranslationService) because the script only needs two languages and a
+    raw-string pass; no variable interpolation, no fallback-to-EN logic.
+    """
+    # body_i18n_key = "demo_chats.<kind>_<snake_slug>.message"
+    body_key = manifest["body_i18n_key"]
+    m = re.match(r"^demo_chats\.([a-z0-9_]+)\.message$", body_key)
+    if not m:
+        raise ValueError(f"Unexpected body_i18n_key format: {body_key}")
+    snake_name = m.group(1)
+    yml_path = I18N_DIR / f"{snake_name}.yml"
+    if not yml_path.exists():
+        raise FileNotFoundError(
+            f"Demo chat i18n source not found: {yml_path}. Did publish_newsletter.py run?"
+        )
+    parsed = yaml.safe_load(yml_path.read_text(encoding="utf-8")) or {}
+    message = (parsed.get("message") or {})
+    if not isinstance(message, dict):
+        return None
+    value = message.get(lang)
+    if value and value.strip():
+        return value
+    return None
+
+
+def render_body_html(body_md: str, landing_url: str, meta: Dict[str, Any]) -> str:
+    """Render the markdown body, then prepend a clickable video thumbnail if one exists."""
+    md = MarkdownIt("commonmark", {"html": False, "linkify": True, "breaks": False})
+    body_html = md.render(body_md)
+
+    video = meta.get("video") or {}
+    if not video:
+        return body_html
+
+    thumbnail_url = video.get("thumbnail_url")
+    if not thumbnail_url:
+        return body_html
+
+    # Use an inline CID image for the thumbnail (no third-party image host).
+    # The thumbnail attachment is added at dispatch time in ``build_thumbnail_attachment``.
+    safe_href = html.escape(landing_url, quote=True)
+    safe_alt = html.escape(meta.get("alt_text") or "Watch the video", quote=True)
+    thumbnail_block = (
+        f'<p><a href="{safe_href}" style="display:inline-block;text-decoration:none;">'
+        f'<img src="cid:{VIDEO_THUMBNAIL_CID}" alt="{safe_alt}" '
+        f'style="max-width:100%;height:auto;display:block;border:0;border-radius:8px;" /></a></p>\n'
+    )
+    return thumbnail_block + body_html
+
+
+def build_thumbnail_attachment(manifest: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Download the thumbnail once and wrap it as an inline CID attachment.
+
+    The thumbnail_url in the manifest may be any HTTP(S) URL. We refuse
+    non-HTTP URLs to avoid letting a manifest reference file:// paths.
+    """
+    video = manifest.get("video") or {}
+    url = video.get("thumbnail_url")
+    if not url:
+        return None
+    if not (url.startswith("http://") or url.startswith("https://")):
+        logger.warning(f"Skipping thumbnail attachment: not an http(s) URL ({url})")
+        return None
+    try:
+        import urllib.request
+        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310 — admin-provided URL
+            data = resp.read()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Could not fetch thumbnail {url}: {exc}")
+        return None
+    filename = Path(url).name or "video-thumbnail.jpg"
+    return {
+        "filename": filename,
+        "content": base64.b64encode(data).decode("ascii"),
+        "contentId": VIDEO_THUMBNAIL_CID,
+        "inline": True,
+    }
 
 
 def resolve_base_url() -> str:
@@ -121,15 +233,17 @@ def resolve_base_url() -> str:
     return base
 
 
-async def fetch_subscribers(directus: DirectusService) -> List[Dict[str, Any]]:
-    """Fetch all confirmed newsletter subscribers (sorted by subscribe date).
+def build_landing_url(manifest: Dict[str, Any], base_url: str) -> str:
+    """https://openmates.org/announcements/<slug> or .../tips/<slug>."""
+    return f"{base_url.rstrip('/')}/{manifest['kind']}/{manifest['slug']}"
 
-    The ``confirmed_at`` filter is defence in depth: although the
-    ``newsletter_subscribers`` collection is only written after double
-    opt-in, an explicit filter guarantees we never broadcast to a row
-    that (due to a future bug or manual DB edit) slipped in without
-    valid Art. 6(1)(a) consent. ``limit=-1`` disables Directus' default
-    page size so large subscriber lists aren't silently truncated.
+
+async def fetch_subscribers(directus: DirectusService) -> List[Dict[str, Any]]:
+    """Fetch all confirmed newsletter subscribers.
+
+    The ``confirmed_at`` filter is defence in depth even though only
+    double-opt-in rows enter this collection. ``limit=-1`` disables the
+    default Directus pagination so large lists don't silently truncate.
     """
     url = f"{directus.base_url}/items/newsletter_subscribers"
     params = {
@@ -156,58 +270,18 @@ def build_unsubscribe_url(token: Optional[str], base_url: str) -> Optional[str]:
     return f"{base_url}/#settings/newsletter/unsubscribe/{token}"
 
 
-def render_localized(issue_dir: Path, meta: IssueMeta, base_url: str) -> Dict[str, LocalizedIssue]:
-    """Render each supported language, erroring out if a body file is missing.
-
-    Raising for missing files is intentional — silently skipping a language
-    would let a half-translated newsletter ship.
-    """
-    rendered: Dict[str, LocalizedIssue] = {}
-    for lang in SUPPORTED_LANGS:
-        rendered[lang] = render_issue(issue_dir, lang, meta, base_url)
-    return rendered
-
-
-def build_full_html_preview(
-    email_template_service: EmailTemplateService,
-    localized: LocalizedIssue,
-    meta: IssueMeta,
-    unsubscribe_url: str,
-    base_url: str,
-    darkmode: bool,
-) -> str:
-    """Render the MJML template to final HTML for preview or sending."""
-    context = {
-        "newsletter_content": localized.html_body,
-        "newsletter_subtitle": localized.subtitle,
-        "cta_url": meta.cta_url,
-        "cta_text": localized.cta_text,
-        "show_social_media": meta.show_social_media,
-        "unsubscribe_url": unsubscribe_url,
-        "block_list_url": f"{base_url}/#settings/newsletter/block",
-        "darkmode": darkmode,
-    }
-    return email_template_service.render_template("newsletter", context, localized.lang)
-
-
-def prompt_confirmation(eligible_count: int, categories_note: str) -> bool:
-    """Interactive confirmation prompt for real broadcasts.
-
-    Refuses to broadcast when stdin is not a TTY — this blocks naive
-    automation like ``echo SEND | docker exec api ...`` from bypassing
-    the typed confirmation the operator is meant to read.
-    """
+def prompt_confirmation(eligible_count: int, manifest: Dict[str, Any]) -> bool:
     if not sys.stdin.isatty():
         logger.error(
             "Refusing to broadcast: stdin is not a TTY. "
-            "Run `docker exec -it api python ...` so the confirmation prompt "
-            "is interactive; piped/automated input is not allowed."
+            "Use `docker exec -it api python ...` so the prompt is interactive; "
+            "piped/automated input is not allowed."
         )
         return False
     print("\n" + "=" * 72)
     print(f"About to broadcast newsletter to {eligible_count} subscribers.")
-    print(categories_note)
-    print("This will send REAL EMAILS via Brevo and cannot be undone.")
+    print(f"Category: {manifest['category']}  Kind: {manifest['kind']}  Slug: {manifest['slug']}")
+    print("This will send REAL emails via Brevo and cannot be undone.")
     print("=" * 72)
     answer = input(f'Type "{CONFIRM_TOKEN}" in uppercase to proceed (anything else cancels): ').strip()
     return answer == CONFIRM_TOKEN
@@ -224,48 +298,91 @@ def append_audit(path: Path, record: Dict[str, Any]) -> None:
         fh.write(json.dumps(record, default=str) + "\n")
 
 
-async def send_one(
-    email_template_service: EmailTemplateService,
-    recipient_email: str,
-    recipient_lang: str,
-    darkmode: bool,
-    rendered: Dict[str, LocalizedIssue],
-    meta: IssueMeta,
-    unsubscribe_url: Optional[str],
+def write_sent_at(slug: str, sent_at: str) -> None:
+    """Persist the broadcast timestamp so a second run requires --resend-confirm."""
+    path = ISSUES_DIR / f"{slug}.yml"
+    manifest = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    manifest["sent_at"] = sent_at
+    path.write_text(yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+
+async def check_landing_page_live(landing_url: str) -> bool:
+    """HEAD the landing URL to confirm the page is deployed before we broadcast.
+
+    Prevents the "forgot to deploy / PR not merged" footgun — recipients
+    would otherwise click the email thumbnail and hit a 404 on prod.
+    """
+    timeout = aiohttp.ClientTimeout(total=10)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.head(landing_url, allow_redirects=True) as resp:
+                return resp.status == 200
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Landing-page check failed for {landing_url}: {exc}")
+        return False
+
+
+def build_context(
+    manifest: Dict[str, Any],
+    lang: str,
+    body_md: str,
     base_url: str,
-    attachments: Optional[List[Dict[str, Any]]],
-) -> bool:
-    """Send a single newsletter email using the MJML template + our MD body."""
-    localized = rendered.get(recipient_lang) or rendered["en"]
-    context = {
-        "newsletter_content": localized.html_body,
-        "newsletter_subtitle": localized.subtitle,
-        "cta_url": meta.cta_url,
-        "cta_text": localized.cta_text,
-        "show_social_media": meta.show_social_media,
+    unsubscribe_url: Optional[str],
+    darkmode: bool,
+) -> Dict[str, Any]:
+    """Assemble the Jinja2 context for the newsletter.mjml template."""
+    landing_url = build_landing_url(manifest, base_url)
+    body_html = render_body_html(body_md, landing_url, manifest)
+    subtitle = (manifest.get("subtitle") or {}).get(lang)
+    cta_text = (manifest.get("cta_text") or {}).get(lang)
+    return {
+        "newsletter_content": body_html,
+        "newsletter_subtitle": subtitle,
+        "cta_url": manifest.get("cta_url"),
+        "cta_text": cta_text,
+        "show_social_media": False,
         "unsubscribe_url": unsubscribe_url,
         "block_list_url": f"{base_url}/#settings/newsletter/block" if unsubscribe_url else None,
         "darkmode": darkmode,
     }
+
+
+async def send_one(
+    email_template_service: EmailTemplateService,
+    manifest: Dict[str, Any],
+    recipient_email: str,
+    recipient_lang: str,
+    darkmode: bool,
+    base_url: str,
+    unsubscribe_url: Optional[str],
+    attachments: Optional[List[Dict[str, Any]]],
+) -> bool:
+    body_md = load_body_text(manifest, recipient_lang) or load_body_text(manifest, "en")
+    if body_md is None:
+        logger.error("No body text found for en — cannot send.")
+        return False
+    lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
+    subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
+    context = build_context(manifest, lang, body_md, base_url, unsubscribe_url, darkmode)
     return await email_template_service.send_email(
         template="newsletter",
         recipient_email=recipient_email,
         context=context,
-        subject=localized.subject,
-        lang=localized.lang,
+        subject=subject,
+        lang=lang,
         attachments=attachments,
     )
 
 
 async def run(args: argparse.Namespace) -> int:
-    issue_dir = Path(args.issue_dir).expanduser().resolve()
-    if not issue_dir.is_dir():
-        logger.error(f"Issue directory does not exist: {issue_dir}")
+    # ── Load manifest ────────────────────────────────────────────────────
+    if not args.slug:
+        logger.error("--slug is required (matches backend/newsletters/issues/<slug>.yml).")
         return 2
+    manifest = load_manifest(args.slug)
+    logger.info(f"Loaded manifest: {manifest['slug']} ({manifest['kind']}/{manifest['category']})")
 
-    meta = load_issue_meta(issue_dir)
-    logger.info(f"Loaded issue {meta.slug!r} (category={meta.category})")
-
+    # ── Services ─────────────────────────────────────────────────────────
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     directus = DirectusService()
@@ -275,83 +392,91 @@ async def run(args: argparse.Namespace) -> int:
     email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
     base_url = resolve_base_url()
-    logger.info(f"Webapp base URL: {base_url}")
-
-    rendered = render_localized(issue_dir, meta, base_url)
-    for lang, issue in rendered.items():
-        logger.info(
-            f"Rendered {lang}: subject={issue.subject!r} subtitle={issue.subtitle!r} "
-            f"has_video={issue.has_video} body_chars={len(issue.html_body)}"
-        )
+    landing_url = build_landing_url(manifest, base_url)
+    logger.info(f"Base URL: {base_url}")
+    logger.info(f"Landing URL: {landing_url}")
 
     attachments: Optional[List[Dict[str, Any]]] = None
-    thumb_attachment = build_video_thumbnail_attachment(meta)
-    if thumb_attachment:
-        attachments = [thumb_attachment]
-        logger.info(f"Attached video thumbnail: {meta.video_thumbnail_path.name}")
+    thumb = build_thumbnail_attachment(manifest)
+    if thumb:
+        attachments = [thumb]
+        logger.info(f"Attached video thumbnail: {thumb['filename']} ({VIDEO_THUMBNAIL_CID})")
 
-    # ---- Dry-run / render-only path ----------------------------------------
+    # ── Dry-run / render-only ────────────────────────────────────────────
     if args.dry_run or args.render_to:
-        preview_lang = args.lang or "en"
-        preview = rendered.get(preview_lang)
-        if preview is None:
-            logger.error(f"--lang {preview_lang} not in rendered languages {list(rendered)}")
+        lang = args.lang or "en"
+        body_md = load_body_text(manifest, lang) or load_body_text(manifest, "en")
+        if body_md is None:
+            logger.error("No body text found — publish_newsletter.py must populate the i18n YAML.")
             return 2
-
         fake_unsub = f"{base_url}/#settings/newsletter/unsubscribe/DRY-RUN-TOKEN"
-        html = build_full_html_preview(
-            email_template_service, preview, meta, fake_unsub, base_url, darkmode=False
-        )
-
+        context = build_context(manifest, lang, body_md, base_url, fake_unsub, darkmode=False)
+        subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
+        html_out = email_template_service.render_template("newsletter", {**context, "_subject": subject}, lang)
         if args.render_to:
             out = Path(args.render_to).expanduser().resolve()
             out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_text(html, encoding="utf-8")
-            logger.info(f"Wrote preview HTML ({len(html)} chars) to {out}")
-
+            out.write_text(html_out, encoding="utf-8")
+            logger.info(f"Wrote preview HTML ({len(html_out)} chars) to {out}")
         if args.dry_run:
             logger.info("[DRY RUN] No emails sent. Re-run with --test-to <email> to test-send.")
         return 0
 
-    # ---- Test-to-self path --------------------------------------------------
+    # ── Test-to-self ─────────────────────────────────────────────────────
     if args.test_to:
-        logger.info(f"Test-send to {_mask_email(args.test_to)} (will NOT touch subscriber list)")
-        audit_path = open_audit_log(meta.slug)
+        logger.info(f"Test-send to {_mask_email(args.test_to)} (no subscriber list access)")
+        audit_path = open_audit_log(manifest["slug"])
         append_audit(
             audit_path,
             {
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "mode": "test",
-                "slug": meta.slug,
-                # Audit log keeps the full recipient so we can correlate a failed
-                # test-send with a later delivery issue. The audit directory is
-                # container-local and not shipped to OpenObserve.
-                "recipient": args.test_to,
+                "slug": manifest["slug"],
+                "recipient": args.test_to,  # audit log only, container-local
             },
         )
-        # Pick the user's preferred language via --lang flag (default en).
         lang = args.lang or "en"
         success = await send_one(
             email_template_service=email_template_service,
+            manifest=manifest,
             recipient_email=args.test_to,
             recipient_lang=lang,
             darkmode=False,
-            rendered=rendered,
-            meta=meta,
-            unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/TEST-TOKEN",
             base_url=base_url,
+            unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/TEST-TOKEN",
             attachments=attachments,
         )
         logger.info("Test send: %s", "OK" if success else "FAILED")
         return 0 if success else 1
 
-    # ---- Real broadcast path ------------------------------------------------
+    # ── Real broadcast ───────────────────────────────────────────────────
     if not args.confirm_send:
         logger.error(
             "Refusing to broadcast without --confirm-send. "
             "Run with --dry-run, --test-to <email>, or --confirm-send."
         )
         return 2
+
+    # Double-send guard: if the manifest already has sent_at, demand an explicit override.
+    if manifest.get("sent_at") and not args.resend_confirm:
+        logger.error(
+            f"Issue {manifest['slug']} was already sent at {manifest['sent_at']}. "
+            "Pass --resend-confirm to re-broadcast intentionally."
+        )
+        return 2
+
+    # Landing-page live check (skippable only in dev, where the page may
+    # not be deployed yet but the admin is iterating).
+    env = os.getenv("ENVIRONMENT", "production").lower()
+    is_dev = env in ("development", "dev", "test") or "localhost" in base_url
+    if not is_dev:
+        logger.info(f"Checking landing page liveness: {landing_url}")
+        if not await check_landing_page_live(landing_url):
+            logger.error(
+                f"Landing page {landing_url} did not return 200. "
+                "Deploy the page to prod before broadcasting — recipients will 404."
+            )
+            return 2
 
     subscribers = await fetch_subscribers(directus)
     if args.limit:
@@ -360,23 +485,27 @@ async def run(args: argparse.Namespace) -> int:
         logger.warning("No subscribers found; nothing to send.")
         return 0
 
+    # Pre-filter so the confirmation prompt shows the real eligible count.
+    eligible = [
+        s for s in subscribers
+        if is_subscriber_allowed_for_category(s.get("categories"), manifest["category"])
+    ]
     lang_breakdown: Dict[str, int] = {}
-    for sub in subscribers:
+    for sub in eligible:
         lang_breakdown[sub.get("language", "en")] = lang_breakdown.get(sub.get("language", "en"), 0) + 1
 
-    categories_note = (
-        f"Category: {meta.category}. "
-        f"(Per-category preference filtering lands with Part B — for now every confirmed "
-        f"subscriber receives every category.)"
-    )
-    print("\nSubscriber language breakdown:")
+    print("\nSubscriber language breakdown (after category filter):")
     for lang_code, count in sorted(lang_breakdown.items(), key=lambda kv: -kv[1]):
         print(f"  {lang_code}: {count}")
-    if not prompt_confirmation(len(subscribers), categories_note):
+    opted_out = len(subscribers) - len(eligible)
+    if opted_out:
+        print(f"  (skipping {opted_out} who opted out of '{manifest['category']}')")
+
+    if not prompt_confirmation(len(eligible), manifest):
         logger.info("Broadcast cancelled by user.")
         return 0
 
-    audit_path = open_audit_log(meta.slug)
+    audit_path = open_audit_log(manifest["slug"])
     logger.info(f"Audit log: {audit_path}")
 
     stats = {
@@ -384,33 +513,20 @@ async def run(args: argparse.Namespace) -> int:
         "failed": 0,
         "skipped_ignored": 0,
         "skipped_decrypt_failed": 0,
-        "skipped_category_off": 0,
+        "skipped_category_off": opted_out,
     }
-    total = len(subscribers)
+    total = len(eligible)
 
-    for idx, sub in enumerate(subscribers, 1):
+    for idx, sub in enumerate(eligible, 1):
         sub_id = sub.get("id", "unknown")
         hashed_email = sub.get("hashed_email", "")
         encrypted_email = sub.get("encrypted_email_address", "")
 
         if hashed_email and await check_ignored_email(hashed_email, directus):
             stats["skipped_ignored"] += 1
-            append_audit(audit_path, {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_ignored"})
-            continue
-
-        # Per-category opt-out: skip recipients who turned off this issue's
-        # category in Settings → Newsletter. NULL categories (pre-migration
-        # rows) fall back to DEFAULT_NEWSLETTER_CATEGORIES.
-        if not is_subscriber_allowed_for_category(sub.get("categories"), meta.category):
-            stats["skipped_category_off"] += 1
             append_audit(
                 audit_path,
-                {
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                    "subscriber_id": sub_id,
-                    "status": "skipped_category_off",
-                    "category": meta.category,
-                },
+                {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_ignored"},
             )
             continue
 
@@ -419,24 +535,24 @@ async def run(args: argparse.Namespace) -> int:
         except Exception as exc:  # noqa: BLE001
             logger.error(f"[{idx}/{total}] decrypt failed for {sub_id}: {exc}")
             stats["skipped_decrypt_failed"] += 1
-            append_audit(audit_path, {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_decrypt_failed"})
+            append_audit(
+                audit_path,
+                {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_decrypt_failed"},
+            )
             continue
 
         lang = sub.get("language", "en")
-        if lang not in rendered:
-            lang = "en"
         unsub = build_unsubscribe_url(sub.get("unsubscribe_token"), base_url)
         darkmode = bool(sub.get("darkmode", False))
 
         success = await send_one(
             email_template_service=email_template_service,
+            manifest=manifest,
             recipient_email=email,
             recipient_lang=lang,
             darkmode=darkmode,
-            rendered=rendered,
-            meta=meta,
-            unsubscribe_url=unsub,
             base_url=base_url,
+            unsubscribe_url=unsub,
             attachments=attachments,
         )
 
@@ -458,6 +574,12 @@ async def run(args: argparse.Namespace) -> int:
         if idx < total:
             await asyncio.sleep(SEND_DELAY_SECONDS)
 
+    # Persist sent_at so a future accidental broadcast aborts.
+    if stats["sent"] > 0:
+        sent_at_iso = datetime.now(timezone.utc).isoformat()
+        write_sent_at(manifest["slug"], sent_at_iso)
+        logger.info(f"Wrote sent_at={sent_at_iso} to manifest.")
+
     logger.info("=" * 72)
     logger.info(f"Broadcast complete: {stats}")
     logger.info(f"Audit log: {audit_path}")
@@ -475,53 +597,27 @@ async def run(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Send an OpenMates newsletter issue (MD-driven)",
+        description="Send an OpenMates newsletter issue",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
     parser.add_argument(
-        "--issue-dir",
+        "--slug",
         type=str,
         required=True,
-        help="Absolute path to the newsletter issue directory (containing meta.yml + newsletter_{EN,DE}.md)",
+        help="Issue slug — must match backend/newsletters/issues/<slug>.yml",
     )
-    parser.add_argument(
-        "--lang",
-        type=str,
-        default=None,
-        choices=list(SUPPORTED_LANGS),
-        help="Language for --dry-run preview or --test-to send (default: en)",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Render only; do not send. Pair with --render-to to dump preview HTML.",
-    )
-    parser.add_argument(
-        "--render-to",
-        type=str,
-        default=None,
-        help="Write rendered preview HTML to this path (implies --dry-run semantics).",
-    )
-    parser.add_argument(
-        "--test-to",
-        type=str,
-        default=None,
-        help="Send only to this one email address (ignores subscriber list).",
-    )
-    parser.add_argument(
-        "--confirm-send",
-        action="store_true",
-        help="Required to broadcast to real subscribers. Still prompts for typed confirmation.",
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Cap the number of real-broadcast recipients (only meaningful with --confirm-send).",
-    )
-
+    parser.add_argument("--lang", type=str, default=None, choices=list(SUPPORTED_LANGS))
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--render-to", type=str, default=None)
+    parser.add_argument("--test-to", type=str, default=None)
+    parser.add_argument("--confirm-send", action="store_true")
+    parser.add_argument("--resend-confirm", action="store_true", help="Override the sent_at double-send guard.")
+    parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
+
+    # Back-compat placeholder for legacy --issue-dir callers.
+    args.issue_dir = None
 
     try:
         return asyncio.run(run(args))

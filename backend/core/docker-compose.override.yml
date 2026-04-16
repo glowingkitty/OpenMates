@@ -8,6 +8,10 @@ services:
       # send_newsletter.py can render issues authored outside this repo.
       # Only used on the dev machine; prod never runs send_newsletter.py.
       - ../../../openmates-marketing:/openmates-marketing:ro
+      # Read/write access to the frontend UI package so
+      # publish_newsletter.py can emit demo_chats/data/*.ts + register in
+      # newsletterChatStore.ts. Prod never runs the publisher.
+      - ../../frontend/packages/ui/src:/app/frontend/packages/ui/src
 
   cms:
     ports:
