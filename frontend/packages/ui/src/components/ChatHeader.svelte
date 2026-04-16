@@ -1156,15 +1156,16 @@
      Replaces the autoplay video on the public intro chat to avoid per-visitor
      video delivery cost. All N frames share the same fade keyframe; each
      frame's start is offset by a negative animation-delay so they sequence in.
-     Per-frame Ken Burns keyframes (headerSlideKB1–12) give each frame a unique
-     pan/zoom direction. Dark #1a1a1a background prevents gradient bleed.
+     Per-frame Ken Burns keyframes (headerSlideKB0–12) give each frame a unique
+     pan/zoom direction. Frame 0 is a locale-specific title card (zoom out).
+     Dark #1a1a1a background prevents gradient bleed.
      Pure CSS — no JS timers, no IntersectionObserver needed.
 
-     Crossfade design (12 frames, slot = 8.333% of 96s cycle):
+     Crossfade design (13 frames, slot = 7.692% of 104s cycle):
        • Incoming frame uses z-index 2 (on top) while fading in → old frame stays
          fully opaque below it, so the background is never visible during transition.
        • Old frame drops z-index to 1 once successor is fading in over it, then
-         becomes opacity 0 after successor is fully covering it at 10.13%.
+         becomes opacity 0 after successor is fully covering it at 9.49%.
        • At the wrap-around (frame 11 → frame 0), frame 0 fades in with z-index 2
          on top of frame 11 (z-index 1) — same seamless result. */
   .header-slideshow {
@@ -1193,129 +1194,137 @@
     will-change: opacity, transform;
   }
 
-  /* Timing based on 12 frames (slot = 8.333% of cycle, fade-in window = 1.8%).
+  /* Timing based on 13 frames (slot = 7.692% of cycle, fade-in window = 1.8%).
      Incoming frame holds z-index: 2 while fading in over the still-opaque outgoing
      frame (z-index: 1). Outgoing drops to opacity 0 only after successor fully covers
-     it at 10.13% — background is never peeking through.
+     it at 9.49% — background is never peeking through.
        0%      → opacity 0, z-index 2  (about to appear on top)
-       1.8%    → opacity 1, z-index 2  (fully in, ~1.73s)
-       8.333%  → opacity 1, z-index 2  (hold; successor now starting its fade-in below)
-       8.334%  → opacity 1, z-index 1  (drop below incoming successor)
-       10.13%  → opacity 1, z-index 1  (successor now fully opaque above)
-       10.14%  → opacity 0, z-index 0  (gone; covered by successor)
+       1.8%    → opacity 1, z-index 2  (fully in, ~1.87s)
+       7.692%  → opacity 1, z-index 2  (hold; successor now starting its fade-in below)
+       7.693%  → opacity 1, z-index 1  (drop below incoming successor)
+       9.49%   → opacity 1, z-index 1  (successor now fully opaque above)
+       9.50%   → opacity 0, z-index 0  (gone; covered by successor)
        100%    → opacity 0, z-index 0 */
   @keyframes headerSlideFade {
     0%      { opacity: 0; z-index: 2; }
     1.8%    { opacity: 1; z-index: 2; }
-    8.333%  { opacity: 1; z-index: 2; }
-    8.334%  { opacity: 1; z-index: 1; }
-    10.13%  { opacity: 1; z-index: 1; }
-    10.14%  { opacity: 0; z-index: 0; }
+    7.692%  { opacity: 1; z-index: 2; }
+    7.693%  { opacity: 1; z-index: 1; }
+    9.49%   { opacity: 1; z-index: 1; }
+    9.50%   { opacity: 0; z-index: 0; }
     100%    { opacity: 0; z-index: 0; }
   }
 
   /* Ken-Burns motion — per-frame directional variants assigned via nth-child.
      Scale moves from ~1.05 to ~1.3, giving extra image area to pan through.
      Large translations reveal portions hidden at rest.
-     Each variant covers the full visible window (0% → 10.13%). */
+     Each variant covers the full visible window (0% → 9.49%). */
+
+  /* Frame 0 (title frame): zoom out, stay centered */
+  @keyframes headerSlideKB0 {
+    0%      { transform: scale(1.3) translate3d(0, 0, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
+  }
 
   /* Frame 1: pan right → left */
   @keyframes headerSlideKB1 {
     0%      { transform: scale(1.15) translate3d(8%, 0, 0); }
-    10.13%  { transform: scale(1.15) translate3d(-8%, 0, 0); }
+    9.49%  { transform: scale(1.15) translate3d(-8%, 0, 0); }
     100%    { transform: scale(1.15) translate3d(-8%, 0, 0); }
   }
 
   /* Frame 2: zoom out, stay centered */
   @keyframes headerSlideKB2 {
     0%      { transform: scale(1.3) translate3d(0, 0, 0); }
-    10.13%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
     100%    { transform: scale(1.05) translate3d(0, 0, 0); }
   }
 
   /* Frame 3: pan bottom → top */
   @keyframes headerSlideKB3 {
     0%      { transform: scale(1.12) translate3d(0, 12%, 0); }
-    10.13%  { transform: scale(1.12) translate3d(0, -12%, 0); }
+    9.49%  { transform: scale(1.12) translate3d(0, -12%, 0); }
     100%    { transform: scale(1.12) translate3d(0, -12%, 0); }
   }
 
   /* Frame 4: pan top-right → bottom-left */
   @keyframes headerSlideKB4 {
     0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
     100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
   }
 
   /* Frame 5: pan bottom → top (default A) */
   @keyframes headerSlideKB5 {
     0%      { transform: scale(1.1) translate3d(0, 12%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(0, -12%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(0, -12%, 0); }
     100%    { transform: scale(1.28) translate3d(0, -12%, 0); }
   }
 
   /* Frame 6: pan left → right */
   @keyframes headerSlideKB6 {
     0%      { transform: scale(1.15) translate3d(-8%, 0, 0); }
-    10.13%  { transform: scale(1.15) translate3d(8%, 0, 0); }
+    9.49%  { transform: scale(1.15) translate3d(8%, 0, 0); }
     100%    { transform: scale(1.15) translate3d(8%, 0, 0); }
   }
 
   /* Frame 7: pan top → bottom */
   @keyframes headerSlideKB7 {
     0%      { transform: scale(1.12) translate3d(0, -12%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(0, 12%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(0, 12%, 0); }
     100%    { transform: scale(1.28) translate3d(0, 12%, 0); }
   }
 
   /* Frame 8: pan bottom-left → top-right */
   @keyframes headerSlideKB8 {
     0%      { transform: scale(1.12) translate3d(-6%, 10%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(6%, -10%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(6%, -10%, 0); }
     100%    { transform: scale(1.28) translate3d(6%, -10%, 0); }
   }
 
   /* Frame 9: zoom out from bottom (content at bottom of image) */
   @keyframes headerSlideKB9 {
     0%      { transform: scale(1.3) translate3d(0, 12%, 0); }
-    10.13%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
     100%    { transform: scale(1.05) translate3d(0, 0, 0); }
   }
 
   /* Frame 10: pan top-right → bottom-left */
   @keyframes headerSlideKB10 {
     0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
-    10.13%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
     100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
   }
 
   /* Frame 11: show top part, pan down to bottom */
   @keyframes headerSlideKB11 {
     0%      { transform: scale(1.15) translate3d(0, -12%, 0); }
-    10.13%  { transform: scale(1.15) translate3d(0, 12%, 0); }
+    9.49%  { transform: scale(1.15) translate3d(0, 12%, 0); }
     100%    { transform: scale(1.15) translate3d(0, 12%, 0); }
   }
 
   /* Frame 12: focus on right side, zoom out from there */
   @keyframes headerSlideKB12 {
     0%      { transform: scale(1.3) translate3d(10%, 0, 0); }
-    10.13%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
     100%    { transform: scale(1.05) translate3d(0, 0, 0); }
   }
 
-  /* Per-frame Ken Burns assignment (frame 1 uses default from .header-slide rule) */
-  .header-slide:nth-child(1)  { animation-name: headerSlideFade, headerSlideKB1; }
-  .header-slide:nth-child(2)  { animation-name: headerSlideFade, headerSlideKB2; }
-  .header-slide:nth-child(3)  { animation-name: headerSlideFade, headerSlideKB3; }
-  .header-slide:nth-child(4)  { animation-name: headerSlideFade, headerSlideKB4; }
-  .header-slide:nth-child(5)  { animation-name: headerSlideFade, headerSlideKB5; }
-  .header-slide:nth-child(6)  { animation-name: headerSlideFade, headerSlideKB6; }
-  .header-slide:nth-child(7)  { animation-name: headerSlideFade, headerSlideKB7; }
-  .header-slide:nth-child(8)  { animation-name: headerSlideFade, headerSlideKB8; }
-  .header-slide:nth-child(9)  { animation-name: headerSlideFade, headerSlideKB9; }
-  .header-slide:nth-child(10) { animation-name: headerSlideFade, headerSlideKB10; }
-  .header-slide:nth-child(11) { animation-name: headerSlideFade, headerSlideKB11; }
-  .header-slide:nth-child(12) { animation-name: headerSlideFade, headerSlideKB12; }
+  /* Per-frame Ken Burns assignment — frame 0 is the locale-specific title frame (zoom out) */
+  .header-slide:nth-child(1)  { animation-name: headerSlideFade, headerSlideKB0; }
+  .header-slide:nth-child(2)  { animation-name: headerSlideFade, headerSlideKB1; }
+  .header-slide:nth-child(3)  { animation-name: headerSlideFade, headerSlideKB2; }
+  .header-slide:nth-child(4)  { animation-name: headerSlideFade, headerSlideKB3; }
+  .header-slide:nth-child(5)  { animation-name: headerSlideFade, headerSlideKB4; }
+  .header-slide:nth-child(6)  { animation-name: headerSlideFade, headerSlideKB5; }
+  .header-slide:nth-child(7)  { animation-name: headerSlideFade, headerSlideKB6; }
+  .header-slide:nth-child(8)  { animation-name: headerSlideFade, headerSlideKB7; }
+  .header-slide:nth-child(9)  { animation-name: headerSlideFade, headerSlideKB8; }
+  .header-slide:nth-child(10) { animation-name: headerSlideFade, headerSlideKB9; }
+  .header-slide:nth-child(11) { animation-name: headerSlideFade, headerSlideKB10; }
+  .header-slide:nth-child(12) { animation-name: headerSlideFade, headerSlideKB11; }
+  .header-slide:nth-child(13) { animation-name: headerSlideFade, headerSlideKB12; }
 
   @media (prefers-reduced-motion: reduce) {
     .header-slide,

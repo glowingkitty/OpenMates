@@ -9997,7 +9997,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          videoHlsUrl={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_hls_url ?? null) : null}
                          videoMp4Url={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_mp4_url ?? null) : null}
                          videoStartTime={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_start_time ?? 0) : 0}
-                         backgroundFrames={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.background_frames ?? null) : null}
+                         backgroundFrames={currentChat?.chat_id === 'demo-for-everyone' ? (() => { const frames = DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })() : null}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
