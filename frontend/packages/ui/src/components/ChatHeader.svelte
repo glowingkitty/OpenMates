@@ -811,6 +811,19 @@
     max-width: 480px;
     width: 100%;
     opacity: 1;
+    /* Promote .loaded-content to its own GPU compositor layer so its paint is
+       independent of the banner's shared layer. translateZ(0) is a
+       well-established hint that forces own-layer promotion without changing
+       layout. Combined with the banner's `isolation: isolate` above, this
+       guarantees title / summary / icon / time stay painted regardless of
+       offscreen compositor optimizations that Chrome applies to the shared
+       banner layer after closing a fullscreen embed. */
+    transform: translateZ(0);
+    /* `contain: layout paint` tells the browser that this element's layout
+       and paint cannot affect anything outside of it — a strong hint that
+       its paint must be kept fresh when its own size/contents change, rather
+       than being cached at a stale position. */
+    contain: layout paint;
   }
 
   @keyframes fadeIn {
