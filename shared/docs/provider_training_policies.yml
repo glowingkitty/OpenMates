@@ -67,14 +67,17 @@ providers:
   openai:
     status: no_training
     provider_group: ai_models
-    policy_url: https://openai.com/enterprise-privacy/
+    policy_url: https://openai.com/policies/services-agreement/
     quote: >
-      We do not train our models on your data by default.
-    source_document: "OpenAI Enterprise Privacy page"
-    mechanism: Opt-in only — training requires explicit consent
+      OpenAI will not use Customer Content to develop or improve the
+      Services, unless Customer explicitly agrees to such use.
+    source_document: "OpenAI Services Agreement (applies to API, ChatGPT Business, ChatGPT Enterprise)"
+    mechanism: Opt-in only — training requires explicit consent from customer
     notes: >
-      Zero Data Retention (ZDR) is also available for eligible endpoints
-      but requires a qualifying use case arranged with OpenAI.
+      The Services Agreement governs all API customers (businesses and
+      developers), not just enterprise. "Customer Content" is defined as
+      Inputs + Outputs. Zero Data Retention (ZDR) is also available for
+      eligible endpoints.
     action_required: none
     last_verified: "2026-04-16T11:15:00Z"
 
