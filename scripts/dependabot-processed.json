@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-04-15T21:30:02Z",
+  "last_run": "2026-04-16T10:30:02Z",
   "processed": [
     {
       "ghsa_id": "GHSA-c427-h43c-vf67",
@@ -121,20 +121,6 @@
     },
     {
       "ghsa_id": "GHSA-mj87-hwqh-73pj",
-      "severity": "medium",
-      "package": "python-multipart",
-      "summary": "python-multipart affected by Denial of Service via large multipart preamble or epilogue data",
-      "alert_numbers": [
-        185,
-        184
-      ],
-      "first_seen_at": "2026-04-15T21:30:02Z",
-      "last_dispatched_at": "2026-04-15T21:30:02Z",
-      "re_dispatch_count": 0,
-      "resolved_via_commit": null
-    },
-    {
-      "ghsa_id": "GHSA-mj87-hwqh-73pj",
       "package": "python-multipart",
       "ecosystem": "pip",
       "from_version": "0.0.22",
@@ -143,7 +129,21 @@
       "files": [
         "backend/upload/requirements.txt",
         "backend/core/api/requirements.txt"
-      ]
+      ],
+      "resolved_via_commit": "8713bab99"
+    },
+    {
+      "ghsa_id": "GHSA-39q2-94rc-95cp",
+      "severity": "medium",
+      "package": "dompurify",
+      "summary": "DOMPurify's ADD_TAGS function form bypasses FORBID_TAGS due to short-circuit evaluation",
+      "alert_numbers": [
+        186
+      ],
+      "first_seen_at": "2026-04-16T04:30:02Z",
+      "last_dispatched_at": "2026-04-16T04:30:02Z",
+      "re_dispatch_count": 0,
+      "resolved_via_commit": "fac833003"
     }
   ]
 }

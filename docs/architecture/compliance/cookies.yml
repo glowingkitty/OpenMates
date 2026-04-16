@@ -46,7 +46,7 @@ cookies:
   same_site: None
   value_length: 170
   first_observed: '2026-04-14'
-  last_observed: '2026-04-15'
+  last_observed: '2026-04-16'
   seen_in_specs:
   - signup-flow.spec.ts
   - settings-support-stripe.spec.ts
@@ -73,7 +73,7 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-15'
+  last_observed: '2026-04-16'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -111,7 +111,7 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-15'
+  last_observed: '2026-04-16'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -139,7 +139,7 @@ cookies:
   same_site: Lax
   value_length: 64
   first_observed: '2026-04-08'
-  last_observed: '2026-04-15'
+  last_observed: '2026-04-16'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -183,7 +183,7 @@ cookies:
   same_site: None
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-15'
+  last_observed: '2026-04-16'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -213,7 +213,7 @@ cookies:
   same_site: Lax
   value_length: 2
   first_observed: '2026-04-14'
-  last_observed: '2026-04-15'
+  last_observed: '2026-04-16'
   seen_in_specs:
   - language-settings-flow.spec.ts
   purpose: null
