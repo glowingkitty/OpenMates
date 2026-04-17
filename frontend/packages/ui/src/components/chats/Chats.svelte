@@ -287,12 +287,10 @@ let _chatUpdatedFlushPending = false;
 				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
-		// 3. Announcement chats — the 4 most recent Updates & Announcements
+		// 3. Announcement chats — the 3 most recent Updates & Announcements
 		// newsletter issues, shown under an "Announcements" section so users can
 		// always jump back to the latest product update. Hidden (via
 		// hidden_demo_chats) works the same as for intro/legal chats.
-		// Sort by ``lastUpdated`` (from the newsletter chat metadata) descending,
-		// then take the top 4.
 		const announcementChats: ChatType[] = getActiveNewsletterChatsByKind('announcements')
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.slice()
@@ -301,11 +299,28 @@ let _chatUpdatedFlushPending = false;
 				const bt = Date.parse(b.metadata.lastUpdated || '') || 0;
 				return bt - at;
 			})
-			.slice(0, 4)
+			.slice(0, 3)
 			.map(demo => translateDemoChat(demo))
 			.map(demo => {
 				const chat = convertDemoChatToChat(demo);
 				chat.group_key = 'announcements';
+				return chat;
+			});
+
+		// 3b. Tips & Tricks chats — shown only when entries exist.
+		const tipsAndTricksChats: ChatType[] = getActiveNewsletterChatsByKind('tips')
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.slice()
+			.sort((a, b) => {
+				const at = Date.parse(a.metadata.lastUpdated || '') || 0;
+				const bt = Date.parse(b.metadata.lastUpdated || '') || 0;
+				return bt - at;
+			})
+			.slice(0, 3)
+			.map(demo => translateDemoChat(demo))
+			.map(demo => {
+				const chat = convertDemoChatToChat(demo);
+				chat.group_key = 'tips_and_tricks';
 				return chat;
 			});
 
@@ -328,7 +343,7 @@ let _chatUpdatedFlushPending = false;
 				});
 		}
 		
-		return [...introChats, ...exampleChats, ...announcementChats, ...legalChats];
+		return [...introChats, ...exampleChats, ...announcementChats, ...tipsAndTricksChats, ...legalChats];
 	})());
 
 	// Combine public chats (intro + example chats + legal) with real chats from IndexedDB
@@ -557,7 +572,7 @@ let _chatUpdatedFlushPending = false;
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
 		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
-		const staticGroups = ['shared_by_others', 'intro', 'examples', 'announcements', 'legal'];
+		const staticGroups = ['shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
 			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
@@ -580,7 +595,7 @@ let _chatUpdatedFlushPending = false;
 	// STATIC_GROUP_KEYS are excluded from time-based grouping and from the phased-load limit.
 	// 'incognito' is listed first so it renders at the top of the sidebar (above user time-groups).
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
-	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'legal'];
+	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
 
 	// Initial display limit: matches Phase 1a (10 recent + 1 last-opened).
 	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
@@ -699,8 +714,8 @@ let _chatUpdatedFlushPending = false;
 	//
 	// Chats without a group_key are real user chats (or incognito/session chats). For
 	// authenticated users they sort first; the fallback bucket (99) is never used in practice.
-	const GROUP_NAV_ORDER_UNAUTH: Record<string, number> = { intro: 0, examples: 1, announcements: 2, legal: 3 };
-	const GROUP_NAV_ORDER_AUTH:   Record<string, number> = { intro: 1, examples: 2, announcements: 3, legal: 4 };
+	const GROUP_NAV_ORDER_UNAUTH: Record<string, number> = { intro: 0, examples: 1, announcements: 2, tips_and_tricks: 3, legal: 4 };
+	const GROUP_NAV_ORDER_AUTH:   Record<string, number> = { intro: 1, examples: 2, announcements: 3, tips_and_tricks: 4, legal: 5 };
 	let flattenedNavigableChats = $derived.by(() => {
 		const groupOrder = $authStore.isAuthenticated ? GROUP_NAV_ORDER_AUTH : GROUP_NAV_ORDER_UNAUTH;
 		return [...sortedAllChatsFiltered].sort((a, b) => {
