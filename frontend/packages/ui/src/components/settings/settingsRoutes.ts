@@ -80,7 +80,7 @@ import SettingsGiftCardsBuy from "./giftcards/SettingsGiftCardsBuy.svelte";
 import SettingsGiftCardsBuyPayment from "./giftcards/SettingsGiftCardsBuyPayment.svelte";
 import SettingsGiftCardsPurchaseConfirmation from "./giftcards/SettingsGiftCardsPurchaseConfirmation.svelte";
 
-// App Store
+// Apps
 import SettingsAppStore from "./SettingsAppStore.svelte";
 import SettingsAllApps from "./SettingsAllApps.svelte";
 import AppDetailsWrapper from "./AppDetailsWrapper.svelte";
@@ -133,7 +133,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   pricing: SettingsPricing,
   // AI (model selection, pricing, providers, settings & memories)
   ai: SettingsAI,
-  // App Store
+  // Apps
   app_store: SettingsAppStore,
   "app_store/all": SettingsAllApps,
   // Settings & Memories hub — lists all user-created settings and memories across apps
