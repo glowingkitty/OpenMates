@@ -1,15 +1,21 @@
 ---
-status: planned
-last_verified: 2026-04-11
-key_files: []
+status: in-progress
+last_verified: 2026-04-17
+key_files:
+  - apple/project.yml
+  - apple/OpenMates/Sources/App/OpenMatesApp.swift
+  - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+  - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+  - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+  - frontend/packages/ui/src/tokens/generated/swift/
 ---
 
 # Native Apps Architecture (Apple-First)
 
-> OpenMates plans to ship fully native client apps across the Apple ecosystem —
-> iPhone, iPad, Mac, and (eventually) an independent Apple Watch app — built
-> with Swift and SwiftUI. This document captures the strategy, constraints, and
-> rollout order. No native-app code exists yet; this is the plan of record.
+> OpenMates ships a fully native universal app across the Apple ecosystem —
+> iPhone, iPad, Mac, and (later) an independent Apple Watch app and Apple
+> Vision Pro — built with Swift 6 and SwiftUI. The native app lives in the
+> monorepo under `apple/` and shares design tokens from the frontend pipeline.
 
 ## Why Native, Apple-First
 
@@ -23,10 +29,10 @@ experience on devices where users expect deep OS integration:
 - Face ID / Touch ID for hidden chats and sensitive actions
 - Independent Apple Watch usage without a tethered iPhone (long-term goal)
 
-We start with the Apple ecosystem because SwiftUI is Apple's unified
-cross-device UI framework: one Xcode project can target iOS, iPadOS, macOS,
-watchOS, tvOS, and visionOS with 70-90% shared code. This gives us four (or
-more) high-quality native clients from a single codebase with a single team.
+We use SwiftUI as Apple's unified cross-device UI framework: one Xcode
+project targets iOS, iPadOS, macOS, watchOS, and visionOS with 70-90%
+shared code. This gives us multiple high-quality native clients from a
+single codebase.
 
 Android and other platforms are explicitly out of scope for this phase.
 
@@ -39,117 +45,143 @@ Android and other platforms are explicitly out of scope for this phase.
 | Persistence | SwiftData | Modern Core Data replacement |
 | Networking | `URLSession` + `URLSessionWebSocketTask` | Native WebSockets for phased sync |
 | Secrets | Keychain + iCloud Keychain | E2EE key storage + multi-device sync |
-| IDE / Build | Xcode multiplatform app target | One project, many destinations |
+| Passkeys | `ASAuthorizationController` | Native Face ID / Touch ID auth |
+| Build | Xcode multiplatform + XcodeGen | `project.yml` → `.xcodeproj` |
 
-## Repository Layout
+## Repository Layout (Monorepo)
 
-The native apps live in a separate repository (`OpenMates-Apple`) to keep the
-Swift project isolated from the web codebase and its tooling. The backend
-(`backend/`) is platform-agnostic and is reused unchanged.
-
-Inside the native repo the target layout is:
+The native app lives in the existing OpenMates monorepo under `apple/`.
+Design tokens are generated from the same YAML sources as the web app
+and imported directly into the Xcode project.
 
 ```
-OpenMates-Apple/
-├── Shared/              # 70-90% of the code
-│   ├── Models/          # Mirrors backend Pydantic schemas
-│   ├── Networking/      # API client + WebSocket phased-sync
-│   ├── Crypto/          # E2EE key lifecycle (ports ChatKeyManager)
-│   ├── Persistence/     # SwiftData stores
-│   ├── ViewModels/
-│   └── Views/           # Most SwiftUI views
-├── iOS/                 # iPhone / iPad specifics
-├── macOS/               # Menu bar, window management, keyboard shortcuts
-└── watchOS/             # Watch-only UI, complications, background refresh
+OpenMates/
+├── apple/                              # Xcode project root
+│   ├── project.yml                     # XcodeGen spec (generates .xcodeproj)
+│   ├── .gitignore                      # Excludes .xcodeproj, build artifacts
+│   └── OpenMates/
+│       ├── Sources/
+│       │   ├── App/                    # Entry point, RootView, MainAppView
+│       │   ├── Core/
+│       │   │   ├── Networking/         # APIClient, WebSocketManager
+│       │   │   ├── Crypto/             # CryptoManager, KeychainHelper
+│       │   │   ├── Persistence/        # SwiftData stores (TODO)
+│       │   │   └── Models/             # AuthModels, ChatModels
+│       │   ├── Features/
+│       │   │   ├── Auth/               # Login flow views + AuthManager
+│       │   │   ├── Chat/               # Chat list + chat view
+│       │   │   └── Settings/           # Settings view
+│       │   └── Shared/
+│       │       ├── Components/         # OMButtonStyles, AppIconView
+│       │       └── Extensions/         # Data, Color, ThemeManager
+│       ├── Resources/                  # Info.plist, entitlements
+│       ├── iOS/                        # iPhone/iPad-specific (future)
+│       └── macOS/                      # Mac-specific (future)
+├── frontend/
+│   └── packages/ui/src/tokens/
+│       ├── sources/*.yml               # Token source of truth
+│       └── generated/swift/            # Auto-generated Swift files + xcassets
+│           ├── ColorTokens.generated.swift
+│           ├── TypographyTokens.generated.swift
+│           ├── SpacingTokens.generated.swift
+│           ├── GradientTokens.generated.swift
+│           ├── IconMapping.generated.swift
+│           ├── ComponentTokens.generated.swift
+│           ├── Tokens.generated.swift
+│           ├── Assets.xcassets/        # 18 theme-aware color sets
+│           └── Icons.xcassets/         # 202 custom SVG icons
 ```
 
-Platform-specific branches are handled with `#if os(iOS)` / `#if os(watchOS)`
-conditionals or separate files, never with runtime checks.
+The `.xcodeproj` is git-ignored — regenerate with `cd apple && xcodegen generate`.
+Platform-specific code uses `#if os(iOS)` / `#if os(macOS)` conditionals.
 
-## Rollout Order
+## Design Token Integration
 
-1. **iPhone MVP** — auth, chat list, single chat, streaming AI responses,
-   E2EE key management, phased sync, core embeds.
-2. **iPad** — mostly layout adjustments via `NavigationSplitView` and size
-   classes. Minimal new code.
-3. **Mac** — menu bar, window management, keyboard-heavy workflows.
-4. **Apple Watch (independent)** — standalone watch app that syncs directly
-   with the backend over LTE / Wi-Fi, no iPhone required. This is the most
-   specialized target and is saved for last because of constrained UI,
-   battery, and connectivity edge cases.
+The token pipeline (`pnpm --filter @repo/ui build:tokens`) generates Swift
+outputs alongside CSS and TypeScript from the same YAML sources. The Xcode
+project references these generated files directly — no manual copying.
 
-Each step should ship to TestFlight before the next begins.
+Available in Swift code:
+- `Color.grey0`, `Color.fontPrimary`, `Color.buttonPrimary` (18 theme-aware)
+- `LinearGradient.appAi`, `.appHealth`, `.primary` (50+ app gradients)
+- `Font.omH1` through `.omMicro` (12 typography scales with pt values)
+- `CGFloat.spacing4`, `.radius3`, `.iconSizeMd` (spacing, radii, icon sizes)
+- `Image.iconOpenmates`, `.iconChat`, `.iconAi` (202 custom icons)
+- `SFSymbol.bell`, `.chevronLeft` (31 Lucide → SF Symbol mappings)
+- `DS.SnippetCard`, `DS.LoadingText` (component primitives)
+
+## Rollout Phases
+
+### Phase 1: Login + Core Chat (iPhone MVP) — IN PROGRESS
+
+**Scope:** Login → chat list → single chat → streaming AI responses.
+Signup links to web app.
+
+**Login flow (native SwiftUI):**
+1. Email lookup (`EmailLookupView` → `/v1/auth/lookup`)
+2. Password + 2FA (`PasswordLoginView` → `/v1/auth/login`)
+3. Passkey (`PasskeyLoginView` → `ASAuthorizationController`)
+4. Recovery key (`RecoveryKeyView` → `/v1/auth/login`)
+5. Backup code (`BackupCodeView` → `/v1/auth/login`)
+6. Device verification (`DeviceVerificationView` → `/v1/auth/2fa/verify/device`)
+
+**Signup:** Opens `SFSafariViewController` → `openmates.org/signup`
+
+**Chat:** `NavigationSplitView` with sidebar chat list + detail chat view.
+Streaming responses via WebSocket. Message bubbles with user/assistant styling.
+
+**Payment:** Links to web app for credit purchases.
+
+### Phase 2: iPad + Mac Polish
+
+Mostly layout — `NavigationSplitView` adapts automatically. Mac additions:
+menu bar commands, keyboard shortcuts (`⌘N` new chat), window management.
+
+### Phase 3: Native Signup (except payment)
+
+Port all 13 signup steps to native SwiftUI. Passkeys will be better natively
+(`ASAuthorizationController` vs WebAuthn JS). Payment step → SFSafariViewController
+to web Stripe checkout, or Apple IAP as alternative payment method.
+
+### Phase 4: watchOS + visionOS
+
+Standalone watch app with voice-first interface. visionOS when there's demand.
 
 ## What Has to Be Ported From the Web App
 
-These are the subsystems that need Swift equivalents, in rough order of effort:
+In rough order of effort:
 
-- **E2EE key lifecycle** — `ChatKeyManager` logic must be re-implemented
-  against Apple Keychain + iCloud Keychain sync. See
-  [core/client-side-encryption.md](../core/client-side-encryption.md) and
-  [core/master-key-lifecycle.md](../core/master-key-lifecycle.md).
-- **Phased sync protocol** — the 3-phase WebSocket sync in
-  [data/sync.md](../data/sync.md) needs a native client.
-- **Embed renderers** — 30+ embed types currently rendered by
-  `UnifiedEmbedPreview.svelte` / `UnifiedEmbedFullscreen.svelte` need Swift
-  equivalents. This is the single largest porting effort.
-- **Markdown / TipTap rendering** — message rendering with inline embeds.
+- **E2EE key lifecycle** — `ChatKeyManager` → Apple CryptoKit + Keychain +
+  iCloud Keychain sync. See [core/client-side-encryption.md](../core/client-side-encryption.md).
+- **Phased sync protocol** — 3-phase WebSocket sync →
+  `URLSessionWebSocketTask`. See [data/sync.md](../data/sync.md).
+- **Embed renderers** — 30+ embed types → SwiftUI equivalents for top 10,
+  `WKWebView` fallback for the rest. Largest porting effort.
+- **Markdown / message rendering** — inline embeds, code blocks, links.
 - **PII protection** — client-side detection + placeholder rendering.
 
-The backend (FastAPI, Directus, providers) is platform-agnostic and needs
-no changes to support native clients. Shared API contracts should be
-generated from the existing Pydantic schemas to keep frontend/backend in sync.
+The backend is platform-agnostic and needs no changes.
 
-## Development Workflow Constraints
+## Development Workflow
 
-Native Apple development has hard constraints that shape how work gets done:
-
-- **Xcode runs only on macOS.** Any contributor working on native apps
-  needs a Mac (Apple Silicon recommended).
-- **A paid Apple Developer Program membership** is required for real device
-  testing, Apple Watch development, push notifications, and distribution.
-- **Apple Watch development requires a physical device pair** for meaningful
-  testing. The watchOS simulator is limited.
-- **Signing, provisioning, and capabilities** are managed through Xcode's
-  GUI and `developer.apple.com`. These steps cannot be fully scripted.
-- **Apps Connect submission** (screenshots, metadata, review) is a
-  manual process that happens per platform.
-
-Because of these constraints, the native repo has its own lint / CI /
-release tooling separate from the web repo's `sessions.py` workflow.
-
-## Fallback: WebView Shell
-
-If fully native SwiftUI development turns out to be too much effort for the
-team's capacity — especially porting the 30+ embed types — we keep a
-fallback plan in reserve:
-
-Wrap the existing SvelteKit web app in a native shell using `WKWebView`,
-with native bridges for:
-
-- Keychain-backed auth and E2EE keys
-- APNs push notifications
-- Face ID / Touch ID unlock
-- Handoff and Universal Links
-- Native file pickers and share sheets
-
-This gets us "OpenMates on iPhone" in days instead of months and keeps the
-web app as the single source of truth for all rendering. Individual screens
-can be replaced with native SwiftUI over time where polish matters most.
-
-This is explicitly a fallback, not the default plan. We go fully native
-first and only drop to the WebView shell if we hit a wall.
+- **Xcode runs only on macOS.** Contributors need a Mac (Apple Silicon recommended).
+- **Paid Apple Developer Program** required for device testing, push, and distribution.
+- **XcodeGen** keeps project config version-controlled: `cd apple && xcodegen generate`.
+- **Design tokens** auto-update: run `pnpm --filter @repo/ui build:tokens` after
+  editing YAML sources — Swift files regenerate alongside CSS/TS.
+- **Signing & provisioning** managed through Xcode GUI and developer.apple.com.
 
 ## Out of Scope
 
 - Android, Windows, and Linux native clients
 - React Native / Flutter / Kotlin Multiplatform
 - Catalyst (iPad app running on Mac) — we prefer a true macOS target
-- Any backend changes specific to native clients
+- Backend changes specific to native clients
 
 ## Related Docs
 
 - [Web App](./web-app.md) — current primary client
+- [Design Tokens](./design-tokens.md) — unified token system (web + native)
 - [Sync](../data/sync.md) — phased WebSocket sync to port
 - [Client-Side Encryption](../core/client-side-encryption.md) — E2EE to port
 - [Master Key Lifecycle](../core/master-key-lifecycle.md) — Keychain mapping
