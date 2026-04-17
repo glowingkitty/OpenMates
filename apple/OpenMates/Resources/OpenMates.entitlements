@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Passkey / WebAuthn — associates app with openmates.org domain -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>webcredentials:openmates.org</string>
+		<string>webcredentials:dev.openmates.org</string>
+	</array>
+
+	<!-- Keychain sharing for E2EE master key storage -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)org.openmates.app</string>
+	</array>
+
+	<!-- iCloud Keychain sync for multi-device key access -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array/>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+
+	<!-- Credential provider for passkey autofill -->
+	<key>com.apple.developer.authentication-services.autofill-credential-provider</key>
+	<true/>
+
+	<!-- Push notifications (APNs) -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>
