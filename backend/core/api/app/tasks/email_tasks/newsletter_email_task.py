@@ -229,11 +229,13 @@ async def _async_send_newsletter_confirmed_email(
         
         # Get social media links (from environment or defaults)
         instagram_url = "https://instagram.com/openmates_official"
+        bluesky_url = "https://bsky.app/profile/openmates.bsky.social"
         mastodon_url = "https://mastodon.social/@openmates"
-        
+
         # Prepare email context
         context = {
             "instagram_url": instagram_url,
+            "bluesky_url": bluesky_url,
             "mastodon_url": mastodon_url,
             "darkmode": darkmode  # Use darkmode setting from user preference
         }
