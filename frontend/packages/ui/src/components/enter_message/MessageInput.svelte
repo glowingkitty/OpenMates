@@ -4,6 +4,7 @@
     import { Editor } from '@tiptap/core';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
+    import { sanitizeText } from '../../utils/textSanitizer';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
@@ -1424,8 +1425,9 @@
                         return true;
                     }
 
-                    const text = event.clipboardData?.getData('text/plain');
-                    
+                    const rawPasteText = event.clipboardData?.getData('text/plain');
+                    const text = rawPasteText ? sanitizeText(rawPasteText) : rawPasteText;
+
                     if (text) {
                         // Check for chat YAML with embedded link (highest priority)
                         const chatLink = extractChatLinkFromYAML(text);
@@ -1656,6 +1658,16 @@
                     // Flag for immediate PII detection on the next editor update,
                     // since pasted text may contain complete PII patterns.
                     piiPasteDetectionPending = true;
+
+                    // If sanitization removed invisible characters, prevent default
+                    // paste and insert the cleaned text manually so TipTap doesn't
+                    // re-read the raw (unsanitized) clipboard data.
+                    if (rawPasteText && text !== rawPasteText) {
+                        event.preventDefault();
+                        editor.commands.insertContent(text);
+                        return true;
+                    }
+
                     return false;
                 },
                 // Handle clicks on PII highlight decorations via handleDOMEvents.
@@ -1757,7 +1769,8 @@
 
         // Listen for docs page deep link prefill events (/#message= handler in +page.svelte)
         function handleDocsPrefill(event: Event) {
-            const { text: msgText, autoSend } = (event as CustomEvent).detail;
+            const { text: rawMsgText, autoSend } = (event as CustomEvent).detail;
+            const msgText = sanitizeText(rawMsgText);
             if (!editor || editor.isDestroyed || !msgText) return;
             editor.commands.setContent(`<p>${msgText.replace(/\n/g, '<br>')}</p>`);
             hasContent = true;
@@ -2900,9 +2913,7 @@
     function handleJsonCodeBlockBackspace(event: KeyboardEvent) {
         if (!editor) return;
         
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
-
-        const { from, to: _to } = editor.state.selection;
+        const { from } = editor.state.selection;
         
         // Check for json_embed blocks first (new format)
         const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 300), from);
@@ -4073,8 +4084,9 @@
     // populate the editor, and focus it so the user can review and send.
     $effect(() => {
         if (currentChatId && editor && !editor.isDestroyed) {
-            const pendingReply = pendingNotificationReplyStore.consume(currentChatId);
-            if (pendingReply) {
+            const rawPendingReply = pendingNotificationReplyStore.consume(currentChatId);
+            if (rawPendingReply) {
+                const pendingReply = sanitizeText(rawPendingReply);
                 console.debug('[MessageInput] Populating editor with pending notification reply:', pendingReply);
                 tick().then(() => {
                     if (editor && !editor.isDestroyed) {
@@ -4112,7 +4124,7 @@
 
     // Cancel edit mode when switching to a different chat
     $effect(() => {
-        currentChatId; // track dependency
+        const _chatId = currentChatId; // track dependency
         const editState = $editMessageStore;
         if (editState && editState.chatId !== currentChatId) {
             cancelEdit();
