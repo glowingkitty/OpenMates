@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -41,8 +40,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	createEmailClient,
-	checkEmailQuota,
-	getE2EDebugUrl
+	checkEmailQuota
 } = require('./signup-flow-helpers');
 
 // ---------------------------------------------------------------------------
@@ -95,7 +93,7 @@ async function subscribeViaUI(page: any, email: string, log: any): Promise<void>
 	await subscribeBtn.click();
 	log(`Clicked Subscribe for: ${email}`);
 
-	const successMsg = page.getByTestId('success-message');
+	const successMsg = page.getByTestId('settings-info-box-success');
 	await expect(successMsg).toBeVisible({ timeout: 15000 });
 	const successText = await successMsg.innerText();
 	log(`Subscribe success message: "${successText}"`);

@@ -9,16 +9,12 @@ export {};
  *  1. Unauthenticated visitor: the subscribe form is shown, but the per-
  *     category toggles section MUST NOT render (nothing to attach them to).
  *
- *  2. Authenticated user: the toggles section renders only for confirmed
- *     newsletter subscribers. We read the test account's current state via
- *     `/v1/newsletter/categories` and then assert the UI matches:
- *       - subscribed=true  → toggles visible, defaults applied, flipping
- *                            daily_inspirations persists across reload
- *       - subscribed=false → toggles hidden, subscribe form still shown
- *
- * This way the auth test runs without pre-provisioning the test account's
- * subscription state — it asserts the UI contract against whatever state
- * the account is in.
+ *  2. Authenticated user: the toggles section ALWAYS renders (regardless of
+ *     subscription state). On first toggle the backend auto-creates a
+ *     subscriber row using the account email. We verify:
+ *       - toggles visible immediately after login
+ *       - flipping daily_inspirations persists via the API
+ *       - "Use a different email address" link is present
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -148,6 +144,27 @@ test.describe('newsletter categories (authenticated)', () => {
 		await loginToTestAccount(page, log, screenshot);
 		log('Logged in successfully.');
 
+		// ── Open Settings → Newsletter ───────────────────────────────
+		await openNewsletterSettings(page, log);
+		await screenshot(page, '01-newsletter-settings');
+
+		// Toggles MUST always be visible for authenticated users
+		const categoriesSection = page.getByTestId('newsletter-categories-section');
+		await expect(categoriesSection).toBeVisible({ timeout: 10000 });
+		log('Category toggles section is visible.');
+
+		for (const key of CATEGORY_KEYS) {
+			const toggle = page.getByTestId(`newsletter-category-toggle-${key}`);
+			await expect(toggle).toBeVisible();
+		}
+		log('All 3 category toggles rendered.');
+		await screenshot(page, '02-toggles-visible');
+
+		// "Use a different email address" link should be present
+		const changeEmailBtn = page.getByTestId('newsletter-change-email-button');
+		await expect(changeEmailBtn).toBeVisible({ timeout: 5000 });
+		log('"Use a different email address" link is visible.');
+
 		// ── Probe current subscription state via the API ─────────────
 		const apiState = await fetchCategoriesViaBrowser(page);
 		log(
@@ -159,41 +176,14 @@ test.describe('newsletter categories (authenticated)', () => {
 			expect(typeof apiState.categories[key]).toBe('boolean');
 		}
 
-		// ── Open Settings → Newsletter ───────────────────────────────
-		await openNewsletterSettings(page, log);
-		await screenshot(page, '01-newsletter-settings');
-
-		const categoriesSection = page.getByTestId('newsletter-categories-section');
-
-		if (!apiState.subscribed) {
-			// Test account is not a confirmed subscriber → toggles MUST be hidden.
-			await expect(categoriesSection).toHaveCount(0);
-			log(
-				'Test account is not subscribed — toggles hidden as expected. ' +
-					'To exercise the full toggle flow, confirm the test account to the newsletter first.'
-			);
-			await screenshot(page, '02-not-subscribed-toggles-hidden');
-			return;
-		}
-
-		// Subscribed path: assert toggles render.
-		await expect(categoriesSection).toBeVisible({ timeout: 10000 });
-		log('Category toggles section is visible (subscriber path).');
-
-		for (const key of CATEGORY_KEYS) {
-			const toggle = page.getByTestId(`newsletter-category-toggle-${key}`);
-			await expect(toggle).toBeVisible();
-		}
-		log('All 3 category toggles rendered.');
-		await screenshot(page, '02-toggles-visible');
-
 		// ── Flip daily_inspirations and confirm the API echoes the new state
+		// (this may auto-create a subscriber row if the test account wasn't subscribed)
 		const dailyToggle = page.getByTestId('newsletter-category-toggle-daily_inspirations');
 		const beforeState = apiState.categories.daily_inspirations;
 		log(`daily_inspirations before flip: ${beforeState}`);
 
 		await dailyToggle.click();
-		await page.waitForTimeout(1500); // let the debounced PATCH settle
+		await page.waitForTimeout(1500); // let the PATCH settle
 
 		const afterState = await fetchCategoriesViaBrowser(page);
 		log(`daily_inspirations after flip: ${afterState.categories.daily_inspirations}`);
