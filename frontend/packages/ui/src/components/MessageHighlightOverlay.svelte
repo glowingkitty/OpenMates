@@ -156,12 +156,15 @@
   }
 
   let lastClickHandler: ((e: Event) => void) | null = null;
+  let lastEnterHandler: ((e: Event) => void) | null = null;
+  let lastLeaveHandler: ((e: Event) => void) | null = null;
 
-  function attachClickHandler(root: HTMLElement) {
-    if (lastClickHandler) {
-      root.removeEventListener('click', lastClickHandler);
-    }
-    const handler = (e: Event) => {
+  function attachEventHandlers(root: HTMLElement) {
+    if (lastClickHandler) root.removeEventListener('click', lastClickHandler);
+    if (lastEnterHandler) root.removeEventListener('mouseenter', lastEnterHandler, true);
+    if (lastLeaveHandler) root.removeEventListener('mouseleave', lastLeaveHandler, true);
+
+    const clickHandler = (e: Event) => {
       const target = e.target as HTMLElement | null;
       const mark = target?.closest(`mark.${MARK_CLASS}`) as HTMLElement | null;
       if (!mark) return;
@@ -171,8 +174,31 @@
       e.preventDefault();
       onHighlightClick?.(id, mark.getBoundingClientRect());
     };
-    root.addEventListener('click', handler);
-    lastClickHandler = handler;
+
+    const enterHandler = (e: Event) => {
+      const mark = (e.target as HTMLElement)?.closest(`mark.${MARK_CLASS}`) as HTMLElement | null;
+      if (!mark) return;
+      const id = mark.getAttribute(MARK_ATTR);
+      if (!id) return;
+      root.querySelectorAll(`mark.${MARK_CLASS}[${MARK_ATTR}="${CSS.escape(id)}"]`)
+        .forEach(m => m.classList.add('hovered'));
+    };
+
+    const leaveHandler = (e: Event) => {
+      const mark = (e.target as HTMLElement)?.closest(`mark.${MARK_CLASS}`) as HTMLElement | null;
+      if (!mark) return;
+      const id = mark.getAttribute(MARK_ATTR);
+      if (!id) return;
+      root.querySelectorAll(`mark.${MARK_CLASS}[${MARK_ATTR}="${CSS.escape(id)}"]`)
+        .forEach(m => m.classList.remove('hovered'));
+    };
+
+    root.addEventListener('click', clickHandler);
+    root.addEventListener('mouseenter', enterHandler, true);
+    root.addEventListener('mouseleave', leaveHandler, true);
+    lastClickHandler = clickHandler;
+    lastEnterHandler = enterHandler;
+    lastLeaveHandler = leaveHandler;
   }
 
   async function recompute() {
@@ -213,7 +239,7 @@
       }
     }
 
-    attachClickHandler(root);
+    attachEventHandlers(root);
   }
 
   $effect(() => {
@@ -225,9 +251,10 @@
     return () => {
       const root = contentRoot;
       if (root) removeMarks(root);
-      if (root && lastClickHandler) {
-        root.removeEventListener('click', lastClickHandler);
-        lastClickHandler = null;
+      if (root) {
+        if (lastClickHandler) { root.removeEventListener('click', lastClickHandler); lastClickHandler = null; }
+        if (lastEnterHandler) { root.removeEventListener('mouseenter', lastEnterHandler, true); lastEnterHandler = null; }
+        if (lastLeaveHandler) { root.removeEventListener('mouseleave', lastLeaveHandler, true); lastLeaveHandler = null; }
       }
     };
   });
@@ -258,11 +285,10 @@
     -webkit-text-fill-color: unset;
     color: inherit;
     cursor: pointer;
-    border-radius: 2px;
     padding: 0 1px;
     transition: background var(--duration-fast, 150ms) var(--easing-default, ease);
   }
-  :global(mark.message-highlight-mark:hover) {
+  :global(mark.message-highlight-mark.hovered) {
     background: var(--color-highlight-yellow-solid, #ffd500);
   }
   :global(mark.message-highlight-mark.focused) {
