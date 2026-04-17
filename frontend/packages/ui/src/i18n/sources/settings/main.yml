@@ -5666,6 +5666,30 @@ newsletter_email_placeholder:
   sv: Ange din e-postadress
   he: הזן את כתובת האימייל שלך
   verified_by_human: []
+newsletter_change_email:
+  context: Small link text to show email input for subscribing with a different email address
+  en: Use a different email address
+  de: Andere E-Mail-Adresse verwenden
+  zh: 使用其他电子邮件地址
+  es: Usar una dirección de correo diferente
+  fr: Utiliser une autre adresse e-mail
+  pt: Usar um endereço de e-mail diferente
+  ru: Использовать другой адрес электронной почты
+  ja: 別のメールアドレスを使用する
+  ko: 다른 이메일 주소 사용
+  it: Usa un indirizzo email diverso
+  tr: Farklı bir e-posta adresi kullan
+  vi: Sử dụng địa chỉ email khác
+  id: Gunakan alamat email lain
+  pl: Użyj innego adresu e-mail
+  nl: Gebruik een ander e-mailadres
+  ar: استخدم عنوان بريد إلكتروني مختلف
+  hi: एक अलग ईमेल पता उपयोग करें
+  th: ใช้ที่อยู่อีเมลอื่น
+  cs: Použít jinou e-mailovou adresu
+  sv: Använd en annan e-postadress
+  he: השתמש בכתובת אימייל אחרת
+  verified_by_human: []
 newsletter_subscribe_button:
   context: Subscribe button text
   en: Subscribe

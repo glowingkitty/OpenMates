@@ -24,7 +24,6 @@ changes to the documentation (to keep the documentation up to date).
         'daily_inspirations',
     ];
     let categoriesLoaded = $state(false);
-    let isSubscribedToNewsletter = $state(false);
     let categoryPrefs = $state<Record<CategoryKey, boolean>>({
         updates_and_announcements: true,
         tips_and_tricks: true,
@@ -46,6 +45,7 @@ changes to the documentation (to keep the documentation up to date).
     
     // State for newsletter actions from email links
     let isProcessingAction = $state(false);
+    let showEmailForm = $state(false);
     
     /**
      * Debounce helper function for email validation
@@ -256,8 +256,6 @@ changes to the documentation (to keep the documentation up to date).
             
             if (response.ok && data.success) {
                 successMessage = data.message || $text('settings.newsletter_unsubscribe_success');
-                // Reset UI — they're no longer a subscriber, hide toggles.
-                isSubscribedToNewsletter = false;
             } else {
                 errorMessage = data.message || $text('settings.newsletter_unsubscribe_error');
             }
@@ -314,7 +312,6 @@ changes to the documentation (to keep the documentation up to date).
     async function loadCategoryPreferences() {
         if (!$authStore.isAuthenticated) {
             categoriesLoaded = true;
-            isSubscribedToNewsletter = false;
             return;
         }
         try {
@@ -328,7 +325,6 @@ changes to the documentation (to keep the documentation up to date).
                 return;
             }
             const data = await resp.json();
-            isSubscribedToNewsletter = Boolean(data?.subscribed);
             if (data?.categories && typeof data.categories === 'object') {
                 categoryPrefs = { ...categoryPrefs, ...data.categories };
             }
@@ -340,7 +336,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     async function toggleCategory(key: CategoryKey) {
-        if (!isSubscribedToNewsletter || savingCategory) return;
+        if (savingCategory) return;
         const next = !categoryPrefs[key];
         savingCategory = key;
         // Optimistic update so the toggle feels instant.
@@ -422,8 +418,8 @@ changes to the documentation (to keep the documentation up to date).
 <div class="newsletter-settings">
     <p>{$text('settings.newsletter_description')}</p>
 
-    {#if $authStore.isAuthenticated && categoriesLoaded && isSubscribedToNewsletter}
-        <!-- Authenticated + subscribed: show category toggles, no subscribe form -->
+    {#if $authStore.isAuthenticated && categoriesLoaded}
+        <!-- Authenticated: always show category toggles -->
         <div class="newsletter-categories" data-testid="newsletter-categories-section">
             <h3 class="categories-heading">
                 {$text('settings.newsletter_categories.heading')}
@@ -446,19 +442,57 @@ changes to the documentation (to keep the documentation up to date).
             {/each}
         </div>
 
-        <!-- Success/error messages from deep link actions -->
+        <!-- Subscribe with a different email address -->
+        {#if showEmailForm}
+            <div class="newsletter-form">
+                <div class="input-group">
+                    <SettingsInput
+                        bind:value={email}
+                        bind:inputRef={emailInput}
+                        type="email"
+                        placeholder={$text('settings.newsletter_email_placeholder')}
+                        disabled={isSubmitting}
+                        hasError={!!emailError}
+                        ariaLabel={$text('settings.newsletter_email_placeholder')}
+                        autocomplete="email"
+                        onKeydown={handleKeyPress}
+                    />
+                    {#if showEmailWarning && emailError}
+                        <InputWarning message={emailError} />
+                    {/if}
+                </div>
+                <div class="button-container">
+                    <button
+                        onclick={handleSubscribe}
+                        disabled={!isFormValid || isSubmitting}
+                        aria-label={$text('settings.newsletter_subscribe_button')}
+                    >
+                        {#if isSubmitting}
+                            {$text('settings.newsletter_subscribing')}
+                        {:else}
+                            {$text('settings.newsletter_subscribe_button')}
+                        {/if}
+                    </button>
+                </div>
+            </div>
+        {:else}
+            <button
+                class="change-email-button"
+                onclick={() => showEmailForm = true}
+                data-testid="newsletter-change-email-button"
+            >
+                {$text('settings.newsletter_change_email')}
+            </button>
+        {/if}
+
         {#if successMessage}
-            <SettingsInfoBox type="success">
-                {successMessage}
-            </SettingsInfoBox>
+            <SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
         {/if}
         {#if errorMessage}
-            <SettingsInfoBox type="error">
-                {errorMessage}
-            </SettingsInfoBox>
+            <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
         {/if}
-    {:else}
-        <!-- Not subscribed (or not authenticated): show subscribe form -->
+    {:else if !$authStore.isAuthenticated}
+        <!-- Not authenticated: show subscribe form -->
         <div class="newsletter-form">
             <div class="input-group">
                 <SettingsInput
@@ -473,9 +507,7 @@ changes to the documentation (to keep the documentation up to date).
                     onKeydown={handleKeyPress}
                 />
                 {#if showEmailWarning && emailError}
-                    <InputWarning
-                        message={emailError}
-                    />
+                    <InputWarning message={emailError} />
                 {/if}
             </div>
 
@@ -493,25 +525,14 @@ changes to the documentation (to keep the documentation up to date).
                 </button>
             </div>
 
-            <!-- Processing action message (from email links) -->
             {#if isProcessingAction}
-                <SettingsInfoBox type="info">
-                    {$text('settings.newsletter_processing')}
-                </SettingsInfoBox>
+                <SettingsInfoBox type="info">{$text('settings.newsletter_processing')}</SettingsInfoBox>
             {/if}
-
-            <!-- Success message -->
             {#if successMessage}
-                <SettingsInfoBox type="success">
-                    {successMessage}
-                </SettingsInfoBox>
+                <SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
             {/if}
-
-            <!-- Error message -->
             {#if errorMessage}
-                <SettingsInfoBox type="error">
-                    {errorMessage}
-                </SettingsInfoBox>
+                <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
             {/if}
         </div>
     {/if}
@@ -560,6 +581,16 @@ changes to the documentation (to keep the documentation up to date).
         color: var(--color-grey-50);
         margin: 0 0 var(--spacing-4) 0;
         line-height: 1.4;
+    }
+
+    .change-email-button {
+        background: none;
+        border: none;
+        color: var(--color-grey-50);
+        font-size: var(--font-size-xxs);
+        cursor: pointer;
+        padding: var(--spacing-2) 0;
+        text-decoration: underline;
     }
 
     .newsletter-info {

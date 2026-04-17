@@ -560,6 +560,17 @@ class NewsletterCategoriesUpdateRequest(BaseModel):
     categories: Dict[str, bool]
 
 
+async def _get_hashed_email_for_user(
+    user: User,
+    directus_service: DirectusService,
+) -> Optional[str]:
+    """Fetch hashed_email from Directus profile (not on the User model)."""
+    fields = await directus_service.get_user_fields_direct(user.id, ["hashed_email"])
+    if fields:
+        return fields.get("hashed_email")
+    return None
+
+
 async def _find_subscriber_by_hashed_email(
     hashed_email: str,
     directus_service: DirectusService,
@@ -580,6 +591,48 @@ async def _find_subscriber_by_hashed_email(
     return rows[0] if rows else None
 
 
+async def _auto_create_subscriber(
+    user: User,
+    hashed_email: str,
+    categories: Dict[str, bool],
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+) -> Optional[Dict]:
+    """Auto-create a newsletter subscriber row for an authenticated user.
+
+    Called on first toggle interaction when no subscriber row exists yet.
+    Uses the user's account email so they don't need to re-enter it.
+    """
+    encrypted_email = user.encrypted_email_address
+    if not encrypted_email:
+        logger.warning(f"Cannot auto-subscribe user {user.id}: no encrypted_email_address")
+        return None
+
+    now = datetime.now(timezone.utc).isoformat()
+    unsubscribe_token = secrets.token_urlsafe(32)
+
+    payload = {
+        "encrypted_email_address": encrypted_email,
+        "hashed_email": hashed_email,
+        "confirmed_at": now,
+        "subscribed_at": now,
+        "language": user.language or "en",
+        "darkmode": user.darkmode,
+        "unsubscribe_token": unsubscribe_token,
+        "user_registration_status": "signup_complete",
+        "categories": categories,
+    }
+    url = f"{directus_service.base_url}/items/newsletter_subscribers"
+    resp = await directus_service._make_api_request("POST", url, json=payload)
+    if resp.status_code not in (200, 201):
+        logger.error(f"Auto-subscribe failed for user {user.id}: HTTP {resp.status_code}")
+        return None
+
+    data = resp.json().get("data", {})
+    logger.info(f"Auto-subscribed user {user.id} to newsletter (subscriber {data.get('id')})")
+    return data
+
+
 @router.get("/newsletter/categories", response_model=NewsletterCategoriesResponse)
 async def get_newsletter_categories(
     current_user: User = Depends(get_current_user),
@@ -589,12 +642,10 @@ async def get_newsletter_categories(
 
     If the user has never subscribed (no newsletter_subscribers row), we still
     return the defaults with ``subscribed=false`` so the frontend can render
-    the UI in a disabled/subscribe-first state without a second round-trip.
+    toggles — on first toggle the PATCH endpoint auto-creates the subscriber.
     """
-    hashed_email = getattr(current_user, "hashed_email", None)
+    hashed_email = await _get_hashed_email_for_user(current_user, directus_service)
     if not hashed_email:
-        # Treat as not-subscribed rather than 500 — matches the UX for users
-        # whose accounts predate hashed_email backfill.
         return NewsletterCategoriesResponse(
             success=True,
             subscribed=False,
@@ -623,15 +674,14 @@ async def update_newsletter_categories(
     payload: NewsletterCategoriesUpdateRequest,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """Patch the authenticated user's category preferences.
 
-    Only keys in ``NEWSLETTER_CATEGORIES`` are applied; unknown keys are
-    silently dropped. Missing keys keep their previous value. A 404 is
-    returned if the user is not a confirmed subscriber — the UI should
-    prompt them to subscribe first.
+    Auto-creates a subscriber row on first toggle for authenticated users
+    who haven't explicitly subscribed yet. Uses the account email.
     """
-    hashed_email = getattr(current_user, "hashed_email", None)
+    hashed_email = await _get_hashed_email_for_user(current_user, directus_service)
     if not hashed_email:
         return NewsletterCategoriesResponse(
             success=False,
@@ -640,12 +690,23 @@ async def update_newsletter_categories(
         )
 
     row = await _find_subscriber_by_hashed_email(hashed_email, directus_service)
+
     if not row:
-        return NewsletterCategoriesResponse(
-            success=False,
-            subscribed=False,
-            categories=dict(DEFAULT_NEWSLETTER_CATEGORIES),
+        # Auto-create subscriber with the requested category preferences
+        categories = dict(DEFAULT_NEWSLETTER_CATEGORIES)
+        for key, value in payload.categories.items():
+            if key in NEWSLETTER_CATEGORIES and isinstance(value, bool):
+                categories[key] = value
+        created = await _auto_create_subscriber(
+            current_user, hashed_email, categories, directus_service, encryption_service,
         )
+        if not created:
+            return NewsletterCategoriesResponse(
+                success=False,
+                subscribed=False,
+                categories=dict(DEFAULT_NEWSLETTER_CATEGORIES),
+            )
+        return NewsletterCategoriesResponse(success=True, subscribed=True, categories=categories)
 
     current = normalize_newsletter_categories(row.get("categories"))
     for key, value in payload.categories.items():
