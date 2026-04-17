@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -489,8 +489,8 @@ let _chatUpdatedFlushPending = false;
 			activePinIcon = null;
 			return;
 		}
-		// Demo/legal chats have plaintext titles and no encrypted metadata
-		if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+		// Public chats (demo/legal/newsletter) have plaintext titles and no encrypted metadata
+		if (isPublicChat(chat.chat_id)) {
 			activePinTitle = chat.title || null;
 			activePinCategory = null;
 			activePinIcon = null;
@@ -3358,8 +3358,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                         chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
                         deletedCount++;
                     }
-                    // Check if this is a public chat (demo/legal)
-                    else if (isDemoChat(chatId) || isLegalChat(chatId)) {
+                    // Check if this is a public chat (demo/legal/newsletter)
+                    else if (isPublicChat(chatId)) {
                         if (!$authStore.isAuthenticated) {
                             errors.push(`${chatId}: Please sign up to customize your experience`);
                             continue;

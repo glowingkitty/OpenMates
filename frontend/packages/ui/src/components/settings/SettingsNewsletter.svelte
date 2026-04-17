@@ -380,70 +380,40 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     // Handle deep link actions - format: #settings/newsletter/confirm/{token}, #settings/newsletter/unsubscribe/{token}, #settings/email/block/{email}
-    // Similar to how SettingsInvoices handles refund deep links
-    // Process immediately when component is ready (no need to wait for data like invoices)
+    // Clear the hash immediately on detection to prevent double-firing from
+    // component remounts or $effect re-runs while the API call is in flight.
     $effect(() => {
         if (typeof window === 'undefined' || isProcessingAction) {
             return;
         }
-        
+
         const hash = window.location.hash;
-        
-        // Check for newsletter confirmation deep link (e.g., #settings/newsletter/confirm/{token})
+
         const confirmMatch = hash.match(/^#settings\/newsletter\/confirm\/(.+)$/);
         if (confirmMatch) {
             const token = confirmMatch[1];
-            console.debug(`[SettingsNewsletter] Deep link confirmation detected for token: ${token.substring(0, 10)}...`);
-            
-            // Mark as processing to prevent re-processing
             isProcessingAction = true;
-            
-            // Small delay to ensure UI is ready
-            setTimeout(() => {
-                handleConfirmSubscription(token).finally(() => {
-                    // Clear the deep link from URL after processing
-                    replaceState(window.location.pathname + window.location.search, {});
-                });
-            }, 500);
+            replaceState(window.location.pathname + window.location.search, {});
+            setTimeout(() => { handleConfirmSubscription(token); }, 500);
             return;
         }
-        
-        // Check for newsletter unsubscribe deep link (e.g., #settings/newsletter/unsubscribe/{token})
+
         const unsubscribeMatch = hash.match(/^#settings\/newsletter\/unsubscribe\/(.+)$/);
         if (unsubscribeMatch) {
             const token = unsubscribeMatch[1];
-            console.debug(`[SettingsNewsletter] Deep link unsubscribe detected for token: ${token.substring(0, 10)}...`);
-            
-            // Mark as processing to prevent re-processing
             isProcessingAction = true;
-            
-            // Small delay to ensure UI is ready
-            setTimeout(() => {
-                handleUnsubscribe(token).finally(() => {
-                    // Clear the deep link from URL after processing
-                    replaceState(window.location.pathname + window.location.search, {});
-                });
-            }, 500);
+            replaceState(window.location.pathname + window.location.search, {});
+            setTimeout(() => { handleUnsubscribe(token); }, 500);
             return;
         }
-        
-        // Check for email block deep link (e.g., #settings/email/block/{email})
+
         const blockMatch = hash.match(/^#settings\/email\/block\/(.+)$/);
         if (blockMatch) {
             const encodedEmail = blockMatch[1];
             const emailToBlock = decodeURIComponent(encodedEmail);
-            console.debug(`[SettingsNewsletter] Deep link email block detected for: ${emailToBlock.substring(0, 10)}...`);
-            
-            // Mark as processing to prevent re-processing
             isProcessingAction = true;
-            
-            // Small delay to ensure UI is ready
-            setTimeout(() => {
-                handleBlockEmail(emailToBlock).finally(() => {
-                    // Clear the deep link from URL after processing
-                    replaceState(window.location.pathname + window.location.search, {});
-                });
-            }, 500);
+            replaceState(window.location.pathname + window.location.search, {});
+            setTimeout(() => { handleBlockEmail(emailToBlock); }, 500);
             return;
         }
     });
