@@ -453,6 +453,7 @@ Users should store them securely (offline, in a safe place).
                     <!-- Copy button -->
                     <button
                         class="save-button"
+                        data-testid="copy-button"
                         class:used={hasCopied}
                         onclick={handleCopy}
                     >

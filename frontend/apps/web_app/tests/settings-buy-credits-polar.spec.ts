@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -52,10 +51,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -168,7 +165,7 @@ test('settings buy credits: completes full Polar (non-EU card) purchase flow', a
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
 	// Wait for credits balance — confirms authenticated state fully loaded.
-	await expect(page.locator('[data-testid="settings-menu"].visible [data-testid="credits-container"]')).toBeVisible({
+	await expect(page.getByTestId('settings-menu').getByTestId('credits-container')).toBeVisible({
 		timeout: 15000
 	});
 	await screenshot(page, 'settings-menu-open');

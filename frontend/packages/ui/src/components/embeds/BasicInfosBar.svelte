@@ -159,7 +159,7 @@
   <!-- Desktop Layout: Horizontal bar (61px height, 30px rounded edges, grey-20 background) -->
   <div class="basic-infos-bar desktop">
     <!-- App icon in gradient circle (always show app icon, not favicon) -->
-    <div class="app-icon-circle {appId}" style={appGradientStyle}>
+    <div class="app-icon-circle {appId}" data-testid="app-icon-circle" style={appGradientStyle}>
       <div class="icon_rounded {appId}"></div>
     </div>
     

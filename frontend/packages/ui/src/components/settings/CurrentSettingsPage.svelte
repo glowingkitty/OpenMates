@@ -302,7 +302,7 @@
                 <div class="user-info-container">
                     <div class="username" class:shifted={!paymentEnabled}>{username || 'Guest'}</div>
                     <!-- Credits container - hidden visually when payment is disabled (self-hosted) but maintains layout space -->
-                    <div class="credits-container" class:hidden={!paymentEnabled}>
+                    <div class="credits-container" data-testid="credits-container" class:hidden={!paymentEnabled}>
                         <span class="credits-icon"></span>
                         <div class="credits-text">
                             <span class="credits-amount"><mark>{$text('settings.credits_amount').replace('{credits_amount}', credits.toString())}</mark></span>

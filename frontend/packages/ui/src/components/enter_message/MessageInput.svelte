@@ -4383,6 +4383,7 @@
         {#if showIncognitoPill}
             <div
                 class="focus-pill incognito-pill"
+                data-testid="incognito-pill"
                 transition:fade={{ duration: 200 }}
             >
                 <!-- Left side: anonym icon + "Incognito Mode" label (non-interactive display) -->
