@@ -2315,7 +2315,12 @@ changes to the documentation (to keep the documentation up to date).
                 // Determine the icon and title based on the path
                 // For nested paths like 'shared/share', use the last segment for icon
                 const pathParts = cleanPath.split('/');
-                const icon = pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
+                // Map paths whose last segment doesn't match a real icon name
+                const deepLinkIconOverrides: Record<string, string> = {
+                    'app_store/all': 'app',
+                };
+                const icon = deepLinkIconOverrides[cleanPath]
+                    ?? (pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0]);
                 
                 // Build translation key from full path
                 // Special case: 'shared/share' uses 'settings.share' (share is at root level, not nested)
