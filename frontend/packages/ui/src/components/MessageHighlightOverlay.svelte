@@ -54,6 +54,7 @@
   const MARK_ATTR = 'data-highlight-id';
   const MARK_COMMENT_CLASS = 'has-comment';
   const MARK_FOCUSED_CLASS = 'focused';
+  const MARK_LAST_CLASS = 'last-mark';
   const EMBED_SKIP_SELECTOR = '.embed-full-width-wrapper';
 
   function isInsideEmbed(node: Node): boolean {
@@ -233,7 +234,10 @@
       if (hasComment) extras.push(MARK_COMMENT_CLASS);
       if (focused) extras.push(MARK_FOCUSED_CLASS);
       try {
-        wrapRange(range, id, extras);
+        const marks = wrapRange(range, id, extras);
+        if (hasComment && marks.length > 0) {
+          marks[marks.length - 1].classList.add(MARK_LAST_CLASS);
+        }
       } catch (err) {
         console.debug('[MessageHighlightOverlay] wrapRange failed', err);
       }
@@ -295,10 +299,10 @@
     background: rgba(255, 213, 0, 0.65);
   }
   /* Comment indicator — a small 💬 chip pinned to the trailing edge of the
-     last mark for a highlight. Using ::after on every mark would show a
-     chip per line for multi-line highlights; the `last-of-type` selector
-     targets only the final mark node in the parent block. */
-  :global(mark.message-highlight-mark.has-comment:last-of-type::after) {
+     last mark for a highlight. The `last-mark` class is added only to the
+     final mark element of each highlight group in JS, so the icon appears
+     once even when the highlight spans multiple formatted elements. */
+  :global(mark.message-highlight-mark.has-comment.last-mark::after) {
     content: '💬';
     font-size: 10px;
     margin-left: 2px;
