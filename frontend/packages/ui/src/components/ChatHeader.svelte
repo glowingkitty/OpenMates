@@ -444,10 +444,8 @@
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
-    <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
-         Hidden when a media frame is shown — the framed slideshow replaces the
-         decorative flourish. -->
-    {#if IconComponent && !hasHeaderMedia}
+    <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
+    {#if IconComponent}
       <div class="deco-icon deco-icon-left">
         <IconComponent size={126} color="white" />
       </div>
