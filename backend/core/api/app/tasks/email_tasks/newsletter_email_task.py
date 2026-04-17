@@ -28,6 +28,40 @@ event_logger = logging.getLogger("app.events")
 event_logger.addFilter(sensitive_filter)
 
 
+def _resolve_webapp_base_url() -> str:
+    """Resolve the webapp base URL from environment, matching docker-compose's
+    SERVER_ENVIRONMENT variable. Falls back to FRONTEND_URLS (first HTTPS
+    entry) or E2E_DEV_TEST_BASE_URL on dev servers where urls.yml still
+    points at localhost."""
+    from backend.core.api.app.services.email.config_loader import load_shared_urls
+    shared_urls = load_shared_urls()
+
+    server_env = os.getenv("SERVER_ENVIRONMENT", "production").lower()
+    is_dev = server_env in ("development", "dev", "test")
+    env_name = "development" if is_dev else "production"
+
+    base_url = shared_urls.get("urls", {}).get("base", {}).get("webapp", {}).get(env_name)
+
+    if base_url and "localhost" in base_url and is_dev:
+        # urls.yml still has the template localhost value — try real dev URL
+        frontend_urls = os.getenv("FRONTEND_URLS", "")
+        for candidate in frontend_urls.split(","):
+            candidate = candidate.strip()
+            if candidate.startswith("https://"):
+                base_url = candidate
+                break
+        else:
+            base_url = os.getenv("E2E_DEV_TEST_BASE_URL", base_url)
+
+    if not base_url:
+        base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+
+    if not base_url.startswith("http"):
+        base_url = f"https://{base_url}"
+
+    return base_url.rstrip("/")
+
+
 @app.task(name='app.tasks.email_tasks.newsletter_email_task.send_newsletter_confirmation_email', bind=True)
 def send_newsletter_confirmation_email(
     self,
@@ -75,25 +109,8 @@ async def _async_send_newsletter_confirmation_email(
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
         
-        # Get webapp URL from shared config loader
-        from backend.core.api.app.services.email.config_loader import load_shared_urls
-        shared_urls = load_shared_urls()
-        
-        # Determine environment (development or production)
-        is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
-                 "localhost" in os.getenv("WEBAPP_URL", "").lower()
-        env_name = "development" if is_dev else "production"
-        
-        # Get webapp URL from shared config
-        base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
-        
-        # Fallback to environment variable or default
-        if not base_url:
-            base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
-            
-        if not base_url.startswith("http"):
-            base_url = f"https://{base_url}"
-        
+        base_url = _resolve_webapp_base_url()
+
         # Build confirmation URL using settings deep link format (like refund links)
         # Format: {base_url}/#settings/newsletter/confirm/{token}
         confirm_url = f"{base_url}/#settings/newsletter/confirm/{confirmation_token}"
@@ -204,30 +221,9 @@ async def _async_send_newsletter_confirmed_email(
                 # Get the plaintext unsubscribe token (stored in cleartext for direct lookup)
                 unsubscribe_token = items[0].get("unsubscribe_token")
                 if unsubscribe_token:
-                    # Build unsubscribe URL with the plaintext token using settings deep link format
-                    # Format: {base_url}/#settings/newsletter/unsubscribe/{token}
-                    
-                    # Load shared URLs configuration to get webapp URL
-                    from backend.core.api.app.services.email.config_loader import load_shared_urls
-                    shared_urls = load_shared_urls()
-
-                    # Determine environment (development or production)
-                    is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
-                             "localhost" in os.getenv("WEBAPP_URL", "").lower()
-                    env_name = "development" if is_dev else "production"
-
-                    # Get webapp URL from shared config
-                    base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
-
-                    # Fallback to environment variable or default
-                    if not base_url:
-                        base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
-
-                    if not base_url.startswith("http"):
-                        base_url = f"https://{base_url}"
-                        
+                    base_url = _resolve_webapp_base_url()
                     unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{unsubscribe_token}"
-                    logger.debug(f"Generated unsubscribe URL for newsletter confirmed email")
+                    logger.debug("Generated unsubscribe URL for newsletter confirmed email")
                 else:
                     logger.warning(f"No unsubscribe_token found for subscriber: {hashed_email[:16]}...")
         

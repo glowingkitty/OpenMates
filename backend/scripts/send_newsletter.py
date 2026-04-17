@@ -520,7 +520,7 @@ async def run(args: argparse.Namespace) -> int:
 
     # Landing-page live check (skippable only in dev, where the page may
     # not be deployed yet but the admin is iterating).
-    env = os.getenv("ENVIRONMENT", "production").lower()
+    env = os.getenv("SERVER_ENVIRONMENT", os.getenv("ENVIRONMENT", "production")).lower()
     is_dev = env in ("development", "dev", "test") or "localhost" in base_url
     if not is_dev:
         logger.info(f"Checking landing page liveness: {landing_url}")
@@ -560,7 +560,7 @@ async def run(args: argparse.Namespace) -> int:
     print(f"{'=' * 52}")
     print(f"\n  Registered users (manage settings link): {registered_count}")
     print(f"  Non-registered subscribers (unsubscribe link): {non_registered_count}")
-    print(f"\n  Language breakdown:")
+    print("\n  Language breakdown:")
     for lang_code, count in sorted(lang_breakdown.items(), key=lambda kv: -kv[1]):
         print(f"    {lang_code}: {count}")
     opted_out = len(subscribers) - len(eligible)
