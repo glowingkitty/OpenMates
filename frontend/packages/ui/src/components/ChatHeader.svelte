@@ -81,9 +81,6 @@
     highlightStats = null,
     /** Called when the user clicks the highlights pill. */
     onHighlightJump = undefined,
-    /** Called when the user clicks the play button. Opens fullscreen video via
-     *  chatVideoFullscreenStore in the parent. */
-    onPlayVideo = undefined,
   }: {
     title?: string;
     category?: string | null;
@@ -107,8 +104,6 @@
     highlightStats?: { highlights: number; comments: number } | null;
     /** Click handler for the highlights pill. */
     onHighlightJump?: (() => void) | undefined;
-    /** Called when the user clicks the play button to open fullscreen video. */
-    onPlayVideo?: (() => void) | undefined;
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
@@ -127,10 +122,6 @@
 
   function handlePlayClick(e: MouseEvent) {
     e.stopPropagation();
-    if (onPlayVideo) {
-      onPlayVideo();
-      return;
-    }
     isVideoActive = true;
   }
 
@@ -624,13 +615,7 @@
        scrolled off-screen) — the symptom is title/summary/icon rendered in
        the DOM but invisible until scroll/resize forces a recomposite. */
     isolation: isolate;
-    /* Only the background gradient transitions — height / min-height changes
-       (triggered by the `.side-by-side-active` / `.menu-open` overrides) are
-       applied instantly. The previous `height 0.3s, min-height 0.3s`
-       transition could interpolate while the banner was off-screen and leave
-       the flex-centered `.loaded-content` at a stale Y position inside the
-       overflow-hidden banner, clipping all content until the next reflow. */
-    transition: background 0.5s ease;
+    transition: background 0.5s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
     /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
     pointer-events: none;
@@ -1511,7 +1496,7 @@
     flex-shrink: 0;
     aspect-ratio: 16 / 9;
     height: 72%;
-    max-height: 420px;
+    max-height: 1080px;
     max-width: calc(100% - 100px);
     border-radius: 14px;
     overflow: hidden;

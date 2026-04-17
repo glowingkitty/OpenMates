@@ -84,6 +84,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
@@ -7314,7 +7315,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (typeof window !== 'undefined' && window.location.hash.includes('autoplay-video') && currentChat?.chat_id) {
             const { openChatVideoFullscreen } = await import('../stores/chatVideoFullscreenStore');
             const { getVideoForLocale } = await import('../demo_chats/data/videos');
-            const allChats = [...DEMO_CHATS, ...LEGAL_CHATS];
+            const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS];
             const demoChat = allChats.find(c => c.chat_id === currentChat.chat_id);
             const videoKey = demoChat?.metadata?.video_key;
             const currentLocale = typeof $locale === 'string' ? $locale : 'en';
@@ -10041,25 +10042,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          isIncognito={!!currentChat?.is_incognito}
                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                          canAnnotate={!currentChat?.is_shared_by_others}
-                         videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
-                         backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
-                         onPlayVideo={() => {
-                             if (!currentChat?.chat_id) return;
-                             const allChats = [...DEMO_CHATS, ...LEGAL_CHATS];
-                             const dc = allChats.find(c => c.chat_id === currentChat.chat_id);
-                             if (!dc?.metadata?.video_mp4_url) return;
-                             Promise.all([
-                                 import('../stores/chatVideoFullscreenStore'),
-                                 import('../demo_chats/data/videos'),
-                             ]).then(([{ openChatVideoFullscreen }, { getVideoForLocale }]) => {
-                                 const videoKey = dc.metadata?.video_key;
-                                 const localeVideo = videoKey ? getVideoForLocale(videoKey, $locale ?? 'en') : null;
-                                 const mp4 = localeVideo?.mp4_url ?? dc.metadata?.video_mp4_url;
-                                 if (mp4) {
-                                     openChatVideoFullscreen({ mp4Url: mp4, title: activeChatDecryptedTitle || '', chatId: currentChat.chat_id });
-                                 }
-                             });
-                         }}
+                         videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
+                         backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
