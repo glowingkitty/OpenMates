@@ -349,13 +349,15 @@ async def preview_newsletter_confirmed(
     try:
         # Get social media links (from environment or defaults)
         instagram_url = "https://instagram.com/openmates_official"
+        bluesky_url = "https://bsky.app/profile/openmates.bsky.social"
         mastodon_url = "https://mastodon.social/@openmates"
-        
+
         return await _process_email_template(
             request=request,
             template_name="newsletter-confirmed",
             lang=lang,
             instagram_url=instagram_url,
+            bluesky_url=bluesky_url,
             mastodon_url=mastodon_url
         )
     except Exception as e:
