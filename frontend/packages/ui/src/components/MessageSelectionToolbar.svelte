@@ -82,11 +82,29 @@
     if (action === 'highlight') onHighlight();
     else onHighlightAndComment();
   }
+
+  /**
+   * Mount the toolbar directly under `<body>` so its `position: fixed`
+   * coordinates resolve against the viewport, never a transformed/contained
+   * ancestor. Chat messages live deep inside `ActiveChat`/`ChatHistory`; any
+   * future `transform`, `filter`, `contain: paint`, or `will-change: transform`
+   * on an intermediate element would otherwise reparent the toolbar's
+   * containing block and pull the popover far from the user's selection.
+   */
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      },
+    };
+  }
 </script>
 
 {#if show && anchorRect}
   <div
     bind:this={el}
+    use:portal
     class="msg-sel-toolbar {placeBelow ? 'below' : 'above'}"
     style="--sel-left: {left}px; --sel-top: {top}px;"
     data-testid="message-selection-toolbar"

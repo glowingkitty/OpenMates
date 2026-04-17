@@ -1,15 +1,18 @@
 <!--
   MessageHighlightOverlay.svelte
 
-  Draws yellow highlight boxes on top of a rendered message's text nodes. The
-  parent (ChatMessage) passes the rendered message element and the list of
-  MessageHighlight objects. For each text-kind highlight, we resolve its
-  {start, end} source offsets to a DOM Range over the rendered text, then
-  render absolutely-positioned boxes for each ClientRect of that Range.
+  Applies yellow-background `<mark>` wrappers to the rendered message body for
+  every text-kind highlight. Using inline marks (instead of absolutely
+  positioned overlay boxes) makes highlights naturally reflow with the text
+  on viewport changes, zoom, font-size shifts, and embed re-renders — the
+  browser's text layout engine does the work for free.
 
-  This avoids surgery inside the TipTap editor. The only assumption is that
-  the rendered text's characters appear (in order) as text nodes inside the
-  container — which matches how ReadOnlyMessage renders markdown → prose.
+  The component name is kept for call-site compatibility; it no longer draws
+  an overlay layer. Its public surface:
+    - `contentRoot`, `highlights`, `recomputeKey`, `focusedId`,
+      `onHighlightClick` — unchanged from the previous box-drawing version.
+    - `getHighlightRect(id)` — returns the bounding client rect of the first
+      mark that renders this highlight (used to anchor the comment popover).
 
   Embed-kind highlights are handled separately by UnifiedEmbedPreview via
   its `highlighted` prop.
@@ -20,19 +23,19 @@
   import { findAnchorInRendered } from '../utils/messageHighlights';
 
   interface Props {
-    /** The element whose text nodes host the rendered message. */
+    /** The element whose text nodes host the rendered message body. */
     contentRoot: HTMLElement | null;
-    /** Highlights to render. `start`/`end` on text-kind highlights are offsets
-     *  into the concatenated text nodes of `contentRoot` — i.e. exactly what
-     *  the user sees on screen. See ChatMessage.getRenderedTextSource for the
-     *  source-of-truth rationale. */
+    /** Highlights to render. `anchor` is resolved against the current DOM
+     *  every run so embed re-renders, streaming updates, or reflow don't
+     *  stale-pin the highlight to a fixed coordinate. */
     highlights: MessageHighlight[];
     /** Trigger recomputation: bump a counter whenever the message's DOM may
-     *  have changed (re-render, font load, resize, etc.). */
+     *  have changed (re-render, font load, etc.). */
     recomputeKey?: number;
-    /** Id of the currently-focused highlight (from highlightNavigationStore). */
+    /** Id of the currently-focused highlight (from highlightNavigationStore).
+     *  Adds a `.focused` class to that highlight's marks for outline styling. */
     focusedId?: string | null;
-    /** Fires when the user clicks a highlight — parent opens the popover. */
+    /** Fires when the user clicks a highlight mark — parent opens the popover. */
     onHighlightClick?: (
       highlightId: string,
       rect: DOMRect,
@@ -47,149 +50,208 @@
     onHighlightClick,
   }: Props = $props();
 
-  type Box = {
-    id: string;
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-    hasComment: boolean;
-    focused: boolean;
-  };
-
-  let boxes = $state<Box[]>([]);
+  const MARK_CLASS = 'message-highlight-mark';
+  const MARK_ATTR = 'data-highlight-id';
+  const MARK_COMMENT_CLASS = 'has-comment';
+  const MARK_FOCUSED_CLASS = 'focused';
 
   /**
-   * Resolve a text highlight to a DOM Range using its text-quote anchor.
-   * This is the primary lookup — immune to re-render offset drift because
-   * we find the matching text in the CURRENT rendered DOM every time.
-   *
-   * See utils/messageHighlights.ts:findAnchorInRendered for the algorithm.
+   * Unwrap all `<mark.message-highlight-mark>` elements inside `root`,
+   * replacing each with a text node of the same content and merging
+   * adjacent text nodes so repeated apply/remove cycles don't leave the
+   * DOM fragmented.
    */
-  function rangeForHighlight(
-    root: HTMLElement,
-    highlight: Extract<MessageHighlight, { kind: 'text' }>,
-  ): Range | null {
-    return findAnchorInRendered(root, highlight.anchor);
+  function removeMarks(root: HTMLElement) {
+    const marks = Array.from(root.querySelectorAll(`mark.${MARK_CLASS}`));
+    for (const mark of marks) {
+      const parent = mark.parentNode;
+      if (!parent) continue;
+      const text = document.createTextNode(mark.textContent ?? '');
+      parent.replaceChild(text, mark);
+      parent.normalize();
+    }
+  }
+
+  /**
+   * Wrap every text-node segment inside `range` in a `<mark>` with the given
+   * attributes, splitting text nodes as needed when the range starts or ends
+   * mid-node. Returns the list of mark elements created so callers can add
+   * state classes (focused, has-comment) without a second DOM walk.
+   */
+  function wrapRange(
+    range: Range,
+    highlightId: string,
+    extraClasses: string[],
+  ): HTMLElement[] {
+    const segments: { node: Text; start: number; end: number }[] = [];
+    const walker = document.createTreeWalker(
+      range.commonAncestorContainer,
+      NodeFilter.SHOW_TEXT,
+    );
+    // TreeWalker.currentNode starts at the root; nextNode() descends into
+    // children in document order. Collect every text node that intersects
+    // the range so we can process them after the walk (mutating the DOM
+    // during iteration would invalidate the walker).
+    let n: Node | null = walker.nextNode();
+    while (n) {
+      const t = n as Text;
+      const nodeLen = t.length;
+      if (range.intersectsNode(t)) {
+        const isStart = t === range.startContainer;
+        const isEnd = t === range.endContainer;
+        const start = isStart ? range.startOffset : 0;
+        const end = isEnd ? range.endOffset : nodeLen;
+        if (end > start) segments.push({ node: t, start, end });
+      }
+      n = walker.nextNode();
+    }
+
+    const marks: HTMLElement[] = [];
+    // Wrap in reverse document order so splits in earlier nodes don't shift
+    // references to later nodes (references stay valid since splitText just
+    // creates siblings, but reverse order is still the defensive choice).
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const { node, start, end } = segments[i];
+      let target: Text = node;
+      if (start > 0) {
+        target = target.splitText(start);
+      }
+      const tail = end - start;
+      if (tail < target.length) {
+        target.splitText(tail);
+      }
+      const mark = document.createElement('mark');
+      mark.className = [MARK_CLASS, ...extraClasses].join(' ');
+      mark.setAttribute(MARK_ATTR, highlightId);
+      // Keep the legacy `message-highlight-box` testid so existing Playwright
+      // specs and the focused-scroll lookup in ChatHistory.svelte keep working
+      // after the overlay-to-mark migration.
+      mark.setAttribute('data-testid', 'message-highlight-box');
+      const parent = target.parentNode;
+      if (!parent) continue;
+      parent.replaceChild(mark, target);
+      mark.appendChild(target);
+      marks.push(mark);
+    }
+    marks.reverse();
+    return marks;
+  }
+
+  let lastClickHandler: ((e: Event) => void) | null = null;
+
+  function attachClickHandler(root: HTMLElement) {
+    if (lastClickHandler) {
+      root.removeEventListener('click', lastClickHandler);
+    }
+    const handler = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      const mark = target?.closest(`mark.${MARK_CLASS}`) as HTMLElement | null;
+      if (!mark) return;
+      const id = mark.getAttribute(MARK_ATTR);
+      if (!id) return;
+      e.stopPropagation();
+      e.preventDefault();
+      onHighlightClick?.(id, mark.getBoundingClientRect());
+    };
+    root.addEventListener('click', handler);
+    lastClickHandler = handler;
   }
 
   async function recompute() {
     await tick();
-    if (!contentRoot || highlights.length === 0) {
-      boxes = [];
-      return;
-    }
-    const rootRect = contentRoot.getBoundingClientRect();
-    const next: Box[] = [];
+    const root = contentRoot;
+    if (!root) return;
+    removeMarks(root);
+    if (highlights.length === 0) return;
+
+    // Resolve every highlight first (DOM is still clean), then apply wraps
+    // in reverse document order so earlier wraps don't shift later ranges.
+    const resolved: { id: string; range: Range; hasComment: boolean; focused: boolean }[] = [];
     for (const h of highlights) {
       if (h.kind !== 'text') continue;
-      const range = rangeForHighlight(contentRoot, h);
+      const range = findAnchorInRendered(root, h.anchor);
       if (!range) continue;
-      const rects = Array.from(range.getClientRects());
-      if (!rects.length) continue;
-      const focused = focusedId === h.id;
-      const hasComment = !!(h.comment && h.comment.trim().length > 0);
-      for (const r of rects) {
-        next.push({
-          id: h.id,
-          top: r.top - rootRect.top,
-          left: r.left - rootRect.left,
-          width: r.width,
-          height: r.height,
-          hasComment,
-          focused,
-        });
+      resolved.push({
+        id: h.id,
+        range,
+        hasComment: !!(h.comment && h.comment.trim().length > 0),
+        focused: focusedId === h.id,
+      });
+    }
+    // Sort by range start in document order, then wrap from last to first.
+    resolved.sort((a, b) => {
+      const cmp = a.range.compareBoundaryPoints(Range.START_TO_START, b.range);
+      return cmp;
+    });
+    for (let i = resolved.length - 1; i >= 0; i--) {
+      const { id, range, hasComment, focused } = resolved[i];
+      const extras: string[] = [];
+      if (hasComment) extras.push(MARK_COMMENT_CLASS);
+      if (focused) extras.push(MARK_FOCUSED_CLASS);
+      try {
+        wrapRange(range, id, extras);
+      } catch (err) {
+        console.debug('[MessageHighlightOverlay] wrapRange failed', err);
       }
     }
-    boxes = next;
+
+    attachClickHandler(root);
   }
 
   $effect(() => {
-    // Re-run whenever inputs change
     void contentRoot;
     void highlights;
     void recomputeKey;
     void focusedId;
     recompute();
+    return () => {
+      const root = contentRoot;
+      if (root) removeMarks(root);
+      if (root && lastClickHandler) {
+        root.removeEventListener('click', lastClickHandler);
+        lastClickHandler = null;
+      }
+    };
   });
 
-  /** Look up the full DOMRect of the first box for a highlight id. */
+  /** Look up the bounding rect of the first mark element for `id`. */
   export function getHighlightRect(id: string): DOMRect | null {
     if (!contentRoot) return null;
-    const rootRect = contentRoot.getBoundingClientRect();
-    const box = boxes.find((b) => b.id === id);
-    if (!box) return null;
-    return new DOMRect(
-      rootRect.left + box.left,
-      rootRect.top + box.top,
-      box.width,
-      box.height,
-    );
-  }
-
-  function handleBoxClick(e: MouseEvent, id: string) {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!contentRoot) return;
-    const rect = getHighlightRect(id);
-    if (rect) onHighlightClick?.(id, rect);
+    const mark = contentRoot.querySelector(
+      `mark.${MARK_CLASS}[${MARK_ATTR}="${CSS.escape(id)}"]`,
+    ) as HTMLElement | null;
+    if (!mark) return null;
+    return mark.getBoundingClientRect();
   }
 </script>
 
-<div class="highlight-layer" aria-hidden="true">
-  {#each boxes as box, i (i)}
-    <button
-      type="button"
-      class="highlight-box"
-      class:has-comment={box.hasComment}
-      class:focused={box.focused}
-      data-testid="message-highlight-box"
-      data-highlight-id={box.id}
-      aria-label={box.hasComment ? 'Highlight with comment' : 'Highlight'}
-      style="top: {box.top}px; left: {box.left}px; width: {box.width}px; height: {box.height}px;"
-      onclick={(e) => handleBoxClick(e, box.id)}
-    ></button>
-  {/each}
-</div>
-
 <style>
-  .highlight-layer {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    /* Raise the whole overlay above the rendered message content so the yellow
-       boxes are hit-testable. Individual boxes re-enable pointer-events so the
-       rest of the layer stays click-through (links, embed cards, mentions). */
-    z-index: 2;
-  }
-  .highlight-box {
-    all: unset;
-    position: absolute;
+  /* Marks live inside the rendered message body; style them globally so
+     the color token and interactions apply wherever they land (prose
+     paragraphs, list items, quoted spans, etc.). */
+  :global(mark.message-highlight-mark) {
     background: var(--color-highlight-yellow, rgba(255, 213, 0, 0.4));
-    /* Yellow at 40% opacity renders on top of the text but stays readable —
-       this matches standard annotation UX (Google Docs, Kindle). */
-    mix-blend-mode: multiply;
-    pointer-events: auto;
+    color: inherit;
     cursor: pointer;
     border-radius: 2px;
+    padding: 0 1px;
+    transition: background var(--duration-fast, 150ms) var(--easing-default, ease);
   }
-  .highlight-box.focused {
+  :global(mark.message-highlight-mark:hover) {
+    background: var(--color-highlight-yellow-solid, #ffd500);
+  }
+  :global(mark.message-highlight-mark.focused) {
     outline: 2px solid var(--color-highlight-yellow-solid, #ffd500);
     outline-offset: 1px;
   }
-  .highlight-box.has-comment::after {
+  /* Comment indicator — a small 💬 chip pinned to the trailing edge of the
+     last mark for a highlight. Using ::after on every mark would show a
+     chip per line for multi-line highlights; the `last-of-type` selector
+     targets only the final mark node in the parent block. */
+  :global(mark.message-highlight-mark.has-comment:last-of-type::after) {
     content: '💬';
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    font-size: 12px;
-    background: var(--color-highlight-yellow-solid, #ffd500);
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
+    font-size: 10px;
+    margin-left: 2px;
+    vertical-align: super;
   }
 </style>
