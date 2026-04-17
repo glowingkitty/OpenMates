@@ -98,9 +98,9 @@ SEND_DELAY_SECONDS = 0.5
 CONFIRM_TOKEN = "SEND"
 SUPPORTED_LANGS = ("en", "de")
 
-# Hash fragment that, when present on the for-everyone chat, auto-opens the
-# fullscreen intro video embed (see ChatHeader.svelte::openVideoFullscreen).
-INTRO_VIDEO_HASH = "intro-video"
+# Hash parameter that triggers auto-play of the chat's header video in
+# fullscreen (see ActiveChat.svelte hash routing → chatVideoFullscreenStore).
+AUTOPLAY_VIDEO_PARAM = "autoplay-video"
 
 # Where the pre-rendered intro thumbnails live on disk. Refresh with
 # ``python /app/backend/scripts/newsletter_thumbnail.py``. The bytes are
@@ -171,14 +171,13 @@ def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
 def _video_link_for_manifest(manifest: Dict[str, Any], base_url: str) -> str:
     """Return the URL the video thumbnail should link to.
 
-    For intro-fullscreen issues we deep-link to the for-everyone chat with
-    the ``#intro-video`` hash so the fullscreen embed opens directly.
-    Otherwise we fall back to the newsletter landing page (announcement or
-    tip page) which has its own embedded video.
+    Deep-links to the announcement/tip chat with ``&autoplay-video`` so the
+    fullscreen video opens automatically on page load. Falls back to the
+    newsletter landing page when no chat_id is set.
     """
-    video = manifest.get("video") or {}
-    if video.get("intro_fullscreen"):
-        return f"{base_url.rstrip('/')}/#{INTRO_VIDEO_HASH}"
+    chat_id = manifest.get("chat_id")
+    if chat_id:
+        return f"{base_url.rstrip('/')}/#chat-id={chat_id}&{AUTOPLAY_VIDEO_PARAM}"
     return build_landing_url(manifest, base_url)
 
 

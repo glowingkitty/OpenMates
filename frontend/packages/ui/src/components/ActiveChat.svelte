@@ -75,15 +75,15 @@
         closeSkillStoreExampleFullscreen,
     } from '../stores/skillStoreExampleFullscreenStore'; // Synthetic fullscreen state from app-store skill examples
     import {
-        introVideoFullscreenStore,
-        closeIntroVideoFullscreen,
-    } from '../stores/introVideoFullscreenStore'; // Intro video fullscreen for the for-everyone demo chat
+        chatVideoFullscreenStore,
+        closeChatVideoFullscreen,
+    } from '../stores/chatVideoFullscreenStore';
     import DirectVideoEmbedFullscreen from '../components/embeds/videos/DirectVideoEmbedFullscreen.svelte';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
@@ -3631,12 +3631,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let forceOverlayMode = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed, wiki, or intro video) AND not forcing overlay mode
-    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $introVideoFullscreenStore) && !forceOverlayMode);
+    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed, wiki, or chat video) AND not forcing overlay mode
+    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $chatVideoFullscreenStore) && !forceOverlayMode);
 
     // Determine if we should show the "Show Chat" button in fullscreen embed views
     // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $introVideoFullscreenStore) && forceOverlayMode);
+    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $chatVideoFullscreenStore) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -7307,7 +7307,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showWelcome = currentMessages.length === 0;
         }
         console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
-        
+
+        // ─── Autoplay video deep link ────────────────────────────────────
+        // Hash format: #chat-id=<id>&autoplay-video
+        // Triggers fullscreen video playback for chats with video metadata.
+        if (typeof window !== 'undefined' && window.location.hash.includes('autoplay-video') && currentChat?.chat_id) {
+            const { openChatVideoFullscreen } = await import('../stores/chatVideoFullscreenStore');
+            const { getVideoForLocale } = await import('../demo_chats/data/videos');
+            const allChats = [...DEMO_CHATS, ...LEGAL_CHATS];
+            const demoChat = allChats.find(c => c.chat_id === currentChat.chat_id);
+            const videoKey = demoChat?.metadata?.video_key;
+            const currentLocale = typeof $locale === 'string' ? $locale : 'en';
+            const videoEntry = videoKey ? getVideoForLocale(videoKey, currentLocale) : null;
+            const mp4Url = videoEntry?.mp4_url ?? demoChat?.metadata?.video_mp4_url;
+            if (mp4Url) {
+                openChatVideoFullscreen({
+                    mp4Url,
+                    title: activeChatDecryptedTitle || '',
+                    chatId: currentChat.chat_id,
+                });
+                console.debug('[ActiveChat] Autoplay video triggered from deep link for chat:', currentChat.chat_id);
+            }
+        }
+
         // Don't set isAtBottom here - it will be updated by handleScrollPositionUI
         // after the actual scroll position is restored below
         // Initialize to false to prevent MessageInput from appearing expanded prematurely
@@ -10019,8 +10041,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          isIncognito={!!currentChat?.is_incognito}
                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                          canAnnotate={!currentChat?.is_shared_by_others}
-                         videoMp4Url={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_mp4_url ?? null) : null}
-                         backgroundFrames={currentChat?.chat_id === 'demo-for-everyone' ? (() => { const frames = DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })() : null}
+                         videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
+                         backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
+                         onPlayVideo={() => {
+                             if (!currentChat?.chat_id) return;
+                             const allChats = [...DEMO_CHATS, ...LEGAL_CHATS];
+                             const dc = allChats.find(c => c.chat_id === currentChat.chat_id);
+                             if (!dc?.metadata?.video_mp4_url) return;
+                             Promise.all([
+                                 import('../stores/chatVideoFullscreenStore'),
+                                 import('../demo_chats/data/videos'),
+                             ]).then(([{ openChatVideoFullscreen }, { getVideoForLocale }]) => {
+                                 const videoKey = dc.metadata?.video_key;
+                                 const localeVideo = videoKey ? getVideoForLocale(videoKey, $locale ?? 'en') : null;
+                                 const mp4 = localeVideo?.mp4_url ?? dc.metadata?.video_mp4_url;
+                                 if (mp4) {
+                                     openChatVideoFullscreen({ mp4Url: mp4, title: activeChatDecryptedTitle || '', chatId: currentChat.chat_id });
+                                 }
+                             });
+                         }}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
@@ -10142,8 +10181,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
 
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
-                        <!-- Only show message input if user owns the chat or is not authenticated -->
-                        {#if chatOwnershipResolved || !$authStore.isAuthenticated}
+                        <!-- Hide for newsletter/legal chats (read-only); show for demo/example/intro/regular chats -->
+                        {#if !(currentChat && (isNewsletterChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
                             <MessageInput
                                 bind:this={messageInputFieldRef}
                                 currentChatId={currentChat?.chat_id || temporaryChatId}
@@ -10430,33 +10469,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/await}
             {/if}
             
-            <!-- Intro video fullscreen — for-everyone demo chat header play button.
+            <!-- Chat video fullscreen — any chat with a video in its metadata.
                  Uses the same .fullscreen-embed-container as wiki/embed fullscreens
-                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute).
-                 German locale uses a separate localised video. -->
-            {#if $introVideoFullscreenStore}
-                {@const forEveryoneChat = DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')}
-                {@const isGerman = $locale?.startsWith('de')}
-                {@const introMp4Url = isGerman
-                    ? 'https://vod.api.video/vod/vi1LdNC1NrHlKyANrOUDsfX6/mp4/source.mp4'
-                    : forEveryoneChat?.metadata.video_mp4_url}
-                {#if introMp4Url}
-                    <div
-                        class="fullscreen-embed-container"
-                        class:side-panel={showSideBySideLayout}
-                        class:overlay-mode={!showSideBySideLayout}
-                        data-testid="intro-video-fullscreen"
-                    >
-                        <DirectVideoEmbedFullscreen
-                            mp4Url={introMp4Url}
-                            title={activeChatDecryptedTitle || ''}
-                            onClose={() => {
-                                closeIntroVideoFullscreen();
-                                history.replaceState(null, '', window.location.pathname + window.location.search);
-                            }}
-                        />
-                    </div>
-                {/if}
+                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute). -->
+            {#if $chatVideoFullscreenStore}
+                <div
+                    class="fullscreen-embed-container"
+                    class:side-panel={showSideBySideLayout}
+                    class:overlay-mode={!showSideBySideLayout}
+                    data-testid="intro-video-fullscreen"
+                >
+                    <DirectVideoEmbedFullscreen
+                        mp4Url={$chatVideoFullscreenStore.mp4Url}
+                        title={$chatVideoFullscreenStore.title}
+                        onClose={() => {
+                            closeChatVideoFullscreen();
+                            history.replaceState(null, '', window.location.pathname + window.location.search);
+                        }}
+                    />
+                </div>
             {/if}
 
             <KeyboardShortcuts

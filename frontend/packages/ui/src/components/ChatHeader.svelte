@@ -81,6 +81,9 @@
     highlightStats = null,
     /** Called when the user clicks the highlights pill. */
     onHighlightJump = undefined,
+    /** Called when the user clicks the play button. Opens fullscreen video via
+     *  chatVideoFullscreenStore in the parent. */
+    onPlayVideo = undefined,
   }: {
     title?: string;
     category?: string | null;
@@ -104,6 +107,8 @@
     highlightStats?: { highlights: number; comments: number } | null;
     /** Click handler for the highlights pill. */
     onHighlightJump?: (() => void) | undefined;
+    /** Called when the user clicks the play button to open fullscreen video. */
+    onPlayVideo?: (() => void) | undefined;
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
@@ -122,6 +127,10 @@
 
   function handlePlayClick(e: MouseEvent) {
     e.stopPropagation();
+    if (onPlayVideo) {
+      onPlayVideo();
+      return;
+    }
     isVideoActive = true;
   }
 
