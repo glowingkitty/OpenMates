@@ -382,6 +382,30 @@ announcements:
   sv: MEDDELANDEN
   he: הודעות
   verified_by_human: []
+tips_and_tricks:
+  context: Group title for tips & tricks newsletter chats in the sidebar
+  en: TIPS & TRICKS
+  de: TIPPS & TRICKS
+  zh: 技巧与窍门
+  es: CONSEJOS Y TRUCOS
+  fr: TRUCS ET ASTUCES
+  pt: DICAS E TRUQUES
+  ru: СОВЕТЫ И ХИТРОСТИ
+  ja: ヒントとコツ
+  ko: 팁과 요령
+  it: SUGGERIMENTI E TRUCCHI
+  tr: İPUÇLARI VE PÜFLER
+  vi: MẸO VÀ THỦ THUẬT
+  id: TIPS & TRIK
+  pl: PORADY I TRIKI
+  nl: TIPS & TRUCS
+  ar: نصائح وحيل
+  hi: टिप्स और ट्रिक्स
+  th: เคล็ดลับและลูกเล่น
+  cs: TIPY A TRIKY
+  sv: TIPS & TRICKS
+  he: טיפים וטריקים
+  verified_by_human: []
 legal:
   context: Group title for legal chats (privacy, terms, imprint)
   en: LEGAL
