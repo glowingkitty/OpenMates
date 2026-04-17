@@ -50,7 +50,6 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
-  import { openIntroVideoFullscreen, closeIntroVideoFullscreen, introVideoFullscreenStore } from '../stores/introVideoFullscreenStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -67,10 +66,9 @@
     isIncognito = false,
     /** When true, shows an "Example chat" badge/pill in the loaded header state. */
     isExampleChat = false,
-    /** MP4 URL used to enable the play button that opens the fullscreen video embed.
-     *  No video is ever loaded or played inside the header itself — the URL only
-     *  signals that a playable video exists. The fullscreen embed resolves the
-     *  actual URL from DEMO_CHATS in ActiveChat. */
+    /** MP4 URL for the in-place video player. On play-button click the video element
+     *  is mounted inside the media frame and native browser fullscreen is requested.
+     *  No video is loaded before the user clicks play. */
     videoMp4Url = null,
     /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
      *  16:9 media frame. These are the only media assets the header ever loads —
@@ -113,38 +111,42 @@
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useSlideshow || !!videoMp4Url);
 
-  // ─── Fullscreen video: deep-link via #intro-video hash ────────────────────
+  // ─── In-place video player ────────────────────────────────────────────────
   //
-  // The header never loads a video element itself. Clicking the play button
-  // opens the fullscreen embed (DirectVideoEmbedFullscreen), which is the only
-  // place where the MP4 is actually fetched and played.
+  // Clicking the play button mounts a <video> element inside the media frame
+  // and immediately requests native browser fullscreen. No video is fetched
+  // before the user clicks. When fullscreen exits the video is unmounted.
 
-  const INTRO_VIDEO_HASH = 'intro-video';
+  let videoEl = $state<HTMLVideoElement | null>(null);
+  let isVideoActive = $state(false);
 
-  function openVideoFullscreen(e?: MouseEvent) {
-    e?.stopPropagation();
-    openIntroVideoFullscreen();
-    if (browser) window.location.hash = INTRO_VIDEO_HASH;
+  function handlePlayClick(e: MouseEvent) {
+    e.stopPropagation();
+    isVideoActive = true;
   }
 
-  /** Handle browser back/forward navigation clearing the hash. */
-  function handleHashChange() {
-    if (browser && !window.location.hash.includes(INTRO_VIDEO_HASH) && $introVideoFullscreenStore) {
-      closeIntroVideoFullscreen();
+  // Once the video element is bound after isVideoActive flips, autoplay and
+  // request fullscreen. The effect re-runs whenever videoEl changes (i.e. on
+  // mount after the {#if} renders the element).
+  $effect(() => {
+    if (!videoEl) return;
+    videoEl.play().catch(() => {});
+    videoEl.requestFullscreen?.().catch(() => {});
+  });
+
+  function handleFullscreenChange() {
+    if (!document.fullscreenElement && isVideoActive) {
+      videoEl?.pause();
+      isVideoActive = false;
     }
   }
 
   onMount(() => {
-    if (!browser || !videoMp4Url) return;
-    // Auto-open fullscreen if deep-linked via #intro-video
-    if (window.location.hash === `#${INTRO_VIDEO_HASH}`) {
-      openIntroVideoFullscreen();
-    }
-    window.addEventListener('hashchange', handleHashChange);
+    if (browser) document.addEventListener('fullscreenchange', handleFullscreenChange);
   });
 
   onDestroy(() => {
-    if (browser) window.removeEventListener('hashchange', handleHashChange);
+    if (browser) document.removeEventListener('fullscreenchange', handleFullscreenChange);
   });
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -478,16 +480,32 @@
             </div>
           {/if}
 
-          {#if videoMp4Url}
+          {#if videoMp4Url && !isVideoActive}
             <button
               class="video-play-btn"
-              onclick={(e) => openVideoFullscreen(e)}
+              onclick={handlePlayClick}
               type="button"
               aria-label="Play video"
               data-testid="chat-header-play-btn"
             >
               <div class="video-play-icon" aria-hidden="true"></div>
             </button>
+          {/if}
+
+          {#if isVideoActive && videoMp4Url}
+            <!-- Mounted only after user clicks play. requestFullscreen is called
+                 via $effect once the element is bound. Unmounted when fullscreen exits. -->
+            <video
+              bind:this={videoEl}
+              class="media-video"
+              src={videoMp4Url}
+              autoplay
+              controls
+              playsinline
+              preload="auto"
+            >
+              <track kind="captions" />
+            </video>
           {/if}
         </div>
 
@@ -573,9 +591,6 @@
 
 </div>
 
-<!-- DirectVideoEmbedFullscreen is rendered by ActiveChat.svelte at its level
-     (UnifiedEmbedFullscreen needs position:absolute within ActiveChat, not here).
-     ChatHeader only signals open/close via introVideoFullscreenStore. -->
 
 <style>
   /* ─── Banner container ──────────────────────────────────────────────────── */
@@ -1446,7 +1461,17 @@
     margin-left: 4px; /* optical centering */
   }
 
-  /* Video fullscreen is handled by DirectVideoEmbedFullscreen + UnifiedEmbedFullscreen. */
+  /* In-place video player — mounted after play click, fills the media frame.
+     requestFullscreen is called via $effect; unmounted when fullscreen exits. */
+  .media-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 4;
+    background: #000;
+  }
 
   /* ─── Media header: 16:9 framed slideshow + title below ──────────────────
      The slideshow frames live inside a 16:9 rounded container with the play
