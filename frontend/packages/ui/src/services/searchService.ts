@@ -24,8 +24,7 @@ import {
 import { appsMetadata } from "../data/appsMetadata";
 import {
   getDemoMessages,
-  isDemoChat,
-  isLegalChat,
+  isPublicChat,
   isExampleChat,
   getExampleChatEmbed,
   INTRO_CHATS,
@@ -889,9 +888,9 @@ async function indexChatMessages(chatId: string): Promise<void> {
   try {
     let messages: Message[];
 
-    if (isDemoChat(chatId) || isLegalChat(chatId) || isExampleChat(chatId)) {
-      // Demo, legal, and example chats have messages in-memory, NOT in chatDB
-      // getDemoMessages handles all three cases (example chats via getExampleChatMessages fallback)
+    if (isPublicChat(chatId)) {
+      // Public chats (demo, legal, example, newsletter) have messages in-memory, NOT in chatDB
+      // getDemoMessages handles all four cases (including newsletter via ALL_NEWSLETTER_CHATS)
       messages = getDemoMessages(chatId, INTRO_CHATS, LEGAL_CHATS);
     } else {
       // Authenticated user chats — decrypt from IndexedDB
@@ -933,7 +932,7 @@ async function indexChatMessages(chatId: string): Promise<void> {
       //    Authenticated user chats have encrypted embeds resolved via embedStore.
       const hasChatEmbeds =
         isExampleChat(chatId) ||
-        (!isDemoChat(chatId) && !isLegalChat(chatId));
+        (!isPublicChat(chatId));
       if (hasChatEmbeds) {
         const embedRefs = extractEmbedReferences(rawContent);
         for (const ref of embedRefs) {
@@ -1584,8 +1583,8 @@ export async function search(
     let decryptedTitle: string | null = null;
     let activeFocusId: string | null = null;
 
-    if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id) || isExampleChat(chat.chat_id)) {
-      // Demo/legal/example chats have plaintext titles (already resolved from i18n)
+    if (isPublicChat(chat.chat_id)) {
+      // Public chats (demo, legal, example, newsletter) have plaintext titles
       decryptedTitle = chat.title || null;
     } else {
       // Authenticated user chats — get decrypted title from cache
@@ -1618,7 +1617,7 @@ export async function search(
     let metadataSnippets: MetadataMatchSnippet[] = [];
     if (chat.is_metadata_only) {
       metadataSnippets = searchMetadataInChat(chat.chat_id, trimmedQuery);
-    } else if (!isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id) && !isExampleChat(chat.chat_id)) {
+    } else if (!isPublicChat(chat.chat_id)) {
       // Full authenticated chats — search metadata inline using already-fetched cache data
       const meta = await chatMetadataCache.getDecryptedMetadata(chat);
       if (meta) {

@@ -83,7 +83,7 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
@@ -2335,7 +2335,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             case 'delete': {
                 // Demo/legal chats: hide via userProfile; regular chats: delete from DB
-                if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+                if (isPublicChat(chat.chat_id)) {
                     if (!$authStore.isAuthenticated) {
                         notificationStore.error('Please sign up to customize your experience');
                         resumeCardContextMenuShow = false;
@@ -7120,7 +7120,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // The server response (chat_content_batch_response) saves messages to IndexedDB
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
-                if (newMessages.length === 0 && currentChat.chat_id && !isDemoChat(currentChat.chat_id)) {
+                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)) {
                     console.info(`[ActiveChat] No local messages for ${currentChat.chat_id} — requesting from server (on-demand loading)`);
                     try {
                         await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([currentChat.chat_id]);

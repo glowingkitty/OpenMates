@@ -3,6 +3,7 @@ import type { DemoChat, DemoMessage } from './types';
 import { translateDemoChat } from './translateDemoChat';
 import { LEGAL_CHATS } from '../legal';
 import { getExampleChatMessages, isExampleChat } from './exampleChatStore';
+import { ALL_NEWSLETTER_CHATS } from './newsletterChatStore';
 
 /**
  * Convert a demo chat to the Chat format used by the app
@@ -81,6 +82,11 @@ export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChat
 		foundChat = legalChatsToSearch.find(chat => chat.chat_id === chatId);
 	}
 
+	// 2b. If not found, search in newsletter chats (announcements, tips & tricks)
+	if (!foundChat) {
+		foundChat = ALL_NEWSLETTER_CHATS.find(chat => chat.chat_id === chatId);
+	}
+
 	// 3. If still not found, check example chat store (static hardcoded data)
 	if (!foundChat && isExampleChat(chatId)) {
 		const exampleMessages = getExampleChatMessages(chatId);
@@ -117,9 +123,15 @@ export function isLegalChat(chatId: string): boolean {
 }
 
 /**
- * Check if a chat is a public chat (demo, example, or legal) - these are loaded from static bundle
- * Both demo chats and legal chats use the same infrastructure for loading messages
+ * Check if a chat is a newsletter chat (announcements or tips & tricks)
+ */
+export function isNewsletterChat(chatId: string): boolean {
+	return chatId.startsWith('announcements-') || chatId.startsWith('tips-');
+}
+
+/**
+ * Check if a chat is a public chat (demo, example, legal, or newsletter) - loaded from static bundle
  */
 export function isPublicChat(chatId: string): boolean {
-	return isDemoChat(chatId) || isLegalChat(chatId) || isExampleChat(chatId);
+	return isDemoChat(chatId) || isLegalChat(chatId) || isExampleChat(chatId) || isNewsletterChat(chatId);
 }
