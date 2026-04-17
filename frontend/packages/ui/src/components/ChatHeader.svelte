@@ -1501,9 +1501,9 @@
     position: relative;
     flex-shrink: 0;
     aspect-ratio: 16 / 9;
-    height: 65%;
-    max-height: 320px;
-    max-width: calc(100% - 120px);
+    height: 72%;
+    max-height: 420px;
+    max-width: calc(100% - 100px);
     border-radius: 14px;
     overflow: hidden;
     background: #1a1a1a;
