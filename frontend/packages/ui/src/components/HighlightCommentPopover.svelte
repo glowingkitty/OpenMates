@@ -86,6 +86,13 @@
   }
 
   onMount(() => {
+    // Portal the popover to document.body so `position: fixed` isn't broken
+    // by ancestor `filter: drop-shadow()` on .user-message-content /
+    // .mate-message-content (which creates a new containing block).
+    if (popoverEl) {
+      document.body.appendChild(popoverEl);
+    }
+
     // One-shot sync with the incoming props — see the comment above the
     // declarations for why this is NOT done inside a reactive $effect.
     editing = initialEditMode;
@@ -121,6 +128,10 @@
       document.removeEventListener('mousedown', onDocClick);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onResize, true);
+      // Remove the portaled element from body on cleanup
+      if (popoverEl && popoverEl.parentNode === document.body) {
+        document.body.removeChild(popoverEl);
+      }
     };
   });
 

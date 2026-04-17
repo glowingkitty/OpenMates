@@ -54,6 +54,13 @@
   const MARK_ATTR = 'data-highlight-id';
   const MARK_COMMENT_CLASS = 'has-comment';
   const MARK_FOCUSED_CLASS = 'focused';
+  const EMBED_SKIP_SELECTOR = '.embed-full-width-wrapper';
+
+  function isInsideEmbed(node: Node): boolean {
+    const el = (node as Text).parentElement;
+    if (!el) return false;
+    return el.closest(EMBED_SKIP_SELECTOR) !== null;
+  }
 
   /**
    * Unwrap all `<mark.message-highlight-mark>` elements inside `root`,
@@ -97,6 +104,10 @@
       const walker = document.createTreeWalker(
         ancestor,
         NodeFilter.SHOW_TEXT,
+        { acceptNode(n) {
+          if (isInsideEmbed(n)) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }},
       );
       let n: Node | null = walker.nextNode();
       while (n) {

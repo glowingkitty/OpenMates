@@ -428,8 +428,140 @@ test('message highlights: correctness, lifecycle, viewport resize', async ({ pag
 	await takeStepScreenshot(page, '12-after-delete');
 
 	// ───────────────────────────────────────────────────────────
-	// STEP 8 — Touch-device path: selection toolbar
+	// STEP 8 — Embed exclusion: highlights must NOT wrap embed text
 	// ───────────────────────────────────────────────────────────
+	// The AI response (mate message) likely contains embed previews (web search
+	// results, images, etc.). Highlight body text near embeds and verify that
+	// no <mark> lands inside an .embed-full-width-wrapper subtree.
+	const mateMsg = page.locator(SELECTORS.mateMessageContent).first();
+	const hasMateMsg = await mateMsg.isVisible().catch(() => false);
+	if (hasMateMsg) {
+		// Find some body text in the mate message (skip if only embeds)
+		const mateBodyText = await mateMsg.evaluate((el: HTMLElement) => {
+			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+				acceptNode(n) {
+					const parent = (n as Text).parentElement;
+					if (!parent) return NodeFilter.FILTER_REJECT;
+					if (parent.closest('.embed-full-width-wrapper')) return NodeFilter.FILTER_REJECT;
+					if (parent.closest('.chat-mate-name')) return NodeFilter.FILTER_REJECT;
+					const text = (n.nodeValue ?? '').trim();
+					if (text.length < 5) return NodeFilter.FILTER_REJECT;
+					return NodeFilter.FILTER_ACCEPT;
+				}
+			});
+			const node = walker.nextNode();
+			if (!node) return null;
+			const full = (node.nodeValue ?? '').trim();
+			// Take first 3-5 words as selection target
+			const words = full.split(/\s+/).slice(0, 4).join(' ');
+			return words.length >= 3 ? words : null;
+		});
+
+		if (mateBodyText) {
+			logCheckpoint(`Selecting mate body text near embeds: "${mateBodyText}"...`);
+			await mateMsg.scrollIntoViewIfNeeded();
+			await page.waitForTimeout(200);
+			const mateSel = await selectAndOpenContextMenu(
+				page,
+				SELECTORS.mateMessageContent,
+				mateBodyText
+			);
+			if (mateSel.selected) {
+				const mateHighlightBtn = page.locator(SELECTORS.messageContextHighlight);
+				await expect(mateHighlightBtn).toBeVisible({ timeout: 5000 });
+				await mateHighlightBtn.click();
+				logCheckpoint('Highlighted mate body text.');
+				await page.waitForTimeout(500);
+
+				// Verify: no <mark> exists inside an embed wrapper
+				const marksInEmbed = await mateMsg.evaluate((el: HTMLElement) => {
+					const embedMarks = el.querySelectorAll(
+						'.embed-full-width-wrapper mark.message-highlight-mark'
+					);
+					return embedMarks.length;
+				});
+				expect(marksInEmbed, 'No highlights should be inside embed wrappers').toBe(0);
+				logCheckpoint('Embed exclusion verified — no marks inside embeds.');
+				await takeStepScreenshot(page, '12b-embed-exclusion');
+			} else {
+				logCheckpoint('Could not select mate body text — skipping embed exclusion check.');
+			}
+		} else {
+			logCheckpoint('No non-embed body text in mate message — skipping embed exclusion check.');
+		}
+	} else {
+		logCheckpoint('No mate message visible — skipping embed exclusion check.');
+	}
+
+	// ───────────────────────────────────────────────────────────
+	// STEP 9 — Popover visibility when highlight is in lower viewport
+	// ───────────────────────────────────────────────────────────
+	logCheckpoint('Testing popover position with highlight in lower viewport...');
+	// Scroll the user message to the bottom of the viewport so the highlight
+	// mark ("quick brown fox") sits in the lower half, then click it and
+	// verify the popover is fully within the viewport.
+	await page.evaluate((sel: string) => {
+		const el = document.querySelector(sel) as HTMLElement | null;
+		// Scroll so the message appears near the bottom of the viewport
+		el?.scrollIntoView({ block: 'end', inline: 'nearest' });
+	}, SELECTORS.userMessageContent);
+	await page.waitForTimeout(300);
+
+	// Click the remaining "quick brown fox" mark
+	const remainingMark = marks.first();
+	await remainingMark.click({ force: true });
+	logCheckpoint('Clicked highlight in lower viewport position.');
+	await page.waitForTimeout(300);
+
+	// The popover should be visible
+	await expect(popover).toBeVisible({ timeout: 5000 });
+	await takeStepScreenshot(page, '12c-popover-lower-viewport');
+
+	// The popover must be fully within the viewport (not clipped)
+	const popoverBox = await popover.boundingBox();
+	const viewportSize = page.viewportSize();
+	expect(popoverBox, 'Popover must have a bounding box').not.toBeNull();
+	if (popoverBox && viewportSize) {
+		expect(popoverBox.y, 'Popover top must be >= 0 (not above viewport)').toBeGreaterThanOrEqual(0);
+		expect(
+			popoverBox.y + popoverBox.height,
+			'Popover bottom must be within viewport'
+		).toBeLessThanOrEqual(viewportSize.height + 2); // 2px tolerance
+		expect(popoverBox.x, 'Popover left must be >= 0').toBeGreaterThanOrEqual(0);
+		expect(
+			popoverBox.x + popoverBox.width,
+			'Popover right must be within viewport'
+		).toBeLessThanOrEqual(viewportSize.width + 2);
+		logCheckpoint(`Popover box: top=${popoverBox.y.toFixed(0)} bottom=${(popoverBox.y + popoverBox.height).toFixed(0)} viewport=${viewportSize.height}`);
+	}
+	// Close popover
+	await page.mouse.click(5, 5);
+	await expect(popover).not.toBeVisible({ timeout: 5000 });
+	logCheckpoint('Popover visibility in lower viewport verified.');
+
+	// ───────────────────────────────────────────────────────────
+	// STEP 10 — Touch-device path: selection toolbar
+	// ───────────────────────────────────────────────────────────
+	// Delete any extra mate-message highlights from step 8 before proceeding
+	const currentMarkCount = await marks.count();
+	if (currentMarkCount > 1) {
+		// Delete extra marks by clicking and deleting until only 1 remains
+		for (let i = currentMarkCount - 1; i >= 1; i--) {
+			const m = marks.nth(i);
+			const txt = (await m.textContent() ?? '').trim();
+			if (txt !== 'quick brown fox') {
+				await m.click({ force: true });
+				const deleteBtn = page.locator(SELECTORS.commentDelete);
+				if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+					await deleteBtn.click();
+					await page.waitForTimeout(300);
+				} else {
+					await page.mouse.click(5, 5);
+					await page.waitForTimeout(200);
+				}
+			}
+		}
+	}
 	logCheckpoint('Verifying selection toolbar (touch path)...');
 	await page.evaluate((sel: string) => {
 		const el = document.querySelector(sel) as HTMLElement | null;
@@ -477,9 +609,12 @@ test('message highlights: correctness, lifecycle, viewport resize', async ({ pag
 	await expect(marks).toHaveCount(2, { timeout: 10000 });
 
 	// ── STRICT: the new mark should wrap "lazy" ──
+	// Scope to user message only (mate message may have marks from step 8)
+	const userMarks = userMsg.locator(SELECTORS.highlightBox);
+	await expect(userMarks).toHaveCount(2, { timeout: 10000 });
 	const toolbarExpected = new Set(['quick brown fox', 'lazy']);
 	for (let i = 0; i < 2; i++) {
-		const m = marks.nth(i);
+		const m = userMarks.nth(i);
 		const txt = (await m.textContent() ?? '').trim();
 		expect(toolbarExpected.has(txt), `Toolbar-hl mark ${i} text "${txt}" must be expected`).toBe(true);
 		await expect(m).toBeVisible();
@@ -490,7 +625,7 @@ test('message highlights: correctness, lifecycle, viewport resize', async ({ pag
 	await takeStepScreenshot(page, '14-toolbar-highlight-verified');
 
 	// ───────────────────────────────────────────────────────────
-	// STEP 9 — Full text integrity: seed text still intact in DOM
+	// STEP 11 — Full text integrity: seed text still intact in DOM
 	// ───────────────────────────────────────────────────────────
 	const fullText = await userMsg.evaluate((el: HTMLElement) => {
 		return (el.textContent ?? '').replace(/\s+/g, ' ').trim();
