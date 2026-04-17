@@ -490,9 +490,7 @@
     onResend = undefined,
     isIncognito = false,
     isExampleChat = false,
-    videoHlsUrl = null,
     videoMp4Url = null,
-    videoStartTime = 0,
     backgroundFrames = null,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
@@ -537,14 +535,12 @@
     /** True when the active chat is a pre-made example chat.
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
-    /** api.video HLS URL for autoplay-muted background video in the chat header. */
-    videoHlsUrl?: string | null;
-    /** api.video MP4 fallback URL for the background video and fullscreen player. */
+    /** api.video MP4 URL. Only used to gate the play button in the chat header —
+     *  no video is ever loaded by the header itself; the fullscreen embed loads
+     *  the MP4 on demand when the user clicks play. */
     videoMp4Url?: string | null;
-    /** Timestamp in seconds where the background video starts playing. */
-    videoStartTime?: number;
-    /** Optional list of background frame image URLs. When provided, the chat header
-     *  renders a crossfading Ken-Burns slideshow instead of an autoplay video. */
+    /** Background frame image URLs rendered inside the chat header's 16:9 media
+     *  frame as a crossfading Ken-Burns slideshow. */
     backgroundFrames?: string[] | null;
     /** Follow-up suggestions to display below the last assistant message.
      *  Passed from ActiveChat; shown without input-focus requirement so users
@@ -1631,9 +1627,7 @@
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
                 {isExampleChat}
-                {videoHlsUrl}
                 {videoMp4Url}
-                {videoStartTime}
                 {backgroundFrames}
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
