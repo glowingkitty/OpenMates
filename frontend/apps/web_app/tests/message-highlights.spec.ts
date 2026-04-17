@@ -1,4 +1,21 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+/**
+ * message-highlights.spec.ts
+ *
+ * Full E2E for the text-highlighting feature — lifecycle AND correctness.
+ *
+ *   1. Send a seed user message, select text, click "Highlight" → verify
+ *      the <mark> text EXACTLY matches the selected phrase, is visible,
+ *      and doesn't eat surrounding characters.
+ *   2. Second highlight via "Highlight & comment" → verify both marks wrap
+ *      only their intended text, don't overlap, and the comment round-trips.
+ *   3. Viewport resize (mobile 375×812, tablet 768×1024) → all marks must
+ *      survive reflow: correct text, non-zero bounding box, readable color.
+ *   4. Click commented highlight → popover shows saved comment + Edit/Delete.
+ *   5. Delete a highlight → count decrements.
+ *   6. Touch-device entry point via selection toolbar.
+ *   7. Final text-integrity check: full seed text still present in DOM.
+ */
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -31,31 +48,6 @@ const {
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
-
-/**
- * Message highlights E2E — covers the full annotation lifecycle for the
- * yellow-highlight + comment feature (OPE-xxx):
- *
- *   1. Send a user message (no AI call required for highlighting — we only
- *      need a message in the chat to select text inside).
- *   2. Select some text inside the user message, open the context menu, click
- *      "Highlight" → verify the yellow box renders and ChatHeader pill shows
- *      "1 highlight".
- *   3. Use "Highlight & comment" on a different selection → popover opens in
- *      edit mode → save a comment → pill updates to "N highlights, 1 comment".
- *   4. Click the existing highlight → popover shows the saved comment +
- *      author + Edit/Delete actions (we're the author).
- *   5. Delete the highlight via the popover → count decrements.
- *
- * Uses no AI inference — purely UI + client-encrypted round-trip through the
- * WebSocket + Directus persistence layer.
- *
- * REQUIRED ENV VARS (same as other chat specs):
- * - OPENMATES_TEST_ACCOUNT_EMAIL
- * - OPENMATES_TEST_ACCOUNT_PASSWORD
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY
- * - PLAYWRIGHT_TEST_BASE_URL
- */
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -94,11 +86,7 @@ function setupPageListeners(page: any): void {
 /**
  * Select text inside a rendered message AND atomically dispatch a contextmenu
  * event on the message element, all from within a single page.evaluate call so
- * the selection is still live when the event fires. Returns { selected, rect }
- * where `selected` is true when the substring was found.
- *
- * This is more reliable than the physical-mouse approach because we're not
- * racing against layout shifts from streaming AI responses.
+ * the selection is still live when the event fires.
  */
 async function selectAndOpenContextMenu(
 	page: any,
@@ -125,7 +113,6 @@ async function selectAndOpenContextMenu(
 					selection.removeAllRanges();
 					selection.addRange(range);
 					const r = range.getBoundingClientRect();
-					// Immediately dispatch contextmenu — the selection is still live.
 					const ev = new MouseEvent('contextmenu', {
 						bubbles: true,
 						cancelable: true,
@@ -148,12 +135,93 @@ async function selectAndOpenContextMenu(
 	);
 }
 
+/**
+ * Assert the highlight <mark> element wraps exactly the expected text,
+ * is visible, has non-zero size, and its text is readable (not hidden
+ * behind a solid yellow block). Returns the mark's bounding rect.
+ */
+async function assertHighlightCorrectness(
+	page: any,
+	markLocator: any,
+	expectedText: string,
+	label: string
+): Promise<{ x: number; y: number; width: number; height: number }> {
+	// Text must exactly match the selected phrase
+	const markText = (await markLocator.textContent() ?? '').trim();
+	expect(markText, `[${label}] mark text must equal selected text`).toBe(expectedText);
 
-test('message highlights: add, comment, navigate, delete', async ({ page }: { page: any }) => {
+	// Must be visible
+	await expect(markLocator, `[${label}] mark must be visible`).toBeVisible();
+
+	// Non-zero bounding box (not collapsed to 0×0)
+	const rect = await markLocator.boundingBox();
+	expect(rect, `[${label}] mark must have a bounding box`).not.toBeNull();
+	expect(rect.width, `[${label}] mark width > 0`).toBeGreaterThan(0);
+	expect(rect.height, `[${label}] mark height > 0`).toBeGreaterThan(0);
+
+	// Text must be readable: computed color differs from background
+	const styles = await markLocator.evaluate((el: HTMLElement) => {
+		const cs = window.getComputedStyle(el);
+		return {
+			color: cs.color,
+			backgroundColor: cs.backgroundColor,
+			visibility: cs.visibility,
+			display: cs.display,
+			opacity: cs.opacity
+		};
+	});
+	expect(styles.visibility, `[${label}] not hidden`).not.toBe('hidden');
+	expect(styles.display, `[${label}] not display:none`).not.toBe('none');
+	expect(parseFloat(styles.opacity), `[${label}] opacity > 0`).toBeGreaterThan(0);
+	expect(styles.color, `[${label}] text color != background (text must be readable)`).not.toBe(styles.backgroundColor);
+
+	// Width sanity: a phrase highlight should not span nearly the full message
+	const containerWidth = await page.locator(SELECTORS.userMessageContent).first().evaluate(
+		(el: HTMLElement) => el.getBoundingClientRect().width
+	);
+	expect(rect.width, `[${label}] mark width < 90% of message`).toBeLessThan(containerWidth * 0.9);
+
+	return rect;
+}
+
+/**
+ * Verify all N marks survive at a given viewport size: correct text, visible,
+ * readable color, non-zero bounds.
+ */
+async function assertHighlightsAtViewport(
+	page: any,
+	marks: any,
+	expectedTexts: Set<string>,
+	viewportLabel: string,
+	takeStepScreenshot: (page: any, label: string) => Promise<void>,
+	screenshotLabel: string
+): Promise<void> {
+	const count = await marks.count();
+	expect(count, `[${viewportLabel}] mark count`).toBe(expectedTexts.size);
+	const seen = new Set<string>();
+	for (let i = 0; i < count; i++) {
+		const m = marks.nth(i);
+		const txt = (await m.textContent() ?? '').trim();
+		expect(expectedTexts.has(txt), `[${viewportLabel}] mark ${i} text "${txt}" is expected`).toBe(true);
+		seen.add(txt);
+		await expect(m, `[${viewportLabel}] mark ${i} visible`).toBeVisible();
+		const box = await m.boundingBox();
+		expect(box, `[${viewportLabel}] mark ${i} has bounding box`).not.toBeNull();
+		expect(box.width, `[${viewportLabel}] mark ${i} width > 0`).toBeGreaterThan(0);
+		expect(box.height, `[${viewportLabel}] mark ${i} height > 0`).toBeGreaterThan(0);
+		const style = await m.evaluate((el: HTMLElement) => {
+			const cs = window.getComputedStyle(el);
+			return { color: cs.color, bg: cs.backgroundColor };
+		});
+		expect(style.color, `[${viewportLabel}] mark ${i} text readable`).not.toBe(style.bg);
+	}
+	expect(seen.size, `[${viewportLabel}] all expected texts found`).toBe(expectedTexts.size);
+	await takeStepScreenshot(page, screenshotLabel);
+}
+
+
+test('message highlights: correctness, lifecycle, viewport resize', async ({ page }: { page: any }) => {
 	setupPageListeners(page);
-
-	// Streaming AI responses can cause layout shifts that slow down the chat
-	// interactions — give the whole test enough room to finish.
 	test.setTimeout(240000);
 
 	const logCheckpoint = createSignupLogger('HIGHLIGHTS');
@@ -175,65 +243,61 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	const seedText = 'The quick brown fox jumps over the lazy dog near the old bridge today.';
 	await sendMessage(page, seedText, logCheckpoint, takeStepScreenshot, 'seed');
 
-	// Wait for the user message to render
 	const userMsg = page.locator(SELECTORS.userMessageContent).first();
 	await expect(userMsg).toBeVisible({ timeout: 15000 });
 	await expect(userMsg).toContainText('quick brown fox');
-	await takeStepScreenshot(page, 'seed-rendered');
+	await takeStepScreenshot(page, '01-seed-rendered');
 	logCheckpoint('User message rendered.');
 
 	// ───────────────────────────────────────────────────────────
-	// STEP 2 — First highlight (no comment) via "Highlight"
+	// STEP 2 — First highlight (no comment): "quick brown fox"
 	// ───────────────────────────────────────────────────────────
-	logCheckpoint('Scrolling user message into view + selecting "quick brown fox"...');
-	// Use plain DOM scrollIntoView via evaluate (instant, skips Playwright's
-	// actionability wait which can hang while the AI response is streaming
-	// and shifting the layout).
+	logCheckpoint('Selecting "quick brown fox"...');
 	await page.evaluate((sel: string) => {
 		const el = document.querySelector(sel) as HTMLElement | null;
 		el?.scrollIntoView({ block: 'center', inline: 'nearest' });
 	}, SELECTORS.userMessageContent);
-	await page.waitForTimeout(150);
-	// Atomic select + contextmenu dispatch (single page.evaluate) so the
-	// browser has no chance to clear the selection between the two steps.
+	await page.waitForTimeout(200);
+
 	const sel1 = await selectAndOpenContextMenu(
 		page,
 		SELECTORS.userMessageContent,
 		'quick brown fox'
 	);
 	expect(sel1.selected).toBe(true);
-	await takeStepScreenshot(page, 'selection-1');
+	await takeStepScreenshot(page, '02-selection-quick-brown-fox');
+
 	const highlightBtn = page.locator(SELECTORS.messageContextHighlight);
 	await expect(highlightBtn).toBeVisible({ timeout: 5000 });
 	await highlightBtn.click();
 	logCheckpoint('Clicked "Highlight".');
-	await takeStepScreenshot(page, 'highlight-clicked');
+	await takeStepScreenshot(page, '03-highlight-1-clicked');
 
-	// Highlight box appears.
-	const highlightBox = page.locator(SELECTORS.highlightBox);
-	await expect(highlightBox).toHaveCount(1, { timeout: 10000 });
-	logCheckpoint('First highlight box rendered.');
+	const marks = page.locator(SELECTORS.highlightBox);
+	await expect(marks).toHaveCount(1, { timeout: 10000 });
 
-	// ChatHeader pill updates to "1 highlight"-ish (locale-dependent — just check it's visible).
+	// ── STRICT CORRECTNESS: mark text == "quick brown fox" ──
+	const rect1 = await assertHighlightCorrectness(page, marks.first(), 'quick brown fox', 'hl-1');
+	logCheckpoint(`Highlight 1 verified: width=${rect1.width.toFixed(0)}px`);
+	await takeStepScreenshot(page, '04-highlight-1-verified');
+
+	// ChatHeader pill
 	const pill = page.locator(SELECTORS.headerHighlightCount);
 	await expect(pill).toBeVisible({ timeout: 10000 });
 	const pillText1 = (await pill.textContent())?.trim() ?? '';
-	logCheckpoint(`ChatHeader pill text after first highlight: "${pillText1}"`);
+	logCheckpoint(`Pill after hl-1: "${pillText1}"`);
 	expect(pillText1).toMatch(/1\b|^\s*1/);
-	await takeStepScreenshot(page, 'pill-1-highlight');
 
 	// ───────────────────────────────────────────────────────────
-	// STEP 3 — Second highlight WITH comment via "Highlight & comment"
+	// STEP 3 — Second highlight WITH comment: "old bridge"
 	// ───────────────────────────────────────────────────────────
-	logCheckpoint('Selecting "old bridge" for commented highlight...');
-	// Use plain DOM scrollIntoView via evaluate (instant, skips Playwright's
-	// actionability wait which can hang while the AI response is streaming
-	// and shifting the layout).
+	logCheckpoint('Selecting "old bridge"...');
 	await page.evaluate((sel: string) => {
 		const el = document.querySelector(sel) as HTMLElement | null;
 		el?.scrollIntoView({ block: 'center', inline: 'nearest' });
 	}, SELECTORS.userMessageContent);
-	await page.waitForTimeout(150);
+	await page.waitForTimeout(200);
+
 	const sel2 = await selectAndOpenContextMenu(
 		page,
 		SELECTORS.userMessageContent,
@@ -245,9 +309,8 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 	await expect(commentBtn).toBeVisible({ timeout: 5000 });
 	await commentBtn.click();
 	logCheckpoint('Clicked "Highlight & comment".');
-	await takeStepScreenshot(page, 'highlight-comment-clicked');
+	await takeStepScreenshot(page, '05-highlight-comment-clicked');
 
-	// Popover opens in edit mode.
 	const popover = page.locator(SELECTORS.commentPopover);
 	await expect(popover).toBeVisible({ timeout: 10000 });
 	const input = page.locator(SELECTORS.commentInput);
@@ -255,75 +318,125 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 
 	const COMMENT_TEXT = 'I was here last summer — the bridge is oak, not stone.';
 	await input.fill(COMMENT_TEXT);
-	await takeStepScreenshot(page, 'comment-typed');
+	await takeStepScreenshot(page, '06-comment-typed');
 
 	const saveBtn = page.locator(SELECTORS.commentSave);
 	await saveBtn.click();
 	logCheckpoint('Saved comment.');
 
-	// Popover returns to view mode showing the comment text.
 	const commentView = page.locator(SELECTORS.commentText);
 	await expect(commentView).toBeVisible({ timeout: 10000 });
 	await expect(commentView).toHaveText(COMMENT_TEXT, { timeout: 5000 });
-	await takeStepScreenshot(page, 'comment-saved-view');
+	await takeStepScreenshot(page, '07-comment-saved');
 
-	// Two highlight boxes now.
-	await expect(highlightBox).toHaveCount(2, { timeout: 10000 });
-	// Pill now reads "2 highlights, 1 comment" (locale-dependent — check substrings).
+	await expect(marks).toHaveCount(2, { timeout: 10000 });
+
+	// ── STRICT CORRECTNESS: both marks wrap only their intended text ──
+	const expectedTexts = new Set(['quick brown fox', 'old bridge']);
+	for (let i = 0; i < 2; i++) {
+		const m = marks.nth(i);
+		const txt = (await m.textContent() ?? '').trim();
+		expect(expectedTexts.has(txt), `Mark ${i} text "${txt}" must be one of the expected phrases`).toBe(true);
+		await assertHighlightCorrectness(page, m, txt, `hl-${i + 1}-detail`);
+	}
+	logCheckpoint('Both highlight marks verified for correctness.');
+	await takeStepScreenshot(page, '08-both-verified');
+
+	// Pill shows 2 highlights + 1 comment
 	const pillText2 = (await pill.textContent())?.trim() ?? '';
-	logCheckpoint(`ChatHeader pill text after second highlight: "${pillText2}"`);
+	logCheckpoint(`Pill after hl-2: "${pillText2}"`);
 	expect(pillText2).toMatch(/2/);
 	expect(pillText2).toMatch(/1/);
-	await takeStepScreenshot(page, 'pill-2-highlights');
 
-	// Close popover by clicking outside.
+	// Close popover
 	await page.mouse.click(5, 5);
 	await expect(popover).not.toBeVisible({ timeout: 5000 });
 
+	// ── NO OVERLAP: marks must not overlap ──
+	const box0 = await marks.nth(0).boundingBox();
+	const box1 = await marks.nth(1).boundingBox();
+	if (box0 && box1) {
+		const first = box0.x < box1.x ? box0 : box1;
+		const second = box0.x < box1.x ? box1 : box0;
+		expect(
+			first.x + first.width,
+			'Marks must not overlap horizontally'
+		).toBeLessThanOrEqual(second.x + 2);
+	}
+
 	// ───────────────────────────────────────────────────────────
-	// STEP 4 — Click the commented highlight → view popover
+	// STEP 4 — Viewport resize: mobile (375×812)
 	// ───────────────────────────────────────────────────────────
-	logCheckpoint('Clicking the commented highlight box to open the view popover...');
-	// Find the highlight box that has the speech-bubble badge (the commented one).
-	// Both boxes are visible — the second one (old-bridge) has the comment badge.
-	const commentedBox = highlightBox.nth(1);
-	await commentedBox.click({ force: true });
+	logCheckpoint('Resizing to mobile (375×812)...');
+	const originalSize = page.viewportSize();
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.waitForTimeout(500);
+	await assertHighlightsAtViewport(
+		page, marks, expectedTexts, 'mobile-375',
+		takeStepScreenshot, '09-mobile-verified'
+	);
+	logCheckpoint('Mobile viewport passed.');
+
+	// ───────────────────────────────────────────────────────────
+	// STEP 5 — Viewport resize: tablet (768×1024)
+	// ───────────────────────────────────────────────────────────
+	logCheckpoint('Resizing to tablet (768×1024)...');
+	await page.setViewportSize({ width: 768, height: 1024 });
+	await page.waitForTimeout(500);
+	await assertHighlightsAtViewport(
+		page, marks, expectedTexts, 'tablet-768',
+		takeStepScreenshot, '10-tablet-verified'
+	);
+	logCheckpoint('Tablet viewport passed.');
+
+	// Restore original viewport
+	if (originalSize) {
+		await page.setViewportSize(originalSize);
+		await page.waitForTimeout(300);
+	}
+
+	// ───────────────────────────────────────────────────────────
+	// STEP 6 — Click commented highlight → view popover
+	// ───────────────────────────────────────────────────────────
+	logCheckpoint('Clicking commented highlight...');
+	// Find the "old bridge" mark specifically
+	let commentedMarkIdx = 0;
+	for (let i = 0; i < 2; i++) {
+		const txt = (await marks.nth(i).textContent() ?? '').trim();
+		if (txt === 'old bridge') { commentedMarkIdx = i; break; }
+	}
+	await marks.nth(commentedMarkIdx).click({ force: true });
 	await expect(popover).toBeVisible({ timeout: 5000 });
 	await expect(commentView).toHaveText(COMMENT_TEXT);
-	// Author-only Edit / Delete buttons are present.
 	await expect(page.locator(SELECTORS.commentEdit)).toBeVisible();
 	await expect(page.locator(SELECTORS.commentDelete)).toBeVisible();
-	await takeStepScreenshot(page, 'view-popover-author');
+	await takeStepScreenshot(page, '11-view-popover');
 
 	// ───────────────────────────────────────────────────────────
-	// STEP 5 — Delete the commented highlight
+	// STEP 7 — Delete commented highlight
 	// ───────────────────────────────────────────────────────────
-	logCheckpoint('Deleting the commented highlight...');
+	logCheckpoint('Deleting commented highlight...');
 	await page.locator(SELECTORS.commentDelete).click();
-	// Popover closes, only 1 highlight box remains.
 	await expect(popover).not.toBeVisible({ timeout: 5000 });
-	await expect(highlightBox).toHaveCount(1, { timeout: 10000 });
+	await expect(marks).toHaveCount(1, { timeout: 10000 });
 	const pillText3 = (await pill.textContent())?.trim() ?? '';
-	logCheckpoint(`ChatHeader pill after delete: "${pillText3}"`);
+	logCheckpoint(`Pill after delete: "${pillText3}"`);
 	expect(pillText3).toMatch(/1/);
-	await takeStepScreenshot(page, 'after-delete');
+
+	// Remaining mark is "quick brown fox"
+	await assertHighlightCorrectness(page, marks.first(), 'quick brown fox', 'after-delete');
+	await takeStepScreenshot(page, '12-after-delete');
 
 	// ───────────────────────────────────────────────────────────
-	// STEP 6 — Touch-device entry point: selection toolbar
+	// STEP 8 — Touch-device path: selection toolbar
 	// ───────────────────────────────────────────────────────────
-	// The floating toolbar is the only workable entry point on iOS/iPadOS
-	// (the native OS menu replaces our contextmenu on long-press). Verify
-	// it appears on selection and that clicking "Highlight" creates a box,
-	// using the same selection-only flow a touch user would trigger.
-	logCheckpoint('Verifying the floating selection toolbar (touch-device path)...');
+	logCheckpoint('Verifying selection toolbar (touch path)...');
 	await page.evaluate((sel: string) => {
 		const el = document.querySelector(sel) as HTMLElement | null;
 		el?.scrollIntoView({ block: 'center', inline: 'nearest' });
 	}, SELECTORS.userMessageContent);
-	await page.waitForTimeout(150);
+	await page.waitForTimeout(200);
 
-	// Select the word "dog" without dispatching contextmenu — toolbar should
-	// appear purely off the selectionchange event.
 	const selToolbarSelected = await page.evaluate(
 		({ sel, needle }: { sel: string; needle: string }) => {
 			const container = document.querySelector(sel) as HTMLElement | null;
@@ -354,22 +467,43 @@ test('message highlights: add, comment, navigate, delete', async ({ page }: { pa
 
 	const toolbar = page.locator(SELECTORS.selectionToolbar);
 	await expect(toolbar).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Selection toolbar appeared after selectionchange.');
-	await takeStepScreenshot(page, 'selection-toolbar-visible');
+	logCheckpoint('Selection toolbar appeared.');
+	await takeStepScreenshot(page, '13-toolbar-visible');
 
-	// Tap the Highlight button — it uses mousedown to preempt selection clear.
 	const toolbarHighlight = page.locator(SELECTORS.selectionToolbarHighlight);
 	await toolbarHighlight.dispatchEvent('mousedown');
-	logCheckpoint('Tapped toolbar Highlight button.');
-	// A third highlight should now exist (we have 1 from step 5 + this one = 2).
-	await expect(highlightBox).toHaveCount(2, { timeout: 10000 });
-	const pillText4 = (await pill.textContent())?.trim() ?? '';
-	logCheckpoint(`ChatHeader pill after toolbar-highlight: "${pillText4}"`);
-	expect(pillText4).toMatch(/2/);
-	await takeStepScreenshot(page, 'after-toolbar-highlight');
+	logCheckpoint('Tapped toolbar Highlight.');
 
-	// Cleanup
-	logCheckpoint('Cleaning up the test chat.');
+	await expect(marks).toHaveCount(2, { timeout: 10000 });
+
+	// ── STRICT: the new mark should wrap "lazy" ──
+	const toolbarExpected = new Set(['quick brown fox', 'lazy']);
+	for (let i = 0; i < 2; i++) {
+		const m = marks.nth(i);
+		const txt = (await m.textContent() ?? '').trim();
+		expect(toolbarExpected.has(txt), `Toolbar-hl mark ${i} text "${txt}" must be expected`).toBe(true);
+		await expect(m).toBeVisible();
+	}
+	const pillText4 = (await pill.textContent())?.trim() ?? '';
+	logCheckpoint(`Pill after toolbar-highlight: "${pillText4}"`);
+	expect(pillText4).toMatch(/2/);
+	await takeStepScreenshot(page, '14-toolbar-highlight-verified');
+
+	// ───────────────────────────────────────────────────────────
+	// STEP 9 — Full text integrity: seed text still intact in DOM
+	// ───────────────────────────────────────────────────────────
+	const fullText = await userMsg.evaluate((el: HTMLElement) => {
+		return (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+	});
+	logCheckpoint(`Full visible text: "${fullText}"`);
+	expect(
+		fullText,
+		'Full message text must still contain the seed (highlights must not eat characters)'
+	).toContain('The quick brown fox jumps over the lazy dog near the old bridge today.');
+	await takeStepScreenshot(page, '15-text-integrity');
+
+	// ── Cleanup ─────────────────────────────────────────────────
+	logCheckpoint('Cleaning up test chat.');
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup');
 	logCheckpoint('message-highlights test completed successfully.');
 });

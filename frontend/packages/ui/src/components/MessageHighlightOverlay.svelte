@@ -84,26 +84,33 @@
     extraClasses: string[],
   ): HTMLElement[] {
     const segments: { node: Text; start: number; end: number }[] = [];
-    const walker = document.createTreeWalker(
-      range.commonAncestorContainer,
-      NodeFilter.SHOW_TEXT,
-    );
-    // TreeWalker.currentNode starts at the root; nextNode() descends into
-    // children in document order. Collect every text node that intersects
-    // the range so we can process them after the walk (mutating the DOM
-    // during iteration would invalidate the walker).
-    let n: Node | null = walker.nextNode();
-    while (n) {
-      const t = n as Text;
-      const nodeLen = t.length;
-      if (range.intersectsNode(t)) {
-        const isStart = t === range.startContainer;
-        const isEnd = t === range.endContainer;
-        const start = isStart ? range.startOffset : 0;
-        const end = isEnd ? range.endOffset : nodeLen;
-        if (end > start) segments.push({ node: t, start, end });
+    const ancestor = range.commonAncestorContainer;
+
+    if (ancestor.nodeType === Node.TEXT_NODE) {
+      // Both endpoints are in the same text node — TreeWalker can't descend
+      // into a text node (it has no children), so handle it directly.
+      const t = ancestor as Text;
+      const start = range.startOffset;
+      const end = range.endOffset;
+      if (end > start) segments.push({ node: t, start, end });
+    } else {
+      const walker = document.createTreeWalker(
+        ancestor,
+        NodeFilter.SHOW_TEXT,
+      );
+      let n: Node | null = walker.nextNode();
+      while (n) {
+        const t = n as Text;
+        const nodeLen = t.length;
+        if (range.intersectsNode(t)) {
+          const isStart = t === range.startContainer;
+          const isEnd = t === range.endContainer;
+          const start = isStart ? range.startOffset : 0;
+          const end = isEnd ? range.endOffset : nodeLen;
+          if (end > start) segments.push({ node: t, start, end });
+        }
+        n = walker.nextNode();
       }
-      n = walker.nextNode();
     }
 
     const marks: HTMLElement[] = [];
@@ -231,6 +238,13 @@
      paragraphs, list items, quoted spans, etc.). */
   :global(mark.message-highlight-mark) {
     background: var(--color-highlight-yellow, rgba(255, 213, 0, 0.4));
+    /* Override the global mark rule in fonts.css which sets
+       background-clip:text + -webkit-text-fill-color:transparent
+       (gradient text trick for the brand logo). Without this reset
+       highlight text becomes invisible behind a solid yellow block. */
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
     color: inherit;
     cursor: pointer;
     border-radius: 2px;
