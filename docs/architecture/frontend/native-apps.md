@@ -112,7 +112,7 @@ Native Apple development has hard constraints that shape how work gets done:
   testing. The watchOS simulator is limited.
 - **Signing, provisioning, and capabilities** are managed through Xcode's
   GUI and `developer.apple.com`. These steps cannot be fully scripted.
-- **App Store Connect submission** (screenshots, metadata, review) is a
+- **Apps Connect submission** (screenshots, metadata, review) is a
   manual process that happens per platform.
 
 Because of these constraints, the native repo has its own lint / CI /
