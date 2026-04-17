@@ -329,7 +329,10 @@ for module_name in include_modules:
         logger.warning(f"Failed to import task module {module_name}: {e}")
 
 # Configure Celery
+celery_concurrency = int(os.environ.get("CELERY_AUTOSCALE_MAX", "2"))
+
 app.conf.update(
+    worker_concurrency=celery_concurrency,
     task_queues=task_queues, # Dynamically set queues
     # CRITICAL: Set task_default_queue to None to prevent fallback to default queue
     # This ensures tasks only go to explicitly routed queues

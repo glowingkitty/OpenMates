@@ -202,7 +202,7 @@ services:
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
              --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
-             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --concurrency=${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
              --prefetch-multiplier=1"
@@ -301,11 +301,10 @@ services:
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
              --queues=app_ai \
-             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --concurrency=${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
-             --prefetch-multiplier=1 \
-             --autoreload"
+             --prefetch-multiplier=1"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -363,11 +362,10 @@ services:
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
              --queues=app_images \
-             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --concurrency=${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
-             --prefetch-multiplier=1 \
-             --autoreload"
+             --prefetch-multiplier=1"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Mount apps directory for hot-reloading during development
@@ -424,11 +422,10 @@ services:
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
              --queues=app_pdf \
-             --autoscale=4,1 \
+             --concurrency=2 \
              --max-tasks-per-child=10 \
              --max-memory-per-child=1000000 \
-             --prefetch-multiplier=1 \
-             --autoreload"
+             --prefetch-multiplier=1"
     volumes:
       - ../../backend:/app/backend
       - ../../backend/apps:/app/apps
