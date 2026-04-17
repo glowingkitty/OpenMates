@@ -239,7 +239,7 @@ loading:
   he: טוען...
   verified_by_human: []
 
-# App Settings & Memories Permission Dialog
+# Memories Permission Dialog
 permissions.title:
   context: Header for the permissions dialog requesting app settings/memories access
   en: Permissions
@@ -265,31 +265,31 @@ permissions.title:
   he: הרשאות
   verified_by_human: []
 permissions.question:
-  context: Question asking user to confirm sharing app settings and memories
-  en: Include these App settings & memories in this chat, for a more personalized response?
-  de: Diese App-Einstellungen & Erinnerungen in diesen Chat einbeziehen, für eine persönlichere Antwort?
-  zh: 在此聊天中包含这些应用设置和记忆，以获得更个性化的回复？
-  es: ¿Incluir esta configuración de aplicación y memorias en este chat para una respuesta más personalizada?
-  fr: Inclure ces paramètres d'application et souvenirs dans cette discussion pour une réponse plus personnalisée ?
-  pt: Incluir essas configurações de aplicativo e memórias neste chat para uma resposta mais personalizada?
-  ru: Включить эти настройки приложения и воспоминания в этот чат для более персонализированного ответа?
-  ja: よりパーソナライズされた返答のために、このチャットにこれらのアプリ設定と思い出を含めますか？
-  ko: 더 맞춤화된 답변을 위해 이 앱 설정과 기억을 이 채팅에 포함하시겠습니까?
-  it: Includere queste impostazioni dell'app e memorie in questa chat per una risposta più personalizzata?
-  tr: Daha kişiselleştirilmiş bir yanıt için bu uygulama ayarlarını ve anıları bu sohbete dahil edilsin mi?
-  vi: Bao gồm cài đặt ứng dụng và ký ức này trong cuộc trò chuyện này để có phản hồi cá nhân hơn?
-  id: Sertakan pengaturan aplikasi dan memori ini dalam obrolan ini untuk respons yang lebih personal?
-  pl: Uwzględnić te ustawienia aplikacji i wspomnienia w tym czacie dla bardziej spersonalizowanej odpowiedzi?
-  nl: Deze app-instellingen en herinneringen in deze chat opnemen voor een meer gepersonaliseerd antwoord?
-  ar: تضمين إعدادات التطبيق والذكريات هذه في هذه المحادثة للحصول على رد أكثر تخصيصاً؟
-  hi: अधिक व्यक्तिगत प्रतिक्रिया के लिए इन ऐप सेटिंग्स और यादों को इस चैट में शामिल करें?
-  th: รวมการตั้งค่าแอปและความทรงจำเหล่านี้ในแชทนี้เพื่อการตอบกลับที่เป็นส่วนตัวมากขึ้นหรือไม่?
-  cs: Zahrnout tato nastavení aplikace a vzpomínky do tohoto chatu pro více personalizovanou odpověď?
-  sv: Inkludera dessa appinställningar och minnen i denna chatt för ett mer personligt svar?
-  he: "האם לכלול את הגדרות האפליקציה והזיכרונות האלו בצ'אט זה, לקבלת מענה מותאם אישית יותר?"
+  context: Question asking user to confirm sharing memories
+  en: Include these memories in this chat, for a more personalized response?
+  de: Diese Erinnerungen in diesen Chat einbeziehen, für eine persönlichere Antwort?
+  zh: 在此聊天中包含这些记忆，以获得更个性化的回复？
+  es: ¿Incluir estas memorias en este chat para una respuesta más personalizada?
+  fr: Inclure ces mémoires dans cette discussion pour une réponse plus personnalisée ?
+  pt: Incluir essas memórias neste chat para uma resposta mais personalizada?
+  ru: Включить эти воспоминания в этот чат для более персонализированного ответа?
+  ja: よりパーソナライズされた返答のために、このチャットにこれらのメモリを含めますか？
+  ko: 더 맞춤화된 답변을 위해 이 기억을 이 채팅에 포함하시겠습니까?
+  it: Includere queste memorie in questa chat per una risposta più personalizzata?
+  tr: Daha kişiselleştirilmiş bir yanıt için bu anıları bu sohbete dahil edilsin mi?
+  vi: Bao gồm những ký ức này trong cuộc trò chuyện này để có phản hồi cá nhân hơn?
+  id: Sertakan memori ini dalam obrolan ini untuk respons yang lebih personal?
+  pl: Uwzględnić te wspomnienia w tym czacie dla bardziej spersonalizowanej odpowiedzi?
+  nl: Deze herinneringen in deze chat opnemen voor een meer gepersonaliseerd antwoord?
+  ar: تضمين هذه الذكريات في هذه المحادثة للحصول على رد أكثر تخصيصاً؟
+  hi: अधिक व्यक्तिगत प्रतिक्रिया के लिए इन यादों को इस चैट में शामिल करें?
+  th: รวมความทรงจำเหล่านี้ในแชทนี้เพื่อการตอบกลับที่เป็นส่วนตัวมากขึ้นหรือไม่?
+  cs: Zahrnout tyto vzpomínky do tohoto chatu pro více personalizovanou odpověď?
+  sv: Inkludera dessa minnen i denna chatt för ett mer personligt svar?
+  he: "האם לכלול את הזיכרונות האלו בצ'אט זה, לקבלת מענה מותאם אישית יותר?"
   verified_by_human: []
 permissions.include_selected:
-  context: Button to include selected app settings and memories in the chat
+  context: Button to include selected app memories in the chat
   en: Include selected
   de: Ausgewählte einbeziehen
   zh: 包含所选
@@ -313,7 +313,7 @@ permissions.include_selected:
   he: כלול את הנבחרים
   verified_by_human: []
 permissions.reject_all:
-  context: Button to reject all app settings and memories request
+  context: Button to reject all app memories request
   en: Reject all
   de: Alle ablehnen
   zh: 全部拒绝
@@ -385,52 +385,52 @@ permissions.entry_plural:
   he: פריטים
   verified_by_human: []
 permissions.included_summary:
-  context: Label shown after user includes app settings/memories
-  en: Included App settings & memories
-  de: Einbezogene App-Einstellungen & Erinnerungen
-  zh: 已包含的应用设置和记忆
-  es: Configuración de aplicación y memorias incluidas
-  fr: Paramètres d'application et souvenirs inclus
-  pt: Configurações de aplicativo e memórias incluídas
-  ru: Включены настройки приложения и воспоминания
-  ja: 含まれたアプリ設定と思い出
-  ko: 포함된 앱 설정 및 기억
-  it: Impostazioni dell'app e memorie incluse
-  tr: Dahil edilen uygulama ayarları ve anılar
-  vi: Cài đặt ứng dụng và ký ức đã bao gồm
-  id: Pengaturan aplikasi dan memori yang disertakan
-  pl: Uwzględnione ustawienia aplikacji i wspomnienia
-  nl: Opgenomen app-instellingen en herinneringen
-  ar: إعدادات التطبيق والذكريات المضمنة
-  hi: शामिल ऐप सेटिंग्स और यादें
-  th: การตั้งค่าแอปและความทรงจำที่รวม
-  cs: Zahrnutá nastavení aplikace a vzpomínky
-  sv: Inkluderade appinställningar och minnen
-  he: הגדרות אפליקציה וזיכרונות שנכללו
+  context: Label shown after user includes memories
+  en: Included memories
+  de: Einbezogene Erinnerungen
+  zh: 已包含的记忆
+  es: Memorias incluidas
+  fr: Mémoires incluses
+  pt: Memórias incluídas
+  ru: Включены воспоминания
+  ja: 含まれたメモリ
+  ko: 포함된 기억
+  it: Memorie incluse
+  tr: Dahil edilen anılar
+  vi: Ký ức đã bao gồm
+  id: Memori yang disertakan
+  pl: Uwzględnione wspomnienia
+  nl: Opgenomen herinneringen
+  ar: الذكريات المضمنة
+  hi: शामिल यादें
+  th: ความทรงจำที่รวม
+  cs: Zahrnuté vzpomínky
+  sv: Inkluderade minnen
+  he: זיכרונות שנכללו
   verified_by_human: []
 permissions.rejected_summary:
-  context: Text shown when user rejects app settings/memories request
-  en: Rejected App settings & memories request.
-  de: Anfrage für App-Einstellungen & Erinnerungen abgelehnt.
-  zh: 已拒绝应用设置和记忆请求。
-  es: Solicitud de configuración de aplicación y memorias rechazada.
-  fr: Demande de paramètres d'application et de souvenirs refusée.
-  pt: Solicitação de configurações de aplicativo e memórias rejeitada.
-  ru: Запрос на настройки приложения и воспоминания отклонён.
-  ja: アプリ設定と思い出のリクエストを拒否しました。
-  ko: 앱 설정 및 기억 요청이 거부되었습니다.
-  it: Richiesta di impostazioni dell'app e memorie rifiutata.
-  tr: Uygulama ayarları ve anılar talebi reddedildi.
-  vi: Đã từ chối yêu cầu cài đặt ứng dụng và ký ức.
-  id: Permintaan pengaturan aplikasi dan memori ditolak.
-  pl: Odrzucono żądanie ustawień aplikacji i wspomnień.
-  nl: App-instellingen en herinneringen verzoek afgewezen.
-  ar: تم رفض طلب إعدادات التطبيق والذكريات.
-  hi: ऐप सेटिंग्स और यादों का अनुरोध अस्वीकृत।
-  th: ปฏิเสธคำขอการตั้งค่าแอปและความทรงจำแล้ว
-  cs: Žádost o nastavení aplikace a vzpomínky byla zamítnuta.
-  sv: Begäran om appinställningar och minnen avvisad.
-  he: בקשת הגדרות האפליקציה והזיכרונות נדחתה.
+  context: Text shown when user rejects memories request
+  en: Rejected memories request.
+  de: Anfrage für Erinnerungen abgelehnt.
+  zh: 已拒绝记忆请求。
+  es: Solicitud de memorias rechazada.
+  fr: Demande de mémoires refusée.
+  pt: Solicitação de memórias rejeitada.
+  ru: Запрос на воспоминания отклонён.
+  ja: メモリのリクエストを拒否しました。
+  ko: 기억 요청이 거부되었습니다.
+  it: Richiesta di memorie rifiutata.
+  tr: Anılar talebi reddedildi.
+  vi: Đã từ chối yêu cầu ký ức.
+  id: Permintaan memori ditolak.
+  pl: Odrzucono żądanie wspomnień.
+  nl: Herinneringen verzoek afgewezen.
+  ar: تم رفض طلب الذكريات.
+  hi: यादों का अनुरोध अस्वीकृत।
+  th: ปฏิเสธคำขอความทรงจำแล้ว
+  cs: Žádost o vzpomínky byla zamítnuta.
+  sv: Begäran om minnen avvisad.
+  he: בקשת הזיכרונות נדחתה.
   verified_by_human: []
 report_bad_answer.button_text:
   context: Button label for reporting a bad answer (thumbs down)

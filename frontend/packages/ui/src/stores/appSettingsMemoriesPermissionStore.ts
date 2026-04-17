@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/stores/appSettingsMemoriesPermissionStore.ts
 /**
- * Store for managing the App Settings & Memories Permission Dialog state.
+ * Store for managing the Memories Permission Dialog state.
  *
  * This store handles the display of permission dialogs when the AI assistant
  * requests access to app settings/memories that could be relevant for answering

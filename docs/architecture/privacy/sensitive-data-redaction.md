@@ -65,7 +65,7 @@ Real-time regex detection in [piiDetectionService.ts](../../frontend/packages/ui
 ### CLI Secret Scanner
 
 [secret-scanner package](../../frontend/packages/secret-scanner/src/scanner.ts) provides dual-layer detection for CLI:
-- **Registry-based:** Aho-Corasick automaton for known secret values from `.env` and Settings & Memories
+- **Registry-based:** Aho-Corasick automaton for known secret values from `.env` and Memories
 - **Pattern-based:** Same regex patterns as `piiDetectionService.ts`
 - Roundtrip verified: `text → redact → restore` produces original text
 

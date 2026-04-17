@@ -721,7 +721,7 @@ async def _warm_user_app_settings_and_memories_cache(
     cache_service: CacheService,
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
 ):
-    """Warms the cache with all user-specific app settings and memories.
+    """Warms the cache with all user-specific app memories.
     
     Note: This function is called during cache warming to pre-populate the cache
     with app settings/memories data. The Directus service method get_all_user_app_data_raw
@@ -731,7 +731,7 @@ async def _warm_user_app_settings_and_memories_cache(
     """
     import hashlib
     log_prefix = f"TASK_LOGIC_APP_DATA ({task_id}): User {user_id[:8]}...:"
-    logger.info(f"{log_prefix} Starting to warm app settings and memories cache.")
+    logger.info(f"{log_prefix} Starting to warm app memories cache.")
     
     try:
         # get_all_user_app_data_raw handles hashing internally when querying Directus
@@ -829,7 +829,7 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
         await _warm_cache_phase_three(
             user_id, cache_service, directus_service, encryption_service, target_immediate_chat_id
         )
-    # TODO implement correctly later once we implement e2ee for chats, app settings and memories 
+    # TODO implement correctly later once we implement e2ee for chats, app memories 
     # await _warm_user_app_settings_and_memories_cache(
     #     user_id=user_id,
     #     directus_service=directus_service,
@@ -1629,7 +1629,7 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting usage data for user {user_id}: {e}", exc_info=True)
         
-        # 14. Delete app settings & memories (using bulk delete for efficiency)
+        # 14. Delete app memories (using bulk delete for efficiency)
         try:
             app_settings = await directus_service.get_items(
                 "user_app_settings_and_memories",

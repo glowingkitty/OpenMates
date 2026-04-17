@@ -3630,7 +3630,7 @@ async function runClientHealthCheck(): Promise<void> {
     // non-critical
   }
 
-  // 8. Settings & memories decryption health
+  // 8. Memories decryption health
   try {
     const db5 = await openDB();
     const settingsEntries = await getAllFromStore<Record<string, unknown>>(
@@ -3659,17 +3659,17 @@ async function runClientHealthCheck(): Promise<void> {
           }
         }
         if (smFail === 0) {
-          allOk.push(`Settings & memories decrypt: all ${smOk} OK`);
+          allOk.push(`Memories decrypt: all ${smOk} OK`);
         } else {
           allIssues.push(
-            `Settings & memories decrypt: ${smFail}/${smOk + smFail} FAILED`,
+            `Memories decrypt: ${smFail}/${smOk + smFail} FAILED`,
           );
         }
       } catch {
-        allIssues.push("Settings & memories decrypt: master key unavailable");
+        allIssues.push("Memories decrypt: master key unavailable");
       }
     } else {
-      allOk.push("Settings & memories: 0 entries");
+      allOk.push("Memories: 0 entries");
     }
   } catch {
     // store may not exist, non-critical
@@ -3952,7 +3952,7 @@ function showDebugHelp(): void {
       "  await window.debug.user()                 — user profile, auth state, encryption key health\n" +
       "  await window.debug.dailyInspirations()    — daily inspirations store state and health\n" +
       "  await window.debug.newChatSuggestions()   — new chat suggestions (decrypt all + health)\n" +
-      "  await window.debug.settingsAndMemories() — app settings & memories (decrypt all + health)\n\n" +
+      "  await window.debug.settingsAndMemories() — app memories (decrypt all + health)\n\n" +
       "  Keys / Encryption:\n" +
       "  All commands show full IDs and keys by default.\n" +
       "  Pass { hideKeys: true } to mask keys, e.g. debug.chat(id, {hideKeys:true})\n\n" +
@@ -3989,7 +3989,7 @@ function showDebugHelp(): void {
 // ============================================================================
 
 /**
- * Inspect app settings and memories in IndexedDB with decryption health check.
+ * Inspect app memories in IndexedDB with decryption health check.
  * Shows all entries grouped by app, verifies decrypt with master key,
  * and reports any failures.
  *
@@ -4082,9 +4082,9 @@ async function debugSettingsAndMemories(): Promise<void> {
   lines.push("");
 
   if (issues.length === 0) {
-    lines.push("🟢 Settings & Memories: HEALTHY");
+    lines.push("🟢 Memories: HEALTHY");
   } else {
-    lines.push(`🔴 Settings & Memories: ${issues.length} issue(s)`);
+    lines.push(`🔴 Memories: ${issues.length} issue(s)`);
     for (const issue of issues) {
       lines.push(`   🔴 ${issue}`);
     }
@@ -4571,7 +4571,7 @@ export function initDebugUtils(): void {
     newChatSuggestions: (opts?: { hideKeys?: boolean }) =>
       debugNewChatSuggestions(opts),
 
-    /** Inspect app settings and memories with decryption health check */
+    /** Inspect app memories with decryption health check */
     settingsAndMemories: () => debugSettingsAndMemories(),
 
     /**

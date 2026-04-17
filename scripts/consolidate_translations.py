@@ -49,7 +49,7 @@ SKIP_EN_VALUES = {
     "|", "||", "---", "—", "•",
     "1 year & older", "90 days & older",
     "Career insights", "Log In from Another Device",
-    "On Low Balance", "Settings & Memories",
+    "On Low Balance", "Memories",
     "Generate Draft", "Cancel Reminder",
     "Hide sensitive data", "Show sensitive data",
     "Verify Your Identity", "Set Reminder", "Set reminder",

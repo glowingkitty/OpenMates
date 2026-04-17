@@ -36,7 +36,7 @@
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
 
-    // Check if user is authenticated - only authenticated users can manage settings and memories
+    // Check if user is authenticated - only authenticated users can manage memories
     let isAuthenticated = $derived($authStore.isAuthenticated);
 
     interface Props {
@@ -387,7 +387,7 @@
         </div>
     {:else}
         {#if isAuthenticated}
-            <!-- "My / Settings & memories" section heading — 2-line style matching skill/provider headings -->
+            <!-- "My / Memories" section heading — 2-line style matching skill/provider headings -->
             <SettingsSectionHeading
                 title={$text('settings.app_settings_memories.settings_and_memories')}
                 icon="user"

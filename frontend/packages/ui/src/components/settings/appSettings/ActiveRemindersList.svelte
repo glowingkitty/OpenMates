@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
 
   Displays active (pending) reminders in the reminder app store page.
-  Uses SettingsItem components for consistent layout with Settings & Memories entries.
+  Uses SettingsItem components for consistent layout with Memories entries.
   Each reminder row is clickable (view mode) with an edit pencil button (edit mode).
 
   Data source: GET /v1/settings/reminders

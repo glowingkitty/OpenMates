@@ -36,11 +36,11 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
- * Test: Settings & Memories entries appear in the @ mention dropdown.
+ * Test: Memories entries appear in the @ mention dropdown.
  *
  * Flow:
  * 1. Login to the test account
- * 2. Open Settings > App Store > All Apps > Travel App > Trips category
+ * 2. Open Settings > Apps > All Apps > Travel App > Trips category
  * 3. Create a new trip entry (destination: "Tokyo", start_date: "2026-06-01")
  * 4. Verify the entry is visible in the Trips settings list
  * 5. Close settings
@@ -157,25 +157,25 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	await openSettings(page, logCheckpoint, takeStepScreenshot);
 
 	// ======================================================================
-	// STEP 3: Navigate to App Store
+	// STEP 3: Navigate to Apps
 	// ======================================================================
-	logCheckpoint('Navigating to App Store...');
+	logCheckpoint('Navigating to Apps...');
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 
-	// Click on "App Store" menu item (it's a SettingsItem with .menu-item class)
+	// Click on "Apps" menu item (it's a SettingsItem with .menu-item class)
 	const appStoreItem = settingsMenu
 		.getByTestId('menu-item')
 		.filter({ hasText: /app store/i })
 		.first();
 	await expect(appStoreItem).toBeVisible({ timeout: 10000 });
 	await appStoreItem.click();
-	logCheckpoint('Clicked App Store menu item.');
+	logCheckpoint('Clicked Apps menu item.');
 	await page.waitForTimeout(800);
 	await takeStepScreenshot(page, 'app-store-open');
 
 	// ======================================================================
 	// STEP 4: Navigate to All Apps via "Show all apps" button
-	// The App Store page has a "Show all apps" SettingsItem button
+	// The Apps page has a "Show all apps" SettingsItem button
 	// ======================================================================
 	logCheckpoint('Navigating to Show all apps...');
 	// "Show all apps" is a SettingsItem with .menu-item and text "Show all apps"
@@ -207,7 +207,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 	await takeStepScreenshot(page, 'travel-app-open');
 
 	// ======================================================================
-	// STEP 6: Click the Trips category card in the Settings & Memories section
+	// STEP 6: Click the Trips category card in the Memories section
 	// The AppDetails page also uses AppStoreCard for memory categories
 	// ======================================================================
 	logCheckpoint('Looking for Trips settings memory category card...');
@@ -435,7 +435,7 @@ test('settings memory trips entry appears in @ mention dropdown', async ({
 
 	// Wait for AI response to start (typing indicator or first chunk)
 	// If the permission dialog appears, the AI won't start typing — instead we'd see a
-	// "btn-include" / "btn-exclude" button pair for confirming settings & memories
+	// "btn-include" / "btn-exclude" button pair for confirming memories
 	await page.waitForTimeout(3000);
 	await takeStepScreenshot(page, 'after-send-with-mention');
 

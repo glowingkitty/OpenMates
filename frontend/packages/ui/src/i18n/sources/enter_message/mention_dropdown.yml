@@ -2,7 +2,7 @@ header:
   context: Header text explaining the auto-selection feature in the @ mention dropdown
   en:
     By default, OpenMates auto selects the AI model, mates, app- skills, focus modes
-    and settings & memories. Search to overwrite the auto selection
+    and memories. Search to overwrite the auto selection
   de:
     OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie
     Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl
@@ -207,28 +207,28 @@ type_labels.focus_mode:
   he: מצב מיקוד
   verified_by_human: []
 type_labels.settings_memory:
-  context: Label for settings and memories type in mention dropdown
-  en: Settings & memories
-  de: Einstellungen & Erinnerungen
-  zh: 设置与记忆
-  es: Configuraciones y memorias
-  fr: Paramètres et mémoires
-  pt: Configurações e memórias
-  ru: Настройки и воспоминания
-  ja: 設定とメモリ
-  ko: 설정 및 기억
-  it: Impostazioni e memorie
-  tr: Ayarlar ve anılar
-  vi: Cài đặt và bộ nhớ
-  id: Pengaturan & memori
-  pl: Ustawienia i wspomnienia
-  nl: Instellingen en herinneringen
-  ar: الإعدادات والذاكرة
-  hi: सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำ
-  cs: Nastavení a vzpomínky
-  sv: Inställningar och minnen
-  he: הגדרות וזיכרונות
+  context: Label for memories type in mention dropdown
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 type_labels.model_alias:
   context: Label for model alias shortcuts (like @best, @fast) in mention dropdown

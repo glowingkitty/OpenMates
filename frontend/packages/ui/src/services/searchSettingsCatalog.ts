@@ -457,7 +457,7 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
       });
     }
 
-    // Settings & memories
+    // Memories
     for (const memory of app.settings_and_memories || []) {
       entries.push({
         path: `app_store/${app.id}/settings_memories/${memory.id}`,

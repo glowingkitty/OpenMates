@@ -22,7 +22,7 @@
 local_storage:
 - key: openmates_chats_db_initialized
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -30,14 +30,14 @@ local_storage:
   notes: null
 - key: openmates_email_encrypted_master
   first_observed: '2026-04-14'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - signup-flow.spec.ts
   purpose: null
   notes: null
 - key: openmates_email_encryption_key
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
@@ -47,7 +47,7 @@ local_storage:
   notes: null
 - key: openmates_email_salt
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
@@ -57,7 +57,7 @@ local_storage:
   notes: null
 - key: openmates_push_banner_shown
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - connection-resilience.spec.ts
   - message-sync.spec.ts
@@ -66,7 +66,7 @@ local_storage:
   notes: null
 - key: openmates_push_enabled
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - connection-resilience.spec.ts
   - message-sync.spec.ts
@@ -75,7 +75,7 @@ local_storage:
   notes: null
 - key: openmates_push_preferences
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - connection-resilience.spec.ts
   - message-sync.spec.ts
@@ -84,7 +84,7 @@ local_storage:
   notes: null
 - key: openmates_user_db_initialized
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -92,7 +92,7 @@ local_storage:
   notes: null
 - key: openmates_was_stay_logged_in
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety-upload.spec.ts
@@ -102,7 +102,7 @@ local_storage:
   notes: null
 - key: preferredLanguage
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - language-settings-flow.spec.ts
   - language-switch-welcome-screen.spec.ts
@@ -110,7 +110,7 @@ local_storage:
   notes: null
 - key: theme_mode
   first_observed: '2026-04-13'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - signup-skip-2fa-flow.spec.ts
   purpose: null
@@ -118,37 +118,37 @@ local_storage:
 session_storage:
 - key: _om_action_history
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
   - status-page.spec.ts
   purpose: null
   notes: null
-- key: draft_a683ddd0-20dc-4b6d-aed5-9172b9f2b71e
-  first_observed: '2026-04-16'
-  last_observed: '2026-04-16'
-  seen_in_specs:
-  - not-found-404-flow.spec.ts
-  purpose: null
-  notes: null
 - key: draft_chat_ids
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - not-found-404-flow.spec.ts
   purpose: null
   notes: null
 - key: draft_demo-for-everyone
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - audio-recording.spec.ts
   purpose: null
   notes: null
+- key: draft_e721a2ff-4ec9-4b99-b5df-64ebc79cf9ef
+  first_observed: '2026-04-17'
+  last_observed: '2026-04-17'
+  seen_in_specs:
+  - not-found-404-flow.spec.ts
+  purpose: null
+  notes: null
 - key: ephemeral_session_id
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -156,14 +156,14 @@ session_storage:
   notes: null
 - key: incognito_mode_enabled
   first_observed: '2026-04-14'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - incognito-mode.spec.ts
   purpose: null
   notes: null
 - key: openmates_email_encrypted_master
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -171,21 +171,21 @@ session_storage:
   notes: null
 - key: openmates_email_encryption_key
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - skill-images-generate-safety.spec.ts
   purpose: null
   notes: null
 - key: openmates_email_salt
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - skill-images-generate-safety.spec.ts
   purpose: null
   notes: null
 - key: openmates_pair_encrypted_key
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -193,7 +193,7 @@ session_storage:
   notes: null
 - key: openmates_pair_lookup_hash
   first_observed: '2026-04-13'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - cli-pair-login.spec.ts
   - cli-skills-pdf.spec.ts
@@ -201,7 +201,7 @@ session_storage:
   notes: null
 - key: openmates_pair_salt
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -209,14 +209,14 @@ session_storage:
   notes: null
 - key: openmates_skip_orphan_detection
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - shared-chat-open.spec.ts
   purpose: null
   notes: null
 - key: session_id
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -224,7 +224,7 @@ session_storage:
   notes: null
 - key: sveltekit:scroll
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - page-load-performance.spec.ts
   - pdf-flow.spec.ts
@@ -233,7 +233,7 @@ session_storage:
   notes: null
 - key: sveltekit:snapshot
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - page-load-performance.spec.ts
   - pdf-flow.spec.ts
@@ -242,7 +242,7 @@ session_storage:
   notes: null
 - key: ws_token
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -251,7 +251,7 @@ session_storage:
 indexed_db:
 - name: chats_db
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -259,7 +259,7 @@ indexed_db:
   notes: null
 - name: demo_chats_db
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -268,7 +268,7 @@ indexed_db:
   notes: null
 - name: openmates_admin_client_log_queue
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
@@ -276,7 +276,7 @@ indexed_db:
   notes: null
 - name: openmates_crypto
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -284,7 +284,7 @@ indexed_db:
   notes: null
 - name: openmates_shared_keys
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -292,7 +292,7 @@ indexed_db:
   notes: null
 - name: user_db
   first_observed: '2026-04-08'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
@@ -300,7 +300,7 @@ indexed_db:
   notes: null
 - name: workbox-expiration
   first_observed: '2026-04-09'
-  last_observed: '2026-04-16'
+  last_observed: '2026-04-17'
   seen_in_specs:
   - page-load-performance.spec.ts
   - language-switch-welcome-screen.spec.ts

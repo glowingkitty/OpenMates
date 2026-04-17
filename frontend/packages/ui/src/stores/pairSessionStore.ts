@@ -10,11 +10,11 @@
  *   - Data export (GDPR export)
  *   - Account deletion
  *   - Any security settings changes (read-only)
- *   - Settings and Memories sync (no sync to/from server in restricted sessions)
+ *   - Memories sync (no sync to/from server in restricted sessions)
  *
  * Restricted mode hides these settings pages entirely:
  *   - Account (username, email, timezone, profile picture, security, storage, chats, delete)
- *   - Settings & Memories (app settings)
+ *   - Memories (app settings)
  *   - Security sub-pages (passkeys, password, 2FA, recovery key)
  *
  * Auto-logout timer (optional, set by the authorizing device at pair time):

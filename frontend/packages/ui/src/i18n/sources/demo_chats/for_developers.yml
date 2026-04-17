@@ -71,13 +71,13 @@ message:
 
     With Apps on OpenMates, there is no need for complicated, time-consuming and insecure MCP setups with clear text API keys in JSON config files.
 
-    Instead, OpenMates will automatically use the right AI model, app skill, focus mode, settings & memories optimized for your request (while allowing you to overwrite the auto selection via @ in your message).
+    Instead, OpenMates will automatically use the right AI model, app skill, focus mode, memories optimized for your request (while allowing you to overwrite the auto selection via @ in your message).
 
     Some examples of how Apps make OpenMates more useful:
 
-    - 📖 [Code | Get docs](#settings/appstore/code/skills/get-docs): Checks the latest documentation for an API, framework or language before generating code files.
+    - 📖 [Code | Get docs](#settings/apps/code/skills/get-docs): Checks the latest documentation for an API, framework or language before generating code files.
 
-    - 🔍 [Web | Search](#settings/appstore/web/skills/search): Searches the web to improve response accuracy.
+    - 🔍 [Web | Search](#settings/apps/web/skills/search): Searches the web to improve response accuracy.
 
     - ✅ Auto linter checks for generated code (coming soon).
 
@@ -100,10 +100,10 @@ message:
     [[dev_focus_modes_group]]
 
 
-    ### 💾 Developer settings & memories
+    ### 💾 Developer memories
 
 
-    Settings & memories for developer apps, so you don't need to mention project details, preferred tech stack, or frameworks all the time.
+    Memories for developer apps, so you don't need to mention project details, preferred tech stack, or frameworks all the time.
 
     [[dev_settings_memories_group]]
 
@@ -125,7 +125,7 @@ message:
     ## 🔒 Privacy & encryption
 
 
-    OpenMates never trains any models on any of your data. All your chats, project details and other app settings & memories are encrypted in your browser with a key derived from your login credential, and are stored on our servers only as ciphertext. When you make a request, our servers decrypt the minimum amount of data needed to fulfill it in memory, use it, and discard the plaintext — nothing is ever written to disk, logs, or traces. Before your prompts reach any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. This is **not** end-to-end encryption (our servers can decrypt your content transiently to serve you), but when you delete your account, destroying your encryption key cryptographically shreds every encrypted field we still hold.
+    OpenMates never trains any models on any of your data. All your chats, project details and other app memories are encrypted in your browser with a key derived from your login credential, and are stored on our servers only as ciphertext. When you make a request, our servers decrypt the minimum amount of data needed to fulfill it in memory, use it, and discard the plaintext — nothing is ever written to disk, logs, or traces. Before your prompts reach any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. This is **not** end-to-end encryption (our servers can decrypt your content transiently to serve you), but when you delete your account, destroying your encryption key cryptographically shreds every encrypted field we still hold.
 
 
     ## 🛡️ Open source as enshittification protection
@@ -171,9 +171,9 @@ message:
 
     Einige Beispiele, wie Apps OpenMates nützlicher machen:
 
-    - 📖 [Code | Dokumentation abrufen](#settings/appstore/code/skills/get-docs): Prüft die neueste Dokumentation für eine API, ein Framework oder eine Sprache, bevor Code-Dateien generiert werden.
+    - 📖 [Code | Dokumentation abrufen](#settings/apps/code/skills/get-docs): Prüft die neueste Dokumentation für eine API, ein Framework oder eine Sprache, bevor Code-Dateien generiert werden.
 
-    - 🔍 [Web | Suche](#settings/appstore/web/skills/search): Durchsucht das Web, um die Antwortgenauigkeit zu verbessern.
+    - 🔍 [Web | Suche](#settings/apps/web/skills/search): Durchsucht das Web, um die Antwortgenauigkeit zu verbessern.
 
     - ✅ Automatische Linter-Prüfungen für generierten Code (demnächst).
 
@@ -267,9 +267,9 @@ message:
 
     Algunos ejemplos de cómo las Apps hacen OpenMates más útil:
 
-    - 📖 [Código | Obtener docs](#settings/appstore/code/skills/get-docs): Consulta la documentación más reciente de una API, framework o lenguaje antes de generar archivos de código.
+    - 📖 [Código | Obtener docs](#settings/apps/code/skills/get-docs): Consulta la documentación más reciente de una API, framework o lenguaje antes de generar archivos de código.
 
-    - 🔍 [Web | Buscar](#settings/appstore/web/skills/search): Busca en la web para mejorar la precisión de las respuestas.
+    - 🔍 [Web | Buscar](#settings/apps/web/skills/search): Busca en la web para mejorar la precisión de las respuestas.
 
     - ✅ Verificaciones automáticas de linter para código generado (próximamente).
 
@@ -363,9 +363,9 @@ message:
 
     Quelques exemples de comment les Apps rendent OpenMates plus utile :
 
-    - 📖 [Code | Obtenir la doc](#settings/appstore/code/skills/get-docs) : Vérifie la dernière documentation d'une API, framework ou langage avant de générer des fichiers de code.
+    - 📖 [Code | Obtenir la doc](#settings/apps/code/skills/get-docs) : Vérifie la dernière documentation d'une API, framework ou langage avant de générer des fichiers de code.
 
-    - 🔍 [Web | Recherche](#settings/appstore/web/skills/search) : Recherche sur le web pour améliorer la précision des réponses.
+    - 🔍 [Web | Recherche](#settings/apps/web/skills/search) : Recherche sur le web pour améliorer la précision des réponses.
 
     - ✅ Vérifications automatiques du linter pour le code généré (bientôt disponible).
 
@@ -459,9 +459,9 @@ message:
 
     Alcuni esempi di come le App rendono OpenMates più utile:
 
-    - 📖 [Codice | Ottieni doc](#settings/appstore/code/skills/get-docs): Controlla l'ultima documentazione per un'API, framework o linguaggio prima di generare file di codice.
+    - 📖 [Codice | Ottieni doc](#settings/apps/code/skills/get-docs): Controlla l'ultima documentazione per un'API, framework o linguaggio prima di generare file di codice.
 
-    - 🔍 [Web | Cerca](#settings/appstore/web/skills/search): Cerca sul web per migliorare la precisione delle risposte.
+    - 🔍 [Web | Cerca](#settings/apps/web/skills/search): Cerca sul web per migliorare la precisione delle risposte.
 
     - ✅ Controlli automatici del linter per il codice generato (in arrivo).
 
@@ -555,9 +555,9 @@ message:
 
     一些应用使OpenMates更有用的例子：
 
-    - 📖 [代码 | 获取文档](#settings/appstore/code/skills/get-docs)：在生成代码文件前检查API、框架或语言的最新文档。
+    - 📖 [代码 | 获取文档](#settings/apps/code/skills/get-docs)：在生成代码文件前检查API、框架或语言的最新文档。
 
-    - 🔍 [网络 | 搜索](#settings/appstore/web/skills/search)：搜索网络以提高响应准确性。
+    - 🔍 [网络 | 搜索](#settings/apps/web/skills/search)：搜索网络以提高响应准确性。
 
     - ✅ 自动代码检查（即将推出）。
 
@@ -645,9 +645,9 @@ message:
 
     Alguns exemplos de como as Apps tornam o OpenMates mais útil:
 
-    - 📖 [Código | Obter docs](#settings/appstore/code/skills/get-docs): Verifica a documentação mais recente antes de gerar ficheiros de código.
+    - 📖 [Código | Obter docs](#settings/apps/code/skills/get-docs): Verifica a documentação mais recente antes de gerar ficheiros de código.
 
-    - 🔍 [Web | Pesquisa](#settings/appstore/web/skills/search): Pesquisa a web para melhorar a precisão das respostas.
+    - 🔍 [Web | Pesquisa](#settings/apps/web/skills/search): Pesquisa a web para melhorar a precisão das respostas.
 
     - ✅ Verificações automáticas de linter para código gerado (em breve).
 
@@ -724,9 +724,9 @@ message:
 
     Примеры:
 
-    - 📖 [Код | Получить документацию](#settings/appstore/code/skills/get-docs): Проверяет актуальную документацию перед генерацией кода.
+    - 📖 [Код | Получить документацию](#settings/apps/code/skills/get-docs): Проверяет актуальную документацию перед генерацией кода.
 
-    - 🔍 [Веб | Поиск](#settings/appstore/web/skills/search): Ищет в вебе для улучшения точности ответов.
+    - 🔍 [Веб | Поиск](#settings/apps/web/skills/search): Ищет в вебе для улучшения точности ответов.
 
     - ✅ Автоматические проверки линтера (скоро).
 
@@ -803,9 +803,9 @@ message:
 
     例：
 
-    - 📖 [コード | ドキュメント取得](#settings/appstore/code/skills/get-docs)：コード生成前に最新ドキュメントを確認。
+    - 📖 [コード | ドキュメント取得](#settings/apps/code/skills/get-docs)：コード生成前に最新ドキュメントを確認。
 
-    - 🔍 [ウェブ | 検索](#settings/appstore/web/skills/search)：正確性向上のためのウェブ検索。
+    - 🔍 [ウェブ | 検索](#settings/apps/web/skills/search)：正確性向上のためのウェブ検索。
 
     - ✅ 生成コードの自動リンターチェック（近日公開）。
 
@@ -882,9 +882,9 @@ message:
 
     예시:
 
-    - 📖 [코드 | 문서 가져오기](#settings/appstore/code/skills/get-docs): 코드 생성 전 최신 문서 확인.
+    - 📖 [코드 | 문서 가져오기](#settings/apps/code/skills/get-docs): 코드 생성 전 최신 문서 확인.
 
-    - 🔍 [웹 | 검색](#settings/appstore/web/skills/search): 응답 정확성 향상을 위한 웹 검색.
+    - 🔍 [웹 | 검색](#settings/apps/web/skills/search): 응답 정확성 향상을 위한 웹 검색.
 
     - ✅ 생성된 코드 자동 린터 검사(곧 출시).
 
@@ -961,9 +961,9 @@ message:
 
     Örnekler:
 
-    - 📖 [Kod | Doküman al](#settings/appstore/code/skills/get-docs): Kod üretmeden önce en güncel dokümanı kontrol eder.
+    - 📖 [Kod | Doküman al](#settings/apps/code/skills/get-docs): Kod üretmeden önce en güncel dokümanı kontrol eder.
 
-    - 🔍 [Web | Arama](#settings/appstore/web/skills/search): Doğruluk için web araması yapar.
+    - 🔍 [Web | Arama](#settings/apps/web/skills/search): Doğruluk için web araması yapar.
 
     - ✅ Üretilen kod için otomatik linter kontrolleri (yakında).
 
@@ -1040,9 +1040,9 @@ message:
 
     Ví dụ:
 
-    - 📖 [Code | Lấy tài liệu](#settings/appstore/code/skills/get-docs): Kiểm tra tài liệu mới nhất trước khi tạo file code.
+    - 📖 [Code | Lấy tài liệu](#settings/apps/code/skills/get-docs): Kiểm tra tài liệu mới nhất trước khi tạo file code.
 
-    - 🔍 [Web | Tìm kiếm](#settings/appstore/web/skills/search): Tìm kiếm web để cải thiện độ chính xác.
+    - 🔍 [Web | Tìm kiếm](#settings/apps/web/skills/search): Tìm kiếm web để cải thiện độ chính xác.
 
     - ✅ Kiểm tra linter tự động (sắp ra mắt).
 
@@ -1119,9 +1119,9 @@ message:
 
     Contoh:
 
-    - 📖 [Kode | Dapatkan dok](#settings/appstore/code/skills/get-docs): Memeriksa dokumentasi terbaru sebelum membuat file kode.
+    - 📖 [Kode | Dapatkan dok](#settings/apps/code/skills/get-docs): Memeriksa dokumentasi terbaru sebelum membuat file kode.
 
-    - 🔍 [Web | Cari](#settings/appstore/web/skills/search): Mencari web untuk meningkatkan akurasi respons.
+    - 🔍 [Web | Cari](#settings/apps/web/skills/search): Mencari web untuk meningkatkan akurasi respons.
 
     - ✅ Pemeriksaan linter otomatis untuk kode yang dibuat (segera hadir).
 
@@ -1198,9 +1198,9 @@ message:
 
     Przykłady:
 
-    - 📖 [Kod | Pobierz dokumentację](#settings/appstore/code/skills/get-docs): Sprawdza najnowszą dokumentację przed generowaniem kodu.
+    - 📖 [Kod | Pobierz dokumentację](#settings/apps/code/skills/get-docs): Sprawdza najnowszą dokumentację przed generowaniem kodu.
 
-    - 🔍 [Web | Wyszukaj](#settings/appstore/web/skills/search): Wyszukuje w sieci dla poprawy dokładności.
+    - 🔍 [Web | Wyszukaj](#settings/apps/web/skills/search): Wyszukuje w sieci dla poprawy dokładności.
 
     - ✅ Automatyczne sprawdzanie linterem dla wygenerowanego kodu (wkrótce).
 
@@ -1277,9 +1277,9 @@ message:
 
     Voorbeelden:
 
-    - 📖 [Code | Documentatie ophalen](#settings/appstore/code/skills/get-docs): Controleert de nieuwste documentatie voor het genereren van codebestanden.
+    - 📖 [Code | Documentatie ophalen](#settings/apps/code/skills/get-docs): Controleert de nieuwste documentatie voor het genereren van codebestanden.
 
-    - 🔍 [Web | Zoeken](#settings/appstore/web/skills/search): Zoekt op het web voor betere nauwkeurigheid.
+    - 🔍 [Web | Zoeken](#settings/apps/web/skills/search): Zoekt op het web voor betere nauwkeurigheid.
 
     - ✅ Automatische lintercontroles voor gegenereerde code (binnenkort).
 
@@ -1356,9 +1356,9 @@ message:
 
     أمثلة:
 
-    - 📖 [الكود | احصل على الوثائق](#settings/appstore/code/skills/get-docs): يتحقق من أحدث الوثائق قبل توليد ملفات الكود.
+    - 📖 [الكود | احصل على الوثائق](#settings/apps/code/skills/get-docs): يتحقق من أحدث الوثائق قبل توليد ملفات الكود.
 
-    - 🔍 [الويب | البحث](#settings/appstore/web/skills/search): يبحث في الويب لتحسين دقة الاستجابة.
+    - 🔍 [الويب | البحث](#settings/apps/web/skills/search): يبحث في الويب لتحسين دقة الاستجابة.
 
     - ✅ فحوصات لينتر تلقائية للكود المولَّد (قريباً).
 
@@ -1435,9 +1435,9 @@ message:
 
     उदाहरण:
 
-    - 📖 [कोड | दस्तावेज़ लें](#settings/appstore/code/skills/get-docs): कोड फाइल जेनरेट करने से पहले नवीनतम दस्तावेज़ जांचता है।
+    - 📖 [कोड | दस्तावेज़ लें](#settings/apps/code/skills/get-docs): कोड फाइल जेनरेट करने से पहले नवीनतम दस्तावेज़ जांचता है।
 
-    - 🔍 [वेब | खोज](#settings/appstore/web/skills/search): सटीकता बेहतर बनाने के लिए वेब खोज करता है।
+    - 🔍 [वेब | खोज](#settings/apps/web/skills/search): सटीकता बेहतर बनाने के लिए वेब खोज करता है।
 
     - ✅ जेनरेट किए गए कोड के लिए स्वचालित लिंटर जांच (जल्द आ रहा है)।
 
@@ -1514,9 +1514,9 @@ message:
 
     ตัวอย่าง:
 
-    - 📖 [Code | รับเอกสาร](#settings/appstore/code/skills/get-docs): ตรวจสอบเอกสารล่าสุดก่อนสร้างไฟล์โค้ด
+    - 📖 [Code | รับเอกสาร](#settings/apps/code/skills/get-docs): ตรวจสอบเอกสารล่าสุดก่อนสร้างไฟล์โค้ด
 
-    - 🔍 [เว็บ | ค้นหา](#settings/appstore/web/skills/search): ค้นหาเว็บเพื่อเพิ่มความแม่นยำ
+    - 🔍 [เว็บ | ค้นหา](#settings/apps/web/skills/search): ค้นหาเว็บเพื่อเพิ่มความแม่นยำ
 
     - ✅ การตรวจสอบ linter อัตโนมัติสำหรับโค้ดที่สร้าง (เร็วๆ นี้)
 
@@ -1593,9 +1593,9 @@ message:
 
     Příklady:
 
-    - 📖 [Kód | Získat dokumentaci](#settings/appstore/code/skills/get-docs): Zkontroluje nejnovější dokumentaci před generováním kódu.
+    - 📖 [Kód | Získat dokumentaci](#settings/apps/code/skills/get-docs): Zkontroluje nejnovější dokumentaci před generováním kódu.
 
-    - 🔍 [Web | Vyhledat](#settings/appstore/web/skills/search): Prohledá web pro lepší přesnost odpovědí.
+    - 🔍 [Web | Vyhledat](#settings/apps/web/skills/search): Prohledá web pro lepší přesnost odpovědí.
 
     - ✅ Automatické kontroly linteru pro generovaný kód (brzy).
 
@@ -1672,9 +1672,9 @@ message:
 
     Exempel:
 
-    - 📖 [Kod | Hämta dokumentation](#settings/appstore/code/skills/get-docs): Kontrollerar den senaste dokumentationen innan kodfiler genereras.
+    - 📖 [Kod | Hämta dokumentation](#settings/apps/code/skills/get-docs): Kontrollerar den senaste dokumentationen innan kodfiler genereras.
 
-    - 🔍 [Webb | Sök](#settings/appstore/web/skills/search): Söker på webben för bättre svarsnoggrannhet.
+    - 🔍 [Webb | Sök](#settings/apps/web/skills/search): Söker på webben för bättre svarsnoggrannhet.
 
     - ✅ Automatiska linterkontroller för genererad kod (snart).
 
@@ -1744,8 +1744,8 @@ message:
     עם אפליקציות ב-OpenMates, אין צורך בהגדרות MCP מסובכות, גוזלות זמן ולא מאובטחות עם מפתחות API בטקסט גלוי בקובצי קונפיגורציה של JSON.
     במקום זאת, OpenMates ישתמש באופן אוטומטי במודל ה-AI הנכון, בכישור האפליקציה, במצב המיקוד, בהגדרות ובזיכרונות המותאמים לבקשה שלך (תוך מתן אפשרות לדרוס את הבחירה האוטומטית באמצעות @ בהודעה שלך).
     כמה דוגמאות לאופן שבו אפליקציות הופכות את OpenMates לשימושי יותר:
-    - 📖 [Code | Get docs](#settings/appstore/code/skills/get-docs): בודק את התיעוד העדכני ביותר עבור API, פריימוורק או שפה לפני יצירת קובצי קוד.
-    - 🔍 [Web | Search](#settings/appstore/web/skills/search): מחפש באינטרנט כדי לשפר את דיוק התגובה.
+    - 📖 [Code | Get docs](#settings/apps/code/skills/get-docs): בודק את התיעוד העדכני ביותר עבור API, פריימוורק או שפה לפני יצירת קובצי קוד.
+    - 🔍 [Web | Search](#settings/apps/web/skills/search): מחפש באינטרנט כדי לשפר את דיוק התגובה.
     - ✅ בדיקות linter אוטומטיות לקוד שנוצר (בקרוב).
     [[dev_app_store_group]]
     

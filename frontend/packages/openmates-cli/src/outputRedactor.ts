@@ -4,7 +4,7 @@
  * personal data before displaying to the user.
  *
  * Loads personal data entries (names, addresses, birthdays, custom text)
- * from the user's encrypted Settings & Memories (app_id="privacy",
+ * from the user's encrypted Memories (app_id="privacy",
  * item_type="personal_data_entry") and uses the @openmates/secret-scanner
  * to redact them from all terminal output.
  *
@@ -27,7 +27,7 @@ import type {
 } from "../../secret-scanner/src/types.ts";
 import type { DecryptedMemoryEntry } from "./client.js";
 
-/** Privacy app ID used for personal data entries in Settings & Memories */
+/** Privacy app ID used for personal data entries in Memories */
 const PRIVACY_APP_ID = "privacy";
 /** Memory type for personal data entries */
 const PERSONAL_DATA_ITEM_TYPE = "personal_data_entry";
@@ -59,7 +59,7 @@ export class OutputRedactor {
 
   /**
    * Initialize the redactor by loading personal data entries from
-   * the user's encrypted Settings & Memories.
+   * the user's encrypted Memories.
    *
    * Safe to call without a session — silently skips if not logged in.
    *

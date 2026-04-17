@@ -1485,7 +1485,7 @@ async def handle_main_processing(
             prompt_parts.append(app_settings_usage_instruction)
         
         # Then add the actual data
-        settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
+        settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Memories ---"]
         for key, value in loaded_app_settings_and_memories_content.items():
             # CRITICAL: Convert Unix timestamps to human-readable date strings
             # LLMs hallucinate dates when given raw timestamps (e.g., may say "added in 2024" for 2026 timestamps)

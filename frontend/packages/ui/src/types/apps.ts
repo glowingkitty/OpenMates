@@ -95,7 +95,7 @@ export interface FocusModeMetadata {
 }
 
 /**
- * Settings and memories field metadata structure.
+ * Memories field metadata structure.
  *
  * **Backend Implementation**:
  * - Defined in: `backend/shared/python_schemas/app_metadata_schemas.py:AppMemoryFieldDefinition`

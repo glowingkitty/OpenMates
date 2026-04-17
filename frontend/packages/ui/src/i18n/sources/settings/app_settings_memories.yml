@@ -1,26 +1,26 @@
 app_settings_memories:
-  context: App settings and memories section title
-  en: Settings & Memories
-  de: Einstellungen & Erinnerungen
-  zh: 设置与记忆
-  es: Configuración y Memorias
-  fr: Paramètres et Souvenirs
-  pt: Configurações e Memórias
-  ru: Настройки и воспоминания
-  ja: 設定とメモリ
-  ko: 설정 및 메모리
-  it: Impostazioni e Memorie
-  tr: Ayarlar ve Anılar
-  vi: Cài đặt & Ký ức
-  id: Pengaturan & Memori
-  pl: Ustawienia i Wspomnienia
-  nl: Instellingen & Herinneringen
-  ar: الإعدادات والذكريات
-  hi: सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำ
-  cs: Nastavení a vzpomínky
-  sv: Inställningar och minnen
-  he: הגדרות וזיכרונות
+  context: Memories section title
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 
 item_key_required:
@@ -224,8 +224,8 @@ saving:
   verified_by_human: []
 
 encrypted_notice:
-  context: Privacy notice shown at the bottom of every settings and memories entry (view, edit, create), explaining that entries are encrypted and private
-  en: "Your settings and memories entries are encrypted, can only be read by your devices and are never sent to OpenMates for processing without your explicit consent."
+  context: Privacy notice shown at the bottom of every memories entry (view, edit, create), explaining that entries are encrypted and private
+  en: "Your memories entries are encrypted, can only be read by your devices and are never sent to OpenMates for processing without your explicit consent."
   de: "Deine Einstellungen und Erinnerungseinträge sind verschlüsselt, können nur von deinen Geräten gelesen werden und werden niemals ohne deine ausdrückliche Zustimmung zur Verarbeitung an OpenMates gesendet."
   zh: "您的设置和记忆条目已加密，只有您的设备才能读取，未经您的明确同意，绝不会发送给 OpenMates 进行处理。"
   es: "Sus entradas de configuración y memorias están cifradas, solo pueden ser leídas por sus dispositivos y nunca se envían a OpenMates para su procesamiento sin su consentimiento explícito."

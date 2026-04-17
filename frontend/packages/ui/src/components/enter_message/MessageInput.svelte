@@ -4231,7 +4231,7 @@
                                 }
                             }
 
-                            // Settings & memories mentions use the dedicated memory gradient,
+                            // Memories mentions use the dedicated memory gradient,
                             // not the app's icon gradient, for visual consistency with the memory icon style.
                             const isMemory = !!memoryMatch || isMemoryEntry;
                             const MEMORY_GRADIENT_START = '#dd03b5';

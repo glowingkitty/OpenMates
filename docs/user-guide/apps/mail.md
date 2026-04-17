@@ -32,7 +32,7 @@ The Mail app helps you compose emails and search through your connected Proton M
 
 ![Inbox search results](../../images/user-guide/apps/mail/previews/search/finished.jpg)
 
-## Settings and Memories
+## Memories
 
 - **Writing Styles** -- Save different email writing styles for different situations (for example, formal business, friendly follow-up, customer service). Each style can include the tone, level of detail, and a custom signature.
 

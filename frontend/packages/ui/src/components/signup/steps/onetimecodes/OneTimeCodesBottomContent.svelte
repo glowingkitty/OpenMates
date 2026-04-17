@@ -114,7 +114,7 @@ step_4_bottom_content_svelte:
     // Get appropriate app store search URL
     function getAppStoreUrl() {
         if (isIOS) {
-            // iOS App Store search for 2FA apps
+            // iOS Apps search for 2FA apps
             return 'https://apps.apple.com/search?term=2fa+otp+app';
         } else if (isAndroid) {
             // Google Play Store search for 2FA apps

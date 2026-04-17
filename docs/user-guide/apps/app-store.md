@@ -26,7 +26,7 @@ When you open an app, you can see:
 - **What it does** -- A full description of the app
 - **Skills** -- The specific actions the app can perform, with pricing shown per skill
 - **Focus modes** -- Specialised conversation modes offered by the app
-- **Settings and memories** -- Preferences and data you can save for this app
+- **Memories** -- Preferences and data you can save for this app
 - **Providers** -- Which external services the app uses (for transparency)
 
 ### Browsing Categories
@@ -63,4 +63,4 @@ The Apps shows the cost of each skill in credits. Some skills have a fixed cost 
 
 - [Skills](./skills.md) -- How skills work
 - [Focus Modes](./focus-modes.md) -- How focus modes work
-- [Settings and Memories](./settings-and-memories.md) -- Saving your preferences
+- [Memories](./settings-and-memories.md) -- Saving your preferences

@@ -34,7 +34,7 @@ graph TB
     CK -->|HKDF| EK["Per-Embed Key"]
 
     CK -->|encrypts| CD["Chat messages"]
-    AK -->|encrypts| AD["App settings & memories"]
+    AK -->|encrypts| AD["memories"]
     EK -->|encrypts| ED["Embed content"]
 ```
 
@@ -70,7 +70,7 @@ Managed in [cryptoKeyStorage.ts](../../frontend/packages/ui/src/services/cryptoK
 | Chat titles, drafts | Master key directly | `encryptWithMasterKey()` / `decryptWithMasterKey()` |
 | Embeds | Per-embed key derived from chat key via HKDF | `deriveEmbedKeyFromChatKey()` |
 | Email address | SHA256(email + salt) for server lookup; master key for client storage | `deriveEmailEncryptionKey()` / `encryptEmail()` |
-| App settings & memories | Per-app AES key, wrapped with master key | Same pattern as chat keys |
+| memories | Per-app AES key, wrapped with master key | Same pattern as chat keys |
 
 Compromise of one data type does not affect others.
 

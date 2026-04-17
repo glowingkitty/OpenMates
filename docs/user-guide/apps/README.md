@@ -14,7 +14,7 @@ Apps give your digital team mates special abilities. They let your mates search 
 - [Skills](./skills.md) -- The actions your mates can perform (search, generate, read, etc.)
 - [Focus Modes](./focus-modes.md) -- Specialised conversation modes for deep work on one topic
 - [Apps](./app-store.md) -- Browse, discover, and manage apps
-- [Settings and Memories](./settings-and-memories.md) -- Save your preferences so mates remember them
+- [Memories](./settings-and-memories.md) -- Save your preferences so mates remember them
 
 ## Individual Apps
 

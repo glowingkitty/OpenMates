@@ -27,7 +27,7 @@ The Code app helps developers and anyone working with code. It can fetch the lat
 - Request code examples: "Show me how to use React hooks"
 - Ask your mate to write code: "Write a Python script that reads a CSV file"
 
-## Settings and Memories
+## Memories
 
 - **Preferred Technologies** -- Save the languages and frameworks you work with, along with your skill level.
 - **Projects** -- Track your active, planned, and completed projects with optional repository links.

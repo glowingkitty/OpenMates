@@ -98,9 +98,19 @@ SEND_DELAY_SECONDS = 0.5
 CONFIRM_TOKEN = "SEND"
 SUPPORTED_LANGS = ("en", "de")
 
-# CID used for the inline video thumbnail. One CID per email is enough —
-# we only ever attach a single thumbnail per issue.
-VIDEO_THUMBNAIL_CID = "newsletter-video-thumbnail@openmates"
+# Hash fragment that, when present on the for-everyone chat, auto-opens the
+# fullscreen intro video embed (see ChatHeader.svelte::openVideoFullscreen).
+INTRO_VIDEO_HASH = "intro-video"
+
+# Where the pre-rendered intro thumbnails live on disk. Refresh with
+# ``python /app/backend/scripts/newsletter_thumbnail.py``. The bytes are
+# embedded directly into the email HTML as a ``data:image/jpeg;base64,...``
+# URI so the image travels inside the message body — no external fetch
+# (Apple Mail's tracker protection can't block it), no CID attachment
+# (Brevo strips the ``contentId`` field so ``cid:`` references always break).
+INTRO_THUMBNAIL_PATH_TEMPLATE = (
+    "frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-{lang}.jpg"
+)
 
 
 def _mask_email(email: str) -> str:
@@ -158,79 +168,103 @@ def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
     return None
 
 
-def render_body_html(body_md: str, landing_url: str, meta: Dict[str, Any]) -> str:
-    """Render the markdown body, then prepend a clickable video thumbnail if one exists."""
+def _video_link_for_manifest(manifest: Dict[str, Any], base_url: str) -> str:
+    """Return the URL the video thumbnail should link to.
+
+    For intro-fullscreen issues we deep-link to the for-everyone chat with
+    the ``#intro-video`` hash so the fullscreen embed opens directly.
+    Otherwise we fall back to the newsletter landing page (announcement or
+    tip page) which has its own embedded video.
+    """
+    video = manifest.get("video") or {}
+    if video.get("intro_fullscreen"):
+        return f"{base_url.rstrip('/')}/#{INTRO_VIDEO_HASH}"
+    return build_landing_url(manifest, base_url)
+
+
+def _intro_thumbnail_path(lang: str) -> Path:
+    """Disk path to the pre-rendered intro-video thumbnail for this language."""
+    lang_upper = (lang or "en").upper()
+    if lang_upper not in ("EN", "DE"):
+        lang_upper = "EN"
+    return REPO_ROOT / INTRO_THUMBNAIL_PATH_TEMPLATE.format(lang=lang_upper)
+
+
+def _intro_thumbnail_data_uri(lang: str) -> Optional[str]:
+    """Return a ``data:image/jpeg;base64,...`` URI for the intro thumbnail, or None."""
+    path = _intro_thumbnail_path(lang)
+    if not path.exists():
+        logger.warning(
+            f"Intro thumbnail missing: {path}. "
+            "Run `python /app/backend/scripts/newsletter_thumbnail.py` to regenerate."
+        )
+        return None
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/jpeg;base64,{encoded}"
+
+
+def render_body_html(
+    body_md: str,
+    video_url: str,
+    thumbnail_data_uri: Optional[str],
+    meta: Dict[str, Any],
+    alt_text: str,
+) -> str:
+    """Render the markdown body and swap ``[video]`` for a clickable thumbnail.
+
+    If the manifest has no video config (or the thumbnail failed to load),
+    any ``[video]`` marker is dropped. If the body doesn't contain
+    ``[video]``, the thumbnail is prepended so recipients still see the hero.
+    """
     md = MarkdownIt("commonmark", {"html": False, "linkify": True, "breaks": False})
     body_html = md.render(body_md)
 
     video = meta.get("video") or {}
-    if not video:
-        return body_html
+    if not video or not thumbnail_data_uri:
+        return re.sub(r"<p>\s*\[video\]\s*</p>", "", body_html)
 
-    thumbnail_url = video.get("thumbnail_url")
-    if not thumbnail_url:
-        return body_html
-
-    # Use an inline CID image for the thumbnail (no third-party image host).
-    # The thumbnail attachment is added at dispatch time in ``build_thumbnail_attachment``.
-    safe_href = html.escape(landing_url, quote=True)
-    safe_alt = html.escape(meta.get("alt_text") or "Watch the video", quote=True)
-    thumbnail_block = (
+    safe_href = html.escape(video_url, quote=True)
+    safe_alt = html.escape(alt_text, quote=True)
+    # ``data:image/jpeg;base64,…`` embeds the bytes directly into the HTML so
+    # the image ships inside the message body itself — no external request,
+    # no CID attachment (Brevo drops the ``contentId`` field in transit).
+    thumbnail_html = (
         f'<p><a href="{safe_href}" style="display:inline-block;text-decoration:none;">'
-        f'<img src="cid:{VIDEO_THUMBNAIL_CID}" alt="{safe_alt}" '
-        f'style="max-width:100%;height:auto;display:block;border:0;border-radius:8px;" /></a></p>\n'
+        f'<img src="{thumbnail_data_uri}" alt="{safe_alt}" width="900" '
+        f'style="max-width:100%;height:auto;display:block;border:0;" /></a></p>'
     )
-    return thumbnail_block + body_html
+
+    # ``[video]`` on its own line becomes ``<p>[video]</p>`` after markdown-it;
+    # swap that in place so the thumbnail sits where the author put it.
+    placeholder_re = re.compile(r"<p>\s*\[video\]\s*</p>")
+    if placeholder_re.search(body_html):
+        return placeholder_re.sub(thumbnail_html, body_html, count=1)
+    return thumbnail_html + "\n" + body_html
 
 
-def build_thumbnail_attachment(manifest: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Download the thumbnail once and wrap it as an inline CID attachment.
+DEV_WEBAPP_BASE = "https://app.dev.openmates.org"
+PROD_WEBAPP_BASE = "https://openmates.org"
 
-    The thumbnail_url in the manifest may be any HTTP(S) URL. We refuse
-    non-HTTP URLs to avoid letting a manifest reference file:// paths.
+
+def resolve_base_url(override: Optional[str] = None, for_test_send: bool = False) -> str:
+    """Return the webapp origin that should appear in the rendered email.
+
+    Precedence:
+      1. ``override`` (explicit ``--base-url`` passed by the admin).
+      2. ``for_test_send`` → the dev webapp (``app.dev.openmates.org``) so
+         test emails always link to an environment that's safe to point at
+         without leaking unreleased changes onto prod URLs.
+      3. The deployed prod webapp (``openmates.org``) — used for broadcasts.
     """
-    video = manifest.get("video") or {}
-    url = video.get("thumbnail_url")
-    if not url:
-        return None
-    if not (url.startswith("http://") or url.startswith("https://")):
-        logger.warning(f"Skipping thumbnail attachment: not an http(s) URL ({url})")
-        return None
-    try:
-        import urllib.request
-        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310 — admin-provided URL
-            data = resp.read()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"Could not fetch thumbnail {url}: {exc}")
-        return None
-    filename = Path(url).name or "video-thumbnail.jpg"
-    return {
-        "filename": filename,
-        "content": base64.b64encode(data).decode("ascii"),
-        "contentId": VIDEO_THUMBNAIL_CID,
-        "inline": True,
-    }
-
-
-def resolve_base_url() -> str:
-    """Return the deployed webapp origin for building landing/unsubscribe URLs."""
-    from backend.core.api.app.services.email.config_loader import load_shared_urls
-
-    shared_urls = load_shared_urls()
-    env_name = (
-        "development"
-        if os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test")
-        or "localhost" in os.getenv("WEBAPP_URL", "").lower()
-        else "production"
-    )
-    base = shared_urls.get("urls", {}).get("base", {}).get("webapp", {}).get(env_name)
-    if not base:
-        base = os.getenv("WEBAPP_URL") or (
-            "http://localhost:5173" if env_name == "development" else "https://openmates.org"
-        )
+    if override:
+        base = override
+    elif for_test_send:
+        base = DEV_WEBAPP_BASE
+    else:
+        base = PROD_WEBAPP_BASE
     if not base.startswith("http"):
         base = f"https://{base}"
-    return base
+    return base.rstrip("/")
 
 
 def build_landing_url(manifest: Dict[str, Any], base_url: str) -> str:
@@ -331,10 +365,20 @@ def build_context(
     darkmode: bool,
 ) -> Dict[str, Any]:
     """Assemble the Jinja2 context for the newsletter.mjml template."""
-    landing_url = build_landing_url(manifest, base_url)
-    body_html = render_body_html(body_md, landing_url, manifest)
+    video = manifest.get("video") or {}
+    video_url = _video_link_for_manifest(manifest, base_url)
+    thumb_uri = _intro_thumbnail_data_uri(lang) if video.get("intro_fullscreen") else None
     subtitle = (manifest.get("subtitle") or {}).get(lang)
+    # Alt text cannot contain the brand name — the MJML brand-name processor
+    # rewrites "OpenMates" into nested HTML which mangles any attribute value.
+    alt_text = "Watch the update video"
+    body_html = render_body_html(body_md, video_url, thumb_uri, manifest, alt_text)
     cta_text = (manifest.get("cta_text") or {}).get(lang)
+    # CTA URL and shared-URL/footer links are hardcoded as prod URLs across
+    # the template stack (manifest.cta_url, config_loader's imprint/privacy/
+    # terms, brand-name processor). The renderer does a final string replace
+    # of ``https://openmates.org`` → base_url when this key is set, so the
+    # dev/prod split is honored without patching every call site.
     return {
         "newsletter_content": body_html,
         "newsletter_subtitle": subtitle,
@@ -342,8 +386,8 @@ def build_context(
         "cta_text": cta_text,
         "show_social_media": False,
         "unsubscribe_url": unsubscribe_url,
-        "block_list_url": f"{base_url}/#settings/newsletter/block" if unsubscribe_url else None,
         "darkmode": darkmode,
+        "_base_url_override": base_url,
     }
 
 
@@ -355,7 +399,6 @@ async def send_one(
     darkmode: bool,
     base_url: str,
     unsubscribe_url: Optional[str],
-    attachments: Optional[List[Dict[str, Any]]],
 ) -> bool:
     body_md = load_body_text(manifest, recipient_lang) or load_body_text(manifest, "en")
     if body_md is None:
@@ -364,13 +407,16 @@ async def send_one(
     lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
     subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
     context = build_context(manifest, lang, body_md, base_url, unsubscribe_url, darkmode)
+    # Thumbnail is a ``data:`` URI inside the HTML (see _intro_thumbnail_data_uri)
+    # — no attachment, no external fetch, nothing for a tracker-protection
+    # shield to block.
     return await email_template_service.send_email(
         template="newsletter",
         recipient_email=recipient_email,
         context=context,
         subject=subject,
         lang=lang,
-        attachments=attachments,
+        attachments=None,
     )
 
 
@@ -391,16 +437,17 @@ async def run(args: argparse.Namespace) -> int:
     await encryption.initialize()
     email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
-    base_url = resolve_base_url()
+    base_url = resolve_base_url(
+        override=args.base_url,
+        for_test_send=bool(args.test_to) and not args.confirm_send,
+    )
     landing_url = build_landing_url(manifest, base_url)
     logger.info(f"Base URL: {base_url}")
     logger.info(f"Landing URL: {landing_url}")
 
-    attachments: Optional[List[Dict[str, Any]]] = None
-    thumb = build_thumbnail_attachment(manifest)
-    if thumb:
-        attachments = [thumb]
-        logger.info(f"Attached video thumbnail: {thumb['filename']} ({VIDEO_THUMBNAIL_CID})")
+    # Thumbnails are rendered per-recipient in ``send_one`` so EN and DE users
+    # receive the matching localized intro frame. Caching happens inside
+    # ``build_thumbnail_attachment``.
 
     # ── Dry-run / render-only ────────────────────────────────────────────
     if args.dry_run or args.render_to:
@@ -444,7 +491,6 @@ async def run(args: argparse.Namespace) -> int:
             darkmode=False,
             base_url=base_url,
             unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/TEST-TOKEN",
-            attachments=attachments,
         )
         logger.info("Test send: %s", "OK" if success else "FAILED")
         return 0 if success else 1
@@ -553,7 +599,6 @@ async def run(args: argparse.Namespace) -> int:
             darkmode=darkmode,
             base_url=base_url,
             unsubscribe_url=unsub,
-            attachments=attachments,
         )
 
         record = {
@@ -614,6 +659,16 @@ def main() -> int:
     parser.add_argument("--confirm-send", action="store_true")
     parser.add_argument("--resend-confirm", action="store_true", help="Override the sent_at double-send guard.")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        default=None,
+        help=(
+            "Override the webapp origin that appears in the email "
+            "(e.g. https://app.dev.openmates.org). Defaults to the dev webapp "
+            "for --test-to sends and to the prod webapp for --confirm-send."
+        ),
+    )
     args = parser.parse_args()
 
     # Back-compat placeholder for legacy --issue-dir callers.

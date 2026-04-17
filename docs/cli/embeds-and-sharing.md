@@ -73,7 +73,7 @@ openmates mentions list --json
 | `mate` | AI mates/personas | @Sophia, @Finn |
 | `skill` | App skills | @Web-Search, @Code-Get-Docs |
 | `focus_mode` | Focus modes | @Web-Research |
-| `settings_memory` | Settings & memories | @Code-Projects |
+| `settings_memory` | Memories | @Code-Projects |
 
 ### Searching Mentions
 

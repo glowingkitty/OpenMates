@@ -24,7 +24,7 @@ The Docs app lets your digital team mates create rich, formatted documents direc
 - Generate articles: "Write a blog post about sustainable gardening"
 - Create formal documents: "Draft a rental agreement for a one-bedroom apartment"
 
-## Settings and Memories
+## Memories
 
 - **Writing Styles** -- Save your preferred writing styles (for example, formal business writing or casual blog style) so your mate can match your voice.
 

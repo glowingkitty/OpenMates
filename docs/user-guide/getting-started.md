@@ -37,7 +37,7 @@ last_verified: 2026-03-24
 - [Chats](chats.md) -- Managing your conversations
 - [Keyboard Shortcuts](keyboard-shortcuts.md) -- Speed up your workflow
 - [Pricing](pricing.md) -- How credits work
-- [Settings & Memories](apps/settings-and-memories.md) -- Personalise your experience
+- [Memories](apps/settings-and-memories.md) -- Personalise your experience
 
 ## Community
 

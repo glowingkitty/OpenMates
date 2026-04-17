@@ -110,7 +110,7 @@ At session start (and on file changes via watchdog), the system builds an in-mem
 | `~/.ssh/id_rsa`, `id_ed25519`, etc. | `--full-access` mode | Session start |
 | `~/.config/gcloud/application_default_credentials.json` | `--full-access` mode | Session start |
 | Process env vars matching patterns (`*_KEY`, `*_SECRET`, `*_TOKEN`, `*_PASSWORD`) | Always | Session start |
-| Settings & Memories secrets (synced from web UI) | Always | Session start + sync events |
+| Memories secrets (synced from web UI) | Always | Session start + sync events |
 | User-configured additional paths | If configured | Session start |
 
 For each secret value, the scanner also pre-computes **encoded variants** (base64, URL-encoded, JSON-escaped, shell-escaped) so the same secret is caught regardless of how it appears in output.
@@ -166,9 +166,9 @@ Supported types: `random`, `uuid`, `pin`, `password`, `hex`, `base64`.
 
 **User-provided secrets:** When a user provides a secret (e.g., a third-party API key), the CLI prompts them directly on stdin (outside the LLM context). The value goes straight to the secret store and the LLM receives only the token.
 
-### Secrets as Settings & Memories (Cross-Device)
+### Secrets as Memories (Cross-Device)
 
-Secrets are a **first-class data type** in the Settings & Memories system, accessible from both web UI and CLI. Cross-device sync uses the existing encrypted sync infrastructure.
+Secrets are a **first-class data type** in the Memories system, accessible from both web UI and CLI. Cross-device sync uses the existing encrypted sync infrastructure.
 
 **Secret lifecycle operations:**
 
@@ -178,7 +178,7 @@ Secrets are a **first-class data type** in the Settings & Memories system, acces
 | `create` | Store a new secret (user-provided or generated) |
 | `rotate` | Generate new value for existing secret |
 | `revoke` | Delete a secret from the store |
-| `sync` | Force sync with Settings & Memories backend |
+| `sync` | Force sync with Memories backend |
 | `validate` | Check if a secret is still valid (API key test, etc.) |
 
 ### Edge Cases
@@ -214,9 +214,9 @@ Every secret operation is logged: who (user/session ID), when, what (secret name
 
 ### Architecture Overview
 
-The integration uses a hybrid approach combining **Settings & Memories** (for server registry) with **App Skills** (for chat-level connection management).
+The integration uses a hybrid approach combining **Memories** (for server registry) with **App Skills** (for chat-level connection management).
 
-**Settings & Memories:** Store account-level server registry
+**Memories:** Store account-level server registry
 - Created automatically when CLI runs `remote-access start`
 - Contains: `server_id`, `server_name`, `connection_status`, `access_mode`
 - Referenceable in any chat via `@Server-Connected-Servers-{server_name}`

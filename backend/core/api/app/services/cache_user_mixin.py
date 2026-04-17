@@ -344,7 +344,7 @@ class UserCacheMixin:
             logger.error(f"Error deleting sessions for user '{user_id}': {str(e)}", exc_info=True)
             return False
 
-    # --- User App Settings and Memories Caching Methods (Combined) ---
+    # --- User App Memories Caching Methods (Combined) ---
 
     def _get_user_app_settings_and_memories_key(self, user_id_hash: str, app_id: str, item_key: str) -> str:
         """Helper to generate the cache key for a specific user app setting or memory item."""
@@ -403,7 +403,7 @@ class UserCacheMixin:
         return await self.delete(key) # self.delete already logs
 
     async def delete_all_user_app_settings_and_memories_for_app(self, user_id_hash: str, app_id: str) -> int:
-        """Deletes all app settings and memories for a specific app of a user. Returns count of deleted keys."""
+        """Deletes all app memories for a specific app of a user. Returns count of deleted keys."""
         pattern = f"{self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX}{user_id_hash}:{app_id}:*"
         keys_to_delete = await self.get_keys_by_pattern(pattern)
         deleted_count = 0
@@ -415,7 +415,7 @@ class UserCacheMixin:
         return deleted_count
 
     async def delete_all_user_app_settings_and_memories(self, user_id_hash: str) -> int:
-        """Deletes all app settings and memories for a user. Returns count of deleted keys."""
+        """Deletes all app memories for a user. Returns count of deleted keys."""
         pattern = f"{self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX}{user_id_hash}:*"
         keys_to_delete = await self.get_keys_by_pattern(pattern)
         deleted_count = 0
@@ -426,4 +426,4 @@ class UserCacheMixin:
         logger.info(f"Deleted {deleted_count} app settings/memories keys for user '{user_id_hash}'.")
         return deleted_count
 
-    # --- End of User App Settings and Memories Caching Methods ---
+    # --- End of User App Memories Caching Methods ---

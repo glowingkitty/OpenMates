@@ -221,7 +221,7 @@
     }
 
     /**
-     * Navigate back to category page (settings and memories category page, not app details).
+     * Navigate back to category page (memories category page, not app details).
      */
     function goBack() {
         dispatch('openSettings', {

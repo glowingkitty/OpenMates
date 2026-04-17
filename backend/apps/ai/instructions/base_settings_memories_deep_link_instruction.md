@@ -1,4 +1,4 @@
-**Settings & Memories Deep Links**
+**Memories Deep Links**
 
 When the conversation reveals user preferences, personal facts, or information worth remembering,
 you can suggest saving or updating settings/memories entries by including deep links in your response.

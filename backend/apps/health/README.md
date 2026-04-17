@@ -123,7 +123,7 @@ Prepare for your next appointment by discussing symptoms, necessary tests, and r
 4. Suggests questions to ask the doctor
 5. Reviews current medications and potential interactions
 
-## Settings and Memories
+## Memories
 
 The Health app stores encrypted user data for better health management and doctor appointment preparation.
 

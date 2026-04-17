@@ -12,6 +12,10 @@ services:
       # publish_newsletter.py can emit demo_chats/data/*.ts + register in
       # newsletterChatStore.ts. Prod never runs the publisher.
       - ../../frontend/packages/ui/src:/app/frontend/packages/ui/src
+      # Read-only access to the intro frames so send_newsletter.py can
+      # build the video thumbnail (play button overlay + rounded corners)
+      # from the same frame-00 image the for-everyone chat header uses.
+      - ../../frontend/apps/web_app/static/intro-frames:/app/frontend/apps/web_app/static/intro-frames:ro
 
   cms:
     ports:

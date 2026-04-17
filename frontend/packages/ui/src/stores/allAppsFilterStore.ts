@@ -1,9 +1,9 @@
 /**
  * Store for passing an initial filter to the All Apps page (SettingsAllApps.svelte).
  *
- * Used when navigating from the root Settings menu — e.g. the "Settings & Memories"
+ * Used when navigating from the root Settings menu — e.g. the "Memories"
  * item sets filter to 'settings_memories' before opening app_store/all, so the page
- * lands pre-filtered to show only apps that define settings & memories categories.
+ * lands pre-filtered to show only apps that define memories categories.
  *
  * Architecture: See docs/architecture/app-skills.md
  * Tests: (none yet)

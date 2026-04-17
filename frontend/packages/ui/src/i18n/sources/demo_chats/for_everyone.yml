@@ -73,7 +73,7 @@ message:
 
     [[app_store_group]]
 
-    In the [Apps](#settings/appstore) you have an overview over all the various apps your digital team mates can use to fulfill your requests. And their skills, focus modes and settings & memories.
+    In the [Apps](#settings/apps) you have an overview over all the various apps your digital team mates can use to fulfill your requests. And their skills, focus modes and memories.
 
 
     ### 🛠️ Skills
@@ -92,7 +92,7 @@ message:
     [[focus_modes_group]]
 
 
-    ### 💾 Settings & memories
+    ### 💾 Memories
 
 
     Allows OpenMates to give you more personalized answers based on your interests, trips, books you wanted to read, projects and more. But:
@@ -105,7 +105,7 @@ message:
 
     - ✅ no sensitive data are ever stored on the server on disk
 
-    All settings & memories are encrypted & decrypted on your devices. Just like your chats. This means the server can never decrypt them by itself. Only your devices can, using your login method.
+    All memories are encrypted & decrypted on your devices. Just like your chats. This means the server can never decrypt them by itself. Only your devices can, using your login method.
 
     [[settings_memories_group]]
 
@@ -113,7 +113,7 @@ message:
     ## 🎨 Designed for ease of use
 
 
-    By default, OpenMates automatically processes your request with the best fitting AI model, mate, app skills, app focus modes and settings & memories (after your consent). While allowing you to overwrite the auto selection at any time in the settings menu or by typing @ in your message.
+    By default, OpenMates automatically processes your request with the best fitting AI model, mate, app skills, app focus modes and memories (after your consent). While allowing you to overwrite the auto selection at any time in the settings menu or by typing @ in your message.
 
 
     ### 🤖 AI models
@@ -133,7 +133,7 @@ message:
     ## 🔒 Privacy & Encryption
 
 
-    Only your device can decrypt your chats and your sensitive app settings & memories.
+    Only your device can decrypt your chats and your sensitive app memories.
 
     You stay in full control over which data are sent to OpenMates.
 
@@ -185,7 +185,7 @@ message:
 
     [[app_store_group]]
 
-    Im [Apps](#settings/appstore) hast du eine Übersicht über alle verschiedenen Apps, die deine digitalen Team-Mates nutzen können, um deine Anfragen zu erfüllen. Und ihre Fähigkeiten, Fokus-Modi und Einstellungen & Erinnerungen.
+    Im [Apps](#settings/apps) hast du eine Übersicht über alle verschiedenen Apps, die deine digitalen Team-Mates nutzen können, um deine Anfragen zu erfüllen. Und ihre Fähigkeiten, Fokus-Modi und Einstellungen & Erinnerungen.
 
 
     ### 🛠️ Fähigkeiten
@@ -297,7 +297,7 @@ message:
 
     [[app_store_group]]
 
-    En la [Tienda de Apps](#settings/appstore) tienes una visión general de todas las apps que tus compañeros de equipo digitales pueden usar para cumplir tus solicitudes. Y sus habilidades, modos de enfoque y ajustes y memorias.
+    En la [Tienda de Apps](#settings/apps) tienes una visión general de todas las apps que tus compañeros de equipo digitales pueden usar para cumplir tus solicitudes. Y sus habilidades, modos de enfoque y ajustes y memorias.
 
 
     ### 🛠️ Habilidades
@@ -409,7 +409,7 @@ message:
 
     [[app_store_group]]
 
-    Dans l'[Apps](#settings/appstore), vous avez un aperçu de toutes les différentes apps que vos coéquipiers numériques peuvent utiliser pour répondre à vos demandes. Ainsi que leurs compétences, modes de focus et paramètres et mémoires.
+    Dans l'[Apps](#settings/apps), vous avez un aperçu de toutes les différentes apps que vos coéquipiers numériques peuvent utiliser pour répondre à vos demandes. Ainsi que leurs compétences, modes de focus et paramètres et mémoires.
 
 
     ### 🛠️ Compétences
@@ -521,7 +521,7 @@ message:
 
     [[app_store_group]]
 
-    Nell'[Apps](#settings/appstore) hai una panoramica di tutte le varie app che i tuoi compagni di squadra digitali possono utilizzare per soddisfare le tue richieste. E le loro competenze, modalità di focus e impostazioni e memorie.
+    Nell'[Apps](#settings/apps) hai una panoramica di tutte le varie app che i tuoi compagni di squadra digitali possono utilizzare per soddisfare le tue richieste. E le loro competenze, modalità di focus e impostazioni e memorie.
 
 
     ### 🛠️ Competenze
@@ -633,7 +633,7 @@ message:
 
     [[app_store_group]]
 
-    在[应用商店](#settings/appstore)中，您可以概览您的数字团队伙伴可用的各种应用程序及其技能、专注模式和设置与记忆。
+    在[应用商店](#settings/apps)中，您可以概览您的数字团队伙伴可用的各种应用程序及其技能、专注模式和设置与记忆。
 
 
     ### 🛠️ 技能
@@ -745,7 +745,7 @@ message:
 
     [[app_store_group]]
 
-    Na [Apps](#settings/appstore) tem uma visão geral de todas as apps que os seus companheiros de equipa digitais podem usar para cumprir os seus pedidos. E as suas competências, modos de foco e configurações e memórias.
+    Na [Apps](#settings/apps) tem uma visão geral de todas as apps que os seus companheiros de equipa digitais podem usar para cumprir os seus pedidos. E as suas competências, modos de foco e configurações e memórias.
 
 
     ### 🛠️ Competências
@@ -857,7 +857,7 @@ message:
 
     [[app_store_group]]
 
-    В [Apps](#settings/appstore) вы найдёте обзор всех приложений, которые ваши цифровые напарники могут использовать. А также их навыки, режимы фокуса и настройки с воспоминаниями.
+    В [Apps](#settings/apps) вы найдёте обзор всех приложений, которые ваши цифровые напарники могут использовать. А также их навыки, режимы фокуса и настройки с воспоминаниями.
 
 
     ### 🛠️ Навыки
@@ -969,7 +969,7 @@ message:
 
     [[app_store_group]]
 
-    [Apps](#settings/appstore)では、デジタルチームメイトが使用できるすべてのアプリの概要、そのスキル、フォーカスモード、設定とメモリを確認できます。
+    [Apps](#settings/apps)では、デジタルチームメイトが使用できるすべてのアプリの概要、そのスキル、フォーカスモード、設定とメモリを確認できます。
 
 
     ### 🛠️ スキル
@@ -1081,7 +1081,7 @@ message:
 
     [[app_store_group]]
 
-    [앱 스토어](#settings/appstore)에서 디지털 팀메이트가 요청을 수행하는 데 사용할 수 있는 모든 앱의 개요와 기술, 포커스 모드, 설정 및 기억을 확인할 수 있습니다.
+    [앱 스토어](#settings/apps)에서 디지털 팀메이트가 요청을 수행하는 데 사용할 수 있는 모든 앱의 개요와 기술, 포커스 모드, 설정 및 기억을 확인할 수 있습니다.
 
 
     ### 🛠️ 기술
@@ -1193,7 +1193,7 @@ message:
 
     [[app_store_group]]
 
-    [Uygulama Mağazası'nda](#settings/appstore) dijital takım arkadaşlarınızın isteklerinizi yerine getirmek için kullanabileceği tüm uygulamalara, bunların becerilerine, odak modlarına ve ayarlar ile anılara genel bir bakış görebilirsiniz.
+    [Uygulama Mağazası'nda](#settings/apps) dijital takım arkadaşlarınızın isteklerinizi yerine getirmek için kullanabileceği tüm uygulamalara, bunların becerilerine, odak modlarına ve ayarlar ile anılara genel bir bakış görebilirsiniz.
 
 
     ### 🛠️ Beceriler
@@ -1305,7 +1305,7 @@ message:
 
     [[app_store_group]]
 
-    Trong [Cửa hàng ứng dụng](#settings/appstore), bạn có tổng quan về tất cả các ứng dụng mà đồng đội kỹ thuật số của bạn có thể sử dụng, cùng kỹ năng, chế độ tập trung và cài đặt và ký ức của chúng.
+    Trong [Cửa hàng ứng dụng](#settings/apps), bạn có tổng quan về tất cả các ứng dụng mà đồng đội kỹ thuật số của bạn có thể sử dụng, cùng kỹ năng, chế độ tập trung và cài đặt và ký ức của chúng.
 
 
     ### 🛠️ Kỹ năng
@@ -1417,7 +1417,7 @@ message:
 
     [[app_store_group]]
 
-    Di [Apps](#settings/appstore) Anda memiliki ikhtisar semua aplikasi yang dapat digunakan rekan tim digital Anda, beserta keterampilan, mode fokus, dan pengaturan & memori mereka.
+    Di [Apps](#settings/apps) Anda memiliki ikhtisar semua aplikasi yang dapat digunakan rekan tim digital Anda, beserta keterampilan, mode fokus, dan pengaturan & memori mereka.
 
 
     ### 🛠️ Keterampilan
@@ -1527,7 +1527,7 @@ message:
 
     [[app_store_group]]
 
-    W [Apps](#settings/appstore) masz przegląd wszystkich aplikacji, z których mogą korzystać Twoi cyfrowi współpracownicy, wraz z ich umiejętnościami, trybami skupienia oraz ustawieniami i wspomnieniami.
+    W [Apps](#settings/apps) masz przegląd wszystkich aplikacji, z których mogą korzystać Twoi cyfrowi współpracownicy, wraz z ich umiejętnościami, trybami skupienia oraz ustawieniami i wspomnieniami.
 
 
     ### 🛠️ Umiejętności
@@ -1637,7 +1637,7 @@ message:
 
     [[app_store_group]]
 
-    In de [Apps](#settings/appstore) heeft u een overzicht van alle apps die uw digitale teamgenoten kunnen gebruiken, met hun vaardigheden, focusmodi en instellingen & herinneringen.
+    In de [Apps](#settings/apps) heeft u een overzicht van alle apps die uw digitale teamgenoten kunnen gebruiken, met hun vaardigheden, focusmodi en instellingen & herinneringen.
 
 
     ### 🛠️ Vaardigheden
@@ -1745,7 +1745,7 @@ message:
 
     [[app_store_group]]
 
-    في [متجر التطبيقات](#settings/appstore) يمكنك الاطلاع على جميع التطبيقات التي يمكن لرفاق فريقك الرقميين استخدامها، ومهاراتهم وأوضاع التركيز والإعدادات والذكريات.
+    في [متجر التطبيقات](#settings/apps) يمكنك الاطلاع على جميع التطبيقات التي يمكن لرفاق فريقك الرقميين استخدامها، ومهاراتهم وأوضاع التركيز والإعدادات والذكريات.
 
 
     ### 🛠️ المهارات
@@ -1853,7 +1853,7 @@ message:
 
     [[app_store_group]]
 
-    [Apps](#settings/appstore) में आपको सभी ऐप्स का अवलोकन मिलता है जिनका उपयोग आपके डिजिटल टीम साथी आपके अनुरोधों को पूरा करने के लिए कर सकते हैं।
+    [Apps](#settings/apps) में आपको सभी ऐप्स का अवलोकन मिलता है जिनका उपयोग आपके डिजिटल टीम साथी आपके अनुरोधों को पूरा करने के लिए कर सकते हैं।
 
 
     ### 🛠️ कौशल
@@ -1961,7 +1961,7 @@ message:
 
     [[app_store_group]]
 
-    ใน [Apps](#settings/appstore) คุณสามารถดูภาพรวมของแอปทั้งหมดที่เพื่อนร่วมทีมดิจิทัลของคุณสามารถใช้ได้
+    ใน [Apps](#settings/apps) คุณสามารถดูภาพรวมของแอปทั้งหมดที่เพื่อนร่วมทีมดิจิทัลของคุณสามารถใช้ได้
 
 
     ### 🛠️ ทักษะ
@@ -2069,7 +2069,7 @@ message:
 
     [[app_store_group]]
 
-    V [Apps](#settings/appstore) najdete přehled všech aplikací, které mohou vaši digitální spoluhráči používat, spolu s jejich dovednostmi, režimy zaměření a nastaveními a vzpomínkami.
+    V [Apps](#settings/apps) najdete přehled všech aplikací, které mohou vaši digitální spoluhráči používat, spolu s jejich dovednostmi, režimy zaměření a nastaveními a vzpomínkami.
 
 
     ### 🛠️ Dovednosti
@@ -2177,7 +2177,7 @@ message:
 
     [[app_store_group]]
 
-    I [Apps](#settings/appstore) har du en översikt över alla appar som dina digitala lagkamrater kan använda, med deras färdigheter, fokusmoder och inställningar och minnen.
+    I [Apps](#settings/apps) har du en översikt över alla appar som dina digitala lagkamrater kan använda, med deras färdigheter, fokusmoder och inställningar och minnen.
 
 
     ### 🛠️ Färdigheter
@@ -2277,7 +2277,7 @@ message:
     
     מכיוון שחיפוש באינטרנט בלבד אינו מספיק לביצוע משימות יומיומיות, OpenMates תומך במגוון אפליקציות אחרות.
     [[app_store_group]]
-    ב-[Apps](#settings/appstore) יש לך סקירה כללית של כל האפליקציות השונות שחברי הצוות הדיגיטליים שלך יכולים להשתמש בהן כדי למלא את הבקשות שלך. וגם את המיומנויות שלהם, מצבי המיקוד וההגדרות והזיכרונות.
+    ב-[Apps](#settings/apps) יש לך סקירה כללית של כל האפליקציות השונות שחברי הצוות הדיגיטליים שלך יכולים להשתמש בהן כדי למלא את הבקשות שלך. וגם את המיומנויות שלהם, מצבי המיקוד וההגדרות והזיכרונות.
     
     ### 🛠️ מיומנויות
     

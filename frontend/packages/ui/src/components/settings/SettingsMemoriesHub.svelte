@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
-     Hub page listing all settings & memories entries across all apps the user has created.
+     Hub page listing all memories entries across all apps the user has created.
      Provides a single place to browse and manage them, with a deep link to the Apps
-     for discovering new apps that support settings & memories.
+     for discovering new apps that support memories.
 
      Architecture: See docs/architecture/app-skills.md
      Route: settings_memories (top-level, shown in sidebar nav)
@@ -147,8 +147,8 @@
     }
 
     /**
-     * Navigate to All Apps with the "Settings & Memories" filter pre-set,
-     * so the user sees only apps that define settings & memories categories.
+     * Navigate to All Apps with the "Memories" filter pre-set,
+     * so the user sees only apps that define memories categories.
      */
     function openAppStore() {
         allAppsInitialFilter.set('settings_memories');

@@ -57,4 +57,4 @@ Some skills take a few seconds to complete (like generating images or processing
 
 - [Apps](./app-store.md) -- Browse all available skills and their pricing
 - [Focus Modes](./focus-modes.md) -- Specialised conversation modes
-- [Settings and Memories](./settings-and-memories.md) -- Save preferences that skills can use
+- [Memories](./settings-and-memories.md) -- Save preferences that skills can use

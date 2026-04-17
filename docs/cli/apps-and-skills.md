@@ -77,7 +77,7 @@ Or set the `OPENMATES_API_KEY` environment variable.
 
 ## Memories
 
-Memories are per-app key-value entries stored in Settings & Memories. They are encrypted and synced via WebSocket.
+Memories are per-app key-value entries stored in Memories. They are encrypted and synced via WebSocket.
 
 ### Listing Memories
 

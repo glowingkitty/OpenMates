@@ -2724,7 +2724,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       </div>
     {/if}
     
-    <!-- App Settings & Memories action summary (only for user messages) -->
+    <!-- Memories action summary (only for user messages) -->
     <!-- This data comes from system messages stored in chat history and synced across devices -->
     <!-- Display name and icon are loaded client-side from app metadata (not stored in message) -->
     {#if role === 'user' && appSettingsMemoriesResponse}
@@ -3153,7 +3153,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     cursor: not-allowed;
   }
   
-  /* App Settings & Memories Summary Styles */
+  /* Memories Summary Styles */
   .app-settings-memories-summary {
     margin-top: var(--spacing-3);
     padding: 0;

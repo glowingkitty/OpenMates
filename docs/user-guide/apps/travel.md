@@ -40,7 +40,7 @@ The Travel app helps you plan trips by searching for transport connections and a
 
 ![Train connections](../../images/user-guide/apps/travel/previews/connections/finished.jpg)
 
-## Settings and Memories
+## Memories
 
 - **Trips** -- Save your upcoming and past trips with destinations, dates, and notes.
 - **Preferred Airlines** -- Record your favourite airlines for personalised recommendations.

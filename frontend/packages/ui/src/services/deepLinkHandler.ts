@@ -530,16 +530,25 @@ export function processSettingsDeepLink(
       _extractAndStorePrefill(queryString, path);
     }
 
-    // Map common aliases - handle 'appstore' prefix (with or without subpath)
-    // e.g., 'appstore' -> 'app_store', 'appstore/web' -> 'app_store/web'
-    if (path === "appstore" || path.startsWith("appstore/")) {
+    // Map common aliases for app store routes
+    // Canonical external URL: #settings/apps  (internal key stays app_store)
+    // Legacy aliases: 'appstore', 'app_store' (from old links or hyphen normalization)
+    if (path === "apps" || path.startsWith("apps/")) {
+      path = "app_store" + path.substring("apps".length);
+    } else if (path === "appstore" || path.startsWith("appstore/")) {
       path = "app_store" + path.substring("appstore".length);
     }
+
+    // Map 'memories' alias to internal 'settings_memories' route
+    if (path === "memories" || path.startsWith("memories/")) {
+      path = "settings_memories" + path.substring("memories".length);
+    }
+
     // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
     path = path.replace(/-/g, "_");
 
     // Deep link to All Apps with a filter: app_store/all/{filter}
-    // e.g. #settings/appstore/all/focus-modes → app_store/all with filter 'focus_modes'
+    // e.g. #settings/apps/all/focus-modes → app_store/all with filter 'focus_modes'
     const allAppsFilterMatch = path.match(/^app_store\/all\/(.+)$/);
     if (allAppsFilterMatch) {
       const filterValue = allAppsFilterMatch[1] as AllAppsFilterType;

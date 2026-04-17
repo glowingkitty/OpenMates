@@ -863,53 +863,53 @@ messengers:
   he: "מסנג'רים"
   verified_by_human: []
 settings_memories:
-  context: App Settings & Memories settings menu item — shows all user-created settings/memories across apps
-  en: App Settings & Memories
-  de: App-Einstellungen & Erinnerungen
-  zh: 应用设置与记忆
-  es: Ajustes y memorias de apps
-  fr: Paramètres & mémoires des apps
-  pt: Configurações e memórias de apps
-  ru: Настройки и память приложений
-  ja: アプリ設定とメモリ
-  ko: 앱 설정 및 기억
-  it: Impostazioni e memorie delle app
-  tr: Uygulama ayarları ve anılar
-  vi: Cài đặt ứng dụng & Ký ức
-  id: Pengaturan & Memori Aplikasi
-  pl: Ustawienia i wspomnienia aplikacji
-  nl: App-instellingen & herinneringen
-  ar: إعدادات وذكريات التطبيقات
-  hi: ऐप सेटिंग्स और यादें
-  th: การตั้งค่าแอปและความทรงจำ
-  cs: Nastavení a vzpomínky aplikací
-  sv: App-inställningar och minnen
-  he: הגדרות וזיכרונות אפליקציה
+  context: Memories settings menu item — shows all user-created memories across apps
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 
 settings_memories.description:
-  context: Short description shown in the App Settings & Memories hub gradient banner header
-  en: All your app settings & memories in one place.
-  de: Alle deine App-Einstellungen & Erinnerungen an einem Ort.
-  zh: 所有应用设置和记忆集中在一处。
-  es: Todos tus ajustes y memorias de apps en un lugar.
-  fr: Tous vos paramètres et mémoires d'apps au même endroit.
-  pt: Todas as suas configurações e memórias de apps em um só lugar.
-  ru: Все настройки и память ваших приложений в одном месте.
-  ja: アプリの設定とメモリをまとめて管理。
-  ko: 모든 앱 설정과 기억을 한 곳에서 관리하세요.
-  it: Tutte le impostazioni e le memorie delle tue app in un unico posto.
-  tr: Tüm uygulama ayarlarınız ve anılarınız tek bir yerde.
-  vi: Tất cả cài đặt ứng dụng và ký ức của bạn ở một nơi.
-  id: Semua pengaturan dan memori aplikasi Anda di satu tempat.
-  pl: Wszystkie ustawienia i wspomnienia aplikacji w jednym miejscu.
-  nl: Al je app-instellingen en herinneringen op één plek.
-  ar: جميع إعدادات التطبيقات وذكرياتك في مكان واحد.
-  hi: आपकी सभी ऐप सेटिंग्स और यादें एक ही जगह।
-  th: การตั้งค่าแอปและความทรงจำทั้งหมดของคุณในที่เดียว
-  cs: Všechna nastavení a vzpomínky aplikací na jednom místě.
-  sv: Alla dina app-inställningar och minnen på ett ställe.
-  he: כל הגדרות האפליקציות והזיכרונות שלך במקום אחד.
+  context: Short description shown in the Memories hub gradient banner header
+  en: All your memories in one place.
+  de: Alle deine Erinnerungen an einem Ort.
+  zh: 所有记忆集中在一处。
+  es: Todas tus memorias en un lugar.
+  fr: Toutes vos mémoires au même endroit.
+  pt: Todas as suas memórias em um só lugar.
+  ru: Все ваши воспоминания в одном месте.
+  ja: メモリをまとめて管理。
+  ko: 모든 기억을 한 곳에서 관리하세요.
+  it: Tutte le tue memorie in un unico posto.
+  tr: Tüm anılarınız tek bir yerde.
+  vi: Tất cả ký ức của bạn ở một nơi.
+  id: Semua memori Anda di satu tempat.
+  pl: Wszystkie wspomnienia w jednym miejscu.
+  nl: Al je herinneringen op één plek.
+  ar: جميع ذكرياتك في مكان واحد.
+  hi: आपकी सभी यादें एक ही जगह।
+  th: ความทรงจำทั้งหมดของคุณในที่เดียว
+  cs: Všechny vzpomínky na jednom místě.
+  sv: Alla dina minnen på ett ställe.
+  he: כל הזיכרונות שלך במקום אחד.
   verified_by_human: []
 
 developers:
@@ -5064,8 +5064,8 @@ app_embeds.loading:
   he: טוען הטמעות...
   verified_by_human: []
 app_settings_memories.encryption_notice:
-  context: Explanatory text at the top of the Settings & Memories hub explaining that entries are end-to-end encrypted like chats
-  en: "Just like your chats, your settings & memories are encrypted & decrypted on your devices. So the OpenMates server and AI providers can never see the actual content, unless you decide to explicitely share the content for a chat."
+  context: Explanatory text at the top of the Memories hub explaining that entries are end-to-end encrypted like chats
+  en: "Just like your chats, your memories are encrypted & decrypted on your devices. So the OpenMates server and AI providers can never see the actual content, unless you decide to explicitely share the content for a chat."
   verified_by_human:
     - en
 app_settings_memories.examples_label:
@@ -5095,7 +5095,7 @@ app_settings_memories.examples_label:
     - en
     - de
 app_settings_memories.my:
-  context: First line of the "My Settings & memories" section heading (shown above the section title)
+  context: First line of the "My Memories" section heading (shown above the section title)
   en: "My"
   de: "Meine"
   zh: "我的"
@@ -5119,52 +5119,52 @@ app_settings_memories.my:
   he: הגדרות וזיכרונות
   verified_by_human: []
 app_settings_memories.settings_and_memories:
-  context: Second line of the "My Settings & memories" section heading (the bold title)
-  en: Settings & memories
-  de: Einstellungen & Erinnerungen
-  zh: 设置与记忆
-  es: Configuración y recuerdos
-  fr: Paramètres et souvenirs
-  pt: Configurações e memórias
-  ru: Настройки и воспоминания
-  ja: 設定とメモリ
-  ko: 설정 및 메모리
-  it: Impostazioni e ricordi
-  tr: Ayarlar ve anılar
-  vi: Cài đặt và ký ức
-  id: Pengaturan dan memori
-  pl: Ustawienia i wspomnienia
-  nl: Instellingen en herinneringen
-  ar: الإعدادات والذكريات
-  hi: सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำ
-  cs: Nastavení a paměti
-  sv: Inställningar och minnen
-  he: שלי
+  context: Second line of the "My Memories" section heading (the bold title)
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 app_settings_memories.my_settings_and_memories:
-  context: Section heading for the user's own settings and memories entries
-  en: My Settings & Memories
-  de: Meine Einstellungen & Erinnerungen
-  zh: 我的设置与记忆
-  es: Mi configuración y recuerdos
-  fr: Mes paramètres et souvenirs
-  pt: Minhas configurações e memórias
-  ru: Мои настройки и воспоминания
-  ja: 私の設定とメモリ
-  ko: 내 설정 및 메모리
-  it: Le mie impostazioni e ricordi
-  tr: Ayarlarım ve anılarım
-  vi: Cài đặt và ký ức của tôi
-  id: Pengaturan dan memori saya
-  pl: Moje ustawienia i wspomnienia
-  nl: Mijn instellingen en herinneringen
-  ar: إعداداتي وذكرياتي
-  hi: मेरी सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำของฉัน
-  cs: Moje nastavení a paměti
-  sv: Mina inställningar och minnen
-  he: הגדרות וזיכרונות שלי
+  context: Section heading for the user's own memories entries
+  en: My Memories
+  de: Meine Erinnerungen
+  zh: 我的记忆
+  es: Mis memorias
+  fr: Mes mémoires
+  pt: Minhas memórias
+  ru: Мои воспоминания
+  ja: 私のメモリ
+  ko: 내 기억
+  it: Le mie memorie
+  tr: Anılarım
+  vi: Ký ức của tôi
+  id: Memori saya
+  pl: Moje wspomnienia
+  nl: Mijn herinneringen
+  ar: ذكرياتي
+  hi: मेरी यादें
+  th: ความทรงจำของฉัน
+  cs: Moje vzpomínky
+  sv: Mina minnen
+  he: הזיכרונות שלי
   verified_by_human: []
 app_settings_memories.no_entries_yet:
   context: Message shown when the user has no entries yet in this settings/memories category
@@ -5215,7 +5215,7 @@ app_settings_memories.examples:
   he: דוגמאות
   verified_by_human: []
 app_settings_memories.no_settings:
-  context: Message when no settings and memories have been synced for an app
+  context: Message when no memories have been synced for an app
   en: No settings or memories synced yet. They will appear here once available.
   de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
   zh: 尚未同步任何设置或记忆。可用后会在此显示。
@@ -5263,8 +5263,8 @@ app_settings_memories.add_entry:
   he: הוספת רשומה
   verified_by_human: []
 app_settings_memories.loading:
-  context: Loading message while fetching settings and memories
-  en: Loading settings and memories...
+  context: Loading message while fetching memories
+  en: Loading memories...
   de: Einstellungen und Erinnerungen werden geladen...
   zh: 正在加载设置和记忆...
   es: Cargando configuración y recuerdos...
@@ -5407,8 +5407,8 @@ app_settings_memories.creating:
   he: יוצר...
   verified_by_human: []
 app_settings_memories.placeholder:
-  context: Placeholder message when app settings and memories management is temporarily disabled
-  en: Soon you can manage and create your app settings and memories here.
+  context: Placeholder message when app memories management is temporarily disabled
+  en: Soon you can manage and create your app memories here.
   de: Bald können Sie hier Ihre App-Einstellungen und Erinnerungen verwalten und erstellen.
   zh: 很快您就能在这里管理和创建您的应用设置和记忆。
   es: Pronto podrás gestionar y crear tu configuración de aplicaciones y recuerdos aquí.

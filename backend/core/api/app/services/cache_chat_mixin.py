@@ -1907,7 +1907,7 @@ class ChatCacheMixin:
             logger.error(f"Error getting sync embeds for chat {chat_id}: {e}", exc_info=True)
             return []
     
-    # ========== App Settings and Memories Cache Methods ==========
+    # ========== App Memories Cache Methods ==========
     
     def _get_app_settings_memories_cache_key(self, user_id: str, chat_id: str, app_id: str, item_key: str) -> str:
         """

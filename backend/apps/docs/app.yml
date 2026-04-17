@@ -59,7 +59,7 @@ skills: []
 # Focuses (planned for future implementation)
 focus_modes: []
 
-# Settings and memories for document generation preferences
+# Memories for document generation preferences
 settings_and_memories:
   - id: writing_style
     name_translation_key: docs.writing_style

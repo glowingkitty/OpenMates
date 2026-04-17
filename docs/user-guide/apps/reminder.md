@@ -47,4 +47,4 @@ The Reminder app lets you schedule reminders that can either nudge you back to a
 
 ## Related
 
-- [Settings and Memories](./settings-and-memories.md) -- Configure notification preferences
+- [Memories](./settings-and-memories.md) -- Configure notification preferences

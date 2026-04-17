@@ -358,6 +358,30 @@ examples:
   sv: EXEMPELCHATTAR
   he: "צ'אטים לדוגמה"
   verified_by_human: []
+announcements:
+  context: Group title for the 4 most recent newsletter announcement chats
+  en: ANNOUNCEMENTS
+  de: ANKÜNDIGUNGEN
+  zh: 公告
+  es: ANUNCIOS
+  fr: ANNONCES
+  pt: ANÚNCIOS
+  ru: ОБЪЯВЛЕНИЯ
+  ja: お知らせ
+  ko: 공지사항
+  it: ANNUNCI
+  tr: DUYURULAR
+  vi: THÔNG BÁO
+  id: PENGUMUMAN
+  pl: OGŁOSZENIA
+  nl: AANKONDIGINGEN
+  ar: إعلانات
+  hi: घोषणाएँ
+  th: ประกาศ
+  cs: OZNÁMENÍ
+  sv: MEDDELANDEN
+  he: הודעות
+  verified_by_human: []
 legal:
   context: Group title for legal chats (privacy, terms, imprint)
   en: LEGAL

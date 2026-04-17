@@ -56,7 +56,7 @@ sequenceDiagram
     S-->>C: Phase 1 — last chat + 50 suggestions
     S-->>C: Phase 2 — last 20 chats
     S-->>C: Phase 3 — last 100 chats (batched)
-    S-->>C: Post-Phase 3 — app settings & memories
+    S-->>C: Post-Phase 3 — app memories
 ```
 
 ### Data Flow (all phases)
@@ -88,7 +88,7 @@ Directus (encrypted) → Redis cache → WebSocket (encrypted) → IndexedDB (en
 - **Never sends suggestions** — always in Phase 1
 - After completion: triggers app settings/memories sync
 
-### Post-Phase 3: Settings & Memories
+### Post-Phase 3: Memories
 
 - Automatic after Phase 3
 - Conflict resolution: higher `item_version` wins, then `updated_at`
@@ -138,4 +138,4 @@ Sync **never overrides** explicit user choices:
 - [Message Processing](../messaging/message-processing.md) — dual-cache (AI vs. sync)
 - [Embeds](../messaging/embeds.md) — embed sync alongside messages
 - [Device Sessions](./device-sessions.md) — device fingerprinting, multi-device
-- [Settings & Memories](../../user-guide/apps/settings-and-memories.md) — post-Phase 3 sync target
+- [Memories](../../user-guide/apps/settings-and-memories.md) — post-Phase 3 sync target

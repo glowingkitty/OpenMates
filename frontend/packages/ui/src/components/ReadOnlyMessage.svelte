@@ -1420,8 +1420,8 @@
        Internal deep links (hash-based: #settings/..., #chat-id=...).
 
        TipTap's MarkdownLink.renderHTML (extensions/MarkdownExtensions.ts)
-       rewrites the href — e.g. "/#settings/appstore/web" becomes
-       "#settings/appstore/web" — but stamps the anchor with the class
+       rewrites the href — e.g. "/#settings/apps/web" becomes
+       "#settings/apps/web" — but stamps the anchor with the class
        `markdown-link-internal` and `data-internal="true"`. We target the
        class so the selector survives any future href-normalization.
 

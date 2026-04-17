@@ -5,7 +5,7 @@
 // New chat suggestions operations (encrypted suggestions for starting new conversations)
 export * from './newChatSuggestions';
 
-// App settings and memories operations (per-app user preferences and memories)
+// App memories operations (per-app user preferences and memories)
 export * from './appSettingsMemories';
 
 // Chat key management (encryption key cache and message encryption/decryption)

@@ -73,7 +73,7 @@ All files are created with strict permissions (`0o600` owner read/write only, di
 - [Authentication](./authentication.md) -- login flow and session security
 - [Chat Commands](./chats.md) -- full chat operation reference
 - [Apps & Skills](./apps-and-skills.md) -- app listing and skill execution
-- [Settings](./settings.md) -- settings and memories management
+- [Settings](./settings.md) -- memories management
 - [Embeds & Sharing](./embeds-and-sharing.md) -- embed viewing and share links
 - [Server Management](./server-management.md) -- self-hosted server administration
 - [CLI Standards](../contributing/standards/cli.md) -- development standards for CLI contributors

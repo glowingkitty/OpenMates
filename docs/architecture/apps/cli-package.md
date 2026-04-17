@@ -35,7 +35,7 @@ Pair-auth login via magic link + PIN (no password/email prompt). Session stored 
 
 **Apps:** `list`, `info`, `skill-info`, `<app-id> <skill-id> "<query>"` (run skill with text or `--input` JSON)
 
-**Settings & Memories:** `get/post/patch/delete` settings paths, `gift-card redeem/list`, `memories list/types/create/update/delete`
+**Memories:** `get/post/patch/delete` settings paths, `gift-card redeem/list`, `memories list/types/create/update/delete`
 
 **Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`
 

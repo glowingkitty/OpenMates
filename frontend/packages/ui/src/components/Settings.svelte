@@ -598,9 +598,9 @@ changes to the documentation (to keep the documentation up to date).
             
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
-                // If the user arrived via the Settings & Memories hub, replace the full
-                // "Apps / {App Name}" chain with just "App Settings & Memories"
-                // so the breadcrumb reads: Settings / App Settings & Memories
+                // If the user arrived via the Memories hub, replace the full
+                // "Apps / {App Name}" chain with just "Memories"
+                // so the breadcrumb reads: Settings / Memories
                 if (cameFromPath === 'settings_memories') {
                     // Use the title override if provided, otherwise fall back to the standard key
                     pathLabels.push(cameFromTitleOverride ?? $text('settings.settings_memories'));
@@ -1019,7 +1019,7 @@ changes to the documentation (to keep the documentation up to date).
             
             if (subRoute.startsWith('/entry/')) {
                 // Entry detail sub-page: show entry title on line 1, category name on line 2.
-                // The typeLabel is the category name (e.g. "Trips"), not "Settings & Memories Entry".
+                // The typeLabel is the category name (e.g. "Trips"), not "Memories Entry".
                 // Clicking the header copies a @memory-entry mention for real entries (or @memory for examples).
                 const rawEntryId = subRoute.replace('/entry/', '').replace('/edit', '');
                 const entryId = rawEntryId;
@@ -1089,7 +1089,7 @@ changes to the documentation (to keep the documentation up to date).
                 return {
                     appId,
                     itemName: entryTitle,
-                    // Line 2 in header = category name (e.g. "Trips"), not "Settings & Memories Entry"
+                    // Line 2 in header = category name (e.g. "Trips"), not "Memories Entry"
                     itemTypeLabel: categoryName,
                     description: cat.description_translation_key
                         ? $text(cat.description_translation_key)
@@ -1574,7 +1574,7 @@ changes to the documentation (to keep the documentation up to date).
                     previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
                 } else if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
                     // This is a nested route (category page, skill, focus).
-                    // If the user arrived here from the Settings & Memories hub, go back there.
+                    // If the user arrived here from the Memories hub, go back there.
                     // Otherwise go back to the app details page.
                     if (pathParts[1] === 'settings_memories' && cameFromPath === 'settings_memories') {
                         previousPath = 'settings_memories';

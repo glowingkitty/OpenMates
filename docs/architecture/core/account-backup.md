@@ -36,7 +36,7 @@ Processing happens entirely client-side:
 ### Data Categories (User Selectable)
 
 1. **Chats & Messages** -- all chats with message history, including all file embeds (images, audio, PDFs, code, transcripts)
-2. **App Settings & Memories** -- per-app configurations and memories (decrypted)
+2. **Memories** -- per-app configurations and memories (decrypted)
 3. **Usage Logs** -- API usage history (YAML + CSV)
 4. **Invoice PDFs** -- payment invoices
 5. **Account Settings** -- profile info, preferences (decrypted email)

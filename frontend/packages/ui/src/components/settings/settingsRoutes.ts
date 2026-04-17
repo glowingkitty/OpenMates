@@ -131,12 +131,12 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // ── Menu order: top-level keys determine sidebar display order ──
   // Pricing — visible only to non-authenticated users (see Settings.svelte auth filter)
   pricing: SettingsPricing,
-  // AI (model selection, pricing, providers, settings & memories)
+  // AI (model selection, pricing, providers, memories)
   ai: SettingsAI,
   // Apps
   app_store: SettingsAppStore,
   "app_store/all": SettingsAllApps,
-  // Settings & Memories hub — lists all user-created settings and memories across apps
+  // Memories hub — lists all user-created memories across apps
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion
   privacy: SettingsPrivacy,

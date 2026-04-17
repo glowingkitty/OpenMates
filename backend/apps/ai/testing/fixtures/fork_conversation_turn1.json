@@ -31,7 +31,7 @@
       "book"
     ]
   },
-  "response": "alpha\n\nWould you like to know more about the [Alpha version of OpenMates](/#settings/appstore/openmates) or the history of the project?",
+  "response": "alpha\n\nWould you like to know more about the [Alpha version of OpenMates](/#settings/apps/openmates) or the history of the project?",
   "skill_executions": [],
   "thinking_content": "**Assessing Response Feasibility**\n\nI'm evaluating the request to reply with \"alpha.\" The instructions indicate direct answers are appropriate for simple factual queries, and this seems to fit. I'm also considering the implications, such as \"subtly offering pathways,\" but currently, the direct approach seems suitable and compliant with the instructions.\n\n\n",
   "usage": {

@@ -118,7 +118,7 @@
     }
     
     /**
-     * Handle settings & memories category selection - navigate to category details page.
+     * Handle memories category selection - navigate to category details page.
      */
     function handleSettingsMemoriesCategorySelect(categoryId: string) {
         dispatch('openSettings', {
@@ -137,7 +137,7 @@
             settingsPath: 'app_store',
             direction: 'back',
             icon: 'app_store',
-            title: 'App Store'
+            title: 'Apps'
         });
     }
 </script>
@@ -146,7 +146,7 @@
     {#if !app}
         <div class="error">
             <p>App not found.</p>
-            <button class="back-button" onclick={goBack}>← Back to App Store</button>
+            <button class="back-button" onclick={goBack}>← Back to Apps</button>
         </div>
     {:else}
         <!-- Skills section - only show if skills exist -->
@@ -170,7 +170,7 @@
             </div>
         {/if}
 
-        <!-- Settings & Memories section - always show cards for each category -->
+        <!-- Memories section - always show cards for each category -->
         {#if memoryFields.length > 0}
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
@@ -264,7 +264,7 @@
         padding-left: 0;
     }
 
-    /* Description text shown under section headings (Skills / Focus Modes / Settings & Memories) */
+    /* Description text shown under section headings (Skills / Focus Modes / Memories) */
     .section-description {
         margin: 0.35rem 0 0.5rem 0;
         padding: 0;

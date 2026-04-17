@@ -33,15 +33,15 @@
         </mj-column>
       </mj-section>
       
-      <!-- Newsletter Content -->
+      <!-- Newsletter Content (left-aligned, regular weight) -->
       <mj-section padding="20px 0">
         <mj-column>
           {% if newsletter_content %}
-          <mj-text padding-bottom="20px">
+          <mj-text align="left" font-weight="normal" padding-bottom="20px">
             {{ newsletter_content | safe }}
           </mj-text>
           {% else %}
-          <mj-text padding-bottom="20px">
+          <mj-text align="left" font-weight="normal" padding-bottom="20px">
             {{ t.email.newsletter.default_content.text }}
           </mj-text>
           {% endif %}

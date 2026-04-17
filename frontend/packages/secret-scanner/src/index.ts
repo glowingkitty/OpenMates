@@ -7,7 +7,7 @@
  *
  * Key features:
  * - Registry-based scanning: Aho-Corasick automaton for known secret values
- *   (from .env files, process env, Settings & Memories personal data entries)
+ *   (from .env files, process env, Memories personal data entries)
  * - Pattern-based scanning: Vendor-specific regex patterns (OpenAI, AWS, GitHub, etc.)
  *   ported from piiDetectionService.ts with proven low false-positive rates
  * - Suffix-based placeholder tokens: [OPENAI_KEY_f9d] — type + last 3 chars of value

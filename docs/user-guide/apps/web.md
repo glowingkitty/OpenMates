@@ -34,7 +34,7 @@ The Web app gives your digital team mates the ability to search the internet and
 - Results show preview cards with titles, descriptions, and links. Click on any result to open it in a new tab, or open it in fullscreen for more detail.
 - You can save websites to your bookmarks or read-later list through the Web app settings.
 
-## Settings and Memories
+## Memories
 
 - **Bookmarks** -- Save your favourite website links.
 - **Read Later** -- Save articles and pages you want to come back to, with optional notes.

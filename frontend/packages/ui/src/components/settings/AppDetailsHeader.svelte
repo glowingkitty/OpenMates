@@ -556,7 +556,7 @@
   }
 
   /* Category label shown directly below the title at the same font size, opacity 0.7.
-     E.g. "Skill", "Focus mode", "Settings & memories" */
+     E.g. "Skill", "Focus mode", "Memories" */
   .sub-item-category-label {
     font-weight: 600;
     color: rgba(255, 255, 255, 0.7);
@@ -649,7 +649,7 @@
     mask-position: center;
   }
 
-  /* Settings & memories */
+  /* Memories */
   .memories-icon {
     -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
     mask-image: url('@openmates/ui/static/icons/settings.svg');

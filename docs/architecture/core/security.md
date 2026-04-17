@@ -128,7 +128,7 @@ graph TB
 
 Apps can connect to external services on a per-user basis (e.g., Revolut Business, InvoiceNinja). Connected account credentials are client-side encrypted by default and follow the same lifecycle as chat messages and other settings/memories.
 
-### How It Fits the Existing Settings & Memories Pipeline
+### How It Fits the Existing Memories Pipeline
 
 Connected accounts piggyback on the existing settings/memories infrastructure (`preprocessor.py` → permission request → `app_settings_memories_confirmed_handler.py` → Redis cache → `main_processor.py`). The only difference: **credentials are stripped before LLM context**.
 

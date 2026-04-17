@@ -4,7 +4,7 @@
 // This file contains the core ChatDatabase class that manages IndexedDB operations.
 // Specialized operations are extracted into separate modules in the ./db/ directory:
 // - ./db/newChatSuggestions.ts - New chat suggestions CRUD operations
-// - ./db/appSettingsMemories.ts - App settings and memories operations
+// - ./db/appSettingsMemories.ts - App memories operations
 // - ./db/chatKeyManagement.ts - Chat key cache and encryption operations
 // - ./db/messageOperations.ts - Message CRUD, duplicate handling, encryption
 // - ./db/chatCrudOperations.ts - Chat CRUD, encryption/decryption, drafts
@@ -786,7 +786,7 @@ class ChatDatabase {
       );
     }
 
-    // App settings and memories store
+    // App memories store
     if (!db.objectStoreNames.contains(this.APP_SETTINGS_MEMORIES_STORE_NAME)) {
       const appSettingsStore = db.createObjectStore(
         this.APP_SETTINGS_MEMORIES_STORE_NAME,

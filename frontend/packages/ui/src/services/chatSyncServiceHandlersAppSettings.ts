@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
 /**
- * WebSocket handlers for app settings and memories requests.
+ * WebSocket handlers for app memories requests.
  *
  * Implements permission-based data sharing with the AI assistant:
  * 1. Server's preprocessor determines which app settings/memories could be relevant
@@ -816,7 +816,7 @@ export async function handlePermissionDialogConfirm(
     // Notify user
     notificationStore.addNotification(
       "success",
-      "App settings & memories shared with assistant",
+      "memories shared with assistant",
       3000,
     );
   } catch (error) {
@@ -826,7 +826,7 @@ export async function handlePermissionDialogConfirm(
     );
     notificationStore.addNotification(
       "error",
-      "Failed to share app settings & memories",
+      "Failed to share app memories",
       5000,
     );
   }
@@ -964,7 +964,7 @@ export async function handlePermissionDialogLocalDismiss(
   );
 
   // Create system message with "rejected" metadata (synced to server for cross-device display)
-  // This ensures the "Rejected App settings & memories request." badge shows under the original user message
+  // This ensures the "Rejected memories request." badge shows under the original user message
   if (pendingRequest?.messageId && pendingRequest?.chatId) {
     try {
       await saveAppSettingsMemoriesResponseMessage(

@@ -1299,5 +1299,5 @@ class DirectusService:
     # Chat methods are accessed via self.chat.method_name
     # e.g., await self.chat.get_chat_metadata(chat_id)
 
-    # App Settings and Memories methods are accessed via self.app_settings_and_memories.method_name
+    # App Memories methods are accessed via self.app_settings_and_memories.method_name
     # Example: await self.app_settings_and_memories.get_user_app_item_raw(user_id_hash, app_id, item_key)

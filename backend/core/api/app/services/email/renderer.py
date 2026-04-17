@@ -60,10 +60,18 @@ def render_mjml_template(
         
         # Process links to style them
         html_output = process_link_tags(html_output)
-        
+
         # Convert CSS classes to inline styles for email compatibility
         inlined_html = transform(html_output)
-        
+
+        # Optional base-URL rewrite (used by send_newsletter.py --test-to so
+        # test emails link to app.dev.openmates.org instead of prod). The
+        # key is intentionally underscored so production templates can't
+        # pick it up accidentally — only the newsletter dispatcher sets it.
+        override = context.get("_base_url_override")
+        if override and override != "https://openmates.org":
+            inlined_html = inlined_html.replace("https://openmates.org", override)
+
         return inlined_html
         
     except FileNotFoundError as e:

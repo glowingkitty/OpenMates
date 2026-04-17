@@ -94,7 +94,7 @@
             console.error('[PermissionDialog] Error confirming:', error);
             appSettingsMemoriesPermissionStore.setLoading(false);
             // Show user-friendly error notification
-            alert('Failed to share app settings & memories. Please try again or contact support if the issue persists.');
+            alert('Failed to share app memories. Please try again or contact support if the issue persists.');
         }
     }
     

@@ -80,6 +80,17 @@ CATEGORY_TO_KIND: Dict[str, Tuple[str, str]] = {
     "tips_and_tricks": ("tips", "features"),
 }
 
+# When meta.yml sets ``video.intro_fullscreen: true`` we reuse the exact same
+# video shown in the for-everyone chat header (see
+# frontend/packages/ui/src/demo_chats/data/for_everyone.ts). The values are
+# duplicated here because publish_newsletter.py writes TypeScript literals —
+# if this video ever moves, update both places.
+INTRO_VIDEO_HLS_URL = "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/hls/manifest.m3u8"
+INTRO_VIDEO_MP4_URL = "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4"
+INTRO_VIDEO_THUMBNAIL_URL = "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/thumbnail.jpg"
+INTRO_VIDEO_START_TIME = 17
+INTRO_BACKGROUND_FRAMES = [f"/intro-frames/frame-{i:02d}.webp" for i in range(1, 13)]
+
 FRONTMATTER_DELIMITERS = ("---", "-----")
 SUPPORTED_LANGS = ("en", "de")
 ALL_LANG_CODES = (
@@ -117,6 +128,23 @@ def _split_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
     return parsed, body
 
 
+def _build_video_section(raw: Any) -> Optional[Dict[str, Any]]:
+    """Normalize the ``video:`` block in marketing meta.yml into the manifest."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("meta.yml 'video' must be a mapping (or omitted)")
+    intro_fullscreen = bool(raw.get("intro_fullscreen", False))
+    section: Dict[str, Any] = {"intro_fullscreen": intro_fullscreen}
+    for key in ("mp4_url", "hls_url", "thumbnail_url", "start_time"):
+        if raw.get(key) is not None:
+            section[key] = raw[key]
+    # If nothing meaningful was set, treat it as no video at all.
+    if not intro_fullscreen and not any(k in section for k in ("mp4_url", "hls_url", "thumbnail_url")):
+        return None
+    return section
+
+
 def _strip_video_marker(body: str) -> str:
     """Drop any ``[video]`` on its own line — the demo chat renders the video
     in the header via ``metadata.video_*`` fields, so a duplicate marker in
@@ -152,14 +180,21 @@ def load_issue_inputs(issue_dir: Path) -> Dict[str, Any]:
             f"meta.yml category must be one of {list(CATEGORY_TO_KIND)} (got {category!r})"
         )
 
-    bodies: Dict[str, Dict[str, Any]] = {}
+    bodies: Dict[str, Optional[Dict[str, Any]]] = {lang: None for lang in SUPPORTED_LANGS}
     for lang in SUPPORTED_LANGS:
         body_path = issue_dir / f"newsletter_{lang.upper()}.md"
         if not body_path.exists():
-            raise FileNotFoundError(f"Missing body file: {body_path}")
+            logger.warning("Missing body file for lang=%s: %s — skipping.", lang, body_path)
+            continue
         raw = body_path.read_text(encoding="utf-8")
         if not raw.strip():
-            raise ValueError(f"Empty body file: {body_path}")
+            logger.warning(
+                "Empty body file for lang=%s: %s — at send time recipients "
+                "will receive the EN fallback.",
+                lang,
+                body_path,
+            )
+            continue
         front, body = _split_frontmatter(raw)
         subject = front.get("subject") or front.get("title")
         if not subject:
@@ -171,6 +206,9 @@ def load_issue_inputs(issue_dir: Path) -> Dict[str, Any]:
             "raw_body": body,
             "chat_body": _strip_video_marker(body),
         }
+
+    if bodies["en"] is None:
+        raise ValueError(f"EN body file is required and must be non-empty in {issue_dir}")
 
     return {"meta": meta, "slug": slug, "category": category, "bodies": bodies}
 
@@ -184,23 +222,29 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
     snake_slug = _snake(slug)
     i18n_key_root = f"demo_chats.{kind}_{snake_slug}"
 
+    # Fall back to EN for any language where the author hasn't provided a body.
+    # Send-time code already falls back to EN, but the manifest stores concrete
+    # strings so ``send_newsletter.py`` can reuse them without re-deriving.
+    def _field(lang: str, key: str) -> Any:
+        bucket = bodies.get(lang) or bodies["en"]
+        return bucket.get(key) if bucket else None
+
     manifest = {
         "slug": slug,
         "kind": kind,  # "announcements" | "tips"
         "category": inputs["category"],
         "demo_chat_category": demo_cat,
         "chat_id": f"{kind}-{slug}",
-        "subject": {lang: bodies[lang]["subject"] for lang in SUPPORTED_LANGS},
-        "subtitle": {lang: bodies[lang]["subtitle"] for lang in SUPPORTED_LANGS},
+        "subject": {lang: _field(lang, "subject") for lang in SUPPORTED_LANGS},
+        "subtitle": {lang: _field(lang, "subtitle") for lang in SUPPORTED_LANGS},
         "cta_url": meta.get("cta_url"),
-        "cta_text": {lang: bodies[lang]["cta_text"] for lang in SUPPORTED_LANGS},
+        "cta_text": {lang: _field(lang, "cta_text") for lang in SUPPORTED_LANGS},
         "body_i18n_key": f"{i18n_key_root}.message",
-        "video": {
-            "mp4_url": meta.get("video_mp4_url"),
-            "hls_url": meta.get("video_hls_url"),
-            "thumbnail_url": meta.get("video_thumbnail_url"),
-            "start_time": meta.get("video_start_time"),
-        } if meta.get("video_mp4_url") or meta.get("video_hls_url") else None,
+        # meta.yml ``video:`` can set ``intro_fullscreen: true`` to render the
+        # email thumbnail from the for-everyone intro frame-00 and link it to
+        # the fullscreen embed (via ``#intro-video``). Or provide hosted video
+        # URLs for a standalone thumbnail. Missing → no video in email.
+        "video": _build_video_section(meta.get("video")) if meta.get("video") else None,
         # Empty until send_newsletter.py broadcasts this issue. Prevents
         # accidental double-sends without an explicit --resend-confirm flag.
         "sent_at": None,
@@ -223,15 +267,25 @@ def write_demo_chat_ts(inputs: Dict[str, Any]) -> Path:
     i18n_key_root = f"demo_chats.{kind}_{snake_slug}"
     export_name = f"{kind}{camel_slug[0].upper()}{camel_slug[1:]}Chat"
 
-    video_lines = []
-    if meta.get("video_hls_url"):
-        video_lines.append(f'    video_hls_url: "{meta["video_hls_url"]}",')
-    if meta.get("video_mp4_url"):
-        video_lines.append(f'    video_mp4_url: "{meta["video_mp4_url"]}",')
-    if meta.get("video_thumbnail_url"):
-        video_lines.append(f'    video_thumbnail_url: "{meta["video_thumbnail_url"]}",')
-    if meta.get("video_start_time") is not None:
-        video_lines.append(f'    video_start_time: {int(meta["video_start_time"])},')
+    video_lines: list[str] = []
+    video_meta = meta.get("video") or {}
+    if video_meta.get("intro_fullscreen"):
+        video_lines.append(f'    video_hls_url: "{INTRO_VIDEO_HLS_URL}",')
+        video_lines.append(f'    video_mp4_url: "{INTRO_VIDEO_MP4_URL}",')
+        video_lines.append(f'    video_thumbnail_url: "{INTRO_VIDEO_THUMBNAIL_URL}",')
+        video_lines.append(f'    video_start_time: {INTRO_VIDEO_START_TIME},')
+        frames_literal = ",\n".join(f'      "{p}"' for p in INTRO_BACKGROUND_FRAMES)
+        video_lines.append(f"    background_frames: [\n{frames_literal},\n    ],")
+    else:
+        # Legacy flat-key fallback (older meta.yml format).
+        if meta.get("video_hls_url"):
+            video_lines.append(f'    video_hls_url: "{meta["video_hls_url"]}",')
+        if meta.get("video_mp4_url"):
+            video_lines.append(f'    video_mp4_url: "{meta["video_mp4_url"]}",')
+        if meta.get("video_thumbnail_url"):
+            video_lines.append(f'    video_thumbnail_url: "{meta["video_thumbnail_url"]}",')
+        if meta.get("video_start_time") is not None:
+            video_lines.append(f'    video_start_time: {int(meta["video_start_time"])},')
     video_block = "\n".join(video_lines) if video_lines else ""
 
     content = f'''import type {{ DemoChat }} from "../types";
@@ -319,13 +373,17 @@ def write_i18n_yml(inputs: Dict[str, Any]) -> Path:
         lines.append("  verified_by_human: []")
         return "\n".join(lines)
 
-    title_block = _block("title", bodies["en"]["subject"], bodies["de"]["subject"])
+    # If DE wasn't authored we fall back to EN so the generated file is still
+    # complete for ``getNewsletterChatBySlug`` and the translation build.
+    de = bodies.get("de") or bodies["en"]
+    en = bodies["en"]
+    title_block = _block("title", en["subject"], de["subject"])
     description_block = _block(
         "description",
-        bodies["en"]["subtitle"] or bodies["en"]["subject"],
-        bodies["de"]["subtitle"] or bodies["de"]["subject"],
+        en["subtitle"] or en["subject"],
+        de["subtitle"] or de["subject"],
     )
-    message_block = _block("message", bodies["en"]["chat_body"], bodies["de"]["chat_body"])
+    message_block = _block("message", en["chat_body"], de["chat_body"])
 
     content = (
         f"# Newsletter {kind}/{slug}\n"
@@ -471,6 +529,7 @@ def main() -> int:
             confirm_send=False,
             limit=None,
             resend_confirm=False,
+            base_url=None,
         )))
         logger.info(f"Test send finished with exit code {rc}")
         return rc

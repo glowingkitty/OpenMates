@@ -263,28 +263,28 @@ all_apps.filter_all:
   he: הכל
   verified_by_human: []
 all_apps.filter_settings_memories:
-  context: Filter chip label to show only apps that have Settings & Memories categories on the All Apps page
-  en: Settings & Memories
-  de: Einstellungen & Erinnerungen
-  zh: 设置和记忆
-  es: Configuración y recuerdos
-  fr: Paramètres et souvenirs
-  pt: Configurações e memórias
-  ru: Настройки и воспоминания
-  ja: 設定と記憶
-  ko: 설정 및 메모리
-  it: Impostazioni e ricordi
-  tr: Ayarlar ve anılar
-  vi: Cài đặt và ký ức
-  id: Pengaturan dan memori
-  pl: Ustawienia i wspomnienia
-  nl: Instellingen en herinneringen
-  ar: الإعدادات والذكريات
-  hi: सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำ
-  cs: Nastavení a vzpomínky
-  sv: Inställningar och minnen
-  he: הגדרות וזיכרונות
+  context: Filter chip label to show only apps that have Memories categories on the All Apps page
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 all_apps.filter_focus_modes:
   context: Filter chip label to show only apps that have Focus Modes on the All Apps page
@@ -1246,31 +1246,31 @@ focus_mode_not_found:
   he: מצב המיקוד לא נמצא.
   verified_by_human: []
 settings_memories.title:
-  context: Section title for settings and memories in app details
-  en: Settings & Memories
-  de: Einstellungen & Erinnerungen
-  zh: 设置和记忆
-  es: Configuración y recuerdos
-  fr: Paramètres et souvenirs
-  pt: Configurações e memórias
-  ru: Настройки и воспоминания
-  ja: 設定と記憶
-  ko: 설정 및 메모리
-  it: Impostazioni e ricordi
-  tr: Ayarlar ve anılar
-  vi: Cài đặt và ký ức
-  id: Pengaturan dan memori
-  pl: Ustawienia i wspomnienia
-  nl: Instellingen en herinneringen
-  ar: الإعدادات والذكريات
-  hi: सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำ
-  cs: Nastavení a vzpomínky
-  sv: Inställningar och minnen
-  he: הגדרות וזיכרונות
+  context: Section title for memories in app details
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 settings_memories.section_description:
-  context: Description text shown under the Settings & Memories section heading in app details, explaining what settings & memories are
+  context: Description text shown under the Memories section heading in app details, explaining what memories are
   en: "Your mates can request these details from you, to give you even better responses. While you stay in control over what you share & when:"
   de: "Deine Mates können diese Details von dir anfordern, um dir noch bessere Antworten zu geben. Dabei behältst du immer die Kontrolle darüber, was du teilst und wann:"
   zh: "你的伙伴可以向你请求这些详细信息，以便给你提供更好的回答。同时，你始终控制自己分享的内容和时间："
@@ -1366,8 +1366,8 @@ back_to_app:
   he: חזרה לאפליקציה
   verified_by_human: []
 settings_memories.manage_subtitle:
-  context: Subtitle for settings and memories management page
-  en: Manage your app settings and memories entries
+  context: Subtitle for memories management page
+  en: Manage your app memories entries
   de: Verwalten Sie Ihre App-Einstellungen und Erinnerungseinträge
   zh: 管理您的应用设置和记忆条目
   es: Administre sus configuraciones y entradas de recuerdos de la aplicación
@@ -1510,8 +1510,8 @@ settings_memories.pending:
   he: בהמתנה
   verified_by_human: []
 settings_memories.loading:
-  context: Loading message while fetching settings and memories entries
-  en: Loading settings and memories...
+  context: Loading message while fetching memories entries
+  en: Loading memories...
   de: Laden von Einstellungen und Erinnerungen...
   zh: 正在加载设置和记忆...
   es: Cargando configuración y recuerdos...
@@ -1534,7 +1534,7 @@ settings_memories.loading:
   he: טוען הגדרות וזיכרונות...
   verified_by_human: []
 settings_memories.no_settings:
-  context: Message when no settings and memories have been synced for an app
+  context: Message when no memories have been synced for an app
   en: No settings or memories synced yet. They will appear here once available.
   de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
   zh: 尚未同步任何设置或记忆。可用后会在此显示。
@@ -1678,8 +1678,8 @@ settings_memories.creating:
   he: יוצר...
   verified_by_human: []
 settings_memories_entry:
-  context: Type label shown in header when viewing a settings & memories entry detail
-  en: Settings & Memories Entry
+  context: Type label shown in header when viewing a memories entry detail
+  en: Memories Entry
   de: Einstellungen & Erinnerungen Eintrag
   zh: 设置与记忆条目
   es: Entrada de configuración y memorias
@@ -1822,7 +1822,7 @@ app_embeds.loading:
   he: טוען הטמעות...
   verified_by_human: []
 app_settings_memories.no_settings:
-  context: Message when no settings and memories have been synced for an app
+  context: Message when no memories have been synced for an app
   en: No settings or memories synced yet. They will appear here once available.
   de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
   zh: 尚未同步任何设置或记忆。可用后会在此显示。
@@ -2755,8 +2755,8 @@ focus_mode:
   verified_by_human: []
 
 settings_memories:
-  context: Type label shown in the gradient banner header on a settings & memories category sub-page (e.g. displayed as "Settings & Memories" below the category name)
-  en: Settings & Memories
+  context: Type label shown in the gradient banner header on a memories category sub-page (e.g. displayed as "Memories" below the category name)
+  en: Memories
   de: Einstellungen & Erinnerungen
   zh: 设置与记忆
   es: Ajustes y Memorias
@@ -2926,7 +2926,7 @@ provider_not_found:
   verified_by_human: []
 
 settings_memories.hub_no_entries:
-  context: Empty state message in the Settings & Memories hub when user has no entries yet
+  context: Empty state message in the Memories hub when user has no entries yet
   en: No settings or memories yet. Visit an app in the Apps to create them.
   de: Noch keine Einstellungen oder Erinnerungen. Besuche eine App im Apps, um sie zu erstellen.
   zh: 还没有设置或记忆。请在 Apps 中访问某个应用来创建。
@@ -2951,8 +2951,8 @@ settings_memories.hub_no_entries:
   verified_by_human: []
 
 settings_memories.discover_link:
-  context: Footer link at the bottom of the Settings & Memories hub pointing to Apps
-  en: Discover apps with settings & memories
+  context: Footer link at the bottom of the Memories hub pointing to Apps
+  en: Discover apps with memories
   de: Apps mit Einstellungen & Erinnerungen entdecken
   zh: 发现具有设置和记忆的应用
   es: Descubre apps con ajustes y memorias

@@ -116,8 +116,8 @@ assistant_message_1:
     Would you like more details on any of these, or perhaps a different type of creative activity?
 
     **Suggestions:**
-    *   [Search for weekend art exhibitions in Berlin](/#settings/appstore/web)
-    *   [Find art supply stores in your area](/#settings/appstore/maps)
+    *   [Search for weekend art exhibitions in Berlin](/#settings/apps/web)
+    *   [Find art supply stores in your area](/#settings/apps/maps)
   de: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -155,8 +155,8 @@ assistant_message_1:
     Möchtest du mehr Details zu einem dieser Events oder vielleicht eine andere Art kreativer Aktivität?
 
     **Vorschläge:**
-    *   [Wochenend-Kunstausstellungen in Berlin suchen](/#settings/appstore/web)
-    *   [Kunstbedarfsläden in deiner Nähe finden](/#settings/appstore/maps)
+    *   [Wochenend-Kunstausstellungen in Berlin suchen](/#settings/apps/web)
+    *   [Kunstbedarfsläden in deiner Nähe finden](/#settings/apps/maps)
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -194,8 +194,8 @@ assistant_message_1:
     想了解更多关于这些活动的详情，或者其他类型的创意活动吗？
 
     **建议：**
-    *   [搜索柏林周末艺术展览](/#settings/appstore/web)
-    *   [查找附近的美术用品店](/#settings/appstore/maps)
+    *   [搜索柏林周末艺术展览](/#settings/apps/web)
+    *   [查找附近的美术用品店](/#settings/apps/maps)
   es: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -233,8 +233,8 @@ assistant_message_1:
     ¿Te gustaría más detalles sobre alguno de estos, o quizás otro tipo de actividad creativa?
 
     **Sugerencias:**
-    *   [Buscar exposiciones de arte de fin de semana en Berlín](/#settings/appstore/web)
-    *   [Encontrar tiendas de materiales artísticos en tu zona](/#settings/appstore/maps)
+    *   [Buscar exposiciones de arte de fin de semana en Berlín](/#settings/apps/web)
+    *   [Encontrar tiendas de materiales artísticos en tu zona](/#settings/apps/maps)
   fr: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -272,8 +272,8 @@ assistant_message_1:
     Souhaitez-vous plus de détails sur l'un de ces événements, ou peut-être un autre type d'activité créative ?
 
     **Suggestions :**
-    *   [Rechercher des expositions d'art du week-end à Berlin](/#settings/appstore/web)
-    *   [Trouver des magasins de fournitures artistiques dans votre quartier](/#settings/appstore/maps)
+    *   [Rechercher des expositions d'art du week-end à Berlin](/#settings/apps/web)
+    *   [Trouver des magasins de fournitures artistiques dans votre quartier](/#settings/apps/maps)
   pt: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -311,8 +311,8 @@ assistant_message_1:
     Gostaria de mais detalhes sobre algum destes eventos, ou talvez outro tipo de atividade criativa?
 
     **Sugestões:**
-    *   [Procurar exposições de arte de fim de semana em Berlim](/#settings/appstore/web)
-    *   [Encontrar lojas de material artístico na sua zona](/#settings/appstore/maps)
+    *   [Procurar exposições de arte de fim de semana em Berlim](/#settings/apps/web)
+    *   [Encontrar lojas de material artístico na sua zona](/#settings/apps/maps)
   ru: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -350,8 +350,8 @@ assistant_message_1:
     Хотите больше деталей о каком-либо из этих событий, или, возможно, другой тип творческой активности?
 
     **Предложения:**
-    *   [Искать выставки искусства на выходных в Берлине](/#settings/appstore/web)
-    *   [Найти магазины художественных принадлежностей поблизости](/#settings/appstore/maps)
+    *   [Искать выставки искусства на выходных в Берлине](/#settings/apps/web)
+    *   [Найти магазины художественных принадлежностей поблизости](/#settings/apps/maps)
   ja: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -389,8 +389,8 @@ assistant_message_1:
     これらのイベントの詳細や、別の種類のクリエイティブ活動をお知りになりたいですか？
 
     **提案：**
-    *   [ベルリンの週末アート展覧会を検索](/#settings/appstore/web)
-    *   [お近くの画材店を探す](/#settings/appstore/maps)
+    *   [ベルリンの週末アート展覧会を検索](/#settings/apps/web)
+    *   [お近くの画材店を探す](/#settings/apps/maps)
   ko: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -428,8 +428,8 @@ assistant_message_1:
     이 중 하나에 대한 자세한 내용이나 다른 유형의 창작 활동을 알고 싶으신가요?
 
     **제안:**
-    *   [베를린 주말 미술 전시회 검색](/#settings/appstore/web)
-    *   [근처 미술 용품점 찾기](/#settings/appstore/maps)
+    *   [베를린 주말 미술 전시회 검색](/#settings/apps/web)
+    *   [근처 미술 용품점 찾기](/#settings/apps/maps)
   it: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -467,8 +467,8 @@ assistant_message_1:
     Vorresti maggiori dettagli su qualcuno di questi eventi, o magari un altro tipo di attività creativa?
 
     **Suggerimenti:**
-    *   [Cerca mostre d'arte del weekend a Berlino](/#settings/appstore/web)
-    *   [Trova negozi di materiale artistico nella tua zona](/#settings/appstore/maps)
+    *   [Cerca mostre d'arte del weekend a Berlino](/#settings/apps/web)
+    *   [Trova negozi di materiale artistico nella tua zona](/#settings/apps/maps)
   tr: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -506,8 +506,8 @@ assistant_message_1:
     Bunlardan herhangi biri hakkında daha fazla bilgi ister misiniz, yoksa farklı bir yaratıcı aktivite türü mü tercih edersiniz?
 
     **Öneriler:**
-    *   [Berlin'de hafta sonu sanat sergileri ara](/#settings/appstore/web)
-    *   [Yakınındaki sanat malzemesi mağazalarını bul](/#settings/appstore/maps)
+    *   [Berlin'de hafta sonu sanat sergileri ara](/#settings/apps/web)
+    *   [Yakınındaki sanat malzemesi mağazalarını bul](/#settings/apps/maps)
   vi: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -545,8 +545,8 @@ assistant_message_1:
     Bạn có muốn biết thêm chi tiết về bất kỳ sự kiện nào trong số này, hoặc có lẽ một loại hoạt động sáng tạo khác không?
 
     **Gợi ý:**
-    *   [Tìm kiếm triển lãm nghệ thuật cuối tuần ở Berlin](/#settings/appstore/web)
-    *   [Tìm cửa hàng vật liệu nghệ thuật gần bạn](/#settings/appstore/maps)
+    *   [Tìm kiếm triển lãm nghệ thuật cuối tuần ở Berlin](/#settings/apps/web)
+    *   [Tìm cửa hàng vật liệu nghệ thuật gần bạn](/#settings/apps/maps)
   id: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -584,8 +584,8 @@ assistant_message_1:
     Apakah Anda ingin detail lebih lanjut tentang salah satu acara ini, atau mungkin jenis aktivitas kreatif yang berbeda?
 
     **Saran:**
-    *   [Cari pameran seni akhir pekan di Berlin](/#settings/appstore/web)
-    *   [Temukan toko perlengkapan seni di sekitar Anda](/#settings/appstore/maps)
+    *   [Cari pameran seni akhir pekan di Berlin](/#settings/apps/web)
+    *   [Temukan toko perlengkapan seni di sekitar Anda](/#settings/apps/maps)
   pl: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -623,8 +623,8 @@ assistant_message_1:
     Chcesz więcej szczegółów na temat któregoś z tych wydarzeń, a może inny rodzaj twórczej aktywności?
 
     **Propozycje:**
-    *   [Szukaj weekendowych wystaw sztuki w Berlinie](/#settings/appstore/web)
-    *   [Znajdź sklepy z materiałami artystycznymi w pobliżu](/#settings/appstore/maps)
+    *   [Szukaj weekendowych wystaw sztuki w Berlinie](/#settings/apps/web)
+    *   [Znajdź sklepy z materiałami artystycznymi w pobliżu](/#settings/apps/maps)
   nl: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -662,8 +662,8 @@ assistant_message_1:
     Wil je meer details over een van deze evenementen, of misschien een ander type creatieve activiteit?
 
     **Suggesties:**
-    *   [Zoek naar weekendkunstexposities in Berlijn](/#settings/appstore/web)
-    *   [Vind kunstwinkels in je buurt](/#settings/appstore/maps)
+    *   [Zoek naar weekendkunstexposities in Berlijn](/#settings/apps/web)
+    *   [Vind kunstwinkels in je buurt](/#settings/apps/maps)
   ar: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -701,8 +701,8 @@ assistant_message_1:
     هل تريد مزيدًا من التفاصيل حول أي من هذه الفعاليات، أو ربما نوعًا مختلفًا من النشاط الإبداعي؟
 
     **اقتراحات:**
-    *   [البحث عن معارض فنية في نهاية الأسبوع في برلين](/#settings/appstore/web)
-    *   [العثور على متاجر مستلزمات فنية بالقرب منك](/#settings/appstore/maps)
+    *   [البحث عن معارض فنية في نهاية الأسبوع في برلين](/#settings/apps/web)
+    *   [العثور على متاجر مستلزمات فنية بالقرب منك](/#settings/apps/maps)
   hi: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -740,8 +740,8 @@ assistant_message_1:
     क्या आप इनमें से किसी के बारे में अधिक जानकारी चाहेंगे, या शायद किसी अन्य प्रकार की रचनात्मक गतिविधि?
 
     **सुझाव:**
-    *   [बर्लिन में सप्ताहांत कला प्रदर्शनियाँ खोजें](/#settings/appstore/web)
-    *   [अपने क्षेत्र में कला सामग्री की दुकानें खोजें](/#settings/appstore/maps)
+    *   [बर्लिन में सप्ताहांत कला प्रदर्शनियाँ खोजें](/#settings/apps/web)
+    *   [अपने क्षेत्र में कला सामग्री की दुकानें खोजें](/#settings/apps/maps)
   th: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -779,8 +779,8 @@ assistant_message_1:
     คุณต้องการรายละเอียดเพิ่มเติมเกี่ยวกับกิจกรรมเหล่านี้ หรืออาจต้องการกิจกรรมสร้างสรรค์ประเภทอื่นไหม?
 
     **คำแนะนำ:**
-    *   [ค้นหานิทรรศการศิลปะช่วงสุดสัปดาห์ในเบอร์ลิน](/#settings/appstore/web)
-    *   [ค้นหาร้านอุปกรณ์ศิลปะใกล้คุณ](/#settings/appstore/maps)
+    *   [ค้นหานิทรรศการศิลปะช่วงสุดสัปดาห์ในเบอร์ลิน](/#settings/apps/web)
+    *   [ค้นหาร้านอุปกรณ์ศิลปะใกล้คุณ](/#settings/apps/maps)
   cs: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -818,8 +818,8 @@ assistant_message_1:
     Chcete více podrobností o některé z těchto akcí, nebo možná jiný typ kreativní aktivity?
 
     **Návrhy:**
-    *   [Hledat víkendové umělecké výstavy v Berlíně](/#settings/appstore/web)
-    *   [Najít obchody s výtvarnými potřebami ve vašem okolí](/#settings/appstore/maps)
+    *   [Hledat víkendové umělecké výstavy v Berlíně](/#settings/apps/web)
+    *   [Najít obchody s výtvarnými potřebami ve vašem okolí](/#settings/apps/maps)
   sv: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -857,8 +857,8 @@ assistant_message_1:
     Vill du ha mer information om någon av dessa, eller kanske en annan typ av kreativ aktivitet?
 
     **Förslag:**
-    *   [Sök efter konstutställningar på helgen i Berlin](/#settings/appstore/web)
-    *   [Hitta konsttillbehörsbutiker i närheten](/#settings/appstore/maps)
+    *   [Sök efter konstutställningar på helgen i Berlin](/#settings/apps/web)
+    *   [Hitta konsttillbehörsbutiker i närheten](/#settings/apps/maps)
   he: |
     ```json
     {"type": "app_skill_use", "embed_id": "2adf55c0-1e78-42f4-88b3-ce0bff942110", "app_id": "events", "skill_id": "search", "query": "drawing meetup", "provider": "Meetup"}
@@ -896,8 +896,8 @@ assistant_message_1:
     רוצים פרטים נוספים על אחד מאלה, או אולי סוג אחר של פעילות יצירתית?
 
     **הצעות:**
-    *   [חפש תערוכות אמנות בסוף השבוע בברלין](/#settings/appstore/web)
-    *   [מצא חנויות ציוד אמנותי באזורך](/#settings/appstore/maps)
+    *   [חפש תערוכות אמנות בסוף השבוע בברלין](/#settings/apps/web)
+    *   [מצא חנויות ציוד אמנותי באזורך](/#settings/apps/maps)
   verified_by_human: []
 
 follow_up_1:

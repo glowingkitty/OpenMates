@@ -5,7 +5,7 @@ import type { DemoChat } from "../types";
  *
  * This is the main introductory demo chat that explains OpenMates' core value proposition:
  * - Team of specialized AI chatbots
- * - Apps with skills, focus modes, and settings & memories
+ * - Apps with skills, focus modes, and memories
  * - Privacy & encryption features
  * - Pay-per-use pricing model
  *

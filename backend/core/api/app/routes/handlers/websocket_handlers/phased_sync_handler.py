@@ -953,7 +953,7 @@ async def _handle_phase3_sync(
         except Exception as clear_error:
             logger.warning(f"Failed to clear sync cache: {clear_error}")
 
-        # Trigger app settings and memories sync
+        # Trigger app memories sync
         try:
             await _handle_app_settings_memories_sync(manager, directus_service, user_id, device_fingerprint_hash)
         except Exception as app_data_error:
@@ -977,10 +977,10 @@ async def _handle_app_settings_memories_sync(
     device_fingerprint_hash: str
 ):
     """
-    Handles app settings and memories sync after Phase 3 chat sync completes.
+    Handles app memories sync after Phase 3 chat sync completes.
     
     This function:
-    1. Fetches all app settings and memories entries for the user from Directus
+    1. Fetches all app memories entries for the user from Directus
     2. Sends encrypted data via WebSocket "app_settings_memories_sync_ready" event
     3. Client stores encrypted entries in IndexedDB and handles conflict resolution
     
@@ -1001,7 +1001,7 @@ async def _handle_app_settings_memories_sync(
     try:
         logger.info(f"[SYNC] Starting app settings/memories sync for user {user_id[:8]}...")
         
-        # Fetch all app settings and memories entries for the user
+        # Fetch all app memories entries for the user
         # Note: This returns encrypted data - server never decrypts it
         # The get_all_user_app_data_raw method now accepts user_id directly and hashes it internally
         all_user_app_data = await directus_service.app_settings_and_memories.get_all_user_app_data_raw(user_id)
