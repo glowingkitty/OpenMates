@@ -18,6 +18,7 @@ export {
   getDemoMessages,
   isDemoChat,
   isLegalChat,
+  isNewsletterChat,
   isPublicChat,
 } from "./convertToChat";
 
