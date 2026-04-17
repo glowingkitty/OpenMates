@@ -27,7 +27,7 @@ export interface AppMetadata {
   focus_modes: FocusModeMetadata[]; // Placeholder for future implementation
   settings_and_memories: MemoryFieldMetadata[]; // Maps to 'settings_and_memories' in app.yml
   providers?: string[]; // List of provider names used by this app's skills
-  provider_display_order?: string[]; // Optional: Custom order for provider icons in App Store preview
+  provider_display_order?: string[]; // Optional: Custom order for provider icons in Apps preview
   category?: string; // App category: "work" or "personal"
   last_updated?: string; // ISO date string of when the app was last updated (for "New apps" categorization)
   /** Runtime health status, set by appSkillsStore based on /v1/health.
@@ -49,7 +49,7 @@ export interface SkillMetadata {
   description_translation_key: string; // Translation key for skill description
   pricing?: SkillPricing;
   providers?: string[]; // List of provider names used by this skill
-  /** Icon filename for this skill (e.g. "search.svg") — used in App Store skill cards */
+  /** Icon filename for this skill (e.g. "search.svg") — used in Apps skill cards */
   icon_image?: string;
 }
 
@@ -131,7 +131,7 @@ export interface MemoryFieldMetadata {
   name_translation_key: string; // Translation key for memory field name
   description_translation_key: string; // Translation key for memory field description
   type: string;
-  /** Icon filename for this settings/memory category (e.g. "calendar.svg") — used in App Store cards */
+  /** Icon filename for this settings/memory category (e.g. "calendar.svg") — used in Apps cards */
   icon_image?: string;
   schema_definition?: {
     type?: string;

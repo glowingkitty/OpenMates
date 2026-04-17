@@ -1172,10 +1172,10 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
-    # --- Health checks that feed /v1/health (used by the App Store) ---
+    # --- Health checks that feed /v1/health (used by the Apps) ---
     # NOTE: The independent status service (backend/status/) handles the status PAGE,
     # but the core API's /v1/health endpoint reads from these Redis cache keys.
-    # Removing these breaks app availability in the frontend App Store.
+    # Removing these breaks app availability in the frontend Apps.
     'health-check-all-providers': {
         'task': 'health_check.check_all_providers',
         'schedule': timedelta(seconds=300),  # 5 minutes

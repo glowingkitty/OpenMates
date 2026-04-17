@@ -6,7 +6,7 @@
   1. TOP-LEVEL app page (app_store/{appId}) — no subItem prop:
   EXPANDED (scrollTop = 0):
   ┌──────────────────────────────────────────────┐  240px (mobile: 190px)
-  │  [←] Settings / App Store  (clickable)       │  ← nav row
+  │  [←] Settings / Apps  (clickable)       │  ← nav row
   │              [icon 50×50]                    │  ← icon centered
   │              App Name (20px, bold)           │  ← name centered below icon
   │         Description (14px, centered)         │
@@ -15,7 +15,7 @@
 
   COLLAPSED (scrollTop ≥ COLLAPSE_THRESHOLD):
   ┌──────────────────────────────────────────────┐  88px
-  │  [←] Settings / App Store  (clickable)       │  ← nav row
+  │  [←] Settings / Apps  (clickable)       │  ← nav row
   │  [icon 36×36]  App Name  (left-aligned)      │  ← icon + name in a row
   └──────────────────────────────────────────────┘
 
@@ -74,7 +74,7 @@
     title: string;           // Page title (already translated)
     icon: string;            // CSS icon name (used as `icon_{icon}` class)
     description?: string;    // Optional description text
-    stats?: SettingsPageStat[]; // Optional capability stats row (e.g. for App Store header)
+    stats?: SettingsPageStat[]; // Optional capability stats row (e.g. for Apps header)
   }
 
   interface Props {
@@ -224,7 +224,7 @@
   /** Description for settingsPage mode */
   let settingsPageDescription = $derived(settingsPage?.description ?? '');
 
-  /** Stats for settingsPage mode (e.g. App Store aggregate capability counts) */
+  /** Stats for settingsPage mode (e.g. Apps aggregate capability counts) */
   let settingsPageStats = $derived(settingsPage?.stats ?? []);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -661,7 +661,7 @@
     mask-position: center;
   }
 
-  /* ─── Settings page stats row icons (used in settingsPage mode, e.g. App Store) ─ */
+  /* ─── Settings page stats row icons (used in settingsPage mode, e.g. Apps) ─ */
 
   /* Apps count — uses app.svg (the diamond/grid icon) */
   .apps-stat-icon {

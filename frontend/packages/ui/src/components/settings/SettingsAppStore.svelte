@@ -1,5 +1,5 @@
 <!-- frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
-     App Store component for browsing and discovering available apps.
+     Apps component for browsing and discovering available apps.
      
      **Design**: Horizontal scrollable sections organized by category, with app cards
      featuring gradient backgrounds and provider icons.

@@ -2,7 +2,7 @@
      Pricing page — shown only to non-authenticated users.
      
      Displays credit packages with prices so visitors can explore costs before signing up.
-     Also links to the App Store (browsable without login) and the AI models page,
+     Also links to the Apps (browsable without login) and the AI models page,
      which is the biggest cost driver.
      
      This page is intentionally read-only. No purchase flow is exposed here —
@@ -28,7 +28,7 @@
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     }
 
-    // Navigate to the App Store (available for unauthenticated users)
+    // Navigate to the Apps (available for unauthenticated users)
     function openAppStore() {
         dispatch('openSettings', {
             settingsPath: 'app_store',
@@ -95,7 +95,7 @@
 
 <p class="pricing-vat-note">{$text('settings.pricing.vat_note')}</p>
 
-<!-- App Store Link Section -->
+<!-- Apps Link Section -->
 <SettingsSectionHeading title={$text('settings.pricing.explore_heading')} icon="search" />
 
 <!-- AI models — highlighted as the biggest cost driver -->
@@ -107,7 +107,7 @@
     onClick={openAiModels}
 />
 
-<!-- Link to the full App Store -->
+<!-- Link to the full Apps -->
 <SettingsItem
     type="submenu"
     icon="app"

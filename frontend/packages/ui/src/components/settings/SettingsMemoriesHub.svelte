@@ -1,6 +1,6 @@
 <!-- frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
      Hub page listing all settings & memories entries across all apps the user has created.
-     Provides a single place to browse and manage them, with a deep link to the App Store
+     Provides a single place to browse and manage them, with a deep link to the Apps
      for discovering new apps that support settings & memories.
 
      Architecture: See docs/architecture/app-skills.md
@@ -222,7 +222,7 @@
         {/each}
     {/if}
 
-    <!-- Footer: deep link to App Store -->
+    <!-- Footer: deep link to Apps -->
     <div class="discover-link-section">
         <SettingsItem
             type="submenu"

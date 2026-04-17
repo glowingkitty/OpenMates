@@ -5,7 +5,7 @@
 //
 // This store manages the state of most used apps fetched from the API.
 // The fetch is triggered from +page.svelte on app load to ensure data is
-// available when the App Store opens.
+// available when the Apps opens.
 
 import { writable } from 'svelte/store';
 
@@ -58,7 +58,7 @@ const { subscribe, set, update } = writable<MostUsedAppsState>(initialState);
  * 
  * This store manages the state of most used apps fetched from the API.
  * The fetch is triggered from +page.svelte on app load to ensure data is
- * available when the App Store opens.
+ * available when the Apps opens.
  * 
  * **Usage in components (Svelte 5)**:
  * ```svelte

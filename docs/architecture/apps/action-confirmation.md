@@ -28,7 +28,7 @@ Write operations (send email, create calendar event, delete file) need safeguard
 
 - Toggle in Settings header; default disabled
 - When enabled: auto-confirms all skills without user confirmation
-- Per-skill override: `Settings > App Store > [App] > [Skill] > Always Require Confirmation`
+- Per-skill override: `Settings > Apps > [App] > [Skill] > Always Require Confirmation`
 - All auto-confirmed actions still logged
 
 ### Web App: Offline Handling
@@ -55,7 +55,7 @@ Security provided through layered controls:
 
 ### Skill Configuration
 
-Confirmation requirements defined per skill in app configuration. Users can override per-app or per-skill in `Settings > App Store`. Examples:
+Confirmation requirements defined per skill in app configuration. Users can override per-app or per-skill in `Settings > Apps`. Examples:
 - Requires confirmation: `email.send`, `calendar.create_event`, `code.delete_file`
 - No confirmation: `web.search`, `videos.get_transcript`, `calendar.read_events`
 

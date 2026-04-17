@@ -167,7 +167,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
     access: "authenticated",
     keywords: ["gift card", "voucher", "coupon", "gutschein", "geschenkkarte"],
   },
-  // App Store — requires authentication (app installations are per-account)
+  // Apps — requires authentication (app installations are per-account)
   {
     path: "app_store",
     translationKey: "settings.apps",

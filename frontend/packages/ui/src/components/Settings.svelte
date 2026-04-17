@@ -599,7 +599,7 @@ changes to the documentation (to keep the documentation up to date).
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
                 // If the user arrived via the Settings & Memories hub, replace the full
-                // "App Store / {App Name}" chain with just "App Settings & Memories"
+                // "Apps / {App Name}" chain with just "App Settings & Memories"
                 // so the breadcrumb reads: Settings / App Settings & Memories
                 if (cameFromPath === 'settings_memories') {
                     // Use the title override if provided, otherwise fall back to the standard key
@@ -608,15 +608,15 @@ changes to the documentation (to keep the documentation up to date).
                     break;
                 }
                 if (cameFromPath === 'ai') {
-                    // Arrived from top-level AI settings — show "AI" instead of "App Store / AI"
+                    // Arrived from top-level AI settings — show "AI" instead of "Apps / AI"
                     pathLabels.push(cameFromTitleOverride ?? $text('settings.ai'));
                     break;
                 }
-                // This is the base app_store route - add "App Store" translation
+                // This is the base app_store route - add "Apps" translation
                 const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
                 // If we navigated here from "All Apps", inject "All Apps" into the breadcrumb
-                // so the trail reads: Settings / App Store / All Apps / {App Name}
+                // so the trail reads: Settings / Apps / All Apps / {App Name}
                 if (cameFromPath === 'app_store/all') {
                     pathLabels.push($text('settings.app_store.show_all_apps'));
                 }
@@ -871,7 +871,7 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     /**
-     * Aggregate capability stats for the App Store header banner.
+     * Aggregate capability stats for the Apps header banner.
      * Shows total apps, skills, focus modes, and settings & memory types across all apps.
      * Only computed when the app_store page is active to avoid unnecessary work.
      */

@@ -1,5 +1,5 @@
 <!-- frontend/packages/ui/src/components/settings/AppStoreCard.svelte
-     Reusable app card component for the App Store.
+     Reusable app card component for the Apps.
      
      This component displays an app card with:
      - Provider icons above the app icon (if available)

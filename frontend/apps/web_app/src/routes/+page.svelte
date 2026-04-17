@@ -1817,7 +1817,7 @@
 		}
 
 		// Fetch most used apps on app load (non-blocking, cached for 1 hour)
-		// This ensures data is available when App Store opens
+		// This ensures data is available when Apps opens
 		mostUsedAppsStore.fetchMostUsedApps(0).catch((error) => {
 			console.error('[+page.svelte] Error fetching most used apps:', error);
 		});

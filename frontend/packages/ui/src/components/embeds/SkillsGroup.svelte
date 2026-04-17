@@ -13,10 +13,10 @@
   - Shows "+ N more" badge at the end when items are truncated
   - Supports custom sort order via sortOrder prop
   
-  Uses the same AppStoreCard design as the Settings App Store (in skill card mode
+  Uses the same AppStoreCard design as the Settings Apps (in skill card mode
   with skillProviders prop) but scaled up for the chat context.
   
-  Clicking a card opens the App Store to that skill's detail page.
+  Clicking a card opens the Apps to that skill's detail page.
 -->
 
 <script lang="ts">
@@ -145,7 +145,7 @@
   let remainingCount = $derived(Math.max(0, filteredSkills.length - MAX_DISPLAY_ITEMS));
   
   /**
-   * Handle skill card click - open the App Store to the skill's detail page.
+   * Handle skill card click - open the Apps to the skill's detail page.
    * Uses the mobile-aware deep link sequencing pattern:
    * 1. settingsMenuVisible.set(true) - tell Settings.svelte to sync isMenuVisible
    * 2. panelState.openSettings() - track panel state
@@ -170,7 +170,7 @@
   }
   
   /**
-   * Handle "+N more" badge click - open the App Store overview.
+   * Handle "+N more" badge click - open the Apps overview.
    * Uses the same mobile-aware deep link sequencing pattern.
    */
   async function handleMoreClick() {

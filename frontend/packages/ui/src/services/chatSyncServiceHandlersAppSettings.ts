@@ -1371,10 +1371,10 @@ interface AppSettingsMemoriesSyncReadyPayload {
  * 1. Receives encrypted app settings/memories entries from server
  * 2. Stores encrypted entries in IndexedDB (encrypted with app-specific keys)
  * 3. Handles conflict resolution based on item_version (higher version wins)
- * 4. Dispatches event to notify App Store components
+ * 4. Dispatches event to notify Apps components
  *
  * **Zero-Knowledge Architecture**: All entries remain encrypted in IndexedDB.
- * Decryption happens on-demand when needed for display in App Store settings or chat context.
+ * Decryption happens on-demand when needed for display in Apps settings or chat context.
  */
 export async function handleAppSettingsMemoriesSyncReadyImpl(
   serviceInstance: ChatSynchronizationService,
@@ -1421,8 +1421,8 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
       );
     });
 
-    // Dispatch custom event to notify App Store components that sync is complete
-    // This allows the App Store UI to refresh if it's currently open
+    // Dispatch custom event to notify Apps components that sync is complete
+    // This allows the Apps UI to refresh if it's currently open
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("appSettingsMemoriesSyncReady", {
@@ -1527,10 +1527,10 @@ interface AppSettingsMemoriesEntrySyncedPayload {
  * When another device creates or updates an app settings/memories entry:
  * 1. Server broadcasts the encrypted entry to all other logged-in devices
  * 2. This handler receives the entry and stores it in IndexedDB
- * 3. Dispatches event to notify App Store components to refresh
+ * 3. Dispatches event to notify Apps components to refresh
  *
  * **Zero-Knowledge Architecture**: Entry remains encrypted - server never decrypts it.
- * This device decrypts on-demand when displaying in App Store settings.
+ * This device decrypts on-demand when displaying in Apps settings.
  */
 export async function handleAppSettingsMemoriesEntrySyncedImpl(
   serviceInstance: ChatSynchronizationService,
@@ -1574,7 +1574,7 @@ export async function handleAppSettingsMemoriesEntrySyncedImpl(
       );
     });
 
-    // Dispatch custom event to notify App Store components to refresh
+    // Dispatch custom event to notify Apps components to refresh
     // This allows the UI to show the new entry immediately
     if (typeof window !== "undefined") {
       window.dispatchEvent(

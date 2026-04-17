@@ -4883,38 +4883,38 @@ no_selling_of_user_data:
   verified_by_human: []
 prices_on_app_store_soon:
   context: explainer that prices will be available on the app store soon
-  en: "Click here to check the App Store for prices."
-  de: "Klicken Sie hier, um die Preise im App Store zu überprüfen."
+  en: "Click here to check the Apps for prices."
+  de: "Klicken Sie hier, um die Preise im Apps zu überprüfen."
   zh: "点击此处查看应用商店中的价格。"
-  es: "Haz clic aquí para ver los precios en la App Store."
-  fr: "Cliquez ici pour consulter les prix dans l'App Store."
-  pt: "Clique aqui para verificar os preços na App Store."
-  ru: "Нажмите здесь, чтобы проверить цены в App Store."
-  ja: "ここをクリックしてApp Storeの価格を確認してください。"
-  ko: "여기를 클릭하여 App Store에서 가격을 확인하세요."
-  it: "Clicca qui per controllare i prezzi nell'App Store."
-  tr: "Fiyatları App Store'da kontrol etmek için buraya tıklayın."
-  vi: "Nhấp vào đây để kiểm tra giá trong App Store."
-  id: "Klik di sini untuk memeriksa harga di App Store."
-  pl: "Kliknij tutaj, aby sprawdzić ceny w App Store."
-  nl: "Klik hier om de prijzen in de App Store te bekijken."
+  es: "Haz clic aquí para ver los precios en la Apps."
+  fr: "Cliquez ici pour consulter les prix dans l'Apps."
+  pt: "Clique aqui para verificar os preços na Apps."
+  ru: "Нажмите здесь, чтобы проверить цены в Apps."
+  ja: "ここをクリックしてAppsの価格を確認してください。"
+  ko: "여기를 클릭하여 Apps에서 가격을 확인하세요."
+  it: "Clicca qui per controllare i prezzi nell'Apps."
+  tr: "Fiyatları Apps'da kontrol etmek için buraya tıklayın."
+  vi: "Nhấp vào đây để kiểm tra giá trong Apps."
+  id: "Klik di sini untuk memeriksa harga di Apps."
+  pl: "Kliknij tutaj, aby sprawdzić ceny w Apps."
+  nl: "Klik hier om de prijzen in de Apps te bekijken."
   ar: "انقر هنا للتحقق من الأسعار في متجر التطبيقات."
-  hi: "App Store में कीमतों की जांच करने के लिए यहां क्लिक करें।"
-  th: "คลิกที่นี่เพื่อตรวจสอบราคาใน App Store"
-  cs: "Klikněte zde a zkontrolujte ceny v App Store."
-  sv: "Klicka här för att kontrollera priserna i App Store."
-  he: לחץ כאן כדי לבדוק מחירים ב-App Store.
+  hi: "Apps में कीमतों की जांच करने के लिए यहां क्लिक करें।"
+  th: "คลิกที่นี่เพื่อตรวจสอบราคาใน Apps"
+  cs: "Klikněte zde a zkontrolujte ceny v Apps."
+  sv: "Klicka här för att kontrollera priserna i Apps."
+  he: לחץ כאן כדי לבדוק מחירים ב-Apps.
   verified_by_human: []
 usage_prices_on_app_store:
   context: explainer where to find pricing details
   en: "You find the usage prices
 
-    in the App Store.
+    in the Apps.
 
     "
   de: "Sie finden die Nutzungspreise
 
-    im App Store.
+    im Apps.
 
     "
   zh: "您可以在应用商店找到使用价格
@@ -4923,62 +4923,62 @@ usage_prices_on_app_store:
 
   es: "Encuentra los precios de uso
 
-    en la App Store.
+    en la Apps.
 
     "
   fr: "Vous trouvez les prix d'utilisation
 
-    dans l'App Store.
+    dans l'Apps.
 
     "
   pt: "Você encontra os preços de uso
 
-    na App Store.
+    na Apps.
 
     "
   ru: "Вы найдете цены на использование
 
-    в App Store.
+    в Apps.
 
     "
   ja: "使用料金は
 
-    App Storeで確認できます。
+    Appsで確認できます。
 
     "
   ko: "사용 가격은
 
-    App Store에서 확인할 수 있습니다.
+    Apps에서 확인할 수 있습니다.
 
     "
   it: "Trovi i prezzi di utilizzo
 
-    nell'App Store.
+    nell'Apps.
 
     "
   tr: "Kullanım fiyatlarını
 
-    App Store'da bulabilirsiniz.
+    Apps'da bulabilirsiniz.
 
     "
   vi: "Bạn tìm thấy giá sử dụng
 
-    trong App Store.
+    trong Apps.
 
     "
   id: "Anda menemukan harga penggunaan
 
-    di App Store.
+    di Apps.
 
     "
   pl: "Znajdziesz ceny użytkowania
 
-    w App Store.
+    w Apps.
 
     "
   nl: "Je vindt de gebruiks prijzen
 
-    in de App Store.
+    in de Apps.
 
     "
   ar: "تجد أسعار الاستخدام
@@ -4988,51 +4988,51 @@ usage_prices_on_app_store:
     "
   hi: "आप उपयोग कीमतें पाते हैं
 
-    App Store में।
+    Apps में।
 
     "
   th: "คุณจะพบราคาการใช้งาน
 
-    ใน App Store
+    ใน Apps
 
     "
   cs: "Najdete ceny za použití
 
-    v App Store.
+    v Apps.
 
     "
   sv: "Du hittar användningspriserna
 
-    i App Store.
+    i Apps.
 
     "
   he: |
     מחירי השימוש מופיעים
-    ב-App Store.
+    ב-Apps.
   verified_by_human: []
 open_app_store:
   context: Button text for opening app store to see usage prices
-  en: Open App Store
-  de: App Store öffnen
+  en: Open Apps
+  de: Apps öffnen
   zh: 打开应用商店
-  es: Abrir App Store
-  fr: Ouvrir l''App Store
-  pt: Abrir App Store
-  ru: Открыть App Store
-  ja: App Storeを開く
-  ko: App Store 열기
-  it: Apri App Store
-  tr: App Store'u aç
-  vi: Mở App Store
-  id: Buka App Store
-  pl: Otwórz App Store
-  nl: App Store openen
+  es: Abrir Apps
+  fr: Ouvrir l''Apps
+  pt: Abrir Apps
+  ru: Открыть Apps
+  ja: Appsを開く
+  ko: Apps 열기
+  it: Apri Apps
+  tr: Apps'u aç
+  vi: Mở Apps
+  id: Buka Apps
+  pl: Otwórz Apps
+  nl: Apps openen
   ar: فتح متجر التطبيقات
-  hi: "App Store खोलें"
-  th: เปิด App Store
-  cs: Otevřít App Store
-  sv: Öppna App Store
-  he: פתח את ה-App Store
+  hi: "Apps खोलें"
+  th: เปิด Apps
+  cs: Otevřít Apps
+  sv: Öppna Apps
+  he: פתח את ה-Apps
   verified_by_human: []
 less:
   context: Button text to reduce the amount of credits to buy

@@ -12,7 +12,7 @@
      Architecture: See docs/architecture/app-skills.md
      Navigation: clicking a card dispatches 'openSettings' → Settings.svelte
      navigates to app_store/{appId}, passing cameFrom='app_store/all' so
-     the back button returns here instead of the App Store root.
+     the back button returns here instead of the Apps root.
 -->
 
 <script lang="ts">
@@ -150,7 +150,7 @@
 
     /**
      * Navigate to the app's detail page.
-     * Passes cameFrom so the back button returns to All Apps instead of the App Store root.
+     * Passes cameFrom so the back button returns to All Apps instead of the Apps root.
      */
     function selectApp(appId: string) {
         dispatch('openSettings', {

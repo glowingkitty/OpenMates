@@ -389,7 +389,7 @@ async def get_apps_metadata(
     - App metadata schemas: `backend/shared/python_schemas/app_metadata_schemas.py`
     
     **Reference**: 
-    - App Store UI: `frontend/packages/ui/src/components/settings/SettingsAppStore.svelte`
+    - Apps UI: `frontend/packages/ui/src/components/settings/SettingsAppStore.svelte`
     """
     # Get discovered apps from app state (populated during startup)
     if not hasattr(request.app.state, 'discovered_apps_metadata'):
@@ -759,7 +759,7 @@ async def get_most_used_apps(
     Get most used apps in the last 30 days (public endpoint, no auth required).
     
     Returns top N apps sorted by usage count from the last 30 days.
-    Used by App Store to display "Most used" section.
+    Used by Apps to display "Most used" section.
     
     If no analytics data is available, returns a default list of popular apps:
     ai, web, videos, travel, maps

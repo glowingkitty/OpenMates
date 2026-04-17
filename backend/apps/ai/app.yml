@@ -7,7 +7,7 @@ last_updated: "2025-11-12"
 # based on models with for_app_skill matching the skill ID (e.g., "ai.ask")
 # See: frontend/packages/ui/scripts/generate-apps-metadata.js
 
-# Optional: Define the display order for provider icons in the App Store.
+# Optional: Define the display order for provider icons in the Apps.
 # Providers listed here will appear first (in this order), followed by any
 # remaining auto-discovered providers. This controls the visual presentation
 # in the app preview cards, not the actual provider availability.
@@ -178,7 +178,7 @@ skills:
     # It should never appear in the @mention dropdown, app suggestions, or follow-up /
     # new-chat skill suggestions — all AI requests already use it.
     # The @mention dropdown filtering is handled in mentionSearchService.ts (hardcoded skip).
-    # Do NOT mark as internal=true — that would hide it from the App Store/Settings,
+    # Do NOT mark as internal=true — that would hide it from the Apps/Settings,
     # where it needs to appear so users can configure their AI models.
     stage: production
     class_path: |

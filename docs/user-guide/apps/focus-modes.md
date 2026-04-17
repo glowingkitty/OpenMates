@@ -47,10 +47,10 @@ Focus modes often use skills as part of their work. For example, the Analyse Vid
 ## Tips
 
 - Focus modes only affect the current conversation. Starting a new chat resets everything.
-- You can see which focus modes each app offers in the App Store.
-- Some focus modes are listed as "planned" in the App Store -- these are not yet available.
+- You can see which focus modes each app offers in the Apps.
+- Some focus modes are listed as "planned" in the Apps -- these are not yet available.
 
 ## Related
 
 - [Skills](./skills.md) -- The actions your mates can perform
-- [App Store](./app-store.md) -- Browse all available focus modes
+- [Apps](./app-store.md) -- Browse all available focus modes

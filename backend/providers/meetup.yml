@@ -19,7 +19,7 @@ api_base_url: "https://api.meetup.com/gql2"
 # - Meetup does not publish exact rate limits for unauthenticated access
 
 # Set to true for providers that do not require an API key (unauthenticated/public APIs).
-# The App Store availability check will always show the skill as available.
+# The Apps availability check will always show the skill as available.
 no_api_key: true
 
 # Pricing information

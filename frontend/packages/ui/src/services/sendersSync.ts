@@ -130,7 +130,7 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
 /**
  * Sends an app settings/memories entry to server for permanent storage in Directus.
  *
- * This is used when creating entries from the App Store settings UI:
+ * This is used when creating entries from the Apps settings UI:
  * 1. Client encrypts entry with master key and stores in IndexedDB
  * 2. Client sends encrypted entry to server via this function
  * 3. Server stores encrypted entry in Directus (zero-knowledge - server never decrypts)
