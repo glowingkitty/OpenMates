@@ -778,8 +778,13 @@
 		// This matches the normalization done in processSettingsDeepLink
 		const normalizedSegment = firstSegment.replace(/-/g, '_');
 
-		// Map aliases
-		const mappedPath = normalizedSegment === 'appstore' ? 'app_store' : normalizedSegment;
+		// Map aliases (must match normalization in processSettingsDeepLink)
+		const aliasMap: Record<string, string> = {
+			'appstore': 'app_store',
+			'apps': 'app_store',
+			'memories': 'settings_memories'
+		};
+		const mappedPath = aliasMap[normalizedSegment] ?? normalizedSegment;
 
 		// If it's a public setting, no authentication required
 		if (publicSettings.includes(mappedPath) || normalizedPath === '') {

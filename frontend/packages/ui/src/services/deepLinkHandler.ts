@@ -544,8 +544,15 @@ export function processSettingsDeepLink(
       path = "settings_memories" + path.substring("memories".length);
     }
 
-    // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
-    path = path.replace(/-/g, "_");
+    // Normalize hyphens to underscores for route segments (e.g., report-issue -> report_issue),
+    // but preserve hyphens in ai/model and ai/provider ID segments since model IDs use hyphens
+    // (e.g., claude-opus-4-7, gemini-3-flash-preview).
+    const aiDetailMatch = path.match(/^(ai\/(?:model|provider))\/(.*)/);
+    if (aiDetailMatch) {
+      path = aiDetailMatch[1].replace(/-/g, "_") + "/" + aiDetailMatch[2];
+    } else {
+      path = path.replace(/-/g, "_");
+    }
 
     // Deep link to All Apps with a filter: app_store/all/{filter}
     // e.g. #settings/apps/all/focus-modes → app_store/all with filter 'focus_modes'
