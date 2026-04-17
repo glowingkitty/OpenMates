@@ -48,6 +48,8 @@ export const externalLinks = {
   github:
     sharedUrls?.urls?.contact?.github ||
     "https://github.com/glowingkitty/OpenMates",
+  bluesky:
+    sharedUrls?.urls?.contact?.bluesky || "https://bsky.app/profile/openmates.bsky.social",
   mastodon:
     sharedUrls?.urls?.contact?.mastodon || "https://mastodon.social/@OpenMates",
   meetup:

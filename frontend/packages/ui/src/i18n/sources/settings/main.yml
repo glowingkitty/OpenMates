@@ -2201,6 +2201,30 @@ instagram:
   sv: Instagram
   he: Instagram
   verified_by_human: []
+bluesky:
+  context: Bluesky contact link
+  en: Bluesky
+  de: Bluesky
+  zh: Bluesky
+  es: Bluesky
+  fr: Bluesky
+  pt: Bluesky
+  ru: Bluesky
+  ja: Bluesky
+  ko: Bluesky
+  it: Bluesky
+  tr: Bluesky
+  vi: Bluesky
+  id: Bluesky
+  pl: Bluesky
+  nl: Bluesky
+  ar: Bluesky
+  hi: Bluesky
+  th: Bluesky
+  cs: Bluesky
+  sv: Bluesky
+  he: Bluesky
+  verified_by_human: []
 mastodon:
   context: Mastodon contact link
   en: Mastodon

@@ -236,6 +236,9 @@
                 <a href={externalLinks.meetup} target="_blank" rel="me" aria-label="Meetup">
                     <div class="social-icon icon_meetup"></div>
                 </a>
+                <a href={externalLinks.bluesky} target="_blank" rel="me" aria-label="Bluesky">
+                    <div class="social-icon icon_bluesky"></div>
+                </a>
                 <a href={externalLinks.mastodon} target="_blank" rel="me" aria-label="Mastodon">
                     <div class="social-icon icon_mastodon"></div>
                 </a>
@@ -521,6 +524,10 @@
         background-image: url('@openmates/ui/static/icons/github.svg');
     }
     
+    .social-icon.icon_bluesky {
+        background-image: url('@openmates/ui/static/icons/bluesky.svg');
+    }
+
     .social-icon.icon_mastodon {
         background-image: url('@openmates/ui/static/icons/mastodon.svg');
     }
