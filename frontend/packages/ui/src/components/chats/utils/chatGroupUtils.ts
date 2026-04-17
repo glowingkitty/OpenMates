@@ -108,6 +108,7 @@ export function getLocalizedGroupTitle(
   if (groupKey === "intro") return t("activity.intro");
   if (groupKey === "examples") return t("activity.examples");
   if (groupKey === "announcements") return t("activity.announcements");
+  if (groupKey === "tips_and_tricks") return t("activity.tips_and_tricks");
   if (groupKey === "legal") return t("activity.legal");
   if (groupKey === "shared_by_others") return t("activity.shared_by_others");
   if (groupKey === "today") return t("activity.today");
