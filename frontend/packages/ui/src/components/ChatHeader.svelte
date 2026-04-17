@@ -50,7 +50,6 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
-  import { get } from 'svelte/store';
   import { openIntroVideoFullscreen, closeIntroVideoFullscreen, introVideoFullscreenStore } from '../stores/introVideoFullscreenStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
@@ -68,17 +67,14 @@
     isIncognito = false,
     /** When true, shows an "Example chat" badge/pill in the loaded header state. */
     isExampleChat = false,
-    /** HLS URL stored for future HLS.js integration — not yet used directly in the video element.
-     *  Accepted as a prop so the parent can pass it without a type error. */
-    videoHlsUrl: _videoHlsUrl = null,
-    /** MP4 URL for the background video and fullscreen player. */
+    /** MP4 URL used to enable the play button that opens the fullscreen video embed.
+     *  No video is ever loaded or played inside the header itself — the URL only
+     *  signals that a playable video exists. The fullscreen embed resolves the
+     *  actual URL from DEMO_CHATS in ActiveChat. */
     videoMp4Url = null,
-    /** Timestamp in seconds where the background video starts playing (e.g. 17 to skip intro). */
-    videoStartTime = 0,
-    /** Optional list of image URLs rendered as a crossfading Ken-Burns slideshow in the
-     *  header background. When non-empty, replaces the autoplay background video
-     *  (the real video is still available via the play button → fullscreen embed).
-     *  This avoids per-visitor video delivery cost on the public intro chat. */
+    /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
+     *  16:9 media frame. These are the only media assets the header ever loads —
+     *  the video is loaded on demand when the user clicks the play button. */
     backgroundFrames = null,
     /** Aggregated highlight counts across all messages in this chat. When
      *  `highlights > 0`, a yellow pill is rendered below the summary. Clicking
@@ -101,13 +97,10 @@
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
     isExampleChat?: boolean;
-    /** api.video HLS URL for autoplay-muted background video. */
-    videoHlsUrl?: string | null;
-    /** api.video MP4 URL — used for background video + fullscreen player. */
+    /** MP4 URL — gates the play button in the media frame. The video is only
+     *  loaded by the fullscreen embed after the user clicks play. */
     videoMp4Url?: string | null;
-    /** Timestamp in seconds where the background video starts. */
-    videoStartTime?: number;
-    /** Image URLs for the crossfading Ken-Burns slideshow. */
+    /** Image URLs for the crossfading Ken-Burns slideshow inside the media frame. */
     backgroundFrames?: string[] | null;
     /** Aggregated highlight counts across all messages in this chat. */
     highlightStats?: { highlights: number; comments: number } | null;
@@ -115,72 +108,24 @@
     onHighlightJump?: (() => void) | undefined;
   } = $props();
 
-  /** True when we should render the static-image slideshow instead of an autoplay video. */
+  /** True when the static-image slideshow should render inside the media frame. */
   const useSlideshow = $derived(Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
-  /** True when a header background (video or slideshow) should be shown at all. */
+  /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useSlideshow || !!videoMp4Url);
 
-  // ─── Video: background element + state ────────────────────────────────────
-
-  let bgVideoEl = $state<HTMLVideoElement | null>(null);
-  /** Mirror of introVideoFullscreenStore — used to pause bg video when fullscreen opens. */
-  let showVideoFullscreen = $derived($introVideoFullscreenStore);
-
-  /** Seek to videoStartTime once metadata is loaded so the loop starts mid-video. */
-  function handleBgVideoMetadata() {
-    if (bgVideoEl && videoStartTime > 0) {
-      bgVideoEl.currentTime = videoStartTime;
-    }
-  }
-
-  // ─── Video: IntersectionObserver — pause when scrolled out of view ─────────
-
-  let _intersectionObserver: IntersectionObserver | null = null;
-
-  function setupIntersectionObserver(el: HTMLVideoElement) {
-    _intersectionObserver = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting) {
-          // Use get() to read the store directly — $derived isn't reactive inside closures
-          if (!get(introVideoFullscreenStore)) el.play().catch(() => {});
-        } else {
-          el.pause();
-        }
-      },
-      { threshold: 0.1 },
-    );
-    _intersectionObserver.observe(el);
-  }
-
-  // Re-run observer setup whenever bgVideoEl is bound
-  $effect(() => {
-    if (bgVideoEl) {
-      setupIntersectionObserver(bgVideoEl);
-    }
-    return () => {
-      _intersectionObserver?.disconnect();
-      _intersectionObserver = null;
-    };
-  });
-
-  // ─── Video: fullscreen + deep-link via #intro-video hash ──────────────────
+  // ─── Fullscreen video: deep-link via #intro-video hash ────────────────────
+  //
+  // The header never loads a video element itself. Clicking the play button
+  // opens the fullscreen embed (DirectVideoEmbedFullscreen), which is the only
+  // place where the MP4 is actually fetched and played.
 
   const INTRO_VIDEO_HASH = 'intro-video';
 
   function openVideoFullscreen(e?: MouseEvent) {
     e?.stopPropagation();
     openIntroVideoFullscreen();
-    bgVideoEl?.pause();
     if (browser) window.location.hash = INTRO_VIDEO_HASH;
   }
-
-  /** Called by ActiveChat (via store) when the fullscreen closes — resume bg video. */
-  $effect(() => {
-    if (!showVideoFullscreen && bgVideoEl) {
-      bgVideoEl.play().catch(() => {});
-    }
-  });
 
   /** Handle browser back/forward navigation clearing the hash. */
   function handleHashChange() {
@@ -499,43 +444,9 @@
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
-    <!-- Background media: either a crossfading static-image slideshow (preferred for the
-         public intro chat to avoid per-visitor video delivery cost) or, as a fallback,
-         an autoplay muted video. The real video is always available via the play button
-         below, which opens the fullscreen embed on demand. -->
-    {#if useSlideshow}
-      <div class="header-slideshow" aria-hidden="true">
-        {#each backgroundFrames as frameUrl, i (frameUrl)}
-          <img
-            class="header-slide"
-            src={frameUrl}
-            alt=""
-            loading={i === 0 ? 'eager' : 'lazy'}
-            decoding="async"
-            style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
-          />
-        {/each}
-      </div>
-      <div class="header-video-overlay" aria-hidden="true"></div>
-    {:else if videoMp4Url}
-      <!-- api.video is our own CDN provider (added to privacy policy) — not proxied. -->
-      <video
-        bind:this={bgVideoEl}
-        class="header-video"
-        src={videoMp4Url}
-        autoplay
-        muted
-        loop
-        playsinline
-        preload="auto"
-        aria-hidden="true"
-        onloadedmetadata={handleBgVideoMetadata}
-      ></video>
-      <div class="header-video-overlay" aria-hidden="true"></div>
-    {/if}
-
     <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
-         Hidden when header media (slideshow or video) fills the background instead. -->
+         Hidden when a media frame is shown — the framed slideshow replaces the
+         decorative flourish. -->
     {#if IconComponent && !hasHeaderMedia}
       <div class="deco-icon deco-icon-left">
         <IconComponent size={126} color="white" />
@@ -545,21 +456,42 @@
       </div>
     {/if}
 
-    <!-- When header media is present: stack play button above title, both centered.
-         Otherwise: standard loaded-content layout with icon, title, summary, time. -->
+    <!-- When the header has media: render a 16:9 rounded frame containing the
+         crossfading Ken-Burns slideshow with the play button centered over it,
+         and the chat title below the frame.
+
+         The header never loads a <video> element — clicking play opens the
+         DirectVideoEmbedFullscreen, which is the only place the MP4 is fetched. -->
     {#if hasHeaderMedia}
       <div class="media-center-group">
-        {#if videoMp4Url}
-          <button
-            class="video-play-btn"
-            onclick={(e) => openVideoFullscreen(e)}
-            type="button"
-            aria-label="Play video"
-            data-testid="chat-header-play-btn"
-          >
-            <div class="video-play-icon" aria-hidden="true"></div>
-          </button>
-        {/if}
+        <div class="media-frame" data-testid="chat-header-media-frame">
+          {#if useSlideshow}
+            <div class="header-slideshow" aria-hidden="true">
+              {#each backgroundFrames as frameUrl, i (frameUrl)}
+                <img
+                  class="header-slide"
+                  src={frameUrl}
+                  alt=""
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
+                />
+              {/each}
+            </div>
+          {/if}
+
+          {#if videoMp4Url}
+            <button
+              class="video-play-btn"
+              onclick={(e) => openVideoFullscreen(e)}
+              type="button"
+              aria-label="Play video"
+              data-testid="chat-header-play-btn"
+            >
+              <div class="video-play-icon" aria-hidden="true"></div>
+            </button>
+          {/if}
+        </div>
 
         <div class="loaded-content">
           <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
@@ -1260,27 +1192,33 @@
     .deco-icon-right {
       right: calc(50% - 180px - 70px);
     }
-  }
 
-  /* ─── Background video ──────────────────────────────────────────────────── */
+    .media-frame {
+      height: 60%;
+      max-width: calc(100% - 60px);
+    }
 
-  .header-video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 0;
+    .video-play-btn {
+      width: 56px !important;
+      height: 56px !important;
+    }
+
+    .video-play-icon {
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      border-left: 17px solid rgba(255, 255, 255, 0.95);
+      margin-left: 3px;
+    }
   }
 
   /* ─── Background slideshow (static-image Ken Burns) ─────────────────────────
-     Replaces the autoplay video on the public intro chat to avoid per-visitor
-     video delivery cost. All N frames share the same fade keyframe; each
-     frame's start is offset by a negative animation-delay so they sequence in.
-     Per-frame Ken Burns keyframes (headerSlideKB0–12) give each frame a unique
-     pan/zoom direction. Frame 0 is a locale-specific title card (zoom out).
-     Dark #1a1a1a background prevents gradient bleed.
-     Pure CSS — no JS timers, no IntersectionObserver needed.
+     Renders the intro frames inside the 16:9 .media-frame container. All N
+     frames share the same fade keyframe; each frame's start is offset by a
+     negative animation-delay so they sequence in. Per-frame Ken Burns
+     keyframes (headerSlideKB0–12) give each frame a unique pan/zoom direction.
+     Frame 0 is a locale-specific title card (zoom out). Dark #1a1a1a
+     background prevents gradient bleed during crossfades. Pure CSS — no JS
+     timers, no IntersectionObserver needed.
 
      Crossfade design (13 frames, slot = 7.692% of 104s cycle):
        • Incoming frame uses z-index 2 (on top) while fading in → old frame stays
@@ -1296,7 +1234,7 @@
     height: 100%;
     overflow: hidden;
     z-index: 0;
-    /* Dark fallback so the blue banner gradient never peeks through during crossfades */
+    /* Dark fallback so the parent frame background never peeks through during crossfades */
     background: #1a1a1a;
   }
 
@@ -1455,21 +1393,15 @@
     }
   }
 
-  /* Dark gradient overlay so title text stays readable over the video */
-  .header-video-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.15) 0%,
-      rgba(0, 0, 0, 0.45) 100%
-    );
-    z-index: 1;
-  }
-
   /* ─── Play button ──────────────────────────────────────────────────────── */
 
+  /* Centered absolutely inside .media-frame. The transform combines the
+     centering offset with the hover/active scale so both compose cleanly. */
   .video-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1489,18 +1421,19 @@
     padding: 0 !important;
     margin: 0 !important;
     filter: none !important;
+    z-index: 3;
   }
 
   .video-play-btn:hover {
     background: rgba(255, 255, 255, 0.35) !important;
-    transform: scale(1.06);
+    transform: translate(-50%, -50%) scale(1.06);
     filter: none !important;
     scale: none !important;
   }
 
   .video-play-btn:active {
     background: rgba(255, 255, 255, 0.45) !important;
-    transform: scale(0.97);
+    transform: translate(-50%, -50%) scale(0.97);
     filter: none !important;
     scale: none !important;
   }
@@ -1517,20 +1450,41 @@
 
   /* Video fullscreen is handled by DirectVideoEmbedFullscreen + UnifiedEmbedFullscreen. */
 
-  /* ─── Media header: play button + title stacked and centered ────────────── */
+  /* ─── Media header: 16:9 framed slideshow + title below ──────────────────
+     The slideshow frames live inside a 16:9 rounded container with the play
+     button centered on top. The chat title is rendered below the frame so it
+     is always readable — the frames stay visually contained rather than
+     filling the entire banner. */
 
-  /* Groups the play button and title in a vertical flex column centered over
-     the slideshow/video background. Ensures the title always sits just below
-     the play button rather than at the bottom of the banner. */
   .media-center-group {
     position: relative;
     z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-5);
     pointer-events: auto;
     padding: var(--spacing-4) var(--spacing-8);
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  /* 16:9 rounded container that hosts the slideshow + play button. Height is
+     driven by the banner size so the frame scales responsively; aspect-ratio
+     keeps the 16:9 ratio, and max-width prevents collision with the nav arrows. */
+  .media-frame {
+    position: relative;
+    flex-shrink: 0;
+    aspect-ratio: 16 / 9;
+    height: 65%;
+    max-height: 320px;
+    max-width: calc(100% - 120px);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #1a1a1a;
+    box-shadow: var(--shadow-lg);
   }
 
   /* Scoped override: inside the media group, loaded-content is inline (not
