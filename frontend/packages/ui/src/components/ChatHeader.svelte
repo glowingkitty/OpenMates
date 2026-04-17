@@ -81,6 +81,7 @@
     highlightStats = null,
     /** Called when the user clicks the highlights pill. */
     onHighlightJump = undefined,
+    autoplayVideo = false,
   }: {
     title?: string;
     category?: string | null;
@@ -104,6 +105,8 @@
     highlightStats?: { highlights: number; comments: number } | null;
     /** Click handler for the highlights pill. */
     onHighlightJump?: (() => void) | undefined;
+    /** When true, auto-starts video playback on mount (used by &autoplay-video deep link). */
+    autoplayVideo?: boolean;
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
@@ -143,6 +146,9 @@
 
   onMount(() => {
     if (browser) document.addEventListener('fullscreenchange', handleFullscreenChange);
+    if (autoplayVideo && videoMp4Url) {
+      isVideoActive = true;
+    }
   });
 
   onDestroy(() => {
@@ -464,7 +470,9 @@
          DirectVideoEmbedFullscreen, which is the only place the MP4 is fetched. -->
     {#if hasHeaderMedia}
       <div class="media-center-group">
-        <div class="media-frame" data-testid="chat-header-media-frame">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
           {#if useSlideshow}
             <div class="header-slideshow" aria-hidden="true">
               {#each backgroundFrames as frameUrl, i (frameUrl)}
@@ -1502,6 +1510,8 @@
     overflow: hidden;
     background: #1a1a1a;
     box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    pointer-events: auto;
   }
 
   /* Scoped override: inside the media group, loaded-content is inline (not

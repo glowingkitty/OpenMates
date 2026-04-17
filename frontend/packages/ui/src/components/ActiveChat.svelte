@@ -74,11 +74,6 @@
         skillStoreExampleFullscreenStore,
         closeSkillStoreExampleFullscreen,
     } from '../stores/skillStoreExampleFullscreenStore'; // Synthetic fullscreen state from app-store skill examples
-    import {
-        chatVideoFullscreenStore,
-        closeChatVideoFullscreen,
-    } from '../stores/chatVideoFullscreenStore';
-    import DirectVideoEmbedFullscreen from '../components/embeds/videos/DirectVideoEmbedFullscreen.svelte';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
@@ -2219,6 +2214,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let messageInputHeight = $state(0);
 
     let showWelcome = $state(true);
+    let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
     // Local state for the "Continue where you left off" card on the new chat screen.
@@ -3632,12 +3628,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let forceOverlayMode = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed, wiki, or chat video) AND not forcing overlay mode
-    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $chatVideoFullscreenStore) && !forceOverlayMode);
+    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed or wiki) AND not forcing overlay mode
+    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && !forceOverlayMode);
 
     // Determine if we should show the "Show Chat" button in fullscreen embed views
     // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $chatVideoFullscreenStore) && forceOverlayMode);
+    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -7311,24 +7307,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // ─── Autoplay video deep link ────────────────────────────────────
         // Hash format: #chat-id=<id>&autoplay-video
-        // Triggers fullscreen video playback for chats with video metadata.
+        // Sets a flag so ChatHeader auto-triggers native fullscreen playback on mount.
         if (typeof window !== 'undefined' && window.location.hash.includes('autoplay-video') && currentChat?.chat_id) {
-            const { openChatVideoFullscreen } = await import('../stores/chatVideoFullscreenStore');
-            const { getVideoForLocale } = await import('../demo_chats/data/videos');
-            const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS];
-            const demoChat = allChats.find(c => c.chat_id === currentChat.chat_id);
-            const videoKey = demoChat?.metadata?.video_key;
-            const currentLocale = typeof $locale === 'string' ? $locale : 'en';
-            const videoEntry = videoKey ? getVideoForLocale(videoKey, currentLocale) : null;
-            const mp4Url = videoEntry?.mp4_url ?? demoChat?.metadata?.video_mp4_url;
-            if (mp4Url) {
-                openChatVideoFullscreen({
-                    mp4Url,
-                    title: activeChatDecryptedTitle || '',
-                    chatId: currentChat.chat_id,
-                });
-                console.debug('[ActiveChat] Autoplay video triggered from deep link for chat:', currentChat.chat_id);
-            }
+            pendingAutoplayVideo = true;
+            console.debug('[ActiveChat] Autoplay video flag set from deep link for chat:', currentChat.chat_id);
         }
 
         // Don't set isAtBottom here - it will be updated by handleScrollPositionUI
@@ -10044,6 +10026,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          canAnnotate={!currentChat?.is_shared_by_others}
                          videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
                          backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
+                         autoplayVideo={pendingAutoplayVideo}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
@@ -10453,26 +10436,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/await}
             {/if}
             
-            <!-- Chat video fullscreen — any chat with a video in its metadata.
-                 Uses the same .fullscreen-embed-container as wiki/embed fullscreens
-                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute). -->
-            {#if $chatVideoFullscreenStore}
-                <div
-                    class="fullscreen-embed-container"
-                    class:side-panel={showSideBySideLayout}
-                    class:overlay-mode={!showSideBySideLayout}
-                    data-testid="intro-video-fullscreen"
-                >
-                    <DirectVideoEmbedFullscreen
-                        mp4Url={$chatVideoFullscreenStore.mp4Url}
-                        title={$chatVideoFullscreenStore.title}
-                        onClose={() => {
-                            closeChatVideoFullscreen();
-                            history.replaceState(null, '', window.location.pathname + window.location.search);
-                        }}
-                    />
-                </div>
-            {/if}
+            <!-- Video autoplay is handled by ChatHeader via the autoplayVideo prop.
+                 The &autoplay-video deep link sets pendingAutoplayVideo which is
+                 passed through ChatHistory → ChatHeader → native requestFullscreen. -->
 
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}

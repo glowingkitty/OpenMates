@@ -16,14 +16,14 @@ import type { DemoChat } from "./types";
 // === Generated newsletter chat imports (managed by publish_newsletter.py) ===
 // DO NOT edit the block below by hand. The publisher script appends here.
 // BEGIN_NEWSLETTER_IMPORTS
-import { announcementsApril2026UpdateChat } from "./data/announcements_april_2026_update";
+import { announcementsIntroducingOpenmatesV09Chat } from "./data/announcements_introducing_openmates_v09";
 // END_NEWSLETTER_IMPORTS
 
 /** All newsletter demo chats, active + inactive. Filtered by helpers below. */
 export const ALL_NEWSLETTER_CHATS: DemoChat[] = [
   // === Generated newsletter chat registrations (managed by publisher) ===
   // BEGIN_NEWSLETTER_REGISTRATIONS
-  announcementsApril2026UpdateChat,
+  announcementsIntroducingOpenmatesV09Chat,
 // END_NEWSLETTER_REGISTRATIONS
 ];
 

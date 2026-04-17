@@ -492,6 +492,7 @@
     isExampleChat = false,
     videoMp4Url = null,
     backgroundFrames = null,
+    autoplayVideo = false,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
     canAnnotate = true,
@@ -542,6 +543,8 @@
     /** Background frame image URLs rendered inside the chat header's 16:9 media
      *  frame as a crossfading Ken-Burns slideshow. */
     backgroundFrames?: string[] | null;
+    /** When true, auto-starts video playback on mount (from &autoplay-video deep link). */
+    autoplayVideo?: boolean;
     /** Follow-up suggestions to display below the last assistant message.
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
@@ -1631,6 +1634,7 @@
                 {backgroundFrames}
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
+                {autoplayVideo}
             />
         </div>
     {/if}
