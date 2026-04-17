@@ -257,7 +257,7 @@
 
                 <ul class="chat-list">
                     {#each parsedChats as chat, i}
-                        <li class="chat-item">
+                        <li class="chat-item" data-testid="chat-item">
                             <label class="chat-label">
                                 <input
                                     type="checkbox"
