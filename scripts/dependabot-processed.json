@@ -141,7 +141,7 @@
       "first_seen_at": "2026-04-17T06:30:02Z",
       "last_dispatched_at": "2026-04-17T06:30:02Z",
       "re_dispatch_count": 0,
-      "resolved_via_commit": "pending"
+      "resolved_via_commit": "1cdad0e"
     }
   ]
 }
