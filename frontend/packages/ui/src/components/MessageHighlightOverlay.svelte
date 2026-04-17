@@ -292,8 +292,7 @@
     background: var(--color-highlight-yellow-solid, #ffd500);
   }
   :global(mark.message-highlight-mark.focused) {
-    outline: 2px solid var(--color-highlight-yellow-solid, #ffd500);
-    outline-offset: 1px;
+    background: rgba(255, 213, 0, 0.65);
   }
   /* Comment indicator — a small 💬 chip pinned to the trailing edge of the
      last mark for a highlight. Using ::after on every mark would show a
