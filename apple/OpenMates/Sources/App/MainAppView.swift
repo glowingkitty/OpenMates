@@ -12,6 +12,7 @@ struct MainAppView: View {
     @StateObject private var wsManager = WebSocketManager()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
     @StateObject private var incognitoManager = IncognitoManager()
+    @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showSettings = false
@@ -95,7 +96,10 @@ struct MainAppView: View {
             ToastOverlay()
         }
         .overlay(alignment: .top) {
-            NetworkStatusBanner(wsManager: wsManager)
+            VStack(spacing: 0) {
+                OfflineBanner(isOffline: syncBridge?.networkStatus == .offline)
+                NetworkStatusBanner(wsManager: wsManager)
+            }
         }
         .onOpenURL { url in
             deepLinkHandler.handle(url: url)
@@ -110,6 +114,12 @@ struct MainAppView: View {
             showNewChatSheet = true
         }
         .task {
+            // Initialize offline bridge and load cached data before network
+            let bridge = OfflineSyncBridge(chatStore: chatStore)
+            chatStore.setBridge(bridge)
+            syncBridge = bridge
+            bridge.loadFromDisk()
+
             await loadInitialData()
             connectWebSocket()
         }
@@ -176,11 +186,15 @@ struct MainAppView: View {
                 Button { showNewChatSheet = true } label: {
                     Image(systemName: "square.and.pencil")
                 }
+                .accessibilityIdentifier("new-chat-button")
+                .accessibilityLabel("New chat")
+                .accessibilityHint("Start a new conversation")
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showSearch = true } label: {
                     Label("Search", systemImage: "magnifyingglass")
                 }
+                .accessibilityIdentifier("search-button")
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showExplore = true } label: {
@@ -192,6 +206,8 @@ struct MainAppView: View {
                 Button { showSettings = true } label: {
                     Image(systemName: "gearshape")
                 }
+                .accessibilityIdentifier("settings-button")
+                .accessibilityLabel("Settings")
             }
             #endif
         }

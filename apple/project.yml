@@ -51,6 +51,8 @@ targets:
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          # StoreKit testing configuration for sandbox purchases
+          STOREKIT_CONFIGURATION: OpenMates/Resources/OpenMates.storekit
         Release:
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
     entitlements:
@@ -78,4 +80,46 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-    dependencies: []
+    dependencies:
+      - target: OpenMatesShareExtension
+
+  # Share extension — share URLs, text, and images from other apps into OpenMates chats
+  OpenMatesShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: OpenMatesShareExtension
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesShareExtension/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.share
+        CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+        SWIFT_VERSION: "6.0"
+    entitlements:
+      path: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+
+  # Unit + integration tests (XCTest) — mirrors vitest/pytest suites
+  OpenMatesTests:
+    type: bundle.unit-test
+    platform: [iOS, macOS]
+    sources:
+      - path: OpenMates/Tests/Unit
+    dependencies:
+      - target: OpenMates
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMates/Tests/Info.plist
+        GENERATE_INFOPLIST_FILE: true
+
+  # UI tests (XCUITest) — mirrors Playwright E2E specs
+  OpenMatesUITests:
+    type: bundle.ui-testing
+    platform: [iOS, macOS]
+    sources:
+      - path: OpenMates/Tests/UI
+    dependencies:
+      - target: OpenMates
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMates/Tests/Info.plist
+        GENERATE_INFOPLIST_FILE: true

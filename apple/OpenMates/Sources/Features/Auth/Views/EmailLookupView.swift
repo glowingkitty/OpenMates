@@ -34,6 +34,9 @@ struct EmailLookupView: View {
                     #endif
                     .focused($emailFocused)
                     .onSubmit { performLookup() }
+                    .accessibilityIdentifier("email-input")
+                    .accessibilityLabel("Email address")
+                    .accessibilityHint("Enter your account email")
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -56,6 +59,9 @@ struct EmailLookupView: View {
             }
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(email.isEmpty || isLoading)
+            .accessibilityIdentifier("continue-button")
+            .accessibilityLabel("Continue")
+            .accessibilityHint("Look up login methods for this email")
         }
         .onAppear {
             emailFocused = true

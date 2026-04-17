@@ -1,0 +1,149 @@
+{
+  "identifier" : "org.openmates.storekit",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "1000_CREDITS",
+      "localizations" : [
+        {
+          "description" : "1.000 AI credits for chat, search, and more",
+          "displayName" : "1.000 Credits",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "1.000 KI-Credits für Chat, Suche und mehr",
+          "displayName" : "1.000 Credits",
+          "locale" : "de"
+        }
+      ],
+      "productID" : "org.openmates.credits.1000",
+      "referenceName" : "1000 Credits",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "14.99",
+      "familyShareable" : false,
+      "internalID" : "10000_CREDITS",
+      "localizations" : [
+        {
+          "description" : "10.000 AI credits — +500 bonus with monthly auto top-up",
+          "displayName" : "10.000 Credits",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "10.000 KI-Credits — +500 Bonus bei monatlicher Aufladung",
+          "displayName" : "10.000 Credits",
+          "locale" : "de"
+        }
+      ],
+      "productID" : "org.openmates.credits.10000",
+      "referenceName" : "10000 Credits",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "29.99",
+      "familyShareable" : false,
+      "internalID" : "21000_CREDITS",
+      "localizations" : [
+        {
+          "description" : "21.000 AI credits — Best value! +1.000 bonus with monthly auto top-up",
+          "displayName" : "21.000 Credits",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "21.000 KI-Credits — Bestes Angebot! +1.000 Bonus bei monatlicher Aufladung",
+          "displayName" : "21.000 Credits",
+          "locale" : "de"
+        }
+      ],
+      "productID" : "org.openmates.credits.21000",
+      "referenceName" : "21000 Credits",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "59.99",
+      "familyShareable" : false,
+      "internalID" : "54000_CREDITS",
+      "localizations" : [
+        {
+          "description" : "54.000 AI credits — +3.000 bonus with monthly auto top-up",
+          "displayName" : "54.000 Credits",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "54.000 KI-Credits — +3.000 Bonus bei monatlicher Aufladung",
+          "displayName" : "54.000 Credits",
+          "locale" : "de"
+        }
+      ],
+      "productID" : "org.openmates.credits.54000",
+      "referenceName" : "54000 Credits",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "openmates",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Price Increase Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

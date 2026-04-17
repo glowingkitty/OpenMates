@@ -1,6 +1,6 @@
-// Full settings screen — mirrors the web app's 16-category settings panel.
+// Full settings screen — mirrors the web app's settings panel from settingsRoutes.ts.
 // Uses List with sections for native iOS/macOS settings feel.
-// Links to sub-pages for each category.
+// All categories link to native sub-pages; payment processing redirects to web.
 
 import SwiftUI
 
@@ -8,21 +8,45 @@ struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.dismiss) var dismiss
+    @State private var showIncognitoInfo = false
+
+    private var isAuthenticated: Bool { authManager.currentUser != nil }
+    private var isAdmin: Bool { authManager.currentUser?.isAdmin == true }
 
     var body: some View {
         NavigationStack {
             List {
-                accountSection
+                if !isAuthenticated {
+                    pricingSection
+                }
+                if isAuthenticated {
+                    profileSection
+                }
                 aiSection
-                billingSection
-                securitySection
                 privacySection
-                appearanceSection
-                notificationsSection
-                developerSection
+                matesSection
+                if isAuthenticated {
+                    billingSection
+                    notificationsSection
+                    sharedSection
+                }
+                interfaceSection
+                if isAuthenticated {
+                    accountSection
+                    securitySection
+                    developerSection
+                }
+                newsletterSection
                 supportSection
+                reportIssueSection
+                if isAdmin {
+                    serverSection
+                    logsSection
+                }
                 aboutSection
-                logoutSection
+                if isAuthenticated {
+                    logoutSection
+                }
             }
             .navigationTitle("Settings")
             #if os(iOS)
@@ -33,12 +57,29 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .sheet(isPresented: $showIncognitoInfo) {
+                NavigationStack {
+                    SettingsIncognitoInfoView(
+                        onActivate: {
+                            showIncognitoInfo = false
+                            // Post notification to activate incognito mode
+                            NotificationCenter.default.post(name: .incognitoActivated, object: nil)
+                        },
+                        onCancel: { showIncognitoInfo = false }
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { showIncognitoInfo = false }
+                        }
+                    }
+                }
+            }
         }
     }
 
-    // MARK: - Account
+    // MARK: - Profile + Quick Settings
 
-    private var accountSection: some View {
+    private var profileSection: some View {
         Section {
             if let user = authManager.currentUser {
                 HStack(spacing: .spacing4) {
@@ -60,42 +101,23 @@ struct SettingsView: View {
                 }
             }
 
-            NavigationLink {
-                SettingsAccountDetailView()
+            // Incognito quick toggle
+            Button {
+                showIncognitoInfo = true
             } label: {
-                Label("Account", systemImage: "person.circle")
+                Label("Incognito Mode", systemImage: "eye.slash")
             }
-
-            NavigationLink {
-                SettingsUsageView()
-            } label: {
-                Label("Usage", systemImage: "chart.bar")
-            }
-
-            NavigationLink {
-                SettingsStorageFullView()
-            } label: {
-                Label("Storage", systemImage: "internaldrive")
-            }
-
-            NavigationLink {
-                ChatImportView()
-            } label: {
-                Label("Import Chats", systemImage: "square.and.arrow.down")
-            }
-        } header: {
-            Text("Account")
         }
     }
 
-    // MARK: - AI
+    // MARK: - AI (model selection, providers, memories)
 
     private var aiSection: some View {
         Section("AI") {
             NavigationLink {
                 SettingsAIFullView()
             } label: {
-                Label("AI Model", systemImage: "brain")
+                Label("AI Model & Providers", systemImage: "brain")
             }
 
             NavigationLink {
@@ -112,32 +134,161 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Privacy
+
+    private var privacySection: some View {
+        Section("Privacy") {
+            NavigationLink {
+                SettingsHidePersonalDataView()
+            } label: {
+                Label("Hide Personal Data", systemImage: "eye.slash")
+            }
+
+            NavigationLink {
+                SettingsAutoDeleteView()
+            } label: {
+                Label("Auto-Delete Chats", systemImage: "trash.circle")
+            }
+
+            NavigationLink {
+                SettingsShareDebugLogsView()
+            } label: {
+                Label("Share Debug Logs", systemImage: "ladybug")
+            }
+        }
+    }
+
+    // MARK: - Mates
+
+    private var matesSection: some View {
+        Section("Mates") {
+            NavigationLink {
+                SettingsMatesView()
+            } label: {
+                Label("AI Mates", systemImage: "person.2")
+            }
+        }
+    }
+
     // MARK: - Billing
 
     private var billingSection: some View {
         Section("Billing") {
-            Button {
-                openWebPage("settings/billing/buy-credits")
+            NavigationLink {
+                SettingsBillingView()
             } label: {
-                Label("Buy Credits", systemImage: "creditcard")
+                Label("Billing & Credits", systemImage: "creditcard")
             }
+        }
+    }
 
-            Button {
-                openWebPage("settings/billing/auto-topup")
-            } label: {
-                Label("Auto Top-Up", systemImage: "arrow.triangle.2.circlepath")
-            }
+    // MARK: - Notifications
 
-            Button {
-                openWebPage("settings/billing/invoices")
+    private var notificationsSection: some View {
+        Section("Notifications") {
+            NavigationLink {
+                SettingsNotificationsView()
             } label: {
-                Label("Invoices", systemImage: "doc.text")
+                Label("Chat Notifications", systemImage: "bell")
             }
 
             NavigationLink {
-                SettingsGiftCardsView()
+                SettingsBackupRemindersView()
             } label: {
-                Label("Gift Cards", systemImage: "gift")
+                Label("Backup Reminders", systemImage: "clock.arrow.circlepath")
+            }
+        }
+    }
+
+    // MARK: - Shared
+
+    private var sharedSection: some View {
+        Section("Shared") {
+            NavigationLink {
+                SettingsSharedView()
+            } label: {
+                Label("Shared Chats", systemImage: "person.2.wave.2")
+            }
+        }
+    }
+
+    // MARK: - Interface
+
+    private var interfaceSection: some View {
+        Section("Interface") {
+            Picker(selection: $themeManager.themeMode) {
+                Text("System").tag(ThemeManager.ThemeMode.auto)
+                Text("Light").tag(ThemeManager.ThemeMode.light)
+                Text("Dark").tag(ThemeManager.ThemeMode.dark)
+            } label: {
+                Label("Theme", systemImage: "circle.lefthalf.filled")
+            }
+
+            NavigationLink {
+                SettingsLanguageView()
+            } label: {
+                Label("Language", systemImage: "globe")
+            }
+        }
+    }
+
+    // MARK: - Account
+
+    private var accountSection: some View {
+        Section("Account") {
+            NavigationLink {
+                SettingsAccountDetailView()
+            } label: {
+                Label("Username & Timezone", systemImage: "person.circle")
+            }
+
+            NavigationLink {
+                SettingsEmailView()
+            } label: {
+                Label("Email", systemImage: "envelope")
+            }
+
+            NavigationLink {
+                SettingsProfilePictureView()
+            } label: {
+                Label("Profile Picture", systemImage: "photo.circle")
+            }
+
+            NavigationLink {
+                SettingsUsageView()
+            } label: {
+                Label("Usage", systemImage: "chart.bar")
+            }
+
+            NavigationLink {
+                SettingsStorageFullView()
+            } label: {
+                Label("Storage", systemImage: "internaldrive")
+            }
+
+            NavigationLink {
+                SettingsAccountChatsView()
+            } label: {
+                Label("Chats", systemImage: "bubble.left.and.bubble.right")
+            }
+
+            NavigationLink {
+                ChatImportView()
+            } label: {
+                Label("Import Chats", systemImage: "square.and.arrow.down")
+            }
+
+            NavigationLink {
+                SettingsExportAccountView()
+            } label: {
+                Label("Export Data", systemImage: "square.and.arrow.up")
+            }
+
+            NavigationLink {
+                SettingsDeleteAccountView()
+            } label: {
+                Label("Delete Account", systemImage: "trash")
+                    .foregroundStyle(Color.error)
             }
         }
     }
@@ -175,61 +326,11 @@ struct SettingsView: View {
             } label: {
                 Label("Active Sessions", systemImage: "desktopcomputer")
             }
-        }
-    }
-
-    // MARK: - Privacy
-
-    private var privacySection: some View {
-        Section("Privacy") {
-            NavigationLink {
-                SettingsPrivacyView()
-            } label: {
-                Label("Hide Personal Data", systemImage: "eye.slash")
-            }
 
             NavigationLink {
-                SettingsAutoDeleteView()
+                SettingsPairInitiateView()
             } label: {
-                Label("Auto-Delete Chats", systemImage: "trash.circle")
-            }
-        }
-    }
-
-    // MARK: - Appearance
-
-    private var appearanceSection: some View {
-        Section("Appearance") {
-            Picker(selection: $themeManager.themeMode) {
-                Text("System").tag(ThemeManager.ThemeMode.auto)
-                Text("Light").tag(ThemeManager.ThemeMode.light)
-                Text("Dark").tag(ThemeManager.ThemeMode.dark)
-            } label: {
-                Label("Theme", systemImage: "circle.lefthalf.filled")
-            }
-
-            NavigationLink {
-                SettingsLanguageView()
-            } label: {
-                Label("Language", systemImage: "globe")
-            }
-        }
-    }
-
-    // MARK: - Notifications
-
-    private var notificationsSection: some View {
-        Section("Notifications") {
-            NavigationLink {
-                SettingsNotificationsView()
-            } label: {
-                Label("Chat Notifications", systemImage: "bell")
-            }
-
-            NavigationLink {
-                SettingsBackupRemindersView()
-            } label: {
-                Label("Backup Reminders", systemImage: "clock.arrow.circlepath")
+                Label("Pair New Device", systemImage: "qrcode")
             }
         }
     }
@@ -239,9 +340,33 @@ struct SettingsView: View {
     private var developerSection: some View {
         Section("Developers") {
             NavigationLink {
-                SettingsDeveloperView()
+                SettingsAPIKeysView()
             } label: {
-                Label("API Keys & Webhooks", systemImage: "terminal")
+                Label("API Keys", systemImage: "key")
+            }
+
+            NavigationLink {
+                SettingsDevicesView()
+            } label: {
+                Label("Devices", systemImage: "laptopcomputer.and.iphone")
+            }
+
+            NavigationLink {
+                SettingsWebhooksView()
+            } label: {
+                Label("Webhooks", systemImage: "arrow.triangle.branch")
+            }
+        }
+    }
+
+    // MARK: - Newsletter
+
+    private var newsletterSection: some View {
+        Section("Newsletter") {
+            NavigationLink {
+                NewsletterSettingsView()
+            } label: {
+                Label("Newsletter", systemImage: "envelope.open")
             }
         }
     }
@@ -250,22 +375,58 @@ struct SettingsView: View {
 
     private var supportSection: some View {
         Section("Support") {
-            Button {
-                openWebPage("settings/support")
+            NavigationLink {
+                SettingsSupportView()
             } label: {
                 Label("Support OpenMates", systemImage: "heart")
             }
+        }
+    }
 
-            Button {
-                openWebPage("settings/newsletter")
-            } label: {
-                Label("Newsletter", systemImage: "envelope")
-            }
+    // MARK: - Report Issue
 
-            Button {
-                openWebPage("settings/report-issue")
+    private var reportIssueSection: some View {
+        Section {
+            NavigationLink {
+                ReportIssueView()
             } label: {
                 Label("Report an Issue", systemImage: "exclamationmark.bubble")
+            }
+        }
+    }
+
+    // MARK: - Pricing (non-authenticated)
+
+    private var pricingSection: some View {
+        Section("Pricing") {
+            NavigationLink {
+                SettingsPricingView()
+            } label: {
+                Label("Credit Packages", systemImage: "tag")
+            }
+        }
+    }
+
+    // MARK: - Server (admin only)
+
+    private var serverSection: some View {
+        Section("Server") {
+            NavigationLink {
+                SettingsServerView()
+            } label: {
+                Label("Server Admin", systemImage: "server.rack")
+            }
+        }
+    }
+
+    // MARK: - Logs (admin only)
+
+    private var logsSection: some View {
+        Section {
+            NavigationLink {
+                SettingsLogsView()
+            } label: {
+                Label("Logs", systemImage: "doc.text.magnifyingglass")
             }
         }
     }
@@ -316,17 +477,86 @@ struct SettingsView: View {
             }
         }
     }
+}
 
-    // MARK: - Helpers
+// MARK: - Delete Account
 
-    private func openWebPage(_ path: String) {
+struct SettingsDeleteAccountView: View {
+    @EnvironmentObject var authManager: AuthManager
+    @State private var password = ""
+    @State private var confirmText = ""
+    @State private var isDeleting = false
+    @State private var error: String?
+
+    private var canDelete: Bool {
+        !password.isEmpty && confirmText.lowercased() == "delete my account"
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Text("This action is permanent and cannot be undone. All your data including chats, messages, embeds, and memories will be permanently deleted.")
+                    .font(.omSmall).foregroundStyle(Color.error)
+            }
+
+            Section("Confirm Identity") {
+                SecureField("Enter your password", text: $password)
+                    .textContentType(.password)
+
+                TextField("Type \"delete my account\" to confirm", text: $confirmText)
+                    .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    deleteAccount()
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isDeleting {
+                            ProgressView()
+                        } else {
+                            Text("Permanently Delete Account")
+                                .fontWeight(.medium)
+                        }
+                        Spacer()
+                    }
+                }
+                .disabled(!canDelete || isDeleting)
+            }
+
+            if let error {
+                Section {
+                    Text(error).font(.omSmall).foregroundStyle(Color.error)
+                }
+            }
+        }
+        .navigationTitle("Delete Account")
+    }
+
+    private func deleteAccount() {
+        isDeleting = true
+        error = nil
         Task {
-            let url = await APIClient.shared.webAppURL.appendingPathComponent(path)
-            #if os(iOS)
-            await UIApplication.shared.open(url)
-            #elseif os(macOS)
-            NSWorkspace.shared.open(url)
-            #endif
+            do {
+                let _: Data = try await APIClient.shared.request(
+                    .post, path: "/v1/settings/account/delete",
+                    body: ["password": password]
+                )
+                await authManager.logout()
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isDeleting = false
         }
     }
+}
+
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let incognitoActivated = Notification.Name("openmates.incognitoActivated")
 }

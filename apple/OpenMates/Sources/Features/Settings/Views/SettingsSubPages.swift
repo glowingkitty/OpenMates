@@ -684,45 +684,48 @@ struct SettingsAutoDeleteView: View {
 // MARK: - Language
 
 struct SettingsLanguageView: View {
-    @State private var selectedLanguage = "en"
-
-    private let languages = [
-        ("en", "English"), ("de", "Deutsch"), ("fr", "Français"),
-        ("es", "Español"), ("it", "Italiano"), ("pt", "Português"),
-        ("nl", "Nederlands"), ("pl", "Polski"), ("ja", "日本語"),
-        ("ko", "한국어"), ("zh", "中文"), ("ar", "العربية"),
-        ("ru", "Русский"), ("tr", "Türkçe"), ("hi", "हिन्दी"),
-        ("sv", "Svenska"), ("da", "Dansk"), ("fi", "Suomi"),
-        ("nb", "Norsk"), ("cs", "Čeština"), ("ro", "Română"),
-        ("uk", "Українська"), ("th", "ไทย"), ("vi", "Tiếng Việt")
-    ]
+    @ObservedObject private var locManager = LocalizationManager.shared
+    @EnvironmentObject var authManager: AuthManager
 
     var body: some View {
         List {
-            ForEach(languages, id: \.0) { code, name in
+            ForEach(SupportedLanguage.allCases) { language in
                 Button {
-                    selectedLanguage = code
-                    saveLanguage(code)
+                    switchLanguage(language)
                 } label: {
                     HStack {
-                        Text(name).foregroundStyle(Color.fontPrimary)
+                        Text(language.name).foregroundStyle(Color.fontPrimary)
+                        if language.isRTL {
+                            Text("RTL")
+                                .font(.omTiny).foregroundStyle(Color.fontTertiary)
+                                .padding(.horizontal, .spacing2)
+                                .padding(.vertical, 1)
+                                .background(Color.grey10)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                        }
                         Spacer()
-                        if selectedLanguage == code {
+                        if locManager.currentLanguage == language {
                             Image(systemName: "checkmark").foregroundStyle(Color.buttonPrimary)
                         }
                     }
                 }
             }
         }
-        .navigationTitle("Language")
+        .navigationTitle(AppStrings.settingsInterface)
+        .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
     }
 
-    private func saveLanguage(_ code: String) {
+    private func switchLanguage(_ language: SupportedLanguage) {
         Task {
-            try? await APIClient.shared.request(
-                .post, path: "/v1/settings/user/language",
-                body: ["language": code]
-            ) as Data
+            await locManager.setLanguage(language)
+
+            // Persist to backend if authenticated
+            if authManager.currentUser != nil {
+                try? await APIClient.shared.request(
+                    .post, path: "/v1/settings/user/language",
+                    body: ["language": language.code]
+                ) as Data
+            }
         }
     }
 }

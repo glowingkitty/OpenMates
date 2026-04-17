@@ -12,8 +12,16 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+
+	<!-- Privacy usage descriptions (shown in system permission dialogs) -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>OpenMates uses Face ID to securely unlock your account and verify your identity.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OpenMates needs access to your photos to attach images to chats, set your profile picture, or include screenshots in issue reports.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OpenMates needs microphone access to record voice messages in your chats.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>OpenMates needs camera access to take photos for chat attachments.</string>
 
 	<!-- Custom font registration -->
 	<key>UIAppFonts</key>
@@ -29,6 +37,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>fetch</string>
 	</array>
 
 	<!-- Launch screen -->
@@ -49,5 +58,17 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- iPad multitasking: enable full support for Split View, Slide Over, Stage Manager -->
+	<key>UIRequiresFullScreen</key>
+	<false/>
+	<key>UISupportsMultipleScenes</key>
+	<true/>
+
+	<!-- Export compliance: app uses encryption (AES-GCM for E2EE) -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<true/>
+	<key>ITSEncryptionExportComplianceCode</key>
+	<string></string>
 </dict>
 </plist>

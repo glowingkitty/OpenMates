@@ -71,11 +71,14 @@ struct SessionResponse: Decodable {
 struct UserProfile: Decodable, Identifiable {
     let id: String
     let username: String
+    let email: String?
     let credits: Double?
     let language: String?
     let darkmode: Bool?
     let timezone: String?
     let lastOpened: String?
+    let profileImageUrl: String?
+    let isAdmin: Bool?
 }
 
 // MARK: - Passkey

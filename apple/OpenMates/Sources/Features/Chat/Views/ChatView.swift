@@ -149,10 +149,14 @@ struct ChatView: View {
             }
             .font(.omXs)
             .foregroundStyle(Color.error)
+            .accessibilityLabel("Stop AI response")
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing2)
         .background(Color.grey10)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("AI is responding")
+        .accessibilityValue("Streaming in progress")
     }
 
     // MARK: - Input bar
@@ -181,6 +185,8 @@ struct ChatView: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius5))
                     .focused($isInputFocused)
                     .onSubmit { sendMessage() }
+                    .accessibilityLabel("Chat message input")
+                    .accessibilityHint("Type a message to send")
 
                 if messageText.isEmpty && !viewModel.isStreaming {
                     VoiceRecordingButton { url in
@@ -199,6 +205,8 @@ struct ChatView: View {
                             )
                     }
                     .disabled(messageText.isEmpty || viewModel.isStreaming)
+                    .accessibilityLabel("Send message")
+                    .accessibilityHint(messageText.isEmpty ? "Type a message first" : "Sends your message")
                     #if os(macOS)
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
@@ -266,6 +274,9 @@ struct MessageBubble: View {
 
             if !isUser { Spacer(minLength: 40) }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
+        .accessibilityHint("Long press for options")
     }
 }
 

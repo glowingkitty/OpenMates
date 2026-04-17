@@ -32,6 +32,12 @@ struct EmbedPreviewCard: View {
         }
         .buttonStyle(.plain)
         .disabled(embed.status == .processing)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("embed-preview")
+        .accessibilityLabel("\(embed.title ?? embed.embedType) embed")
+        .accessibilityValue(embed.status == .processing ? "Loading" : "Ready")
+        .accessibilityHint("Double tap to open fullscreen")
+        .accessibilityAddTraits(.isButton)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in isPressed = true }

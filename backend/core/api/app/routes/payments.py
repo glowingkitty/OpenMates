@@ -251,6 +251,21 @@ class ProcessPaymentWithSavedMethodResponse(BaseModel):
     client_secret: Optional[str] = None
     message: Optional[str] = None
 
+class AppleVerifyTransactionRequest(BaseModel):
+    transaction_id: str
+    original_transaction_id: str
+    product_id: str
+    credits: int
+    environment: str  # "Production" or "Sandbox"
+    signed_date: Optional[str] = None
+    storefront: Optional[str] = None
+
+class AppleVerifyTransactionResponse(BaseModel):
+    success: bool
+    credits_added: int = 0
+    current_credits: float = 0
+    message: str = ""
+
 PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 PRICING_TIERS = []
 try:
@@ -391,6 +406,204 @@ async def get_payment_config(
     except Exception as e:
         logger.error(f"Error fetching payment config: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
+
+@router.post("/apple/verify-transaction", response_model=AppleVerifyTransactionResponse)
+@limiter.limit("10/minute")
+async def verify_apple_transaction(
+    request: Request,
+    tx_data: AppleVerifyTransactionRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    secrets_manager: SecretsManager = Depends(get_secrets_manager),
+    tier_service: PaymentTierService = Depends(get_payment_tier_service),
+):
+    """
+    Verify and fulfill an Apple StoreKit 2 in-app purchase.
+
+    Called by the iOS/macOS app after a successful StoreKit purchase. The app sends
+    the transaction details; we verify with Apple's App Store Server API, then add
+    credits to the user's balance.
+
+    Flow:
+    1. Check idempotency (prevent double-fulfillment)
+    2. Verify transaction with Apple's API
+    3. Add credits to user balance
+    4. Broadcast credit update via WebSocket
+    5. Log for compliance
+    """
+    user_id = current_user.id
+
+    try:
+        from backend.core.api.app.services.payment.apple_iap_service import (
+            AppleIAPService,
+        )
+
+        # Load Apple API credentials from Vault
+        apple_secrets_path = "kv/data/providers/apple_iap"
+        bundle_id = await secrets_manager.get_secret(secret_path=apple_secrets_path, secret_key="bundle_id")
+        issuer_id = await secrets_manager.get_secret(secret_path=apple_secrets_path, secret_key="issuer_id")
+        key_id = await secrets_manager.get_secret(secret_path=apple_secrets_path, secret_key="key_id")
+        private_key = await secrets_manager.get_secret(secret_path=apple_secrets_path, secret_key="private_key")
+
+        if not all([bundle_id, issuer_id, key_id, private_key]):
+            logger.error("Apple IAP credentials not configured in Vault")
+            raise HTTPException(status_code=503, detail="Apple payment verification unavailable")
+
+        apple_service = AppleIAPService(
+            bundle_id=bundle_id,
+            issuer_id=issuer_id,
+            key_id=key_id,
+            private_key=private_key,
+        )
+
+        # Step 1: Idempotency check
+        is_new = await apple_service.check_transaction_not_already_processed(
+            tx_data.transaction_id, cache_service
+        )
+        if not is_new:
+            logger.info(f"Apple IAP tx {tx_data.transaction_id} already processed for user {user_id}")
+            user_cache = await cache_service.get_user_by_id(user_id) or {}
+            return AppleVerifyTransactionResponse(
+                success=True,
+                credits_added=0,
+                current_credits=user_cache.get("credits", 0),
+                message="Transaction already processed",
+            )
+
+        # Step 2: Verify with Apple
+        verified = await apple_service.verify_transaction(
+            transaction_id=tx_data.transaction_id,
+            original_transaction_id=tx_data.original_transaction_id,
+            product_id=tx_data.product_id,
+            claimed_credits=tx_data.credits,
+            environment=tx_data.environment,
+            signed_date=tx_data.signed_date,
+            storefront=tx_data.storefront,
+        )
+
+        if not verified.is_valid:
+            logger.warning(
+                f"Apple IAP verification failed for tx {tx_data.transaction_id}: {verified.error}"
+            )
+            raise HTTPException(status_code=400, detail=f"Transaction verification failed: {verified.error}")
+
+        credits_to_add = verified.credits
+
+        # Step 3: Add credits to user balance
+        user_cache_data = await cache_service.get_user_by_id(user_id)
+        if user_cache_data is None:
+            user_cache_data = {}
+
+        vault_key_id = user_cache_data.get("vault_key_id")
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing from cache for user {user_id}")
+            raise HTTPException(status_code=500, detail="Account encryption key unavailable")
+
+        current_credits = user_cache_data.get("credits")
+        if current_credits is None:
+            logger.error(f"Credits field missing from cache for user {user_id}")
+            raise HTTPException(status_code=500, detail="Could not read current balance")
+
+        new_total = current_credits + credits_to_add
+        new_encrypted, _ = await encryption_service.encrypt_with_user_key(str(new_total), vault_key_id)
+        update_success = await directus_service.update_user(
+            user_id, {"encrypted_credit_balance": new_encrypted}
+        )
+
+        if not update_success:
+            logger.error(f"Failed to update credits in Directus for user {user_id}")
+            raise HTTPException(status_code=500, detail="Failed to update credit balance")
+
+        # Step 4: Mark transaction as processed (idempotency)
+        await apple_service.mark_transaction_processed(
+            tx_data.transaction_id, user_id, credits_to_add, cache_service
+        )
+
+        # Update cache
+        user_cache_data["credits"] = new_total
+        await cache_service.set_user(user_cache_data, user_id=user_id)
+
+        # Step 5: Broadcast credit update via WebSocket
+        try:
+            await cache_service.publish_event(
+                channel=f"user_updates::{user_id}",
+                event_data={
+                    "event_for_client": "user_credits_updated",
+                    "user_id_uuid": user_id,
+                    "payload": {"credits": new_total},
+                },
+            )
+            await manager.broadcast_to_user_specific_event(
+                user_id=user_id,
+                event_name="user_credits_updated",
+                payload={"credits": new_total},
+            )
+        except Exception as ws_err:
+            logger.error(f"WebSocket broadcast error after Apple IAP for user {user_id}: {ws_err}")
+
+        # Step 6: Update server stats
+        try:
+            server_stats_service = request.app.state.server_stats_service
+            if server_stats_service:
+                await server_stats_service.increment_stat("credits_sold", credits_to_add)
+                await server_stats_service.update_liability(credits_to_add)
+                await server_stats_service.increment_stat("purchase_count")
+                await server_stats_service.increment_json_stat("purchases_by_provider", "apple_iap")
+        except Exception as stats_err:
+            logger.error(f"Stats update error after Apple IAP: {stats_err}")
+
+        # Step 7: Update tier system
+        try:
+            payment_datetime = datetime.now(timezone.utc)
+            await tier_service.handle_successful_payment(
+                user_id=user_id, payment_date=payment_datetime
+            )
+        except Exception as tier_err:
+            logger.error(f"Tier update error after Apple IAP for user {user_id}: {tier_err}")
+
+        # Step 8: Compliance logging
+        try:
+            ComplianceService.log_financial_transaction(
+                user_id=user_id,
+                transaction_type="apple_iap_credit_purchase",
+                amount=credits_to_add,
+                currency="usd",
+                status="success",
+                details={
+                    "apple_transaction_id": tx_data.transaction_id,
+                    "apple_original_transaction_id": tx_data.original_transaction_id,
+                    "product_id": tx_data.product_id,
+                    "environment": tx_data.environment,
+                    "storefront": tx_data.storefront,
+                    "provider": "apple_iap",
+                },
+            )
+        except Exception as compliance_err:
+            logger.error(f"Compliance log error after Apple IAP: {compliance_err}")
+
+        logger.info(
+            f"Apple IAP fulfilled: user={user_id}, tx={tx_data.transaction_id}, "
+            f"product={tx_data.product_id}, credits={credits_to_add}, new_total={new_total}"
+        )
+
+        return AppleVerifyTransactionResponse(
+            success=True,
+            credits_added=credits_to_add,
+            current_credits=new_total,
+            message="Credits added successfully",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Apple IAP verification error for user {user_id}, tx {tx_data.transaction_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Internal server error during payment verification")
+
 
 @router.post("/create-order", response_model=CreateOrderResponse)
 @limiter.limit("10/minute")  # Sensitive endpoint - prevent abuse while allowing retries

@@ -45,5 +45,9 @@ struct ChatListRow: View {
             }
         }
         .padding(.vertical, .spacing1)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("chat-item-wrapper")
+        .accessibilityLabel("\(chat.displayTitle)\(chat.isPinned == true ? ", pinned" : "")")
+        .accessibilityHint("Double tap to open, long press for options")
     }
 }

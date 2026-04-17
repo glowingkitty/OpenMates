@@ -10,6 +10,8 @@ struct OpenMatesApp: App {
     @StateObject private var authManager = AuthManager()
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var pushManager = PushNotificationManager.shared
+    @StateObject private var locManager = LocalizationManager.shared
+    @StateObject private var offlineStore = OfflineStore.shared
 
     #if os(iOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -27,14 +29,24 @@ struct OpenMatesApp: App {
                 .environmentObject(authManager)
                 .environmentObject(themeManager)
                 .environmentObject(pushManager)
+                .environmentObject(locManager)
+                .environmentObject(offlineStore)
                 .preferredColorScheme(themeManager.resolvedScheme)
+                .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
                 .task {
+                    await locManager.restoreSavedLanguage()
                     await authManager.checkSession()
                 }
                 .onChange(of: authManager.state) { _, newState in
                     if case .authenticated = newState {
                         Task {
                             let _ = await pushManager.requestPermission()
+                        }
+                        // Sync language from user profile
+                        if let lang = authManager.currentUser?.language,
+                           let supported = SupportedLanguage.from(code: lang),
+                           supported != locManager.currentLanguage {
+                            Task { await locManager.setLanguage(supported) }
                         }
                     }
                 }
@@ -73,6 +85,17 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Task { @MainActor in
             PushNotificationManager.shared.handleRegistrationError(error)
         }
+    }
+
+    // iPad multitasking: register SceneDelegate for Split View / Slide Over / Stage Manager
+    func application(
+        _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let config = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        config.delegateClass = SceneDelegate.self
+        return config
     }
 }
 #elseif os(macOS)

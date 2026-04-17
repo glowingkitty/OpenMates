@@ -27,6 +27,12 @@
 	<key>com.apple.developer.authentication-services.autofill-credential-provider</key>
 	<true/>
 
+	<!-- App group for shared data between main app and extensions -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.org.openmates.app</string>
+	</array>
+
 	<!-- Push notifications (APNs) -->
 	<key>aps-environment</key>
 	<string>development</string>

@@ -42,6 +42,8 @@ struct PasswordLoginView: View {
                         if showTfaField { focusedField = .tfa }
                         else { performLogin() }
                     }
+                    .accessibilityIdentifier("password-input")
+                    .accessibilityLabel("Password")
 
                 if showTfaField {
                     TextField("Authenticator code", text: $tfaCode)
@@ -50,6 +52,8 @@ struct PasswordLoginView: View {
                         .focused($focusedField, equals: .tfa)
                         .onSubmit { performLogin() }
                         .transition(.move(edge: .top).combined(with: .opacity))
+                        .accessibilityIdentifier("tfa-code-input")
+                        .accessibilityLabel("Two-factor authentication code")
                 }
 
                 if let errorMessage {
@@ -78,6 +82,8 @@ struct PasswordLoginView: View {
             }
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(password.isEmpty || isLoading)
+            .accessibilityIdentifier("login-button")
+            .accessibilityLabel("Log in")
 
             // Recovery options
             VStack(spacing: .spacing3) {
