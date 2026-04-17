@@ -22,6 +22,8 @@ struct MainAppView: View {
     @State private var showShareChat = false
     @State private var showHiddenChats = false
     @State private var hiddenChatsUnlocked = false
+    @State private var showPairAuthorize = false
+    @State private var pairToken: String?
     @State private var searchText = ""
     @State private var dailyInspiration: DailyInspirationBanner.DailyInspiration?
     @State private var totalChatCount = 0
@@ -108,6 +110,18 @@ struct MainAppView: View {
             if let chatId {
                 selectedChatId = chatId
                 deepLinkHandler.clearPending()
+            }
+        }
+        .onChange(of: deepLinkHandler.pendingPairToken) { _, token in
+            if let token {
+                pairToken = token
+                showPairAuthorize = true
+                deepLinkHandler.pendingPairToken = nil
+            }
+        }
+        .sheet(isPresented: $showPairAuthorize) {
+            if let pairToken {
+                CLIPairAuthorizeView(token: pairToken)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in

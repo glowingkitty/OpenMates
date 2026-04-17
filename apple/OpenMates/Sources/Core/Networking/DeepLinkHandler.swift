@@ -13,6 +13,7 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingShareKey: String?
     @Published var pendingSettingsPath: String?
     @Published var pendingAppId: String?
+    @Published var pendingPairToken: String?
 
     func handle(url: URL) {
         if url.scheme == "openmates" {
@@ -54,8 +55,9 @@ final class DeepLinkHandler: ObservableObject {
             pendingShareChatId = shareChatId
             pendingShareKey = params["key"]
         } else if let pairToken = params["pair-login"] {
-            // Device pairing handled separately
-            _ = pairToken
+            pendingPairToken = pairToken
+        } else if let pairToken = params["pair"] {
+            pendingPairToken = pairToken
         }
 
         // Path-based routing
@@ -63,6 +65,15 @@ final class DeepLinkHandler: ObservableObject {
             pendingShareChatId = String(path.dropFirst("/share/chat/".count))
         } else if path.hasPrefix("/share/embed/") {
             // Embed share - open in browser for now
+        } else if path.hasPrefix("/pair") {
+            // /pair?code=TOKEN or /pair/TOKEN
+            if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+               let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
+                pendingPairToken = code
+            } else {
+                let token = String(path.dropFirst("/pair/".count))
+                if !token.isEmpty { pendingPairToken = token }
+            }
         } else if path.hasPrefix("/legal/") {
             pendingSettingsPath = "legal"
         }
@@ -87,5 +98,6 @@ final class DeepLinkHandler: ObservableObject {
         pendingShareKey = nil
         pendingSettingsPath = nil
         pendingAppId = nil
+        pendingPairToken = nil
     }
 }
