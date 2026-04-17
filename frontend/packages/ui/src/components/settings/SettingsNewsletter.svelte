@@ -12,9 +12,10 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import InputWarning from '../common/InputWarning.svelte';
-    import { SettingsInput, SettingsInfoBox, SettingsItem } from './elements';
+    import { SettingsInput, SettingsInfoBox, SettingsConsentToggle, SettingsSectionHeading, SettingsButton, SettingsGradientLink } from './elements';
     import { replaceState } from '$app/navigation';
     import { authStore } from '../../stores/authStore';
+    import { notificationStore } from '../../stores/notificationStore';
 
     // Category toggles
     type CategoryKey = 'updates_and_announcements' | 'tips_and_tricks' | 'daily_inspirations';
@@ -29,7 +30,15 @@ changes to the documentation (to keep the documentation up to date).
         tips_and_tricks: true,
         daily_inspirations: false,
     });
-    let savingCategory = $state<CategoryKey | null>(null);
+    let savedPrefs = $state<Record<CategoryKey, boolean>>({
+        updates_and_announcements: true,
+        tips_and_tricks: true,
+        daily_inspirations: false,
+    });
+    let isSaving = $state(false);
+    let hasUnsavedChanges = $derived(
+        CATEGORY_ORDER.some(key => categoryPrefs[key] !== savedPrefs[key])
+    );
     
     // State for email input and form submission
     let email = $state('');
@@ -327,6 +336,7 @@ changes to the documentation (to keep the documentation up to date).
             const data = await resp.json();
             if (data?.categories && typeof data.categories === 'object') {
                 categoryPrefs = { ...categoryPrefs, ...data.categories };
+                savedPrefs = { ...categoryPrefs };
             }
         } catch (err) {
             console.error('[SettingsNewsletter] Failed to load category prefs:', err);
@@ -335,13 +345,10 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    async function toggleCategory(key: CategoryKey) {
-        if (savingCategory) return;
-        const next = !categoryPrefs[key];
-        savingCategory = key;
-        // Optimistic update so the toggle feels instant.
-        const prev = categoryPrefs[key];
-        categoryPrefs = { ...categoryPrefs, [key]: next };
+    async function saveCategories() {
+        if (isSaving || !hasUnsavedChanges) return;
+        isSaving = true;
+        errorMessage = '';
         try {
             const resp = await fetch(getApiEndpoint(apiEndpoints.newsletter.categories), {
                 method: 'PATCH',
@@ -350,10 +357,9 @@ changes to the documentation (to keep the documentation up to date).
                     Accept: 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({ categories: { [key]: next } }),
+                body: JSON.stringify({ categories: { ...categoryPrefs } }),
             });
             if (!resp.ok) {
-                categoryPrefs = { ...categoryPrefs, [key]: prev };
                 errorMessage = $text('settings.newsletter_categories.save_error');
                 return;
             }
@@ -361,12 +367,13 @@ changes to the documentation (to keep the documentation up to date).
             if (data?.categories) {
                 categoryPrefs = { ...categoryPrefs, ...data.categories };
             }
+            savedPrefs = { ...categoryPrefs };
+            notificationStore.addNotification('success', $text('settings.newsletter_categories.saved'));
         } catch (err) {
-            categoryPrefs = { ...categoryPrefs, [key]: prev };
-            console.error('[SettingsNewsletter] Failed to save category pref:', err);
+            console.error('[SettingsNewsletter] Failed to save category prefs:', err);
             errorMessage = $text('settings.newsletter_categories.save_error');
         } finally {
-            savingCategory = null;
+            isSaving = false;
         }
     }
 
@@ -416,85 +423,45 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <div class="newsletter-settings">
-    <p>{$text('settings.newsletter_description')}</p>
+    <p class="page-description">{$text('settings.newsletter_description')}</p>
 
     {#if $authStore.isAuthenticated && categoriesLoaded}
-        <!-- Authenticated: always show category toggles -->
-        <div class="newsletter-categories" data-testid="newsletter-categories-section">
-            <h3 class="categories-heading">
-                {$text('settings.newsletter_categories.heading')}
-            </h3>
-            <p class="categories-description">
-                {$text('settings.newsletter_categories.description')}
-            </p>
+        <!-- Authenticated: category toggles with batch save -->
+        <div data-testid="newsletter-categories-section">
+            <SettingsSectionHeading
+                title={$text('settings.newsletter_categories.heading')}
+                icon="mail"
+            />
+            <p class="section-description">{$text('settings.newsletter_categories.description')}</p>
+
             {#each CATEGORY_ORDER as key (key)}
-                <SettingsItem
-                    type="submenu"
-                    icon={key === 'daily_inspirations' ? 'subsetting_icon sparkles' : key === 'tips_and_tricks' ? 'subsetting_icon info' : 'subsetting_icon mail'}
-                    title={$text(`settings.newsletter_categories.${key}.title`)}
-                    subtitleTop={$text(`settings.newsletter_categories.${key}.description`)}
-                    hasToggle={true}
-                    checked={categoryPrefs[key]}
-                    disabled={savingCategory !== null && savingCategory !== key}
-                    onClick={() => toggleCategory(key)}
-                    data-testid={`newsletter-category-toggle-${key}`}
-                />
+                <div class="category-item" data-testid="newsletter-category-toggle-{key}">
+                    <SettingsConsentToggle
+                        bind:checked={categoryPrefs[key]}
+                        consentText={$text(`settings.newsletter_categories.${key}.title`)}
+                        ariaLabel={$text(`settings.newsletter_categories.${key}.title`)}
+                    />
+                    <p class="category-description">{$text(`settings.newsletter_categories.${key}.description`)}</p>
+                </div>
             {/each}
+
+            {#if hasUnsavedChanges}
+                <SettingsButton
+                    variant="primary"
+                    fullWidth
+                    loading={isSaving}
+                    disabled={isSaving}
+                    onClick={saveCategories}
+                    dataTestid="newsletter-save-button"
+                >
+                    {$text('settings.newsletter_categories.save')}
+                </SettingsButton>
+            {/if}
         </div>
 
         <!-- Subscribe with a different email address -->
         {#if showEmailForm}
             <div class="newsletter-form">
-                <div class="input-group">
-                    <SettingsInput
-                        bind:value={email}
-                        bind:inputRef={emailInput}
-                        type="email"
-                        placeholder={$text('settings.newsletter_email_placeholder')}
-                        disabled={isSubmitting}
-                        hasError={!!emailError}
-                        ariaLabel={$text('settings.newsletter_email_placeholder')}
-                        autocomplete="email"
-                        onKeydown={handleKeyPress}
-                    />
-                    {#if showEmailWarning && emailError}
-                        <InputWarning message={emailError} />
-                    {/if}
-                </div>
-                <div class="button-container">
-                    <button
-                        onclick={handleSubscribe}
-                        disabled={!isFormValid || isSubmitting}
-                        aria-label={$text('settings.newsletter_subscribe_button')}
-                    >
-                        {#if isSubmitting}
-                            {$text('settings.newsletter_subscribing')}
-                        {:else}
-                            {$text('settings.newsletter_subscribe_button')}
-                        {/if}
-                    </button>
-                </div>
-            </div>
-        {:else}
-            <button
-                class="change-email-button"
-                onclick={() => showEmailForm = true}
-                data-testid="newsletter-change-email-button"
-            >
-                {$text('settings.newsletter_change_email')}
-            </button>
-        {/if}
-
-        {#if successMessage}
-            <SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
-        {/if}
-        {#if errorMessage}
-            <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
-        {/if}
-    {:else if !$authStore.isAuthenticated}
-        <!-- Not authenticated: show subscribe form -->
-        <div class="newsletter-form">
-            <div class="input-group">
                 <SettingsInput
                     bind:value={email}
                     bind:inputRef={emailInput}
@@ -509,21 +476,59 @@ changes to the documentation (to keep the documentation up to date).
                 {#if showEmailWarning && emailError}
                     <InputWarning message={emailError} />
                 {/if}
-            </div>
-
-            <div class="button-container">
-                <button
-                    onclick={handleSubscribe}
+                <SettingsButton
+                    variant="secondary"
+                    fullWidth
+                    loading={isSubmitting}
                     disabled={!isFormValid || isSubmitting}
-                    aria-label={$text('settings.newsletter_subscribe_button')}
+                    onClick={handleSubscribe}
+                    dataTestid="newsletter-subscribe-button"
                 >
-                    {#if isSubmitting}
-                        {$text('settings.newsletter_subscribing')}
-                    {:else}
-                        {$text('settings.newsletter_subscribe_button')}
-                    {/if}
-                </button>
+                    {$text('settings.newsletter_subscribe_button')}
+                </SettingsButton>
             </div>
+        {:else}
+            <div data-testid="newsletter-change-email-button">
+                <SettingsGradientLink onClick={() => showEmailForm = true}>
+                    {$text('settings.newsletter_change_email')}
+                </SettingsGradientLink>
+            </div>
+        {/if}
+
+        {#if successMessage}
+            <SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
+        {/if}
+        {#if errorMessage}
+            <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
+        {/if}
+    {:else if !$authStore.isAuthenticated}
+        <!-- Not authenticated: subscribe form -->
+        <div class="newsletter-form">
+            <SettingsInput
+                bind:value={email}
+                bind:inputRef={emailInput}
+                type="email"
+                placeholder={$text('settings.newsletter_email_placeholder')}
+                disabled={isSubmitting}
+                hasError={!!emailError}
+                ariaLabel={$text('settings.newsletter_email_placeholder')}
+                autocomplete="email"
+                onKeydown={handleKeyPress}
+            />
+            {#if showEmailWarning && emailError}
+                <InputWarning message={emailError} />
+            {/if}
+            <SettingsButton
+                variant="primary"
+                fullWidth
+                loading={isSubmitting}
+                disabled={!isFormValid || isSubmitting}
+                onClick={handleSubscribe}
+                dataTestid="newsletter-subscribe-button"
+                ariaLabel={$text('settings.newsletter_subscribe_button')}
+            >
+                {$text('settings.newsletter_subscribe_button')}
+            </SettingsButton>
 
             {#if isProcessingAction}
                 <SettingsInfoBox type="info">{$text('settings.newsletter_processing')}</SettingsInfoBox>
@@ -537,70 +542,51 @@ changes to the documentation (to keep the documentation up to date).
         </div>
     {/if}
 
-    <!-- Additional information -->
-    <div class="newsletter-info">
-        <p class="info-text">{$text('settings.newsletter_info')}</p>
-    </div>
+    <p class="info-text">{$text('settings.newsletter_info')}</p>
 </div>
 
 <style>
     .newsletter-settings {
-        margin: var(--spacing-10);
-    }
-    
-    
-    .newsletter-form {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-6);
-    }
-    
-    .input-group {
-        margin-bottom: 1rem;
+        padding: 0 0.625rem;
     }
 
-    .button-container button {
-        width: 100%;
-        margin-bottom: var(--spacing-5);
-    }
-    
-    .newsletter-categories {
-        margin-top: var(--spacing-8);
-        padding-top: var(--spacing-6);
-        border-top: 1px solid var(--color-grey-80, #e0e0e0);
-    }
-
-    .categories-heading {
-        font-size: var(--font-size-sm);
-        font-weight: 600;
-        margin: 0 0 var(--spacing-2) 0;
-    }
-
-    .categories-description {
-        font-size: var(--font-size-xxs);
-        color: var(--color-grey-50);
-        margin: 0 0 var(--spacing-4) 0;
+    .page-description {
+        font-size: var(--font-size-p, 0.875rem);
+        color: var(--color-grey-70);
+        margin: 0 0 1rem 0;
         line-height: 1.4;
     }
 
-    .change-email-button {
-        background: none;
-        border: none;
-        color: var(--color-grey-50);
+    .section-description {
         font-size: var(--font-size-xxs);
-        cursor: pointer;
-        padding: var(--spacing-2) 0;
-        text-decoration: underline;
+        color: var(--color-grey-50);
+        margin: 0 0 0.75rem 0;
+        padding: 0 0.625rem;
+        line-height: 1.4;
     }
 
-    .newsletter-info {
-        margin-top: var(--spacing-4);
+    .category-item {
+        margin-bottom: 0.25rem;
     }
-    
+
+    .category-description {
+        font-size: var(--font-size-xxs);
+        color: var(--color-grey-50);
+        margin: -0.25rem 0 0.75rem 3.75rem;
+        line-height: 1.4;
+    }
+
+    .newsletter-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
     .info-text {
         font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
-        margin: 0;
+        margin: 1.5rem 0 0 0;
         line-height: 1.4;
     }
 </style>

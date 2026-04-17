@@ -6066,10 +6066,77 @@ newsletter_categories.daily_inspirations.description:
   en: A daily email with a curated inspiration based on your interests. Off by default.
   de: Eine tägliche E-Mail mit einer kuratierten Inspiration passend zu deinen Interessen. Standardmäßig aus.
   verified_by_human: []
+newsletter_categories.save:
+  context: Save button text for newsletter category preferences
+  en: Save
+  de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
+  ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
+  he: שמירה
+  verified_by_human: []
+newsletter_categories.saved:
+  context: Notification shown after newsletter preferences are saved successfully
+  en: Newsletter preferences saved
+  de: Newsletter-Einstellungen gespeichert
+  zh: 通讯偏好已保存
+  es: Preferencias del boletín guardadas
+  fr: Préférences de newsletter enregistrées
+  pt: Preferências do boletim salvas
+  ru: Настройки рассылки сохранены
+  ja: ニュースレターの設定を保存しました
+  ko: 뉴스레터 기본 설정이 저장되었습니다
+  it: Preferenze newsletter salvate
+  tr: Bülten tercihleri kaydedildi
+  vi: Tùy chọn bản tin đã lưu
+  id: Preferensi buletin disimpan
+  pl: Preferencje newslettera zapisane
+  nl: Nieuwsbriefvoorkeuren opgeslagen
+  ar: تم حفظ تفضيلات النشرة الإخبارية
+  hi: न्यूज़लेटर प्राथमिकताएँ सहेजी गईं
+  th: บันทึกการตั้งค่าจดหมายข่าวแล้ว
+  cs: Předvolby newsletteru uloženy
+  sv: Nyhetsbrevsinställningar sparade
+  he: העדפות הניוזלטר נשמרו
+  verified_by_human: []
 newsletter_categories.save_error:
-  context: Error message shown when saving a newsletter category toggle fails
-  en: We couldn't save your preference. Please try again.
-  de: Deine Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut.
+  context: Error message shown when saving newsletter category preferences fails
+  en: We couldn't save your preferences. Please try again.
+  de: Deine Einstellungen konnten nicht gespeichert werden. Bitte versuche es erneut.
+  zh: 无法保存您的偏好设置。请重试。
+  es: No pudimos guardar tus preferencias. Inténtalo de nuevo.
+  fr: Impossible d'enregistrer vos préférences. Veuillez réessayer.
+  pt: Não foi possível salvar suas preferências. Tente novamente.
+  ru: Не удалось сохранить настройки. Попробуйте ещё раз.
+  ja: 設定を保存できませんでした。もう一度お試しください。
+  ko: 기본 설정을 저장할 수 없습니다. 다시 시도해 주세요.
+  it: Impossibile salvare le preferenze. Riprova.
+  tr: Tercihleriniz kaydedilemedi. Lütfen tekrar deneyin.
+  vi: Không thể lưu tùy chọn của bạn. Vui lòng thử lại.
+  id: Preferensi Anda tidak dapat disimpan. Silakan coba lagi.
+  pl: Nie udało się zapisać preferencji. Spróbuj ponownie.
+  nl: Je voorkeuren konden niet worden opgeslagen. Probeer het opnieuw.
+  ar: تعذر حفظ تفضيلاتك. يرجى المحاولة مرة أخرى.
+  hi: आपकी प्राथमिकताएँ सहेजी नहीं जा सकीं। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถบันทึกการตั้งค่าของคุณได้ กรุณาลองอีกครั้ง
+  cs: Předvolby se nepodařilo uložit. Zkuste to prosím znovu.
+  sv: Kunde inte spara dina inställningar. Försök igen.
+  he: לא ניתן לשמור את ההעדפות. נסה שוב.
   verified_by_human: []
 support.description:
   context: Short description shown in the support settings page gradient banner header
