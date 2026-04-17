@@ -50,6 +50,10 @@ from debug_utils import (
     hash_user_id,
     make_prod_api_request,
 )
+from backend.core.api.app.utils.newsletter_utils import (
+    NEWSLETTER_CATEGORIES,
+    normalize_newsletter_categories,
+)
 
 script_logger = configure_script_logging('debug_user')
 
@@ -439,6 +443,32 @@ async def get_daily_inspiration_cache(
     return summary
 
 
+async def get_newsletter_subscription(
+    directus_service: DirectusService, email: str
+) -> Optional[Dict[str, Any]]:
+    """Fetch newsletter subscription data for a user by hashed email."""
+    hashed_email = hash_email_sha256(email)
+    params = {
+        "filter[hashed_email][_eq]": hashed_email,
+        "fields": "id,confirmed_at,subscribed_at,language,darkmode,user_registration_status,categories",
+        "limit": 1,
+    }
+    try:
+        records = await directus_service.get_items(
+            "newsletter_subscribers", params=params, no_cache=True, admin_required=True
+        )
+        if records and isinstance(records, list) and len(records) > 0:
+            record = records[0]
+            record["categories_normalized"] = normalize_newsletter_categories(
+                record.get("categories")
+            )
+            return record
+        return None
+    except Exception as e:
+        script_logger.error(f"Error fetching newsletter subscription: {e}")
+        return None
+
+
 OPENOBSERVE_URL = "http://openobserve:5080"
 OPENOBSERVE_ORG = "default"
 AUTH_EVENT_TYPES = [
@@ -549,6 +579,7 @@ def format_output_text(
     daily_inspiration_cache: Optional[Dict[str, Any]] = None,
     source_label: Optional[str] = None,
     session_history: Optional[List[Dict[str, Any]]] = None,
+    newsletter: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Format results as text."""
     lines = []
@@ -660,6 +691,35 @@ def format_output_text(
             lines.append(f"    - {k}")
         if len(cache_info['keys_found']) > 5:
             lines.append(f"    ... and {len(cache_info['keys_found']) - 5} more")
+
+    # Newsletter Subscription
+    lines.append("")
+    lines.append("-" * 100)
+    lines.append("NEWSLETTER SUBSCRIPTION")
+    lines.append("-" * 100)
+    if newsletter is None:
+        lines.append("  Not subscribed (no record found)")
+    else:
+        confirmed = newsletter.get("confirmed_at")
+        subscribed = newsletter.get("subscribed_at")
+        lang = newsletter.get("language", "N/A")
+        darkmode = newsletter.get("darkmode", False)
+        reg_status = newsletter.get("user_registration_status", "N/A")
+        cats = newsletter.get("categories_normalized", {})
+
+        confirmed_icon = "✅" if confirmed else "⬜"
+        lines.append(f"  {confirmed_icon} Confirmed:           {format_timestamp(confirmed) if confirmed else 'No'}")
+        lines.append(f"  Subscribed at:         {format_timestamp(subscribed) if subscribed else 'N/A'}")
+        lines.append(f"  Language:              {lang}")
+        lines.append(f"  Dark mode:             {darkmode}")
+        lines.append(f"  Registration status:   {reg_status}")
+        lines.append("  Categories:")
+        for cat in NEWSLETTER_CATEGORIES:
+            enabled = cats.get(cat, False)
+            icon = "✅" if enabled else "⬜"
+            label = cat.replace("_", " ").title()
+            lines.append(f"    {icon} {label}")
+    lines.append("")
 
     # Daily Inspiration — cache summary
     lines.append("")
@@ -939,6 +999,7 @@ async def main():
                     "item_counts": counts,
                     "recent_activities": activities,
                     "cache_status": cache_info,
+                    "newsletter": None,
                     "daily_inspirations": None,
                 }
                 print(json.dumps(output, indent=2, default=str))
@@ -948,6 +1009,7 @@ async def main():
                     daily_inspirations=daily_inspirations,
                     daily_inspiration_cache=daily_inspiration_cache,
                     source_label=source_label,
+                    newsletter=None,
                 )
                 print(output)
 
@@ -1019,6 +1081,9 @@ async def main():
         # Add stored inspiration count to the counts dict
         counts["user_daily_inspirations"] = len(daily_inspirations_list) if daily_inspirations_list else 0
 
+        # 7. Fetch newsletter subscription
+        newsletter_data = await get_newsletter_subscription(directus_service, args.email)
+
         # 7b. Fetch session history from Loki compliance logs
         session_history = await get_session_history(user_id)
 
@@ -1031,6 +1096,7 @@ async def main():
                 "item_counts": counts,
                 "recent_activities": activities,
                 "cache_status": cache_info,
+                "newsletter": newsletter_data,
                 "daily_inspirations": {
                     "records": daily_inspirations_list,
                     "count": len(daily_inspirations_list) if daily_inspirations_list else 0,
@@ -1045,6 +1111,7 @@ async def main():
                 daily_inspirations=daily_inspirations_list,
                 daily_inspiration_cache=daily_inspiration_cache_data,
                 session_history=session_history,
+                newsletter=newsletter_data,
             )
             print(output)
             
