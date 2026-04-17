@@ -46,7 +46,8 @@
       "serialize-javascript": "^7.0.5",
       "picomatch": "4.0.4",
       "yaml": "2.8.3",
-      "protobufjs": ">=7.5.5"
+      "protobufjs": ">=7.5.5",
+      "math-codegen": ">=0.4.3"
     }
   },
   "version": "1.0.0",
