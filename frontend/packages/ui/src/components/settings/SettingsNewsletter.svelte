@@ -451,66 +451,9 @@ changes to the documentation (to keep the documentation up to date).
 
 <div class="newsletter-settings">
     <p>{$text('settings.newsletter_description')}</p>
-    
-    <!-- Email input form -->
-    <div class="newsletter-form">
-        <div class="input-group">
-            <SettingsInput
-                bind:value={email}
-                bind:inputRef={emailInput}
-                type="email"
-                placeholder={$text('settings.newsletter_email_placeholder')}
-                disabled={isSubmitting}
-                hasError={!!emailError}
-                ariaLabel={$text('settings.newsletter_email_placeholder')}
-                autocomplete="email"
-                onKeydown={handleKeyPress}
-            />
-            {#if showEmailWarning && emailError}
-                <InputWarning
-                    message={emailError}
-                />
-            {/if}
-        </div>
-        
-        <div class="button-container">
-            <button
-                onclick={handleSubscribe}
-                disabled={!isFormValid || isSubmitting}
-                aria-label={$text('settings.newsletter_subscribe_button')}
-            >
-                {#if isSubmitting}
-                    {$text('settings.newsletter_subscribing')}
-                {:else}
-                    {$text('settings.newsletter_subscribe_button')}
-                {/if}
-            </button>
-        </div>
-        
-        <!-- Processing action message (from email links) -->
-        {#if isProcessingAction}
-            <SettingsInfoBox type="info">
-                {$text('settings.newsletter_processing')}
-            </SettingsInfoBox>
-        {/if}
 
-        <!-- Success message -->
-        {#if successMessage}
-            <SettingsInfoBox type="success">
-                {successMessage}
-            </SettingsInfoBox>
-        {/if}
-
-        <!-- Error message -->
-        {#if errorMessage}
-            <SettingsInfoBox type="error">
-                {errorMessage}
-            </SettingsInfoBox>
-        {/if}
-    </div>
-    
-    <!-- Per-category toggles (visible only for confirmed subscribers) -->
     {#if $authStore.isAuthenticated && categoriesLoaded && isSubscribedToNewsletter}
+        <!-- Authenticated + subscribed: show category toggles, no subscribe form -->
         <div class="newsletter-categories" data-testid="newsletter-categories-section">
             <h3 class="categories-heading">
                 {$text('settings.newsletter_categories.heading')}
@@ -531,6 +474,75 @@ changes to the documentation (to keep the documentation up to date).
                     data-testid={`newsletter-category-toggle-${key}`}
                 />
             {/each}
+        </div>
+
+        <!-- Success/error messages from deep link actions -->
+        {#if successMessage}
+            <SettingsInfoBox type="success">
+                {successMessage}
+            </SettingsInfoBox>
+        {/if}
+        {#if errorMessage}
+            <SettingsInfoBox type="error">
+                {errorMessage}
+            </SettingsInfoBox>
+        {/if}
+    {:else}
+        <!-- Not subscribed (or not authenticated): show subscribe form -->
+        <div class="newsletter-form">
+            <div class="input-group">
+                <SettingsInput
+                    bind:value={email}
+                    bind:inputRef={emailInput}
+                    type="email"
+                    placeholder={$text('settings.newsletter_email_placeholder')}
+                    disabled={isSubmitting}
+                    hasError={!!emailError}
+                    ariaLabel={$text('settings.newsletter_email_placeholder')}
+                    autocomplete="email"
+                    onKeydown={handleKeyPress}
+                />
+                {#if showEmailWarning && emailError}
+                    <InputWarning
+                        message={emailError}
+                    />
+                {/if}
+            </div>
+
+            <div class="button-container">
+                <button
+                    onclick={handleSubscribe}
+                    disabled={!isFormValid || isSubmitting}
+                    aria-label={$text('settings.newsletter_subscribe_button')}
+                >
+                    {#if isSubmitting}
+                        {$text('settings.newsletter_subscribing')}
+                    {:else}
+                        {$text('settings.newsletter_subscribe_button')}
+                    {/if}
+                </button>
+            </div>
+
+            <!-- Processing action message (from email links) -->
+            {#if isProcessingAction}
+                <SettingsInfoBox type="info">
+                    {$text('settings.newsletter_processing')}
+                </SettingsInfoBox>
+            {/if}
+
+            <!-- Success message -->
+            {#if successMessage}
+                <SettingsInfoBox type="success">
+                    {successMessage}
+                </SettingsInfoBox>
+            {/if}
+
+            <!-- Error message -->
+            {#if errorMessage}
+                <SettingsInfoBox type="error">
+                    {errorMessage}
+                </SettingsInfoBox>
+            {/if}
         </div>
     {/if}
 
