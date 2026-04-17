@@ -14,6 +14,7 @@ final class ChatViewModel: ObservableObject {
     @Published var isStreaming = false
     @Published var streamingContent = ""
     @Published var streamingMessageId: String?
+    @Published var followUpSuggestions: [String] = []
     @Published var error: String?
 
     private let api = APIClient.shared

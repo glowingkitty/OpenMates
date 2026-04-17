@@ -1,0 +1,88 @@
+// Focus mode UI — app-specific focus mode activation and management.
+// Shows activation countdown, active pill above input, and context menu.
+
+import SwiftUI
+
+@MainActor
+final class FocusModeManager: ObservableObject {
+    @Published var activeFocusMode: FocusModeInfo?
+    @Published var isActivating = false
+    @Published var activationProgress: Double = 0
+
+    struct FocusModeInfo: Equatable {
+        let id: String
+        let appId: String
+        let name: String
+    }
+
+    func activate(_ focusMode: FocusModeInfo) {
+        isActivating = true
+        activationProgress = 0
+
+        Task {
+            for i in 1...20 {
+                try? await Task.sleep(for: .milliseconds(200))
+                activationProgress = Double(i) / 20.0
+            }
+            activeFocusMode = focusMode
+            isActivating = false
+        }
+    }
+
+    func deactivate() {
+        activeFocusMode = nil
+        isActivating = false
+        activationProgress = 0
+    }
+}
+
+struct FocusModePill: View {
+    @ObservedObject var focusModeManager: FocusModeManager
+
+    var body: some View {
+        if let focus = focusModeManager.activeFocusMode {
+            HStack(spacing: .spacing2) {
+                AppIconView(appId: focus.appId, size: 20)
+                Text(focus.name)
+                    .font(.omXs).fontWeight(.medium)
+                    .foregroundStyle(Color.fontPrimary)
+                Button {
+                    focusModeManager.deactivate()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color.fontTertiary)
+                }
+            }
+            .padding(.horizontal, .spacing3)
+            .padding(.vertical, .spacing2)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            .padding(.horizontal, .spacing4)
+        } else if focusModeManager.isActivating {
+            HStack(spacing: .spacing3) {
+                ProgressView(value: focusModeManager.activationProgress)
+                    .frame(width: 100)
+                    .tint(Color.buttonPrimary)
+                Text("Activating...")
+                    .font(.omXs).foregroundStyle(Color.fontSecondary)
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing2)
+        }
+    }
+}
+
+struct FocusModeBadge: View {
+    let appId: String
+
+    var body: some View {
+        Image(systemName: "scope")
+            .font(.system(size: 8))
+            .foregroundStyle(.white)
+            .padding(3)
+            .background(
+                Circle().fill(Color.buttonPrimary)
+            )
+    }
+}

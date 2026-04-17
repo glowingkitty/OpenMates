@@ -10,11 +10,23 @@ struct ChatView: View {
     @State private var messageText = ""
     @State private var selectedEmbed: EmbedRecord?
     @State private var showEmbedFullscreen = false
+    @State private var showReminder = false
+    @State private var showPIIPlaceholders = false
+    @StateObject private var focusModeManager = FocusModeManager()
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             messageList
+
+            if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
+                FollowUpSuggestions(suggestions: viewModel.followUpSuggestions) { suggestion in
+                    messageText = suggestion
+                }
+            }
+
+            FocusModePill(focusModeManager: focusModeManager)
+
             if viewModel.isStreaming {
                 streamingBanner
             }
@@ -30,10 +42,17 @@ struct ChatView: View {
                     if let appId = viewModel.chat?.appId {
                         Label("App: \(appId)", systemImage: "app")
                     }
+                    Button { showReminder = true } label: {
+                        Label("Set Reminder", systemImage: SFSymbol.bell)
+                    }
+                    PIIToggleButton(showPlaceholders: $showPIIPlaceholders)
                 } label: {
-                    Image(systemName: "info.circle")
+                    Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .sheet(isPresented: $showReminder) {
+            ReminderCreationView(chatId: chatId)
         }
         .task {
             await viewModel.loadChat(id: chatId)

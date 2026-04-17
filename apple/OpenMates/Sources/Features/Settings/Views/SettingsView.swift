@@ -77,6 +77,12 @@ struct SettingsView: View {
             } label: {
                 Label("Storage", systemImage: "internaldrive")
             }
+
+            NavigationLink {
+                ChatImportView()
+            } label: {
+                Label("Import Chats", systemImage: "square.and.arrow.down")
+            }
         } header: {
             Text("Account")
         }

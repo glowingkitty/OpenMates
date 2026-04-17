@@ -22,6 +22,9 @@ struct MainAppView: View {
     @State private var showHiddenChats = false
     @State private var hiddenChatsUnlocked = false
     @State private var searchText = ""
+    @State private var dailyInspiration: DailyInspirationBanner.DailyInspiration?
+    @State private var totalChatCount = 0
+    @State private var isLoadingMore = false
 
     private var filteredPinnedChats: [Chat] {
         let pinned = chatStore.pinnedChats
@@ -37,7 +40,12 @@ struct MainAppView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            sidebar
+            VStack(spacing: 0) {
+                DailyInspirationBanner(inspiration: dailyInspiration) { text in
+                    showNewChatSheet = true
+                }
+                sidebar
+            }
         } detail: {
             if let chatId = selectedChatId {
                 ChatView(chatId: chatId)
@@ -137,6 +145,16 @@ struct MainAppView: View {
                 }
             }
 
+            // Pagination
+            if chatStore.chats.count < totalChatCount {
+                ShowMoreChatsButton(
+                    totalCount: totalChatCount,
+                    loadedCount: chatStore.chats.count,
+                    isLoading: isLoadingMore,
+                    onLoadMore: { loadMoreChats() }
+                )
+            }
+
             // Hidden chats section
             Section {
                 Button {
@@ -230,6 +248,24 @@ struct MainAppView: View {
             } catch {
                 print("[MainApp] Failed to delete chat: \(error)")
             }
+        }
+    }
+
+    private func loadMoreChats() {
+        isLoadingMore = true
+        Task {
+            do {
+                let offset = chatStore.chats.count
+                let response: ChatListResponse = try await APIClient.shared.request(
+                    .get, path: "/v1/chats?offset=\(offset)&limit=20"
+                )
+                for chat in response.chats {
+                    chatStore.upsertChat(chat)
+                }
+            } catch {
+                print("[MainApp] Failed to load more chats: \(error)")
+            }
+            isLoadingMore = false
         }
     }
 
