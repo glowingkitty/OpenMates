@@ -106,8 +106,19 @@
       </mj-section>
       {% endif %}
       
-      <!-- Unsubscribe Link -->
-      {% if unsubscribe_url %}
+      <!-- Footer link: manage settings (registered users) or unsubscribe (non-registered) -->
+      {% if manage_settings_url %}
+      <mj-section padding="20px 0">
+        <mj-column>
+          <mj-text font-size="14px" color="#666666">
+            {{ t.email.newsletter.manage_settings_text.text }}
+            <a href="{{ manage_settings_url }}" style="color: #666666; text-decoration: underline;">
+              {{ t.email.newsletter.manage_settings_link.text }}
+            </a>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      {% elif unsubscribe_url %}
       <mj-section padding="20px 0">
         <mj-column>
           <mj-text font-size="14px" color="#666666">
@@ -115,17 +126,6 @@
             <a href="{{ unsubscribe_url }}" style="color: #666666; text-decoration: underline;">
               {{ t.email.newsletter.unsubscribe_link.text }}
             </a>
-          </mj-text>
-        </mj-column>
-      </mj-section>
-      {% endif %}
-
-      <!-- Block All Emails Link -->
-      {% if block_list_url %}
-      <mj-section padding="10px 0 20px 0">
-        <mj-column>
-          <mj-text font-size="14px" color="#666666">
-            {{ t.email.did_not_request_email.text }}
           </mj-text>
         </mj-column>
       </mj-section>

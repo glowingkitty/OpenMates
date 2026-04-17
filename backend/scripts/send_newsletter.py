@@ -363,6 +363,7 @@ def build_context(
     base_url: str,
     unsubscribe_url: Optional[str],
     darkmode: bool,
+    is_registered: bool = False,
 ) -> Dict[str, Any]:
     """Assemble the Jinja2 context for the newsletter.mjml template."""
     video = manifest.get("video") or {}
@@ -374,6 +375,9 @@ def build_context(
     alt_text = "Watch the update video"
     body_html = render_body_html(body_md, video_url, thumb_uri, manifest, alt_text)
     cta_text = (manifest.get("cta_text") or {}).get(lang)
+    # Registered users get a link to manage newsletter category toggles;
+    # non-registered subscribers get a simple unsubscribe link.
+    manage_settings_url = f"{base_url}/#settings/newsletter" if is_registered else None
     # CTA URL and shared-URL/footer links are hardcoded as prod URLs across
     # the template stack (manifest.cta_url, config_loader's imprint/privacy/
     # terms, brand-name processor). The renderer does a final string replace
@@ -385,7 +389,8 @@ def build_context(
         "cta_url": manifest.get("cta_url"),
         "cta_text": cta_text,
         "show_social_media": False,
-        "unsubscribe_url": unsubscribe_url,
+        "manage_settings_url": manage_settings_url,
+        "unsubscribe_url": unsubscribe_url if not is_registered else None,
         "darkmode": darkmode,
         "_base_url_override": base_url,
     }
@@ -399,6 +404,7 @@ async def send_one(
     darkmode: bool,
     base_url: str,
     unsubscribe_url: Optional[str],
+    is_registered: bool = False,
 ) -> bool:
     body_md = load_body_text(manifest, recipient_lang) or load_body_text(manifest, "en")
     if body_md is None:
@@ -406,7 +412,7 @@ async def send_one(
         return False
     lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
     subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
-    context = build_context(manifest, lang, body_md, base_url, unsubscribe_url, darkmode)
+    context = build_context(manifest, lang, body_md, base_url, unsubscribe_url, darkmode, is_registered)
     # Thumbnail is a ``data:`` URI inside the HTML (see _intro_thumbnail_data_uri)
     # — no attachment, no external fetch, nothing for a tracker-protection
     # shield to block.
@@ -457,7 +463,7 @@ async def run(args: argparse.Namespace) -> int:
             logger.error("No body text found — publish_newsletter.py must populate the i18n YAML.")
             return 2
         fake_unsub = f"{base_url}/#settings/newsletter/unsubscribe/DRY-RUN-TOKEN"
-        context = build_context(manifest, lang, body_md, base_url, fake_unsub, darkmode=False)
+        context = build_context(manifest, lang, body_md, base_url, fake_unsub, darkmode=False, is_registered=True)
         subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
         html_out = email_template_service.render_template("newsletter", {**context, "_subject": subject}, lang)
         if args.render_to:
@@ -491,6 +497,7 @@ async def run(args: argparse.Namespace) -> int:
             darkmode=False,
             base_url=base_url,
             unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/TEST-TOKEN",
+            is_registered=True,
         )
         logger.info("Test send: %s", "OK" if success else "FAILED")
         return 0 if success else 1
@@ -537,15 +544,29 @@ async def run(args: argparse.Namespace) -> int:
         if is_subscriber_allowed_for_category(s.get("categories"), manifest["category"])
     ]
     lang_breakdown: Dict[str, int] = {}
+    registered_count = 0
+    non_registered_count = 0
     for sub in eligible:
         lang_breakdown[sub.get("language", "en")] = lang_breakdown.get(sub.get("language", "en"), 0) + 1
+        if sub.get("user_registration_status") == "signup_complete":
+            registered_count += 1
+        else:
+            non_registered_count += 1
 
-    print("\nSubscriber language breakdown (after category filter):")
+    print(f"\n{'=' * 52}")
+    print(f"  Newsletter: {manifest['slug']}")
+    print(f"  Category:   {manifest['category']}")
+    print(f"  Total eligible: {len(eligible)}")
+    print(f"{'=' * 52}")
+    print(f"\n  Registered users (manage settings link): {registered_count}")
+    print(f"  Non-registered subscribers (unsubscribe link): {non_registered_count}")
+    print(f"\n  Language breakdown:")
     for lang_code, count in sorted(lang_breakdown.items(), key=lambda kv: -kv[1]):
-        print(f"  {lang_code}: {count}")
+        print(f"    {lang_code}: {count}")
     opted_out = len(subscribers) - len(eligible)
     if opted_out:
-        print(f"  (skipping {opted_out} who opted out of '{manifest['category']}')")
+        print(f"\n  Skipping {opted_out} who opted out of '{manifest['category']}'")
+    print()
 
     if not prompt_confirmation(len(eligible), manifest):
         logger.info("Broadcast cancelled by user.")
@@ -590,6 +611,7 @@ async def run(args: argparse.Namespace) -> int:
         lang = sub.get("language", "en")
         unsub = build_unsubscribe_url(sub.get("unsubscribe_token"), base_url)
         darkmode = bool(sub.get("darkmode", False))
+        is_registered = sub.get("user_registration_status") == "signup_complete"
 
         success = await send_one(
             email_template_service=email_template_service,
@@ -599,6 +621,7 @@ async def run(args: argparse.Namespace) -> int:
             darkmode=darkmode,
             base_url=base_url,
             unsubscribe_url=unsub,
+            is_registered=is_registered,
         )
 
         record = {
