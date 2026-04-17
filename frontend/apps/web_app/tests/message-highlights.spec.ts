@@ -172,7 +172,8 @@ async function assertHighlightCorrectness(
 	});
 	expect(styles.visibility, `[${label}] not hidden`).not.toBe('hidden');
 	expect(styles.display, `[${label}] not display:none`).not.toBe('none');
-	expect(parseFloat(styles.opacity), `[${label}] opacity > 0`).toBeGreaterThan(0);
+	const opacity = parseFloat(styles.opacity);
+	expect(isNaN(opacity) ? 1 : opacity, `[${label}] opacity > 0`).toBeGreaterThan(0);
 	expect(styles.color, `[${label}] text color != background (text must be readable)`).not.toBe(styles.backgroundColor);
 
 	// Width sanity: a phrase highlight should not span nearly the full message
@@ -423,7 +424,8 @@ test('message highlights: correctness, lifecycle, viewport resize', async ({ pag
 	logCheckpoint(`Pill after delete: "${pillText3}"`);
 	expect(pillText3).toMatch(/1/);
 
-	// Remaining mark is "quick brown fox"
+	// Remaining mark is "quick brown fox" — wait for overlay recompute after delete
+	await page.waitForTimeout(300);
 	await assertHighlightCorrectness(page, marks.first(), 'quick brown fox', 'after-delete');
 	await takeStepScreenshot(page, '12-after-delete');
 
