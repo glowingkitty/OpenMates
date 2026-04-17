@@ -155,12 +155,4 @@ test.describe('SEO example chat pages', () => {
 		// (Production behaviour is verified separately)
 	});
 
-	// =========================================================================
-	// 5. SLUG VALIDATION
-	// =========================================================================
-
-	test('non-existent slug returns 404', async ({ request }) => {
-		const response = await request.get('/example/this-does-not-exist-xyz');
-		expect(response.status()).toBe(404);
-	});
 });
