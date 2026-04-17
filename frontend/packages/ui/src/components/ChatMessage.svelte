@@ -208,21 +208,21 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   /** True when there's a non-empty user selection inside this message. */
   function hasValidSelectionInMessage(): boolean {
-    if (!messageContentElement) return false;
+    if (!messageBodyElement) return false;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
     const range = sel.getRangeAt(0);
-    return messageContentElement.contains(range.commonAncestorContainer);
+    return messageBodyElement.contains(range.commonAncestorContainer);
   }
 
   /** Capture a text-quote anchor from the current live selection. Returns
    *  null when the selection is empty, collapsed, or outside this message. */
   function captureAnchorNow(): HighlightAnchor | null {
-    if (!messageContentElement) return null;
+    if (!messageBodyElement) return null;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
     const range = sel.getRangeAt(0);
-    return captureHighlightAnchor(messageContentElement, range);
+    return captureHighlightAnchor(messageBodyElement, range);
   }
 
   async function createHighlightFromAnchor(anchor: HighlightAnchor, openPopover: boolean) {
@@ -341,7 +341,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   const TOOLBAR_COMMIT_DEBOUNCE_MS = 80;
 
   function updateSelectionToolbarFromSelection() {
-    if (!messageContentElement || !messageId) {
+    if (!messageBodyElement || !messageId) {
       selectionToolbarVisible = false;
       return;
     }
@@ -354,19 +354,23 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       return;
     }
     const range = sel.getRangeAt(0);
-    if (!messageContentElement.contains(range.commonAncestorContainer)) {
+    if (!messageBodyElement.contains(range.commonAncestorContainer)) {
       selectionToolbarVisible = false;
       return;
     }
-    const anchor = captureHighlightAnchor(messageContentElement, range);
+    const anchor = captureHighlightAnchor(messageBodyElement, range);
     if (!anchor) {
       selectionToolbarVisible = false;
       return;
     }
-    // Show the toolbar immediately with the rect, but DEBOUNCE the commit
-    // of the text anchor so a stray selectionchange fired during a toolbar
-    // tap has a chance to be cancelled by the tap's onmousedown handler.
-    const rect = range.getBoundingClientRect();
+    // Anchor the toolbar to the FIRST line of the selection, not the full
+    // bounding rect. Inline embeds render as full-width block cards inside
+    // the paragraph flow — a selection that starts or ends adjacent to one
+    // produces a getBoundingClientRect() whose `top` sits above the embed
+    // card, far from the user's pointer. Using the first client rect keeps
+    // the toolbar pinned to the visible first line of the selection.
+    const rects = range.getClientRects();
+    const rect = rects.length > 0 ? rects[0] : range.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       selectionToolbarVisible = false;
       return;
@@ -611,6 +615,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let selectable = $state(false);
   let readOnlyMessageComponent = $state<ReturnType<typeof ReadOnlyMessage>>();
   let messageContentElement = $state<HTMLElement>();
+  /** Narrower ref than messageContentElement — wraps ONLY the rendered
+   *  message body (ReadOnlyMessage / DemoMessageContent / raw debug pre).
+   *  Excludes the selection toolbar, highlight overlay, comment popover,
+   *  thinking section, and truncation controls so their text nodes don't
+   *  pollute highlight-anchor capture/resolution. */
+  let messageBodyElement = $state<HTMLElement>();
 
   // State for report button hover
   let isReportHovered = $state(false);
@@ -2474,18 +2484,6 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       {/if}
 
       <div class="chat-message-text">
-        <!-- Highlight overlay: yellow boxes drawn over rendered text. The
-             container is already position:relative so `inset: 0` matches. -->
-        {#if messageId && messageHighlights.length > 0}
-          <MessageHighlightOverlay
-            bind:this={overlayRef}
-            contentRoot={messageContentElement ?? null}
-            highlights={messageHighlights}
-            recomputeKey={highlightRecomputeKey + contentReadyCounter}
-            focusedId={activeHighlightId}
-            onHighlightClick={handleHighlightBoxClick}
-          />
-        {/if}
         {#if activeHighlight && activeHighlightRect}
           <HighlightCommentPopover
             highlight={activeHighlight}
@@ -2515,43 +2513,63 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             bind:isExpanded={thinkingExpanded}
           />
         {/if}
-        
-        {#if $chatDebugStore.rawTextMode}
-          <!-- Debug mode: render raw stored content without any processing -->
-          <pre class="debug-raw-content selectable">{debugRawContent}</pre>
-        {:else if showFullMessage && fullContent}
-          <ReadOnlyMessage
-              bind:this={readOnlyMessageComponent}
-              content={fullContent}
-              isStreaming={status === 'streaming'}
-              {_embedUpdateTimestamp}
-              {selectable}
-              {piiMappings}
-              {piiRevealed}
-              {role}
-              on:message-embed-click={handleEmbedClick}
-          />
-        {:else if hasExampleChatsPlaceholder}
-          <!-- Demo chat with {example_chats_group} placeholder - use special component -->
-          <DemoMessageContent
-              content={originalMarkdownContent}
-              chatId={currentChatId}
-              isStreaming={status === 'streaming'}
-              {selectable}
-          />
-        {:else}
-          <ReadOnlyMessage
-              bind:this={readOnlyMessageComponent}
-              {content}
-              isStreaming={status === 'streaming'}
-              {_embedUpdateTimestamp}
-              {selectable}
-              {piiMappings}
-              {piiRevealed}
-              {role}
-              on:message-embed-click={handleEmbedClick}
-          />
-        {/if}
+
+        <!-- Scoped wrapper for the rendered message body. Highlight capture
+             and resolution use this narrow element so overlay/toolbar/popover
+             text, thinking content, and truncation controls never leak into
+             the TreeWalker that computes text-quote anchors. -->
+        <div class="chat-message-body" bind:this={messageBodyElement}>
+          <!-- Highlight overlay: yellow boxes drawn over rendered text. Nested
+               inside messageBodyElement so the overlay's inset:0 layer and the
+               per-box coordinates share the same origin. -->
+          {#if messageId && messageHighlights.length > 0}
+            <MessageHighlightOverlay
+              bind:this={overlayRef}
+              contentRoot={messageBodyElement ?? null}
+              highlights={messageHighlights}
+              recomputeKey={highlightRecomputeKey + contentReadyCounter}
+              focusedId={activeHighlightId}
+              onHighlightClick={handleHighlightBoxClick}
+            />
+          {/if}
+
+          {#if $chatDebugStore.rawTextMode}
+            <!-- Debug mode: render raw stored content without any processing -->
+            <pre class="debug-raw-content selectable">{debugRawContent}</pre>
+          {:else if showFullMessage && fullContent}
+            <ReadOnlyMessage
+                bind:this={readOnlyMessageComponent}
+                content={fullContent}
+                isStreaming={status === 'streaming'}
+                {_embedUpdateTimestamp}
+                {selectable}
+                {piiMappings}
+                {piiRevealed}
+                {role}
+                on:message-embed-click={handleEmbedClick}
+            />
+          {:else if hasExampleChatsPlaceholder}
+            <!-- Demo chat with {example_chats_group} placeholder - use special component -->
+            <DemoMessageContent
+                content={originalMarkdownContent}
+                chatId={currentChatId}
+                isStreaming={status === 'streaming'}
+                {selectable}
+            />
+          {:else}
+            <ReadOnlyMessage
+                bind:this={readOnlyMessageComponent}
+                {content}
+                isStreaming={status === 'streaming'}
+                {_embedUpdateTimestamp}
+                {selectable}
+                {piiMappings}
+                {piiRevealed}
+                {role}
+                on:message-embed-click={handleEmbedClick}
+            />
+          {/if}
+        </div>
         
         {#if is_truncated && role === 'user'}
           <div class="message-truncation-controls">
@@ -2988,6 +3006,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .chat-message-text {
     position: relative; /* Add this to properly position the menu */
+  }
+
+  /* Scoped body wrapper — origin for MessageHighlightOverlay's absolute layer
+     and the DOM root passed to the text-quote anchor walk. Must stay
+     `position: relative` so the overlay's inset:0 matches this element's box. */
+  .chat-message-body {
+    position: relative;
   }
 
   /* Debug mode: raw text view of stored message content */

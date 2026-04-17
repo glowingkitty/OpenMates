@@ -21,6 +21,95 @@ import type { HighlightAnchor, MessageHighlight } from "../types/chat";
 const CONTEXT_LEN = 20;
 
 /**
+ * Subtrees we exclude from anchor capture and resolution. Embeds render rich
+ * text (titles, descriptions, URLs) inline with the message body via TipTap
+ * NodeViews. Including that text in the highlight-anchor walk creates two
+ * failure modes in chats with embeds:
+ *   1. An embed title duplicates a phrase from the body → two occurrences of
+ *      `exact` → scoring picks the embed occurrence → the yellow box lands
+ *      on the embed instead of the intended text.
+ *   2. Embed text preceding the selection pollutes prefix/suffix so the
+ *      anchor depends on embed content that can re-render independently.
+ * All embed NodeViews share the `.embed-full-width-wrapper` class (see
+ * extensions/Embed.ts), so a single selector suffices.
+ */
+const EMBED_SKIP_SELECTOR = ".embed-full-width-wrapper";
+
+function isInsideSkippedSubtree(node: Node): boolean {
+  const parent = (node as Text).parentElement;
+  if (!parent) return false;
+  return parent.closest(EMBED_SKIP_SELECTOR) !== null;
+}
+
+/**
+ * Walk `root` collecting text nodes that are NOT inside an embed NodeView.
+ * Returns the concatenated text plus per-node start offsets so callers can
+ * map back from a character offset to a (Text, offsetWithinNode) pair.
+ */
+function collectFilteredText(root: HTMLElement): {
+  nodes: Text[];
+  starts: number[];
+  text: string;
+} {
+  const nodes: Text[] = [];
+  const starts: number[] = [];
+  let text = "";
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      if (isInsideSkippedSubtree(n)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    starts.push(text.length);
+    text += (n as Text).nodeValue ?? "";
+    nodes.push(n as Text);
+  }
+  return { nodes, starts, text };
+}
+
+/**
+ * Map a range boundary (container, offset) to a character offset inside the
+ * filtered rendered text. If the container is a text node that lives inside
+ * `nodes`, it's a direct lookup; otherwise we accumulate the length of all
+ * accepted text nodes that precede the boundary in document order.
+ */
+function boundaryToFilteredOffset(
+  collection: { nodes: Text[]; starts: number[]; text: string },
+  container: Node,
+  offset: number,
+): number {
+  const idx = collection.nodes.indexOf(container as Text);
+  if (idx !== -1) {
+    const nodeLen = (collection.nodes[idx].nodeValue ?? "").length;
+    return collection.starts[idx] + Math.min(offset, nodeLen);
+  }
+  // Container is an element node (or lives inside a skipped subtree).
+  // Fall back to doc-order comparison: sum text nodes that strictly precede
+  // `container` at position `offset`. For element containers, `offset` is
+  // a child index, so we use a synthetic marker range to decide precedence.
+  const marker = document.createRange();
+  try {
+    marker.setStart(container, offset);
+    marker.collapse(true);
+  } catch {
+    return 0;
+  }
+  let total = 0;
+  for (const node of collection.nodes) {
+    const probe = document.createRange();
+    probe.selectNode(node);
+    // node is strictly before the marker if probe's end is <= marker's start.
+    if (probe.compareBoundaryPoints(Range.END_TO_START, marker) <= 0) {
+      total += (node.nodeValue ?? "").length;
+    } else {
+      break;
+    }
+  }
+  return total;
+}
+
+/**
  * Build a text-quote anchor from the current DOM selection. Returns the
  * selected text verbatim (trimmed of surrounding whitespace) plus up to
  * ~20 characters of rendered-text context before and after, used to
@@ -30,6 +119,10 @@ const CONTEXT_LEN = 20;
  * that run this in a `touchstart` handler capture the selection as it
  * exists at that exact instant, beating iOS's tendency to clear or shift
  * the selection a tick later.
+ *
+ * Text inside embed NodeViews is excluded from both `exact` and the
+ * prefix/suffix context so embed re-renders and embed/body duplicates
+ * can't shift the resolved occurrence at render time.
  */
 export function captureHighlightAnchor(
   contentRoot: HTMLElement,
@@ -38,18 +131,26 @@ export function captureHighlightAnchor(
   if (range.collapsed) return null;
   if (!contentRoot.contains(range.commonAncestorContainer)) return null;
 
-  const exact = range.toString().trim();
+  const collection = collectFilteredText(contentRoot);
+  if (!collection.text) return null;
+
+  const startOffset = boundaryToFilteredOffset(
+    collection,
+    range.startContainer,
+    range.startOffset,
+  );
+  const endOffset = boundaryToFilteredOffset(
+    collection,
+    range.endContainer,
+    range.endOffset,
+  );
+  if (endOffset <= startOffset) return null;
+
+  const exact = collection.text.slice(startOffset, endOffset).trim();
   if (!exact) return null;
 
-  const pre = document.createRange();
-  pre.selectNodeContents(contentRoot);
-  pre.setEnd(range.startContainer, range.startOffset);
-  const before = pre.toString();
-
-  const post = document.createRange();
-  post.selectNodeContents(contentRoot);
-  post.setStart(range.endContainer, range.endOffset);
-  const after = post.toString();
+  const before = collection.text.slice(0, startOffset);
+  const after = collection.text.slice(endOffset);
 
   return {
     exact,
@@ -80,18 +181,8 @@ export function findAnchorInRendered(
 ): Range | null {
   if (!anchor.exact) return null;
 
-  const textNodes: Text[] = [];
-  const nodeStarts: number[] = [];
-  const walker = document.createTreeWalker(contentRoot, NodeFilter.SHOW_TEXT);
-  let n: Node | null = walker.nextNode();
-  let rendered = "";
-  while (n) {
-    const t = n as Text;
-    nodeStarts.push(rendered.length);
-    rendered += t.nodeValue ?? "";
-    textNodes.push(t);
-    n = walker.nextNode();
-  }
+  const { nodes: textNodes, starts: nodeStarts, text: rendered } =
+    collectFilteredText(contentRoot);
   if (!rendered) return null;
 
   // Enumerate all occurrences of the exact text.
