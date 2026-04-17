@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -345,45 +344,17 @@ test.describe('Unauthenticated app load', () => {
 		await expect(playBtn).toBeVisible({ timeout: 10000 });
 		console.log('[unauthenticated-load] Play button visible in chat header');
 
-		// ─── 3. Click play — expect embed fullscreen to open ────────────
+		// ─── 3. Click play — expect native video to render ────────────
 		await playBtn.click();
 
-		const videoFullscreen = page.getByTestId('intro-video-fullscreen');
-		await expect(videoFullscreen).toBeVisible({ timeout: 10000 });
-		console.log('[unauthenticated-load] Intro video fullscreen opened');
+		const videoEl = page.getByTestId('chat-header-video');
+		await expect(videoEl).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Video element rendered after play click');
 
-		// Verify it uses the embed fullscreen shell (UnifiedEmbedFullscreen top bar)
-		const embedTopBar = page.getByTestId('embed-fullscreen-overlay');
-		await expect(embedTopBar).toBeVisible({ timeout: 5000 });
-		console.log('[unauthenticated-load] Embed fullscreen shell visible');
-
-		// Verify video element is present and autoplaying
-		const videoEl = videoFullscreen.locator('video');
-		await expect(videoEl).toBeVisible({ timeout: 5000 });
-		console.log('[unauthenticated-load] Video element rendered');
-
-		// ─── 4. Close button dismisses the fullscreen ────────────────────
-		// EmbedTopBar uses data-testid="embed-minimize" for the close/minimize button
-		const closeBtn = page.getByTestId('embed-minimize');
-		await expect(closeBtn).toBeVisible({ timeout: 5000 });
-		await closeBtn.click();
-
-		await expect(videoFullscreen).not.toBeVisible({ timeout: 5000 });
-		console.log('[unauthenticated-load] Intro video fullscreen closed');
-
-		// ─── 5. Deep link — #intro-video hash opens fullscreen on load ───
-		await page.goto(getE2EDebugUrl('/#intro-video'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone') || window.location.hash.includes('intro-video'),
-			null,
-			{ timeout: 15000 }
-		);
-
-		const videoFullscreenDeepLink = page.getByTestId('intro-video-fullscreen');
-		await expect(videoFullscreenDeepLink).toBeVisible({ timeout: 15000 });
-		console.log('[unauthenticated-load] #intro-video deep link auto-opened fullscreen');
+		// ─── 4. Verify video is inside the media frame ────────────────────
+		const mediaFrame = page.getByTestId('chat-header-media-frame');
+		await expect(mediaFrame.getByTestId('chat-header-video')).toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Video rendered inside media frame');
 
 		console.log('[unauthenticated-load] Intro video fullscreen test passed');
 	});

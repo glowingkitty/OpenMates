@@ -11081,6 +11081,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         scroll-behavior: smooth;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        visibility: visible;
         /* Left padding = half container width minus half card width (300/2=150)
            so the first card starts centred relative to the chat-wrapper.
            box-sizing: border-box ensures padding is included in width: 100%

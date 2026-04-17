@@ -506,6 +506,7 @@
             <video
               bind:this={videoEl}
               class="media-video"
+              data-testid="chat-header-video"
               src={videoMp4Url}
               autoplay
               controls

@@ -118,6 +118,17 @@ export class ChatSynchronizationService extends EventTarget {
       this.stopPendingMessageRetry();
     });
 
+    // Clean up orphaned streaming messages when the browser comes back online,
+    // even if the WebSocket stayed "connected" during a brief network drop.
+    // The WS ping interval (25s) means short outages don't trigger a reconnect,
+    // so the websocketStatus subscriber never fires and orphans aren't cleaned.
+    window.addEventListener("online", () => {
+      console.info("[ChatSyncService] Browser online event — cleaning up orphaned streaming messages");
+      this._cleanupOrphanedStreamingMessages().catch((error) => {
+        console.error("[ChatSyncService] Error cleaning up orphaned streaming messages on online event:", error);
+      });
+    });
+
     // Defer websocketStatus subscription to avoid a Temporal Dead Zone (TDZ) crash
     // when this module is loaded as part of a circular import chain:
     //   authStore → authSessionActions → appSettingsMemoriesStore → chatSyncService → authStore

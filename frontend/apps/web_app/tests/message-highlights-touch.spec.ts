@@ -2,14 +2,14 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { devices } = require('@playwright/test');
-
 // Force every test in this file into an iPad-style touch context so the
 // MessageSelectionToolbar path (the only workable entry point on iOS/iPadOS)
 // is actually exercised. hasTouch: true makes Playwright emit real
 // touchstart/touchmove/touchend events and expose `page.touchscreen`.
+// Uses explicit viewport instead of devices['iPad Pro 11'] to avoid requiring WebKit in CI.
 test.use({
-	...devices['iPad Pro 11'],
+	viewport: { width: 1194, height: 834 },
+	deviceScaleFactor: 2,
 	hasTouch: true,
 	isMobile: true
 });

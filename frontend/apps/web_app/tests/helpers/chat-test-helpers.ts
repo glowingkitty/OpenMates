@@ -477,7 +477,7 @@ async function waitForChatReady(
  * timeout or when multiple messages were being rendered.
  *
  * Lifecycle modelled here:
- *  1. Stream-started gate: wait for either an `ai-loading-indicator` or a new
+ *  1. Stream-started gate: wait for either a `typing-indicator` or a new
  *     `message-assistant` element to appear (max 30s).
  *  2. Visibility: wait for the targeted `message-assistant.{first|last|nth}` to be visible.
  *  3. Optional text anchor (`contains`) — same mechanism `chat-flow.spec.ts` uses
@@ -515,18 +515,18 @@ async function waitForAssistantMessage(
 
 	// Stage 1 — stream-started gate.
 	// Wait for any evidence that the AI pipeline has accepted the message.
-	// Either an `ai-loading-indicator` appears, or an assistant message begins rendering.
+	// Either the typing-indicator appears, or an assistant message begins rendering.
 	const streamStartGate = page.locator(
-		'[data-testid="ai-loading-indicator"], [data-testid="message-assistant"]'
+		'[data-testid="typing-indicator"], [data-testid="message-assistant"]'
 	);
 	const gateTimeout = Math.min(30000, budget());
 	try {
 		await expect(streamStartGate.first()).toBeVisible({ timeout: gateTimeout });
-		logCheckpoint('Assistant stream started (loading indicator or message bubble appeared).');
+		logCheckpoint('Assistant stream started (typing indicator or message bubble appeared).');
 	} catch (err) {
 		throw new Error(
 			`waitForAssistantMessage: stream never started within ${gateTimeout}ms ` +
-				`(neither ai-loading-indicator nor message-assistant appeared). Original: ${err}`
+				`(neither typing-indicator nor message-assistant appeared). Original: ${err}`
 		);
 	}
 

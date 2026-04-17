@@ -734,8 +734,8 @@
             // New chat with messages but no category yet - server is processing
             console.debug(`[Chat] Chat ${currentChat.chat_id} has messages but no category yet (processing) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
           } else {
-            // Established chat without category - this is a BUG (legacy chat or server issue)
-            console.error(`[Chat] ❌ BUG: Chat ${currentChat.chat_id} is missing category (legacy chat or server failed to set it) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
+            // Established chat without category — legacy chat, post-processing title update, or cross-device key timing
+            console.warn(`[Chat] Chat ${currentChat.chat_id} is missing category (legacy chat or server timing) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
           }
           chatCategory = null; // NO FALLBACK - null makes it clear data is missing
         } else {

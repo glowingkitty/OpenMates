@@ -639,7 +639,7 @@ async def login(
 
                 # Verify the code using the directly fetched secret
                 totp = pyotp.TOTP(decrypted_secret)
-                if not totp.verify(login_data.tfa_code):
+                if not totp.verify(login_data.tfa_code, valid_window=1):
                     logger.warning(f"Invalid OTP code provided for user {user_id}")
                     compliance_service.log_auth_event(
                         event_type="login_failed", user_id=user_id, ip_address=client_ip,
