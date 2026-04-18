@@ -8,7 +8,7 @@
 import type { EntryGenerator } from './$types';
 import { getAllActiveNewsletterChats, newsletterKindFromChatId } from '@repo/ui';
 
-export const prerender = 'auto';
+export const prerender = true;
 export const ssr = true;
 export const csr = true;
 
