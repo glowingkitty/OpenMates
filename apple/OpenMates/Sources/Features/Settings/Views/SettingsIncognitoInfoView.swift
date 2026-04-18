@@ -14,6 +14,7 @@ struct SettingsIncognitoInfoView: View {
                 Image(systemName: "eye.slash.circle.fill")
                     .font(.system(size: 56))
                     .foregroundStyle(Color.buttonPrimary)
+                    .accessibilityHidden(true)
 
                 Text(LocalizationManager.shared.text("settings.incognito.title"))
                     .font(.omH2).fontWeight(.bold)
@@ -60,12 +61,17 @@ struct SettingsIncognitoInfoView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color.buttonPrimary)
+                    .accessibleButton(
+                        LocalizationManager.shared.text("settings.incognito.activate"),
+                        hint: LocalizationManager.shared.text("settings.incognito.activate_hint")
+                    )
 
                     Button("Cancel") {
                         onCancel()
                     }
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
+                    .accessibleButton(AppStrings.cancel)
                 }
                 .padding(.horizontal)
             }
@@ -87,6 +93,7 @@ struct IncognitoFeatureRow: View {
                 .font(.system(size: 20))
                 .foregroundStyle(Color.buttonPrimary)
                 .frame(width: 28)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: .spacing1) {
                 Text(title)
@@ -95,5 +102,6 @@ struct IncognitoFeatureRow: View {
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 }

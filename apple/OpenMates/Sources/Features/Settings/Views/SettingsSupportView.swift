@@ -30,16 +30,19 @@ struct SettingsSupportView: View {
                 Link(destination: URL(string: "https://github.com/sponsors/glowingkitty")!) {
                     Label("GitHub Sponsors", systemImage: "star")
                 }
+                .accessibilityHint(LocalizationManager.shared.text("settings.support.github_sponsors_hint"))
 
                 Link(destination: URL(string: "https://github.com/OpenMates/OpenMates")!) {
                     Label("Contribute Code", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
+                .accessibilityHint(LocalizationManager.shared.text("settings.support.contribute_code_hint"))
 
                 Button {
                     shareApp()
                 } label: {
                     Label("Share OpenMates", systemImage: "square.and.arrow.up")
                 }
+                .accessibleButton("Share OpenMates")
             }
         }
         .navigationTitle("Support")
@@ -90,6 +93,10 @@ struct SupportOneTimeView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: .radius3))
                         }
                         .buttonStyle(.plain)
+                        .accessibleButton(
+                            "$\(amount)",
+                            hint: selectedAmount == amount ? LocalizationManager.shared.text("settings.support.amount_selected") : nil
+                        )
                     }
                 }
 
@@ -100,6 +107,7 @@ struct SupportOneTimeView: View {
                         .onChange(of: customAmount) { _, _ in
                             selectedAmount = nil
                         }
+                        .accessibleInput("Custom amount", hint: LocalizationManager.shared.text("settings.support.custom_amount_hint"))
                 }
             }
 
@@ -119,6 +127,7 @@ struct SupportOneTimeView: View {
                     }
                 }
                 .disabled(selectedAmount == nil && customAmount.isEmpty)
+                .accessibleButton(LocalizationManager.shared.text("settings.support.contribute"))
             }
 
             if success {
@@ -208,6 +217,7 @@ struct SupportMonthlyView: View {
                                 .foregroundStyle(Color.buttonPrimary)
                         }
                     }
+                    .accessibleButton("\(name), $\(amount) per month. \(description)")
                 }
             }
         }

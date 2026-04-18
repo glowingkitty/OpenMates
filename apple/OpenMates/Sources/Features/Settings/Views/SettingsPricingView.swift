@@ -191,6 +191,13 @@ struct FallbackPricingCard: View {
                 .font(.omH4).fontWeight(.bold)
                 .foregroundStyle(Color.buttonPrimary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel({
+            var label = "\(formattedCredits) credits, \(tier.priceDisplay)"
+            if tier.recommended { label += ", \(LocalizationManager.shared.text("settings.billing.best_value"))" }
+            if let bonus = tier.bonusCredits { label += ", plus \(bonus) bonus credits with auto top-up" }
+            return label
+        }())
         .padding(.spacing4)
         .background(tier.recommended ? Color.buttonPrimary.opacity(0.05) : Color.grey10.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: .radius4))

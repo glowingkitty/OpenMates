@@ -56,6 +56,7 @@ struct SettingsStorageFullView: View {
                             total: Double(max(overview.totalBytes, overview.freeBytes ?? 1_073_741_824))
                         )
                         .tint(Color.buttonPrimary)
+                        .accessibilityHidden(true)
 
                         HStack {
                             Text("\(LocalizationManager.shared.text("settings.storage.used")): \(ByteCountFormatter.string(fromByteCount: Int64(overview.totalBytes), countStyle: .file))")
@@ -64,6 +65,7 @@ struct SettingsStorageFullView: View {
                             Text("\(overview.totalFiles) \(LocalizationManager.shared.text("settings.storage.files"))")
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
+                        .accessibilityElement(children: .combine)
 
                         if let cost = overview.weeklyCostCredits, cost > 0 {
                             Text("\(LocalizationManager.shared.text("settings.storage.weekly_cost")): \(String(format: "%.4f", cost)) \(LocalizationManager.shared.text("common.credits"))")
@@ -82,6 +84,7 @@ struct SettingsStorageFullView: View {
                                 Image(systemName: cat.icon)
                                     .frame(width: 24)
                                     .foregroundStyle(Color.fontSecondary)
+                                    .accessibilityHidden(true)
                                 Text(cat.category.capitalized)
                                     .font(.omSmall)
                                     .foregroundStyle(Color.fontPrimary)
@@ -94,8 +97,13 @@ struct SettingsStorageFullView: View {
                                 }
                                 Image(systemName: "chevron.right")
                                     .font(.caption).foregroundStyle(Color.fontTertiary)
+                                    .accessibilityHidden(true)
                             }
                         }
+                        .accessibleButton(
+                            "\(cat.category.capitalized), \(cat.formattedSize), \(cat.fileCount) files",
+                            hint: LocalizationManager.shared.text("settings.storage.view_files_hint")
+                        )
                     }
                 }
             }
@@ -163,6 +171,9 @@ struct StorageFilesView: View {
                             }
                             Spacer()
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(file.filename ?? "Unnamed"), \(file.formattedSize)")
+                        .accessibilityHint(LocalizationManager.shared.text("settings.swipe_left_to_delete"))
                         .swipeActions {
                             Button(role: .destructive) {
                                 deleteFile(file.id)
@@ -178,6 +189,7 @@ struct StorageFilesView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.done) { dismiss() }
+                        .accessibleButton(AppStrings.done)
                 }
             }
             .task { await loadFiles() }

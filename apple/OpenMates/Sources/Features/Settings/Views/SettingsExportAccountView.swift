@@ -29,6 +29,7 @@ struct SettingsExportAccountView: View {
                     Button(LocalizationManager.shared.text("settings.export.request_export")) {
                         requestExport()
                     }
+                    .accessibleButton(LocalizationManager.shared.text("settings.export.request_export"))
 
                 case .requesting:
                     HStack {
@@ -59,6 +60,7 @@ struct SettingsExportAccountView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(Color.buttonPrimary)
+                            .accessibleButton(LocalizationManager.shared.text("settings.export.download_archive"))
 
                             Text(LocalizationManager.shared.text("settings.export.link_expires"))
                                 .font(.omXs).foregroundStyle(Color.fontTertiary)
@@ -105,9 +107,11 @@ struct SettingsExportAccountView: View {
                     body: [:] as [String: String]
                 )
                 exportStatus = .processing
+                AccessibilityAnnouncement.announce(LocalizationManager.shared.text("settings.export.preparing"))
                 pollForCompletion()
             } catch {
                 self.error = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
                 exportStatus = .idle
             }
         }
@@ -125,9 +129,11 @@ struct SettingsExportAccountView: View {
                     if status == "ready" {
                         downloadURL = response["download_url"]?.value as? String
                         exportStatus = .ready
+                        AccessibilityAnnouncement.announce(LocalizationManager.shared.text("settings.export.ready"))
                         return
                     } else if status == "failed" {
                         error = LocalizationManager.shared.text("settings.export.failed")
+                        AccessibilityAnnouncement.announce(LocalizationManager.shared.text("settings.export.failed"))
                         exportStatus = .idle
                         return
                     }

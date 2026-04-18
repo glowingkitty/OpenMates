@@ -56,10 +56,13 @@ struct ReportIssueView: View {
             Section("Details") {
                 TextField("Title", text: $title)
                     .autocorrectionDisabled()
+                    .accessibleInput("Title", hint: LocalizationManager.shared.text("report.title_hint"))
 
                 TextEditor(text: $description)
                     .frame(minHeight: 120)
                     .font(.omP)
+                    .accessibilityLabel("Description")
+                    .accessibilityHint(LocalizationManager.shared.text("report.description_hint"))
                     .overlay(alignment: .topLeading) {
                         if description.isEmpty {
                             Text(LocalizationManager.shared.text("report.describe_issue_placeholder"))
@@ -68,6 +71,7 @@ struct ReportIssueView: View {
                                 .padding(.top, 8)
                                 .padding(.leading, 4)
                                 .allowsHitTesting(false)
+                                .accessibilityHidden(true)
                         }
                     }
             }
@@ -79,6 +83,7 @@ struct ReportIssueView: View {
                         .scaledToFit()
                         .frame(maxHeight: 200)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        .accessibilityLabel(LocalizationManager.shared.text("report.screenshot_attached"))
                         .overlay(alignment: .topTrailing) {
                             Button {
                                 self.screenshotData = nil
@@ -89,11 +94,13 @@ struct ReportIssueView: View {
                                     .foregroundStyle(.white, Color.error)
                             }
                             .padding(.spacing2)
+                            .accessibleButton(LocalizationManager.shared.text("report.remove_screenshot"))
                         }
                 } else {
                     PhotosPicker(selection: $screenshotItem, matching: .screenshots) {
                         Label("Attach Screenshot", systemImage: "camera")
                     }
+                    .accessibilityLabel("Attach Screenshot")
                 }
             }
 
@@ -121,6 +128,7 @@ struct ReportIssueView: View {
                     }
                 }
                 .disabled(!isValid || isSubmitting)
+                .accessibleButton(LocalizationManager.shared.text("report.submit_report"))
             }
         }
         .navigationTitle("Report an Issue")
@@ -130,6 +138,7 @@ struct ReportIssueView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
+                    .accessibleButton(AppStrings.cancel)
             }
         }
         .onChange(of: screenshotItem) { _, newItem in
@@ -144,6 +153,7 @@ struct ReportIssueView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.green)
+                .accessibilityHidden(true)
 
             Text(LocalizationManager.shared.text("report.report_submitted"))
                 .font(.omH3).fontWeight(.semibold)
@@ -156,8 +166,12 @@ struct ReportIssueView: View {
             Button("Done") { dismiss() }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.buttonPrimary)
+                .accessibleButton(AppStrings.done)
         }
         .padding(.spacing8)
+        .onAppear {
+            AccessibilityAnnouncement.announce(LocalizationManager.shared.text("report.report_submitted"))
+        }
         .navigationTitle("Report an Issue")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -207,6 +221,7 @@ struct ReportIssueView: View {
                 submitted = true
             } catch {
                 self.error = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isSubmitting = false
         }

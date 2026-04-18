@@ -57,6 +57,8 @@ struct SettingsAPIKeysView: View {
                                     .font(.omTiny).foregroundStyle(Color.fontTertiary)
                             }
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint(LocalizationManager.shared.text("settings.swipe_left_to_revoke"))
                         .swipeActions {
                             Button(role: .destructive) { revokeKey(key.id) } label: {
                                 Label("Revoke", systemImage: "trash")
@@ -67,8 +69,10 @@ struct SettingsAPIKeysView: View {
 
                 Section("Create New Key") {
                     TextField("Key name", text: $newKeyName)
+                        .accessibleInput("Key name", hint: LocalizationManager.shared.text("settings.developer.key_name_hint"))
                     Button("Generate API Key") { createKey() }
                         .disabled(newKeyName.isEmpty)
+                        .accessibleButton("Generate API Key")
                 }
 
                 if let generatedKey {
@@ -77,14 +81,18 @@ struct SettingsAPIKeysView: View {
                             Text(generatedKey)
                                 .font(.system(.caption, design: .monospaced))
                                 .textSelection(.enabled)
+                                .accessibilityLabel(LocalizationManager.shared.text("settings.developer.new_api_key"))
+                                .accessibilityHint(LocalizationManager.shared.text("settings.developer.key_shown_once_hint"))
                             Button {
                                 #if os(iOS)
                                 UIPasteboard.general.string = generatedKey
                                 #endif
                                 ToastManager.shared.show("Copied!", type: .success)
+                                AccessibilityAnnouncement.announce(AppStrings.copied)
                             } label: {
                                 Image(systemName: "doc.on.doc")
                             }
+                            .accessibleButton(AppStrings.copy, hint: LocalizationManager.shared.text("settings.developer.copy_key_hint"))
                         }
                     }
                 }
@@ -143,6 +151,7 @@ struct SettingsWebhooksView: View {
                         #endif
                     }
                 }
+                .accessibleButton("Open Webhook Settings", hint: LocalizationManager.shared.text("settings.developer.opens_in_browser"))
             }
         }
         .navigationTitle("Webhooks")

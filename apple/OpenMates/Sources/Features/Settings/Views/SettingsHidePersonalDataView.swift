@@ -43,6 +43,7 @@ struct SettingsHidePersonalDataView: View {
                     .onChange(of: isPIIEnabled) { _, newValue in
                         savePIIEnabled(newValue)
                     }
+                    .accessibleToggle("PII Detection", isOn: isPIIEnabled)
 
                 Text(LocalizationManager.shared.text("settings.privacy.pii_description"))
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
@@ -58,6 +59,7 @@ struct SettingsHidePersonalDataView: View {
                         .onChange(of: category.isEnabled) { _, _ in
                             saveCategories()
                         }
+                        .accessibleToggle(category.name, isOn: category.isEnabled)
                     }
                 }
 
@@ -74,6 +76,8 @@ struct SettingsHidePersonalDataView: View {
                             }
                             Spacer()
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint(LocalizationManager.shared.text("settings.swipe_left_to_delete"))
                         .swipeActions {
                             Button(role: .destructive) {
                                 deleteEntry(entry.id)
@@ -87,16 +91,20 @@ struct SettingsHidePersonalDataView: View {
                         Button { addEntryType = .name } label: {
                             Label("Add Name", systemImage: "person")
                         }
+                        .accessibleButton("Add Name")
                         Button { addEntryType = .address } label: {
                             Label("Add Address", systemImage: "mappin")
                         }
+                        .accessibleButton("Add Address")
                         Button { addEntryType = .birthday } label: {
                             Label("Add Birthday", systemImage: "birthday.cake")
                         }
+                        .accessibleButton("Add Birthday")
                     } label: {
                         Label("Add Contact Info", systemImage: "plus.circle")
                             .foregroundStyle(Color.buttonPrimary)
                     }
+                    .accessibleButton("Add Contact Info")
                 }
 
                 Section("Custom Entries") {
@@ -112,6 +120,8 @@ struct SettingsHidePersonalDataView: View {
                             }
                             Spacer()
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint(LocalizationManager.shared.text("settings.swipe_left_to_delete"))
                         .swipeActions {
                             Button(role: .destructive) {
                                 deleteEntry(entry.id)
@@ -127,6 +137,7 @@ struct SettingsHidePersonalDataView: View {
                         Label("Add Custom Entry", systemImage: "plus.circle")
                             .foregroundStyle(Color.buttonPrimary)
                     }
+                    .accessibleButton("Add Custom Entry")
                 }
             }
 
@@ -240,16 +251,23 @@ struct AddPersonalDataEntryView: View {
                     case .name:
                         TextField("Full name", text: $value)
                             .textContentType(.name)
+                            .accessibleInput("Full name")
                     case .address:
                         TextField("Label (e.g. Home)", text: $label)
+                            .accessibleInput("Label", hint: LocalizationManager.shared.text("settings.privacy.address_label_hint"))
                         TextEditor(text: $value)
                             .frame(minHeight: 80)
                             .textContentType(.fullStreetAddress)
+                            .accessibilityLabel("Address")
+                            .accessibilityHint(LocalizationManager.shared.text("settings.privacy.address_hint"))
                     case .birthday:
                         TextField("Date of birth", text: $value)
+                            .accessibleInput("Date of birth")
                     case .custom:
                         TextField("Label", text: $label)
+                            .accessibleInput("Label")
                         TextField("Value to hide", text: $value)
+                            .accessibleInput("Value to hide", hint: LocalizationManager.shared.text("settings.privacy.custom_value_hint"))
                     }
                 }
 
@@ -263,10 +281,12 @@ struct AddPersonalDataEntryView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .accessibleButton(AppStrings.cancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(value.isEmpty || isSaving)
+                        .accessibleButton(AppStrings.save)
                 }
             }
         }
@@ -285,8 +305,10 @@ struct AddPersonalDataEntryView: View {
                     ]
                 )
                 onSaved()
+                AccessibilityAnnouncement.announce(AppStrings.success)
                 dismiss()
             } catch {
+                AccessibilityAnnouncement.announce(error.localizedDescription)
                 print("[Settings] Add personal data error: \(error)")
             }
             isSaving = false
