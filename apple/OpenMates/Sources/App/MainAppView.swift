@@ -4,6 +4,7 @@
 // Manages WebSocket connection and phased sync lifecycle.
 
 import SwiftUI
+import WidgetKit
 
 struct MainAppView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -119,6 +120,12 @@ struct MainAppView: View {
                 deepLinkHandler.pendingPairToken = nil
             }
         }
+        .onChange(of: deepLinkHandler.pendingInspirationId) { _, inspirationId in
+            if inspirationId != nil {
+                showNewChatSheet = true
+                deepLinkHandler.pendingInspirationId = nil
+            }
+        }
         .sheet(isPresented: $showPairAuthorize) {
             if let pairToken {
                 CLIPairAuthorizeView(token: pairToken)
@@ -135,6 +142,7 @@ struct MainAppView: View {
             bridge.loadFromDisk()
 
             await loadInitialData()
+            await syncInspirationToWidget()
             connectWebSocket()
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
@@ -266,6 +274,61 @@ struct MainAppView: View {
             }
         } catch {
             print("[MainApp] Failed to load chats: \(error)")
+        }
+    }
+
+    /// Fetches the current daily inspiration from the public API and writes it
+    /// to the App Group container so the WidgetKit extension can display it.
+    private func syncInspirationToWidget() async {
+        let baseURL = await APIClient.shared.baseURL.absoluteString
+        guard let url = URL(string: "\(baseURL)/v1/default-inspirations?lang=en") else { return }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+
+            struct Response: Decodable {
+                let inspirations: [Item]
+                struct Item: Decodable {
+                    let inspirationId: String
+                    let phrase: String
+                    let title: String
+                    let category: String
+                    let video: Video?
+                    struct Video: Decodable {
+                        let title: String?
+                        let channelName: String?
+                        let thumbnailUrl: String?
+                        enum CodingKeys: String, CodingKey {
+                            case title, channelName = "channel_name", thumbnailUrl = "thumbnail_url"
+                        }
+                    }
+                    enum CodingKeys: String, CodingKey {
+                        case inspirationId = "inspiration_id", phrase, title, category, video
+                    }
+                }
+            }
+
+            let response = try JSONDecoder().decode(Response.self, from: data)
+            if let first = response.inspirations.first {
+                // Encode as WidgetInspirationData and write to shared App Group container
+                let widgetData = WidgetInspirationData(
+                    phrase: first.phrase,
+                    title: first.title,
+                    category: first.category,
+                    inspirationId: first.inspirationId,
+                    videoTitle: first.video?.title,
+                    channelName: first.video?.channelName,
+                    thumbnailUrl: first.video?.thumbnailUrl,
+                    updatedAt: Date()
+                )
+                if let defaults = UserDefaults(suiteName: "group.org.openmates.app"),
+                   let encoded = try? JSONEncoder().encode(widgetData) {
+                    defaults.set(encoded, forKey: "widget_daily_inspiration")
+                }
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+        } catch {
+            print("[MainApp] Failed to sync inspiration to widget: \(error)")
         }
     }
 

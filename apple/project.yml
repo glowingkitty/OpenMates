@@ -82,6 +82,7 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     dependencies:
       - target: OpenMatesShareExtension
+      - target: OpenMatesWidget
 
   # Share extension — share URLs, text, and images from other apps into OpenMates chats
   OpenMatesShareExtension:
@@ -97,6 +98,22 @@ targets:
         SWIFT_VERSION: "6.0"
     entitlements:
       path: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+
+  # WidgetKit extension — Daily Inspiration home screen widget
+  OpenMatesWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: OpenMatesWidget
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesWidget/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.widget
+        CODE_SIGN_ENTITLEMENTS: OpenMatesWidget/OpenMatesWidget.entitlements
+        SWIFT_VERSION: "6.0"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    entitlements:
+      path: OpenMatesWidget/OpenMatesWidget.entitlements
 
   # Unit + integration tests (XCTest) — mirrors vitest/pytest suites
   OpenMatesTests:

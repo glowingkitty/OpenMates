@@ -14,6 +14,7 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingSettingsPath: String?
     @Published var pendingAppId: String?
     @Published var pendingPairToken: String?
+    @Published var pendingInspirationId: String?
 
     func handle(url: URL) {
         if url.scheme == "openmates" {
@@ -36,6 +37,8 @@ final class DeepLinkHandler: ObservableObject {
             pendingSettingsPath = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         case "app":
             pendingAppId = url.pathComponents.last
+        case "inspiration":
+            pendingInspirationId = url.pathComponents.last
         default:
             break
         }
@@ -99,5 +102,6 @@ final class DeepLinkHandler: ObservableObject {
         pendingSettingsPath = nil
         pendingAppId = nil
         pendingPairToken = nil
+        pendingInspirationId = nil
     }
 }

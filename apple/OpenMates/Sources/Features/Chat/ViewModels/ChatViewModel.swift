@@ -17,6 +17,14 @@ final class ChatViewModel: ObservableObject {
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
 
+    /// Number of messages to show initially and per page when scrolling up.
+    private let messagesPageSize = 50
+    /// All messages fetched from the server (full history).
+    private var allMessages: [Message] = []
+    /// Whether there are older messages above the currently visible window.
+    @Published var hasOlderMessages = false
+    @Published var isLoadingOlder = false
+
     private let api = APIClient.shared
     private var streamTask: Task<Void, Never>?
 
@@ -27,9 +35,18 @@ final class ChatViewModel: ObservableObject {
         do {
             chat = try await api.request(.get, path: "/v1/chats/\(id)")
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
-            messages = messagesResponse
+            allMessages = messagesResponse
 
-            // Load embeds for all messages
+            // Show only the most recent page initially for fast rendering
+            if allMessages.count > messagesPageSize {
+                messages = Array(allMessages.suffix(messagesPageSize))
+                hasOlderMessages = true
+            } else {
+                messages = allMessages
+                hasOlderMessages = false
+            }
+
+            // Load embeds for visible messages
             await loadEmbeds(for: messages.map(\.id))
 
             // Start listening for streaming events
@@ -39,6 +56,33 @@ final class ChatViewModel: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    /// Load the next page of older messages above the current window.
+    func loadOlderMessages() {
+        guard hasOlderMessages, !isLoadingOlder else { return }
+        isLoadingOlder = true
+
+        let currentCount = messages.count
+        let totalCount = allMessages.count
+        let remaining = totalCount - currentCount
+
+        if remaining > 0 {
+            let nextPageSize = min(messagesPageSize, remaining)
+            let startIndex = remaining - nextPageSize
+            let olderBatch = Array(allMessages[startIndex..<remaining])
+            messages.insert(contentsOf: olderBatch, at: 0)
+            hasOlderMessages = startIndex > 0
+
+            // Load embeds for newly visible messages
+            Task {
+                await loadEmbeds(for: olderBatch.map(\.id))
+            }
+        } else {
+            hasOlderMessages = false
+        }
+
+        isLoadingOlder = false
     }
 
     // MARK: - Send message
@@ -53,6 +97,7 @@ final class ChatViewModel: ObservableObject {
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: nil, appId: nil, isStreaming: nil, embedRefs: nil
         )
+        allMessages.append(userMessage)
         messages.append(userMessage)
 
         isStreaming = true
@@ -119,6 +164,7 @@ final class ChatViewModel: ObservableObject {
                     createdAt: ISO8601DateFormatter().string(from: Date()),
                     updatedAt: nil, appId: chat?.appId, isStreaming: false, embedRefs: nil
                 )
+                allMessages.append(assistantMessage)
                 messages.append(assistantMessage)
                 isStreaming = false
                 streamingContent = ""

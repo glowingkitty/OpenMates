@@ -77,6 +77,35 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: .spacing4) {
+                    // Load older messages button at the top
+                    if viewModel.hasOlderMessages {
+                        Button {
+                            let topMessageId = viewModel.messages.first?.id
+                            viewModel.loadOlderMessages()
+                            // Keep scroll position at the previously-top message
+                            if let topId = topMessageId {
+                                proxy.scrollTo(topId, anchor: .top)
+                            }
+                        } label: {
+                            HStack(spacing: .spacing2) {
+                                if viewModel.isLoadingOlder {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                } else {
+                                    Image(systemName: "arrow.up")
+                                        .font(.caption)
+                                }
+                                Text("Load earlier messages")
+                                    .font(.omXs)
+                            }
+                            .foregroundStyle(Color.fontSecondary)
+                            .padding(.vertical, .spacing3)
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                        .id("load-older")
+                    }
+
                     ForEach(viewModel.messages) { message in
                         MessageBubble(
                             message: message,
