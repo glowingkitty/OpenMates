@@ -3709,7 +3709,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								{#each orderedGroupedHiddenChats as [groupKey, groupItems] (groupKey)}
 									{#if groupItems.length > 0}
 										<div class="chat-group">
-											<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+											<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 											{#each groupItems as chat (chat.chat_id)}
 												<div
 													role="button"
@@ -3775,7 +3775,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{#if groupItems.length > 0}
 					<div class="chat-group" data-testid="chat-group">
 						<!-- Pass the translation function `$_` to the utility -->
-						<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
 						<div
 							role="button"
