@@ -34,7 +34,7 @@ struct ChatView: View {
             }
             inputBar
         }
-        .navigationTitle(viewModel.chat?.displayTitle ?? "Chat")
+        .navigationTitle(viewModel.chat?.displayTitle ?? AppStrings.chats)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -45,7 +45,7 @@ struct ChatView: View {
                         Label("App: \(appId)", systemImage: "app")
                     }
                     Button { showReminder = true } label: {
-                        Label("Set Reminder", systemImage: SFSymbol.bell)
+                        Label(AppStrings.setReminder, systemImage: SFSymbol.bell)
                     }
                     PIIToggleButton(showPlaceholders: $showPIIPlaceholders)
                 } label: {
@@ -126,7 +126,7 @@ struct ChatView: View {
                                     Image(systemName: "arrow.up")
                                         .font(.caption)
                                 }
-                                Text("Load earlier messages")
+                                Text(AppStrings.loadEarlierMessages)
                                     .font(.omXs)
                             }
                             .foregroundStyle(Color.fontSecondary)
@@ -158,7 +158,7 @@ struct ChatView: View {
                                     NSPasteboard.general.clearContents()
                                     NSPasteboard.general.setString(message.content ?? "", forType: .string)
                                     #endif
-                                    ToastManager.shared.show("Copied", type: .success)
+                                    ToastManager.shared.show(AppStrings.copied, type: .success)
                                 },
                                 onEdit: {
                                     // Message editing would require inline editor state
@@ -200,23 +200,22 @@ struct ChatView: View {
         HStack(spacing: .spacing3) {
             ProgressView()
                 .scaleEffect(0.8)
-            Text("AI is responding...")
+            Text(AppStrings.aiResponding)
                 .font(.omXs)
                 .foregroundStyle(Color.fontSecondary)
             Spacer()
-            Button("Stop") {
+            Button(AppStrings.stop) {
                 viewModel.stopStreaming()
             }
             .font(.omXs)
             .foregroundStyle(Color.error)
-            .accessibilityLabel("Stop AI response")
+            .accessibilityLabel(AppStrings.stopResponse)
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing2)
         .background(Color.grey10)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("AI is responding")
-        .accessibilityValue("Streaming in progress")
+        .accessibilityLabel(AppStrings.aiResponding)
     }
 
     // MARK: - Input bar
@@ -235,7 +234,7 @@ struct ChatView: View {
                     }
                 )
 
-                TextField("Message", text: $messageText, axis: .vertical)
+                TextField(AppStrings.typeMessage, text: $messageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.omP)
                     .lineLimit(1...6)
@@ -245,8 +244,8 @@ struct ChatView: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius5))
                     .focused($isInputFocused)
                     .onSubmit { sendMessage() }
-                    .accessibilityLabel("Chat message input")
-                    .accessibilityHint("Type a message to send")
+                    .accessibilityLabel(AppStrings.chatMessageInput)
+                    .accessibilityHint(AppStrings.typeMessage)
 
                 if messageText.isEmpty && !viewModel.isStreaming {
                     VoiceRecordingButton { url in
@@ -265,8 +264,8 @@ struct ChatView: View {
                             )
                     }
                     .disabled(messageText.isEmpty || viewModel.isStreaming)
-                    .accessibilityLabel("Send message")
-                    .accessibilityHint(messageText.isEmpty ? "Type a message first" : "Sends your message")
+                    .accessibilityLabel(AppStrings.sendMessage)
+                    .accessibilityHint(AppStrings.typeMessage)
                     #if os(macOS)
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif

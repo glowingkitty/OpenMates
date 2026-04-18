@@ -70,7 +70,7 @@ struct MainAppView: View {
                 PublicChatListView()
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { showExplore = false }
+                            Button(AppStrings.done) { showExplore = false }
                         }
                     }
             }
@@ -166,10 +166,10 @@ struct MainAppView: View {
                 CLIPairAuthorizeView(token: pairToken)
             }
         }
-        .alert("Rename Chat", isPresented: $showRenameAlert) {
-            TextField("Chat title", text: $renameChatTitle)
-            Button("Rename") { submitRename() }
-            Button("Cancel", role: .cancel) {}
+        .alert(AppStrings.renameChat, isPresented: $showRenameAlert) {
+            TextField(AppStrings.chatTitle, text: $renameChatTitle)
+            Button(AppStrings.rename) { submitRename() }
+            Button(AppStrings.cancel, role: .cancel) {}
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             showNewChatSheet = true
@@ -177,7 +177,7 @@ struct MainAppView: View {
         .onReceive(NotificationCenter.default.publisher(for: .toggleIncognito)) { _ in
             incognitoManager.toggle()
             ToastManager.shared.show(
-                incognitoManager.isEnabled ? "Incognito mode on" : "Incognito mode off",
+                incognitoManager.isEnabled ? AppStrings.incognitoModeOn : AppStrings.incognitoModeOff,
                 type: .info
             )
         }
@@ -218,14 +218,14 @@ struct MainAppView: View {
     private var sidebar: some View {
         List(selection: $selectedChatId) {
             if !filteredPinnedChats.isEmpty {
-                Section("Pinned") {
+                Section(AppStrings.pinnedChats) {
                     ForEach(filteredPinnedChats) { chat in
                         chatRow(chat)
                     }
                 }
             }
 
-            Section(filteredPinnedChats.isEmpty ? "" : "Recent") {
+            Section(filteredPinnedChats.isEmpty ? "" : AppStrings.recentChats) {
                 ForEach(filteredUnpinnedChats) { chat in
                     chatRow(chat)
                 }
@@ -246,14 +246,14 @@ struct MainAppView: View {
                 Button {
                     showHiddenChats = true
                 } label: {
-                    Label("Hidden Chats", systemImage: "eye.slash")
+                    Label(AppStrings.hiddenChats, systemImage: "eye.slash")
                         .foregroundStyle(Color.fontSecondary)
                 }
             }
         }
         .listStyle(.sidebar)
-        .searchable(text: $searchText, prompt: "Search chats")
-        .navigationTitle("Chats")
+        .searchable(text: $searchText, prompt: AppStrings.search)
+        .navigationTitle(AppStrings.chats)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
         #endif
@@ -263,18 +263,18 @@ struct MainAppView: View {
                     Image(systemName: "square.and.pencil")
                 }
                 .accessibilityIdentifier("new-chat-button")
-                .accessibilityLabel("New chat")
+                .accessibilityLabel(AppStrings.newChat)
                 .accessibilityHint("Start a new conversation")
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showSearch = true } label: {
-                    Label("Search", systemImage: "magnifyingglass")
+                    Label(AppStrings.search, systemImage: "magnifyingglass")
                 }
                 .accessibilityIdentifier("search-button")
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button { showExplore = true } label: {
-                    Label("Explore", systemImage: "globe")
+                    Label(AppStrings.explore, systemImage: "globe")
                 }
             }
             #if os(iOS)
@@ -283,7 +283,7 @@ struct MainAppView: View {
                     Image(systemName: "gearshape")
                 }
                 .accessibilityIdentifier("settings-button")
-                .accessibilityLabel("Settings")
+                .accessibilityLabel(AppStrings.settings)
             }
             #endif
         }
@@ -299,7 +299,7 @@ struct MainAppView: View {
             .tag(chat.id)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) { deleteChat(chat.id) } label: {
-                    Label("Delete", systemImage: "trash")
+                    Label(AppStrings.delete, systemImage: "trash")
                 }
             }
             .contextMenu {
@@ -544,7 +544,7 @@ struct EmptyStateView: View {
                 .resizable()
                 .frame(width: 48, height: 48)
                 .opacity(0.5)
-            Text("Select a chat or start a new one")
+            Text(AppStrings.selectChatOrNew)
                 .font(.omP)
                 .foregroundStyle(Color.fontSecondary)
         }
@@ -570,7 +570,7 @@ struct NewChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: .spacing6) {
-                Text("What would you like to help with?")
+                Text(AppStrings.whatToHelpWith)
                     .font(.omH3).fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
 
@@ -600,7 +600,7 @@ struct NewChatView: View {
 
                 // Message input
                 HStack(alignment: .bottom, spacing: .spacing3) {
-                    TextField("Start typing...", text: $messageText, axis: .vertical)
+                    TextField(AppStrings.startTyping, text: $messageText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .font(.omP)
                         .lineLimit(1...4)
@@ -621,11 +621,11 @@ struct NewChatView: View {
                 Spacer()
             }
             .padding(.top, .spacing8)
-            .navigationTitle("New Chat")
+            .navigationTitle(AppStrings.newChat)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(AppStrings.cancel) { dismiss() }
                 }
             }
         }

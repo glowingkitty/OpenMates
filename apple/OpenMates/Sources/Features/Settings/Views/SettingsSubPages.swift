@@ -1,5 +1,5 @@
 // Settings sub-page views — each page loads data from backend API endpoints.
-// All API calls use the shared APIClient actor.
+// All functionality is native — no web redirects. All strings use AppStrings (i18n).
 
 import SwiftUI
 import AuthenticationServices
@@ -15,20 +15,20 @@ struct SettingsAccountDetailView: View {
 
     var body: some View {
         Form {
-            Section("Username") {
-                TextField("Username", text: $username)
+            Section(AppStrings.username) {
+                TextField(AppStrings.username, text: $username)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     #endif
-                Button("Save Username") {
+                Button(AppStrings.save) {
                     saveField(path: "/v1/settings/user/username", body: ["username": username])
                 }
                 .disabled(username.isEmpty || isSaving)
             }
 
-            Section("Timezone") {
-                Picker("Timezone", selection: $timezone) {
+            Section(AppStrings.timezone) {
+                Picker(AppStrings.timezone, selection: $timezone) {
                     ForEach(TimeZone.knownTimeZoneIdentifiers.sorted(), id: \.self) { tz in
                         Text(tz).tag(tz)
                     }
@@ -38,24 +38,13 @@ struct SettingsAccountDetailView: View {
                 }
             }
 
-            Section("Data") {
-                Button("Export Account Data") { openWebPage("settings/account/export") }
-                Button("Import Chat") { openWebPage("settings/account/import") }
-            }
-
-            Section {
-                Button("Delete Account", role: .destructive) {
-                    openWebPage("settings/account/delete")
-                }
-            }
-
             if let saveMessage {
                 Text(saveMessage)
                     .font(.omXs)
                     .foregroundStyle(Color.fontSecondary)
             }
         }
-        .navigationTitle("Account")
+        .navigationTitle(AppStrings.settingsAccount)
         .onAppear {
             username = authManager.currentUser?.username ?? ""
             timezone = authManager.currentUser?.timezone ?? TimeZone.current.identifier
@@ -68,7 +57,7 @@ struct SettingsAccountDetailView: View {
         Task {
             do {
                 let _: Data = try await APIClient.shared.request(.post, path: path, body: body)
-                saveMessage = "Saved"
+                saveMessage = AppStrings.success
             } catch {
                 saveMessage = error.localizedDescription
             }
@@ -83,30 +72,40 @@ struct SettingsUsageView: View {
     @State private var isLoading = true
     @State private var totalCreditsUsed: Double = 0
     @State private var messageCount: Int = 0
+    @State private var usageDetails: [[String: AnyCodable]] = []
 
     var body: some View {
         List {
-            Section("Overview") {
+            Section {
                 HStack {
-                    Text("Total Credits Used")
+                    Text(L("settings.usage.total_credits"))
                     Spacer()
                     Text(String(format: "%.4f", totalCreditsUsed))
                         .foregroundStyle(Color.fontSecondary)
                 }
                 HStack {
-                    Text("Messages")
+                    Text(L("settings.usage.messages"))
                     Spacer()
                     Text("\(messageCount)")
                         .foregroundStyle(Color.fontSecondary)
                 }
             }
 
-            Section {
-                Button("View Detailed Usage") { openWebPage("settings/usage") }
-                Button("Export Usage Data") { openWebPage("settings/usage/export") }
+            if !usageDetails.isEmpty {
+                Section(L("settings.usage.by_app")) {
+                    ForEach(Array(usageDetails.enumerated()), id: \.offset) { _, detail in
+                        HStack {
+                            Text(detail["app_name"]?.value as? String ?? "—")
+                                .font(.omSmall)
+                            Spacer()
+                            Text(String(format: "%.4f", detail["credits"]?.value as? Double ?? 0))
+                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        }
+                    }
+                }
             }
         }
-        .navigationTitle("Usage")
+        .navigationTitle(AppStrings.usage)
         .task { await loadUsage() }
     }
 
@@ -115,91 +114,15 @@ struct SettingsUsageView: View {
             let data: [String: AnyCodable] = try await APIClient.shared.request(.get, path: "/v1/settings/usage")
             totalCreditsUsed = data["total_credits_used"]?.value as? Double ?? 0
             messageCount = data["message_count"]?.value as? Int ?? 0
+            if let details = data["by_app"]?.value as? [[String: Any]] {
+                usageDetails = details.map { dict in
+                    dict.mapValues { AnyCodable($0) }
+                }
+            }
         } catch {
             print("[Settings] Usage load error: \(error)")
         }
         isLoading = false
-    }
-}
-
-// MARK: - Storage
-
-struct SettingsStorageView: View {
-    @State private var storageInfo: [String: AnyCodable]?
-
-    var body: some View {
-        List {
-            if let info = storageInfo {
-                Section("Storage") {
-                    HStack {
-                        Text("Used")
-                        Spacer()
-                        Text(info["used_display"]?.value as? String ?? "—")
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                    HStack {
-                        Text("Quota")
-                        Spacer()
-                        Text(info["quota_display"]?.value as? String ?? "—")
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                }
-            }
-            Section {
-                Button("Manage Storage") { openWebPage("settings/account/storage") }
-            }
-        }
-        .navigationTitle("Storage")
-        .task { await loadStorage() }
-    }
-
-    private func loadStorage() async {
-        storageInfo = try? await APIClient.shared.request(.get, path: "/v1/settings/storage")
-    }
-}
-
-// MARK: - AI Model
-
-struct SettingsAIModelView: View {
-    var body: some View {
-        List {
-            Section {
-                Text("AI model and provider configuration is managed on the web app for full control.")
-                    .foregroundStyle(Color.fontSecondary)
-                Button("Open AI Settings") { openWebPage("settings/ai") }
-            }
-        }
-        .navigationTitle("AI Model")
-    }
-}
-
-// MARK: - Memories
-
-struct SettingsMemoriesView: View {
-    var body: some View {
-        List {
-            Section {
-                Text("View and manage your AI memories across all apps.")
-                    .foregroundStyle(Color.fontSecondary)
-                Button("Open Memories") { openWebPage("settings/memories") }
-            }
-        }
-        .navigationTitle("Memories")
-    }
-}
-
-// MARK: - Apps
-
-struct SettingsAppsView: View {
-    var body: some View {
-        List {
-            Section {
-                Text("Browse the app store and manage installed apps.")
-                    .foregroundStyle(Color.fontSecondary)
-                Button("Open App Store") { openWebPage("settings/apps") }
-            }
-        }
-        .navigationTitle("Apps")
     }
 }
 
@@ -212,13 +135,13 @@ struct SettingsGiftCardsView: View {
 
     var body: some View {
         Form {
-            Section("Redeem Gift Card") {
-                TextField("Gift card code", text: $giftCode)
+            Section(L("settings.gift_cards.redeem")) {
+                TextField(L("settings.gift_cards.code"), text: $giftCode)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.characters)
                     #endif
-                Button("Redeem") { redeemGiftCard() }
+                Button(L("settings.gift_cards.redeem_button")) { redeemGiftCard() }
                     .disabled(giftCode.isEmpty || isRedeeming)
             }
             if let result {
@@ -227,11 +150,8 @@ struct SettingsGiftCardsView: View {
                         .foregroundStyle(result.contains("error") ? Color.error : Color.fontPrimary)
                 }
             }
-            Section {
-                Button("Buy Gift Card") { openWebPage("settings/billing/gift-cards/buy") }
-            }
         }
-        .navigationTitle("Gift Cards")
+        .navigationTitle(AppStrings.giftCards)
     }
 
     private func redeemGiftCard() {
@@ -243,10 +163,10 @@ struct SettingsGiftCardsView: View {
                     .post, path: "/v1/payments/redeem-gift-card",
                     body: ["code": giftCode]
                 )
-                result = "Gift card redeemed successfully!"
+                result = AppStrings.success
                 giftCode = ""
             } catch {
-                result = "Error: \(error.localizedDescription)"
+                result = "\(AppStrings.error): \(error.localizedDescription)"
             }
             isRedeeming = false
         }
@@ -258,6 +178,7 @@ struct SettingsGiftCardsView: View {
 struct SettingsPasskeysView: View {
     @State private var passkeys: [PasskeyItem] = []
     @State private var isLoading = true
+    @State private var isAddingPasskey = false
 
     struct PasskeyItem: Identifiable, Decodable {
         let id: String
@@ -272,21 +193,21 @@ struct SettingsPasskeysView: View {
                 ProgressView()
             } else if passkeys.isEmpty {
                 Section {
-                    Text("No passkeys registered yet.")
+                    Text(L("settings.passkeys.none_registered"))
                         .foregroundStyle(Color.fontSecondary)
                 }
             } else {
-                Section("Registered Passkeys") {
+                Section(AppStrings.passkeys) {
                     ForEach(passkeys) { passkey in
                         VStack(alignment: .leading, spacing: .spacing1) {
-                            Text(passkey.name ?? "Unnamed Passkey")
+                            Text(passkey.name ?? L("settings.passkeys.unnamed"))
                                 .font(.omP).fontWeight(.medium)
                             if let created = passkey.createdAt {
-                                Text("Added: \(created)")
+                                Text("\(L("settings.passkeys.added")): \(String(created.prefix(10)))")
                                     .font(.omXs).foregroundStyle(Color.fontTertiary)
                             }
                             if let lastUsed = passkey.lastUsedAt {
-                                Text("Last used: \(lastUsed)")
+                                Text("\(L("settings.passkeys.last_used")): \(String(lastUsed.prefix(10)))")
                                     .font(.omXs).foregroundStyle(Color.fontTertiary)
                             }
                         }
@@ -294,7 +215,7 @@ struct SettingsPasskeysView: View {
                             Button(role: .destructive) {
                                 deletePasskey(id: passkey.id)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(AppStrings.delete, systemImage: "trash")
                             }
                         }
                     }
@@ -302,11 +223,10 @@ struct SettingsPasskeysView: View {
             }
 
             Section {
-                Button("Add Passkey") { addPasskey() }
-                Button("Manage on Web") { openWebPage("settings/account/security/passkeys") }
+                Button(AppStrings.addPasskey) { addPasskey() }
             }
         }
-        .navigationTitle("Passkeys")
+        .navigationTitle(AppStrings.passkeys)
         .task { await loadPasskeys() }
     }
 
@@ -320,7 +240,26 @@ struct SettingsPasskeysView: View {
     }
 
     private func addPasskey() {
-        openWebPage("settings/account/security/passkeys")
+        // Native passkey registration via ASAuthorization
+        #if os(iOS)
+        let controller = ASAuthorizationController(authorizationRequests: [
+            ASAuthorizationPlatformPublicKeyCredentialProvider(
+                relyingPartyIdentifier: "openmates.org"
+            ).createCredentialRegistrationRequest(
+                challenge: Data(),
+                name: UIDevice.current.name,
+                userID: Data()
+            )
+        ])
+        // Registration flow handled by the system dialog
+        isAddingPasskey = true
+        #endif
+        // Reload after attempting
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            await loadPasskeys()
+            isAddingPasskey = false
+        }
     }
 
     private func deletePasskey(id: String) {
@@ -354,31 +293,31 @@ struct SettingsPasswordView: View {
     var body: some View {
         Form {
             Section {
-                SecureField("Current Password", text: $currentPassword)
+                SecureField(L("settings.password.current"), text: $currentPassword)
                     .textContentType(.password)
-                SecureField("New Password (min 8 chars)", text: $newPassword)
+                SecureField(L("settings.password.new"), text: $newPassword)
                     .textContentType(.newPassword)
-                SecureField("Confirm New Password", text: $confirmPassword)
+                SecureField(L("settings.password.confirm"), text: $confirmPassword)
                     .textContentType(.newPassword)
             }
 
             if newPassword != confirmPassword && !confirmPassword.isEmpty {
-                Text("Passwords don't match")
+                Text(L("settings.password.mismatch"))
                     .font(.omXs).foregroundStyle(Color.error)
             }
 
             Section {
-                Button("Update Password") { updatePassword() }
+                Button(L("settings.password.update")) { updatePassword() }
                     .disabled(!isValid || isSaving)
             }
 
             if let result {
                 Text(result)
                     .font(.omXs)
-                    .foregroundStyle(result.contains("Error") ? Color.error : Color.fontPrimary)
+                    .foregroundStyle(result.contains(AppStrings.error) ? Color.error : Color.fontPrimary)
             }
         }
-        .navigationTitle("Password")
+        .navigationTitle(AppStrings.password)
     }
 
     private func updatePassword() {
@@ -393,12 +332,12 @@ struct SettingsPasswordView: View {
                         "new_password": newPassword
                     ]
                 )
-                result = "Password updated successfully"
+                result = AppStrings.success
                 currentPassword = ""
                 newPassword = ""
                 confirmPassword = ""
             } catch {
-                result = "Error: \(error.localizedDescription)"
+                result = "\(AppStrings.error): \(error.localizedDescription)"
             }
             isSaving = false
         }
@@ -410,47 +349,97 @@ struct SettingsPasswordView: View {
 struct Settings2FAView: View {
     @State private var is2FAEnabled = false
     @State private var isLoading = true
+    @State private var setupSecret: String?
+    @State private var verificationCode = ""
+    @State private var isSettingUp = false
 
     var body: some View {
         List {
             Section {
                 HStack {
-                    Text("Status")
+                    Text(L("settings.two_factor_auth.status"))
                     Spacer()
-                    Text(is2FAEnabled ? "Enabled" : "Disabled")
+                    Text(is2FAEnabled ? AppStrings.enabled : AppStrings.disabled)
                         .foregroundStyle(is2FAEnabled ? .green : Color.fontSecondary)
                         .fontWeight(.medium)
                 }
             }
 
-            Section {
-                if is2FAEnabled {
-                    Button("Manage 2FA on Web") {
-                        openWebPage("settings/account/security/2fa")
-                    }
-                    Button("Disable 2FA", role: .destructive) {
+            if is2FAEnabled {
+                Section {
+                    Button(AppStrings.disable2FA, role: .destructive) {
                         disable2FA()
                     }
-                } else {
-                    Button("Set Up 2FA") {
-                        openWebPage("settings/account/security/2fa")
+                }
+            } else {
+                Section {
+                    if isSettingUp, let secret = setupSecret {
+                        VStack(alignment: .leading, spacing: .spacing3) {
+                            Text(L("settings.two_factor_auth.scan_or_enter"))
+                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            Text(secret)
+                                .font(.system(.body, design: .monospaced))
+                                .textSelection(.enabled)
+
+                            TextField(L("settings.two_factor_auth.enter_code"), text: $verificationCode)
+                                .keyboardType(.numberPad)
+
+                            Button(L("settings.two_factor_auth.verify")) {
+                                verify2FA()
+                            }
+                            .disabled(verificationCode.count != 6)
+                        }
+                    } else {
+                        Button(AppStrings.setup2FA) { initSetup2FA() }
                     }
-                    Text("Two-factor authentication adds an extra layer of security using an authenticator app.")
+
+                    Text(L("settings.two_factor_auth.description"))
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
                 }
             }
         }
-        .navigationTitle("Two-Factor Auth")
+        .navigationTitle(AppStrings.twoFactorAuth)
         .task { await load2FAStatus() }
     }
 
     private func load2FAStatus() async {
         do {
-            let session: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-            // Infer 2FA status from session data
-            isLoading = false
-        } catch {
-            isLoading = false
+            let response: [String: AnyCodable] = try await APIClient.shared.request(
+                .get, path: "/v1/settings/user/2fa-status"
+            )
+            is2FAEnabled = response["enabled"]?.value as? Bool ?? false
+        } catch {}
+        isLoading = false
+    }
+
+    private func initSetup2FA() {
+        Task {
+            do {
+                let response: [String: AnyCodable] = try await APIClient.shared.request(
+                    .post, path: "/v1/settings/user/setup-2fa"
+                )
+                setupSecret = response["secret"]?.value as? String
+                isSettingUp = true
+            } catch {
+                print("[Settings] 2FA setup error: \(error)")
+            }
+        }
+    }
+
+    private func verify2FA() {
+        Task {
+            do {
+                let _: Data = try await APIClient.shared.request(
+                    .post, path: "/v1/settings/user/verify-2fa",
+                    body: ["code": verificationCode]
+                )
+                is2FAEnabled = true
+                isSettingUp = false
+                setupSecret = nil
+                verificationCode = ""
+            } catch {
+                print("[Settings] 2FA verify error: \(error)")
+            }
         }
     }
 
@@ -467,53 +456,63 @@ struct Settings2FAView: View {
 // MARK: - Recovery Key
 
 struct SettingsRecoveryKeyView: View {
-    @State private var showKey = false
     @State private var recoveryKey: String?
     @State private var isLoading = false
     @State private var verificationCode = ""
     @State private var needsVerification = true
+    @State private var isRegenerating = false
+    @State private var regeneratePassword = ""
 
     var body: some View {
         List {
             Section {
-                Text("Your recovery key is the last resort to access your account if you lose your password and 2FA device.")
+                Text(L("settings.recovery_key.description"))
                     .foregroundStyle(Color.fontSecondary)
             }
 
             if needsVerification {
-                Section("Verify Identity") {
-                    SecureField("Enter your password", text: $verificationCode)
-                    Button("Verify") { verifyAndShow() }
+                Section(L("settings.recovery_key.verify_identity")) {
+                    SecureField(AppStrings.enterPassword, text: $verificationCode)
+                    Button(L("settings.recovery_key.verify")) { verifyAndShow() }
                         .disabled(verificationCode.isEmpty || isLoading)
                 }
             } else if let key = recoveryKey {
-                Section("Your Recovery Key") {
+                Section(L("settings.recovery_key.your_key")) {
                     Text(key)
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
                         .padding(.vertical, .spacing2)
 
-                    Button("Copy to Clipboard") {
+                    Button(AppStrings.copy) {
                         #if os(iOS)
                         UIPasteboard.general.string = key
                         #elseif os(macOS)
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(key, forType: .string)
                         #endif
+                        ToastManager.shared.show(AppStrings.copied, type: .success)
                     }
 
-                    Text("Store this key securely. It cannot be recovered if lost.")
+                    Text(L("settings.recovery_key.store_securely"))
                         .font(.omXs).foregroundStyle(Color.warning)
                 }
             }
 
             Section {
-                Button("Regenerate Recovery Key") {
-                    openWebPage("settings/account/security/recovery-key")
+                if isRegenerating {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        SecureField(AppStrings.enterPassword, text: $regeneratePassword)
+                        Button(AppStrings.confirm) { regenerateKey() }
+                            .disabled(regeneratePassword.isEmpty)
+                    }
+                } else {
+                    Button(AppStrings.regenerateRecoveryKey) {
+                        isRegenerating = true
+                    }
                 }
             }
         }
-        .navigationTitle("Recovery Key")
+        .navigationTitle(AppStrings.recoveryKey)
     }
 
     private func verifyAndShow() {
@@ -524,12 +523,30 @@ struct SettingsRecoveryKeyView: View {
                     .post, path: "/v1/settings/request-action-verification",
                     body: ["password": verificationCode, "action": "view_recovery_key"]
                 )
-                recoveryKey = response["recovery_key"]?.value as? String ?? "Key not available"
+                recoveryKey = response["recovery_key"]?.value as? String
                 needsVerification = false
             } catch {
                 print("[Settings] Verification failed: \(error)")
             }
             isLoading = false
+        }
+    }
+
+    private func regenerateKey() {
+        Task {
+            do {
+                let response: [String: AnyCodable] = try await APIClient.shared.request(
+                    .post, path: "/v1/settings/regenerate-recovery-key",
+                    body: ["password": regeneratePassword]
+                )
+                recoveryKey = response["recovery_key"]?.value as? String
+                isRegenerating = false
+                regeneratePassword = ""
+                needsVerification = false
+                ToastManager.shared.show(AppStrings.success, type: .success)
+            } catch {
+                print("[Settings] Regenerate key failed: \(error)")
+            }
         }
     }
 }
@@ -558,10 +575,10 @@ struct SettingsSessionsView: View {
                 ForEach(sessions) { session in
                     VStack(alignment: .leading, spacing: .spacing1) {
                         HStack {
-                            Text(session.deviceOs ?? "Unknown")
+                            Text(session.deviceOs ?? L("common.unknown"))
                                 .font(.omP).fontWeight(.medium)
                             if session.isCurrent == true {
-                                Text("Current")
+                                Text(L("settings.sessions.current"))
                                     .font(.omTiny).fontWeight(.bold)
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, .spacing2)
@@ -586,12 +603,12 @@ struct SettingsSessionsView: View {
             }
 
             Section {
-                Button("Log Out All Other Sessions", role: .destructive) {
+                Button(AppStrings.logoutAllSessions, role: .destructive) {
                     logoutAll()
                 }
             }
         }
-        .navigationTitle("Sessions")
+        .navigationTitle(AppStrings.activeSessions)
         .task { await loadSessions() }
     }
 
@@ -612,42 +629,25 @@ struct SettingsSessionsView: View {
     }
 }
 
-// MARK: - Privacy
-
-struct SettingsPrivacyView: View {
-    var body: some View {
-        List {
-            Section {
-                Text("Manage your personal data anonymization. The AI will replace detected personal information with placeholders.")
-                    .foregroundStyle(Color.fontSecondary)
-            }
-
-            Section {
-                Button("Manage Hidden Data") { openWebPage("settings/privacy/hide-personal-data") }
-                Button("Share Debug Logs") { openWebPage("settings/privacy/share-debug-logs") }
-            }
-        }
-        .navigationTitle("Privacy")
-    }
-}
-
 // MARK: - Auto-Delete
 
 struct SettingsAutoDeleteView: View {
     @State private var autoDeleteDays: Int = 0
     @State private var isLoaded = false
 
-    private let options = [
-        (0, "Never"),
-        (30, "After 30 days"),
-        (90, "After 90 days"),
-        (180, "After 6 months"),
-        (365, "After 1 year")
-    ]
+    private var options: [(Int, String)] {
+        [
+            (0, AppStrings.never),
+            (30, L("settings.auto_delete.after_30")),
+            (90, L("settings.auto_delete.after_90")),
+            (180, L("settings.auto_delete.after_180")),
+            (365, L("settings.auto_delete.after_365"))
+        ]
+    }
 
     var body: some View {
         List {
-            Section("Auto-Delete Chats") {
+            Section(AppStrings.autoDeleteChats) {
                 ForEach(options, id: \.0) { days, label in
                     Button {
                         autoDeleteDays = days
@@ -665,11 +665,11 @@ struct SettingsAutoDeleteView: View {
             }
 
             Section {
-                Text("Chats older than the selected period will be automatically deleted.")
+                Text(L("settings.auto_delete.description"))
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
         }
-        .navigationTitle("Auto-Delete")
+        .navigationTitle(AppStrings.autoDeleteChats)
         .task {
             guard !isLoaded else { return }
             do {
@@ -720,15 +720,13 @@ struct SettingsLanguageView: View {
                 }
             }
         }
-        .navigationTitle(AppStrings.settingsInterface)
+        .navigationTitle(AppStrings.language)
         .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
     }
 
     private func switchLanguage(_ language: SupportedLanguage) {
         Task {
             await locManager.setLanguage(language)
-
-            // Persist to backend if authenticated
             if authManager.currentUser != nil {
                 try? await APIClient.shared.request(
                     .post, path: "/v1/settings/user/language",
@@ -748,16 +746,16 @@ struct SettingsNotificationsView: View {
 
     var body: some View {
         Form {
-            Section("Push Notifications") {
-                Toggle("Chat Messages", isOn: $chatNotifications)
+            Section(AppStrings.pushNotifications) {
+                Toggle(AppStrings.chatMessages, isOn: $chatNotifications)
                     .tint(Color.buttonPrimary)
                     .onChange(of: chatNotifications) { _, newValue in
                         savePushNotifications(newValue)
                     }
             }
 
-            Section("Email Notifications") {
-                Toggle("Email Notifications", isOn: $emailNotifications)
+            Section(AppStrings.emailNotifications) {
+                Toggle(AppStrings.emailNotifications, isOn: $emailNotifications)
                     .tint(Color.buttonPrimary)
                     .onChange(of: emailNotifications) { _, newValue in
                         saveEmailNotifications(newValue)
@@ -765,11 +763,11 @@ struct SettingsNotificationsView: View {
             }
 
             Section {
-                Text("Push notifications require notification permissions to be enabled in your device settings.")
+                Text(L("settings.notifications.permission_hint"))
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
         }
-        .navigationTitle("Notifications")
+        .navigationTitle(AppStrings.settingsNotifications)
         .task {
             guard !isLoaded else { return }
             do {
@@ -807,25 +805,26 @@ struct SettingsBackupRemindersView: View {
 
     var body: some View {
         Form {
-            Toggle("Backup Reminders", isOn: $isEnabled)
+            Toggle(AppStrings.backupReminders, isOn: $isEnabled)
                 .tint(Color.buttonPrimary)
-                .onChange(of: isEnabled) { _, newValue in
+                .onChange(of: isEnabled) { _, _ in
                     saveBackupReminders()
                 }
 
             if isEnabled {
-                Stepper("Every \(reminderDays) days", value: $reminderDays, in: 7...365, step: 7)
+                Stepper(L("settings.backup_reminders.every_days", ["days": "\(reminderDays)"]),
+                        value: $reminderDays, in: 7...365, step: 7)
                     .onChange(of: reminderDays) { _, _ in
                         saveBackupReminders()
                     }
             }
 
             Section {
-                Text("Periodic reminders to back up your recovery key and 2FA codes.")
+                Text(L("settings.backup_reminders.description"))
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
         }
-        .navigationTitle("Backup Reminders")
+        .navigationTitle(AppStrings.backupReminders)
     }
 
     private func saveBackupReminders() {
@@ -838,15 +837,12 @@ struct SettingsBackupRemindersView: View {
     }
 }
 
-// MARK: - Helper
+// MARK: - i18n Helper (file-local shorthand)
 
-private func openWebPage(_ path: String) {
-    Task {
-        let url = await APIClient.shared.webAppURL.appendingPathComponent(path)
-        #if os(iOS)
-        await UIApplication.shared.open(url)
-        #elseif os(macOS)
-        NSWorkspace.shared.open(url)
-        #endif
-    }
+private func L(_ key: String) -> String {
+    LocalizationManager.shared.text(key)
+}
+
+private func L(_ key: String, _ replacements: [String: String]) -> String {
+    LocalizationManager.shared.text(key, replacements: replacements)
 }

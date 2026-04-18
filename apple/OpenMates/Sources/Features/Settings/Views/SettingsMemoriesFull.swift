@@ -1,5 +1,6 @@
-// Memories hub — view and manage AI memories across all apps.
-// Mirrors the web app's SettingsMemoriesHub.svelte.
+// Memories hub — view, create, edit, and delete AI memories across all apps.
+// Mirrors the web app's SettingsMemoriesHub.svelte with full CRUD support.
+// All strings use AppStrings (i18n).
 
 import SwiftUI
 
@@ -28,6 +29,17 @@ struct SettingsMemoriesFullView: View {
 
     var body: some View {
         List {
+            // Encryption notice banner
+            Section {
+                HStack(spacing: .spacing3) {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundStyle(Color.buttonPrimary)
+                    Text(AppStrings.encryptionNotice)
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                }
+                .padding(.vertical, .spacing2)
+            }
+
             if isLoading {
                 ProgressView()
             } else if memoryGroups.isEmpty {
@@ -36,9 +48,9 @@ struct SettingsMemoriesFullView: View {
                         Image(systemName: "brain.head.profile")
                             .font(.system(size: 36))
                             .foregroundStyle(Color.fontTertiary)
-                        Text("No memories yet")
+                        Text(AppStrings.noMemoriesYet)
                             .font(.omP).foregroundStyle(Color.fontSecondary)
-                        Text("As you chat, the AI will remember important details about you.")
+                        Text(AppStrings.memoriesDescription)
                             .font(.omXs).foregroundStyle(Color.fontTertiary)
                             .multilineTextAlignment(.center)
                     }
@@ -61,7 +73,7 @@ struct SettingsMemoriesFullView: View {
                                         Text(group.category)
                                             .font(.omSmall).fontWeight(.medium)
                                             .foregroundStyle(Color.fontPrimary)
-                                        Text("\(group.entryCount) entries")
+                                        Text(AppStrings.entriesCount(group.entryCount))
                                             .font(.omXs).foregroundStyle(Color.fontTertiary)
                                     }
                                     Spacer()
@@ -76,11 +88,13 @@ struct SettingsMemoriesFullView: View {
                 }
             }
         }
-        .navigationTitle("Memories")
+        .navigationTitle(AppStrings.settingsMemories)
         .task { await loadMemories() }
         .sheet(isPresented: $showDetail) {
             if let group = selectedGroup {
-                MemoryDetailView(group: group)
+                MemoryDetailView(group: group, onChanged: {
+                    Task { await loadMemories() }
+                })
             }
         }
     }
@@ -97,10 +111,15 @@ struct SettingsMemoriesFullView: View {
     }
 }
 
+// MARK: - Memory detail with CRUD
+
 struct MemoryDetailView: View {
     let group: SettingsMemoriesFullView.MemoryGroup
+    let onChanged: () -> Void
     @State private var entries: [SettingsMemoriesFullView.MemoryEntry] = []
     @State private var isLoading = true
+    @State private var showAddEntry = false
+    @State private var editingEntry: SettingsMemoriesFullView.MemoryEntry?
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -108,20 +127,34 @@ struct MemoryDetailView: View {
             List {
                 if isLoading {
                     ProgressView()
+                } else if entries.isEmpty {
+                    Section {
+                        Text(AppStrings.noMemoriesYet)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
                 } else {
                     ForEach(entries) { entry in
-                        VStack(alignment: .leading, spacing: .spacing2) {
-                            Text(entry.key)
-                                .font(.omSmall).fontWeight(.medium)
-                                .foregroundStyle(Color.fontPrimary)
-                            Text(entry.value)
-                                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                        Button {
+                            editingEntry = entry
+                        } label: {
+                            VStack(alignment: .leading, spacing: .spacing2) {
+                                Text(entry.key)
+                                    .font(.omSmall).fontWeight(.medium)
+                                    .foregroundStyle(Color.fontPrimary)
+                                Text(entry.value)
+                                    .font(.omXs).foregroundStyle(Color.fontSecondary)
+                                    .lineLimit(3)
+                                if let updated = entry.updatedAt {
+                                    Text(String(updated.prefix(10)))
+                                        .font(.omTiny).foregroundStyle(Color.fontTertiary)
+                                }
+                            }
                         }
                         .swipeActions {
                             Button(role: .destructive) {
                                 deleteEntry(entry.id)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(AppStrings.delete, systemImage: "trash")
                             }
                         }
                     }
@@ -131,10 +164,39 @@ struct MemoryDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(AppStrings.done) { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showAddEntry = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
             }
             .task { await loadEntries() }
+            .sheet(isPresented: $showAddEntry) {
+                MemoryEntryEditView(
+                    appId: group.appId,
+                    category: group.category,
+                    entry: nil,
+                    onSaved: {
+                        Task { await loadEntries() }
+                        onChanged()
+                    }
+                )
+            }
+            .sheet(item: $editingEntry) { entry in
+                MemoryEntryEditView(
+                    appId: group.appId,
+                    category: group.category,
+                    entry: entry,
+                    onSaved: {
+                        Task { await loadEntries() }
+                        onChanged()
+                    }
+                )
+            }
         }
     }
 
@@ -155,6 +217,87 @@ struct MemoryDetailView: View {
                 .delete, path: "/v1/settings/memories/entry/\(id)"
             ) as Data
             entries.removeAll { $0.id == id }
+            onChanged()
+        }
+    }
+}
+
+// MARK: - Create/Edit memory entry
+
+struct MemoryEntryEditView: View {
+    let appId: String
+    let category: String
+    let entry: SettingsMemoriesFullView.MemoryEntry?
+    let onSaved: () -> Void
+
+    @State private var key = ""
+    @State private var value = ""
+    @State private var isSaving = false
+    @State private var error: String?
+    @Environment(\.dismiss) var dismiss
+
+    private var isEditing: Bool { entry != nil }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(LocalizationManager.shared.text("settings.app_settings_memories.item_key_required"), text: $key)
+                        .autocorrectionDisabled()
+                    TextField(LocalizationManager.shared.text("settings.app_settings_memories.item_value_required"), text: $value, axis: .vertical)
+                        .lineLimit(3...8)
+                }
+
+                if let error {
+                    Section {
+                        Text(error).font(.omXs).foregroundStyle(Color.error)
+                    }
+                }
+            }
+            .navigationTitle(isEditing ? AppStrings.edit : AppStrings.add)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(AppStrings.cancel) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(AppStrings.save) { saveEntry() }
+                        .disabled(key.isEmpty || value.isEmpty || isSaving)
+                }
+            }
+            .onAppear {
+                if let entry {
+                    key = entry.key
+                    value = entry.value
+                }
+            }
+        }
+    }
+
+    private func saveEntry() {
+        isSaving = true
+        error = nil
+        Task {
+            do {
+                if let entry {
+                    // Update existing
+                    let _: Data = try await APIClient.shared.request(
+                        .patch, path: "/v1/settings/memories/entry/\(entry.id)",
+                        body: ["key": key, "value": value]
+                    )
+                } else {
+                    // Create new
+                    let _: Data = try await APIClient.shared.request(
+                        .post, path: "/v1/settings/memories/\(appId)/\(category)",
+                        body: ["key": key, "value": value]
+                    )
+                }
+                onSaved()
+                dismiss()
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isSaving = false
         }
     }
 }

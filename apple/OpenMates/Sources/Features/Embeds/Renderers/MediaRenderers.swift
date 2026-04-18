@@ -149,7 +149,7 @@ struct VideoRenderer: View {
                         .font(.omSmall).foregroundStyle(Color.fontTertiary)
                 }
                 if let url, let videoURL = URL(string: url) {
-                    Link("Open in Browser", destination: videoURL)
+                    Link(AppStrings.openInBrowser, destination: videoURL)
                         .font(.omSmall).foregroundStyle(Color.buttonPrimary)
                 }
             }
@@ -283,13 +283,13 @@ struct ImageGenerateRenderer: View {
                 }
                 if let prompt {
                     VStack(alignment: .leading, spacing: .spacing2) {
-                        Text("Prompt").font(.omXs).foregroundStyle(Color.fontTertiary)
+                        Text(LocalizationManager.shared.text("embed.prompt")).font(.omXs).foregroundStyle(Color.fontTertiary)
                         Text(prompt).font(.omP).foregroundStyle(Color.fontPrimary)
                     }
                 }
                 if let model {
                     HStack {
-                        Text("Model").font(.omXs).foregroundStyle(Color.fontTertiary)
+                        Text(LocalizationManager.shared.text("embed.model")).font(.omXs).foregroundStyle(Color.fontTertiary)
                         Text(model).font(.omSmall).foregroundStyle(Color.fontSecondary)
                     }
                 }
@@ -342,7 +342,7 @@ struct RecordingRenderer: View {
                     }
 
                     VStack(alignment: .leading) {
-                        Text("Voice Recording")
+                        Text(AppStrings.voiceRecording)
                             .font(.omP).fontWeight(.medium)
                         if let duration {
                             Text(formatDuration(duration))
@@ -358,7 +358,7 @@ struct RecordingRenderer: View {
 
                 if let transcription {
                     Divider()
-                    Text("Transcription")
+                    Text(AppStrings.transcription)
                         .font(.omSmall).fontWeight(.medium).foregroundStyle(Color.fontTertiary)
                     Text(transcription)
                         .font(.omP).foregroundStyle(Color.fontPrimary)
@@ -464,7 +464,7 @@ struct PDFRenderer: View {
                 }
 
                 if isLoading {
-                    ProgressView("Decrypting PDF...")
+                    ProgressView(AppStrings.decryptingPDF)
                 } else if let loadError {
                     Text(loadError).font(.omSmall).foregroundStyle(Color.error)
                 } else if pdfData != nil {
@@ -473,11 +473,11 @@ struct PDFRenderer: View {
                         .frame(minHeight: 500)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                     #else
-                    Text("PDF viewing available on iOS")
+                    Text(LocalizationManager.shared.text("embed.pdf_ios_only"))
                         .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     #endif
                 } else {
-                    Button("Load PDF") { loadPDF() }
+                    Button(AppStrings.loadPDF) { loadPDF() }
                         .buttonStyle(OMPrimaryButtonStyle())
                 }
             }

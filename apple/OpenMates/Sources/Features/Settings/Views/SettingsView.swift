@@ -1,6 +1,7 @@
 // Full settings screen — mirrors the web app's settings panel from settingsRoutes.ts.
 // Uses List with sections for native iOS/macOS settings feel.
-// All categories link to native sub-pages; payment processing redirects to web.
+// ALL navigation targets are native SwiftUI views — no web redirects.
+// ALL strings go through AppStrings (i18n) — no hardcoded English.
 
 import SwiftUI
 
@@ -48,13 +49,13 @@ struct SettingsView: View {
                     logoutSection
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(AppStrings.settings)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(AppStrings.done) { dismiss() }
                 }
             }
             .sheet(isPresented: $showIncognitoInfo) {
@@ -62,14 +63,13 @@ struct SettingsView: View {
                     SettingsIncognitoInfoView(
                         onActivate: {
                             showIncognitoInfo = false
-                            // Post notification to activate incognito mode
                             NotificationCenter.default.post(name: .incognitoActivated, object: nil)
                         },
                         onCancel: { showIncognitoInfo = false }
                     )
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { showIncognitoInfo = false }
+                            Button(AppStrings.cancel) { showIncognitoInfo = false }
                         }
                     }
                 }
@@ -94,18 +94,17 @@ struct SettingsView: View {
                         Text(user.username)
                             .font(.omP).fontWeight(.medium)
                         if let credits = user.credits {
-                            Text("\(String(format: "%.2f", credits)) credits")
+                            Text(AppStrings.creditsAmount(String(format: "%.2f", credits)))
                                 .font(.omXs).foregroundStyle(Color.fontSecondary)
                         }
                     }
                 }
             }
 
-            // Incognito quick toggle
             Button {
                 showIncognitoInfo = true
             } label: {
-                Label("Incognito Mode", systemImage: "eye.slash")
+                Label(AppStrings.settingsIncognito, systemImage: "eye.slash")
             }
         }
     }
@@ -113,23 +112,23 @@ struct SettingsView: View {
     // MARK: - AI (model selection, providers, memories)
 
     private var aiSection: some View {
-        Section("AI") {
+        Section(AppStrings.settingsAI) {
             NavigationLink {
                 SettingsAIFullView()
             } label: {
-                Label("AI Model & Providers", systemImage: "brain")
+                Label(AppStrings.aiModelProviders, systemImage: "brain")
             }
 
             NavigationLink {
                 SettingsMemoriesFullView()
             } label: {
-                Label("Memories", systemImage: "brain.head.profile")
+                Label(AppStrings.settingsMemories, systemImage: "brain.head.profile")
             }
 
             NavigationLink {
                 SettingsAppsFullView()
             } label: {
-                Label("Apps", systemImage: "square.grid.2x2")
+                Label(AppStrings.settingsApps, systemImage: "square.grid.2x2")
             }
         }
     }
@@ -137,23 +136,23 @@ struct SettingsView: View {
     // MARK: - Privacy
 
     private var privacySection: some View {
-        Section("Privacy") {
+        Section(AppStrings.settingsPrivacy) {
             NavigationLink {
                 SettingsHidePersonalDataView()
             } label: {
-                Label("Hide Personal Data", systemImage: "eye.slash")
+                Label(AppStrings.hidePersonalData, systemImage: "eye.slash")
             }
 
             NavigationLink {
                 SettingsAutoDeleteView()
             } label: {
-                Label("Auto-Delete Chats", systemImage: "trash.circle")
+                Label(AppStrings.autoDeleteChats, systemImage: "trash.circle")
             }
 
             NavigationLink {
                 SettingsShareDebugLogsView()
             } label: {
-                Label("Share Debug Logs", systemImage: "ladybug")
+                Label(AppStrings.shareDebugLogs, systemImage: "ladybug")
             }
         }
     }
@@ -161,11 +160,11 @@ struct SettingsView: View {
     // MARK: - Mates
 
     private var matesSection: some View {
-        Section("Mates") {
+        Section(AppStrings.settingsMates) {
             NavigationLink {
                 SettingsMatesView()
             } label: {
-                Label("AI Mates", systemImage: "person.2")
+                Label(AppStrings.settingsMates, systemImage: "person.2")
             }
         }
     }
@@ -173,11 +172,11 @@ struct SettingsView: View {
     // MARK: - Billing
 
     private var billingSection: some View {
-        Section("Billing") {
+        Section(AppStrings.settingsBilling) {
             NavigationLink {
                 SettingsBillingView()
             } label: {
-                Label("Billing & Credits", systemImage: "creditcard")
+                Label(AppStrings.billingCredits, systemImage: "creditcard")
             }
         }
     }
@@ -185,17 +184,17 @@ struct SettingsView: View {
     // MARK: - Notifications
 
     private var notificationsSection: some View {
-        Section("Notifications") {
+        Section(AppStrings.settingsNotifications) {
             NavigationLink {
                 SettingsNotificationsView()
             } label: {
-                Label("Chat Notifications", systemImage: "bell")
+                Label(AppStrings.chatMessages, systemImage: "bell")
             }
 
             NavigationLink {
                 SettingsBackupRemindersView()
             } label: {
-                Label("Backup Reminders", systemImage: "clock.arrow.circlepath")
+                Label(AppStrings.backupReminders, systemImage: "clock.arrow.circlepath")
             }
         }
     }
@@ -203,11 +202,11 @@ struct SettingsView: View {
     // MARK: - Shared
 
     private var sharedSection: some View {
-        Section("Shared") {
+        Section(AppStrings.settingsShared) {
             NavigationLink {
                 SettingsSharedView()
             } label: {
-                Label("Shared Chats", systemImage: "person.2.wave.2")
+                Label(AppStrings.settingsShared, systemImage: "person.2.wave.2")
             }
         }
     }
@@ -215,19 +214,19 @@ struct SettingsView: View {
     // MARK: - Interface
 
     private var interfaceSection: some View {
-        Section("Interface") {
+        Section(AppStrings.settingsInterface) {
             Picker(selection: $themeManager.themeMode) {
-                Text("System").tag(ThemeManager.ThemeMode.auto)
-                Text("Light").tag(ThemeManager.ThemeMode.light)
-                Text("Dark").tag(ThemeManager.ThemeMode.dark)
+                Text(AppStrings.systemTheme).tag(ThemeManager.ThemeMode.auto)
+                Text(AppStrings.lightTheme).tag(ThemeManager.ThemeMode.light)
+                Text(AppStrings.darkTheme).tag(ThemeManager.ThemeMode.dark)
             } label: {
-                Label("Theme", systemImage: "circle.lefthalf.filled")
+                Label(AppStrings.theme, systemImage: "circle.lefthalf.filled")
             }
 
             NavigationLink {
                 SettingsLanguageView()
             } label: {
-                Label("Language", systemImage: "globe")
+                Label(AppStrings.language, systemImage: "globe")
             }
         }
     }
@@ -235,59 +234,59 @@ struct SettingsView: View {
     // MARK: - Account
 
     private var accountSection: some View {
-        Section("Account") {
+        Section(AppStrings.settingsAccount) {
             NavigationLink {
                 SettingsAccountDetailView()
             } label: {
-                Label("Username & Timezone", systemImage: "person.circle")
+                Label(AppStrings.username, systemImage: "person.circle")
             }
 
             NavigationLink {
                 SettingsEmailView()
             } label: {
-                Label("Email", systemImage: "envelope")
+                Label(AppStrings.email, systemImage: "envelope")
             }
 
             NavigationLink {
                 SettingsProfilePictureView()
             } label: {
-                Label("Profile Picture", systemImage: "photo.circle")
+                Label(AppStrings.profilePicture, systemImage: "photo.circle")
             }
 
             NavigationLink {
                 SettingsUsageView()
             } label: {
-                Label("Usage", systemImage: "chart.bar")
+                Label(AppStrings.usage, systemImage: "chart.bar")
             }
 
             NavigationLink {
                 SettingsStorageFullView()
             } label: {
-                Label("Storage", systemImage: "internaldrive")
+                Label(AppStrings.storage, systemImage: "internaldrive")
             }
 
             NavigationLink {
                 SettingsAccountChatsView()
             } label: {
-                Label("Chats", systemImage: "bubble.left.and.bubble.right")
+                Label(AppStrings.chats, systemImage: "bubble.left.and.bubble.right")
             }
 
             NavigationLink {
                 ChatImportView()
             } label: {
-                Label("Import Chats", systemImage: "square.and.arrow.down")
+                Label(AppStrings.importChats, systemImage: "square.and.arrow.down")
             }
 
             NavigationLink {
                 SettingsExportAccountView()
             } label: {
-                Label("Export Data", systemImage: "square.and.arrow.up")
+                Label(AppStrings.exportData, systemImage: "square.and.arrow.up")
             }
 
             NavigationLink {
                 SettingsDeleteAccountView()
             } label: {
-                Label("Delete Account", systemImage: "trash")
+                Label(AppStrings.deleteAccount, systemImage: "trash")
                     .foregroundStyle(Color.error)
             }
         }
@@ -296,41 +295,41 @@ struct SettingsView: View {
     // MARK: - Security
 
     private var securitySection: some View {
-        Section("Security") {
+        Section(AppStrings.settingsSecurity) {
             NavigationLink {
                 SettingsPasskeysView()
             } label: {
-                Label("Passkeys", systemImage: "person.badge.key")
+                Label(AppStrings.passkeys, systemImage: "person.badge.key")
             }
 
             NavigationLink {
                 SettingsPasswordView()
             } label: {
-                Label("Password", systemImage: "lock")
+                Label(AppStrings.password, systemImage: "lock")
             }
 
             NavigationLink {
                 Settings2FAView()
             } label: {
-                Label("Two-Factor Authentication", systemImage: "lock.shield")
+                Label(AppStrings.twoFactorAuth, systemImage: "lock.shield")
             }
 
             NavigationLink {
                 SettingsRecoveryKeyView()
             } label: {
-                Label("Recovery Key", systemImage: "key")
+                Label(AppStrings.recoveryKey, systemImage: "key")
             }
 
             NavigationLink {
                 SettingsSessionsView()
             } label: {
-                Label("Active Sessions", systemImage: "desktopcomputer")
+                Label(AppStrings.activeSessions, systemImage: "desktopcomputer")
             }
 
             NavigationLink {
                 SettingsPairInitiateView()
             } label: {
-                Label("Pair New Device", systemImage: "qrcode")
+                Label(AppStrings.pairNewDevice, systemImage: "qrcode")
             }
         }
     }
@@ -338,23 +337,23 @@ struct SettingsView: View {
     // MARK: - Developers
 
     private var developerSection: some View {
-        Section("Developers") {
+        Section(AppStrings.settingsDevelopers) {
             NavigationLink {
                 SettingsAPIKeysView()
             } label: {
-                Label("API Keys", systemImage: "key")
+                Label(AppStrings.apiKeys, systemImage: "key")
             }
 
             NavigationLink {
                 SettingsDevicesView()
             } label: {
-                Label("Devices", systemImage: "laptopcomputer.and.iphone")
+                Label(AppStrings.devices, systemImage: "laptopcomputer.and.iphone")
             }
 
             NavigationLink {
                 SettingsWebhooksView()
             } label: {
-                Label("Webhooks", systemImage: "arrow.triangle.branch")
+                Label(AppStrings.webhooks, systemImage: "arrow.triangle.branch")
             }
         }
     }
@@ -362,11 +361,11 @@ struct SettingsView: View {
     // MARK: - Newsletter
 
     private var newsletterSection: some View {
-        Section("Newsletter") {
+        Section(AppStrings.settingsNewsletter) {
             NavigationLink {
                 NewsletterSettingsView()
             } label: {
-                Label("Newsletter", systemImage: "envelope.open")
+                Label(AppStrings.settingsNewsletter, systemImage: "envelope.open")
             }
         }
     }
@@ -374,11 +373,11 @@ struct SettingsView: View {
     // MARK: - Support
 
     private var supportSection: some View {
-        Section("Support") {
+        Section(AppStrings.settingsSupport) {
             NavigationLink {
                 SettingsSupportView()
             } label: {
-                Label("Support OpenMates", systemImage: "heart")
+                Label(AppStrings.settingsSupport, systemImage: "heart")
             }
         }
     }
@@ -390,7 +389,7 @@ struct SettingsView: View {
             NavigationLink {
                 ReportIssueView()
             } label: {
-                Label("Report an Issue", systemImage: "exclamationmark.bubble")
+                Label(AppStrings.settingsReportIssue, systemImage: "exclamationmark.bubble")
             }
         }
     }
@@ -398,11 +397,11 @@ struct SettingsView: View {
     // MARK: - Pricing (non-authenticated)
 
     private var pricingSection: some View {
-        Section("Pricing") {
+        Section(AppStrings.settingsPricing) {
             NavigationLink {
                 SettingsPricingView()
             } label: {
-                Label("Credit Packages", systemImage: "tag")
+                Label(AppStrings.settingsPricing, systemImage: "tag")
             }
         }
     }
@@ -410,11 +409,11 @@ struct SettingsView: View {
     // MARK: - Server (admin only)
 
     private var serverSection: some View {
-        Section("Server") {
+        Section(AppStrings.serverAdmin) {
             NavigationLink {
                 SettingsServerView()
             } label: {
-                Label("Server Admin", systemImage: "server.rack")
+                Label(AppStrings.serverAdmin, systemImage: "server.rack")
             }
         }
     }
@@ -426,7 +425,7 @@ struct SettingsView: View {
             NavigationLink {
                 SettingsLogsView()
             } label: {
-                Label("Logs", systemImage: "doc.text.magnifyingglass")
+                Label(AppStrings.logs, systemImage: "doc.text.magnifyingglass")
             }
         }
     }
@@ -434,9 +433,9 @@ struct SettingsView: View {
     // MARK: - About
 
     private var aboutSection: some View {
-        Section("About") {
+        Section(AppStrings.about) {
             HStack {
-                Label("Version", systemImage: "info.circle")
+                Label(AppStrings.version, systemImage: "info.circle")
                 Spacer()
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                     .foregroundStyle(Color.fontSecondary)
@@ -445,23 +444,23 @@ struct SettingsView: View {
             NavigationLink {
                 LegalChatView(documentType: .privacy)
             } label: {
-                Label("Privacy Policy", systemImage: "hand.raised")
+                Label(AppStrings.privacyPolicy, systemImage: "hand.raised")
             }
 
             NavigationLink {
                 LegalChatView(documentType: .terms)
             } label: {
-                Label("Terms of Service", systemImage: "doc.text")
+                Label(AppStrings.termsOfService, systemImage: "doc.text")
             }
 
             NavigationLink {
                 LegalChatView(documentType: .imprint)
             } label: {
-                Label("Imprint", systemImage: "building.2")
+                Label(AppStrings.imprint, systemImage: "building.2")
             }
 
             Link(destination: URL(string: "https://github.com/OpenMates/OpenMates")!) {
-                Label("Open Source", systemImage: "chevron.left.forwardslash.chevron.right")
+                Label(AppStrings.openSource, systemImage: "chevron.left.forwardslash.chevron.right")
             }
         }
     }
@@ -473,7 +472,7 @@ struct SettingsView: View {
             Button(role: .destructive) {
                 Task { await authManager.logout() }
             } label: {
-                Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                Label(AppStrings.logOut, systemImage: "rectangle.portrait.and.arrow.right")
             }
         }
     }
@@ -495,15 +494,15 @@ struct SettingsDeleteAccountView: View {
     var body: some View {
         Form {
             Section {
-                Text("This action is permanent and cannot be undone. All your data including chats, messages, embeds, and memories will be permanently deleted.")
+                Text(AppStrings.deleteAccountWarning)
                     .font(.omSmall).foregroundStyle(Color.error)
             }
 
-            Section("Confirm Identity") {
-                SecureField("Enter your password", text: $password)
+            Section(AppStrings.confirm) {
+                SecureField(AppStrings.enterPassword, text: $password)
                     .textContentType(.password)
 
-                TextField("Type \"delete my account\" to confirm", text: $confirmText)
+                TextField(AppStrings.deleteAccountConfirmText, text: $confirmText)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
@@ -519,7 +518,7 @@ struct SettingsDeleteAccountView: View {
                         if isDeleting {
                             ProgressView()
                         } else {
-                            Text("Permanently Delete Account")
+                            Text(AppStrings.permanentlyDeleteAccount)
                                 .fontWeight(.medium)
                         }
                         Spacer()
@@ -534,7 +533,7 @@ struct SettingsDeleteAccountView: View {
                 }
             }
         }
-        .navigationTitle("Delete Account")
+        .navigationTitle(AppStrings.deleteAccount)
     }
 
     private func deleteAccount() {

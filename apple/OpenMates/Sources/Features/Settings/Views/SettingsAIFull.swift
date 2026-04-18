@@ -1,13 +1,15 @@
 // Full AI settings — model selection, provider management, and preferences.
-// Mirrors the web app's SettingsAI.svelte with model picker and provider toggles.
+// Mirrors the web app's SettingsAI.svelte with model picker, auto-select toggle,
+// and provider enable/disable. All strings use AppStrings (i18n).
 
 import SwiftUI
 
 struct SettingsAIFullView: View {
+    @State private var autoSelectModel = true
     @State private var defaultSimpleModel = ""
     @State private var defaultComplexModel = ""
     @State private var availableModels: [AIModel] = []
-    @State private var disabledProviders: [String] = []
+    @State private var providers: [AIProvider] = []
     @State private var isLoading = true
     @State private var searchText = ""
 
@@ -18,12 +20,20 @@ struct SettingsAIFullView: View {
         let providerName: String?
         let pricePerMillionTokens: Double?
         let contextWindow: Int?
-        let isEnabled: Bool?
+        var isEnabled: Bool?
+    }
+
+    struct AIProvider: Identifiable, Decodable {
+        let id: String
+        let name: String
+        let region: String?
+        var isEnabled: Bool
     }
 
     var filteredModels: [AIModel] {
-        guard !searchText.isEmpty else { return availableModels }
-        return availableModels.filter {
+        let models = availableModels.filter { $0.isEnabled != false }
+        guard !searchText.isEmpty else { return models }
+        return models.filter {
             $0.name.localizedCaseInsensitiveContains(searchText) ||
             $0.provider.localizedCaseInsensitiveContains(searchText)
         }
@@ -31,25 +41,61 @@ struct SettingsAIFullView: View {
 
     var body: some View {
         List {
-            Section("Default Models") {
-                Picker("Simple Requests", selection: $defaultSimpleModel) {
-                    Text("Auto").tag("")
-                    ForEach(availableModels) { model in
-                        Text("\(model.name) (\(model.provider))").tag(model.id)
-                    }
-                }
-                .onChange(of: defaultSimpleModel) { _, _ in saveDefaults() }
+            // Default model selection
+            Section(AppStrings.defaultModels) {
+                Toggle(AppStrings.autoSelectModel, isOn: $autoSelectModel)
+                    .tint(Color.buttonPrimary)
+                    .onChange(of: autoSelectModel) { _, _ in saveDefaults() }
 
-                Picker("Complex Requests", selection: $defaultComplexModel) {
-                    Text("Auto").tag("")
-                    ForEach(availableModels) { model in
-                        Text("\(model.name) (\(model.provider))").tag(model.id)
+                if !autoSelectModel {
+                    Text(AppStrings.autoSelectDescription)
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+
+                    Picker(AppStrings.simpleRequests, selection: $defaultSimpleModel) {
+                        Text(AppStrings.auto).tag("")
+                        ForEach(availableModels.filter { $0.isEnabled != false }) { model in
+                            Text("\(model.name)").tag(model.id)
+                        }
                     }
+                    .onChange(of: defaultSimpleModel) { _, _ in saveDefaults() }
+
+                    Picker(AppStrings.complexRequests, selection: $defaultComplexModel) {
+                        Text(AppStrings.auto).tag("")
+                        ForEach(availableModels.filter { $0.isEnabled != false }) { model in
+                            Text("\(model.name)").tag(model.id)
+                        }
+                    }
+                    .onChange(of: defaultComplexModel) { _, _ in saveDefaults() }
                 }
-                .onChange(of: defaultComplexModel) { _, _ in saveDefaults() }
             }
 
-            Section("Available Models") {
+            // Available providers with enable/disable toggles
+            if !providers.isEmpty {
+                Section(AppStrings.availableProviders) {
+                    ForEach($providers) { $provider in
+                        HStack {
+                            VStack(alignment: .leading, spacing: .spacing1) {
+                                Text(provider.name)
+                                    .font(.omSmall).fontWeight(.medium)
+                                if let region = provider.region {
+                                    Text(region)
+                                        .font(.omTiny).foregroundStyle(Color.fontTertiary)
+                                }
+                            }
+                            Spacer()
+                            Toggle("", isOn: $provider.isEnabled)
+                                .labelsHidden()
+                                .tint(Color.buttonPrimary)
+                                .onChange(of: provider.isEnabled) { _, newValue in
+                                    toggleProvider(provider.id, enabled: newValue)
+                                }
+                        }
+                    }
+                }
+            }
+
+            // Available models list
+            Section(AppStrings.availableModels) {
                 if isLoading {
                     ProgressView()
                 } else {
@@ -74,14 +120,13 @@ struct SettingsAIFullView: View {
                             Spacer()
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(Color.buttonPrimary)
-                                .opacity(model.isEnabled != false ? 1 : 0.3)
                         }
                     }
                 }
             }
         }
-        .searchable(text: $searchText, prompt: "Search models")
-        .navigationTitle("AI Model")
+        .searchable(text: $searchText, prompt: AppStrings.searchModels)
+        .navigationTitle(AppStrings.settingsAI)
         .task { await loadModels() }
     }
 
@@ -104,6 +149,18 @@ struct SettingsAIFullView: View {
                     )
                 }
             }
+            if let providerList = response["providers"]?.value as? [[String: Any]] {
+                providers = providerList.compactMap { dict in
+                    guard let id = dict["id"] as? String,
+                          let name = dict["name"] as? String else { return nil }
+                    return AIProvider(
+                        id: id, name: name,
+                        region: dict["region"] as? String,
+                        isEnabled: dict["is_enabled"] as? Bool ?? true
+                    )
+                }
+            }
+            autoSelectModel = response["auto_select"]?.value as? Bool ?? true
             defaultSimpleModel = response["default_simple"]?.value as? String ?? ""
             defaultComplexModel = response["default_complex"]?.value as? String ?? ""
         } catch {
@@ -117,9 +174,19 @@ struct SettingsAIFullView: View {
             try? await APIClient.shared.request(
                 .post, path: "/v1/settings/ai-model-defaults",
                 body: [
+                    "auto_select": autoSelectModel,
                     "default_simple": defaultSimpleModel,
                     "default_complex": defaultComplexModel
                 ]
+            ) as Data
+        }
+    }
+
+    private func toggleProvider(_ providerId: String, enabled: Bool) {
+        Task {
+            try? await APIClient.shared.request(
+                .post, path: "/v1/settings/ai-providers/\(providerId)/toggle",
+                body: ["enabled": enabled]
             ) as Data
         }
     }

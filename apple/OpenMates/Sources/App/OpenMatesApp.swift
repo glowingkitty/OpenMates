@@ -55,13 +55,13 @@ struct OpenMatesApp: App {
         .defaultSize(width: 1200, height: 800)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New Chat") {
+                Button(AppStrings.newChat) {
                     NotificationCenter.default.post(name: .newChat, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(after: .appVisibility) {
-                Button("Toggle Incognito Mode") {
+                Button(AppStrings.settingsIncognito) {
                     NotificationCenter.default.post(name: .toggleIncognito, object: nil)
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
