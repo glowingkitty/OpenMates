@@ -16,6 +16,7 @@ struct ChatView: View {
     @State private var showPIIPlaceholders = false
     @StateObject private var focusModeManager = FocusModeManager()
     @FocusState private var isInputFocused: Bool
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {

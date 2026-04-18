@@ -81,6 +81,7 @@ struct ReminderCreationView: View {
                         Group {
                             if isCreating {
                                 ProgressView().tint(.fontButton)
+                                    .accessibilityHidden(true)
                             } else {
                                 Text(AppStrings.setReminder)
                             }
@@ -89,6 +90,10 @@ struct ReminderCreationView: View {
                     }
                     .buttonStyle(OMPrimaryButtonStyle())
                     .disabled(!isValid || isCreating)
+                    .accessibleButton(
+                        isCreating ? "Setting reminder" : "Set reminder",
+                        hint: isCreating ? nil : "Creates a reminder for this chat"
+                    )
                 }
             }
             .navigationTitle("New Reminder")
@@ -118,6 +123,7 @@ struct ReminderCreationView: View {
                 let _: Data = try await APIClient.shared.request(
                     .post, path: "/v1/reminders", body: body
                 )
+                AccessibilityAnnouncement.announce("Reminder set for \(title)")
                 ToastManager.shared.show("Reminder set", type: .success)
                 dismiss()
             } catch {

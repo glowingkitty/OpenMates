@@ -18,6 +18,7 @@ struct ShowMoreChatsButton: View {
                     if isLoading {
                         ProgressView()
                             .scaleEffect(0.8)
+                            .accessibilityHidden(true)
                     }
                     Text("\(LocalizationManager.shared.text("chats.loadMore.button")) (\(min(remainingCount, 20)))")
                         .font(.omSmall)
@@ -27,6 +28,10 @@ struct ShowMoreChatsButton: View {
                 .padding(.vertical, .spacing3)
             }
             .disabled(isLoading)
+            .accessibleButton(
+                isLoading ? "Loading more chats" : "Load \(min(remainingCount, 20)) more chats",
+                hint: isLoading ? nil : "\(remainingCount) chats remaining"
+            )
         }
     }
 }
@@ -43,6 +48,7 @@ struct UnreadBadge: View {
                 .padding(.vertical, 2)
                 .background(Color.buttonPrimary)
                 .clipShape(Capsule())
+                .accessibilityLabel("\(count > 99 ? "99 or more" : "\(count)") unread message\(count == 1 ? "" : "s")")
         }
     }
 }

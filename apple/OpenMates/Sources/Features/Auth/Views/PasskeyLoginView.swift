@@ -27,6 +27,7 @@ struct PasskeyLoginView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(Color.buttonPrimary)
                 .padding(.vertical, .spacing6)
+                .accessibilityHidden(true)
 
             Text(LocalizationManager.shared.text("auth.passkey_sign_in_description"))
                 .font(.omSmall)
@@ -53,6 +54,10 @@ struct PasskeyLoginView: View {
             }
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(isLoading)
+            .accessibleButton(
+                LocalizationManager.shared.text("auth.continue_with_passkey"),
+                hint: LocalizationManager.shared.text("auth.use_face_id_or_touch_id")
+            )
         }
     }
 
@@ -86,6 +91,7 @@ struct PasskeyLoginView: View {
                 }
             } catch {
                 errorMessage = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isLoading = false
         }

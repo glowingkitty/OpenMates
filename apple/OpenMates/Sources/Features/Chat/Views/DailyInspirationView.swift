@@ -21,6 +21,7 @@ struct DailyInspirationBanner: View {
                 HStack(spacing: .spacing3) {
                     Image(systemName: "lightbulb.fill")
                         .foregroundStyle(Color.buttonPrimary)
+                        .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: .spacing1) {
                         Text(AppStrings.dailyInspiration)
@@ -38,6 +39,7 @@ struct DailyInspirationBanner: View {
                     Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundStyle(Color.fontTertiary)
+                        .accessibilityHidden(true)
                 }
                 .padding(.spacing4)
                 .background(Color.grey10)
@@ -46,6 +48,8 @@ struct DailyInspirationBanner: View {
             .buttonStyle(.plain)
             .padding(.horizontal, .spacing4)
             .padding(.top, .spacing2)
+            .accessibilityElement(children: .combine)
+            .accessibleButton("Daily inspiration: \(inspiration.text)", hint: "Starts a new chat with this inspiration as the opening message")
         }
     }
 }

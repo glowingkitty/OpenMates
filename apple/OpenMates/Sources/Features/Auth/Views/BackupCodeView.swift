@@ -22,6 +22,7 @@ struct BackupCodeView: View {
             Image(systemName: "number.square.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.fontSecondary)
+                .accessibilityHidden(true)
 
             Text(LocalizationManager.shared.text("auth.use_backup_code"))
                 .font(.omH3)
@@ -39,6 +40,7 @@ struct BackupCodeView: View {
                     .textContentType(.password)
                     .focused($focusedField, equals: .password)
                     .onSubmit { focusedField = .backupCode }
+                    .accessibleInput(AppStrings.password, hint: LocalizationManager.shared.text("auth.enter_account_password"))
 
                 TextField(LocalizationManager.shared.text("auth.backup_code_format"), text: $backupCode)
                     .textFieldStyle(OMTextFieldStyle())
@@ -48,6 +50,10 @@ struct BackupCodeView: View {
                     #endif
                     .focused($focusedField, equals: .backupCode)
                     .onSubmit { performLogin() }
+                    .accessibleInput(
+                        LocalizationManager.shared.text("auth.backup_code"),
+                        hint: LocalizationManager.shared.text("auth.backup_code_format_hint")
+                    )
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -70,6 +76,10 @@ struct BackupCodeView: View {
             }
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(password.isEmpty || backupCode.isEmpty || isLoading)
+            .accessibleButton(
+                LocalizationManager.shared.text("auth.login_with_backup_code"),
+                hint: LocalizationManager.shared.text("auth.sign_in_using_backup_code")
+            )
         }
         .onAppear { focusedField = .password }
     }
@@ -86,8 +96,11 @@ struct BackupCodeView: View {
                 )
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             } catch {
-                errorMessage = LocalizationManager.shared.text("auth.login_failed_check_credentials")
+                let msg = LocalizationManager.shared.text("auth.login_failed_check_credentials")
+                errorMessage = msg
+                AccessibilityAnnouncement.announce(msg)
             }
             isLoading = false
         }

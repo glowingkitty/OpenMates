@@ -21,6 +21,8 @@ struct SettingsBillingView: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.buttonPrimary)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibleSetting(AppStrings.credits, value: String(format: "%.4f", balance))
             }
 
             Section(LocalizationManager.shared.text("settings.billing.top_up")) {
@@ -102,6 +104,7 @@ struct BuyCreditsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(Color.buttonPrimary)
+                        .accessibleButton(AppStrings.done, hint: LocalizationManager.shared.text("settings.billing.done_hint"))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, .spacing6)
@@ -165,6 +168,10 @@ struct BuyCreditsView: View {
                         Task { await storeManager.restorePurchases() }
                     }
                     .font(.omSmall)
+                    .accessibleButton(
+                        LocalizationManager.shared.text("settings.billing.restore_purchases"),
+                        hint: LocalizationManager.shared.text("settings.billing.restore_hint")
+                    )
                 }
             }
         }
@@ -227,6 +234,10 @@ struct CreditProductRow: View {
             }
             .disabled(isPurchasing)
             .buttonStyle(.plain)
+            .accessibleButton(
+                "\(product.displayPrice) — \(product.formattedCredits) credits",
+                hint: LocalizationManager.shared.text("settings.billing.buy_hint")
+            )
         }
         .padding(.vertical, .spacing2)
     }
@@ -312,6 +323,7 @@ struct AutoTopUpView: View {
                 Toggle(AppStrings.enabled, isOn: $isLowBalanceEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: isLowBalanceEnabled) { _, _ in save() }
+                    .accessibleToggle(LocalizationManager.shared.text("settings.billing.low_balance_auto_topup"), isOn: isLowBalanceEnabled)
 
                 if isLowBalanceEnabled {
                     HStack {
@@ -338,6 +350,7 @@ struct AutoTopUpView: View {
                 Toggle(AppStrings.enabled, isOn: $isMonthlyEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: isMonthlyEnabled) { _, _ in save() }
+                    .accessibleToggle(LocalizationManager.shared.text("settings.billing.monthly_auto_topup"), isOn: isMonthlyEnabled)
 
                 if isMonthlyEnabled {
                     Picker(LocalizationManager.shared.text("settings.billing.monthly_package"), selection: $monthlyProductID) {
@@ -437,6 +450,7 @@ struct InvoicesView: View {
                         if invoice.pdfUrl != nil {
                             Image(systemName: "arrow.down.doc")
                                 .foregroundStyle(Color.buttonPrimary)
+                                .accessibilityHidden(true)
                         }
                     }
                     .contentShape(Rectangle())
@@ -449,6 +463,15 @@ struct InvoicesView: View {
                             #endif
                         }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel({
+                        let amount = String(format: "%@ %.2f", invoice.currency?.uppercased() ?? "USD", invoice.amount ?? 0)
+                        let status = invoice.status?.capitalized ?? ""
+                        let date = invoice.createdAt ?? ""
+                        return "\(amount), \(status), \(date)"
+                    }())
+                    .accessibilityHint(invoice.pdfUrl != nil ? LocalizationManager.shared.text("settings.billing.tap_to_download") : "")
+                    .accessibilityAddTraits(invoice.pdfUrl != nil ? .isButton : [])
                 }
             }
         }

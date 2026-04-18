@@ -120,6 +120,7 @@ struct ServerSoftwareUpdateView: View {
                         }
                     }
                     .disabled(isInstalling)
+                    .accessibleButton(LocalizationManager.shared.text("admin.install_update"), hint: LocalizationManager.shared.text("admin.install_update_hint"))
                 }
             }
 
@@ -135,15 +136,18 @@ struct ServerSoftwareUpdateView: View {
                 Toggle(LocalizationManager.shared.text("admin.auto_check_updates"), isOn: $autoCheckEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: autoCheckEnabled) { _, _ in saveUpdateSettings() }
+                    .accessibleToggle(LocalizationManager.shared.text("admin.auto_check_updates"), isOn: autoCheckEnabled)
 
                 Toggle(LocalizationManager.shared.text("admin.auto_install_updates"), isOn: $autoInstallEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: autoInstallEnabled) { _, _ in saveUpdateSettings() }
+                    .accessibleToggle(LocalizationManager.shared.text("admin.auto_install_updates"), isOn: autoInstallEnabled)
             }
 
             Section {
                 Button(LocalizationManager.shared.text("admin.check_for_updates")) { checkForUpdates() }
                     .disabled(isChecking)
+                    .accessibleButton(LocalizationManager.shared.text("admin.check_for_updates"), hint: LocalizationManager.shared.text("admin.check_now_hint"))
             }
 
             if let error {
@@ -219,8 +223,10 @@ struct ServerSoftwareUpdateView: View {
                 )
                 installStatus = LocalizationManager.shared.text("admin.update_installed_successfully")
                 updateAvailable = false
+                AccessibilityAnnouncement.announce(LocalizationManager.shared.text("admin.update_installed_successfully"))
             } catch {
                 installStatus = "\(LocalizationManager.shared.text("admin.update_failed")): \(error.localizedDescription)"
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isInstalling = false
         }
@@ -413,6 +419,10 @@ struct ServerGiftCardGeneratorView: View {
                     }
                 }
                 .disabled(isGenerating)
+                .accessibleButton(
+                    "\(LocalizationManager.shared.text("admin.generate")) \(quantity) \(quantity > 1 ? LocalizationManager.shared.text("admin.cards") : LocalizationManager.shared.text("admin.card"))",
+                    hint: LocalizationManager.shared.text("admin.generate_cards_hint")
+                )
             }
 
             if !generatedCodes.isEmpty {

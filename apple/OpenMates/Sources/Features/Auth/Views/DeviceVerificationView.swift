@@ -20,6 +20,7 @@ struct DeviceVerificationView: View {
                 Image(systemName: "shield.checkered")
                     .font(.system(size: 48))
                     .foregroundStyle(Color.buttonPrimary)
+                    .accessibilityHidden(true)
 
                 Text(LocalizationManager.shared.text("auth.verify_this_device"))
                     .font(.omH3)
@@ -40,6 +41,10 @@ struct DeviceVerificationView: View {
                         .onChange(of: code) { _, newValue in
                             if newValue.count == 6 { verify() }
                         }
+                        .accessibleInput(
+                            LocalizationManager.shared.text("auth.six_digit_code"),
+                            hint: LocalizationManager.shared.text("auth.enter_6_digit_code_auto_submit")
+                        )
 
                     if let errorMessage {
                         Text(errorMessage)
@@ -61,6 +66,10 @@ struct DeviceVerificationView: View {
                 }
                 .buttonStyle(OMPrimaryButtonStyle())
                 .disabled(code.count != 6 || isLoading)
+                .accessibleButton(
+                    LocalizationManager.shared.text("auth.verify"),
+                    hint: LocalizationManager.shared.text("auth.verify_device_hint")
+                )
             }
             .padding(.horizontal, .spacing8)
         }
@@ -78,9 +87,12 @@ struct DeviceVerificationView: View {
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
                 code = ""
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             } catch {
-                errorMessage = LocalizationManager.shared.text("auth.verification_failed")
+                let msg = LocalizationManager.shared.text("auth.verification_failed")
+                errorMessage = msg
                 code = ""
+                AccessibilityAnnouncement.announce(msg)
             }
             isLoading = false
         }

@@ -46,6 +46,7 @@ struct SettingsAIFullView: View {
                 Toggle(AppStrings.autoSelectModel, isOn: $autoSelectModel)
                     .tint(Color.buttonPrimary)
                     .onChange(of: autoSelectModel) { _, _ in saveDefaults() }
+                    .accessibleToggle(AppStrings.autoSelectModel, isOn: autoSelectModel)
 
                 if !autoSelectModel {
                     Text(AppStrings.autoSelectDescription)
@@ -89,7 +90,10 @@ struct SettingsAIFullView: View {
                                 .onChange(of: provider.isEnabled) { _, newValue in
                                     toggleProvider(provider.id, enabled: newValue)
                                 }
+                                .accessibleToggle(provider.name, isOn: provider.isEnabled)
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibleSetting(provider.name, value: provider.isEnabled ? AppStrings.enabled : AppStrings.disabled)
                     }
                 }
             }
@@ -120,7 +124,20 @@ struct SettingsAIFullView: View {
                             Spacer()
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(Color.buttonPrimary)
+                                .accessibilityHidden(true)
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel({
+                            var label = model.name
+                            label += ", \(model.providerName ?? model.provider)"
+                            if let price = model.pricePerMillionTokens {
+                                label += ", $\(String(format: "%.2f", price)) per million tokens"
+                            }
+                            if let ctx = model.contextWindow {
+                                label += ", \(ctx / 1000)K context"
+                            }
+                            return label
+                        }())
                     }
                 }
             }

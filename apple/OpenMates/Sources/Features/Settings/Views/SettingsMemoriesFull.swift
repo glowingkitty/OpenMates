@@ -69,6 +69,7 @@ struct SettingsMemoriesFullView: View {
                             } label: {
                                 HStack {
                                     AppIconView(appId: appId, size: 28)
+                                        .accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: .spacing1) {
                                         Text(group.category)
                                             .font(.omSmall).fontWeight(.medium)
@@ -79,8 +80,14 @@ struct SettingsMemoriesFullView: View {
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.caption).foregroundStyle(Color.fontTertiary)
+                                        .accessibilityHidden(true)
                                 }
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibleButton(
+                                "\(group.category), \(AppStrings.entriesCount(group.entryCount))",
+                                hint: LocalizationManager.shared.text("settings.memories.view_entries_hint")
+                            )
                         }
                     } header: {
                         Text(memoryGroups.first(where: { $0.appId == appId })?.appName ?? appId)
@@ -172,6 +179,7 @@ struct MemoryDetailView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibleButton(AppStrings.add, hint: LocalizationManager.shared.text("settings.memories.add_entry_hint"))
                 }
             }
             .task { await loadEntries() }
@@ -244,8 +252,16 @@ struct MemoryEntryEditView: View {
                 Section {
                     TextField(LocalizationManager.shared.text("settings.app_settings_memories.item_key_required"), text: $key)
                         .autocorrectionDisabled()
+                        .accessibleInput(
+                            LocalizationManager.shared.text("settings.app_settings_memories.item_key_required"),
+                            hint: LocalizationManager.shared.text("settings.memories.key_hint")
+                        )
                     TextField(LocalizationManager.shared.text("settings.app_settings_memories.item_value_required"), text: $value, axis: .vertical)
                         .lineLimit(3...8)
+                        .accessibleInput(
+                            LocalizationManager.shared.text("settings.app_settings_memories.item_value_required"),
+                            hint: LocalizationManager.shared.text("settings.memories.value_hint")
+                        )
                 }
 
                 if let error {
@@ -294,8 +310,10 @@ struct MemoryEntryEditView: View {
                 }
                 onSaved()
                 dismiss()
+                AccessibilityAnnouncement.announce(AppStrings.success)
             } catch {
                 self.error = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isSaving = false
         }

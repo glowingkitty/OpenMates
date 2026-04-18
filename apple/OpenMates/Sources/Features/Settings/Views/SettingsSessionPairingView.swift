@@ -36,6 +36,8 @@ struct SettingsPairInitiateView: View {
                         .padding(.spacing4)
                         .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                        .accessibilityLabel(LocalizationManager.shared.text("settings.pairing_qr_code_label"))
+                        .accessibilityHint(LocalizationManager.shared.text("settings.pairing_qr_code_hint"))
                 }
 
                 if let pairingCode {
@@ -53,10 +55,12 @@ struct SettingsPairInitiateView: View {
                     Button {
                         CopyMessageFormatter.copyToClipboard(pairingCode)
                         ToastManager.shared.show(AppStrings.copied, type: .success)
+                        AccessibilityAnnouncement.announce(AppStrings.copied)
                     } label: {
                         Label(LocalizationManager.shared.text("settings.copy_code"), systemImage: "doc.on.doc")
                     }
                     .buttonStyle(.bordered)
+                    .accessibleButton(LocalizationManager.shared.text("settings.copy_code"), hint: LocalizationManager.shared.text("settings.copy_pairing_code_hint"))
                 }
 
                 if isPaired {
@@ -68,6 +72,10 @@ struct SettingsPairInitiateView: View {
                 if pairingCode == nil && !isGenerating {
                     Button(LocalizationManager.shared.text("settings.generate_pairing_code")) { generateCode() }
                         .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                        .accessibleButton(
+                            LocalizationManager.shared.text("settings.generate_pairing_code"),
+                            hint: LocalizationManager.shared.text("settings.generate_code_hint")
+                        )
                 }
 
                 if isGenerating { ProgressView(LocalizationManager.shared.text("settings.generating")) }
@@ -228,6 +236,7 @@ struct CLIPairAuthorizeView: View {
             HStack(spacing: .spacing4) {
                 Button(LocalizationManager.shared.text("settings.deny")) { dismiss() }
                     .buttonStyle(.bordered)
+                    .accessibleButton(LocalizationManager.shared.text("settings.deny"), hint: LocalizationManager.shared.text("settings.deny_login_hint"))
 
                 Button {
                     authorizeDevice()
@@ -241,6 +250,7 @@ struct CLIPairAuthorizeView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(Color.buttonPrimary)
                 .disabled(isAuthorizing)
+                .accessibleButton(LocalizationManager.shared.text("settings.allow"), hint: LocalizationManager.shared.text("settings.allow_login_hint"))
             }
 
             Text(LocalizationManager.shared.text("settings.only_approve_if_initiated"))
@@ -269,6 +279,9 @@ struct CLIPairAuthorizeView: View {
                     .background(Color.grey10)
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
                     .textSelection(.enabled)
+                    .accessibilityLabel(LocalizationManager.shared.text("settings.pin_label"))
+                    .accessibilityValue(pin.map { String($0) }.joined(separator: ", "))
+                    .accessibilityHint(LocalizationManager.shared.text("settings.pin_hint"))
             }
 
             Text(LocalizationManager.shared.text("settings.pin_expires_5_minutes"))
@@ -285,6 +298,7 @@ struct CLIPairAuthorizeView: View {
                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
             Button(AppStrings.done) { dismiss() }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                .accessibleButton(AppStrings.done, hint: LocalizationManager.shared.text("settings.close_hint"))
         }
     }
 
@@ -292,10 +306,15 @@ struct CLIPairAuthorizeView: View {
         VStack(spacing: .spacing6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48)).foregroundStyle(Color.error)
+                .accessibilityHidden(true)
             Text(AppStrings.error).font(.omH2).fontWeight(.bold)
             if let error { Text(error).font(.omSmall).foregroundStyle(Color.error) }
             Button(AppStrings.retry) { Task { await loadDeviceInfo() } }
                 .buttonStyle(.bordered)
+                .accessibleButton(AppStrings.retry, hint: LocalizationManager.shared.text("settings.retry_hint"))
+        }
+        .onAppear {
+            AccessibilityAnnouncement.announce(AppStrings.error)
         }
     }
 
@@ -450,6 +469,10 @@ struct SettingsConfirmPairView: View {
                     #if os(iOS)
                     .textInputAutocapitalization(.characters)
                     #endif
+                    .accessibleInput(
+                        LocalizationManager.shared.text("settings.pairing_code"),
+                        hint: LocalizationManager.shared.text("settings.enter_pairing_code_hint")
+                    )
             }
 
             Section {

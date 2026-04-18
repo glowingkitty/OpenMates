@@ -38,6 +38,7 @@ struct PIIWarningBanner: View {
                 HStack {
                     Image(systemName: "eye.slash.fill")
                         .foregroundStyle(Color.warning)
+                        .accessibilityHidden(true)
                     Text("\(activeCount) personal data item\(activeCount == 1 ? "" : "s") detected")
                         .font(.omXs).fontWeight(.medium)
                         .foregroundStyle(Color.fontPrimary)
@@ -46,12 +47,14 @@ struct PIIWarningBanner: View {
                         Image(systemName: "xmark").font(.caption)
                             .foregroundStyle(Color.fontTertiary)
                     }
+                    .accessibleButton("Dismiss privacy warning", hint: "Closes this personal data warning banner")
                 }
 
                 ForEach(detectedItems) { item in
                     HStack(spacing: .spacing2) {
                         Image(systemName: item.type.icon)
                             .font(.caption).foregroundStyle(Color.fontTertiary)
+                            .accessibilityHidden(true)
                         Text(item.value)
                             .font(.omXs).foregroundStyle(Color.fontSecondary)
                             .lineLimit(1)
@@ -63,7 +66,15 @@ struct PIIWarningBanner: View {
                                 .font(.omTiny).fontWeight(.medium)
                                 .foregroundStyle(item.isExcluded ? Color.buttonPrimary : Color.fontTertiary)
                         }
+                        .accessibleButton(
+                            item.isExcluded ? "Include \(item.value)" : "Exclude \(item.value)",
+                            hint: item.isExcluded
+                                ? "Includes this item in the message — it will be sent as-is"
+                                : "Replaces this item with a placeholder before sending"
+                        )
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(item.type.rawValue): \(item.value), \(item.isExcluded ? "included" : "will be masked")")
                 }
 
                 Text(LocalizationManager.shared.text("enter_message.pii.banner_description"))
@@ -73,6 +84,8 @@ struct PIIWarningBanner: View {
             .background(Color.warning.opacity(0.1))
             .clipShape(RoundedRectangle(cornerRadius: .radius3))
             .padding(.horizontal, .spacing4)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Privacy warning: \(activeCount) personal data item\(activeCount == 1 ? "" : "s") detected in your message")
         }
     }
 }
@@ -83,10 +96,15 @@ struct PIIToggleButton: View {
     var body: some View {
         Button {
             showPlaceholders.toggle()
+            AccessibilityAnnouncement.announce(showPlaceholders ? "Showing placeholders" : "Showing original values")
         } label: {
             Image(systemName: showPlaceholders ? "eye.slash.fill" : "eye.fill")
                 .font(.caption)
                 .foregroundStyle(showPlaceholders ? Color.buttonPrimary : Color.fontTertiary)
         }
+        .accessibleButton(
+            showPlaceholders ? "Show original values" : "Show placeholders",
+            hint: "Toggles between masked placeholders and original personal data values"
+        )
     }
 }

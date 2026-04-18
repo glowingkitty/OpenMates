@@ -14,6 +14,8 @@ struct EmbedPreviewCard: View {
         EmbedType(rawValue: embed.type)
     }
 
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 0) {
@@ -28,16 +30,16 @@ struct EmbedPreviewCard: View {
             )
             .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
             .scaleEffect(isPressed ? 0.97 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: isPressed)
+            .animation(reduceMotion ? .none : .easeInOut(duration: 0.15), value: isPressed)
         }
         .buttonStyle(.plain)
         .disabled(embed.status == .processing)
-        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("embed-preview")
-        .accessibilityLabel("\(embed.title ?? embed.embedType) embed")
-        .accessibilityValue(embed.status == .processing ? "Loading" : "Ready")
-        .accessibilityHint("Double tap to open fullscreen")
-        .accessibilityAddTraits(.isButton)
+        .accessibleEmbed(
+            type: embedType?.displayName ?? embed.type,
+            title: embed.title
+        )
+        .accessibilityValue(embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready")
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in isPressed = true }
@@ -103,6 +105,7 @@ struct EmbedPreviewCard: View {
         HStack(spacing: .spacing3) {
             if let appId = embedType?.appId {
                 AppIconView(appId: appId, size: 26)
+                    .accessibilityHidden(true)
             }
 
             VStack(alignment: .leading, spacing: 0) {

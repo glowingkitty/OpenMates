@@ -16,15 +16,19 @@ struct HiddenChatsListView: View {
         Group {
             if isLoading {
                 ProgressView("Loading hidden chats...")
+                    .accessibilityLabel("Loading hidden chats")
             } else if hiddenChats.isEmpty {
                 VStack(spacing: .spacing4) {
                     Image(systemName: "eye.slash")
                         .font(.system(size: 40))
                         .foregroundStyle(Color.fontTertiary)
+                        .accessibilityHidden(true)
                     Text(AppStrings.noHiddenChats)
                         .font(.omP)
                         .foregroundStyle(Color.fontSecondary)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("No hidden chats")
             } else {
                 List {
                     ForEach(hiddenChats) { chat in
@@ -42,14 +46,23 @@ struct HiddenChatsListView: View {
                                 }
                             }
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            chat.lastMessageAt.map { "\(chat.displayTitle), \(String($0.prefix(10)))" }
+                            ?? chat.displayTitle
+                        )
+                        .accessibilityHint("Opens this hidden chat")
+                        .accessibilityAddTraits(.isButton)
                         .swipeActions(edge: .trailing) {
                             Button {
                                 onUnhideChat(chat.id)
                                 hiddenChats.removeAll { $0.id == chat.id }
+                                AccessibilityAnnouncement.announce("\(chat.displayTitle) unhidden")
                             } label: {
                                 Label("Unhide", systemImage: "eye")
                             }
                             .tint(Color.buttonPrimary)
+                            .accessibilityLabel("Unhide \(chat.displayTitle)")
                         }
                     }
                 }

@@ -56,6 +56,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.done) { dismiss() }
+                        .accessibleButton(AppStrings.done, hint: LocalizationManager.shared.text("settings.close_settings_hint"))
                 }
             }
             .sheet(isPresented: $showIncognitoInfo) {
@@ -90,6 +91,7 @@ struct SettingsView: View {
                             Text(String(user.username.prefix(1)).uppercased())
                                 .font(.omH4).fontWeight(.bold).foregroundStyle(.white)
                         }
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: .spacing1) {
                         Text(user.username)
                             .font(.omP).fontWeight(.medium)
@@ -99,6 +101,10 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(user.credits.map {
+                    "\(user.username), \(AppStrings.creditsAmount(String(format: "%.2f", $0)))"
+                } ?? user.username)
             }
 
             Button {
@@ -106,6 +112,7 @@ struct SettingsView: View {
             } label: {
                 Label(AppStrings.settingsIncognito, systemImage: "eye.slash")
             }
+            .accessibleButton(AppStrings.settingsIncognito, hint: LocalizationManager.shared.text("settings.incognito_button_hint"))
         }
     }
 
@@ -440,6 +447,8 @@ struct SettingsView: View {
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
                     .foregroundStyle(Color.fontSecondary)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(AppStrings.version): \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
 
             NavigationLink {
                 LegalChatView(documentType: .privacy)
@@ -462,6 +471,7 @@ struct SettingsView: View {
             Link(destination: URL(string: "https://github.com/OpenMates/OpenMates")!) {
                 Label(AppStrings.openSource, systemImage: "chevron.left.forwardslash.chevron.right")
             }
+            .accessibilityHint(LocalizationManager.shared.text("settings.opens_in_browser"))
         }
     }
 
@@ -474,6 +484,7 @@ struct SettingsView: View {
             } label: {
                 Label(AppStrings.logOut, systemImage: "rectangle.portrait.and.arrow.right")
             }
+            .accessibleButton(AppStrings.logOut, hint: LocalizationManager.shared.text("settings.logout_hint"))
         }
     }
 }
@@ -501,12 +512,14 @@ struct SettingsDeleteAccountView: View {
             Section(AppStrings.confirm) {
                 SecureField(AppStrings.enterPassword, text: $password)
                     .textContentType(.password)
+                    .accessibleInput(AppStrings.enterPassword, hint: LocalizationManager.shared.text("auth.enter_account_password"))
 
                 TextField(AppStrings.deleteAccountConfirmText, text: $confirmText)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     #endif
+                    .accessibleInput(AppStrings.deleteAccountConfirmText, hint: LocalizationManager.shared.text("settings.type_delete_confirm_hint"))
             }
 
             Section {
@@ -525,6 +538,7 @@ struct SettingsDeleteAccountView: View {
                     }
                 }
                 .disabled(!canDelete || isDeleting)
+                .accessibleButton(AppStrings.permanentlyDeleteAccount, hint: LocalizationManager.shared.text("settings.delete_account_hint"))
             }
 
             if let error {
@@ -548,6 +562,7 @@ struct SettingsDeleteAccountView: View {
                 await authManager.logout()
             } catch {
                 self.error = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isDeleting = false
         }

@@ -12,16 +12,19 @@ struct PushNotificationBanner: View {
     let appIcon: String?
     let onTap: () -> Void
     let onDismiss: () -> Void
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: .spacing3) {
                 if let appIcon {
                     AppIconView(appId: appIcon, size: 32)
+                        .accessibilityHidden(true)
                 } else {
                     Image.iconOpenmates
                         .resizable()
                         .frame(width: 32, height: 32)
+                        .accessibilityHidden(true)
                 }
 
                 VStack(alignment: .leading, spacing: .spacing1) {
@@ -41,6 +44,7 @@ struct PushNotificationBanner: View {
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)
                 }
+                .accessibleButton("Dismiss notification", hint: "Closes this notification banner")
             }
             .padding(.spacing4)
             .background(.ultraThinMaterial)
@@ -49,6 +53,11 @@ struct PushNotificationBanner: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal)
+        .accessibilityElement(children: .combine)
+        .accessibleButton(
+            "New message in \(chatTitle): \(messagePreview)",
+            hint: "Opens the chat"
+        )
     }
 }
 
@@ -64,6 +73,7 @@ struct WebhookPendingBanner: View {
                 HStack(spacing: .spacing3) {
                     Image(systemName: "arrow.down.message")
                         .foregroundStyle(Color.buttonPrimary)
+                        .accessibilityHidden(true)
 
                     Text("\(pendingCount) incoming webhook message\(pendingCount == 1 ? "" : "s")")
                         .font(.omXs).fontWeight(.medium)
@@ -82,6 +92,11 @@ struct WebhookPendingBanner: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal)
+            .accessibilityElement(children: .combine)
+            .accessibleButton(
+                "\(pendingCount) incoming webhook message\(pendingCount == 1 ? "" : "s")",
+                hint: "Opens the webhook messages view"
+            )
         }
     }
 }
@@ -90,12 +105,14 @@ struct WebhookPendingBanner: View {
 
 struct OfflineBanner: View {
     let isOffline: Bool
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         if isOffline {
             HStack(spacing: .spacing2) {
                 Image(systemName: "wifi.slash")
                     .font(.omXs)
+                    .accessibilityHidden(true)
                 Text(LocalizationManager.shared.text("common.offline"))
                     .font(.omXs).fontWeight(.medium)
                 Text("— messages will sync when reconnected")
@@ -105,7 +122,9 @@ struct OfflineBanner: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, .spacing2)
             .background(Color.warning)
-            .transition(.move(edge: .top).combined(with: .opacity))
+            .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("You are offline. Messages will sync when reconnected.")
         }
     }
 }

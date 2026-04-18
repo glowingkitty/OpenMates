@@ -1,6 +1,7 @@
 // Auth flow container — manages step transitions for the login flow.
 // Mirrors Login.svelte's step-based navigation between email lookup,
 // password entry, passkey, recovery key, and backup code screens.
+// VoiceOver: screen change announcements on step transitions, combined header group.
 
 import SwiftUI
 
@@ -72,12 +73,15 @@ struct AuthFlowView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 48, height: 48)
+                .accessibilityHidden(true)
 
             Text("OpenMates")
                 .font(.omH2)
                 .fontWeight(.bold)
                 .foregroundStyle(Color.fontPrimary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("OpenMates")
         .padding(.top, .spacing16)
         .padding(.bottom, .spacing6)
     }
@@ -95,7 +99,9 @@ struct AuthFlowView: View {
                 .font(.omSmall)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.buttonPrimary)
+                .accessibleButton(AppStrings.signup, hint: LocalizationManager.shared.text("auth.opens_signup_in_browser"))
             }
+            .accessibilityElement(children: .combine)
             .padding(.vertical, .spacing4)
         }
     }
@@ -114,8 +120,10 @@ struct AuthFlowView: View {
 
         if methods.contains(.passkey) {
             currentStep = .passkeyLogin
+            AccessibilityAnnouncement.screenChanged(LocalizationManager.shared.text("auth.passkey_login_screen"))
         } else {
             currentStep = .passwordLogin
+            AccessibilityAnnouncement.screenChanged(LocalizationManager.shared.text("auth.password_login_screen"))
         }
     }
 

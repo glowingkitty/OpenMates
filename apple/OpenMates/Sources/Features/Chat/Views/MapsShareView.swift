@@ -34,6 +34,7 @@ struct MapsShareView: View {
                     }
                 }
                 .mapStyle(.standard(elevation: .realistic))
+                .accessibilityLabel(selectedLocation != nil ? "Map with selected location: \(selectedName.isEmpty ? "unnamed" : selectedName)" : "Map — search for a place or tap to pin a location")
                 .onTapGesture { location in
                     // MapKit tap-to-pin requires MapReader in iOS 17+
                 }
@@ -60,9 +61,11 @@ struct MapsShareView: View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(Color.fontTertiary)
+                .accessibilityHidden(true)
             TextField("Search places", text: $searchText)
                 .autocorrectionDisabled()
                 .onSubmit { searchPlaces() }
+                .accessibleInput("Search places", hint: "Enter a place name or address and submit to find it on the map")
         }
         .padding(.spacing3)
         .background(.ultraThinMaterial)
@@ -79,6 +82,7 @@ struct MapsShareView: View {
         } label: {
             HStack {
                 Image(systemName: "location.fill")
+                    .accessibilityHidden(true)
                 Text(LocalizationManager.shared.text("enter_message.attachments.share_location"))
                     .fontWeight(.medium)
             }
@@ -89,6 +93,10 @@ struct MapsShareView: View {
         .tint(Color.buttonPrimary)
         .padding(.horizontal)
         .padding(.bottom, .spacing4)
+        .accessibleButton(
+            selectedName.isEmpty ? "Share selected location" : "Share \(selectedName)",
+            hint: "Sends the pinned location to the chat"
+        )
     }
 
     private func searchPlaces() {

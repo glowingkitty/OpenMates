@@ -37,10 +37,12 @@ struct MentionDropdownView: View {
         VStack(spacing: 0) {
             if isLoading {
                 ProgressView().padding(.spacing4)
+                    .accessibilityLabel("Loading mention suggestions")
             } else if filteredItems.isEmpty {
                 Text(LocalizationManager.shared.text("chat.suggestions.filter_no_match"))
                     .font(.omSmall).foregroundStyle(Color.fontTertiary)
                     .padding(.spacing4)
+                    .accessibilityLabel("No mention suggestions match \(query)")
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -51,10 +53,12 @@ struct MentionDropdownView: View {
                                 HStack(spacing: .spacing3) {
                                     if let icon = item.iconName {
                                         AppIconView(appId: icon, size: 24)
+                                            .accessibilityHidden(true)
                                     } else {
                                         Image(systemName: iconForType(item.type))
                                             .frame(width: 24, height: 24)
                                             .foregroundStyle(Color.fontSecondary)
+                                            .accessibilityHidden(true)
                                     }
 
                                     VStack(alignment: .leading, spacing: 0) {
@@ -78,10 +82,15 @@ struct MentionDropdownView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(item.name), \(item.type.rawValue)\(item.description.map { ", \($0)" } ?? "")")
+                            .accessibilityHint("Inserts @\(item.name) mention into the message")
+                            .accessibilityAddTraits(.isButton)
                         }
                     }
                 }
                 .frame(maxHeight: 240)
+                .accessibilityLabel("Mention suggestions, \(filteredItems.count) available")
             }
         }
         .background(.ultraThinMaterial)

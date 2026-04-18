@@ -37,6 +37,7 @@ struct MessageEditView: View {
                     RoundedRectangle(cornerRadius: .radius4)
                         .stroke(Color.buttonPrimary.opacity(0.5), lineWidth: 1)
                 )
+                .accessibleInput("Edit message", hint: "Modify the message content, then tap Save to confirm")
 
             HStack(spacing: .spacing3) {
                 Button("Cancel") {
@@ -44,6 +45,7 @@ struct MessageEditView: View {
                 }
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
+                .accessibleButton("Cancel edit", hint: "Discards changes and closes the editor")
 
                 Button {
                     save()
@@ -51,6 +53,7 @@ struct MessageEditView: View {
                     if isSaving {
                         ProgressView()
                             .frame(width: 16, height: 16)
+                            .accessibilityHidden(true)
                     } else {
                         Text(AppStrings.save)
                             .font(.omSmall).fontWeight(.medium)
@@ -59,6 +62,10 @@ struct MessageEditView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(Color.buttonPrimary)
                 .disabled(!hasChanges || editedContent.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
+                .accessibleButton(
+                    isSaving ? "Saving" : "Save message",
+                    hint: isSaving ? nil : "Saves the edited message"
+                )
             }
         }
         .padding(.spacing4)
@@ -70,6 +77,7 @@ struct MessageEditView: View {
         Task {
             await onSave(editedContent)
             isSaving = false
+            AccessibilityAnnouncement.announce("Message saved")
         }
     }
 }

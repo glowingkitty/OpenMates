@@ -17,6 +17,7 @@ struct RecoveryKeyView: View {
             Image(systemName: "key.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.warning)
+                .accessibilityHidden(true)
 
             Text(LocalizationManager.shared.text("auth.account_recovery"))
                 .font(.omH3)
@@ -37,6 +38,10 @@ struct RecoveryKeyView: View {
                     #endif
                     .focused($isFocused)
                     .onSubmit { performLogin() }
+                    .accessibleInput(
+                        LocalizationManager.shared.text("auth.recovery_key"),
+                        hint: LocalizationManager.shared.text("auth.enter_24_char_recovery_key")
+                    )
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -59,6 +64,10 @@ struct RecoveryKeyView: View {
             }
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(recoveryKey.count < 20 || isLoading)
+            .accessibleButton(
+                LocalizationManager.shared.text("auth.recover_account"),
+                hint: LocalizationManager.shared.text("auth.sign_in_with_recovery_key")
+            )
         }
         .onAppear { isFocused = true }
     }
@@ -73,8 +82,11 @@ struct RecoveryKeyView: View {
                 try await authManager.loginWithRecoveryKey(email: email, recoveryKey: recoveryKey)
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             } catch {
-                errorMessage = LocalizationManager.shared.text("auth.recovery_failed")
+                let msg = LocalizationManager.shared.text("auth.recovery_failed")
+                errorMessage = msg
+                AccessibilityAnnouncement.announce(msg)
             }
             isLoading = false
         }

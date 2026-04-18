@@ -32,6 +32,7 @@ struct ChatImportView: View {
                     if isImporting {
                         HStack {
                             ProgressView()
+                                .accessibilityHidden(true)
                             Text(LocalizationManager.shared.text("settings.account.import_importing")).font(.omP)
                         }
                     } else {
@@ -39,6 +40,10 @@ struct ChatImportView: View {
                     }
                 }
                 .disabled(isImporting)
+                .accessibleButton(
+                    isImporting ? "Importing chats" : "Select ZIP file to import",
+                    hint: isImporting ? nil : "Opens the file picker to select a chat export ZIP file"
+                )
             }
 
             if let result = importResult {
@@ -48,11 +53,15 @@ struct ChatImportView: View {
                         Spacer()
                         Text("\(result.chatCount)").foregroundStyle(Color.fontSecondary)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Chats imported: \(result.chatCount)")
                     HStack {
                         Text(LocalizationManager.shared.text("settings.account.import_messages_imported"))
                         Spacer()
                         Text("\(result.messageCount)").foregroundStyle(Color.fontSecondary)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Messages imported: \(result.messageCount)")
                 }
             }
 
@@ -95,6 +104,7 @@ struct ChatImportView: View {
 
                 let (responseData, _) = try await URLSession.shared.data(for: request)
                 importResult = try JSONDecoder().decode(ImportResult.self, from: responseData)
+                AccessibilityAnnouncement.announce("Import complete")
                 ToastManager.shared.show("Import complete!", type: .success)
             } catch {
                 self.error = error.localizedDescription

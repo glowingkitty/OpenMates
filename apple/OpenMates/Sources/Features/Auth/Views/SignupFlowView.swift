@@ -15,6 +15,8 @@ struct SignupFlowView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 SignupProgressBar(currentStep: viewModel.currentStep, totalSteps: viewModel.totalSteps)
+                    .accessibilityLabel("Step \(viewModel.currentStep.rawValue + 1) of \(viewModel.totalSteps)")
+                    .accessibilityValue(String(describing: viewModel.currentStep))
 
                 Group {
                     switch viewModel.currentStep {
@@ -51,6 +53,7 @@ struct SignupFlowView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.cancel) { dismiss() }
+                        .accessibleButton(AppStrings.cancel, hint: LocalizationManager.shared.text("auth.cancel_signup"))
                 }
             }
         }
@@ -101,8 +104,10 @@ final class SignupViewModel: ObservableObject {
                 body: ["email": email, "username": username]
             )
             nextStep()
+            AccessibilityAnnouncement.screenChanged("Check your email")
         } catch {
             self.error = error.localizedDescription
+            AccessibilityAnnouncement.announce(error.localizedDescription)
         }
         isLoading = false
     }
@@ -116,8 +121,10 @@ final class SignupViewModel: ObservableObject {
                 body: ["code": verificationCode]
             )
             nextStep()
+            AccessibilityAnnouncement.screenChanged("Email verified. Set a password.")
         } catch {
             self.error = error.localizedDescription
+            AccessibilityAnnouncement.announce(error.localizedDescription)
         }
         isLoading = false
     }
@@ -131,8 +138,10 @@ final class SignupViewModel: ObservableObject {
                 body: ["password": password]
             )
             nextStep()
+            AccessibilityAnnouncement.screenChanged("Password saved. Set up a passkey.")
         } catch {
             self.error = error.localizedDescription
+            AccessibilityAnnouncement.announce(error.localizedDescription)
         }
         isLoading = false
     }
@@ -201,6 +210,7 @@ struct SignupBasicsStep: View {
                     #endif
                     .textContentType(.emailAddress)
                     .textFieldStyle(.roundedBorder)
+                    .accessibleInput(LocalizationManager.shared.text("auth.email"), hint: LocalizationManager.shared.text("auth.enter_account_email"))
 
                 TextField(AppStrings.username, text: $viewModel.username)
                     .autocorrectionDisabled()
@@ -208,9 +218,11 @@ struct SignupBasicsStep: View {
                     .textInputAutocapitalization(.never)
                     #endif
                     .textFieldStyle(.roundedBorder)
+                    .accessibleInput(AppStrings.username, hint: LocalizationManager.shared.text("auth.choose_username_hint"))
 
                 if let error = viewModel.error {
                     Text(error).font(.omSmall).foregroundStyle(Color.error)
+                        .accessibilityLabel(error)
                 }
 
                 Button {
@@ -225,6 +237,7 @@ struct SignupBasicsStep: View {
                 .buttonStyle(.borderedProminent)
                 .tint(Color.buttonPrimary)
                 .disabled(viewModel.email.isEmpty || viewModel.username.isEmpty || viewModel.isLoading)
+                .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("auth.create_account_hint"))
             }
             .padding(.spacing8)
         }
@@ -252,9 +265,14 @@ struct SignupConfirmEmailStep: View {
                     .textFieldStyle(.roundedBorder)
                     .multilineTextAlignment(.center)
                     .font(.system(.title2, design: .monospaced))
+                    .accessibleInput(
+                        LocalizationManager.shared.text("auth.verification_code"),
+                        hint: LocalizationManager.shared.text("auth.enter_code_from_email")
+                    )
 
                 if let error = viewModel.error {
                     Text(error).font(.omSmall).foregroundStyle(Color.error)
+                        .accessibilityLabel(error)
                 }
 
                 Button {
@@ -265,6 +283,7 @@ struct SignupConfirmEmailStep: View {
                 .buttonStyle(.borderedProminent)
                 .tint(Color.buttonPrimary)
                 .disabled(viewModel.verificationCode.isEmpty || viewModel.isLoading)
+                .accessibleButton(LocalizationManager.shared.text("auth.verify"), hint: LocalizationManager.shared.text("auth.verify_email_hint"))
             }
             .padding(.spacing8)
         }
@@ -290,17 +309,21 @@ struct SignupPasswordStep: View {
 
                 SecureField(LocalizationManager.shared.text("auth.password_min_chars"), text: $viewModel.password)
                     .textContentType(.newPassword).textFieldStyle(.roundedBorder)
+                    .accessibleInput(LocalizationManager.shared.text("auth.password"), hint: LocalizationManager.shared.text("auth.password_min_chars_hint"))
 
                 SecureField(LocalizationManager.shared.text("auth.confirm_password"), text: $viewModel.confirmPassword)
                     .textContentType(.newPassword).textFieldStyle(.roundedBorder)
+                    .accessibleInput(LocalizationManager.shared.text("auth.confirm_password"), hint: LocalizationManager.shared.text("auth.retype_new_password"))
 
                 if !viewModel.confirmPassword.isEmpty && !passwordsMatch {
                     Text(LocalizationManager.shared.text("auth.passwords_dont_match"))
                         .font(.omXs).foregroundStyle(Color.error)
+                        .accessibilityLabel(LocalizationManager.shared.text("auth.passwords_dont_match"))
                 }
 
                 if let error = viewModel.error {
                     Text(error).font(.omSmall).foregroundStyle(Color.error)
+                        .accessibilityLabel(error)
                 }
 
                 Button {
@@ -310,6 +333,7 @@ struct SignupPasswordStep: View {
                 }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                 .disabled(!isValid || viewModel.isLoading)
+                .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("auth.set_password_and_continue"))
             }
             .padding(.spacing8)
         }
@@ -337,9 +361,17 @@ struct SignupPasskeyStep: View {
                     viewModel.nextStep()
                 }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                .accessibleButton(
+                    LocalizationManager.shared.text("auth.set_up_passkey"),
+                    hint: LocalizationManager.shared.text("auth.use_face_id_or_touch_id")
+                )
 
                 Button(LocalizationManager.shared.text("common.skip_for_now")) { viewModel.nextStep() }
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    .accessibleButton(
+                        LocalizationManager.shared.text("common.skip_for_now"),
+                        hint: LocalizationManager.shared.text("auth.skip_passkey_hint")
+                    )
             }
             .padding(.spacing8)
         }
@@ -369,17 +401,23 @@ struct SignupRecoveryKeyStep: View {
                         .padding(.spacing4)
                         .background(Color.grey10)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        .accessibilityLabel(LocalizationManager.shared.text("auth.recovery_key"))
+                        .accessibilityValue(key)
+                        .accessibilityHint(LocalizationManager.shared.text("auth.double_tap_to_select"))
 
                     Button(LocalizationManager.shared.text("auth.copy_key")) {
                         CopyMessageFormatter.copyToClipboard(key)
                         ToastManager.shared.show(AppStrings.copied, type: .success)
+                        AccessibilityAnnouncement.announce(AppStrings.copied)
                     }
                     .buttonStyle(.bordered)
+                    .accessibleButton(LocalizationManager.shared.text("auth.copy_key"), hint: LocalizationManager.shared.text("auth.copy_recovery_key_hint"))
                 }
 
                 Button(LocalizationManager.shared.text("auth.ive_saved_my_key")) { viewModel.nextStep() }
                     .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                     .disabled(viewModel.recoveryKey == nil)
+                    .accessibleButton(LocalizationManager.shared.text("auth.ive_saved_my_key"), hint: LocalizationManager.shared.text("auth.confirm_key_saved_hint"))
             }
             .padding(.spacing8)
             .task { await viewModel.generateRecoveryKey() }
@@ -414,12 +452,15 @@ struct SignupBackupCodesStep: View {
                 Button(LocalizationManager.shared.text("auth.copy_all_codes")) {
                     CopyMessageFormatter.copyToClipboard(viewModel.backupCodes.joined(separator: "\n"))
                     ToastManager.shared.show(AppStrings.copied, type: .success)
+                    AccessibilityAnnouncement.announce(AppStrings.copied)
                 }
                 .buttonStyle(.bordered)
+                .accessibleButton(LocalizationManager.shared.text("auth.copy_all_codes"), hint: LocalizationManager.shared.text("auth.copy_all_backup_codes_hint"))
 
                 Button(LocalizationManager.shared.text("common.continue")) { viewModel.nextStep() }
                     .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                     .disabled(viewModel.backupCodes.isEmpty)
+                    .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("auth.continue_after_saving_codes"))
             }
             .padding(.spacing8)
             .task { await viewModel.generateBackupCodes() }
@@ -454,9 +495,11 @@ struct SignupPaymentStep: View {
                     }
                 }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                .accessibleButton(LocalizationManager.shared.text("auth.add_credits"), hint: LocalizationManager.shared.text("auth.opens_payment_in_browser"))
 
                 Button(LocalizationManager.shared.text("common.skip_for_now")) { viewModel.nextStep() }
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    .accessibleButton(LocalizationManager.shared.text("common.skip_for_now"), hint: LocalizationManager.shared.text("auth.skip_payment_hint"))
             }
             .padding(.spacing8)
         }
@@ -477,9 +520,11 @@ struct SignupProfilePictureStep: View {
 
                 Button(LocalizationManager.shared.text("common.continue")) { viewModel.nextStep() }
                     .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                    .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("auth.continue_with_profile_picture"))
 
                 Button(AppStrings.skip) { viewModel.nextStep() }
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    .accessibleButton(AppStrings.skip, hint: LocalizationManager.shared.text("auth.skip_profile_picture_hint"))
             }
             .padding(.spacing8)
         }
@@ -493,6 +538,7 @@ struct SignupCompleteStep: View {
         VStack(spacing: .spacing6) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64)).foregroundStyle(.green)
+                .accessibilityHidden(true)
 
             Text(LocalizationManager.shared.text("auth.welcome_to_openmates"))
                 .font(.omH2).fontWeight(.bold)
@@ -503,7 +549,11 @@ struct SignupCompleteStep: View {
 
             Button(LocalizationManager.shared.text("auth.get_started")) { onFinish() }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                .accessibleButton(LocalizationManager.shared.text("auth.get_started"), hint: LocalizationManager.shared.text("auth.open_app_hint"))
         }
         .padding(.spacing8)
+        .onAppear {
+            AccessibilityAnnouncement.announce(LocalizationManager.shared.text("auth.account_ready"))
+        }
     }
 }

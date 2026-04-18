@@ -21,10 +21,12 @@ struct SettingsAccountDetailView: View {
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     #endif
+                    .accessibleInput(AppStrings.username, hint: LocalizationManager.shared.text("settings.username_hint"))
                 Button(AppStrings.save) {
                     saveField(path: "/v1/settings/user/username", body: ["username": username])
                 }
                 .disabled(username.isEmpty || isSaving)
+                .accessibleButton(AppStrings.save, hint: LocalizationManager.shared.text("settings.save_username_hint"))
             }
 
             Section(AppStrings.timezone) {
@@ -58,8 +60,10 @@ struct SettingsAccountDetailView: View {
             do {
                 let _: Data = try await APIClient.shared.request(.post, path: path, body: body)
                 saveMessage = AppStrings.success
+                AccessibilityAnnouncement.announce(AppStrings.success)
             } catch {
                 saveMessage = error.localizedDescription
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isSaving = false
         }
@@ -141,8 +145,10 @@ struct SettingsGiftCardsView: View {
                     #if os(iOS)
                     .textInputAutocapitalization(.characters)
                     #endif
+                    .accessibleInput(L("settings.gift_cards.code"), hint: L("settings.gift_cards.code_hint"))
                 Button(L("settings.gift_cards.redeem_button")) { redeemGiftCard() }
                     .disabled(giftCode.isEmpty || isRedeeming)
+                    .accessibleButton(L("settings.gift_cards.redeem_button"), hint: L("settings.gift_cards.redeem_hint"))
             }
             if let result {
                 Section {
@@ -224,6 +230,7 @@ struct SettingsPasskeysView: View {
 
             Section {
                 Button(AppStrings.addPasskey) { addPasskey() }
+                    .accessibleButton(AppStrings.addPasskey, hint: L("settings.add_passkey_hint"))
             }
         }
         .navigationTitle(AppStrings.passkeys)
@@ -295,20 +302,25 @@ struct SettingsPasswordView: View {
             Section {
                 SecureField(L("settings.password.current"), text: $currentPassword)
                     .textContentType(.password)
+                    .accessibleInput(L("settings.password.current"), hint: L("settings.current_password_hint"))
                 SecureField(L("settings.password.new"), text: $newPassword)
                     .textContentType(.newPassword)
+                    .accessibleInput(L("settings.password.new"), hint: L("settings.new_password_hint"))
                 SecureField(L("settings.password.confirm"), text: $confirmPassword)
                     .textContentType(.newPassword)
+                    .accessibleInput(L("settings.password.confirm"), hint: L("auth.retype_new_password"))
             }
 
             if newPassword != confirmPassword && !confirmPassword.isEmpty {
                 Text(L("settings.password.mismatch"))
                     .font(.omXs).foregroundStyle(Color.error)
+                    .accessibilityLabel(L("settings.password.mismatch"))
             }
 
             Section {
                 Button(L("settings.password.update")) { updatePassword() }
                     .disabled(!isValid || isSaving)
+                    .accessibleButton(L("settings.password.update"), hint: L("settings.save_new_password_hint"))
             }
 
             if let result {
@@ -336,8 +348,10 @@ struct SettingsPasswordView: View {
                 currentPassword = ""
                 newPassword = ""
                 confirmPassword = ""
+                AccessibilityAnnouncement.announce(AppStrings.success)
             } catch {
                 result = "\(AppStrings.error): \(error.localizedDescription)"
+                AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isSaving = false
         }
@@ -363,6 +377,8 @@ struct Settings2FAView: View {
                         .foregroundStyle(is2FAEnabled ? .green : Color.fontSecondary)
                         .fontWeight(.medium)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibleSetting(L("settings.two_factor_auth.status"), value: is2FAEnabled ? AppStrings.enabled : AppStrings.disabled)
             }
 
             if is2FAEnabled {
@@ -370,6 +386,7 @@ struct Settings2FAView: View {
                     Button(AppStrings.disable2FA, role: .destructive) {
                         disable2FA()
                     }
+                    .accessibleButton(AppStrings.disable2FA, hint: L("settings.disable_2fa_hint"))
                 }
             } else {
                 Section {
@@ -383,14 +400,17 @@ struct Settings2FAView: View {
 
                             TextField(L("settings.two_factor_auth.enter_code"), text: $verificationCode)
                                 .keyboardType(.numberPad)
+                                .accessibleInput(L("settings.two_factor_auth.enter_code"), hint: L("auth.enter_6_digit_code"))
 
                             Button(L("settings.two_factor_auth.verify")) {
                                 verify2FA()
                             }
                             .disabled(verificationCode.count != 6)
+                            .accessibleButton(L("settings.two_factor_auth.verify"), hint: L("settings.verify_2fa_code_hint"))
                         }
                     } else {
                         Button(AppStrings.setup2FA) { initSetup2FA() }
+                            .accessibleButton(AppStrings.setup2FA, hint: L("settings.setup_2fa_hint"))
                     }
 
                     Text(L("settings.two_factor_auth.description"))
@@ -449,6 +469,7 @@ struct Settings2FAView: View {
                 .post, path: "/v1/settings/user/disable-2fa"
             ) as Data
             is2FAEnabled = false
+            AccessibilityAnnouncement.announce(AppStrings.disabled)
         }
     }
 }
@@ -473,8 +494,10 @@ struct SettingsRecoveryKeyView: View {
             if needsVerification {
                 Section(L("settings.recovery_key.verify_identity")) {
                     SecureField(AppStrings.enterPassword, text: $verificationCode)
+                        .accessibleInput(AppStrings.enterPassword, hint: L("auth.enter_account_password"))
                     Button(L("settings.recovery_key.verify")) { verifyAndShow() }
                         .disabled(verificationCode.isEmpty || isLoading)
+                        .accessibleButton(L("settings.recovery_key.verify"), hint: L("settings.verify_to_reveal_key"))
                 }
             } else if let key = recoveryKey {
                 Section(L("settings.recovery_key.your_key")) {
@@ -482,6 +505,9 @@ struct SettingsRecoveryKeyView: View {
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
                         .padding(.vertical, .spacing2)
+                        .accessibilityLabel(L("settings.recovery_key.your_key"))
+                        .accessibilityValue(key)
+                        .accessibilityHint(L("auth.double_tap_to_select"))
 
                     Button(AppStrings.copy) {
                         #if os(iOS)
@@ -491,7 +517,9 @@ struct SettingsRecoveryKeyView: View {
                         NSPasteboard.general.setString(key, forType: .string)
                         #endif
                         ToastManager.shared.show(AppStrings.copied, type: .success)
+                        AccessibilityAnnouncement.announce(AppStrings.copied)
                     }
+                    .accessibleButton(AppStrings.copy, hint: L("auth.copy_recovery_key_hint"))
 
                     Text(L("settings.recovery_key.store_securely"))
                         .font(.omXs).foregroundStyle(Color.warning)
@@ -502,13 +530,16 @@ struct SettingsRecoveryKeyView: View {
                 if isRegenerating {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         SecureField(AppStrings.enterPassword, text: $regeneratePassword)
+                            .accessibleInput(AppStrings.enterPassword, hint: L("auth.enter_account_password"))
                         Button(AppStrings.confirm) { regenerateKey() }
                             .disabled(regeneratePassword.isEmpty)
+                            .accessibleButton(AppStrings.confirm, hint: L("settings.confirm_regenerate_key_hint"))
                     }
                 } else {
                     Button(AppStrings.regenerateRecoveryKey) {
                         isRegenerating = true
                     }
+                    .accessibleButton(AppStrings.regenerateRecoveryKey, hint: L("settings.regenerate_key_hint"))
                 }
             }
         }
@@ -599,6 +630,15 @@ struct SettingsSessionsView: View {
                             }
                         }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel({
+                        var label = session.deviceOs ?? L("common.unknown")
+                        if let model = session.deviceModel { label += ", \(model)" }
+                        if let city = session.city, let country = session.country { label += ", \(city), \(country)" }
+                        if session.isCurrent == true { label += ", \(L("settings.sessions.current"))" }
+                        return label
+                    }())
+                    .accessibilityHint(L("settings.swipe_left_to_revoke"))
                 }
             }
 
@@ -606,6 +646,7 @@ struct SettingsSessionsView: View {
                 Button(AppStrings.logoutAllSessions, role: .destructive) {
                     logoutAll()
                 }
+                .accessibleButton(AppStrings.logoutAllSessions, hint: L("settings.logout_all_sessions_hint"))
             }
         }
         .navigationTitle(AppStrings.activeSessions)
@@ -752,6 +793,7 @@ struct SettingsNotificationsView: View {
                     .onChange(of: chatNotifications) { _, newValue in
                         savePushNotifications(newValue)
                     }
+                    .accessibleToggle(AppStrings.chatMessages, isOn: chatNotifications)
             }
 
             Section(AppStrings.emailNotifications) {
@@ -760,6 +802,7 @@ struct SettingsNotificationsView: View {
                     .onChange(of: emailNotifications) { _, newValue in
                         saveEmailNotifications(newValue)
                     }
+                    .accessibleToggle(AppStrings.emailNotifications, isOn: emailNotifications)
             }
 
             Section {
@@ -810,6 +853,7 @@ struct SettingsBackupRemindersView: View {
                 .onChange(of: isEnabled) { _, _ in
                     saveBackupReminders()
                 }
+                .accessibleToggle(AppStrings.backupReminders, isOn: isEnabled)
 
             if isEnabled {
                 Stepper(L("settings.backup_reminders.every_days", ["days": "\(reminderDays)"]),

@@ -8,6 +8,7 @@ struct ChatSearchView: View {
     @State private var results: [ChatSearchResult] = []
     @State private var isSearching = false
     @Environment(\.dismiss) var dismiss
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     @FocusState private var isFocused: Bool
 
     let onSelectChat: (String) -> Void
@@ -27,6 +28,7 @@ struct ChatSearchView: View {
                 HStack(spacing: .spacing3) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(Color.fontTertiary)
+                        .accessibilityHidden(true)
                     TextField("Search chats and messages...", text: $query)
                         .font(.omP)
                         .focused($isFocused)
@@ -35,11 +37,13 @@ struct ChatSearchView: View {
                             if newValue.count >= 2 { search() }
                             else { results.removeAll() }
                         }
+                        .accessibleInput("Search chats and messages", hint: "Type at least 2 characters to search")
                     if !query.isEmpty {
                         Button { query = ""; results.removeAll() } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(Color.fontTertiary)
                         }
+                        .accessibleButton("Clear search", hint: "Clears the search field and results")
                     }
                 }
                 .padding(.horizontal, .spacing4)
@@ -54,16 +58,20 @@ struct ChatSearchView: View {
                 if isSearching {
                     ProgressView()
                         .padding(.top, .spacing8)
+                        .accessibilityLabel("Searching")
                     Spacer()
                 } else if results.isEmpty && !query.isEmpty {
                     VStack(spacing: .spacing4) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 36))
                             .foregroundStyle(Color.fontTertiary)
+                            .accessibilityHidden(true)
                         Text(LocalizationManager.shared.text("chats.search.no_results"))
                             .font(.omP).foregroundStyle(Color.fontSecondary)
                     }
                     .padding(.top, .spacing16)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("No results found")
                     Spacer()
                 } else {
                     List {
@@ -83,6 +91,10 @@ struct ChatSearchView: View {
                                     }
                                 }
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(result.chatTitle ?? "Chat")\(result.messagePreview.map { ", \($0)" } ?? "")")
+                            .accessibilityHint("Opens this chat")
+                            .accessibilityAddTraits(.isButton)
                         }
                     }
                     .listStyle(.plain)
@@ -102,6 +114,7 @@ struct ChatSearchView: View {
     private func search() {
         guard query.count >= 2 else { return }
         isSearching = true
+        AccessibilityAnnouncement.announce("Searching for \(query)")
 
         Task {
             do {
@@ -109,6 +122,7 @@ struct ChatSearchView: View {
                     .post, path: "/v1/chats/search",
                     body: ["query": query, "limit": 20]
                 )
+                AccessibilityAnnouncement.announce(results.isEmpty ? "No results found" : "\(results.count) result\(results.count == 1 ? "" : "s") found")
             } catch {
                 print("[Search] Error: \(error)")
             }

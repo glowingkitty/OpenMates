@@ -7,11 +7,12 @@ import SwiftUI
 struct ThinkingSectionView: View {
     let content: String
     @State private var isExpanded = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(reduceMotion ? .none : .easeInOut(duration: 0.2)) {
                     isExpanded.toggle()
                 }
             } label: {
@@ -19,6 +20,7 @@ struct ThinkingSectionView: View {
                     Image(systemName: "brain")
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)
+                        .accessibilityHidden(true)
 
                     Text(LocalizationManager.shared.text("chat.thinking.header_done"))
                         .font(.omXs).fontWeight(.medium)
@@ -29,11 +31,16 @@ struct ThinkingSectionView: View {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.omTiny)
                         .foregroundStyle(Color.fontTertiary)
+                        .accessibilityHidden(true)
                 }
                 .padding(.horizontal, .spacing3)
                 .padding(.vertical, .spacing2)
             }
             .buttonStyle(.plain)
+            .accessibleButton(
+                isExpanded ? "Collapse AI reasoning" : "Expand AI reasoning",
+                hint: isExpanded ? "Hides the chain-of-thought" : "Shows the AI's reasoning steps"
+            )
 
             if isExpanded {
                 Text(content)
@@ -42,7 +49,7 @@ struct ThinkingSectionView: View {
                     .padding(.horizontal, .spacing3)
                     .padding(.bottom, .spacing3)
                     .textSelection(.enabled)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
             }
         }
         .background(Color.grey10.opacity(0.5))
@@ -54,6 +61,7 @@ struct ThinkingSectionView: View {
 
 struct ThinkingIndicator: View {
     @State private var dotCount = 0
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -61,6 +69,7 @@ struct ThinkingIndicator: View {
             Image(systemName: "brain")
                 .font(.omXs)
                 .foregroundStyle(Color.fontTertiary)
+                .accessibilityHidden(true)
 
             Text(LocalizationManager.shared.text("chat.thinking.header_streaming") + String(repeating: ".", count: dotCount))
                 .font(.omXs).fontWeight(.medium)
@@ -70,8 +79,12 @@ struct ThinkingIndicator: View {
         .padding(.vertical, .spacing2)
         .background(Color.grey10.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("AI is thinking")
         .onReceive(timer) { _ in
-            dotCount = (dotCount + 1) % 4
+            if !reduceMotion {
+                dotCount = (dotCount + 1) % 4
+            }
         }
     }
 }

@@ -23,10 +23,12 @@ struct ShareEmbedView: View {
                                 .font(.omSmall)
                                 .lineLimit(2)
                                 .textSelection(.enabled)
+                                .accessibilityLabel("Share link: \(shareLink)")
                             Spacer()
                             Button {
                                 copyToClipboard(shareLink)
                                 copied = true
+                                AccessibilityAnnouncement.announce("Link copied to clipboard")
                                 Task {
                                     try? await Task.sleep(for: .seconds(2))
                                     copied = false
@@ -35,25 +37,35 @@ struct ShareEmbedView: View {
                                 Image(systemName: copied ? "checkmark" : "doc.on.doc")
                                     .foregroundStyle(copied ? .green : Color.buttonPrimary)
                             }
+                            .accessibleButton(
+                                copied ? "Copied" : "Copy link",
+                                hint: copied ? nil : "Copies the share link to the clipboard"
+                            )
                         }
                     }
 
                     Section {
                         ShareLink("Share via...", item: URL(string: shareLink)!)
+                            .accessibilityLabel("Share embed via another app")
+                            .accessibilityHint("Opens the system share sheet")
                     }
                 } else {
                     Section {
                         if isGenerating {
                             HStack {
                                 ProgressView()
+                                    .accessibilityHidden(true)
                                 Text(LocalizationManager.shared.text("embed.generating_link"))
                                     .font(.omSmall)
                                     .foregroundStyle(Color.fontSecondary)
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Generating share link")
                         } else {
                             Button("Generate Share Link") {
                                 generateLink()
                             }
+                            .accessibleButton("Generate share link", hint: "Creates a shareable public link for this embed")
                         }
                     }
                 }

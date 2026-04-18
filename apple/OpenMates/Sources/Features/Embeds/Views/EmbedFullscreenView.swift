@@ -34,18 +34,23 @@ struct EmbedFullscreenView: View {
                     Button { dismiss() } label: {
                         Image(systemName: SFSymbol.x)
                     }
+                    .accessibleButton("Close", hint: "Closes the fullscreen embed view")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button { shareEmbed() } label: {
                             Label("Share", systemImage: SFSymbol.share2)
                         }
+                        .accessibilityLabel("Share embed")
                         Button { copyContent() } label: {
                             Label("Copy", systemImage: "doc.on.doc")
                         }
+                        .accessibilityLabel("Copy embed content")
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel("More actions")
+                    .accessibilityHint("Share or copy this embed")
                 }
             }
             .sheet(isPresented: $showChildFullscreen) {
@@ -64,9 +69,11 @@ struct EmbedFullscreenView: View {
             if let appId = embedType?.appId {
                 AppGradientBackground(appId: appId)
                     .frame(height: 120)
+                    .accessibilityHidden(true)
             } else {
                 LinearGradient.primary
                     .frame(height: 120)
+                    .accessibilityHidden(true)
             }
 
             VStack(alignment: .leading, spacing: .spacing2) {
@@ -85,6 +92,8 @@ struct EmbedFullscreenView: View {
             .padding(.horizontal, .spacing6)
             .padding(.bottom, .spacing4)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(embedType?.displayName ?? embed.type)\(headerSubtitle.map { ": \($0)" } ?? "")")
     }
 
     private var headerSubtitle: String? {
@@ -126,6 +135,7 @@ struct EmbedFullscreenView: View {
                 }
                 .padding(.horizontal, .spacing6)
             }
+            .accessibilityLabel("Related embeds, \(childEmbeds.count) items. Scroll horizontally to browse")
         }
         .padding(.vertical, .spacing4)
     }

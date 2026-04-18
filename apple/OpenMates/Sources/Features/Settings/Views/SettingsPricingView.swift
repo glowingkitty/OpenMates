@@ -126,6 +126,16 @@ struct StoreKitPricingCard: View {
                 .font(.omH4).fontWeight(.bold)
                 .foregroundStyle(Color.buttonPrimary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel({
+            let bonus: Int = switch product.creditsAmount {
+            case 10_000: 500; case 21_000: 1_000; case 54_000: 3_000; default: 0
+            }
+            var label = "\(product.formattedCredits) credits, \(product.displayPrice)"
+            if product.isRecommended { label += ", \(LocalizationManager.shared.text("settings.billing.best_value"))" }
+            if bonus > 0 { label += ", plus \(bonus) bonus credits with auto top-up" }
+            return label
+        }())
         .padding(.spacing4)
         .background(product.isRecommended ? Color.buttonPrimary.opacity(0.05) : Color.grey10.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: .radius4))

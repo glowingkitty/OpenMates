@@ -48,6 +48,7 @@ final class ToastManager: ObservableObject {
         withAnimation(.spring(duration: 0.3)) {
             currentToast = Toast(message: message, type: type, duration: duration)
         }
+        AccessibilityAnnouncement.announce(message)
         dismissTask = Task {
             try? await Task.sleep(for: .seconds(duration))
             withAnimation(.spring(duration: 0.3)) {
@@ -66,6 +67,7 @@ final class ToastManager: ObservableObject {
 
 struct ToastOverlay: View {
     @ObservedObject var manager = ToastManager.shared
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         VStack {
@@ -73,6 +75,7 @@ struct ToastOverlay: View {
                 HStack(spacing: .spacing3) {
                     Image(systemName: toast.type.icon)
                         .foregroundStyle(toast.type.color)
+                        .accessibilityHidden(true)
                     Text(toast.message)
                         .font(.omSmall)
                         .foregroundStyle(Color.fontPrimary)
@@ -82,6 +85,7 @@ struct ToastOverlay: View {
                             .font(.caption)
                             .foregroundStyle(Color.fontTertiary)
                     }
+                    .accessibleButton("Dismiss notification", hint: "Closes this toast notification")
                 }
                 .padding(.horizontal, .spacing4)
                 .padding(.vertical, .spacing3)
@@ -89,7 +93,10 @@ struct ToastOverlay: View {
                 .clipShape(RoundedRectangle(cornerRadius: .radius4))
                 .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
                 .padding(.horizontal, .spacing6)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(toast.message)
+                .accessibilityAddTraits(.isStaticText)
             }
             Spacer()
         }

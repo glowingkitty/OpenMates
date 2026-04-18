@@ -128,6 +128,7 @@ struct AppRow: View {
         } label: {
             HStack(spacing: .spacing4) {
                 AppIconView(appId: app.id, size: 36)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: .spacing1) {
                     Text(app.name)
@@ -154,8 +155,15 @@ struct AppRow: View {
                         .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
                 }
                 .buttonStyle(.plain)
+                .accessibleButton(
+                    app.isInstalled == true ? AppStrings.installed : AppStrings.add,
+                    hint: app.isInstalled == true
+                        ? LocalizationManager.shared.text("settings.app_store.remove_hint")
+                        : LocalizationManager.shared.text("settings.app_store.add_hint")
+                )
             }
         }
+        .accessibleButton(app.name, hint: LocalizationManager.shared.text("settings.app_store.view_details_hint"))
     }
 }
 
@@ -202,6 +210,12 @@ struct AppDetailView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: .radius3))
                         }
                         .buttonStyle(.plain)
+                        .accessibleButton(
+                            app.isInstalled == true ? AppStrings.remove : AppStrings.add,
+                            hint: app.isInstalled == true
+                                ? LocalizationManager.shared.text("settings.app_store.remove_hint")
+                                : LocalizationManager.shared.text("settings.app_store.add_hint")
+                        )
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, .spacing4)
