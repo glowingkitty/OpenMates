@@ -582,7 +582,8 @@
 		// authenticated users. These get into the hash when: (a) forced logout sets it during
 		// missing-master-key cleanup, or (b) non-auth welcome chat sets it before the user logs in.
 		// After login, the user should land on their last-opened chat, not the demo.
-		if (hashChatIdToLoad && isPublicChat(hashChatIdToLoad) && $authStore.isAuthenticated) {
+		const hasExplicitDeepLink = browser && window.location.hash.includes('autoplay-video');
+		if (hashChatIdToLoad && isPublicChat(hashChatIdToLoad) && $authStore.isAuthenticated && !hasExplicitDeepLink) {
 			console.debug(
 				'[+page.svelte] Skipping public/demo chat hash override for authenticated user:',
 				hashChatIdToLoad
@@ -632,8 +633,10 @@
 
 		// PRIORITY 2: Skip if hash is a chat (hash chat takes precedence)
 		// OPE-215: Don't skip for public/demo chats when user is authenticated — those are
-		// just defaults from the non-auth state, not intentional deep links
-		if (originalHashChatId && !(isPublicChat(originalHashChatId) && $authStore.isAuthenticated)) {
+		// just defaults from the non-auth state, not intentional deep links.
+		// Exception: explicit deep links (e.g. &autoplay-video from newsletter emails) should always load.
+		const hasAutoplayDeepLink = browser && window.location.hash.includes('autoplay-video');
+		if (originalHashChatId && !(isPublicChat(originalHashChatId) && $authStore.isAuthenticated && !hasAutoplayDeepLink)) {
 			console.debug(
 				'[+page.svelte] [PRIORITY 2] Skipping last_opened chat - hash chat has priority:',
 				originalHashChatId
