@@ -126,7 +126,7 @@
 	});
 </script>
 
-<div class="chat-history-content has-messages has-header" bind:this={messageContainer}>
+<div class="chat-history-content has-messages has-header" data-testid="docs-content-scroll" bind:this={messageContainer}>
 	<div class="chat-message assistant docs-message">
 		<!-- OpenMates logo avatar — same as demo-for-everyone intro chat -->
 		<div class="mate-profile openmates_official" style="animation: none; opacity: 1;"></div>
