@@ -219,6 +219,8 @@ def render_body_html(
     body_html = md.render(body_md)
 
     video = meta.get("video") or {}
+    body_html = re.sub(r"<p>\s*\[cta\]\s*</p>", "", body_html)
+
     if not video or not thumbnail_data_uri:
         return re.sub(r"<p>\s*\[video\]\s*</p>", "", body_html)
 

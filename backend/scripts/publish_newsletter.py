@@ -140,11 +140,15 @@ def _build_video_section(raw: Any) -> Optional[Dict[str, Any]]:
     return section
 
 
-def _strip_video_marker(body: str) -> str:
-    """Drop any ``[video]`` on its own line — the demo chat renders the video
-    in the header via ``metadata.video_*`` fields, so a duplicate marker in
-    the body would render a literal ``[video]`` string in the chat UI."""
-    return re.sub(r"^\s*\[video\]\s*$", "", body, flags=re.MULTILINE).strip()
+def _strip_markers(body: str) -> str:
+    """Drop ``[video]`` and ``[cta]`` markers from the chat body.
+
+    The demo chat renders the video in the header via ``metadata.video_*``
+    fields and the CTA lives only in the email template, so both markers
+    would render as literal text in the chat UI."""
+    body = re.sub(r"^\s*\[video\]\s*$", "", body, flags=re.MULTILINE)
+    body = re.sub(r"^\s*\[cta\]\s*$", "", body, flags=re.MULTILINE)
+    return body.strip()
 
 
 def _camel(slug: str) -> str:
@@ -199,7 +203,7 @@ def load_issue_inputs(issue_dir: Path) -> Dict[str, Any]:
             "subtitle": (front.get("subtitle") or "").strip() or None,
             "cta_text": (front.get("cta_text") or "").strip() or None,
             "raw_body": body,
-            "chat_body": _strip_video_marker(body),
+            "chat_body": _strip_markers(body),
         }
 
     if bodies["en"] is None:
@@ -224,6 +228,12 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
         bucket = bodies.get(lang) or bodies["en"]
         return bucket.get(key) if bucket else None
 
+    meta_cta = meta.get("cta_text") or {}
+
+    def _cta(lang: str) -> Optional[str]:
+        """Per-body frontmatter wins, then meta.yml per-lang, then EN fallback."""
+        return _field(lang, "cta_text") or meta_cta.get(lang) or meta_cta.get("en")
+
     manifest = {
         "slug": slug,
         "kind": kind,  # "announcements" | "tips"
@@ -233,7 +243,7 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
         "subject": {lang: _field(lang, "subject") for lang in SUPPORTED_LANGS},
         "subtitle": {lang: _field(lang, "subtitle") for lang in SUPPORTED_LANGS},
         "cta_url": meta.get("cta_url"),
-        "cta_text": {lang: _field(lang, "cta_text") for lang in SUPPORTED_LANGS},
+        "cta_text": {lang: _cta(lang) for lang in SUPPORTED_LANGS},
         "body_i18n_key": f"{i18n_key_root}.message",
         # meta.yml ``video:`` can set ``intro_fullscreen: true`` to render the
         # email thumbnail from the for-everyone intro frame-00 and link it to
