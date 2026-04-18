@@ -27,6 +27,27 @@ struct KeyboardShortcutModifier: ViewModifier {
     }
 }
 
+/// Chat-level keyboard shortcuts — wired on the ChatView for actions
+/// that only make sense when a chat is open (stop streaming, toggle incognito).
+struct ChatKeyboardShortcutModifier: ViewModifier {
+    let onStopStreaming: () -> Void
+    let onToggleIncognito: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            // Cmd-. → stop AI response
+            .onKeyPress(.init("."), modifiers: .command) {
+                onStopStreaming()
+                return .handled
+            }
+            // Cmd-Shift-I → toggle incognito mode
+            .onKeyPress(.init("i"), modifiers: [.command, .shift]) {
+                onToggleIncognito()
+                return .handled
+            }
+    }
+}
+
 extension View {
     func appKeyboardShortcuts(
         onNewChat: @escaping () -> Void,
@@ -37,6 +58,16 @@ extension View {
             onNewChat: onNewChat,
             onSearch: onSearch,
             onSettings: onSettings
+        ))
+    }
+
+    func chatKeyboardShortcuts(
+        onStopStreaming: @escaping () -> Void,
+        onToggleIncognito: @escaping () -> Void
+    ) -> some View {
+        self.modifier(ChatKeyboardShortcutModifier(
+            onStopStreaming: onStopStreaming,
+            onToggleIncognito: onToggleIncognito
         ))
     }
 }

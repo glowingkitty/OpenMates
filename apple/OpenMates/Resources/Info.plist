@@ -33,6 +33,14 @@
 	<key>ATSApplicationFontsPath</key>
 	<string>.</string>
 
+	<!-- Handoff activity types — registered for Continuity between Apple devices -->
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>org.openmates.app.viewChat</string>
+		<string>org.openmates.app.composeChat</string>
+		<string>org.openmates.app.browseChats</string>
+	</array>
+
 	<!-- Background modes -->
 	<key>UIBackgroundModes</key>
 	<array>

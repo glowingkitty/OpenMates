@@ -60,6 +60,12 @@ struct OpenMatesApp: App {
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }
+            CommandGroup(after: .appVisibility) {
+                Button("Toggle Incognito Mode") {
+                    NotificationCenter.default.post(name: .toggleIncognito, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+            }
         }
         #endif
     }
@@ -122,4 +128,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension Notification.Name {
     static let newChat = Notification.Name("openmates.newChat")
+    static let toggleIncognito = Notification.Name("openmates.toggleIncognito")
 }

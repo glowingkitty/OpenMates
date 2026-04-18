@@ -5,6 +5,7 @@
 
 import SwiftUI
 import WidgetKit
+import CoreSpotlight
 
 struct MainAppView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -13,6 +14,7 @@ struct MainAppView: View {
     @StateObject private var wsManager = WebSocketManager()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
     @StateObject private var incognitoManager = IncognitoManager()
+    @StateObject private var handoffManager = HandoffManager()
     @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
@@ -107,6 +109,28 @@ struct MainAppView: View {
         .onOpenURL { url in
             deepLinkHandler.handle(url: url)
         }
+        // Handoff: continue a chat from another Apple device
+        .onContinueUserActivity(HandoffManager.viewChatActivityType) { activity in
+            if let chatId = activity.userInfo?["chatId"] as? String {
+                selectedChatId = chatId
+            }
+        }
+        .onContinueUserActivity(HandoffManager.browseChatsActivityType) { _ in
+            // Just bring the app to the chat list — no specific action needed
+        }
+        // Spotlight: open a chat from system search results
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            if let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+               identifier.hasPrefix("chat-") {
+                selectedChatId = String(identifier.dropFirst("chat-".count))
+            }
+        }
+        // Global keyboard shortcuts (iPad + Mac)
+        .appKeyboardShortcuts(
+            onNewChat: { showNewChatSheet = true },
+            onSearch: { showSearch = true },
+            onSettings: { showSettings = true }
+        )
         .onChange(of: deepLinkHandler.pendingChatId) { _, chatId in
             if let chatId {
                 selectedChatId = chatId
@@ -134,6 +158,20 @@ struct MainAppView: View {
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             showNewChatSheet = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleIncognito)) { _ in
+            incognitoManager.toggle()
+            ToastManager.shared.show(
+                incognitoManager.isEnabled ? "Incognito mode on" : "Incognito mode off",
+                type: .info
+            )
+        }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: .handoffChatReceived)) { notification in
+            if let chatId = notification.userInfo?["chatId"] as? String {
+                selectedChatId = chatId
+            }
+        }
+        #endif
         .task {
             // Initialize offline bridge and load cached data before network
             let bridge = OfflineSyncBridge(chatStore: chatStore)
@@ -272,6 +310,8 @@ struct MainAppView: View {
             for chat in response.chats {
                 chatStore.upsertChat(chat)
             }
+            // Index chats into Core Spotlight for system-wide search
+            SpotlightIndexer.shared.indexChats(response.chats)
         } catch {
             print("[MainApp] Failed to load chats: \(error)")
         }
@@ -337,6 +377,7 @@ struct MainAppView: View {
             do {
                 let _: Data = try await APIClient.shared.request(.delete, path: "/v1/chats/\(id)")
                 chatStore.removeChat(id)
+                SpotlightIndexer.shared.removeChat(id)
                 if selectedChatId == id { selectedChatId = nil }
             } catch {
                 print("[MainApp] Failed to delete chat: \(error)")

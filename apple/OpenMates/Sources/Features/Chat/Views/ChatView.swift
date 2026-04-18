@@ -1,12 +1,14 @@
 // Single chat view — message list with input field and streaming responses.
-// Supports inline embed previews, markdown rendering, and fullscreen embed sheets.
-// Mirrors the web app's chat view with message bubbles and typing indicators.
+// Supports block-level markdown rendering (code blocks, tables, blockquotes),
+// inline embed previews, and fullscreen embed sheets. Advertises the current
+// chat for Handoff so users can continue on another Apple device.
 
 import SwiftUI
 
 struct ChatView: View {
     let chatId: String
     @StateObject private var viewModel = ChatViewModel()
+    @StateObject private var handoffManager = HandoffManager()
     @State private var messageText = ""
     @State private var selectedEmbed: EmbedRecord?
     @State private var showEmbedFullscreen = false
@@ -51,11 +53,27 @@ struct ChatView: View {
                 }
             }
         }
+        .chatKeyboardShortcuts(
+            onStopStreaming: { viewModel.stopStreaming() },
+            onToggleIncognito: {
+                // Incognito toggle is posted as a notification — handled by MainAppView
+                // which owns the IncognitoManager instance
+                NotificationCenter.default.post(name: .toggleIncognito, object: nil)
+            }
+        )
         .sheet(isPresented: $showReminder) {
             ReminderCreationView(chatId: chatId)
         }
         .task {
             await viewModel.loadChat(id: chatId)
+            // Advertise this chat for Handoff to other Apple devices
+            handoffManager.advertiseChatViewing(
+                chatId: chatId,
+                chatTitle: viewModel.chat?.displayTitle
+            )
+        }
+        .onDisappear {
+            handoffManager.stopAdvertising()
         }
         .sheet(isPresented: $showEmbedFullscreen) {
             if let embed = selectedEmbed {
@@ -278,16 +296,22 @@ struct MessageBubble: View {
             if isUser { Spacer(minLength: 40) }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: .spacing3) {
-                // Message text
+                // Message text — user messages use inline-only markdown,
+                // assistant messages use full block-level rendering (code blocks, tables, etc.)
                 if !displayContent.isEmpty {
-                    MarkdownText(content: displayContent)
-                        .padding(.horizontal, .spacing4)
-                        .padding(.vertical, .spacing3)
-                        .background(
-                            isUser ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey10)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                        .environment(\.isUserMessage, isUser)
+                    if isUser {
+                        InlineMarkdownText(content: displayContent, isUserMessage: true)
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, .spacing3)
+                            .background(AnyShapeStyle(LinearGradient.primary))
+                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    } else {
+                        RichMarkdownView(content: displayContent, isUserMessage: false)
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, .spacing3)
+                            .background(AnyShapeStyle(Color.grey10))
+                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    }
                 }
 
                 // Inline embed previews (grouped by type)
@@ -309,38 +333,8 @@ struct MessageBubble: View {
     }
 }
 
-// MARK: - Markdown text renderer
-
-struct MarkdownText: View {
-    let content: String
-    @Environment(\.isUserMessage) var isUserMessage
-
-    var body: some View {
-        Text(attributedContent)
-            .font(.omP)
-            .foregroundStyle(isUserMessage ? Color.fontButton : Color.fontPrimary)
-            .textSelection(.enabled)
-    }
-
-    private var attributedContent: AttributedString {
-        (try? AttributedString(markdown: content, options: .init(
-            interpretedSyntax: .inlineOnlyPreservingWhitespace
-        ))) ?? AttributedString(content)
-    }
-}
-
-// MARK: - Environment key for message role
-
-private struct IsUserMessageKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-extension EnvironmentValues {
-    var isUserMessage: Bool {
-        get { self[IsUserMessageKey.self] }
-        set { self[IsUserMessageKey.self] = newValue }
-    }
-}
+// MarkdownText and IsUserMessage environment removed — replaced by
+// RichMarkdownView / InlineMarkdownText in RichMarkdownRenderer.swift
 
 // MARK: - Streaming indicator
 

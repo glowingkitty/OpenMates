@@ -290,6 +290,62 @@ struct MediumInspirationView: View {
     }
 }
 
+// MARK: - Lock Screen / StandBy rectangular widget
+
+struct AccessoryRectangularInspirationView: View {
+    let entry: InspirationEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 3) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 8))
+                Text("OPENMATES")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(.secondary)
+
+            Text(entry.inspiration.phrase)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(3)
+                .multilineTextAlignment(.leading)
+        }
+    }
+}
+
+// MARK: - Lock Screen inline widget
+
+struct AccessoryInlineInspirationView: View {
+    let entry: InspirationEntry
+
+    var body: some View {
+        Label {
+            Text(entry.inspiration.phrase)
+                .lineLimit(1)
+        } icon: {
+            Image(systemName: "lightbulb.fill")
+        }
+    }
+}
+
+// MARK: - Lock Screen circular widget
+
+struct AccessoryCircularInspirationView: View {
+    let entry: InspirationEntry
+
+    var body: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: 2) {
+                Image(systemName: categoryIcon(for: entry.inspiration.category))
+                    .font(.system(size: 16))
+                Text("Inspire")
+                    .font(.system(size: 8, weight: .semibold))
+            }
+        }
+    }
+}
+
 // MARK: - Entry view (family-aware)
 
 struct InspirationWidgetEntryView: View {
@@ -302,6 +358,12 @@ struct InspirationWidgetEntryView: View {
             SmallInspirationView(entry: entry)
         case .systemMedium:
             MediumInspirationView(entry: entry)
+        case .accessoryRectangular:
+            AccessoryRectangularInspirationView(entry: entry)
+        case .accessoryInline:
+            AccessoryInlineInspirationView(entry: entry)
+        case .accessoryCircular:
+            AccessoryCircularInspirationView(entry: entry)
         default:
             MediumInspirationView(entry: entry)
         }
@@ -327,8 +389,11 @@ struct DailyInspirationWidget: Widget {
             .widgetURL(widgetURL(for: entry))
         }
         .configurationDisplayName("Daily Inspiration")
-        .description("A new curiosity question every day. Tap to explore with AI.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .description("A new curiosity question every day. Available on Home Screen, Lock Screen, and StandBy.")
+        .supportedFamilies([
+            .systemSmall, .systemMedium,
+            .accessoryRectangular, .accessoryInline, .accessoryCircular
+        ])
         #if os(iOS)
         .contentMarginsDisabled()
         #endif
@@ -379,6 +444,24 @@ struct OpenMatesWidgetBundle: WidgetBundle {
 }
 
 #Preview("Medium", as: .systemMedium) {
+    DailyInspirationWidget()
+} timeline: {
+    InspirationEntry(date: Date(), inspiration: .placeholder)
+}
+
+#Preview("Lock Screen Rectangular", as: .accessoryRectangular) {
+    DailyInspirationWidget()
+} timeline: {
+    InspirationEntry(date: Date(), inspiration: .placeholder)
+}
+
+#Preview("Lock Screen Inline", as: .accessoryInline) {
+    DailyInspirationWidget()
+} timeline: {
+    InspirationEntry(date: Date(), inspiration: .placeholder)
+}
+
+#Preview("Lock Screen Circular", as: .accessoryCircular) {
     DailyInspirationWidget()
 } timeline: {
     InspirationEntry(date: Date(), inspiration: .placeholder)

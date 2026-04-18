@@ -1,5 +1,5 @@
-// Scene delegate — enables iPad multitasking (Split View, Slide Over, Stage Manager)
-// and multiple window support on iPadOS 17+ and macOS 14+.
+// Scene delegate — enables iPad multitasking (Split View, Slide Over, Stage Manager),
+// Handoff continuation from other Apple devices, and home screen shortcut items.
 
 import SwiftUI
 
@@ -12,10 +12,15 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
-        // Enable all iPad multitasking sizes
+        // Enable all iPad multitasking sizes — Split View, Slide Over, Stage Manager
         if windowScene.responds(to: #selector(getter: UIWindowScene.sizeRestrictions)) {
             windowScene.sizeRestrictions?.minimumSize = CGSize(width: 320, height: 480)
             windowScene.sizeRestrictions?.maximumSize = CGSize(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        }
+
+        // Handle Handoff activities that arrived at launch
+        for activity in connectionOptions.userActivities {
+            handleUserActivity(activity)
         }
     }
 
@@ -27,6 +32,11 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 userInfo: ["url": context.url]
             )
         }
+    }
+
+    /// Handoff continuation — called when the user picks up an activity from another device
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        handleUserActivity(userActivity)
     }
 
     func windowScene(
@@ -41,9 +51,30 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             return false
         }
     }
+
+    // MARK: - Handoff handler
+
+    private func handleUserActivity(_ activity: NSUserActivity) {
+        switch activity.activityType {
+        case HandoffManager.viewChatActivityType:
+            if let chatId = activity.userInfo?["chatId"] as? String {
+                NotificationCenter.default.post(
+                    name: .handoffChatReceived,
+                    object: nil,
+                    userInfo: ["chatId": chatId]
+                )
+            }
+        case HandoffManager.browseChatsActivityType:
+            // App is already at the chat list — no navigation needed
+            break
+        default:
+            break
+        }
+    }
 }
 
 extension Notification.Name {
     static let deepLinkReceived = Notification.Name("openmates.deepLinkReceived")
+    static let handoffChatReceived = Notification.Name("openmates.handoffChatReceived")
 }
 #endif

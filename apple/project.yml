@@ -60,6 +60,13 @@ targets:
       properties:
         com.apple.developer.authentication-services.autofill-credential-provider: true
         com.apple.developer.web-credentials: true
+        com.apple.developer.associated-domains:
+          - webcredentials:openmates.org
+          - webcredentials:dev.openmates.org
+          - applinks:openmates.org
+          - applinks:dev.openmates.org
+          - activitycontinuation:openmates.org
+          - activitycontinuation:dev.openmates.org
         keychain-access-groups:
           - $(AppIdentifierPrefix)org.openmates.app
     info:
@@ -70,6 +77,10 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
+        NSUserActivityTypes:
+          - org.openmates.app.viewChat
+          - org.openmates.app.composeChat
+          - org.openmates.app.browseChats
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

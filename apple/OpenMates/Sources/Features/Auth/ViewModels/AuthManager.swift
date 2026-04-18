@@ -175,6 +175,9 @@ final class AuthManager: ObservableObject {
             try? await crypto.deleteMasterKey(for: userId)
         }
 
+        // Clear Spotlight index — user data should not be searchable after logout
+        SpotlightIndexer.shared.removeAllItems()
+
         currentUser = nil
         state = .unauthenticated
     }
