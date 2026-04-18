@@ -92,7 +92,7 @@ final class OfflineSyncBridge: ObservableObject {
     func sendMessageOffline(chatId: String, messageId: String, content: String) {
         let userMessage = Message(
             id: messageId, chatId: chatId, role: .user,
-            content: content, encryptedContent: nil, contentIv: nil,
+            content: content, encryptedContent: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: nil, appId: nil, isStreaming: nil, embedRefs: nil
         )

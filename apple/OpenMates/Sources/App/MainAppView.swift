@@ -31,6 +31,9 @@ struct MainAppView: View {
     @State private var dailyInspiration: DailyInspirationBanner.DailyInspiration?
     @State private var totalChatCount = 0
     @State private var isLoadingMore = false
+    @State private var showRenameAlert = false
+    @State private var renameChatId: String?
+    @State private var renameChatTitle = ""
 
     private var filteredPinnedChats: [Chat] {
         let pinned = chatStore.pinnedChats
@@ -154,6 +157,11 @@ struct MainAppView: View {
             if let pairToken {
                 CLIPairAuthorizeView(token: pairToken)
             }
+        }
+        .alert("Rename Chat", isPresented: $showRenameAlert) {
+            TextField("Chat title", text: $renameChatTitle)
+            Button("Rename") { submitRename() }
+            Button("Cancel", role: .cancel) {}
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             showNewChatSheet = true
@@ -296,7 +304,7 @@ struct MainAppView: View {
                         showShareChat = true
                     },
                     onArchive: { archiveChat(chat.id) },
-                    onRename: { },
+                    onRename: { renameChat(chat) },
                     onDelete: { deleteChat(chat.id) }
                 )
             }
@@ -307,13 +315,52 @@ struct MainAppView: View {
     private func loadInitialData() async {
         do {
             let response: ChatListResponse = try await APIClient.shared.request(.get, path: "/v1/chats")
-            for chat in response.chats {
-                chatStore.upsertChat(chat)
+
+            // Load master key from Keychain and unwrap per-chat keys
+            if let userId = authManager.currentUser?.id {
+                await loadChatKeys(chats: response.chats, userId: userId)
             }
-            // Index chats into Core Spotlight for system-wide search
-            SpotlightIndexer.shared.indexChats(response.chats)
+
+            // Decrypt chat titles and upsert into store
+            var decryptedChats: [Chat] = []
+            for var chat in response.chats {
+                if let encTitle = chat.encryptedTitle,
+                   let title = await ChatKeyManager.shared.decryptTitle(
+                       for: chat.id, encryptedTitle: encTitle
+                   ) {
+                    chat.title = title
+                }
+                chatStore.upsertChat(chat)
+                decryptedChats.append(chat)
+            }
+
+            // Index decrypted chats into Core Spotlight
+            SpotlightIndexer.shared.indexChats(decryptedChats)
         } catch {
             print("[MainApp] Failed to load chats: \(error)")
+        }
+    }
+
+    /// Load master key from Keychain, then bulk-unwrap all per-chat encryption keys.
+    private func loadChatKeys(chats: [Chat], userId: String) async {
+        // Skip if keys are already loaded
+        guard !ChatKeyManager.shared.isReady else { return }
+
+        do {
+            guard let masterKey = try await CryptoManager.shared.loadMasterKey(for: userId) else {
+                print("[MainApp] No master key in Keychain — encrypted content will not be decryptable")
+                return
+            }
+
+            let chatKeysToLoad = chats.compactMap { chat -> (chatId: String, encryptedChatKey: String)? in
+                guard let eck = chat.encryptedChatKey else { return nil }
+                return (chatId: chat.id, encryptedChatKey: eck)
+            }
+
+            await ChatKeyManager.shared.loadChatKeys(from: chatKeysToLoad, masterKey: masterKey)
+            print("[MainApp] Loaded \(chatKeysToLoad.count) chat keys")
+        } catch {
+            print("[MainApp] Failed to load chat keys: \(error)")
         }
     }
 
@@ -424,6 +471,23 @@ struct MainAppView: View {
         }
     }
 
+    private func renameChat(_ chat: Chat) {
+        renameChatId = chat.id
+        renameChatTitle = chat.displayTitle
+        showRenameAlert = true
+    }
+
+    private func submitRename() {
+        guard let chatId = renameChatId, !renameChatTitle.isEmpty else { return }
+        Task {
+            try? await APIClient.shared.request(
+                .patch, path: "/v1/chats/\(chatId)",
+                body: ["title": renameChatTitle]
+            ) as Data
+            await loadInitialData()
+        }
+    }
+
     private func archiveChat(_ id: String) {
         Task {
             try? await APIClient.shared.request(
@@ -446,7 +510,11 @@ struct MainAppView: View {
         Task { await loadInitialData() }
     }
 
-    private func handleEmbedUpdate(_ notification: Notification) {}
+    private func handleEmbedUpdate(_ notification: Notification) {
+        // Embed updates are handled by ChatViewModel per-chat via streaming events.
+        // The main app level receives these for future use (e.g., updating embed
+        // previews in the chat list sidebar).
+    }
 }
 
 // MARK: - Empty state

@@ -91,7 +91,6 @@ extension ChatViewModel {
                     role: messages[index].role,
                     content: newContent,
                     encryptedContent: messages[index].encryptedContent,
-                    contentIv: messages[index].contentIv,
                     createdAt: messages[index].createdAt,
                     updatedAt: ISO8601DateFormatter().string(from: Date()),
                     appId: messages[index].appId,

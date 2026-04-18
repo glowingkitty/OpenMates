@@ -1,19 +1,20 @@
 // Chat and message data models matching the backend schemas.
 // Used for chat list, message display, and streaming AI responses.
+// E2EE fields (encrypted_*) are decrypted client-side using per-chat keys.
 
 import Foundation
 
 struct Chat: Identifiable, Decodable {
     let id: String
-    let title: String?
+    var title: String?             // Decrypted title (set client-side after decryption)
     let lastMessageAt: String?
     let createdAt: String
     let updatedAt: String?
     let isArchived: Bool?
     let isPinned: Bool?
     let appId: String?
-    let encryptedTitle: String?
-    let titleIv: String?
+    let encryptedTitle: String?    // AES-GCM encrypted title (base64, IV prepended)
+    let encryptedChatKey: String?  // Per-chat AES key wrapped with master key (base64)
 
     var displayTitle: String {
         title ?? "New Chat"
@@ -29,9 +30,8 @@ struct Message: Identifiable, Decodable {
     let id: String
     let chatId: String
     let role: MessageRole
-    let content: String?
-    let encryptedContent: String?
-    let contentIv: String?
+    var content: String?           // Decrypted content (set client-side after decryption)
+    let encryptedContent: String?  // AES-GCM encrypted content (base64, IV prepended)
     let createdAt: String
     let updatedAt: String?
     let appId: String?

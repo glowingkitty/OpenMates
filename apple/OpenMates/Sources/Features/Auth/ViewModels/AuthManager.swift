@@ -15,6 +15,14 @@ final class AuthManager: ObservableObject {
     private let api = APIClient.shared
     private let crypto = CryptoManager.shared
 
+    /// Static accessor for the current user ID (used by ChatViewModel for key loading).
+    /// Safe to call from any @MainActor context.
+    private static weak var _shared: AuthManager?
+
+    static func currentUserId() async -> String? {
+        await MainActor.run { _shared?.currentUser?.id }
+    }
+
     enum AuthState: Equatable {
         case initializing
         case unauthenticated
@@ -35,9 +43,16 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    /// Cached password for master key derivation after login.
+    /// Cleared after successful key unwrap. Needed because the login response
+    /// includes the user's encrypted_key which we unwrap with PBKDF2(password, salt).
+    private var pendingPassword: String?
+    private var pendingEmail: String?
+
     // MARK: - Session check (app launch)
 
     func checkSession() async {
+        Self._shared = self
         do {
             let response: SessionResponse = try await api.request(.get, path: "/v1/auth/session")
 
@@ -79,6 +94,10 @@ final class AuthManager: ObservableObject {
         let hashedEmail = await crypto.hashEmail(email)
         let lookupHash = await crypto.hashPassword(password, email: email)
 
+        // Store password temporarily for PBKDF2 master key derivation after login
+        pendingPassword = password
+        pendingEmail = email
+
         let request = LoginRequest(
             hashedEmail: hashedEmail,
             lookupHash: lookupHash,
@@ -101,8 +120,8 @@ final class AuthManager: ObservableObject {
             return
         }
 
-        if response.success, let session = response.authSession {
-            await handleSuccessfulLogin(session: session, response: response, email: email)
+        if response.success, let user = response.user {
+            await handleSuccessfulLogin(user: user, password: password)
         }
     }
 
@@ -123,8 +142,9 @@ final class AuthManager: ObservableObject {
 
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
 
-        if response.success, let session = response.authSession {
-            await handleSuccessfulLogin(session: session, response: response, email: email)
+        if response.success, let user = response.user {
+            // Recovery key uses same PBKDF2 derivation as password
+            await handleSuccessfulLogin(user: user, password: recoveryKey)
         }
     }
 
@@ -146,8 +166,8 @@ final class AuthManager: ObservableObject {
 
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
 
-        if response.success, let session = response.authSession {
-            await handleSuccessfulLogin(session: session, response: response, email: email)
+        if response.success, let user = response.user {
+            await handleSuccessfulLogin(user: user, password: password)
         }
     }
 
@@ -175,7 +195,8 @@ final class AuthManager: ObservableObject {
             try? await crypto.deleteMasterKey(for: userId)
         }
 
-        // Clear Spotlight index — user data should not be searchable after logout
+        // Clear decryption key caches and Spotlight index on logout
+        ChatKeyManager.shared.clearAll()
         SpotlightIndexer.shared.removeAllItems()
 
         currentUser = nil
@@ -184,27 +205,34 @@ final class AuthManager: ObservableObject {
 
     // MARK: - Private
 
-    private func handleSuccessfulLogin(
-        session: AuthSession,
-        response: LoginResponse,
-        email: String
-    ) async {
-        currentUser = session.user
+    private func handleSuccessfulLogin(user: UserProfile, password: String) async {
+        currentUser = user
 
-        // Decrypt and store master key if provided
-        if let encKeyHex = response.encryptedMasterKey,
-           let ivHex = response.keyIv,
-           let saltHex = response.userEmailSalt {
+        // Derive PBKDF2 wrapping key from password + salt, then unwrap master key.
+        // Mirrors web: deriveKeyFromPassword(password, salt) → decryptKey(encrypted_key, key_iv, wrappingKey)
+        if let encryptedKeyB64 = user.encryptedKey,
+           let keyIvB64 = user.keyIv,
+           let saltB64 = user.salt,
+           let saltData = Data(base64Encoded: saltB64) {
             do {
-                let emailKey = await crypto.deriveEmailKey(email: email, salt: saltHex)
-                let encKey = Data(hexString: encKeyHex)
-                let iv = Data(hexString: ivHex)
-                let masterKey = try await crypto.decryptMasterKey(encryptedKey: encKey, iv: iv, wrappingKey: emailKey)
-                try await crypto.saveMasterKey(masterKey, for: session.user.id)
+                let wrappingKey = await crypto.deriveWrappingKeyFromPassword(
+                    password: password, salt: saltData
+                )
+                let masterKey = try await crypto.unwrapMasterKey(
+                    wrappedKeyBase64: encryptedKeyB64,
+                    ivBase64: keyIvB64,
+                    wrappingKey: wrappingKey
+                )
+                try await crypto.saveMasterKey(masterKey, for: user.id)
+                print("[Auth] Master key derived and saved to Keychain")
             } catch {
-                print("[Auth] Failed to decrypt/store master key: \(error)")
+                print("[Auth] Failed to derive/store master key: \(error)")
             }
         }
+
+        // Clear sensitive data
+        pendingPassword = nil
+        pendingEmail = nil
 
         state = .authenticated
     }

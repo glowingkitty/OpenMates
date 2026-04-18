@@ -12,7 +12,7 @@ final class PersistedChat {
     @Attribute(.unique) var id: String
     var title: String?
     var encryptedTitle: String?
-    var titleIv: String?
+    var encryptedChatKey: String?
     var icon: String?
     var category: String?
     var appId: String?
@@ -30,7 +30,7 @@ final class PersistedChat {
         self.id = chat.id
         self.title = chat.title
         self.encryptedTitle = chat.encryptedTitle
-        self.titleIv = chat.titleIv
+        self.encryptedChatKey = chat.encryptedChatKey
         self.appId = chat.appId
         self.isPinned = chat.isPinned ?? false
         self.isArchived = chat.isArchived ?? false
@@ -45,7 +45,8 @@ final class PersistedChat {
             id: id, title: title, lastMessageAt: lastMessageAt,
             createdAt: createdAt, updatedAt: updatedAt,
             isArchived: isArchived, isPinned: isPinned,
-            appId: appId, encryptedTitle: encryptedTitle, titleIv: titleIv
+            appId: appId, encryptedTitle: encryptedTitle,
+            encryptedChatKey: encryptedChatKey
         )
     }
 }
@@ -57,7 +58,6 @@ final class PersistedMessage {
     var role: String
     var content: String?
     var encryptedContent: String?
-    var contentIv: String?
     var createdAt: String
     var updatedAt: String?
     var appId: String?
@@ -70,7 +70,6 @@ final class PersistedMessage {
         self.role = message.role.rawValue
         self.content = message.content
         self.encryptedContent = message.encryptedContent
-        self.contentIv = message.contentIv
         self.createdAt = message.createdAt
         self.updatedAt = message.updatedAt
         self.appId = message.appId
@@ -81,7 +80,7 @@ final class PersistedMessage {
             id: id, chatId: chatId,
             role: MessageRole(rawValue: role) ?? .user,
             content: content, encryptedContent: encryptedContent,
-            contentIv: contentIv, createdAt: createdAt,
+            createdAt: createdAt,
             updatedAt: updatedAt, appId: appId,
             isStreaming: false, embedRefs: nil
         )

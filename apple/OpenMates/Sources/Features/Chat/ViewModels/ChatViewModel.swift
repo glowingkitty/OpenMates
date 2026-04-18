@@ -33,9 +33,24 @@ final class ChatViewModel: ObservableObject {
         error = nil
 
         do {
-            chat = try await api.request(.get, path: "/v1/chats/\(id)")
+            var loadedChat: Chat = try await api.request(.get, path: "/v1/chats/\(id)")
+
+            // Ensure chat key is loaded (may not be if chat was opened via deep link)
+            await ensureChatKey(for: loadedChat)
+
+            // Decrypt chat title
+            if let encTitle = loadedChat.encryptedTitle,
+               let decrypted = await ChatKeyManager.shared.decryptTitle(
+                   for: id, encryptedTitle: encTitle
+               ) {
+                loadedChat.title = decrypted
+            }
+            chat = loadedChat
+
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
-            allMessages = messagesResponse
+
+            // Decrypt all message content
+            allMessages = await decryptMessages(messagesResponse, chatId: id)
 
             // Show only the most recent page initially for fast rendering
             if allMessages.count > messagesPageSize {
@@ -56,6 +71,41 @@ final class ChatViewModel: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    /// Ensure the chat key is available (load from master key if not cached).
+    private func ensureChatKey(for chat: Chat) async {
+        guard !ChatKeyManager.shared.hasKey(for: chat.id),
+              let encryptedChatKey = chat.encryptedChatKey else { return }
+
+        // Try to load master key and unwrap this chat's key
+        guard let userId = await AuthManager.currentUserId(),
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else {
+            return
+        }
+
+        await ChatKeyManager.shared.loadChatKey(
+            chatId: chat.id,
+            encryptedChatKey: encryptedChatKey,
+            masterKey: masterKey
+        )
+    }
+
+    /// Decrypt encrypted_content for a batch of messages using the per-chat key.
+    private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+        var result: [Message] = []
+        for var msg in messages {
+            if msg.content == nil || msg.content?.isEmpty == true,
+               let enc = msg.encryptedContent {
+                if let decrypted = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId, encryptedContent: enc
+                ) {
+                    msg.content = decrypted
+                }
+            }
+            result.append(msg)
+        }
+        return result
     }
 
     /// Load the next page of older messages above the current window.
@@ -93,7 +143,7 @@ final class ChatViewModel: ObservableObject {
         let userMessageId = UUID().uuidString
         let userMessage = Message(
             id: userMessageId, chatId: chatId, role: .user,
-            content: content, encryptedContent: nil, contentIv: nil,
+            content: content, encryptedContent: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: nil, appId: nil, isStreaming: nil, embedRefs: nil
         )
@@ -160,7 +210,7 @@ final class ChatViewModel: ObservableObject {
             if isFinal {
                 let assistantMessage = Message(
                     id: messageId, chatId: chat?.id ?? "", role: .assistant,
-                    content: content, encryptedContent: nil, contentIv: nil,
+                    content: content, encryptedContent: nil,
                     createdAt: ISO8601DateFormatter().string(from: Date()),
                     updatedAt: nil, appId: chat?.appId, isStreaming: false, embedRefs: nil
                 )
@@ -203,6 +253,10 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    /// Fork a conversation from a specific message. Returns the new chat ID
+    /// so the caller can navigate to it.
+    @Published var forkedChatId: String?
+
     func forkFromMessage(_ messageId: String) async {
         guard let chatId = chat?.id else { return }
         do {
@@ -212,7 +266,7 @@ final class ChatViewModel: ObservableObject {
             )
             if let newChatId = response["chat_id"]?.value as? String {
                 ToastManager.shared.show("Conversation forked", type: .success)
-                _ = newChatId
+                forkedChatId = newChatId
             }
         } catch {
             self.error = error.localizedDescription

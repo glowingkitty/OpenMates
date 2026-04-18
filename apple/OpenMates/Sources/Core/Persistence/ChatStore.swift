@@ -80,7 +80,7 @@ final class ChatStore: ObservableObject {
         let updated = Message(
             id: old.id, chatId: old.chatId, role: old.role,
             content: content, encryptedContent: old.encryptedContent,
-            contentIv: old.contentIv, createdAt: old.createdAt,
+            createdAt: old.createdAt,
             updatedAt: ISO8601DateFormatter().string(from: Date()),
             appId: old.appId, isStreaming: false, embedRefs: old.embedRefs
         )

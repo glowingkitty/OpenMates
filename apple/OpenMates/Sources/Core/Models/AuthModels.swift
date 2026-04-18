@@ -13,6 +13,7 @@ struct LookupResponse: Decodable {
     let availableLoginMethods: [LoginMethod]
     let tfaEnabled: Bool
     let tfaAppName: String?
+    let userEmailSalt: String? // Salt for PBKDF2 derivation and email encryption
 }
 
 enum LoginMethod: String, Decodable {
@@ -43,17 +44,10 @@ struct DeviceInfo: Encodable {
 struct LoginResponse: Decodable {
     let success: Bool
     let tfaRequired: Bool?
-    let authSession: AuthSession?
+    let user: UserProfile?     // Server sends crypto fields on user object
     let needsDeviceVerification: Bool?
     let deviceVerificationType: String?
-    let encryptedMasterKey: String?
-    let keyIv: String?
-    let userEmailSalt: String?
-}
-
-struct AuthSession: Decodable {
-    let user: UserProfile
-    let sessionId: String
+    let wsToken: String?
 }
 
 // MARK: - Session check
@@ -61,7 +55,6 @@ struct AuthSession: Decodable {
 struct SessionResponse: Decodable {
     let isAuthenticated: Bool
     let user: UserProfile?
-    let authSession: AuthSession?
     let needsDeviceVerification: Bool?
     let deviceVerificationType: String?
 }
@@ -79,6 +72,12 @@ struct UserProfile: Decodable, Identifiable {
     let lastOpened: String?
     let profileImageUrl: String?
     let isAdmin: Bool?
+
+    // E2EE crypto fields — returned by server on login and session check
+    let encryptedKey: String?   // Master key wrapped with PBKDF2-derived wrapping key (base64)
+    let keyIv: String?          // 12-byte IV for master key wrapping (base64)
+    let salt: String?           // PBKDF2 salt (base64)
+    let userEmailSalt: String?  // Salt for email encryption key derivation
 }
 
 // MARK: - Passkey
