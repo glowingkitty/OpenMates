@@ -246,16 +246,26 @@ struct MainAppView: View {
     private var sidebar: some View {
         List(selection: $selectedChatId) {
             if !filteredPinnedChats.isEmpty {
-                Section(AppStrings.pinnedChats) {
+                Section {
                     ForEach(filteredPinnedChats) { chat in
                         chatRow(chat)
                     }
+                } header: {
+                    Text(AppStrings.pinnedChats.uppercased())
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontTertiary)
                 }
             }
 
-            Section(filteredPinnedChats.isEmpty ? "" : AppStrings.recentChats) {
+            Section {
                 ForEach(filteredUnpinnedChats) { chat in
                     chatRow(chat)
+                }
+            } header: {
+                if !filteredPinnedChats.isEmpty {
+                    Text(AppStrings.recentChats.uppercased())
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontTertiary)
                 }
             }
 
@@ -281,7 +291,8 @@ struct MainAppView: View {
                 }
             }
         }
-        .listStyle(.sidebar)
+        .listStyle(.plain)
+        .listRowSeparator(.hidden)
         .searchable(text: $searchText, prompt: AppStrings.search)
         .navigationTitle(AppStrings.chats)
         #if os(iOS)
@@ -353,6 +364,8 @@ struct MainAppView: View {
         if isAuthenticated {
             ChatListRow(chat: chat)
                 .tag(chat.id)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) { deleteChat(chat.id) } label: {
                         Label(AppStrings.delete, systemImage: "trash")
@@ -375,6 +388,8 @@ struct MainAppView: View {
         } else {
             ChatListRow(chat: chat)
                 .tag(chat.id)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
     }
 
@@ -650,11 +665,13 @@ struct WelcomeView: View {
                 Text("\(AppStrings.login) / \(AppStrings.signup)")
                     .font(.omP)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, .spacing8)
-                    .padding(.vertical, .spacing4)
+                    .foregroundStyle(Color.fontButton)
+                    .padding(.horizontal, .spacing12)
+                    .padding(.vertical, .spacing8)
+                    .frame(minHeight: 41)
                     .background(Color.buttonPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
             }
             .accessibilityIdentifier("welcome-login-button")
             .padding(.top, .spacing4)
