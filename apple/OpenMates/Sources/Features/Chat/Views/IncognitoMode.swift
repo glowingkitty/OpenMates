@@ -32,13 +32,13 @@ struct IncognitoBanner: View {
             HStack(spacing: .spacing3) {
                 Image(systemName: "eye.slash.fill")
                     .font(.caption)
-                Text("Incognito Mode — messages won't be saved")
+                Text(LocalizationManager.shared.text("settings.incognito_mode_active"))
                     .font(.omXs)
                 Spacer()
                 Button {
                     incognitoManager.toggle()
                 } label: {
-                    Text("Exit")
+                    Text(AppStrings.close)
                         .font(.omXs).fontWeight(.medium)
                 }
             }

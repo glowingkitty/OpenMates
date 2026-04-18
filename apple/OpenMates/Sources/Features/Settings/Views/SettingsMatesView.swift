@@ -28,7 +28,7 @@ struct SettingsMatesView: View {
                         Image(systemName: "person.2")
                             .font(.system(size: 36))
                             .foregroundStyle(Color.fontTertiary)
-                        Text("No mates available yet")
+                        Text(LocalizationManager.shared.text("settings.mates.no_mates"))
                             .font(.omP).foregroundStyle(Color.fontSecondary)
                     }
                     .frame(maxWidth: .infinity)

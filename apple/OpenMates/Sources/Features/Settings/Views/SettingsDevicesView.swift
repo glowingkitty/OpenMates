@@ -29,7 +29,7 @@ struct SettingsDevicesView: View {
                 ProgressView()
             } else if devices.isEmpty {
                 Section {
-                    Text("No devices have accessed your API keys yet.")
+                    Text(LocalizationManager.shared.text("settings.devices.no_devices"))
                         .foregroundStyle(Color.fontSecondary)
                 }
             } else {
@@ -123,7 +123,7 @@ struct DeviceRow: View {
                 }
 
                 if let lastAccess = device.lastAccessAt {
-                    Text("Last: \(lastAccess)")
+                    Text("\(LocalizationManager.shared.text("settings.devices.last_access")): \(lastAccess)")
                         .font(.omTiny).foregroundStyle(Color.fontTertiary)
                 }
             }

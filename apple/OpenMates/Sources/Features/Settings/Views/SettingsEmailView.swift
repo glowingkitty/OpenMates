@@ -65,7 +65,7 @@ struct SettingsEmailView: View {
 
             case .confirmCode:
                 Section("Verification Code") {
-                    Text("A verification code has been sent to \(newEmail)")
+                    Text("\(LocalizationManager.shared.text("settings.email.verification_code_sent")): \(newEmail)")
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
 
                     TextField("Enter code", text: $verificationCode)

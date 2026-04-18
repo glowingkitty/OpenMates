@@ -18,7 +18,7 @@ struct SettingsShareDebugLogsView: View {
             }
 
             Section {
-                Text("When enabled, anonymized diagnostic logs are shared to help improve OpenMates. No personal data or message content is included.")
+                Text(LocalizationManager.shared.text("settings.debug_logs.description"))
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
 

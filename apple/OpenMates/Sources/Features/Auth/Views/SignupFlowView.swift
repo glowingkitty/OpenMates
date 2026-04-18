@@ -44,13 +44,13 @@ struct SignupFlowView: View {
                 ))
                 .animation(.easeInOut(duration: 0.25), value: viewModel.currentStep)
             }
-            .navigationTitle("Create Account")
+            .navigationTitle(LocalizationManager.shared.text("auth.create_account"))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(AppStrings.cancel) { dismiss() }
                 }
             }
         }
@@ -190,10 +190,10 @@ struct SignupBasicsStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text("Let's get started")
+                Text(LocalizationManager.shared.text("auth.lets_get_started"))
                     .font(.omH2).fontWeight(.bold)
 
-                TextField("Email", text: $viewModel.email)
+                TextField(LocalizationManager.shared.text("auth.email"), text: $viewModel.email)
                     .keyboardType(.emailAddress)
                     .autocorrectionDisabled()
                     #if os(iOS)
@@ -202,7 +202,7 @@ struct SignupBasicsStep: View {
                     .textContentType(.emailAddress)
                     .textFieldStyle(.roundedBorder)
 
-                TextField("Username", text: $viewModel.username)
+                TextField(AppStrings.username, text: $viewModel.username)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
@@ -218,7 +218,7 @@ struct SignupBasicsStep: View {
                 } label: {
                     HStack {
                         Spacer()
-                        if viewModel.isLoading { ProgressView() } else { Text("Continue") }
+                        if viewModel.isLoading { ProgressView() } else { Text(LocalizationManager.shared.text("common.continue")) }
                         Spacer()
                     }
                 }
@@ -240,14 +240,14 @@ struct SignupConfirmEmailStep: View {
                 Image(systemName: "envelope.badge")
                     .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
 
-                Text("Check your email")
+                Text(LocalizationManager.shared.text("auth.check_your_email"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text("We sent a verification code to \(viewModel.email)")
+                Text("\(LocalizationManager.shared.text("auth.sent_verification_code")) \(viewModel.email)")
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
-                TextField("Verification code", text: $viewModel.verificationCode)
+                TextField(LocalizationManager.shared.text("auth.verification_code"), text: $viewModel.verificationCode)
                     .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
                     .multilineTextAlignment(.center)
@@ -260,7 +260,7 @@ struct SignupConfirmEmailStep: View {
                 Button {
                     Task { await viewModel.confirmEmail() }
                 } label: {
-                    HStack { Spacer(); Text("Verify"); Spacer() }
+                    HStack { Spacer(); Text(LocalizationManager.shared.text("auth.verify")); Spacer() }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.buttonPrimary)
@@ -285,17 +285,17 @@ struct SignupPasswordStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text("Set a password")
+                Text(LocalizationManager.shared.text("auth.set_a_password"))
                     .font(.omH2).fontWeight(.bold)
 
-                SecureField("Password (min 8 characters)", text: $viewModel.password)
+                SecureField(LocalizationManager.shared.text("auth.password_min_chars"), text: $viewModel.password)
                     .textContentType(.newPassword).textFieldStyle(.roundedBorder)
 
-                SecureField("Confirm password", text: $viewModel.confirmPassword)
+                SecureField(LocalizationManager.shared.text("auth.confirm_password"), text: $viewModel.confirmPassword)
                     .textContentType(.newPassword).textFieldStyle(.roundedBorder)
 
                 if !viewModel.confirmPassword.isEmpty && !passwordsMatch {
-                    Text("Passwords don't match")
+                    Text(LocalizationManager.shared.text("auth.passwords_dont_match"))
                         .font(.omXs).foregroundStyle(Color.error)
                 }
 
@@ -306,7 +306,7 @@ struct SignupPasswordStep: View {
                 Button {
                     Task { await viewModel.setPassword() }
                 } label: {
-                    HStack { Spacer(); Text("Continue"); Spacer() }
+                    HStack { Spacer(); Text(LocalizationManager.shared.text("common.continue")); Spacer() }
                 }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                 .disabled(!isValid || viewModel.isLoading)
@@ -325,20 +325,20 @@ struct SignupPasskeyStep: View {
                 Image(systemName: "person.badge.key")
                     .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
 
-                Text("Add a Passkey")
+                Text(LocalizationManager.shared.text("auth.add_a_passkey"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text("Passkeys let you sign in securely with Face ID, Touch ID, or your device PIN.")
+                Text(LocalizationManager.shared.text("auth.passkey_description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
-                Button("Set Up Passkey") {
+                Button(LocalizationManager.shared.text("auth.set_up_passkey")) {
                     // Passkey registration via ASAuthorizationController
                     viewModel.nextStep()
                 }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
 
-                Button("Skip for Now") { viewModel.nextStep() }
+                Button(LocalizationManager.shared.text("common.skip_for_now")) { viewModel.nextStep() }
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
             }
             .padding(.spacing8)
@@ -355,10 +355,10 @@ struct SignupRecoveryKeyStep: View {
                 Image(systemName: "key.horizontal")
                     .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
 
-                Text("Save Your Recovery Key")
+                Text(LocalizationManager.shared.text("auth.save_your_recovery_key"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text("This is your last resort to recover your account. Store it somewhere safe.")
+                Text(LocalizationManager.shared.text("auth.recovery_key_description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
@@ -370,14 +370,14 @@ struct SignupRecoveryKeyStep: View {
                         .background(Color.grey10)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
 
-                    Button("Copy Key") {
+                    Button(LocalizationManager.shared.text("auth.copy_key")) {
                         CopyMessageFormatter.copyToClipboard(key)
-                        ToastManager.shared.show("Copied", type: .success)
+                        ToastManager.shared.show(AppStrings.copied, type: .success)
                     }
                     .buttonStyle(.bordered)
                 }
 
-                Button("I've Saved My Key") { viewModel.nextStep() }
+                Button(LocalizationManager.shared.text("auth.ive_saved_my_key")) { viewModel.nextStep() }
                     .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                     .disabled(viewModel.recoveryKey == nil)
             }
@@ -393,10 +393,10 @@ struct SignupBackupCodesStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text("Backup Codes")
+                Text(LocalizationManager.shared.text("auth.backup_codes"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text("Use these one-time codes if you lose access to your 2FA device.")
+                Text(LocalizationManager.shared.text("auth.backup_codes_description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
@@ -411,13 +411,13 @@ struct SignupBackupCodesStep: View {
                     }
                 }
 
-                Button("Copy All Codes") {
+                Button(LocalizationManager.shared.text("auth.copy_all_codes")) {
                     CopyMessageFormatter.copyToClipboard(viewModel.backupCodes.joined(separator: "\n"))
-                    ToastManager.shared.show("Copied", type: .success)
+                    ToastManager.shared.show(AppStrings.copied, type: .success)
                 }
                 .buttonStyle(.bordered)
 
-                Button("Continue") { viewModel.nextStep() }
+                Button(LocalizationManager.shared.text("common.continue")) { viewModel.nextStep() }
                     .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                     .disabled(viewModel.backupCodes.isEmpty)
             }
@@ -433,17 +433,17 @@ struct SignupPaymentStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text("Add Credits")
+                Text(LocalizationManager.shared.text("auth.add_credits"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text("Credits are used for AI requests. You can always add more later.")
+                Text(LocalizationManager.shared.text("auth.credits_description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
                 SettingsPricingView()
                     .frame(height: 400)
 
-                Button("Add Credits") {
+                Button(LocalizationManager.shared.text("auth.add_credits")) {
                     Task {
                         let url = await APIClient.shared.webAppURL.appendingPathComponent("signup/payment")
                         #if os(iOS)
@@ -455,7 +455,7 @@ struct SignupPaymentStep: View {
                 }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
 
-                Button("Skip for Now") { viewModel.nextStep() }
+                Button(LocalizationManager.shared.text("common.skip_for_now")) { viewModel.nextStep() }
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
             }
             .padding(.spacing8)
@@ -469,16 +469,16 @@ struct SignupProfilePictureStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text("Profile Picture")
+                Text(AppStrings.profilePicture)
                     .font(.omH2).fontWeight(.bold)
 
                 SettingsProfilePictureView()
                     .frame(height: 300)
 
-                Button("Continue") { viewModel.nextStep() }
+                Button(LocalizationManager.shared.text("common.continue")) { viewModel.nextStep() }
                     .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
 
-                Button("Skip") { viewModel.nextStep() }
+                Button(AppStrings.skip) { viewModel.nextStep() }
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
             }
             .padding(.spacing8)
@@ -494,14 +494,14 @@ struct SignupCompleteStep: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64)).foregroundStyle(.green)
 
-            Text("Welcome to OpenMates!")
+            Text(LocalizationManager.shared.text("auth.welcome_to_openmates"))
                 .font(.omH2).fontWeight(.bold)
 
-            Text("Your account is ready. Start chatting with AI.")
+            Text(LocalizationManager.shared.text("auth.account_ready"))
                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
 
-            Button("Get Started") { onFinish() }
+            Button(LocalizationManager.shared.text("auth.get_started")) { onFinish() }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
         }
         .padding(.spacing8)

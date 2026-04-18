@@ -51,7 +51,7 @@ struct SearchResultsRenderer: View {
                 .foregroundStyle(Color.fontSecondary)
 
             if let provider {
-                Text("Provider: \(provider)")
+                Text("\(LocalizationManager.shared.text("embed.provider")): \(provider)")
                     .font(.omSmall)
                     .foregroundStyle(Color.fontTertiary)
             }

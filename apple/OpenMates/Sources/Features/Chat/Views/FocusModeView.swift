@@ -64,7 +64,7 @@ struct FocusModePill: View {
                 ProgressView(value: focusModeManager.activationProgress)
                     .frame(width: 100)
                     .tint(Color.buttonPrimary)
-                Text("Activating...")
+                Text(LocalizationManager.shared.text("embeds.focus_mode.activating"))
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
             .padding(.horizontal, .spacing4)

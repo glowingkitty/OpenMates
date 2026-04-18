@@ -11,7 +11,7 @@ struct SettingsPricingView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text("Credit Packages")
+                Text(LocalizationManager.shared.text("settings.billing.credit_packages"))
                     .font(.omH3).fontWeight(.bold)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
@@ -30,10 +30,10 @@ struct SettingsPricingView: View {
                 Divider().padding(.vertical, .spacing4)
 
                 VStack(spacing: .spacing4) {
-                    Text("Explore Before Signing Up")
+                    Text(LocalizationManager.shared.text("settings.pricing.explore_before_signup"))
                         .font(.omH4).fontWeight(.semibold)
 
-                    Text("Browse available apps and AI models to see what's included.")
+                    Text(LocalizationManager.shared.text("settings.pricing.browse_apps_models"))
                         .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         .multilineTextAlignment(.center)
 
@@ -41,7 +41,7 @@ struct SettingsPricingView: View {
                         NavigationLink {
                             SettingsAppsFullView()
                         } label: {
-                            Label("Apps", systemImage: "square.grid.2x2")
+                            Label(AppStrings.apps, systemImage: "square.grid.2x2")
                                 .font(.omSmall).fontWeight(.medium)
                         }
                         .buttonStyle(.bordered)
@@ -49,7 +49,7 @@ struct SettingsPricingView: View {
                         NavigationLink {
                             SettingsAIFullView()
                         } label: {
-                            Label("AI Models", systemImage: "brain")
+                            Label(LocalizationManager.shared.text("settings.pricing.ai_models"), systemImage: "brain")
                                 .font(.omSmall).fontWeight(.medium)
                         }
                         .buttonStyle(.bordered)
@@ -61,7 +61,7 @@ struct SettingsPricingView: View {
             }
             .padding(.vertical)
         }
-        .navigationTitle("Pricing")
+        .navigationTitle(AppStrings.settingsPricing)
         .task { await storeManager.loadProducts() }
     }
 
@@ -98,7 +98,7 @@ struct StoreKitPricingCard: View {
                         .font(.omP).fontWeight(.semibold)
 
                     if product.isRecommended {
-                        Text("Best Value")
+                        Text(LocalizationManager.shared.text("settings.billing.best_value"))
                             .font(.omTiny).fontWeight(.bold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, .spacing2)
@@ -159,7 +159,7 @@ struct FallbackPricingCard: View {
                         .font(.omP).fontWeight(.semibold)
 
                     if tier.recommended {
-                        Text("Best Value")
+                        Text(LocalizationManager.shared.text("settings.billing.best_value"))
                             .font(.omTiny).fontWeight(.bold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, .spacing2)

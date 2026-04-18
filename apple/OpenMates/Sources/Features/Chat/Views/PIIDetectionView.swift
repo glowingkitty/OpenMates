@@ -66,7 +66,7 @@ struct PIIWarningBanner: View {
                     }
                 }
 
-                Text("Active items will be replaced with placeholders before sending.")
+                Text(LocalizationManager.shared.text("enter_message.pii.banner_description"))
                     .font(.omTiny).foregroundStyle(Color.fontTertiary)
             }
             .padding(.spacing3)

@@ -34,7 +34,7 @@ struct SettingsProfilePictureView: View {
                     }
 
                     PhotosPicker(selection: $selectedItem, matching: .images) {
-                        Text("Choose Photo")
+                        Text(LocalizationManager.shared.text("settings.profile_picture.choose_photo"))
                             .font(.omSmall).fontWeight(.medium)
                     }
                     .buttonStyle(.borderedProminent)

@@ -82,7 +82,7 @@ struct ReminderCreationView: View {
                             if isCreating {
                                 ProgressView().tint(.fontButton)
                             } else {
-                                Text("Set Reminder")
+                                Text(AppStrings.setReminder)
                             }
                         }
                         .frame(maxWidth: .infinity)

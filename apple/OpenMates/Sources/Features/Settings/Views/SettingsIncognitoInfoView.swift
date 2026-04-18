@@ -15,10 +15,10 @@ struct SettingsIncognitoInfoView: View {
                     .font(.system(size: 56))
                     .foregroundStyle(Color.buttonPrimary)
 
-                Text("Incognito Mode")
+                Text(LocalizationManager.shared.text("settings.incognito.title"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text("Chat privately without saving history")
+                Text(LocalizationManager.shared.text("settings.incognito.description"))
                     .font(.omP).foregroundStyle(Color.fontSecondary)
 
                 VStack(alignment: .leading, spacing: .spacing5) {
@@ -54,7 +54,7 @@ struct SettingsIncognitoInfoView: View {
                     Button {
                         onActivate()
                     } label: {
-                        Text("Activate Incognito Mode")
+                        Text(LocalizationManager.shared.text("settings.incognito.activate"))
                             .font(.omSmall).fontWeight(.medium)
                             .frame(maxWidth: .infinity)
                     }

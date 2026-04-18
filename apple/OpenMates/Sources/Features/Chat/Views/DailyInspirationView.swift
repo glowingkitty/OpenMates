@@ -23,7 +23,7 @@ struct DailyInspirationBanner: View {
                         .foregroundStyle(Color.buttonPrimary)
 
                     VStack(alignment: .leading, spacing: .spacing1) {
-                        Text("Daily Inspiration")
+                        Text(AppStrings.dailyInspiration)
                             .font(.omTiny).fontWeight(.bold)
                             .foregroundStyle(Color.fontTertiary)
                         Text(inspiration.text)

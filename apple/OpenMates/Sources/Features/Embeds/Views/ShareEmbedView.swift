@@ -46,7 +46,7 @@ struct ShareEmbedView: View {
                         if isGenerating {
                             HStack {
                                 ProgressView()
-                                Text("Generating link...")
+                                Text(LocalizationManager.shared.text("embed.generating_link"))
                                     .font(.omSmall)
                                     .foregroundStyle(Color.fontSecondary)
                             }

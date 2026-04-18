@@ -47,7 +47,7 @@ struct AccountRecoveryView: View {
             }
             .padding(.spacing8)
         }
-        .navigationTitle("Account Recovery")
+        .navigationTitle(LocalizationManager.shared.text("auth.account_recovery"))
     }
 
     // MARK: - Steps
@@ -57,20 +57,20 @@ struct AccountRecoveryView: View {
             Image(systemName: "person.crop.circle.badge.questionmark")
                 .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
 
-            Text("Recover Your Account")
+            Text(LocalizationManager.shared.text("auth.recover_your_account"))
                 .font(.omH2).fontWeight(.bold)
 
-            Text("Enter the email address associated with your account.")
+            Text(LocalizationManager.shared.text("auth.enter_email_for_recovery"))
                 .font(.omSmall).foregroundStyle(Color.fontSecondary).multilineTextAlignment(.center)
 
-            TextField("Email", text: $email)
+            TextField(LocalizationManager.shared.text("auth.email"), text: $email)
                 .keyboardType(.emailAddress).autocorrectionDisabled()
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
                 .textFieldStyle(.roundedBorder)
 
-            Button("Continue") { step = .chooseMethod }
+            Button(LocalizationManager.shared.text("common.continue")) { step = .chooseMethod }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                 .disabled(email.isEmpty)
         }
@@ -78,7 +78,7 @@ struct AccountRecoveryView: View {
 
     private var methodStep: some View {
         VStack(spacing: .spacing6) {
-            Text("Choose Recovery Method")
+            Text(LocalizationManager.shared.text("auth.choose_recovery_method"))
                 .font(.omH3).fontWeight(.bold)
 
             Button {
@@ -87,8 +87,8 @@ struct AccountRecoveryView: View {
                 HStack {
                     Image(systemName: "key.horizontal").font(.title2)
                     VStack(alignment: .leading) {
-                        Text("Recovery Key").font(.omSmall).fontWeight(.medium)
-                        Text("The 24-word key you saved during signup")
+                        Text(AppStrings.recoveryKey).font(.omSmall).fontWeight(.medium)
+                        Text(LocalizationManager.shared.text("auth.recovery_key_hint"))
                             .font(.omXs).foregroundStyle(Color.fontSecondary)
                     }
                     Spacer()
@@ -104,8 +104,8 @@ struct AccountRecoveryView: View {
                 HStack {
                     Image(systemName: "number").font(.title2)
                     VStack(alignment: .leading) {
-                        Text("Backup Code").font(.omSmall).fontWeight(.medium)
-                        Text("One of the one-time codes you saved")
+                        Text(LocalizationManager.shared.text("auth.backup_code")).font(.omSmall).fontWeight(.medium)
+                        Text(LocalizationManager.shared.text("auth.backup_code_hint"))
                             .font(.omXs).foregroundStyle(Color.fontSecondary)
                     }
                     Spacer()
@@ -119,7 +119,7 @@ struct AccountRecoveryView: View {
 
     private var recoveryKeyStep: some View {
         VStack(spacing: .spacing6) {
-            Text("Enter Recovery Key")
+            Text(LocalizationManager.shared.text("auth.enter_recovery_key"))
                 .font(.omH3).fontWeight(.bold)
 
             TextEditor(text: $recoveryKey)
@@ -128,7 +128,7 @@ struct AccountRecoveryView: View {
                 .padding(.spacing3).background(Color.grey10)
                 .clipShape(RoundedRectangle(cornerRadius: .radius3))
 
-            Button("Verify") { verifyRecoveryKey() }
+            Button(LocalizationManager.shared.text("auth.verify")) { verifyRecoveryKey() }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                 .disabled(recoveryKey.isEmpty || isLoading)
         }
@@ -136,14 +136,14 @@ struct AccountRecoveryView: View {
 
     private var backupCodeStep: some View {
         VStack(spacing: .spacing6) {
-            Text("Enter Backup Code")
+            Text(LocalizationManager.shared.text("auth.enter_backup_code"))
                 .font(.omH3).fontWeight(.bold)
 
-            TextField("Backup code", text: $backupCode)
+            TextField(LocalizationManager.shared.text("auth.backup_code"), text: $backupCode)
                 .font(.system(.body, design: .monospaced)).autocorrectionDisabled()
                 .textFieldStyle(.roundedBorder)
 
-            Button("Verify") { verifyBackupCode() }
+            Button(LocalizationManager.shared.text("auth.verify")) { verifyBackupCode() }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                 .disabled(backupCode.isEmpty || isLoading)
         }
@@ -151,20 +151,20 @@ struct AccountRecoveryView: View {
 
     private var resetPasswordStep: some View {
         VStack(spacing: .spacing6) {
-            Text("Set New Password")
+            Text(LocalizationManager.shared.text("auth.set_new_password"))
                 .font(.omH3).fontWeight(.bold)
 
-            SecureField("New password (min 8 characters)", text: $newPassword)
+            SecureField(LocalizationManager.shared.text("auth.password_min_chars"), text: $newPassword)
                 .textContentType(.newPassword).textFieldStyle(.roundedBorder)
 
-            SecureField("Confirm password", text: $confirmPassword)
+            SecureField(LocalizationManager.shared.text("auth.confirm_password"), text: $confirmPassword)
                 .textContentType(.newPassword).textFieldStyle(.roundedBorder)
 
             if !confirmPassword.isEmpty && newPassword != confirmPassword {
-                Text("Passwords don't match").font(.omXs).foregroundStyle(Color.error)
+                Text(LocalizationManager.shared.text("auth.passwords_dont_match")).font(.omXs).foregroundStyle(Color.error)
             }
 
-            Button("Reset Password") { resetPassword() }
+            Button(LocalizationManager.shared.text("auth.reset_password")) { resetPassword() }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                 .disabled(newPassword.count < 8 || newPassword != confirmPassword || isLoading)
         }
@@ -174,8 +174,8 @@ struct AccountRecoveryView: View {
         VStack(spacing: .spacing6) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48)).foregroundStyle(.green)
-            Text("Account Recovered").font(.omH2).fontWeight(.bold)
-            Text("Your password has been reset. You can now log in.")
+            Text(LocalizationManager.shared.text("auth.account_recovered")).font(.omH2).fontWeight(.bold)
+            Text(LocalizationManager.shared.text("auth.password_reset_success"))
                 .font(.omSmall).foregroundStyle(Color.fontSecondary).multilineTextAlignment(.center)
         }
     }

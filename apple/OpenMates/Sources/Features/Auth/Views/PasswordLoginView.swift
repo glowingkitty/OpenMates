@@ -24,7 +24,7 @@ struct PasswordLoginView: View {
 
     var body: some View {
         VStack(spacing: .spacing6) {
-            Text("Enter your password")
+            Text(AppStrings.enterPassword)
                 .font(.omH3)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
@@ -34,7 +34,7 @@ struct PasswordLoginView: View {
                 .foregroundStyle(Color.fontSecondary)
 
             VStack(spacing: .spacing4) {
-                SecureField("Password", text: $password)
+                SecureField(AppStrings.password, text: $password)
                     .textFieldStyle(OMTextFieldStyle())
                     .textContentType(.password)
                     .focused($focusedField, equals: .password)
@@ -43,17 +43,17 @@ struct PasswordLoginView: View {
                         else { performLogin() }
                     }
                     .accessibilityIdentifier("password-input")
-                    .accessibilityLabel("Password")
+                    .accessibilityLabel(AppStrings.password)
 
                 if showTfaField {
-                    TextField("Authenticator code", text: $tfaCode)
+                    TextField(LocalizationManager.shared.text("auth.authenticator_code"), text: $tfaCode)
                         .textFieldStyle(OMTextFieldStyle())
                         .keyboardType(.numberPad)
                         .focused($focusedField, equals: .tfa)
                         .onSubmit { performLogin() }
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .accessibilityIdentifier("tfa-code-input")
-                        .accessibilityLabel("Two-factor authentication code")
+                        .accessibilityLabel(LocalizationManager.shared.text("auth.two_factor_code"))
                 }
 
                 if let errorMessage {
@@ -64,7 +64,7 @@ struct PasswordLoginView: View {
                 }
             }
 
-            Toggle("Stay logged in", isOn: $stayLoggedIn)
+            Toggle(LocalizationManager.shared.text("auth.stay_logged_in"), isOn: $stayLoggedIn)
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
                 .tint(Color.buttonPrimary)
@@ -75,7 +75,7 @@ struct PasswordLoginView: View {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Text("Log in")
+                        Text(AppStrings.login)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -83,18 +83,18 @@ struct PasswordLoginView: View {
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(password.isEmpty || isLoading)
             .accessibilityIdentifier("login-button")
-            .accessibilityLabel("Log in")
+            .accessibilityLabel(AppStrings.login)
 
             // Recovery options
             VStack(spacing: .spacing3) {
-                Button("Use recovery key") {
+                Button(AppStrings.loginWithRecoveryKey) {
                     onRecoveryKey()
                 }
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
 
                 if showTfaField {
-                    Button("Use backup code") {
+                    Button(LocalizationManager.shared.text("auth.use_backup_code")) {
                         onBackupCode()
                     }
                     .font(.omSmall)
@@ -129,7 +129,7 @@ struct PasswordLoginView: View {
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
             } catch {
-                errorMessage = "Login failed. Please try again."
+                errorMessage = LocalizationManager.shared.text("auth.login_failed")
             }
             isLoading = false
         }

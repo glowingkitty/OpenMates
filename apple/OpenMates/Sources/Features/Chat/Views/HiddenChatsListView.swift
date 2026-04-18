@@ -21,7 +21,7 @@ struct HiddenChatsListView: View {
                     Image(systemName: "eye.slash")
                         .font(.system(size: 40))
                         .foregroundStyle(Color.fontTertiary)
-                    Text("No hidden chats")
+                    Text(AppStrings.noHiddenChats)
                         .font(.omP)
                         .foregroundStyle(Color.fontSecondary)
                 }

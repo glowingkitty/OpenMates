@@ -21,18 +21,18 @@ struct DeviceVerificationView: View {
                     .font(.system(size: 48))
                     .foregroundStyle(Color.buttonPrimary)
 
-                Text("Verify This Device")
+                Text(LocalizationManager.shared.text("auth.verify_this_device"))
                     .font(.omH3)
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
 
-                Text("For your security, please verify this new device with your authenticator app.")
+                Text(LocalizationManager.shared.text("auth.verify_device_description"))
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
                 VStack(spacing: .spacing4) {
-                    TextField("6-digit code", text: $code)
+                    TextField(LocalizationManager.shared.text("auth.six_digit_code"), text: $code)
                         .textFieldStyle(OMTextFieldStyle())
                         .keyboardType(.numberPad)
                         .focused($isFocused)
@@ -54,7 +54,7 @@ struct DeviceVerificationView: View {
                             ProgressView()
                                 .tint(.fontButton)
                         } else {
-                            Text("Verify")
+                            Text(LocalizationManager.shared.text("auth.verify"))
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -79,7 +79,7 @@ struct DeviceVerificationView: View {
                 errorMessage = error.localizedDescription
                 code = ""
             } catch {
-                errorMessage = "Verification failed. Please try again."
+                errorMessage = LocalizationManager.shared.text("auth.verification_failed")
                 code = ""
             }
             isLoading = false

@@ -15,32 +15,32 @@ struct SettingsAccountChatsView: View {
 
     var body: some View {
         List {
-            Section("Chat Statistics") {
+            Section(LocalizationManager.shared.text("settings.chats.statistics")) {
                 HStack {
-                    Text("Total Chats")
+                    Text(LocalizationManager.shared.text("settings.chats.total"))
                     Spacer()
                     Text("\(chatCount)")
                         .foregroundStyle(Color.fontSecondary)
                 }
                 HStack {
-                    Text("Archived")
+                    Text(LocalizationManager.shared.text("settings.chats.archived"))
                     Spacer()
                     Text("\(archivedCount)")
                         .foregroundStyle(Color.fontSecondary)
                 }
             }
 
-            Section("Actions") {
+            Section(LocalizationManager.shared.text("settings.chats.actions")) {
                 Button {
                     showArchiveConfirm = true
                 } label: {
-                    Label("Archive All Chats", systemImage: "archivebox")
+                    Label(LocalizationManager.shared.text("settings.chats.archive_all"), systemImage: "archivebox")
                 }
 
                 Button(role: .destructive) {
                     showDeleteConfirm = true
                 } label: {
-                    Label("Delete All Chats", systemImage: "trash")
+                    Label(LocalizationManager.shared.text("settings.chats.delete_all"), systemImage: "trash")
                 }
             }
 
@@ -56,13 +56,13 @@ struct SettingsAccountChatsView: View {
             Button("Archive All") { archiveAll() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will archive all \(chatCount) chats. They can be restored later.")
+            Text("\(LocalizationManager.shared.text("settings.chats.archive_warning_prefix")) \(chatCount) \(LocalizationManager.shared.text("settings.chats.archive_warning_suffix"))")
         }
         .confirmationDialog("Delete All Chats?", isPresented: $showDeleteConfirm) {
             Button("Delete All", role: .destructive) { deleteAll() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will permanently delete all \(chatCount) chats. This action cannot be undone.")
+            Text("\(LocalizationManager.shared.text("settings.chats.delete_warning_prefix")) \(chatCount) \(LocalizationManager.shared.text("settings.chats.delete_warning_suffix"))")
         }
     }
 

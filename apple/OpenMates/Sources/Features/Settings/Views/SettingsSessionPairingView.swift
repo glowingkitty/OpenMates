@@ -20,10 +20,10 @@ struct SettingsPairInitiateView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text("Pair a New Device")
+                Text(LocalizationManager.shared.text("settings.pair_new_device"))
                     .font(.omH3).fontWeight(.bold)
 
-                Text("Scan this QR code on your new device, or enter the pairing code manually.")
+                Text(LocalizationManager.shared.text("settings.pair_scan_qr_description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
@@ -40,37 +40,37 @@ struct SettingsPairInitiateView: View {
 
                 if let pairingCode {
                     VStack(spacing: .spacing2) {
-                        Text("Pairing Code")
+                        Text(LocalizationManager.shared.text("settings.pairing_code"))
                             .font(.omXs).foregroundStyle(Color.fontTertiary)
                         Text(pairingCode)
                             .font(.system(size: 28, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color.buttonPrimary)
                             .textSelection(.enabled)
-                        Text("Expires in \(expiresIn / 60) minutes")
+                        Text("\(LocalizationManager.shared.text("settings.expires_in")) \(expiresIn / 60) \(LocalizationManager.shared.text("common.minutes"))")
                             .font(.omTiny).foregroundStyle(Color.fontTertiary)
                     }
 
                     Button {
                         CopyMessageFormatter.copyToClipboard(pairingCode)
-                        ToastManager.shared.show("Code copied", type: .success)
+                        ToastManager.shared.show(AppStrings.copied, type: .success)
                     } label: {
-                        Label("Copy Code", systemImage: "doc.on.doc")
+                        Label(LocalizationManager.shared.text("settings.copy_code"), systemImage: "doc.on.doc")
                     }
                     .buttonStyle(.bordered)
                 }
 
                 if isPaired {
-                    Label("Device paired successfully!", systemImage: "checkmark.circle.fill")
+                    Label(LocalizationManager.shared.text("settings.device_paired_successfully"), systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.omSmall).fontWeight(.medium)
                 }
 
                 if pairingCode == nil && !isGenerating {
-                    Button("Generate Pairing Code") { generateCode() }
+                    Button(LocalizationManager.shared.text("settings.generate_pairing_code")) { generateCode() }
                         .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
                 }
 
-                if isGenerating { ProgressView("Generating...") }
+                if isGenerating { ProgressView(LocalizationManager.shared.text("settings.generating")) }
 
                 if let error {
                     Text(error).font(.omSmall).foregroundStyle(Color.error)
@@ -78,7 +78,7 @@ struct SettingsPairInitiateView: View {
             }
             .padding(.spacing8)
         }
-        .navigationTitle("Pair Device")
+        .navigationTitle(AppStrings.pairNewDevice)
     }
 
     private func generateCode() {
@@ -168,7 +168,7 @@ struct CLIPairAuthorizeView: View {
                 VStack(spacing: .spacing6) {
                     switch step {
                     case .loading:
-                        ProgressView("Loading device info...")
+                        ProgressView(LocalizationManager.shared.text("settings.loading_device_info"))
                     case .confirm:
                         confirmView
                     case .pinDisplay:
@@ -181,11 +181,11 @@ struct CLIPairAuthorizeView: View {
                 }
                 .padding(.spacing8)
             }
-            .navigationTitle("Authorize Device")
+            .navigationTitle(LocalizationManager.shared.text("settings.authorize_device"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(AppStrings.cancel) { dismiss() }
                 }
             }
         }
@@ -199,10 +199,10 @@ struct CLIPairAuthorizeView: View {
             Image(systemName: "desktopcomputer.and.arrow.down")
                 .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
 
-            Text("Login Request")
+            Text(LocalizationManager.shared.text("settings.login_request"))
                 .font(.omH2).fontWeight(.bold)
 
-            Text("A device wants to log in to your account")
+            Text(LocalizationManager.shared.text("settings.device_wants_login"))
                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
 
             if let info = deviceInfo {
@@ -226,7 +226,7 @@ struct CLIPairAuthorizeView: View {
             }
 
             HStack(spacing: .spacing4) {
-                Button("Deny") { dismiss() }
+                Button(LocalizationManager.shared.text("settings.deny")) { dismiss() }
                     .buttonStyle(.bordered)
 
                 Button {
@@ -235,7 +235,7 @@ struct CLIPairAuthorizeView: View {
                     if isAuthorizing {
                         ProgressView()
                     } else {
-                        Text("Allow")
+                        Text(LocalizationManager.shared.text("settings.allow"))
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -243,7 +243,7 @@ struct CLIPairAuthorizeView: View {
                 .disabled(isAuthorizing)
             }
 
-            Text("Only approve if you initiated this login.")
+            Text(LocalizationManager.shared.text("settings.only_approve_if_initiated"))
                 .font(.omTiny).foregroundStyle(Color.fontTertiary)
         }
     }
@@ -253,10 +253,10 @@ struct CLIPairAuthorizeView: View {
             Image(systemName: "checkmark.shield.fill")
                 .font(.system(size: 48)).foregroundStyle(.green)
 
-            Text("Enter This PIN")
+            Text(LocalizationManager.shared.text("settings.enter_this_pin"))
                 .font(.omH2).fontWeight(.bold)
 
-            Text("Enter this code on the requesting device to complete login.")
+            Text(LocalizationManager.shared.text("settings.enter_pin_on_device"))
                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
 
@@ -271,7 +271,7 @@ struct CLIPairAuthorizeView: View {
                     .textSelection(.enabled)
             }
 
-            Text("This PIN expires in 5 minutes.")
+            Text(LocalizationManager.shared.text("settings.pin_expires_5_minutes"))
                 .font(.omTiny).foregroundStyle(Color.fontTertiary)
         }
     }
@@ -280,10 +280,10 @@ struct CLIPairAuthorizeView: View {
         VStack(spacing: .spacing6) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48)).foregroundStyle(.green)
-            Text("Device Paired").font(.omH2).fontWeight(.bold)
-            Text("The device has been successfully logged in.")
+            Text(LocalizationManager.shared.text("settings.device_paired")).font(.omH2).fontWeight(.bold)
+            Text(LocalizationManager.shared.text("settings.device_logged_in_successfully"))
                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
-            Button("Done") { dismiss() }
+            Button(AppStrings.done) { dismiss() }
                 .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
         }
     }
@@ -292,9 +292,9 @@ struct CLIPairAuthorizeView: View {
         VStack(spacing: .spacing6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 48)).foregroundStyle(Color.error)
-            Text("Error").font(.omH2).fontWeight(.bold)
+            Text(AppStrings.error).font(.omH2).fontWeight(.bold)
             if let error { Text(error).font(.omSmall).foregroundStyle(Color.error) }
-            Button("Try Again") { Task { await loadDeviceInfo() } }
+            Button(AppStrings.retry) { Task { await loadDeviceInfo() } }
                 .buttonStyle(.bordered)
         }
     }
@@ -439,12 +439,12 @@ struct SettingsConfirmPairView: View {
     var body: some View {
         Form {
             Section {
-                Text("Enter the pairing code shown on your other device.")
+                Text(LocalizationManager.shared.text("settings.enter_pairing_code_description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
             }
 
-            Section("Pairing Code") {
-                TextField("Enter code", text: $pairingCode)
+            Section(LocalizationManager.shared.text("settings.pairing_code")) {
+                TextField(LocalizationManager.shared.text("settings.enter_code"), text: $pairingCode)
                     .font(.system(.body, design: .monospaced))
                     .autocorrectionDisabled()
                     #if os(iOS)
@@ -458,7 +458,7 @@ struct SettingsConfirmPairView: View {
                 } label: {
                     HStack {
                         Spacer()
-                        if isConfirming { ProgressView() } else { Text("Confirm Pairing").fontWeight(.medium) }
+                        if isConfirming { ProgressView() } else { Text(LocalizationManager.shared.text("settings.confirm_pairing")).fontWeight(.medium) }
                         Spacer()
                     }
                 }
@@ -467,7 +467,7 @@ struct SettingsConfirmPairView: View {
 
             if isSuccess {
                 Section {
-                    Label("Device paired successfully!", systemImage: "checkmark.circle.fill")
+                    Label(LocalizationManager.shared.text("settings.device_paired_successfully"), systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 }
             }
@@ -477,7 +477,7 @@ struct SettingsConfirmPairView: View {
                 }
             }
         }
-        .navigationTitle("Confirm Pairing")
+        .navigationTitle(LocalizationManager.shared.text("settings.confirm_pairing"))
     }
 
     private func confirmPairing() {

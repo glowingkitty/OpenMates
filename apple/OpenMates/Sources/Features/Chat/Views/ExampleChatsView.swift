@@ -38,7 +38,7 @@ struct ExampleChatsListView: View {
                 ContentUnavailableView(
                     "No Examples",
                     systemImage: "text.bubble",
-                    description: Text("Example chats will appear here.")
+                    description: Text(LocalizationManager.shared.text("activity.examples"))
                 )
             } else {
                 List(examples) { example in

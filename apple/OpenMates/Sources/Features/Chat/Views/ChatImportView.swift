@@ -21,7 +21,7 @@ struct ChatImportView: View {
     var body: some View {
         List {
             Section {
-                Text("Import chats from a previously exported ZIP file.")
+                Text(LocalizationManager.shared.text("settings.account.import_description"))
                     .foregroundStyle(Color.fontSecondary)
             }
 
@@ -32,7 +32,7 @@ struct ChatImportView: View {
                     if isImporting {
                         HStack {
                             ProgressView()
-                            Text("Importing...").font(.omP)
+                            Text(LocalizationManager.shared.text("settings.account.import_importing")).font(.omP)
                         }
                     } else {
                         Label("Select ZIP File", systemImage: "doc.zipper")
@@ -44,12 +44,12 @@ struct ChatImportView: View {
             if let result = importResult {
                 Section("Import Complete") {
                     HStack {
-                        Text("Chats imported")
+                        Text(LocalizationManager.shared.text("settings.account.import_chats_selected"))
                         Spacer()
                         Text("\(result.chatCount)").foregroundStyle(Color.fontSecondary)
                     }
                     HStack {
-                        Text("Messages imported")
+                        Text(LocalizationManager.shared.text("settings.account.import_messages_imported"))
                         Spacer()
                         Text("\(result.messageCount)").foregroundStyle(Color.fontSecondary)
                     }

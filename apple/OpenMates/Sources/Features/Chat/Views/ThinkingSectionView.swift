@@ -20,7 +20,7 @@ struct ThinkingSectionView: View {
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)
 
-                    Text("Thinking")
+                    Text(LocalizationManager.shared.text("chat.thinking.header_done"))
                         .font(.omXs).fontWeight(.medium)
                         .foregroundStyle(Color.fontTertiary)
 
@@ -62,7 +62,7 @@ struct ThinkingIndicator: View {
                 .font(.omXs)
                 .foregroundStyle(Color.fontTertiary)
 
-            Text("Thinking" + String(repeating: ".", count: dotCount))
+            Text(LocalizationManager.shared.text("chat.thinking.header_streaming") + String(repeating: ".", count: dotCount))
                 .font(.omXs).fontWeight(.medium)
                 .foregroundStyle(Color.fontTertiary)
         }

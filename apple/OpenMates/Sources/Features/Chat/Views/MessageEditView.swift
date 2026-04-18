@@ -52,7 +52,7 @@ struct MessageEditView: View {
                         ProgressView()
                             .frame(width: 16, height: 16)
                     } else {
-                        Text("Save")
+                        Text(AppStrings.save)
                             .font(.omSmall).fontWeight(.medium)
                     }
                 }

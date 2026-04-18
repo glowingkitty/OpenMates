@@ -19,21 +19,21 @@ struct SettingsExportAccountView: View {
     var body: some View {
         List {
             Section {
-                Text("Export all your account data including chats, messages, embeds, memories, and settings.")
+                Text(LocalizationManager.shared.text("settings.export.description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
             }
 
             Section {
                 switch exportStatus {
                 case .idle:
-                    Button("Request Data Export") {
+                    Button(LocalizationManager.shared.text("settings.export.request_export")) {
                         requestExport()
                     }
 
                 case .requesting:
                     HStack {
                         ProgressView()
-                        Text("Requesting export...")
+                        Text(LocalizationManager.shared.text("settings.export.requesting"))
                             .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     }
 
@@ -41,26 +41,26 @@ struct SettingsExportAccountView: View {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         HStack {
                             ProgressView()
-                            Text("Preparing your data...")
+                            Text(LocalizationManager.shared.text("settings.export.preparing"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
-                        Text("This may take a few minutes for large accounts.")
+                        Text(LocalizationManager.shared.text("settings.export.may_take_minutes"))
                             .font(.omXs).foregroundStyle(Color.fontTertiary)
                     }
 
                 case .ready:
                     if let downloadURL {
                         VStack(alignment: .leading, spacing: .spacing3) {
-                            Label("Export ready", systemImage: "checkmark.circle.fill")
+                            Label(LocalizationManager.shared.text("settings.export.ready"), systemImage: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
 
-                            Button("Download Archive") {
+                            Button(LocalizationManager.shared.text("settings.export.download_archive")) {
                                 openDownload(downloadURL)
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(Color.buttonPrimary)
 
-                            Text("The download link expires in 24 hours.")
+                            Text(LocalizationManager.shared.text("settings.export.link_expires"))
                                 .font(.omXs).foregroundStyle(Color.fontTertiary)
                         }
                     }
@@ -73,7 +73,7 @@ struct SettingsExportAccountView: View {
                 }
             }
         }
-        .navigationTitle("Export Data")
+        .navigationTitle(AppStrings.exportData)
         .task { await checkExistingExport() }
     }
 
@@ -127,7 +127,7 @@ struct SettingsExportAccountView: View {
                         exportStatus = .ready
                         return
                     } else if status == "failed" {
-                        error = "Export failed. Please try again."
+                        error = LocalizationManager.shared.text("settings.export.failed")
                         exportStatus = .idle
                         return
                     }

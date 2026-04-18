@@ -16,7 +16,7 @@ struct ForkProgressBanner: View {
                     .scaleEffect(0.8)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Forking conversation...")
+                    Text(LocalizationManager.shared.text("chats.fork.forking_banner"))
                         .font(.omXs).fontWeight(.medium)
                         .foregroundStyle(Color.fontPrimary)
 

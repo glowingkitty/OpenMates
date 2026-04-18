@@ -8,7 +8,7 @@ struct SettingsSupportView: View {
     var body: some View {
         List {
             Section {
-                Text("OpenMates is an open-source project. Your support helps keep it running and improving.")
+                Text(LocalizationManager.shared.text("settings.support.description"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
             }
 
@@ -112,7 +112,7 @@ struct SupportOneTimeView: View {
                         if isProcessing {
                             ProgressView()
                         } else {
-                            Text("Contribute")
+                            Text(LocalizationManager.shared.text("settings.support.contribute"))
                                 .fontWeight(.medium)
                         }
                         Spacer()
@@ -183,7 +183,7 @@ struct SupportMonthlyView: View {
                     Button(role: .destructive) {
                         openWebSupport()
                     } label: {
-                        Text("Cancel Subscription")
+                        Text(LocalizationManager.shared.text("settings.support.cancel_subscription"))
                     }
                 }
             }

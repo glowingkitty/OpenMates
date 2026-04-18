@@ -14,17 +14,17 @@ struct EmailLookupView: View {
 
     var body: some View {
         VStack(spacing: .spacing6) {
-            Text("Welcome back")
+            Text(LocalizationManager.shared.text("auth.welcome_back"))
                 .font(.omH3)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
 
-            Text("Enter your email to continue")
+            Text(LocalizationManager.shared.text("auth.enter_email_to_continue"))
                 .font(.omP)
                 .foregroundStyle(Color.fontSecondary)
 
             VStack(spacing: .spacing4) {
-                TextField("Email address", text: $email)
+                TextField(LocalizationManager.shared.text("auth.email_address"), text: $email)
                     .textFieldStyle(OMTextFieldStyle())
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
@@ -35,8 +35,8 @@ struct EmailLookupView: View {
                     .focused($emailFocused)
                     .onSubmit { performLookup() }
                     .accessibilityIdentifier("email-input")
-                    .accessibilityLabel("Email address")
-                    .accessibilityHint("Enter your account email")
+                    .accessibilityLabel(LocalizationManager.shared.text("auth.email_address"))
+                    .accessibilityHint(LocalizationManager.shared.text("auth.enter_account_email"))
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -52,7 +52,7 @@ struct EmailLookupView: View {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Text("Continue")
+                        Text(LocalizationManager.shared.text("common.continue"))
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -60,8 +60,8 @@ struct EmailLookupView: View {
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(email.isEmpty || isLoading)
             .accessibilityIdentifier("continue-button")
-            .accessibilityLabel("Continue")
-            .accessibilityHint("Look up login methods for this email")
+            .accessibilityLabel(LocalizationManager.shared.text("common.continue"))
+            .accessibilityHint(LocalizationManager.shared.text("auth.lookup_login_methods"))
         }
         .onAppear {
             emailFocused = true
@@ -80,7 +80,7 @@ struct EmailLookupView: View {
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
             } catch {
-                errorMessage = "Connection failed. Please try again."
+                errorMessage = LocalizationManager.shared.text("auth.connection_failed")
             }
             isLoading = false
         }

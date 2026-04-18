@@ -103,7 +103,7 @@ struct EmbedFullscreenContainer: View {
         VStack(alignment: .leading, spacing: .spacing4) {
             Divider().padding(.horizontal, .spacing6)
 
-            Text("Results (\(childEmbeds.count))")
+            Text("\(LocalizationManager.shared.text("embed.results")) (\(childEmbeds.count))")
                 .font(.omP).fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
                 .padding(.horizontal, .spacing6)

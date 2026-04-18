@@ -10,28 +10,28 @@ struct SettingsServerView: View {
             NavigationLink {
                 ServerSoftwareUpdateView()
             } label: {
-                Label("Software Updates", systemImage: "arrow.down.circle")
+                Label(LocalizationManager.shared.text("admin.software_updates"), systemImage: "arrow.down.circle")
             }
 
             NavigationLink {
                 ServerStatsView()
             } label: {
-                Label("Statistics", systemImage: "chart.line.uptrend.xyaxis")
+                Label(LocalizationManager.shared.text("admin.statistics"), systemImage: "chart.line.uptrend.xyaxis")
             }
 
             NavigationLink {
                 ServerGiftCardGeneratorView()
             } label: {
-                Label("Gift Card Generator", systemImage: "gift")
+                Label(LocalizationManager.shared.text("admin.gift_card_generator"), systemImage: "gift")
             }
 
             NavigationLink {
                 ServerTestResultsView()
             } label: {
-                Label("Test Results", systemImage: "checkmark.diamond")
+                Label(LocalizationManager.shared.text("admin.test_results"), systemImage: "checkmark.diamond")
             }
         }
-        .navigationTitle("Server")
+        .navigationTitle(AppStrings.serverAdmin)
     }
 }
 
@@ -59,10 +59,10 @@ struct ServerSoftwareUpdateView: View {
 
     var body: some View {
         List {
-            Section("Current Version") {
+            Section(LocalizationManager.shared.text("admin.current_version")) {
                 if let v = currentVersion {
                     HStack {
-                        Text("Commit")
+                        Text(LocalizationManager.shared.text("admin.commit"))
                         Spacer()
                         Text(v.shortSha ?? v.sha?.prefix(7).description ?? "unknown")
                             .font(.system(.body, design: .monospaced))
@@ -70,14 +70,14 @@ struct ServerSoftwareUpdateView: View {
                     }
                     if let tag = v.tag, !tag.isEmpty {
                         HStack {
-                            Text("Tag")
+                            Text(LocalizationManager.shared.text("admin.tag"))
                             Spacer()
                             Text(tag).foregroundStyle(Color.fontSecondary)
                         }
                     }
                     if let date = v.date {
                         HStack {
-                            Text("Date")
+                            Text(LocalizationManager.shared.text("admin.date"))
                             Spacer()
                             Text(date).font(.omXs).foregroundStyle(Color.fontTertiary)
                         }
@@ -85,14 +85,14 @@ struct ServerSoftwareUpdateView: View {
                 } else if isChecking {
                     ProgressView()
                 } else {
-                    Text("Not available").foregroundStyle(Color.fontTertiary)
+                    Text(LocalizationManager.shared.text("admin.not_available")).foregroundStyle(Color.fontTertiary)
                 }
             }
 
             if updateAvailable, let latest = latestVersion {
-                Section("Update Available") {
+                Section(LocalizationManager.shared.text("admin.update_available")) {
                     HStack {
-                        Text("Latest")
+                        Text(LocalizationManager.shared.text("admin.latest"))
                         Spacer()
                         Text(latest.shortSha ?? "")
                             .font(.system(.body, design: .monospaced))
@@ -102,7 +102,7 @@ struct ServerSoftwareUpdateView: View {
                         Text(msg)
                             .font(.omXs).foregroundStyle(Color.fontSecondary)
                     }
-                    Text("\(commitsBehind) commits behind")
+                    Text("\(commitsBehind) \(LocalizationManager.shared.text("admin.commits_behind"))")
                         .font(.omXs).foregroundStyle(Color.warning)
 
                     Button {
@@ -112,9 +112,9 @@ struct ServerSoftwareUpdateView: View {
                             Spacer()
                             if isInstalling {
                                 ProgressView()
-                                Text("Installing...")
+                                Text(LocalizationManager.shared.text("admin.installing"))
                             } else {
-                                Label("Install Update", systemImage: "arrow.down.circle.fill")
+                                Label(LocalizationManager.shared.text("admin.install_update"), systemImage: "arrow.down.circle.fill")
                             }
                             Spacer()
                         }
@@ -131,18 +131,18 @@ struct ServerSoftwareUpdateView: View {
                 }
             }
 
-            Section("Update Settings") {
-                Toggle("Auto-check for updates", isOn: $autoCheckEnabled)
+            Section(LocalizationManager.shared.text("admin.update_settings")) {
+                Toggle(LocalizationManager.shared.text("admin.auto_check_updates"), isOn: $autoCheckEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: autoCheckEnabled) { _, _ in saveUpdateSettings() }
 
-                Toggle("Auto-install updates", isOn: $autoInstallEnabled)
+                Toggle(LocalizationManager.shared.text("admin.auto_install_updates"), isOn: $autoInstallEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: autoInstallEnabled) { _, _ in saveUpdateSettings() }
             }
 
             Section {
-                Button("Check for Updates") { checkForUpdates() }
+                Button(LocalizationManager.shared.text("admin.check_for_updates")) { checkForUpdates() }
                     .disabled(isChecking)
             }
 
@@ -152,7 +152,7 @@ struct ServerSoftwareUpdateView: View {
                 }
             }
         }
-        .navigationTitle("Software Updates")
+        .navigationTitle(LocalizationManager.shared.text("admin.software_updates"))
         .task { await loadUpdateStatus() }
     }
 
@@ -217,10 +217,10 @@ struct ServerSoftwareUpdateView: View {
                     .post, path: "/v1/admin/update/install",
                     body: [:] as [String: String]
                 )
-                installStatus = "Update installed successfully. Services are restarting."
+                installStatus = LocalizationManager.shared.text("admin.update_installed_successfully")
                 updateAvailable = false
             } catch {
-                installStatus = "Update failed: \(error.localizedDescription)"
+                installStatus = "\(LocalizationManager.shared.text("admin.update_failed")): \(error.localizedDescription)"
             }
             isInstalling = false
         }
@@ -294,7 +294,7 @@ struct ServerStatsView: View {
                 }
             }
         }
-        .navigationTitle("Statistics")
+        .navigationTitle(LocalizationManager.shared.text("admin.statistics"))
         .task { await loadStats() }
     }
 
@@ -381,22 +381,22 @@ struct ServerGiftCardGeneratorView: View {
 
     var body: some View {
         List {
-            Section("Generate Gift Cards") {
+            Section(LocalizationManager.shared.text("admin.generate_gift_cards")) {
                 Picker("Credits", selection: $creditsValue) {
                     ForEach(presetAmounts, id: \.self) { amount in
                         Text("\(amount) credits").tag(amount)
                     }
                 }
 
-                Stepper("Quantity: \(quantity)", value: $quantity, in: 1...50)
+                Stepper("\(LocalizationManager.shared.text("admin.quantity")): \(quantity)", value: $quantity, in: 1...50)
 
-                TextField("Custom prefix (optional)", text: $prefix)
+                TextField(LocalizationManager.shared.text("admin.custom_prefix_optional"), text: $prefix)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.characters)
                     #endif
 
-                TextField("Notes (optional)", text: $notes)
+                TextField(LocalizationManager.shared.text("admin.notes_optional"), text: $notes)
 
                 Button {
                     generateCards()
@@ -406,7 +406,7 @@ struct ServerGiftCardGeneratorView: View {
                         if isGenerating {
                             ProgressView()
                         } else {
-                            Text("Generate \(quantity) Card\(quantity > 1 ? "s" : "")")
+                            Text("\(LocalizationManager.shared.text("admin.generate")) \(quantity) \(quantity > 1 ? LocalizationManager.shared.text("admin.cards") : LocalizationManager.shared.text("admin.card"))")
                                 .fontWeight(.medium)
                         }
                         Spacer()
@@ -416,7 +416,7 @@ struct ServerGiftCardGeneratorView: View {
             }
 
             if !generatedCodes.isEmpty {
-                Section("Generated Codes") {
+                Section(LocalizationManager.shared.text("admin.generated_codes")) {
                     ForEach(generatedCodes) { code in
                         HStack {
                             Text(code.code)
@@ -431,16 +431,16 @@ struct ServerGiftCardGeneratorView: View {
                         }
                     }
 
-                    Button("Copy All") {
+                    Button(LocalizationManager.shared.text("admin.copy_all")) {
                         let allCodes = generatedCodes.map(\.code).joined(separator: "\n")
                         copyToClipboard(allCodes)
                     }
                 }
             }
 
-            Section("Active Gift Cards") {
+            Section(LocalizationManager.shared.text("admin.active_gift_cards")) {
                 if activeCards.isEmpty {
-                    Text("No unredeemed gift cards")
+                    Text(LocalizationManager.shared.text("admin.no_unredeemed_gift_cards"))
                         .foregroundStyle(Color.fontTertiary)
                 } else {
                     ForEach(activeCards) { card in
@@ -467,7 +467,7 @@ struct ServerGiftCardGeneratorView: View {
                 }
             }
         }
-        .navigationTitle("Gift Card Generator")
+        .navigationTitle(LocalizationManager.shared.text("admin.gift_card_generator"))
         .task { await loadActiveCards() }
     }
 
@@ -514,7 +514,7 @@ struct ServerGiftCardGeneratorView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         #endif
-        ToastManager.shared.show("Copied", type: .success)
+        ToastManager.shared.show(AppStrings.copied, type: .success)
     }
 }
 
@@ -564,7 +564,7 @@ struct ServerTestResultsView: View {
                 Section("Last Run") {
                     if let sha = run.gitSha {
                         HStack {
-                            Text("Commit")
+                            Text(LocalizationManager.shared.text("admin.commit"))
                             Spacer()
                             Text(String(sha.prefix(7)))
                                 .font(.system(.body, design: .monospaced))
@@ -573,14 +573,14 @@ struct ServerTestResultsView: View {
                     }
                     if let branch = run.gitBranch {
                         HStack {
-                            Text("Branch")
+                            Text(LocalizationManager.shared.text("admin.branch"))
                             Spacer()
                             Text(branch).foregroundStyle(Color.fontSecondary)
                         }
                     }
                     if let duration = run.durationSeconds {
                         HStack {
-                            Text("Duration")
+                            Text(LocalizationManager.shared.text("admin.duration"))
                             Spacer()
                             Text(String(format: "%.1fs", duration))
                                 .foregroundStyle(Color.fontSecondary)
@@ -605,7 +605,7 @@ struct ServerTestResultsView: View {
                         if let suite = suites[suiteName] {
                             Section(suiteName.replacingOccurrences(of: "_", with: " ").capitalized) {
                                 HStack {
-                                    Text("Status")
+                                    Text(LocalizationManager.shared.text("admin.status"))
                                     Spacer()
                                     Text(suite.status?.capitalized ?? "Unknown")
                                         .foregroundStyle(suite.status == "passed" ? .green : Color.error)
@@ -635,7 +635,7 @@ struct ServerTestResultsView: View {
                 }
             } else {
                 Section {
-                    Text("No test results available")
+                    Text(LocalizationManager.shared.text("admin.no_test_results"))
                         .foregroundStyle(Color.fontSecondary)
                 }
             }
@@ -646,7 +646,7 @@ struct ServerTestResultsView: View {
                 }
             }
         }
-        .navigationTitle("Test Results")
+        .navigationTitle(LocalizationManager.shared.text("admin.test_results"))
         .task { await loadResults() }
     }
 

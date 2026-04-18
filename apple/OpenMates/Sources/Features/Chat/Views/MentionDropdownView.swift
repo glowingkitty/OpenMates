@@ -38,7 +38,7 @@ struct MentionDropdownView: View {
             if isLoading {
                 ProgressView().padding(.spacing4)
             } else if filteredItems.isEmpty {
-                Text("No matches")
+                Text(LocalizationManager.shared.text("chat.suggestions.filter_no_match"))
                     .font(.omSmall).foregroundStyle(Color.fontTertiary)
                     .padding(.spacing4)
             } else {

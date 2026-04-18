@@ -11,9 +11,9 @@ struct SettingsBillingView: View {
 
     var body: some View {
         List {
-            Section("Balance") {
+            Section(LocalizationManager.shared.text("settings.billing.balance")) {
                 HStack {
-                    Text("Credits")
+                    Text(AppStrings.credits)
                         .font(.omP)
                     Spacer()
                     Text(String(format: "%.4f", balance))
@@ -23,41 +23,41 @@ struct SettingsBillingView: View {
                 }
             }
 
-            Section("Top Up") {
+            Section(LocalizationManager.shared.text("settings.billing.top_up")) {
                 NavigationLink {
                     BuyCreditsView()
                 } label: {
-                    Label("Buy Credits", systemImage: "creditcard")
+                    Label(AppStrings.buyCredits, systemImage: "creditcard")
                 }
 
                 NavigationLink {
                     AutoTopUpView()
                 } label: {
-                    Label("Auto Top-Up", systemImage: "arrow.triangle.2.circlepath")
+                    Label(AppStrings.autoTopUp, systemImage: "arrow.triangle.2.circlepath")
                 }
             }
 
-            Section("History") {
+            Section(LocalizationManager.shared.text("settings.billing.history")) {
                 NavigationLink {
                     PurchaseHistoryView()
                 } label: {
-                    Label("Purchase History", systemImage: "clock.arrow.circlepath")
+                    Label(AppStrings.purchaseHistory, systemImage: "clock.arrow.circlepath")
                 }
 
                 NavigationLink {
                     InvoicesView()
                 } label: {
-                    Label("Invoices", systemImage: "doc.text")
+                    Label(AppStrings.invoices, systemImage: "doc.text")
                 }
 
                 NavigationLink {
                     SettingsGiftCardsView()
                 } label: {
-                    Label("Gift Cards", systemImage: "gift")
+                    Label(AppStrings.giftCards, systemImage: "gift")
                 }
             }
         }
-        .navigationTitle("Billing")
+        .navigationTitle(AppStrings.settingsBilling)
         .task { await loadBalance() }
         .onReceive(NotificationCenter.default.publisher(for: .paymentCompleted)) { _ in
             Task { await loadBalance() }
@@ -91,13 +91,13 @@ struct BuyCreditsView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 40))
                             .foregroundStyle(.green)
-                        Text("Purchase Complete!")
+                        Text(LocalizationManager.shared.text("settings.billing.purchase_complete"))
                             .font(.omH4).fontWeight(.semibold)
                         if credits > 0 {
-                            Text("\(credits.formatted()) credits added to your balance")
+                            Text("\(credits.formatted()) \(LocalizationManager.shared.text("settings.billing.credits_added"))")
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
-                        Button("Done") {
+                        Button(AppStrings.done) {
                             storeManager.resetState()
                         }
                         .buttonStyle(.borderedProminent)
@@ -109,15 +109,15 @@ struct BuyCreditsView: View {
 
             default:
                 Section {
-                    Text("Credits are used for AI requests. Choose a package below.")
+                    Text(LocalizationManager.shared.text("settings.billing.credits_description"))
                         .font(.omSmall).foregroundStyle(Color.fontSecondary)
                 }
 
-                Section("Credit Packages") {
+                Section(LocalizationManager.shared.text("settings.billing.credit_packages")) {
                     if storeManager.products.isEmpty {
                         HStack {
                             ProgressView()
-                            Text("Loading products...")
+                            Text(LocalizationManager.shared.text("settings.billing.loading_products"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
                     } else {
@@ -137,7 +137,7 @@ struct BuyCreditsView: View {
                     Section {
                         HStack {
                             ProgressView()
-                            Text("Processing purchase...")
+                            Text(LocalizationManager.shared.text("settings.billing.processing_purchase"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
                     }
@@ -147,7 +147,7 @@ struct BuyCreditsView: View {
                     Section {
                         HStack {
                             ProgressView()
-                            Text("Verifying with server...")
+                            Text(LocalizationManager.shared.text("settings.billing.verifying_with_server"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
                     }
@@ -161,14 +161,14 @@ struct BuyCreditsView: View {
                 }
 
                 Section {
-                    Button("Restore Purchases") {
+                    Button(LocalizationManager.shared.text("settings.billing.restore_purchases")) {
                         Task { await storeManager.restorePurchases() }
                     }
                     .font(.omSmall)
                 }
             }
         }
-        .navigationTitle("Buy Credits")
+        .navigationTitle(AppStrings.buyCredits)
         .task { await storeManager.loadProducts() }
     }
 }
@@ -188,7 +188,7 @@ struct CreditProductRow: View {
                         .font(.omP).fontWeight(.semibold)
 
                     if product.isRecommended {
-                        Text("Best Value")
+                        Text(LocalizationManager.shared.text("settings.billing.best_value"))
                             .font(.omTiny).fontWeight(.bold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, .spacing2)
@@ -252,7 +252,7 @@ struct PurchaseHistoryView: View {
                 ProgressView()
             } else if transactions.isEmpty {
                 Section {
-                    Text("No purchase history")
+                    Text(LocalizationManager.shared.text("settings.billing.no_purchase_history"))
                         .foregroundStyle(Color.fontSecondary)
                 }
             } else {
@@ -271,7 +271,7 @@ struct PurchaseHistoryView: View {
                 }
             }
         }
-        .navigationTitle("Purchase History")
+        .navigationTitle(AppStrings.purchaseHistory)
         .task { await loadHistory() }
     }
 
@@ -308,20 +308,20 @@ struct AutoTopUpView: View {
 
     var body: some View {
         List {
-            Section("Low Balance Auto Top-Up") {
-                Toggle("Enable", isOn: $isLowBalanceEnabled)
+            Section(LocalizationManager.shared.text("settings.billing.low_balance_auto_topup")) {
+                Toggle(AppStrings.enabled, isOn: $isLowBalanceEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: isLowBalanceEnabled) { _, _ in save() }
 
                 if isLowBalanceEnabled {
                     HStack {
-                        Text("When below")
+                        Text(LocalizationManager.shared.text("settings.billing.when_below"))
                         Spacer()
                         Text(String(format: "%.1f credits", lowBalanceThreshold))
                             .foregroundStyle(Color.fontSecondary)
                     }
 
-                    Picker("Top-up package", selection: $lowBalanceProductID) {
+                    Picker(LocalizationManager.shared.text("settings.billing.topup_package"), selection: $lowBalanceProductID) {
                         ForEach(StoreManager.productIDs, id: \.self) { productID in
                             let credits = StoreManager.creditsByProductID[productID] ?? 0
                             Text("\(credits.formatted()) credits").tag(productID)
@@ -329,18 +329,18 @@ struct AutoTopUpView: View {
                     }
                     .onChange(of: lowBalanceProductID) { _, _ in save() }
 
-                    Text("When your balance drops below the threshold, the selected credit package will be purchased automatically.")
+                    Text(LocalizationManager.shared.text("settings.billing.low_balance_description"))
                         .font(.omXs).foregroundStyle(Color.fontTertiary)
                 }
             }
 
-            Section("Monthly Auto Top-Up") {
-                Toggle("Enable", isOn: $isMonthlyEnabled)
+            Section(LocalizationManager.shared.text("settings.billing.monthly_auto_topup")) {
+                Toggle(AppStrings.enabled, isOn: $isMonthlyEnabled)
                     .tint(Color.buttonPrimary)
                     .onChange(of: isMonthlyEnabled) { _, _ in save() }
 
                 if isMonthlyEnabled {
-                    Picker("Monthly package", selection: $monthlyProductID) {
+                    Picker(LocalizationManager.shared.text("settings.billing.monthly_package"), selection: $monthlyProductID) {
                         ForEach(StoreManager.productIDs, id: \.self) { productID in
                             let credits = StoreManager.creditsByProductID[productID] ?? 0
                             Text("\(credits.formatted()) credits").tag(productID)
@@ -348,12 +348,12 @@ struct AutoTopUpView: View {
                     }
                     .onChange(of: monthlyProductID) { _, _ in save() }
 
-                    Text("A credit package will be purchased on the first of each month.")
+                    Text(LocalizationManager.shared.text("settings.billing.monthly_description"))
                         .font(.omXs).foregroundStyle(Color.fontTertiary)
                 }
             }
         }
-        .navigationTitle("Auto Top-Up")
+        .navigationTitle(AppStrings.autoTopUp)
         .task { await loadSettings() }
     }
 
@@ -410,7 +410,7 @@ struct InvoicesView: View {
                 ProgressView()
             } else if invoices.isEmpty {
                 Section {
-                    Text("No invoices yet")
+                    Text(LocalizationManager.shared.text("settings.billing.no_invoices"))
                         .foregroundStyle(Color.fontSecondary)
                 }
             } else {
@@ -452,7 +452,7 @@ struct InvoicesView: View {
                 }
             }
         }
-        .navigationTitle("Invoices")
+        .navigationTitle(AppStrings.invoices)
         .task { await loadInvoices() }
     }
 

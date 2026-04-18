@@ -71,7 +71,7 @@ struct WebhookPendingBanner: View {
 
                     Spacer()
 
-                    Text("View")
+                    Text(LocalizationManager.shared.text("common.view"))
                         .font(.omXs).fontWeight(.medium)
                         .foregroundStyle(Color.buttonPrimary)
                 }
@@ -96,7 +96,7 @@ struct OfflineBanner: View {
             HStack(spacing: .spacing2) {
                 Image(systemName: "wifi.slash")
                     .font(.omXs)
-                Text("You're offline")
+                Text(LocalizationManager.shared.text("common.offline"))
                     .font(.omXs).fontWeight(.medium)
                 Text("— messages will sync when reconnected")
                     .font(.omXs)

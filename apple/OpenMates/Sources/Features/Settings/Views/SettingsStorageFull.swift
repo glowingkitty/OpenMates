@@ -49,7 +49,7 @@ struct SettingsStorageFullView: View {
             if isLoading {
                 ProgressView()
             } else if let overview {
-                Section("Overview") {
+                Section(LocalizationManager.shared.text("settings.storage.overview")) {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         ProgressView(
                             value: Double(overview.totalBytes),
@@ -58,21 +58,21 @@ struct SettingsStorageFullView: View {
                         .tint(Color.buttonPrimary)
 
                         HStack {
-                            Text("Used: \(ByteCountFormatter.string(fromByteCount: Int64(overview.totalBytes), countStyle: .file))")
+                            Text("\(LocalizationManager.shared.text("settings.storage.used")): \(ByteCountFormatter.string(fromByteCount: Int64(overview.totalBytes), countStyle: .file))")
                                 .font(.omSmall)
                             Spacer()
-                            Text("\(overview.totalFiles) files")
+                            Text("\(overview.totalFiles) \(LocalizationManager.shared.text("settings.storage.files"))")
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
 
                         if let cost = overview.weeklyCostCredits, cost > 0 {
-                            Text("Weekly cost: \(String(format: "%.4f", cost)) credits")
+                            Text("\(LocalizationManager.shared.text("settings.storage.weekly_cost")): \(String(format: "%.4f", cost)) \(LocalizationManager.shared.text("common.credits"))")
                                 .font(.omXs).foregroundStyle(Color.fontTertiary)
                         }
                     }
                 }
 
-                Section("By Category") {
+                Section(LocalizationManager.shared.text("settings.storage.by_category")) {
                     ForEach(overview.breakdown.sorted(by: { $0.bytesUsed > $1.bytesUsed })) { cat in
                         Button {
                             selectedCategory = cat
@@ -100,7 +100,7 @@ struct SettingsStorageFullView: View {
                 }
             }
         }
-        .navigationTitle("Storage")
+        .navigationTitle(AppStrings.storage)
         .task { await loadOverview() }
         .sheet(isPresented: $showFiles) {
             if let cat = selectedCategory {
@@ -143,7 +143,7 @@ struct StorageFilesView: View {
                 if isLoading {
                     ProgressView()
                 } else if files.isEmpty {
-                    Text("No files in this category")
+                    Text(LocalizationManager.shared.text("settings.storage.no_files"))
                         .foregroundStyle(Color.fontSecondary)
                 } else {
                     ForEach(files) { file in
@@ -177,7 +177,7 @@ struct StorageFilesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(AppStrings.done) { dismiss() }
                 }
             }
             .task { await loadFiles() }

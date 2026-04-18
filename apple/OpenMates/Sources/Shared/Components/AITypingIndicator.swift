@@ -22,13 +22,13 @@ struct AITypingIndicator: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 if isThinking {
-                    Text("Thinking...")
+                    Text(LocalizationManager.shared.text("chat.thinking"))
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
                 } else if let skillName {
                     Text(skillName)
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
                 } else {
-                    Text("Typing...")
+                    Text(LocalizationManager.shared.text("chat.typing"))
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
                 }
             }

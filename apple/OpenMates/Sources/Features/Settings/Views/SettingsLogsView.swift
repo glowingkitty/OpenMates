@@ -60,7 +60,7 @@ struct SettingsLogsView: View {
                 ContentUnavailableView(
                     "No Logs",
                     systemImage: "doc.text.magnifyingglass",
-                    description: Text("No log entries match your filter.")
+                    description: Text(LocalizationManager.shared.text("settings.logs.no_entries"))
                 )
                 Spacer()
             } else {

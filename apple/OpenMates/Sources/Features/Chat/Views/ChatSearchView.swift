@@ -60,7 +60,7 @@ struct ChatSearchView: View {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 36))
                             .foregroundStyle(Color.fontTertiary)
-                        Text("No results found")
+                        Text(LocalizationManager.shared.text("chats.search.no_results"))
                             .font(.omP).foregroundStyle(Color.fontSecondary)
                     }
                     .padding(.top, .spacing16)

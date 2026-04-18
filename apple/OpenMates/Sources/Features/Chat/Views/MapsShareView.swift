@@ -79,7 +79,7 @@ struct MapsShareView: View {
         } label: {
             HStack {
                 Image(systemName: "location.fill")
-                Text("Share Location")
+                Text(LocalizationManager.shared.text("enter_message.attachments.share_location"))
                     .fontWeight(.medium)
             }
             .frame(maxWidth: .infinity)

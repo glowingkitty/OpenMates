@@ -60,7 +60,7 @@ struct WikiRenderer: View {
             HStack(spacing: .spacing3) {
                 Image(systemName: "book.closed.fill")
                     .foregroundStyle(Color.buttonPrimary)
-                Text("Wikipedia")
+                Text(LocalizationManager.shared.text("embed.wikipedia"))
                     .font(.omTiny).foregroundStyle(Color.fontTertiary)
             }
 

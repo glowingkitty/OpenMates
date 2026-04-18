@@ -44,7 +44,7 @@ struct SettingsHidePersonalDataView: View {
                         savePIIEnabled(newValue)
                     }
 
-                Text("When enabled, the AI will detect and hide personal information like names, addresses, and phone numbers in your conversations.")
+                Text(LocalizationManager.shared.text("settings.privacy.pii_description"))
                     .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
 
@@ -254,7 +254,7 @@ struct AddPersonalDataEntryView: View {
                 }
 
                 Section {
-                    Text("This data is encrypted on your device and used to detect and hide matching text in conversations.")
+                    Text(LocalizationManager.shared.text("settings.privacy.entry_encryption_description"))
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
                 }
             }

@@ -27,7 +27,7 @@ struct SettingsSharedView: View {
             } else {
                 Section("Shared by Me") {
                     if sharedByMe.isEmpty {
-                        Text("No shared chats")
+                        Text(LocalizationManager.shared.text("settings.shared.no_shared_chats"))
                             .font(.omSmall).foregroundStyle(Color.fontTertiary)
                     } else {
                         ForEach(sharedByMe) { item in
@@ -45,7 +45,7 @@ struct SettingsSharedView: View {
 
                 Section("Shared with Me") {
                     if sharedWithMe.isEmpty {
-                        Text("No chats shared with you")
+                        Text(LocalizationManager.shared.text("settings.shared.no_chats_shared_with_you"))
                             .font(.omSmall).foregroundStyle(Color.fontTertiary)
                     } else {
                         ForEach(sharedWithMe) { item in
@@ -165,7 +165,7 @@ struct SettingsTipView: View {
 
             Section("Amount") {
                 HStack {
-                    Text("Credits:")
+                    Text(LocalizationManager.shared.text("settings.shared.credits_label"))
                     TextField("0.00", text: $amount)
                         .keyboardType(.decimalPad)
                 }

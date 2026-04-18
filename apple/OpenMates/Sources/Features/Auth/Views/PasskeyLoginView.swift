@@ -14,7 +14,7 @@ struct PasskeyLoginView: View {
 
     var body: some View {
         VStack(spacing: .spacing6) {
-            Text("Login with Passkey")
+            Text(AppStrings.loginWithPasskey)
                 .font(.omH3)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
@@ -28,7 +28,7 @@ struct PasskeyLoginView: View {
                 .foregroundStyle(Color.buttonPrimary)
                 .padding(.vertical, .spacing6)
 
-            Text("Use Face ID, Touch ID, or your device passcode to sign in securely.")
+            Text(LocalizationManager.shared.text("auth.passkey_sign_in_description"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
@@ -46,7 +46,7 @@ struct PasskeyLoginView: View {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Label("Continue with Passkey", systemImage: "person.badge.key.fill")
+                        Label(LocalizationManager.shared.text("auth.continue_with_passkey"), systemImage: "person.badge.key.fill")
                     }
                 }
                 .frame(maxWidth: .infinity)

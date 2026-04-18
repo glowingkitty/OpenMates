@@ -30,7 +30,7 @@ struct NewsletterSettingsView: View {
                     }
 
                 if !isSubscribed {
-                    Text("Get product updates, tips, and community highlights.")
+                    Text(LocalizationManager.shared.text("settings.newsletter.description"))
                         .font(.omXs)
                         .foregroundStyle(Color.fontSecondary)
                 }

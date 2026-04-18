@@ -108,7 +108,7 @@ struct EmbedFullscreenView: View {
 
     private var childEmbedsSection: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
-            Text("Results (\(childEmbeds.count))")
+            Text("\(LocalizationManager.shared.text("embed.results")) (\(childEmbeds.count))")
                 .font(.omP)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)

@@ -19,7 +19,7 @@ struct ShowMoreChatsButton: View {
                         ProgressView()
                             .scaleEffect(0.8)
                     }
-                    Text("Show \(min(remainingCount, 20)) more chats")
+                    Text("\(LocalizationManager.shared.text("chats.loadMore.button")) (\(min(remainingCount, 20)))")
                         .font(.omSmall)
                         .foregroundStyle(Color.buttonPrimary)
                 }

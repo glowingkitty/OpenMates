@@ -201,7 +201,7 @@ struct FocusModeRenderer: View {
             Image(systemName: "scope")
                 .font(.system(size: mode == .preview ? 28 : 36))
                 .foregroundStyle(Color.buttonPrimary)
-            Text("Focus Mode Active")
+            Text(LocalizationManager.shared.text("embed.focus_mode_active"))
                 .font(mode == .preview ? .omSmall : .omP)
                 .foregroundStyle(Color.fontPrimary)
         }

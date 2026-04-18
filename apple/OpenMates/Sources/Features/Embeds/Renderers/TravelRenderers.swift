@@ -157,7 +157,7 @@ struct TravelPriceCalendarRenderer: View {
                     .font(mode == .preview ? .omSmall : .omP)
                     .foregroundStyle(Color.fontPrimary)
             }
-            Text("Price calendar")
+            Text(LocalizationManager.shared.text("embed.travel.price_calendar"))
                 .font(.omXs).foregroundStyle(Color.fontSecondary)
         }
         .padding(.spacing4)

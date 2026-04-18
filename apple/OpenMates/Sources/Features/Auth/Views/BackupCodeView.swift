@@ -23,24 +23,24 @@ struct BackupCodeView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(Color.fontSecondary)
 
-            Text("Use Backup Code")
+            Text(LocalizationManager.shared.text("auth.use_backup_code"))
                 .font(.omH3)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
 
-            Text("Enter your password and one of your backup codes.")
+            Text(LocalizationManager.shared.text("auth.enter_password_and_backup_code"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: .spacing4) {
-                SecureField("Password", text: $password)
+                SecureField(AppStrings.password, text: $password)
                     .textFieldStyle(OMTextFieldStyle())
                     .textContentType(.password)
                     .focused($focusedField, equals: .password)
                     .onSubmit { focusedField = .backupCode }
 
-                TextField("Backup code (XXXX-XXXX-XXXX)", text: $backupCode)
+                TextField(LocalizationManager.shared.text("auth.backup_code_format"), text: $backupCode)
                     .textFieldStyle(OMTextFieldStyle())
                     .autocorrectionDisabled()
                     #if os(iOS)
@@ -63,7 +63,7 @@ struct BackupCodeView: View {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Text("Log in with Backup Code")
+                        Text(LocalizationManager.shared.text("auth.login_with_backup_code"))
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -87,7 +87,7 @@ struct BackupCodeView: View {
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
             } catch {
-                errorMessage = "Login failed. Please check your credentials."
+                errorMessage = LocalizationManager.shared.text("auth.login_failed_check_credentials")
             }
             isLoading = false
         }

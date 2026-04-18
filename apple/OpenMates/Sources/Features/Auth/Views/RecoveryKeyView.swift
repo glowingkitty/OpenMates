@@ -18,18 +18,18 @@ struct RecoveryKeyView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(Color.warning)
 
-            Text("Account Recovery")
+            Text(LocalizationManager.shared.text("auth.account_recovery"))
                 .font(.omH3)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
 
-            Text("Enter your recovery key to regain access to your account.")
+            Text(LocalizationManager.shared.text("auth.enter_recovery_key_description"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: .spacing4) {
-                TextField("Recovery key (24 characters)", text: $recoveryKey)
+                TextField(LocalizationManager.shared.text("auth.recovery_key_placeholder"), text: $recoveryKey)
                     .textFieldStyle(OMTextFieldStyle())
                     .autocorrectionDisabled()
                     #if os(iOS)
@@ -52,7 +52,7 @@ struct RecoveryKeyView: View {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Text("Recover Account")
+                        Text(LocalizationManager.shared.text("auth.recover_account"))
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -74,7 +74,7 @@ struct RecoveryKeyView: View {
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
             } catch {
-                errorMessage = "Recovery failed. Please check your key and try again."
+                errorMessage = LocalizationManager.shared.text("auth.recovery_failed")
             }
             isLoading = false
         }

@@ -86,10 +86,10 @@ struct AuthFlowView: View {
         VStack(spacing: .spacing4) {
             Divider()
             HStack(spacing: .spacing2) {
-                Text("Don't have an account?")
+                Text(LocalizationManager.shared.text("auth.dont_have_account"))
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
-                Button("Sign up") {
+                Button(AppStrings.signup) {
                     openSignup()
                 }
                 .font(.omSmall)

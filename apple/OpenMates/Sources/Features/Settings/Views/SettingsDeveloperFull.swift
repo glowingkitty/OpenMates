@@ -53,7 +53,7 @@ struct SettingsAPIKeysView: View {
                                     .foregroundStyle(Color.fontTertiary)
                             }
                             if let lastUsed = key.lastUsedAt {
-                                Text("Last used: \(lastUsed)")
+                                Text("\(LocalizationManager.shared.text("settings.developer.last_used")): \(lastUsed)")
                                     .font(.omTiny).foregroundStyle(Color.fontTertiary)
                             }
                         }
@@ -131,7 +131,7 @@ struct SettingsWebhooksView: View {
     var body: some View {
         List {
             Section {
-                Text("Webhook configuration is managed on the web app for full control.")
+                Text(LocalizationManager.shared.text("settings.developer.webhook_description"))
                     .foregroundStyle(Color.fontSecondary)
                 Button("Open Webhook Settings") {
                     Task {

@@ -68,7 +68,7 @@ struct EmbedPreviewCard: View {
         VStack(spacing: .spacing4) {
             ProgressView()
                 .scaleEffect(1.2)
-            Text("Processing...")
+            Text(LocalizationManager.shared.text("embed.processing"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
         }
@@ -79,7 +79,7 @@ struct EmbedPreviewCard: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 24))
                 .foregroundStyle(Color.error)
-            Text("Failed to load")
+            Text(LocalizationManager.shared.text("embed.failed_to_load"))
                 .font(.omSmall)
                 .foregroundStyle(Color.error)
         }
@@ -90,7 +90,7 @@ struct EmbedPreviewCard: View {
             Image(systemName: "xmark.circle")
                 .font(.system(size: 24))
                 .foregroundStyle(Color.fontTertiary)
-            Text("Cancelled")
+            Text(LocalizationManager.shared.text("embed.cancelled"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontTertiary)
         }
@@ -113,7 +113,7 @@ struct EmbedPreviewCard: View {
                     .lineLimit(1)
 
                 if embed.status == .processing {
-                    Text("Processing")
+                    Text(LocalizationManager.shared.text("embed.processing_short"))
                         .font(.omTiny)
                         .foregroundStyle(Color.fontTertiary)
                 }

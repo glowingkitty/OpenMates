@@ -62,7 +62,7 @@ struct ReportIssueView: View {
                     .font(.omP)
                     .overlay(alignment: .topLeading) {
                         if description.isEmpty {
-                            Text("Describe the issue...")
+                            Text(LocalizationManager.shared.text("report.describe_issue_placeholder"))
                                 .font(.omP)
                                 .foregroundStyle(Color.fontTertiary)
                                 .padding(.top, 8)
@@ -114,7 +114,7 @@ struct ReportIssueView: View {
                         if isSubmitting {
                             ProgressView()
                         } else {
-                            Text("Submit Report")
+                            Text(LocalizationManager.shared.text("report.submit_report"))
                                 .fontWeight(.medium)
                         }
                         Spacer()
@@ -145,10 +145,10 @@ struct ReportIssueView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.green)
 
-            Text("Report Submitted")
+            Text(LocalizationManager.shared.text("report.report_submitted"))
                 .font(.omH3).fontWeight(.semibold)
 
-            Text("Thank you for helping us improve OpenMates.")
+            Text(LocalizationManager.shared.text("report.thank_you_message"))
                 .font(.omP)
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
