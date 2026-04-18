@@ -349,7 +349,11 @@ async def check_landing_page_live(landing_url: str) -> bool:
     """
     timeout = aiohttp.ClientTimeout(total=10)
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(
+            timeout=timeout,
+            max_line_size=32768,
+            max_field_size=32768,
+        ) as session:
             async with session.head(landing_url, allow_redirects=True) as resp:
                 return resp.status == 200
     except Exception as exc:  # noqa: BLE001
