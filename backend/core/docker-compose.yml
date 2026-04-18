@@ -38,6 +38,7 @@ services:
       - ../../frontend/packages/ui/src/i18n/locales:/translations
       # Mount entire i18n directory (includes sources YAML files and languages.json)
       - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../frontend/apps/web_app/static/newsletter-assets:/app/frontend/apps/web_app/static/newsletter-assets:ro
       - ../../shared:/shared
       - vault-setup-data:/vault-data
       # Added: Mount backend config directory to /config in container
