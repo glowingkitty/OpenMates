@@ -8,8 +8,7 @@ import { OPENMATES_VIDEOS } from "./videos";
  * overwritten next time the publisher runs on this slug.
  */
 
-// Uses the intro video until a dedicated announcement video is uploaded
-const video = OPENMATES_VIDEOS["intro-en"];
+const _video_intro = OPENMATES_VIDEOS["intro-en"];
 
 export const announcementsIntroducingOpenmatesV09Chat: DemoChat = {
   chat_id: "announcements-introducing-openmates-v09",
@@ -36,10 +35,10 @@ export const announcementsIntroducingOpenmatesV09Chat: DemoChat = {
     order: 100,
     lastUpdated: new Date().toISOString(),
     video_key: "intro",
-    video_hls_url: video.hls_url,
-    video_mp4_url: video.mp4_url,
-    video_thumbnail_url: video.thumbnail_url,
-    video_start_time: video.start_time,
-    background_frames: video.background_frames,
+    video_hls_url: _video_intro.hls_url,
+    video_mp4_url: _video_intro.mp4_url,
+    video_thumbnail_url: _video_intro.thumbnail_url,
+    video_start_time: _video_intro.start_time,
+    background_frames: _video_intro.background_frames,
   },
 };
