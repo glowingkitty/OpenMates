@@ -153,6 +153,12 @@
             rel="noopener noreferrer"
         >{@html $text('settings.meetup')}</a>
         <a
+            href={externalLinks.bluesky}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.bluesky')}</a>
+        <a
             href={externalLinks.mastodon}
             class="submenu-link"
             target="_blank"

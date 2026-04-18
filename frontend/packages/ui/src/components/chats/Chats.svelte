@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -44,7 +44,7 @@
 	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
 
 	// --- Chat navigation store (prev/next arrow state for ChatHeader) ---
-	import { chatNavigationStore, setChatNavigationList } from '../../stores/chatNavigationStore';
+	import { chatNavigationStore, setChatNavigationList, releaseChatNavigationOwnership } from '../../stores/chatNavigationStore';
 
 	const dispatch = createEventDispatcher();
 
@@ -287,7 +287,44 @@ let _chatUpdatedFlushPending = false;
 				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
-		// 3. Legal chats (ONLY for non-self-hosted instances)
+		// 3. Announcement chats — the 3 most recent Updates & Announcements
+		// newsletter issues, shown under an "Announcements" section so users can
+		// always jump back to the latest product update. Hidden (via
+		// hidden_demo_chats) works the same as for intro/legal chats.
+		const announcementChats: ChatType[] = getActiveNewsletterChatsByKind('announcements')
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.slice()
+			.sort((a, b) => {
+				const at = Date.parse(a.metadata.lastUpdated || '') || 0;
+				const bt = Date.parse(b.metadata.lastUpdated || '') || 0;
+				return bt - at;
+			})
+			.slice(0, 3)
+			.map(demo => translateDemoChat(demo))
+			.map(demo => {
+				const chat = convertDemoChatToChat(demo);
+				chat.group_key = 'announcements';
+				return chat;
+			});
+
+		// 3b. Tips & Tricks chats — shown only when entries exist.
+		const tipsAndTricksChats: ChatType[] = getActiveNewsletterChatsByKind('tips')
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.slice()
+			.sort((a, b) => {
+				const at = Date.parse(a.metadata.lastUpdated || '') || 0;
+				const bt = Date.parse(b.metadata.lastUpdated || '') || 0;
+				return bt - at;
+			})
+			.slice(0, 3)
+			.map(demo => translateDemoChat(demo))
+			.map(demo => {
+				const chat = convertDemoChatToChat(demo);
+				chat.group_key = 'tips_and_tricks';
+				return chat;
+			});
+
+		// 4. Legal chats (ONLY for non-self-hosted instances)
 		// Self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
 		// - No imprint: only required for commercial/public-facing websites
 		// - No privacy policy: GDPR "household exemption" applies to personal/private use
@@ -306,7 +343,7 @@ let _chatUpdatedFlushPending = false;
 				});
 		}
 		
-		return [...introChats, ...exampleChats, ...legalChats];
+		return [...introChats, ...exampleChats, ...announcementChats, ...tipsAndTricksChats, ...legalChats];
 	})());
 
 	// Combine public chats (intro + example chats + legal) with real chats from IndexedDB
@@ -452,8 +489,8 @@ let _chatUpdatedFlushPending = false;
 			activePinIcon = null;
 			return;
 		}
-		// Demo/legal chats have plaintext titles and no encrypted metadata
-		if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+		// Public chats (demo/legal/newsletter) have plaintext titles and no encrypted metadata
+		if (isPublicChat(chat.chat_id)) {
 			activePinTitle = chat.title || null;
 			activePinCategory = null;
 			activePinIcon = null;
@@ -535,7 +572,7 @@ let _chatUpdatedFlushPending = false;
 		
 		// 2. Then, add any remaining time groups (e.g., month groups) in their order
 		// CRITICAL: Include 'shared_by_others' in static groups - these are chats shared with user by others
-		const staticGroups = ['shared_by_others', 'intro', 'examples', 'legal'];
+		const staticGroups = ['shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
 		for (const [groupKey, groupItems] of Object.entries(groups)) {
 			if (!timeGroups.includes(groupKey) && !staticGroups.includes(groupKey) && groupItems.length > 0) {
 				orderedEntries.push([groupKey, groupItems]);
@@ -558,7 +595,7 @@ let _chatUpdatedFlushPending = false;
 	// STATIC_GROUP_KEYS are excluded from time-based grouping and from the phased-load limit.
 	// 'incognito' is listed first so it renders at the top of the sidebar (above user time-groups).
 	// 'shared_by_others' comes before intro/examples/legal since those are real user-shared chats.
-	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'legal'];
+	const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
 
 	// Initial display limit: matches Phase 1a (10 recent + 1 last-opened).
 	// Only user chats count toward this limit — static chats (intro, examples, legal) are always shown.
@@ -677,8 +714,8 @@ let _chatUpdatedFlushPending = false;
 	//
 	// Chats without a group_key are real user chats (or incognito/session chats). For
 	// authenticated users they sort first; the fallback bucket (99) is never used in practice.
-	const GROUP_NAV_ORDER_UNAUTH: Record<string, number> = { intro: 0, examples: 1, legal: 2 };
-	const GROUP_NAV_ORDER_AUTH:   Record<string, number> = { intro: 1, examples: 2, legal: 3 };
+	const GROUP_NAV_ORDER_UNAUTH: Record<string, number> = { intro: 0, examples: 1, announcements: 2, tips_and_tricks: 3, legal: 4 };
+	const GROUP_NAV_ORDER_AUTH:   Record<string, number> = { intro: 1, examples: 2, announcements: 3, tips_and_tricks: 4, legal: 5 };
 	let flattenedNavigableChats = $derived.by(() => {
 		const groupOrder = $authStore.isAuthenticated ? GROUP_NAV_ORDER_AUTH : GROUP_NAV_ORDER_UNAUTH;
 		return [...sortedAllChatsFiltered].sort((a, b) => {
@@ -2023,6 +2060,12 @@ let _chatUpdatedFlushPending = false;
 		// draft chats created while sidebar was closed).
 		chatListCache.notifySidebarDestroyed();
 
+		// Release our ownership of the chatNavigationStore list so the store resumes
+		// self-healing from LOCAL_CHAT_LIST_CHANGED_EVENT and updateNavFromCache calls.
+		// Without this, newly-created chats would be invisible to ChatHeader's prev/next
+		// arrows on mobile (sidebar closed / unmounted) until the sidebar is reopened.
+		releaseChatNavigationOwnership();
+
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		window.removeEventListener('userLoggingOut', handleLogoutEvent);
@@ -3315,8 +3358,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
                         chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
                         deletedCount++;
                     }
-                    // Check if this is a public chat (demo/legal)
-                    else if (isDemoChat(chatId) || isLegalChat(chatId)) {
+                    // Check if this is a public chat (demo/legal/newsletter)
+                    else if (isPublicChat(chatId)) {
                         if (!$authStore.isAuthenticated) {
                             errors.push(`${chatId}: Please sign up to customize your experience`);
                             continue;
@@ -3666,7 +3709,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								{#each orderedGroupedHiddenChats as [groupKey, groupItems] (groupKey)}
 									{#if groupItems.length > 0}
 										<div class="chat-group">
-											<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+											<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 											{#each groupItems as chat (chat.chat_id)}
 												<div
 													role="button"
@@ -3732,7 +3775,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{#if groupItems.length > 0}
 					<div class="chat-group" data-testid="chat-group">
 						<!-- Pass the translation function `$_` to the utility -->
-						<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
 						<div
 							role="button"

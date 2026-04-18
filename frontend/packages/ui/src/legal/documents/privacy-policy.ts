@@ -46,6 +46,6 @@ export const privacyPolicyChat: DemoChat = {
     icon_names: ["shield-check", "lock", "eye-off"], // Security + encryption + privacy
     featured: false, // Don't show in regular sidebar (but always visible)
     order: 3, // Order: 1=welcome, 2=different, 3=privacy, 4=terms, 5=imprint
-    lastUpdated: "2026-04-14T00:00:00Z", // Single source of truth for "last updated" date - formatted via Intl.DateTimeFormat
+    lastUpdated: "2026-04-16T18:00:00Z", // Single source of truth for "last updated" date - formatted via Intl.DateTimeFormat
   },
 };

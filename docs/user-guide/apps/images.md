@@ -34,7 +34,7 @@ The Images app is a complete toolkit for working with images. You can create new
 - Vectorise: Upload a logo and ask "Convert this to SVG"
 - Describe an image: Upload a photo and ask "What is in this picture?"
 
-## Settings and Memories
+## Memories
 
 - **Preferred Styles** -- Save your preferred image styles (for example, "minimalist", "watercolour", "cyberpunk") so your mate knows your taste.
 

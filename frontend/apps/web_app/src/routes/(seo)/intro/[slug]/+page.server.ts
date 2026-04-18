@@ -50,7 +50,7 @@ With OpenMates you have a team of specialized AI chatbots that can not only insp
 
 ## A team of specialized AI chatbots
 
-Different AI chatbots have different strengths and weaknesses. OpenMates combines the best of all worlds by giving you a team of specialized AI chatbots (called "mates"), each with their own set of skills, focus modes, and settings & memories.
+Different AI chatbots have different strengths and weaknesses. OpenMates combines the best of all worlds by giving you a team of specialized AI chatbots (called "mates"), each with their own set of skills, focus modes, and memories.
 
 ## Apps: the superpower of OpenMates
 

@@ -3,15 +3,15 @@ status: active
 last_verified: 2026-03-24
 ---
 
-# App Store
+# Apps
 
 > Browse, discover, and manage all available apps.
 
 ## What It Does
 
-The App Store is where you can explore all the apps your digital team mates can use. Think of it like an app store on your phone -- you can browse apps, see what they do, check their pricing, and manage which ones are active.
+The Apps is where you can explore all the apps your digital team mates can use. Think of it like an app store on your phone -- you can browse apps, see what they do, check their pricing, and manage which ones are active.
 
-**Where to find it:** Settings > App Store
+**Where to find it:** Settings > Apps
 
 ## What You Can See
 
@@ -26,7 +26,7 @@ When you open an app, you can see:
 - **What it does** -- A full description of the app
 - **Skills** -- The specific actions the app can perform, with pricing shown per skill
 - **Focus modes** -- Specialised conversation modes offered by the app
-- **Settings and memories** -- Preferences and data you can save for this app
+- **Memories** -- Preferences and data you can save for this app
 - **Providers** -- Which external services the app uses (for transparency)
 
 ### Browsing Categories
@@ -50,11 +50,11 @@ You can also search for apps by name, description, or skill name.
 
 ## Pricing
 
-The App Store shows the cost of each skill in credits. Some skills have a fixed cost per use, while others vary depending on the provider or model used. Pricing is always shown before a skill is used.
+The Apps shows the cost of each skill in credits. Some skills have a fixed cost per use, while others vary depending on the provider or model used. Pricing is always shown before a skill is used.
 
 ## Privacy
 
-- Browsing the App Store is not tracked
+- Browsing the Apps is not tracked
 - Your personalised "top picks" are calculated on your device, not on the server
 - "Most used" data is fully anonymous with no user-specific information
 - All pricing is shown transparently before any skill is used
@@ -63,4 +63,4 @@ The App Store shows the cost of each skill in credits. Some skills have a fixed 
 
 - [Skills](./skills.md) -- How skills work
 - [Focus Modes](./focus-modes.md) -- How focus modes work
-- [Settings and Memories](./settings-and-memories.md) -- Saving your preferences
+- [Memories](./settings-and-memories.md) -- Saving your preferences

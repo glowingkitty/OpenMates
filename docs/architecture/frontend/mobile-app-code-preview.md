@@ -19,8 +19,8 @@ Web app code already has an in-workspace preview (rendered in an iframe). Mobile
 Scaffold mobile apps using React Native + Expo instead of native Swift/SwiftUI. This unlocks two preview paths:
 
 - **In-workspace preview:** React Native Web compilation target renders the app in a phone-shaped iframe in the browser. Zero simulator infrastructure needed.
-- **Real device preview:** Expo Go on the developer's physical iPhone/Android scans a QR code and runs the native build via Metro bundler. No App Store submission required for testing.
-- **App Store distribution:** EAS Build (Expo's cloud build service) produces the native binary — no local Mac/Xcode required.
+- **Real device preview:** Expo Go on the developer's physical iPhone/Android scans a QR code and runs the native build via Metro bundler. No Apps submission required for testing.
+- **Apps distribution:** EAS Build (Expo's cloud build service) produces the native binary — no local Mac/Xcode required.
 
 **Tradeoffs:**
 - Preview is a web render, not a real simulator — native-only APIs (haptics, platform-specific styling, ARKit, etc.) won't appear in the browser preview

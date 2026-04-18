@@ -118,6 +118,20 @@ export class ChatSynchronizationService extends EventTarget {
       this.stopPendingMessageRetry();
     });
 
+    // Clean up orphaned streaming messages when the browser comes back online,
+    // even if the WebSocket stayed "connected" during a brief network drop.
+    // The WS ping interval (25s) means short outages don't trigger a reconnect,
+    // so the websocketStatus subscriber never fires and orphans aren't cleaned.
+    // Guard for SSR: window is not available during SvelteKit's build-time rendering.
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", () => {
+        console.info("[ChatSyncService] Browser online event — cleaning up orphaned streaming messages");
+        this._cleanupOrphanedStreamingMessages().catch((error) => {
+          console.error("[ChatSyncService] Error cleaning up orphaned streaming messages on online event:", error);
+        });
+      });
+    }
+
     // Defer websocketStatus subscription to avoid a Temporal Dead Zone (TDZ) crash
     // when this module is loaded as part of a circular import chain:
     //   authStore → authSessionActions → appSettingsMemoriesStore → chatSyncService → authStore
@@ -474,6 +488,25 @@ export class ChatSynchronizationService extends EventTarget {
             }
           }
 
+          // Cascade cleanup: remove any highlights tied to this message so
+          // the ChatHeader pill count doesn't stay stuck and the in-memory
+          // store matches IDB.
+          try {
+            const [{ deleteHighlightsForMessage }, { clearHighlightsForMessage }] =
+              await Promise.all([
+                import("./db/messageHighlights"),
+                import("../stores/messageHighlightsStore"),
+              ]);
+            await deleteHighlightsForMessage(chatDB, chat_id, message_id);
+            clearHighlightsForMessage(chat_id, message_id);
+          } catch (highlightErr) {
+            console.warn(
+              "[ChatSyncService] Failed to cascade-delete highlights for message",
+              message_id,
+              highlightErr,
+            );
+          }
+
           // Dispatch event so UI components (ChatHistory, ActiveChat) can react
           this.dispatchEvent(
             new CustomEvent("messageDeleted", {
@@ -487,6 +520,25 @@ export class ChatSynchronizationService extends EventTarget {
             err,
           );
         });
+    });
+    // Handle message_highlight_{added,updated,removed} broadcasts. These sync
+    // the annotation layer across the author's own devices and (via the next
+    // phased-sync load) to shared-chat viewers. Each inbound event is decrypted
+    // with the chat key and written to IndexedDB + the in-memory store.
+    webSocketService.on("message_highlight_added", (payload) => {
+      void import("./handlersMessageHighlights").then((m) =>
+        m.handleMessageHighlightAddedImpl(payload),
+      );
+    });
+    webSocketService.on("message_highlight_updated", (payload) => {
+      void import("./handlersMessageHighlights").then((m) =>
+        m.handleMessageHighlightUpdatedImpl(payload),
+      );
+    });
+    webSocketService.on("message_highlight_removed", (payload) => {
+      void import("./handlersMessageHighlights").then((m) =>
+        m.handleMessageHighlightRemovedImpl(payload),
+      );
     });
     // Handle draft_embed_deleted broadcast from other devices:
     // Another device deleted an uploaded file from the message draft — clean up
@@ -1530,7 +1582,7 @@ export class ChatSynchronizationService extends EventTarget {
   /**
    * Sends an app settings/memories entry to server for permanent storage in Directus.
    *
-   * This is used when creating entries from the App Store settings UI:
+   * This is used when creating entries from the Apps settings UI:
    * 1. Client encrypts entry with master key and stores in IndexedDB
    * 2. Client sends encrypted entry to server via this function
    * 3. Server stores encrypted entry in Directus (zero-knowledge)
@@ -1725,7 +1777,7 @@ export class ChatSynchronizationService extends EventTarget {
 
       if (useCachedVersions) {
         // Fast path: use in-memory version map (no IDB read needed)
-        for (const [chatId, versions] of versionMap) {
+        for (const [chatId, versions] of Array.from(versionMap.entries())) {
           if (pendingDeletions.has(chatId)) continue;
           client_chat_ids.push(chatId);
           client_chat_versions[chatId] = versions;

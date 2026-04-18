@@ -43,7 +43,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -187,7 +187,7 @@ test('focus mode UI elements work correctly after activation', async ({
 	await sendMessage(page, withMockMarker(careerMessage, 'focus_career_6'), logCheckpoint, takeStepScreenshot, 'ui-career');
 
 	logCheckpoint('Waiting for assistant response...');
-	await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 45000 });
+	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
 
 	await waitForFocusModeEmbed(page, logCheckpoint, takeStepScreenshot, 'ui-focus');
 

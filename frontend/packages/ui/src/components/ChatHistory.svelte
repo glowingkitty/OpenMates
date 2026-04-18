@@ -29,6 +29,16 @@
     
   // ChatHeader: permanent display-only card shown at the top of new chats (title + category circle)
   import ChatHeader from './ChatHeader.svelte';
+  import HighlightNavigationOverlay from './HighlightNavigationOverlay.svelte';
+  import {
+    selectHighlightStatsForChat,
+    selectHighlightsForChatFlat,
+  } from '../stores/messageHighlightsStore';
+  import {
+    highlightNavigationStore,
+    setOrderedHighlights,
+    jumpToFirstHighlight,
+  } from '../stores/highlightNavigationStore';
   import WebhookPendingBanner from './WebhookPendingBanner.svelte';
   // Note: Icon was previously used for preprocessing step cards (now removed).
   // If Icon is needed elsewhere in future, re-import it.
@@ -480,12 +490,12 @@
     onResend = undefined,
     isIncognito = false,
     isExampleChat = false,
-    videoHlsUrl = null,
     videoMp4Url = null,
-    videoStartTime = 0,
     backgroundFrames = null,
+    autoplayVideo = false,
     followUpSuggestions = [],
     onSuggestionClick = undefined,
+    canAnnotate = true,
   }: {
     messageInputHeight?: number;
     containerWidth?: number;
@@ -518,18 +528,23 @@
     /** True when the active chat is an incognito chat.
      *  Shows the incognito-specific ChatHeader variant immediately (no shimmer needed). */
     isIncognito?: boolean;
+    /** False when the viewer is looking at a shared chat they don't own.
+     *  Passed through to every ChatMessage to hide the Highlight entry points
+     *  (context menu + selection toolbar). Mirrors the backend owner-only
+     *  enforcement in message_highlight_handlers. Defaults to true. */
+    canAnnotate?: boolean;
     /** True when the active chat is a pre-made example chat.
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
-    /** api.video HLS URL for autoplay-muted background video in the chat header. */
-    videoHlsUrl?: string | null;
-    /** api.video MP4 fallback URL for the background video and fullscreen player. */
+    /** api.video MP4 URL. Only used to gate the play button in the chat header —
+     *  no video is ever loaded by the header itself; the fullscreen embed loads
+     *  the MP4 on demand when the user clicks play. */
     videoMp4Url?: string | null;
-    /** Timestamp in seconds where the background video starts playing. */
-    videoStartTime?: number;
-    /** Optional list of background frame image URLs. When provided, the chat header
-     *  renders a crossfading Ken-Burns slideshow instead of an autoplay video. */
+    /** Background frame image URLs rendered inside the chat header's 16:9 media
+     *  frame as a crossfading Ken-Burns slideshow. */
     backgroundFrames?: string[] | null;
+    /** When true, auto-starts video playback on mount (from &autoplay-video deep link). */
+    autoplayVideo?: boolean;
     /** Follow-up suggestions to display below the last assistant message.
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
@@ -690,6 +705,58 @@
   //   c) isNewChatCreditsError is true (credits error state), or
   //   d) isIncognito is true (always show the incognito header immediately)
   let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+
+  // ─── Highlights aggregation for ChatHeader pill + navigation overlay ─────
+  // Per-chat reactive selectors. The store is keyed by chat_id so switching
+  // chats just re-binds the derived to a new slice.
+  let highlightStatsStore = $derived(
+    currentChatId ? selectHighlightStatsForChat(currentChatId) : null,
+  );
+  let highlightStats = $state<{ highlights: number; comments: number } | null>(null);
+  $effect(() => {
+    if (!highlightStatsStore) { highlightStats = null; return; }
+    const unsub = highlightStatsStore.subscribe((v) => { highlightStats = v; });
+    return unsub;
+  });
+
+  // Sync ordered highlight list into the navigation store whenever it changes.
+  let highlightsFlatStore = $derived(
+    currentChatId ? selectHighlightsForChatFlat(currentChatId) : null,
+  );
+  $effect(() => {
+    if (!highlightsFlatStore || !currentChatId) return;
+    const unsub = highlightsFlatStore.subscribe((list) => {
+      setOrderedHighlights(currentChatId!, list);
+    });
+    return unsub;
+  });
+
+  function handleHighlightJump() {
+    jumpToFirstHighlight();
+  }
+
+  // Active highlight DOM rect for the navigation overlay. The overlay needs
+  // a DOMRect anchor, so on every `jumpRequestId` tick we re-query the page
+  // for the currently-focused highlight box via its data-testid + data id.
+  let overlayAnchorRect = $state<DOMRect | null>(null);
+  $effect(() => {
+    const navState = $highlightNavigationStore;
+    void navState.jumpRequestId;
+    if (!navState.focusedHighlightId) { overlayAnchorRect = null; return; }
+    // Defer to next frame so the box has rendered after scrollIntoView.
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `[data-testid="message-highlight-box"][data-highlight-id="${navState.focusedHighlightId}"]`,
+      ) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Defer rect capture until after smooth-scroll settles.
+        setTimeout(() => {
+          overlayAnchorRect = el.getBoundingClientRect();
+        }, 350);
+      }
+    });
+  });
   
   // Message ID waiting to be scrolled into view after the new-chat title arrives.
   // When a message is sent to a brand-new chat we activate the spacer immediately
@@ -1563,13 +1630,18 @@
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
                 {isExampleChat}
-                {videoHlsUrl}
                 {videoMp4Url}
-                {videoStartTime}
                 {backgroundFrames}
+                {highlightStats}
+                onHighlightJump={handleHighlightJump}
+                {autoplayVideo}
             />
         </div>
     {/if}
+
+    <!-- Floating up/down arrows for highlight navigation. Only visible when
+         more than one highlight exists and the user has opened navigation. -->
+    <HighlightNavigationOverlay anchorRect={overlayAnchorRect} />
 
     <!-- Pending webhook approval banner. Visible only when the active chat
          originates from a webhook key with require_confirmation=true and the
@@ -1637,6 +1709,7 @@
                         isFirstMessage={msgIndex === 0}
                         {isCreditsRestored}
                         {onResend}
+                        {canAnnotate}
                     />
 
                 </div>

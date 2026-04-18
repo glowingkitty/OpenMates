@@ -1239,7 +1239,7 @@ async def _async_process_ai_skill_ask_task(
                         "base_instructions_keys": list(base_instructions.keys()) if base_instructions else [],
                         "preprocessor_tool_definition": base_instructions.get("preprocess_request_tool") if base_instructions else None,
                         "preprocessor_fast_tool_definition": base_instructions.get("fast_preprocess_request_tool") if base_instructions else None,
-                        # App settings and memories metadata from client (what's available to choose from)
+                        # App memories metadata from client (what's available to choose from)
                         # Raw format from client: ["code-preferred_technologies", "travel-trips", ...]
                         "app_settings_memories_metadata_from_client": request_data.app_settings_memories_metadata,
                         "app_settings_memories_metadata_from_client_count": len(request_data.app_settings_memories_metadata) if request_data.app_settings_memories_metadata else 0,

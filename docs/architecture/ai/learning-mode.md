@@ -142,5 +142,5 @@ Potential improvements:
 
 - [Study App Architecture](../apps/study.md) - Educational focus modes within the Study app
 - [Focus Modes](../apps/focus-modes.md) - Temporary behavior modifications for specific tasks
-- [App Settings and Memories](../apps/settings-and-memories.md) - How apps store user learning preferences
+- [App Memories](../apps/settings-and-memories.md) - How apps store user learning preferences
 - [Mates Profiles](../architecture/mates.md) - Different profiles (child, teen, adult) with custom settings

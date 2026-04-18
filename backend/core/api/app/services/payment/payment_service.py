@@ -308,8 +308,16 @@ class PaymentService:
 
     @property
     def is_bank_transfer_available(self) -> bool:
-        """Whether SEPA bank transfer payments are available."""
-        return self._revolut_business is not None
+        """Whether SEPA bank transfer payments are available.
+
+        Requires IBAN and BIC to be configured. The webhook secret is optional —
+        its absence only disables automatic incoming transfer processing, not the
+        payment option itself.
+        """
+        if self._revolut_business is None:
+            return False
+        details = self._revolut_business.get_bank_details()
+        return bool(details.get("iban") and details.get("bic"))
 
     async def refund_payment(
         self,

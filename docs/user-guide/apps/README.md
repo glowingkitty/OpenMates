@@ -7,14 +7,14 @@ last_verified: 2026-03-24
 
 Apps give your digital team mates special abilities. They let your mates search the web, find events, generate images, read PDFs, book flights, draft emails, and much more.
 
-> Your mates can suggest apps during a conversation. You can also browse them all in the App Store.
+> Your mates can suggest apps during a conversation. You can also browse them all in the Apps.
 
 ## How Apps Work
 
 - [Skills](./skills.md) -- The actions your mates can perform (search, generate, read, etc.)
 - [Focus Modes](./focus-modes.md) -- Specialised conversation modes for deep work on one topic
-- [App Store](./app-store.md) -- Browse, discover, and manage apps
-- [Settings and Memories](./settings-and-memories.md) -- Save your preferences so mates remember them
+- [Apps](./app-store.md) -- Browse, discover, and manage apps
+- [Memories](./settings-and-memories.md) -- Save your preferences so mates remember them
 
 ## Individual Apps
 

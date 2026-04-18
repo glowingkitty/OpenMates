@@ -3983,6 +3983,52 @@ class EmbedService:
     # to enforce accurate quoting.
     # See docs/architecture/embeds.md for the embed content model.
 
+    # --- Typography normalisation for quote verification (OPE-431) ---
+    # Maps typographic variants to ASCII equivalents so that curly quotes,
+    # em-dashes, ellipsis characters, NBSP, etc. don't cause false negatives
+    # when the LLM's output uses different glyphs than the source snippet.
+    _QUOTE_NORM_TABLE = str.maketrans({
+        # Curly double quotes → straight double quote
+        "\u201c": '"',  # "
+        "\u201d": '"',  # "
+        "\u201e": '"',  # „
+        "\u201f": '"',  # ‟
+        # Curly single quotes / apostrophes → straight single quote
+        "\u2018": "'",  # '
+        "\u2019": "'",  # '
+        "\u201a": "'",  # ‚
+        "\u201b": "'",  # ‛
+        # Dashes → hyphen
+        "\u2013": "-",  # en-dash –
+        "\u2014": "-",  # em-dash —
+        "\u2015": "-",  # horizontal bar ―
+        # Whitespace → regular space
+        "\u00a0": " ",  # non-breaking space
+        "\u2007": " ",  # figure space
+        "\u202f": " ",  # narrow no-break space
+        "\u2009": " ",  # thin space
+    })
+
+    @classmethod
+    def _normalize_for_quote_comparison(cls, text: str) -> str:
+        """
+        Normalise text for quote substring matching.
+
+        Replaces typographic variants (curly quotes, em-dashes, NBSP, ellipsis)
+        with their ASCII equivalents so both the embed content and the LLM's
+        quoted text use the same character set.  Returns lowercased text.
+        """
+        import re as _re
+        # Apply character-level translation table
+        text = text.translate(cls._QUOTE_NORM_TABLE)
+        # Ellipsis: both directions (… → ... and ... is already fine)
+        text = text.replace("\u2026", "...")
+        # Double-hyphen → single hyphen (common ASCII stand-in for em-dash)
+        text = text.replace("--", "-")
+        # Collapse multiple spaces
+        text = _re.sub(r" {2,}", " ", text)
+        return text.lower().strip()
+
     # Fields in embed TOON content that contain quotable text, ordered by priority
     _QUOTABLE_TOON_FIELDS = (
         "title", "description", "extra_snippets", "markdown", "html",
@@ -4031,13 +4077,14 @@ class EmbedService:
             logger.warning(f"{log_prefix} [QUOTE_VERIFY] Failed to decode TOON for {embed_id}: {e}")
             return True  # Can't verify — don't penalise
 
-        quote_lower = quoted_text.lower().strip()
-        if not quote_lower:
+        normalized_quote = self._normalize_for_quote_comparison(quoted_text)
+        if not normalized_quote:
             return False
 
-        # Search through all quotable fields
+        # Search through all quotable fields, normalising both sides
         searchable_text = self._extract_searchable_text(decoded)
-        return quote_lower in searchable_text.lower()
+        normalized_content = self._normalize_for_quote_comparison(searchable_text)
+        return normalized_quote in normalized_content
 
     @classmethod
     def _extract_searchable_text(cls, decoded: Any) -> str:

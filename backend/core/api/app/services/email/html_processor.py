@@ -39,10 +39,41 @@ def process_brand_name(content: str, dark_mode: bool = False) -> str:
     # Create regular replacement with inline styling for non-footer occurrences
     regular_replacement = f'<a href="https://openmates.org" target="_blank" style="text-decoration: none;">' \
                          f'<mark>Open</mark><span style="color: {mates_color};">Mates</span></a>'
-    
-    # Replace remaining "OpenMates" with our regular styled link
-    content = content.replace("OpenMates", regular_replacement)
-    
+
+    # Only replace "OpenMates" in text nodes — skip occurrences inside HTML
+    # tags (attribute values, href, alt) and inside existing <a> elements
+    # (e.g. the CTA button) to avoid nested anchors and mangled text.
+    def _replace_outside_tags(html: str) -> str:
+        result = []
+        pos = 0
+        while pos < len(html):
+            if html[pos] == '<':
+                if html[pos:pos+2] == '<a' or html[pos:pos+2] == '<A':
+                    # Skip entire <a ...>...</a> block
+                    close = re.search(r'</a\s*>', html[pos:], re.IGNORECASE)
+                    if close:
+                        end = pos + close.end()
+                        result.append(html[pos:end])
+                        pos = end
+                        continue
+                end = html.find('>', pos)
+                if end == -1:
+                    result.append(html[pos:])
+                    break
+                result.append(html[pos:end+1])
+                pos = end + 1
+            else:
+                # Text node — find next tag
+                next_tag = html.find('<', pos)
+                if next_tag == -1:
+                    next_tag = len(html)
+                text = html[pos:next_tag]
+                result.append(text.replace("OpenMates", regular_replacement))
+                pos = next_tag
+        return ''.join(result)
+
+    content = _replace_outside_tags(content)
+
     return content
 
 def process_mark_tags(content: str) -> str:

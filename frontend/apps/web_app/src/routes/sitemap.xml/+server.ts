@@ -16,7 +16,7 @@
 //   The robots.txt at /robots.txt already points to this sitemap.
 
 import type { RequestHandler } from './$types';
-import { getAllExampleChatData } from '@repo/ui';
+import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId } from '@repo/ui';
 import docsData from '$lib/generated/docs-data.json';
 import type { DocFolder, DocStructure } from '$lib/types/docs';
 
@@ -94,6 +94,21 @@ export const GET: RequestHandler = async ({ url }) => {
   </url>`;
 	});
 
+	// Newsletter-derived announcements + tips pages. Each issue published via
+	// publish_newsletter.py becomes one DemoChat entry here, and is_active=false
+	// drops it from the sitemap (so soft-deleted tips 404 for crawlers).
+	const newsletterUrls = getAllActiveNewsletterChats()
+		.map((chat) => {
+			const kind = newsletterKindFromChatId(chat.chat_id);
+			if (!kind) return null;
+			return `  <url>
+    <loc>${siteOrigin}/${kind}/${chat.slug}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+		})
+		.filter((u): u is string => u !== null);
+
 	// Documentation pages from statically bundled docs-data.json
 	const docsUrls: string[] = [];
 	function collectDocSlugs(folder: DocFolder | DocStructure) {
@@ -112,6 +127,7 @@ export const GET: RequestHandler = async ({ url }) => {
 ${staticUrls.join('\n')}
 ${docsUrls.join('\n')}
 ${exampleUrls.join('\n')}
+${newsletterUrls.join('\n')}
 </urlset>`;
 
 	return new Response(xml, {

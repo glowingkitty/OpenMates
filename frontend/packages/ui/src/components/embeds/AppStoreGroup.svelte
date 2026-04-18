@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/AppStoreGroup.svelte
   
   A horizontal scrollable container displaying AppStoreCard components
-  for available apps in the App Store.
+  for available apps in the Apps.
   
   This component is rendered within demo chat messages when the
   [[app_store_group]] placeholder is encountered.
@@ -13,10 +13,10 @@
   - Shows "+ N more" badge at the end when items are truncated
   - Supports custom sort order via sortOrder prop
   
-  Uses the same AppStoreCard design as the Settings App Store but scaled up
+  Uses the same AppStoreCard design as the Settings Apps but scaled up
   to look more fitting in the chat message context.
   
-  Clicking a card opens the App Store to that app's detail page.
+  Clicking a card opens the Apps to that app's detail page.
 -->
 
 <script lang="ts">
@@ -111,7 +111,7 @@
   let remainingCount = $derived(Math.max(0, filteredApps.length - MAX_DISPLAY_ITEMS));
   
   /**
-   * Handle app card click - open the App Store to the specific app's detail page.
+   * Handle app card click - open the Apps to the specific app's detail page.
    * Uses the mobile-aware deep link sequencing pattern:
    * 1. settingsMenuVisible.set(true) - tell Settings.svelte to sync isMenuVisible
    * 2. panelState.openSettings() - track panel state
@@ -135,7 +135,7 @@
     await tick();
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Set the deep link to the app's detail page in the App Store
+    // Set the deep link to the app's detail page in the Apps
     // Must be LAST so the Settings menu is already open to receive it
     settingsDeepLink.set(appId ? `app_store/${appId}` : 'app_store');
   }

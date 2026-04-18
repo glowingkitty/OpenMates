@@ -173,7 +173,7 @@
     
     <!-- Main content -->
     <!-- Content is pre-processed at build time from trusted markdown sources -->
-    <div class="docs-content-body" bind:this={contentElement}>
+    <div class="docs-content-body" data-testid="docs-content-scroll" bind:this={contentElement}>
         <h1>{title}</h1>
         <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized at build time from trusted markdown sources -->
         {@html content}

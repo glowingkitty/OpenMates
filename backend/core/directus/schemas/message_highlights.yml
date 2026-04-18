@@ -1,0 +1,50 @@
+# backend/core/directus/schemas/message_highlights.yml
+#
+# Per-row storage of message annotations (yellow highlights + optional comments).
+# Each row represents one highlight on one message. The semantic payload
+# (offsets, embed_id, comment, author display name) is client-side encrypted
+# with the chat key and stored in `encrypted_payload` — the server is blind to
+# its contents.
+#
+# Per-row storage avoids the concurrent-edit race that a single blob on the
+# message would have in shared chats: two users each INSERT their own row with
+# a distinct uuid, no client ever decrypts-then-re-encrypts a shared list.
+#
+# Visibility: shared-chat viewers who hold the chat key receive highlights via
+# the phased-sync flow when they load the chat. Real-time cross-user fan-out
+# is not part of v1 — author's own devices get the WS broadcast; other viewers
+# see changes on next sync.
+message_highlights:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key — client-generated uuid for the highlight row. Used by update/delete WS ops to target a specific row."
+
+    chat_id:
+      type: string
+      note: "[Indexed] The chat this highlight belongs to. Plaintext so the server can authorise reads (viewer must have access to the chat) without decryption."
+
+    message_id:
+      type: string
+      note: "[Indexed] The message this highlight annotates (matches messages.client_message_id). Plaintext for message-scoped queries."
+
+    author_user_id:
+      type: string
+      note: "[Indexed] User id of the highlight author. Plaintext so the server can enforce author-only update/delete without decryption."
+
+    key_version:
+      type: integer
+      note: "Which chat-key version encrypted the payload. Enables diagnosis of wrong-key decryption failures (same pattern as messages.key_version)."
+
+    encrypted_payload:
+      type: textfield
+      note: "[Encrypted] JSON blob containing {kind, start, end, embed_id, comment, author_display_name, created_at, updated_at}. Encrypted client-side with the chat key — server cannot read."
+
+    created_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the highlight row was created. Plaintext for ordering."
+
+    updated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the highlight row was last updated. Bumped on comment edit."

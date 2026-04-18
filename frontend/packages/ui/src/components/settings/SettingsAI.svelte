@@ -1,12 +1,12 @@
 <!-- frontend/packages/ui/src/components/settings/SettingsAI.svelte
      Top-level AI settings page consolidating model selection, pricing,
-     and settings & memories that previously lived under the AI app in the
+     and memories that previously lived under the AI app in the
      app store. Replaces the old "Chat" settings sidebar entry.
 
      Sections:
      1. Pricing
      2. Default models
-     3. Settings & Memories
+     3. Memories
      4. Available models
      5. Available providers (server provider toggles)
 -->
@@ -233,7 +233,7 @@
         { value: 'new',         label: $text('settings.ai_ask.ai_ask_settings.sort_by_new') },
     ]);
 
-    // ─── Settings & Memories section ─────────────────────────────────────
+    // ─── Memories section ─────────────────────────────────────
 
     let storeState = $state(appSkillsStore.getState());
     let aiApp = $derived<AppMetadata | undefined>(storeState.apps['ai']);
@@ -432,7 +432,7 @@
         </div>
     {/if}
 
-    <!-- 3. Settings & Memories section - only for authenticated users with AI memories -->
+    <!-- 3. Memories section - only for authenticated users with AI memories -->
     {#if memoryFields.length > 0}
         <div class="section">
             <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
@@ -919,7 +919,7 @@
         flex-shrink: 0;
     }
 
-    /* Settings & Memories section */
+    /* Memories section */
     .memories-description {
         margin: 0.35rem 0 0.5rem 0;
         padding: 0;

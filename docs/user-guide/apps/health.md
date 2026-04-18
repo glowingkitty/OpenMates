@@ -28,7 +28,7 @@ The Health app helps you find available doctor appointments and keeps track of y
 
 ![Doctor appointment search](../../images/user-guide/apps/health/previews/search/finished.jpg)
 
-## Settings and Memories
+## Memories
 
 - **Appointments** -- Track upcoming doctor visits, operations, and check-ups with dates and notes.
 - **Medical History** -- Record past surgeries, chronic conditions, allergies, medications, vaccinations, and injuries. This helps your mate prepare comprehensive doctor visit summaries.

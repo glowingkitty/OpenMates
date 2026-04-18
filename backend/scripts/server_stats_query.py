@@ -291,7 +291,17 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
     if "error" not in nl and nl:
         lines.append("")
         lines.append("**Newsletter**")
-        lines.append(f"- Confirmed subscribers: {nl.get('confirmed_subscribers', 0):,}")
+        total = nl.get("confirmed_subscribers", 0)
+        lines.append(f"- Confirmed subscribers: {total:,}")
+        # Detailed breakdown (available after the subscriber-breakdown enhancement)
+        if "paying_customers" in nl:
+            lines.append(f"  - Paying customers: {nl.get('paying_customers', 0):,}")
+            lines.append(f"  - Completed signup (not paying): {nl.get('completed_not_paying', 0):,}")
+            lines.append(f"  - Signup incomplete: {nl.get('signup_incomplete', 0):,}")
+            lines.append(f"  - Never registered: {nl.get('never_registered', 0):,}")
+            paying_not_sub = nl.get("paying_not_subscribed", 0)
+            if paying_not_sub:
+                lines.append(f"- Paying users NOT subscribed: {paying_not_sub:,}")
 
     # ── Data Health ─────────────────────────────────────────────────────
     dh = sections.get("data_health", {})

@@ -2,21 +2,21 @@
   frontend/packages/ui/src/components/embeds/SettingsMemoriesGroup.svelte
   
   A horizontal scrollable container displaying AppStoreCard components
-  for available settings & memories categories across all apps (excluding AI app).
+  for available memories categories across all apps (excluding AI app).
   
   This component is rendered within demo chat messages when the
   [[settings_memories_group]] placeholder is encountered.
   
   Features:
-  - Excludes settings & memories from the AI app (always used, focus on other apps)
+  - Excludes memories from the AI app (always used, focus on other apps)
   - Limits display to first 10 items
   - Shows "+ N more" badge at the end when items are truncated
   - Supports custom sort order via sortOrder prop
   
-  Uses the same AppStoreCard design as the Settings App Store but scaled up
+  Uses the same AppStoreCard design as the Settings Apps but scaled up
   for the chat context.
   
-  Clicking a card opens the App Store to that settings & memories category's detail page.
+  Clicking a card opens the Apps to that memories category's detail page.
 -->
 
 <script lang="ts">
@@ -35,7 +35,7 @@
   const EXCLUDED_APP_ID = 'ai';
   
   /**
-   * Represents a settings & memories category with its parent app context,
+   * Represents a memories category with its parent app context,
    * needed to render AppStoreCard with correct gradient and icon.
    */
   interface MemoryCategoryWithApp {
@@ -50,7 +50,7 @@
    */
   interface Props {
     /**
-     * Custom sort order for settings & memories. Array of "appId/categoryId" strings in desired display order.
+     * Custom sort order for memories. Array of "appId/categoryId" strings in desired display order.
      * Categories in this array appear first (in the specified order),
      * followed by any remaining categories sorted alphabetically.
      * If not provided, categories are sorted alphabetically by name translation key.
@@ -62,7 +62,7 @@
      */
     excludeAppIds?: string[];
     /**
-     * If provided, ONLY show settings & memories from apps with these IDs (still excludes AI app).
+     * If provided, ONLY show memories from apps with these IDs (still excludes AI app).
      * Used to show only developer-focused app settings in the for-developers intro chat.
      */
     onlyAppIds?: string[];
@@ -75,7 +75,7 @@
   }: Props = $props();
   
   /**
-   * Get all settings & memories categories across all apps (excluding AI app),
+   * Get all memories categories across all apps (excluding AI app),
    * each wrapped with parent app context. Supports custom sort order.
    */
   let filteredCategories = $derived((() => {
@@ -83,7 +83,7 @@
     const categories: MemoryCategoryWithApp[] = [];
     
     for (const app of Object.values(appsMap)) {
-      // Always exclude AI app settings & memories
+      // Always exclude AI app memories
       if (app.id === EXCLUDED_APP_ID) continue;
       // If onlyAppIds is provided, only include those specific apps
       if (onlyAppIds && !onlyAppIds.includes(app.id)) continue;
@@ -145,7 +145,7 @@
   let remainingCount = $derived(Math.max(0, filteredCategories.length - MAX_DISPLAY_ITEMS));
   
   /**
-   * Handle settings & memories category card click - open the App Store to the category's detail page.
+   * Handle memories category card click - open the Apps to the category's detail page.
    * Uses the mobile-aware deep link sequencing pattern:
    * 1. settingsMenuVisible.set(true) - tell Settings.svelte to sync isMenuVisible
    * 2. panelState.openSettings() - track panel state
@@ -170,7 +170,7 @@
   }
   
   /**
-   * Handle "+N more" badge click - open the App Store overview.
+   * Handle "+N more" badge click - open the Apps overview.
    * Uses the same mobile-aware deep link sequencing pattern.
    */
   async function handleMoreClick() {

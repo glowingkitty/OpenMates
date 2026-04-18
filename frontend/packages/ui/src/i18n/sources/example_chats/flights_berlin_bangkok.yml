@@ -99,7 +99,7 @@ assistant_message_1:
     ```
 
 
-    Would you like me to look for return flights as well, or perhaps find some [highly-rated accommodation in Bangkok](/#settings/appstore/travel)?
+    Would you like me to look for return flights as well, or perhaps find some [highly-rated accommodation in Bangkok](/#settings/apps/travel)?
   de: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -124,7 +124,7 @@ assistant_message_1:
     ```
 
 
-    Soll ich auch Rückflüge suchen oder vielleicht [erstklassige Unterkünfte in Bangkok](/#settings/appstore/travel) finden?
+    Soll ich auch Rückflüge suchen oder vielleicht [erstklassige Unterkünfte in Bangkok](/#settings/apps/travel) finden?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -149,7 +149,7 @@ assistant_message_1:
     ```
 
 
-    您是否希望我也搜索回程航班，或者为您在曼谷寻找[评分极高的住宿](/#settings/appstore/travel)？
+    您是否希望我也搜索回程航班，或者为您在曼谷寻找[评分极高的住宿](/#settings/apps/travel)？
   es: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -174,7 +174,7 @@ assistant_message_1:
     ```
 
 
-    ¿Te gustaría que busque también vuelos de regreso, o quizás encuentre [alojamiento con altas valoraciones en Bangkok](/#settings/appstore/travel)?
+    ¿Te gustaría que busque también vuelos de regreso, o quizás encuentre [alojamiento con altas valoraciones en Bangkok](/#settings/apps/travel)?
   fr: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -199,7 +199,7 @@ assistant_message_1:
     ```
 
 
-    Souhaitez-vous que je recherche également des vols retour, ou peut-être trouver un [hébergement très bien noté à Bangkok](/#settings/appstore/travel) ?
+    Souhaitez-vous que je recherche également des vols retour, ou peut-être trouver un [hébergement très bien noté à Bangkok](/#settings/apps/travel) ?
   pt: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -224,7 +224,7 @@ assistant_message_1:
     ```
 
 
-    Gostaria que eu também procurasse voos de regresso, ou talvez encontrasse [alojamento bem avaliado em Banguecoque](/#settings/appstore/travel)?
+    Gostaria que eu também procurasse voos de regresso, ou talvez encontrasse [alojamento bem avaliado em Banguecoque](/#settings/apps/travel)?
   ru: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -249,7 +249,7 @@ assistant_message_1:
     ```
 
 
-    Хотите, чтобы я также нашёл обратные рейсы, или, возможно, подобрал [высокооценённое жильё в Бангкоке](/#settings/appstore/travel)?
+    Хотите, чтобы я также нашёл обратные рейсы, или, возможно, подобрал [высокооценённое жильё в Бангкоке](/#settings/apps/travel)?
   ja: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -274,7 +274,7 @@ assistant_message_1:
     ```
 
 
-    復路のフライトも検索しますか？または[バンコクの高評価宿泊施設](/#settings/appstore/travel)をお探しでしょうか？
+    復路のフライトも検索しますか？または[バンコクの高評価宿泊施設](/#settings/apps/travel)をお探しでしょうか？
   ko: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -299,7 +299,7 @@ assistant_message_1:
     ```
 
 
-    귀국 항공편도 찾아드릴까요, 아니면 [방콕의 높은 평점 숙소](/#settings/appstore/travel)를 찾아드릴까요?
+    귀국 항공편도 찾아드릴까요, 아니면 [방콕의 높은 평점 숙소](/#settings/apps/travel)를 찾아드릴까요?
   it: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -324,7 +324,7 @@ assistant_message_1:
     ```
 
 
-    Vuoi che cerchi anche i voli di ritorno da Bangkok a Berlino, o magari trovare [sistemazioni con ottime recensioni a Bangkok](/#settings/appstore/travel)?
+    Vuoi che cerchi anche i voli di ritorno da Bangkok a Berlino, o magari trovare [sistemazioni con ottime recensioni a Bangkok](/#settings/apps/travel)?
   tr: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -349,7 +349,7 @@ assistant_message_1:
     ```
 
 
-    Dönüş uçuşlarını da aramamı ister misiniz, yoksa [Bangkok'ta yüksek puanlı konaklama yerleri](/#settings/appstore/travel) bulmamı mı tercih edersiniz?
+    Dönüş uçuşlarını da aramamı ister misiniz, yoksa [Bangkok'ta yüksek puanlı konaklama yerleri](/#settings/apps/travel) bulmamı mı tercih edersiniz?
   vi: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -374,7 +374,7 @@ assistant_message_1:
     ```
 
 
-    Bạn có muốn tôi tìm chuyến bay về từ Bangkok đến Berlin không, hay có thể tìm [chỗ ở được đánh giá cao ở Bangkok](/#settings/appstore/travel)?
+    Bạn có muốn tôi tìm chuyến bay về từ Bangkok đến Berlin không, hay có thể tìm [chỗ ở được đánh giá cao ở Bangkok](/#settings/apps/travel)?
   id: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -399,7 +399,7 @@ assistant_message_1:
     ```
 
 
-    Apakah Anda ingin saya mencari penerbangan pulang dari Bangkok ke Berlin juga, atau mungkin menemukan [akomodasi berperingkat tinggi di Bangkok](/#settings/appstore/travel)?
+    Apakah Anda ingin saya mencari penerbangan pulang dari Bangkok ke Berlin juga, atau mungkin menemukan [akomodasi berperingkat tinggi di Bangkok](/#settings/apps/travel)?
   pl: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -424,7 +424,7 @@ assistant_message_1:
     ```
 
 
-    Czy chcesz, żebym poszukał również lotów powrotnych z Bangkoku do Berlina, a może znalazł [wysoko oceniane noclegi w Bangkoku](/#settings/appstore/travel)?
+    Czy chcesz, żebym poszukał również lotów powrotnych z Bangkoku do Berlina, a może znalazł [wysoko oceniane noclegi w Bangkoku](/#settings/apps/travel)?
   nl: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -449,7 +449,7 @@ assistant_message_1:
     ```
 
 
-    Wilt u dat ik ook retourvluchten van Bangkok naar Berlijn zoek, of misschien [hoog gewaardeerde accommodaties in Bangkok](/#settings/appstore/travel) vinden?
+    Wilt u dat ik ook retourvluchten van Bangkok naar Berlijn zoek, of misschien [hoog gewaardeerde accommodaties in Bangkok](/#settings/apps/travel) vinden?
   ar: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -474,7 +474,7 @@ assistant_message_1:
     ```
 
 
-    هل تريد أن أبحث عن رحلات العودة أيضاً، أم تفضّل البحث عن [أماكن إقامة مُقيَّمة بشكل عالٍ في بانكوك](/#settings/appstore/travel)؟
+    هل تريد أن أبحث عن رحلات العودة أيضاً، أم تفضّل البحث عن [أماكن إقامة مُقيَّمة بشكل عالٍ في بانكوك](/#settings/apps/travel)؟
   hi: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -499,7 +499,7 @@ assistant_message_1:
     ```
 
 
-    क्या आप चाहते हैं कि मैं वापसी की उड़ानें भी देखूँ, या शायद [बैंकॉक में उच्च-रेटेड आवास](/#settings/appstore/travel) खोजूँ?
+    क्या आप चाहते हैं कि मैं वापसी की उड़ानें भी देखूँ, या शायद [बैंकॉक में उच्च-रेटेड आवास](/#settings/apps/travel) खोजूँ?
   th: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -524,7 +524,7 @@ assistant_message_1:
     ```
 
 
-    คุณต้องการให้ฉันค้นหาเที่ยวบินขากลับด้วยหรือไม่ หรืออาจจะหา[ที่พักที่ได้รับคะแนนสูงในบางกอก](/#settings/appstore/travel)?
+    คุณต้องการให้ฉันค้นหาเที่ยวบินขากลับด้วยหรือไม่ หรืออาจจะหา[ที่พักที่ได้รับคะแนนสูงในบางกอก](/#settings/apps/travel)?
   cs: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -549,7 +549,7 @@ assistant_message_1:
     ```
 
 
-    Chcete, abych vyhledal také zpáteční lety, nebo snad nějaké [vysoce hodnocené ubytování v Bangkoku](/#settings/appstore/travel)?
+    Chcete, abych vyhledal také zpáteční lety, nebo snad nějaké [vysoce hodnocené ubytování v Bangkoku](/#settings/apps/travel)?
   sv: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -574,7 +574,7 @@ assistant_message_1:
     ```
 
 
-    Vill du att jag även söker efter returflyg, eller kanske hittar [välbedömda boenden i Bangkok](/#settings/appstore/travel)?
+    Vill du att jag även söker efter returflyg, eller kanske hittar [välbedömda boenden i Bangkok](/#settings/apps/travel)?
   he: |
     ```json
     {"type": "app_skill_use", "embed_id": "2f88b2a0-4b85-4ac4-9200-74dccbb14823", "app_id": "travel", "skill_id": "search_connections"}
@@ -599,7 +599,7 @@ assistant_message_1:
     ```
 
 
-    האם תרצה שאחפש גם טיסות חזרה, או אולי למצוא [לינה מדורגת גבוה בבנגקוק](/#settings/appstore/travel)?
+    האם תרצה שאחפש גם טיסות חזרה, או אולי למצוא [לינה מדורגת גבוה בבנגקוק](/#settings/apps/travel)?
   verified_by_human: []
 
 follow_up_1:

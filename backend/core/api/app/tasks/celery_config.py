@@ -329,7 +329,10 @@ for module_name in include_modules:
         logger.warning(f"Failed to import task module {module_name}: {e}")
 
 # Configure Celery
+celery_concurrency = int(os.environ.get("CELERY_AUTOSCALE_MAX", "2"))
+
 app.conf.update(
+    worker_concurrency=celery_concurrency,
     task_queues=task_queues, # Dynamically set queues
     # CRITICAL: Set task_default_queue to None to prevent fallback to default queue
     # This ensures tasks only go to explicitly routed queues
@@ -1172,10 +1175,10 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
-    # --- Health checks that feed /v1/health (used by the App Store) ---
+    # --- Health checks that feed /v1/health (used by the Apps) ---
     # NOTE: The independent status service (backend/status/) handles the status PAGE,
     # but the core API's /v1/health endpoint reads from these Redis cache keys.
-    # Removing these breaks app availability in the frontend App Store.
+    # Removing these breaks app availability in the frontend Apps.
     'health-check-all-providers': {
         'task': 'health_check.check_all_providers',
         'schedule': timedelta(seconds=300),  # 5 minutes

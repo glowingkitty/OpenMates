@@ -33,7 +33,8 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
-	deleteActiveChat
+	deleteActiveChat,
+	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
 
 const {
@@ -72,6 +73,11 @@ test.describe('Copy message with embeds', () => {
 		page,
 		context
 	}) => {
+		// Login + new chat + AI response + embed finish + copy + verify easily exceeds
+		// Playwright's 30s default. Match share-embed-flow's 300s budget.
+		test.slow();
+		test.setTimeout(300000);
+
 		// Grant clipboard permissions for the browser context
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
@@ -95,9 +101,10 @@ test.describe('Copy message with embeds', () => {
 		logCheckpoint('Web search message sent.');
 
 		// ── Step 3: Wait for AI response with embed ────────────────
-		// Wait for an assistant message to appear (the AI response)
-		const assistantMessage = page.getByTestId('message-assistant').last();
-		await expect(assistantMessage).toBeVisible({ timeout: 60000 });
+		const assistantMessage = await waitForAssistantMessage(page, {
+			which: 'last',
+			logCheckpoint
+		});
 		logCheckpoint('Assistant message appeared.');
 
 		// Wait for at least one embed preview card to appear in the response.

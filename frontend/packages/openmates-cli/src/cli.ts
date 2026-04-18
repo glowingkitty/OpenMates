@@ -57,7 +57,7 @@ async function main(): Promise<void> {
         : undefined,
   });
 
-  // Initialize output redactor with personal data entries from Settings & Memories.
+  // Initialize output redactor with personal data entries from Memories.
   // This loads user-defined names, addresses, etc. for auto-censoring in terminal output.
   // Safe to call before login — silently skips if no session.
   const redactor = new OutputRedactor();
@@ -3687,7 +3687,7 @@ async function handleMentions(
       mate: "Mates",
       skill: "Skills",
       focus_mode: "Focus Modes",
-      settings_memory: "Settings & Memories",
+      settings_memory: "Memories",
     };
 
     for (const [type, items] of grouped) {
@@ -3887,7 +3887,7 @@ Types:
   mate              AI mates/personas (@Sophia, @Finn)
   skill             App skills (@Web-Search, @Code-Get-Docs)
   focus_mode        Focus modes (@Web-Research)
-  settings_memory   Settings & memories (@Code-Projects)
+  settings_memory   Memories (@Code-Projects)
 
 Use @mentions in chat messages:
   openmates chats new "@Sophia tell me about React hooks"
@@ -3907,7 +3907,7 @@ Commands:
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
-  openmates settings [--help]                Settings & memories
+  openmates settings [--help]                Memories
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates server [--help]                   Server management (install, start, stop, ...)
@@ -3973,7 +3973,7 @@ Options for 'delete':
   @Claude-Opus-4.6      Specific model
   @Sophia               AI mate/persona
   @Web-Search           App skill
-  @Code-Projects        Settings & memories
+  @Code-Projects        Memories
   @/path/to/file.ts     Attach local file (secrets auto-redacted)
 
   Sensitive files (.env) use zero-knowledge mode (only names + last 3 chars).
@@ -4105,8 +4105,8 @@ ${h("Interface")}
     openmates settings post user/language --data '{"language":"en"}'
     openmates settings post user/darkmode --data '{"dark_mode":true}'
     openmates settings post ai-model-defaults --data '{"simple":"...","complex":"..."}'
-${h("App Store")}
-    openmates apps list                                 Same as App Store
+${h("Apps")}
+    openmates apps list                                 Same as Apps
     openmates apps <app-id>                             App details
     \x1b[2mWeb: ${s("app_store")}\x1b[0m
 ${h("Mates")}

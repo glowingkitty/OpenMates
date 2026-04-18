@@ -74,16 +74,12 @@
         skillStoreExampleFullscreenStore,
         closeSkillStoreExampleFullscreen,
     } from '../stores/skillStoreExampleFullscreenStore'; // Synthetic fullscreen state from app-store skill examples
-    import {
-        introVideoFullscreenStore,
-        closeIntroVideoFullscreen,
-    } from '../stores/introVideoFullscreenStore'; // Intro video fullscreen for the for-everyone demo chat
-    import DirectVideoEmbedFullscreen from '../components/embeds/videos/DirectVideoEmbedFullscreen.svelte';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
@@ -2218,6 +2214,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let messageInputHeight = $state(0);
 
     let showWelcome = $state(true);
+    let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
     // Local state for the "Continue where you left off" card on the new chat screen.
@@ -2335,7 +2332,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             case 'delete': {
                 // Demo/legal chats: hide via userProfile; regular chats: delete from DB
-                if (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) {
+                if (isPublicChat(chat.chat_id)) {
                     if (!$authStore.isAuthenticated) {
                         notificationStore.error('Please sign up to customize your experience');
                         resumeCardContextMenuShow = false;
@@ -3631,12 +3628,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let forceOverlayMode = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed, wiki, or intro video) AND not forcing overlay mode
-    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $introVideoFullscreenStore) && !forceOverlayMode);
+    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed or wiki) AND not forcing overlay mode
+    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && !forceOverlayMode);
 
     // Determine if we should show the "Show Chat" button in fullscreen embed views
     // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData) || $introVideoFullscreenStore) && forceOverlayMode);
+    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -3906,7 +3903,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Show whenever there are suggestions and the welcome screen is not active.
     // No longer requires messageInputFocused — suggestions are visible below the last
     // assistant message without the user having to click the input first.
-    let showFollowUpSuggestions = $derived(!showWelcome && followUpSuggestions.length > 0);
+    let showFollowUpSuggestions = $derived(!showWelcome && followUpSuggestions.length > 0 && !(currentChat && isLegalChat(currentChat.chat_id)));
 
     // Load and refresh the active focus ID whenever the current chat changes.
     // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
@@ -6744,14 +6741,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          const isSameActiveChat = chat.chat_id === currentChat?.chat_id;
          const isNewChatHeaderActive = isNewChatGeneratingTitle || isNewChatCreditsError;
          const hasStreamingMessages = currentMessages.some(m => m.status === 'streaming');
-         if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages))) {
+         // When loadChat re-runs for the already-active chat (e.g. after closing a fullscreen
+         // embed that restored the URL hash, or any hashchange echo), the decrypted header
+         // fields already reflect this chat. Resetting them would blank the title/summary
+         // until the async decrypt branch below refills them — a visible flicker. Skip the
+         // reset whenever the header is already valid for this chat.
+         const headerAlreadyLoadedForSameChat = isSameActiveChat
+             && !!activeChatDecryptedTitle
+             && !!activeChatDecryptedCategory;
+         if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages || headerAlreadyLoadedForSameChat))) {
              resetChatHeaderState();
          } else {
-             console.debug('[ActiveChat] loadChat: skipping resetChatHeaderState — same chat, header/streaming active', {
+             console.debug('[ActiveChat] loadChat: skipping resetChatHeaderState — same chat, header/streaming active or header already loaded', {
                  chat_id: chat.chat_id,
                  isNewChatGeneratingTitle,
                  isNewChatCreditsError,
                  hasStreamingMessages,
+                 headerAlreadyLoadedForSameChat,
              });
          }
 
@@ -6760,7 +6766,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // starts closed, so the store would otherwise have hasPrev=false/hasNext=false
          // until the user opens the sidebar at least once.
          updateNavFromCache(chat.chat_id);
-        
+
+         // Load this chat's highlights from IndexedDB into the in-memory store
+         // so the ChatHeader pill + in-message overlays render without waiting
+         // for a WS round-trip. Fire-and-forget — highlight render isn't on the
+         // critical path for opening the chat.
+         void (async () => {
+             try {
+                 const { getHighlightsForChat } = await import('../services/db/messageHighlights');
+                 const { loadHighlightsForChat } = await import('../stores/messageHighlightsStore');
+                 const rows = await getHighlightsForChat(chatDB, chat.chat_id);
+                 loadHighlightsForChat(chat.chat_id, rows);
+             } catch (err) {
+                 console.warn('[ActiveChat] Failed to load message_highlights for chat', chat.chat_id, err);
+             }
+         })();
+
         // CRITICAL: Close any open fullscreen views when switching chats
         // This ensures fullscreen views don't persist when user switches to a different chat
         if (showCodeFullscreen) {
@@ -7096,7 +7117,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // The server response (chat_content_batch_response) saves messages to IndexedDB
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
-                if (newMessages.length === 0 && currentChat.chat_id && !isDemoChat(currentChat.chat_id)) {
+                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)) {
                     console.info(`[ActiveChat] No local messages for ${currentChat.chat_id} — requesting from server (on-demand loading)`);
                     try {
                         await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([currentChat.chat_id]);
@@ -7283,7 +7304,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showWelcome = currentMessages.length === 0;
         }
         console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
-        
+
+        // ─── Autoplay video deep link ────────────────────────────────────
+        // Hash format: #chat-id=<id>&autoplay-video
+        // Sets a flag so ChatHeader auto-triggers native fullscreen playback on mount.
+        if (typeof window !== 'undefined' && window.location.hash.includes('autoplay-video') && currentChat?.chat_id) {
+            pendingAutoplayVideo = true;
+            console.debug('[ActiveChat] Autoplay video flag set from deep link for chat:', currentChat.chat_id);
+        }
+
         // Don't set isAtBottom here - it will be updated by handleScrollPositionUI
         // after the actual scroll position is restored below
         // Initialize to false to prevent MessageInput from appearing expanded prematurely
@@ -9994,10 +10023,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
-                         videoHlsUrl={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_hls_url ?? null) : null}
-                         videoMp4Url={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_mp4_url ?? null) : null}
-                         videoStartTime={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.video_start_time ?? 0) : 0}
-                         backgroundFrames={currentChat?.chat_id === 'demo-for-everyone' ? (DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')?.metadata.background_frames ?? null) : null}
+                         canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                         videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
+                         backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
+                         autoplayVideo={pendingAutoplayVideo}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                          onSuggestionClick={handleSuggestionClick}
@@ -10119,8 +10148,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
 
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
-                        <!-- Only show message input if user owns the chat or is not authenticated -->
-                        {#if chatOwnershipResolved || !$authStore.isAuthenticated}
+                        <!-- Hide for newsletter/legal chats (read-only); show for demo/example/intro/regular chats -->
+                        {#if !(currentChat && (isNewsletterChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
                             <MessageInput
                                 bind:this={messageInputFieldRef}
                                 currentChatId={currentChat?.chat_id || temporaryChatId}
@@ -10407,34 +10436,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/await}
             {/if}
             
-            <!-- Intro video fullscreen — for-everyone demo chat header play button.
-                 Uses the same .fullscreen-embed-container as wiki/embed fullscreens
-                 so UnifiedEmbedFullscreen fills ActiveChat correctly (position:absolute).
-                 German locale uses a separate localised video. -->
-            {#if $introVideoFullscreenStore}
-                {@const forEveryoneChat = DEMO_CHATS.find(c => c.chat_id === 'demo-for-everyone')}
-                {@const isGerman = $locale?.startsWith('de')}
-                {@const introMp4Url = isGerman
-                    ? 'https://vod.api.video/vod/vi1LdNC1NrHlKyANrOUDsfX6/mp4/source.mp4'
-                    : forEveryoneChat?.metadata.video_mp4_url}
-                {#if introMp4Url}
-                    <div
-                        class="fullscreen-embed-container"
-                        class:side-panel={showSideBySideLayout}
-                        class:overlay-mode={!showSideBySideLayout}
-                        data-testid="intro-video-fullscreen"
-                    >
-                        <DirectVideoEmbedFullscreen
-                            mp4Url={introMp4Url}
-                            title={activeChatDecryptedTitle || ''}
-                            onClose={() => {
-                                closeIntroVideoFullscreen();
-                                history.replaceState(null, '', window.location.pathname + window.location.search);
-                            }}
-                        />
-                    </div>
-                {/if}
-            {/if}
+            <!-- Video autoplay is handled by ChatHeader via the autoplayVideo prop.
+                 The &autoplay-video deep link sets pendingAutoplayVideo which is
+                 passed through ChatHistory → ChatHeader → native requestFullscreen. -->
 
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}
@@ -11077,6 +11081,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         scroll-behavior: smooth;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        visibility: visible;
         /* Left padding = half container width minus half card width (300/2=150)
            so the first card starts centred relative to the chat-wrapper.
            box-sizing: border-box ensures padding is included in width: 100%

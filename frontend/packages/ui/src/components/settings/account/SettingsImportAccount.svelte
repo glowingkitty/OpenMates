@@ -257,7 +257,7 @@
 
                 <ul class="chat-list">
                     {#each parsedChats as chat, i}
-                        <li class="chat-item">
+                        <li class="chat-item" data-testid="chat-item">
                             <label class="chat-label">
                                 <input
                                     type="checkbox"
@@ -266,8 +266,8 @@
                                     onchange={() => toggleChat(i)}
                                 />
                                 <div class="chat-info">
-                                    <span class="chat-title">{chat.title || $text('common.untitled_chat')}</span>
-                                    <span class="chat-meta">
+                                    <span class="chat-title" data-testid="chat-title">{chat.title || $text('common.untitled_chat')}</span>
+                                    <span class="chat-meta" data-testid="chat-meta">
                                         {chat.messages.length} {$text('settings.account.import_messages_count')}
                                     </span>
                                 </div>

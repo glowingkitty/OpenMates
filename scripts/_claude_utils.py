@@ -523,7 +523,7 @@ def spawn_interactive_session(
     message = f"Read {relative_path} in full and follow all the instructions precisely."
     claude_cmd = [
         "claude", "-p", message,
-        "--model", "claude-opus-4-6",
+        "--model", "claude-opus-4-7",
         "--name", session_title,
         "--output-format", "json",
         "--permission-mode", "plan",

@@ -19,7 +19,7 @@ export type SecretSource =
   | "ssh"        // ~/.ssh/id_rsa, id_ed25519, etc.
   | "gcloud"     // ~/.config/gcloud/application_default_credentials.json
   | "process"    // Process environment variables matching secret patterns
-  | "settings"   // Settings & Memories synced from web UI
+  | "settings"   // Memories synced from web UI
   | "custom";    // User-configured additional paths
 
 /**
@@ -46,7 +46,7 @@ export type SecretType =
   | "GENERIC_SECRET"
   | "PRIVATE_KEY"
   | "JWT"
-  // Personal data (from Settings & Memories)
+  // Personal data (from Memories)
   | "PERSONAL_DATA"
   // Environment variable (known from registry, not pattern-matched)
   | "ENV_VAR";
@@ -108,12 +108,12 @@ export interface ScannerOptions {
   enablePatternDetection?: boolean;
   /** Whether to scan against the known-value registry (default: true) */
   enableRegistryDetection?: boolean;
-  /** Personal data entries from Settings & Memories for substring matching */
+  /** Personal data entries from Memories for substring matching */
   personalDataEntries?: PersonalDataEntry[];
 }
 
 /**
- * A user-defined personal data entry from Settings & Memories.
+ * A user-defined personal data entry from Memories.
  * Used for substring-based detection of names, addresses, etc.
  * Mirrors PersonalDataForDetection in piiDetectionService.ts.
  */

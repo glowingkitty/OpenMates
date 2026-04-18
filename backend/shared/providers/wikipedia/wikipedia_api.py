@@ -107,16 +107,32 @@ async def batch_validate_topics(
 
     pages = data.get("query", {}).get("pages", [])
     redirects = data.get("query", {}).get("redirects", [])
+    normalized = data.get("query", {}).get("normalized", [])
 
-    # Build redirect map: original title -> canonical title
+    # Build redirect map: original title -> canonical title.
+    # Wikipedia returns two separate arrays:
+    #   - "redirects": wiki redirect pages (e.g. "NYC" -> "New York City")
+    #   - "normalized": silent title rewrites (e.g. "Neil_Armstrong" -> "Neil Armstrong")
+    # LLM-emitted titles always use underscores per the linking instruction, so
+    # "normalized" must be processed or every valid title fails the lookup.
     redirect_map = {}
+    for n in normalized:
+        redirect_map[n.get("from", "").lower()] = n.get("to", "")
     for r in redirects:
         redirect_map[r.get("from", "").lower()] = r.get("to", "")
 
-    # Build a lookup from canonical title (lowercase) -> page data
+    # Build a lookup from canonical title (lowercase) -> page data.
+    # Skip missing pages and disambiguation pages — both are useless link targets.
+    # Wikipedia flags disambiguation pages with a "disambiguation" key in pageprops
+    # (value is always "", so we check key presence, not truthiness).
     page_by_title: dict[str, dict] = {}
     for page in pages:
         if page.get("missing"):
+            continue
+        if "disambiguation" in page.get("pageprops", {}):
+            logger.info(
+                f"Wikipedia: skipping disambiguation page '{page.get('title')}'"
+            )
             continue
         page_by_title[page.get("title", "").lower()] = page
 

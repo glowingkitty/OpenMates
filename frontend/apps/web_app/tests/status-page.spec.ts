@@ -221,9 +221,9 @@ test.describe('Status page — banner and page load', () => {
 		await mockStatusApi(page, MOCK_STATUS_RESPONSE);
 		await gotoStatus(page);
 
-		// Page title
+		// Page title (svelte:head sets it after SPA hydration — allow extra time)
 		await expect(page.getByRole('heading', { name: 'OpenMates Status' })).toHaveCount(0);
-		await expect(page).toHaveTitle('OpenMates Status');
+		await expect(page).toHaveTitle('OpenMates Status', { timeout: 15000 });
 
 		// Banner label for operational status
 		await expect(page.getByText('All Systems Operational')).toBeVisible();

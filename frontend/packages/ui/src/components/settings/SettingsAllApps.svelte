@@ -2,17 +2,17 @@
      All Apps view — shows every available app in a filterable, sortable grid.
      
      Features:
-     - Filter chips: All, Settings & Memories, Focus Modes, Skills
+     - Filter chips: All, Memories, Focus Modes, Skills
      - SearchSortBar: text search + sort (Newest, Name A–Z, Name Z–A)
      - Vertical auto-fill grid of AppStoreCards
      
      When navigated to with allAppsInitialFilter set (e.g. from the root
-     "Settings & Memories" menu item), the filter is pre-selected on mount.
+     "Memories" menu item), the filter is pre-selected on mount.
      
      Architecture: See docs/architecture/app-skills.md
      Navigation: clicking a card dispatches 'openSettings' → Settings.svelte
      navigates to app_store/{appId}, passing cameFrom='app_store/all' so
-     the back button returns here instead of the App Store root.
+     the back button returns here instead of the Apps root.
 -->
 
 <script lang="ts">
@@ -150,7 +150,7 @@
 
     /**
      * Navigate to the app's detail page.
-     * Passes cameFrom so the back button returns to All Apps instead of the App Store root.
+     * Passes cameFrom so the back button returns to All Apps instead of the Apps root.
      */
     function selectApp(appId: string) {
         dispatch('openSettings', {

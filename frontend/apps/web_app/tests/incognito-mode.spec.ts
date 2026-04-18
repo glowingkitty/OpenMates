@@ -236,6 +236,10 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 
 	// Wait for triggerNewChat to fire and the incognito welcome state to settle
 	await page.waitForTimeout(1000);
+
+	// Blur message input to ensure no focus-related rendering interference
+	await page.evaluate(() => (document.activeElement as HTMLElement)?.blur?.());
+
 	await takeStepScreenshot(page, '06-incognito-enabled');
 
 	// Assert: incognito banner visible (showWelcome=true && $incognitoMode=true)

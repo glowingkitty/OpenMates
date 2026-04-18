@@ -7,7 +7,7 @@
  * - All chats with messages, including all file embeds (images, audio, PDFs, code, transcripts)
  * - Usage history (YAML + CSV)
  * - Invoice PDFs
- * - App settings and memories (decrypted)
+ * - App memories (decrypted)
  * - User profile data (decrypted email)
  * - Profile image
  *
@@ -54,7 +54,7 @@ export interface ExportOptions {
   includeChatFiles: boolean; // images, audio, PDFs, code, transcripts attached to chats
   includeInvoices: boolean;
   includeUsage: boolean;
-  includeSettings: boolean; // app settings and memories (decrypted)
+  includeSettings: boolean; // app memories (decrypted)
   includeProfile: boolean; // user profile + profile image
 }
 
@@ -889,7 +889,7 @@ async function createExportZip(
     }
   }
 
-  // ── Settings & Memories ────────────────────────────────────────────────
+  // ── Memories ────────────────────────────────────────────────
   if (data.options.includeSettings && data.appSettings.length > 0) {
     const settingsFolder = zip.folder("settings");
     if (settingsFolder) {

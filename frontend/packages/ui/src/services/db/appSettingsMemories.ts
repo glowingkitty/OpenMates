@@ -1,8 +1,8 @@
 // frontend/packages/ui/src/services/db/appSettingsMemories.ts
-// Handles app settings and memories CRUD operations for the ChatDatabase class.
+// Handles app memories CRUD operations for the ChatDatabase class.
 // These operations are extracted from db.ts for better code organization.
 //
-// App settings and memories are used to store user preferences and memories
+// App memories are used to store user preferences and memories
 // that apps can access. They support conflict resolution based on item_version.
 
 /**

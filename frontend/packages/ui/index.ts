@@ -79,7 +79,7 @@ export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTra
 export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
 export * from "./src/stores/unreadMessagesStore"; // Export unread messages store for tracking unread chat messages
 export * from "./src/stores/pendingNotificationReplyStore"; // Export pending notification reply store for notification-to-chat reply flow
-export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
+export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for Apps
 export * from "./src/stores/newsletterActionStore"; // Export newsletter action store for email link actions
 export * from "./src/stores/serverStatusStore"; // Export server status store for self-hosted detection
 export * from "./src/stores/appHealthStore"; // Export app health store for filtering apps by health status

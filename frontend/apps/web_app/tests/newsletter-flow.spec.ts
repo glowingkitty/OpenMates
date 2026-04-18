@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -41,8 +40,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	createEmailClient,
-	checkEmailQuota,
-	getE2EDebugUrl
+	checkEmailQuota
 } = require('./signup-flow-helpers');
 
 // ---------------------------------------------------------------------------
@@ -95,7 +93,7 @@ async function subscribeViaUI(page: any, email: string, log: any): Promise<void>
 	await subscribeBtn.click();
 	log(`Clicked Subscribe for: ${email}`);
 
-	const successMsg = page.getByTestId('success-message');
+	const successMsg = page.getByTestId('settings-info-box-success');
 	await expect(successMsg).toBeVisible({ timeout: 15000 });
 	const successText = await successMsg.innerText();
 	log(`Subscribe success message: "${successText}"`);
@@ -103,51 +101,62 @@ async function subscribeViaUI(page: any, email: string, log: any): Promise<void>
 }
 
 /**
- * Follow a Brevo click-tracking URL in the browser just far enough to capture
- * the newsletter token hash from the URL it redirects to.
+ * Resolve a Brevo click-tracking URL to its final destination WITHOUT loading
+ * it in a browser. Uses fetch with redirect:'manual' to follow the HTTP
+ * redirects, then parses the HTML meta-refresh / JS redirect to extract the
+ * final URL with the token hash.
  *
- * Brevo wraps every link with JS-based click-tracking (sendibt3.com / tsp1-brevo.net).
- * The redirect goes to the final URL (e.g. https://openmates.org/#settings/newsletter/confirm/{token})
- * via a JavaScript meta-refresh, NOT a standard HTTP redirect.
- * We hook into Playwright's framenavigated event to capture the URL before the SPA
- * processes the hash.
- *
- * The Brevo link is single-use: following it here consumes it. That's intentional —
- * we only need to do this once to extract the token, then call the API directly.
- *
- * Returns the extracted hash fragment e.g. "#settings/newsletter/confirm/{token}",
- * or null if the redirect couldn't be captured.
+ * This avoids the problem where the SPA at the redirect target processes the
+ * hash and consumes the confirmation token before the spec can use it.
  */
 async function extractTokenHashFromBrevoLink(
-	page: any,
+	_page: any,
 	trackingUrl: string,
 	log: any
 ): Promise<string | null> {
-	log(`Following Brevo tracking URL to extract token hash...`);
-	let capturedHash: string | null = null;
-
-	const handler = (frame: any) => {
-		const url: string = frame.url();
-		const match = url.match(/(#settings\/newsletter\/(?:confirm|unsubscribe)\/[^&\s"]+)/);
-		if (match && !capturedHash) {
-			capturedHash = match[1];
-			log(`Captured hash from navigation: ${capturedHash.substring(0, 60)}...`);
-		}
-	};
-	page.on('framenavigated', handler);
+	log(`Resolving Brevo tracking URL via HTTP (no browser)...`);
 
 	try {
-		await page.goto(trackingUrl, { waitUntil: 'domcontentloaded' });
-		// Give the JS meta-refresh time to fire if the hash wasn't in the initial load URL
-		await page.waitForTimeout(3000);
-	} finally {
-		page.off('framenavigated', handler);
+		// Follow redirects manually to capture the final URL
+		let url = trackingUrl;
+		for (let i = 0; i < 10; i++) {
+			const resp = await fetch(url, { redirect: 'manual' });
+			const location = resp.headers.get('location');
+			if (location) {
+				url = location;
+				const hashMatch = url.match(/(#settings\/newsletter\/(?:confirm|unsubscribe)\/[^&\s"]+)/);
+				if (hashMatch) {
+					log(`Found token hash in redirect location: ${hashMatch[1].substring(0, 60)}...`);
+					return hashMatch[1];
+				}
+				continue;
+			}
+
+			// No redirect header — check the HTML body for meta-refresh or JS redirect
+			const body = await resp.text();
+
+			// Check for hash in any URL in the response body
+			const bodyMatch = body.match(/(?:href|url|location)[=\s'"]*[^'"]*?(#settings\/newsletter\/(?:confirm|unsubscribe)\/[^&\s"']+)/i);
+			if (bodyMatch) {
+				log(`Found token hash in response body: ${bodyMatch[1].substring(0, 60)}...`);
+				return bodyMatch[1];
+			}
+
+			// Check for full URL with hash
+			const fullUrlMatch = body.match(/https?:\/\/[^"'\s]+(#settings\/newsletter\/(?:confirm|unsubscribe)\/[^"'\s]+)/);
+			if (fullUrlMatch) {
+				log(`Found token hash in full URL in body: ${fullUrlMatch[1].substring(0, 60)}...`);
+				return fullUrlMatch[1];
+			}
+
+			break;
+		}
+	} catch (err: any) {
+		log(`HTTP resolve failed: ${err?.message}. Trying browser fallback...`);
 	}
 
-	if (!capturedHash) {
-		log(`WARNING: Could not capture hash from Brevo redirect.`);
-	}
-	return capturedHash;
+	log(`WARNING: Could not extract hash from Brevo tracking URL via HTTP.`);
+	return null;
 }
 
 /**

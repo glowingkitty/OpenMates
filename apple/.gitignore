@@ -1,0 +1,34 @@
+# Xcode generated project (regenerate with: cd apple && xcodegen generate)
+*.xcodeproj/
+*.xcworkspace/
+
+# Build artifacts
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Xcode user state (machine-specific)
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# SPM
+.build/
+Package.resolved
+
+# CocoaPods (not used, but just in case)
+Pods/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Bundled i18n JSON files (built from frontend YAML sources via npm run build:translations)
+OpenMates/Resources/i18n/
+
+# OS
+.DS_Store

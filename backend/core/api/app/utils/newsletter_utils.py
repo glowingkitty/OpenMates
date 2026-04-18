@@ -17,6 +17,52 @@ logger = logging.getLogger(__name__)
 NewsletterUserStatus = Literal["not_signed_up", "signup_incomplete", "signup_complete"]
 
 
+# Newsletter category identifiers. These map 1:1 to the boolean keys stored
+# in newsletter_subscribers.categories and to the `category` field in each
+# issue's meta.yml. Keep in sync with:
+#   - frontend SettingsNewsletter.svelte (toggle order)
+#   - backend/scripts/newsletter_md_renderer.py (VALID_CATEGORIES)
+NEWSLETTER_CATEGORIES = (
+    "updates_and_announcements",
+    "tips_and_tricks",
+    "daily_inspirations",
+)
+
+# Default category preferences. Applied when a subscriber row has
+# categories=NULL (pre-migration rows) or is missing a specific key.
+# Daily Inspirations is off by default because it's a high-frequency
+# nice-to-have — users must explicitly opt in.
+DEFAULT_NEWSLETTER_CATEGORIES = {
+    "updates_and_announcements": True,
+    "tips_and_tricks": True,
+    "daily_inspirations": False,
+}
+
+
+def normalize_newsletter_categories(raw: object) -> dict:
+    """Return a dict with every known category key set to a bool.
+
+    Missing keys fall back to ``DEFAULT_NEWSLETTER_CATEGORIES``. Unknown keys
+    in the input are silently dropped — the DB is not a trust boundary for
+    this value, but we don't want stale/old keys leaking into new UI.
+    """
+    if not isinstance(raw, dict):
+        return dict(DEFAULT_NEWSLETTER_CATEGORIES)
+    out = {}
+    for key in NEWSLETTER_CATEGORIES:
+        value = raw.get(key)
+        out[key] = bool(value) if isinstance(value, bool) else DEFAULT_NEWSLETTER_CATEGORIES[key]
+    return out
+
+
+def is_subscriber_allowed_for_category(categories: object, category: str) -> bool:
+    """Return True when the dispatcher may send a ``category`` email to this subscriber."""
+    if category not in NEWSLETTER_CATEGORIES:
+        # Unknown category — fail closed.
+        return False
+    return normalize_newsletter_categories(categories).get(category, False)
+
+
 def hash_email(email: str) -> str:
     """
     Hash email address using SHA-256 for lookup purposes.

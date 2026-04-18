@@ -3,6 +3,10 @@ import { forEveryoneChat } from "./data/for_everyone";
 import { forDevelopersChat } from "./data/for_developers";
 import { whoDevelopsOpenmatesChat } from "./data/who_develops_openmates";
 import { LEGAL_CHATS } from "../legal";
+import {
+  getNewsletterChatById as _getNewsletterChatById,
+  getAllActiveNewsletterChats as _getAllActiveNewsletterChats,
+} from "./newsletterChatStore";
 
 // Export types
 export type { DemoChat, DemoMessage, ExampleChat, ExampleChatEmbed, ExampleChatMessage } from "./types";
@@ -14,6 +18,7 @@ export {
   getDemoMessages,
   isDemoChat,
   isLegalChat,
+  isNewsletterChat,
   isPublicChat,
 } from "./convertToChat";
 
@@ -38,6 +43,18 @@ export {
   getExampleChatCount,
   registerExampleChatEmbedRefs,
 } from "./exampleChatStore";
+
+// Export newsletter chat store — DemoChats generated from newsletter issues.
+// Each issue of Updates & Announcements or Tips & Tricks becomes one entry.
+export {
+  ALL_NEWSLETTER_CHATS,
+  getNewsletterChatById,
+  getNewsletterChatBySlug,
+  getAllActiveNewsletterChats,
+  getActiveNewsletterChatsByKind,
+  newsletterKindFromChatId,
+} from "./newsletterChatStore";
+export type { NewsletterKind } from "./newsletterChatStore";
 
 /** Load published default Daily Inspirations from server on page load. */
 export { loadDefaultInspirations } from "./loadDefaultInspirations";
@@ -82,19 +99,21 @@ export const getDemoChatById = getIntroChatById;
 export const getFeaturedDemoChats = getFeaturedIntroChats;
 
 /**
- * Get a public chat (intro or legal) by ID
- * Searches both INTRO_CHATS and LEGAL_CHATS
+ * Get a public chat (intro, legal, or newsletter) by ID.
+ * Searches INTRO_CHATS, LEGAL_CHATS, and ALL_NEWSLETTER_CHATS.
  */
 export function getPublicChatById(id: string): DemoChat | undefined {
   return (
-    getIntroChatById(id) || LEGAL_CHATS.find((chat) => chat.chat_id === id)
+    getIntroChatById(id) ||
+    LEGAL_CHATS.find((chat) => chat.chat_id === id) ||
+    _getNewsletterChatById(id)
   );
 }
 
 /**
- * Get all public chats (intro + legal) combined
+ * Get all public chats (intro + legal + newsletter) combined
  * Useful for loading messages from static bundle
  */
 export function getAllPublicChats(): DemoChat[] {
-  return [...INTRO_CHATS, ...LEGAL_CHATS];
+  return [...INTRO_CHATS, ...LEGAL_CHATS, ..._getAllActiveNewsletterChats()];
 }

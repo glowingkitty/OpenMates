@@ -17,7 +17,7 @@ Search lets you quickly find content across your entire OpenMates experience. Be
 - **Chat titles and summaries** -- Locate chats by name or topic.
 - **Chat tags** -- Filter by automatically assigned tags.
 - **Settings menus** -- Jump to any settings page.
-- **Apps and skills** -- Find apps in the App Store.
+- **Apps and skills** -- Find apps in the Apps.
 - **App memories** -- Search entries you have saved (movie titles, restaurant names, trip notes, and so on).
 - **Documentation** -- Search the built-in help pages.
 

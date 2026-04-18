@@ -240,7 +240,7 @@ After the Phase 4 sender decomposition, the sync handler codebase is organized a
 - `chatSyncServiceHandlersCoreSync.ts` -- Phase 1/2/3 phased sync, initial chat list
 - `chatSyncServiceHandlersPhasedSync.ts` -- Phased sync merge logic, metadata validation
 - `chatSyncServiceHandlersChatUpdates.ts` -- Broadcast updates, metadata self-heal
-- `chatSyncServiceHandlersAppSettings.ts` -- App settings and memories sync
+- `chatSyncServiceHandlersAppSettings.ts` -- App memories sync
 
 **Sender modules** (outbound -- send messages to server):
 - `sendersChatMessages.ts` -- Message send, edit, delete

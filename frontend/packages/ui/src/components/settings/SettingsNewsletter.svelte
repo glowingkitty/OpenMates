@@ -12,8 +12,33 @@ changes to the documentation (to keep the documentation up to date).
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import InputWarning from '../common/InputWarning.svelte';
-    import { SettingsInput, SettingsInfoBox } from './elements';
+    import { SettingsInput, SettingsInfoBox, SettingsConsentToggle, SettingsSectionHeading, SettingsButton, SettingsGradientLink } from './elements';
     import { replaceState } from '$app/navigation';
+    import { authStore } from '../../stores/authStore';
+    import { notificationStore } from '../../stores/notificationStore';
+
+    // Category toggles
+    type CategoryKey = 'updates_and_announcements' | 'tips_and_tricks' | 'daily_inspirations';
+    const CATEGORY_ORDER: CategoryKey[] = [
+        'updates_and_announcements',
+        'tips_and_tricks',
+        'daily_inspirations',
+    ];
+    let categoriesLoaded = $state(false);
+    let categoryPrefs = $state<Record<CategoryKey, boolean>>({
+        updates_and_announcements: true,
+        tips_and_tricks: true,
+        daily_inspirations: false,
+    });
+    let savedPrefs = $state<Record<CategoryKey, boolean>>({
+        updates_and_announcements: true,
+        tips_and_tricks: true,
+        daily_inspirations: false,
+    });
+    let isSaving = $state(false);
+    let hasUnsavedChanges = $derived(
+        CATEGORY_ORDER.some(key => categoryPrefs[key] !== savedPrefs[key])
+    );
     
     // State for email input and form submission
     let email = $state('');
@@ -29,11 +54,12 @@ changes to the documentation (to keep the documentation up to date).
     
     // State for newsletter actions from email links
     let isProcessingAction = $state(false);
+    let showEmailForm = $state(false);
     
     /**
      * Debounce helper function for email validation
      */
-    function debounce<T extends (...args: any[]) => void>(
+    function debounce<T extends (...args: unknown[]) => void>(
         fn: T,
         delay: number
     ): (...args: Parameters<T>) => void {
@@ -203,6 +229,9 @@ changes to the documentation (to keep the documentation up to date).
             
             if (response.ok && data.success) {
                 successMessage = data.message || $text('settings.newsletter_confirm_success');
+                // Refresh the category toggles — the user is now a confirmed
+                // subscriber, so the UI should switch from disabled to active.
+                void loadCategoryPreferences();
             } else {
                 errorMessage = data.message || $text('settings.newsletter_confirm_error');
             }
@@ -284,82 +313,197 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
     
+    /**
+     * Load the authenticated user's current category preferences. Anonymous
+     * visitors of the page skip this — their subscribe form still works but
+     * the toggles are hidden (there's no subscriber row to attach them to).
+     */
+    async function loadCategoryPreferences() {
+        if (!$authStore.isAuthenticated) {
+            categoriesLoaded = true;
+            return;
+        }
+        try {
+            const resp = await fetch(getApiEndpoint(apiEndpoints.newsletter.categories), {
+                method: 'GET',
+                headers: { Accept: 'application/json' },
+                credentials: 'include',
+            });
+            if (!resp.ok) {
+                categoriesLoaded = true;
+                return;
+            }
+            const data = await resp.json();
+            if (data?.categories && typeof data.categories === 'object') {
+                categoryPrefs = { ...categoryPrefs, ...data.categories };
+                savedPrefs = { ...categoryPrefs };
+            }
+        } catch (err) {
+            console.error('[SettingsNewsletter] Failed to load category prefs:', err);
+        } finally {
+            categoriesLoaded = true;
+        }
+    }
+
+    async function saveCategories() {
+        if (isSaving || !hasUnsavedChanges) return;
+        isSaving = true;
+        errorMessage = '';
+        try {
+            const resp = await fetch(getApiEndpoint(apiEndpoints.newsletter.categories), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ categories: { ...categoryPrefs } }),
+            });
+            if (!resp.ok) {
+                errorMessage = $text('settings.newsletter_categories.save_error');
+                return;
+            }
+            const data = await resp.json();
+            if (data?.categories) {
+                categoryPrefs = { ...categoryPrefs, ...data.categories };
+            }
+            savedPrefs = { ...categoryPrefs };
+            notificationStore.addNotification('success', $text('settings.newsletter_categories.saved'));
+        } catch (err) {
+            console.error('[SettingsNewsletter] Failed to save category prefs:', err);
+            errorMessage = $text('settings.newsletter_categories.save_error');
+        } finally {
+            isSaving = false;
+        }
+    }
+
+    $effect(() => {
+        // Runs once on mount (and on re-auth) to hydrate the toggles.
+        void loadCategoryPreferences();
+    });
+
     // Handle deep link actions - format: #settings/newsletter/confirm/{token}, #settings/newsletter/unsubscribe/{token}, #settings/email/block/{email}
-    // Similar to how SettingsInvoices handles refund deep links
-    // Process immediately when component is ready (no need to wait for data like invoices)
+    // Clear the hash immediately on detection to prevent double-firing from
+    // component remounts or $effect re-runs while the API call is in flight.
     $effect(() => {
         if (typeof window === 'undefined' || isProcessingAction) {
             return;
         }
-        
+
         const hash = window.location.hash;
-        
-        // Check for newsletter confirmation deep link (e.g., #settings/newsletter/confirm/{token})
+
         const confirmMatch = hash.match(/^#settings\/newsletter\/confirm\/(.+)$/);
         if (confirmMatch) {
             const token = confirmMatch[1];
-            console.debug(`[SettingsNewsletter] Deep link confirmation detected for token: ${token.substring(0, 10)}...`);
-            
-            // Mark as processing to prevent re-processing
             isProcessingAction = true;
-            
-            // Small delay to ensure UI is ready
-            setTimeout(() => {
-                handleConfirmSubscription(token).finally(() => {
-                    // Clear the deep link from URL after processing
-                    replaceState(window.location.pathname + window.location.search, {});
-                });
-            }, 500);
+            replaceState(window.location.pathname + window.location.search, {});
+            setTimeout(() => { handleConfirmSubscription(token); }, 500);
             return;
         }
-        
-        // Check for newsletter unsubscribe deep link (e.g., #settings/newsletter/unsubscribe/{token})
+
         const unsubscribeMatch = hash.match(/^#settings\/newsletter\/unsubscribe\/(.+)$/);
         if (unsubscribeMatch) {
             const token = unsubscribeMatch[1];
-            console.debug(`[SettingsNewsletter] Deep link unsubscribe detected for token: ${token.substring(0, 10)}...`);
-            
-            // Mark as processing to prevent re-processing
             isProcessingAction = true;
-            
-            // Small delay to ensure UI is ready
-            setTimeout(() => {
-                handleUnsubscribe(token).finally(() => {
-                    // Clear the deep link from URL after processing
-                    replaceState(window.location.pathname + window.location.search, {});
-                });
-            }, 500);
+            replaceState(window.location.pathname + window.location.search, {});
+            setTimeout(() => { handleUnsubscribe(token); }, 500);
             return;
         }
-        
-        // Check for email block deep link (e.g., #settings/email/block/{email})
+
         const blockMatch = hash.match(/^#settings\/email\/block\/(.+)$/);
         if (blockMatch) {
             const encodedEmail = blockMatch[1];
             const emailToBlock = decodeURIComponent(encodedEmail);
-            console.debug(`[SettingsNewsletter] Deep link email block detected for: ${emailToBlock.substring(0, 10)}...`);
-            
-            // Mark as processing to prevent re-processing
             isProcessingAction = true;
-            
-            // Small delay to ensure UI is ready
-            setTimeout(() => {
-                handleBlockEmail(emailToBlock).finally(() => {
-                    // Clear the deep link from URL after processing
-                    replaceState(window.location.pathname + window.location.search, {});
-                });
-            }, 500);
+            replaceState(window.location.pathname + window.location.search, {});
+            setTimeout(() => { handleBlockEmail(emailToBlock); }, 500);
             return;
         }
     });
 </script>
 
 <div class="newsletter-settings">
-    <p>{$text('settings.newsletter_description')}</p>
-    
-    <!-- Email input form -->
-    <div class="newsletter-form">
-        <div class="input-group">
+    <p class="page-description">{$text('settings.newsletter_description')}</p>
+
+    {#if $authStore.isAuthenticated && categoriesLoaded}
+        <!-- Authenticated: category toggles with batch save -->
+        <div data-testid="newsletter-categories-section">
+            <SettingsSectionHeading
+                title={$text('settings.newsletter_categories.heading')}
+                icon="mail"
+            />
+            <p class="section-description">{$text('settings.newsletter_categories.description')}</p>
+
+            {#each CATEGORY_ORDER as key (key)}
+                <div class="category-item" data-testid="newsletter-category-toggle-{key}">
+                    <SettingsConsentToggle
+                        bind:checked={categoryPrefs[key]}
+                        consentText={$text(`settings.newsletter_categories.${key}.title`)}
+                        ariaLabel={$text(`settings.newsletter_categories.${key}.title`)}
+                    />
+                    <p class="category-description">{$text(`settings.newsletter_categories.${key}.description`)}</p>
+                </div>
+            {/each}
+
+            {#if hasUnsavedChanges}
+                <SettingsButton
+                    variant="primary"
+                    fullWidth
+                    loading={isSaving}
+                    disabled={isSaving}
+                    onClick={saveCategories}
+                    dataTestid="newsletter-save-button"
+                >
+                    {$text('settings.newsletter_categories.save')}
+                </SettingsButton>
+            {/if}
+        </div>
+
+        <!-- Subscribe with a different email address -->
+        {#if showEmailForm}
+            <div class="newsletter-form">
+                <SettingsInput
+                    bind:value={email}
+                    bind:inputRef={emailInput}
+                    type="email"
+                    placeholder={$text('settings.newsletter_email_placeholder')}
+                    disabled={isSubmitting}
+                    hasError={!!emailError}
+                    ariaLabel={$text('settings.newsletter_email_placeholder')}
+                    autocomplete="email"
+                    onKeydown={handleKeyPress}
+                />
+                {#if showEmailWarning && emailError}
+                    <InputWarning message={emailError} />
+                {/if}
+                <SettingsButton
+                    variant="secondary"
+                    fullWidth
+                    loading={isSubmitting}
+                    disabled={!isFormValid || isSubmitting}
+                    onClick={handleSubscribe}
+                    dataTestid="newsletter-subscribe-button"
+                >
+                    {$text('settings.newsletter_subscribe_button')}
+                </SettingsButton>
+            </div>
+        {:else}
+            <div data-testid="newsletter-change-email-button">
+                <SettingsGradientLink onClick={() => showEmailForm = true}>
+                    {$text('settings.newsletter_change_email')}
+                </SettingsGradientLink>
+            </div>
+        {/if}
+
+        {#if successMessage}
+            <SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
+        {/if}
+        {#if errorMessage}
+            <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
+        {/if}
+    {:else if !$authStore.isAuthenticated}
+        <!-- Not authenticated: subscribe form -->
+        <div class="newsletter-form">
             <SettingsInput
                 bind:value={email}
                 bind:inputRef={emailInput}
@@ -372,83 +516,77 @@ changes to the documentation (to keep the documentation up to date).
                 onKeydown={handleKeyPress}
             />
             {#if showEmailWarning && emailError}
-                <InputWarning
-                    message={emailError}
-                />
+                <InputWarning message={emailError} />
+            {/if}
+            <SettingsButton
+                variant="primary"
+                fullWidth
+                loading={isSubmitting}
+                disabled={!isFormValid || isSubmitting}
+                onClick={handleSubscribe}
+                dataTestid="newsletter-subscribe-button"
+                ariaLabel={$text('settings.newsletter_subscribe_button')}
+            >
+                {$text('settings.newsletter_subscribe_button')}
+            </SettingsButton>
+
+            {#if isProcessingAction}
+                <SettingsInfoBox type="info">{$text('settings.newsletter_processing')}</SettingsInfoBox>
+            {/if}
+            {#if successMessage}
+                <SettingsInfoBox type="success">{successMessage}</SettingsInfoBox>
+            {/if}
+            {#if errorMessage}
+                <SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
             {/if}
         </div>
-        
-        <div class="button-container">
-            <button
-                onclick={handleSubscribe}
-                disabled={!isFormValid || isSubmitting}
-                aria-label={$text('settings.newsletter_subscribe_button')}
-            >
-                {#if isSubmitting}
-                    {$text('settings.newsletter_subscribing')}
-                {:else}
-                    {$text('settings.newsletter_subscribe_button')}
-                {/if}
-            </button>
-        </div>
-        
-        <!-- Processing action message (from email links) -->
-        {#if isProcessingAction}
-            <SettingsInfoBox type="info">
-                {$text('settings.newsletter_processing')}
-            </SettingsInfoBox>
-        {/if}
+    {/if}
 
-        <!-- Success message -->
-        {#if successMessage}
-            <SettingsInfoBox type="success">
-                {successMessage}
-            </SettingsInfoBox>
-        {/if}
-
-        <!-- Error message -->
-        {#if errorMessage}
-            <SettingsInfoBox type="error">
-                {errorMessage}
-            </SettingsInfoBox>
-        {/if}
-    </div>
-    
-    <!-- Additional information -->
-    <div class="newsletter-info">
-        <p class="info-text">{$text('settings.newsletter_info')}</p>
-    </div>
+    <p class="info-text">{$text('settings.newsletter_info')}</p>
 </div>
 
 <style>
     .newsletter-settings {
-        margin: var(--spacing-10);
+        padding: 0 0.625rem;
     }
-    
-    
+
+    .page-description {
+        font-size: var(--font-size-p, 0.875rem);
+        color: var(--color-grey-70);
+        margin: 0 0 1rem 0;
+        line-height: 1.4;
+    }
+
+    .section-description {
+        font-size: var(--font-size-xxs);
+        color: var(--color-grey-50);
+        margin: 0 0 0.75rem 0;
+        padding: 0 0.625rem;
+        line-height: 1.4;
+    }
+
+    .category-item {
+        margin-bottom: 0.25rem;
+    }
+
+    .category-description {
+        font-size: var(--font-size-xxs);
+        color: var(--color-grey-50);
+        margin: -0.25rem 0 0.75rem 3.75rem;
+        line-height: 1.4;
+    }
+
     .newsletter-form {
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-6);
-    }
-    
-    .input-group {
-        margin-bottom: 1rem;
+        gap: 0.75rem;
+        margin-top: 1rem;
     }
 
-    .button-container button {
-        width: 100%;
-        margin-bottom: var(--spacing-5);
-    }
-    
-    .newsletter-info {
-        margin-top: var(--spacing-4);
-    }
-    
     .info-text {
         font-size: var(--font-size-xxs);
         color: var(--color-grey-50);
-        margin: 0;
+        margin: 1.5rem 0 0 0;
         line-height: 1.4;
     }
 </style>

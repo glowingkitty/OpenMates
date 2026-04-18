@@ -14,7 +14,6 @@
 import { uint8ArrayToBase64, base64ToUint8Array } from "../cryptoService";
 
 // AES-GCM constants (redeclared locally — not exported from cryptoService)
-const AES_KEY_LENGTH = 256;
 const AES_IV_LENGTH = 12;
 
 // ============================================================================
@@ -309,11 +308,55 @@ export async function decryptWithChatKey(
  * @returns Promise<string> - Base64 encoded encrypted array
  */
 export async function encryptArrayWithChatKey(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   array: any[],
   chatKey: Uint8Array,
 ): Promise<string> {
   const jsonString = JSON.stringify(array);
   return await encryptWithChatKey(jsonString, chatKey);
+}
+
+/**
+ * Encrypt a single highlight payload (one row in the `message_highlights`
+ * collection) with the chat key. Only the semantic fields are encrypted —
+ * offsets, embed_id, comment, author_display_name. Metadata needed for routing
+ * (chat_id, message_id, author_user_id, id) stays plaintext on the row.
+ *
+ * Thin JSON wrapper around encryptWithChatKey — kept as a named helper so the
+ * call-sites read clearly and so future changes (e.g. format versioning) have
+ * one place to land.
+ */
+export async function encryptHighlightPayload(
+  payload: Record<string, unknown>,
+  chatKey: Uint8Array,
+): Promise<string> {
+  return await encryptWithChatKey(JSON.stringify(payload), chatKey);
+}
+
+/**
+ * Decrypt a highlight payload. Returns null on failure (wrong key, tampered
+ * blob, malformed JSON) and lets the caller decide what to do — typically
+ * skip rendering that single highlight rather than failing the whole chat.
+ */
+export async function decryptHighlightPayload(
+  encryptedPayload: string,
+  chatKey: Uint8Array,
+  context?: { chatId?: string; messageId?: string },
+): Promise<Record<string, unknown> | null> {
+  const plaintext = await decryptWithChatKey(encryptedPayload, chatKey, {
+    chatId: context?.chatId,
+    fieldName: `highlight:${context?.messageId ?? "unknown"}`,
+  });
+  if (!plaintext) return null;
+  try {
+    return JSON.parse(plaintext);
+  } catch (error) {
+    console.error(
+      "[MessageEncryptor] Failed to parse decrypted highlight payload as JSON",
+      error,
+    );
+    return null;
+  }
 }
 
 /**
@@ -325,6 +368,7 @@ export async function encryptArrayWithChatKey(
 export async function decryptArrayWithChatKey(
   encryptedArrayWithIV: string,
   chatKey: Uint8Array,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any[] | null> {
   const decryptedJson = await decryptWithChatKey(encryptedArrayWithIV, chatKey);
   if (!decryptedJson) return null;

@@ -114,7 +114,7 @@ export interface MentionContext {
  * Backend resolution: preprocessor.py lines 1664-1686
  */
 export const MODEL_ALIASES: Record<string, string> = {
-  best: "claude-opus-4-6",
+  best: "claude-opus-4-7",
   fast: "qwen3-235b-a22b-2507",
 };
 
@@ -130,6 +130,7 @@ export const MODEL_ALIASES: Record<string, string> = {
  * NOTE: When modelsMetadata.ts changes, update this list.
  */
 export const CHAT_MODELS: ModelInfo[] = [
+  { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
   { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
   { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
   { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },

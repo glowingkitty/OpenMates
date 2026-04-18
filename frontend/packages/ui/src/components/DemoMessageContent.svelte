@@ -173,7 +173,7 @@
         <!-- For-everyone: exclude developer-focused app focus modes -->
         <FocusModesGroup excludeAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'settings_memories_group'}
-        <!-- For-everyone: exclude developer-focused app settings & memories -->
+        <!-- For-everyone: exclude developer-focused app memories -->
         <SettingsMemoriesGroup excludeAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'dev_app_store_group'}
         <!-- For-developers: show ONLY developer-focused apps -->
@@ -185,7 +185,7 @@
         <!-- For-developers: show ONLY developer-focused app focus modes -->
         <FocusModesGroup onlyAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'dev_settings_memories_group'}
-        <!-- For-developers: show ONLY developer-focused app settings & memories -->
+        <!-- For-developers: show ONLY developer-focused app memories -->
         <SettingsMemoriesGroup onlyAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'ai_models_group'}
         <!-- AI Ask models horizontal scrollable list -->

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -216,20 +215,20 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	logCheckpoint('Checking for AI loading indicator...');
 
-	// The loading indicator may appear briefly before streaming starts.
-	// We check for either the loading dots OR the assistant message wrapper appearing.
-	const aiLoadingOrAssistant = page.locator('[data-testid="ai-loading-indicator"], [data-testid="message-assistant"]');
-	await expect(aiLoadingOrAssistant.first()).toBeVisible({ timeout: 30000 });
+	// The typing indicator may appear briefly before streaming starts.
+	// We check for either the typing indicator OR the assistant message wrapper appearing.
+	const typingOrAssistant = page.locator('[data-testid="typing-indicator"], [data-testid="message-assistant"]');
+	await expect(typingOrAssistant.first()).toBeVisible({ timeout: 30000 });
 
-	const hasLoadingIndicator = await page
-		.getByTestId('ai-loading-indicator')
+	const hasTypingIndicator = await page
+		.getByTestId('typing-indicator')
 		.isVisible()
 		.catch(() => false);
-	if (hasLoadingIndicator) {
-		logCheckpoint('PASS: AI loading indicator (pulsing dots) is visible.');
-		await takeStepScreenshot(page, 'ai-loading-indicator');
+	if (hasTypingIndicator) {
+		logCheckpoint('PASS: Typing indicator is visible.');
+		await takeStepScreenshot(page, 'typing-indicator');
 	} else {
-		logCheckpoint('NOTE: AI loading indicator was not captured (streaming started quickly).');
+		logCheckpoint('NOTE: Typing indicator was not captured (streaming started quickly).');
 	}
 
 	// ───────────────────────────────────────────────────

@@ -1,0 +1,45 @@
+{
+  "fixture_id": "hidden_chats_1",
+  "recorded_at": "2026-04-15T20:08:16.143521+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "What is the capital of France?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Capital of France",
+    "icon_names": [
+      "map"
+    ],
+    "selected_model_id": "mistral/mistral-small-2506",
+    "selected_model_name": "Mistral Small 3.2",
+    "mate_id": "george",
+    "chat_summary": "User asked about the capital of France.",
+    "chat_tags": [
+      "geography",
+      "capital",
+      "France"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Mistral Small 3.2",
+    "provider_name": "Mistral",
+    "server_region": "EU",
+    "icon_names": [
+      "map"
+    ]
+  },
+  "response": "The capital of France is Paris.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Mistral Small 3.2"
+  }
+}

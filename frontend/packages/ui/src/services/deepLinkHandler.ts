@@ -12,6 +12,7 @@
 import { replaceState } from "$app/navigation";
 import { createEntryPrefillStore } from "../stores/createEntryPrefillStore";
 import { updateEntryPrefillStore } from "../stores/updateEntryPrefillStore";
+import { allAppsInitialFilter, type AllAppsFilterType } from "../stores/allAppsFilterStore";
 
 export type DeepLinkType =
   | "chat"
@@ -529,13 +530,41 @@ export function processSettingsDeepLink(
       _extractAndStorePrefill(queryString, path);
     }
 
-    // Map common aliases - handle 'appstore' prefix (with or without subpath)
-    // e.g., 'appstore' -> 'app_store', 'appstore/web' -> 'app_store/web'
-    if (path === "appstore" || path.startsWith("appstore/")) {
+    // Map common aliases for app store routes
+    // Canonical external URL: #settings/apps  (internal key stays app_store)
+    // Legacy aliases: 'appstore', 'app_store' (from old links or hyphen normalization)
+    if (path === "apps" || path.startsWith("apps/")) {
+      path = "app_store" + path.substring("apps".length);
+    } else if (path === "appstore" || path.startsWith("appstore/")) {
       path = "app_store" + path.substring("appstore".length);
     }
-    // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
-    path = path.replace(/-/g, "_");
+
+    // Map 'memories' alias to internal 'settings_memories' route
+    if (path === "memories" || path.startsWith("memories/")) {
+      path = "settings_memories" + path.substring("memories".length);
+    }
+
+    // Normalize hyphens to underscores for route segments (e.g., report-issue -> report_issue),
+    // but preserve hyphens in ai/model and ai/provider ID segments since model IDs use hyphens
+    // (e.g., claude-opus-4-7, gemini-3-flash-preview).
+    const aiDetailMatch = path.match(/^(ai\/(?:model|provider))\/(.*)/);
+    if (aiDetailMatch) {
+      path = aiDetailMatch[1].replace(/-/g, "_") + "/" + aiDetailMatch[2];
+    } else {
+      path = path.replace(/-/g, "_");
+    }
+
+    // Deep link to All Apps with a filter: app_store/all/{filter}
+    // e.g. #settings/apps/all/focus-modes → app_store/all with filter 'focus_modes'
+    const allAppsFilterMatch = path.match(/^app_store\/all\/(.+)$/);
+    if (allAppsFilterMatch) {
+      const filterValue = allAppsFilterMatch[1] as AllAppsFilterType;
+      const validFilters: AllAppsFilterType[] = ['all', 'settings_memories', 'focus_modes', 'skills'];
+      if (validFilters.includes(filterValue)) {
+        allAppsInitialFilter.set(filterValue);
+      }
+      path = "app_store/all";
+    }
 
     // Normalize app store sub-routes from plural to singular form
     // Deep links may use plural forms (e.g., 'skills', 'focuses') but routes use singular ('skill', 'focus')

@@ -19,13 +19,20 @@
         onDelete?: () => void;
         onFork?: () => void;        // Callback to open the fork conversation settings panel
         onEdit?: () => void;        // Callback to enter edit mode for a user message
+        onHighlight?: () => void;   // Callback to add a yellow highlight to the current selection
+        onHighlightAndComment?: () => void; // Highlight AND open the comment popover immediately
         disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
         disableFork?: boolean;   // When true, fork is disabled (e.g., incognito chat)
+        /** Hide the Highlight / Highlight & comment items. True when there is no
+         *  valid text selection inside this message, or when the viewer is not
+         *  authenticated. Separate from the "pass no callback" case so the parent
+         *  can offer the action but show it disabled if needed in future. */
+        hideHighlight?: boolean;
         messageId?: string;
         userMessageId?: string; // The user message ID that triggered this assistant response (used for cost lookup)
         role?: MessageRole;
     }
-    let { 
+    let {
         x = 0,
         y = 0,
         show = false,
@@ -35,8 +42,11 @@
         onDelete,
         onFork,
         onEdit,
+        onHighlight,
+        onHighlightAndComment,
         disableDelete = false,
         disableFork = false,
+        hideHighlight = false,
         messageId = undefined,
         userMessageId = undefined,
         role = undefined
@@ -49,8 +59,12 @@
     let confirmingDelete = $state(false);
 
     let menuElement = $state<HTMLDivElement>();
-    let adjustedX = $state(x);
-    let adjustedY = $state(y);
+    // Initialised to 0; the position-calculation $effect below runs before first
+    // render and overrides these with the viewport-adjusted values. Keeping the
+    // initializer literal avoids Svelte 5 `state_referenced_locally` warnings
+    // that fire when $state() captures a prop.
+    let adjustedX = $state(0);
+    let adjustedY = $state(0);
     let showBelow = $state(false);
     
     // State for message credits (only for assistant messages)
@@ -179,15 +193,17 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork' | 'edit', event: Event) {
+    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork' | 'edit' | 'highlight' | 'highlight_and_comment', event: Event) {
         event.stopPropagation();
         event.preventDefault();
-        
+
         console.debug('[MessageContextMenu] Action triggered:', action);
-        
+
         if (action === 'copy') onCopy?.();
         if (action === 'select') onSelect?.();
         if (action === 'edit') onEdit?.();
+        if (action === 'highlight') onHighlight?.();
+        if (action === 'highlight_and_comment') onHighlightAndComment?.();
         if (action === 'fork') {
             if (!disableFork) onFork?.();
         }
@@ -287,6 +303,31 @@
             >
                 <div class="clickable-icon icon_modify"></div>
                 {$text('chats.context_menu.edit')}
+            </button>
+        {/if}
+
+        <!-- Highlight (text selection) — only shown when the parent confirms a
+             valid selection exists inside the message, the viewer is authenticated,
+             and an onHighlight handler is wired. Stays visually consistent with
+             the other action rows. -->
+        {#if onHighlight && !hideHighlight && $authStore.isAuthenticated}
+            <button
+                class="menu-item highlight"
+                data-testid="chat-context-highlight"
+                onclick={(event) => handleAction('highlight', event)}
+            >
+                <div class="clickable-icon icon_quote"></div>
+                {$text('chats.context_menu.highlight')}
+            </button>
+        {/if}
+        {#if onHighlightAndComment && !hideHighlight && $authStore.isAuthenticated}
+            <button
+                class="menu-item highlight-and-comment"
+                data-testid="chat-context-highlight-and-comment"
+                onclick={(event) => handleAction('highlight_and_comment', event)}
+            >
+                <div class="clickable-icon icon_quote"></div>
+                {$text('chats.context_menu.highlight_and_comment')}
             </button>
         {/if}
 
@@ -477,6 +518,14 @@
 
     .menu-item.fork .clickable-icon {
         background-color: white;
+    }
+
+    /* Highlight + Highlight-and-comment: yellow-tinted icon so the action is
+       visually associated with the yellow annotation layer. Label stays white
+       to keep the menu readable on the dark background. */
+    .menu-item.highlight .clickable-icon,
+    .menu-item.highlight-and-comment .clickable-icon {
+        background-color: var(--color-highlight-yellow-solid, #ffd500);
     }
 
     .menu-item.fork.disabled {

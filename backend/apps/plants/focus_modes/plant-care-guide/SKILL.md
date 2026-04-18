@@ -31,7 +31,7 @@ source_hash: null
 - analyzes the information to determine specific care needs
 - provides personalized care recommendations (watering schedule, light requirements, fertilizing needs)
 - suggests troubleshooting steps if problems are identified
-- helps update plant care schedule in 'my_plants' settings and memories
+- helps update plant care schedule in 'my_plants' memories
 
 ## System prompt
 

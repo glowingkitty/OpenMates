@@ -2,7 +2,7 @@
 """
 Handler for storing app settings/memories entries from client to Directus.
 
-When client creates a new app settings/memories entry in the App Store:
+When client creates a new app settings/memories entry in the Apps:
 1. Client encrypts entry with master key and stores in IndexedDB
 2. Client sends encrypted entry to server via this handler
 3. Server stores encrypted entry in Directus (zero-knowledge - server never decrypts)

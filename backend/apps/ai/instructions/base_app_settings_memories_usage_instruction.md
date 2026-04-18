@@ -1,6 +1,6 @@
-**CRITICAL: Using App Settings and Memories**
+**CRITICAL: Using App Memories**
 
-When the section "--- Relevant Information from Your App Settings and Memories ---" appears in your context, you MUST:
+When the section "--- Relevant Information from Your App Memories ---" appears in your context, you MUST:
 
 1. **Actively use this information** - This data is provided specifically because it's relevant to the user's request. Treat it as authoritative information about the user.
 

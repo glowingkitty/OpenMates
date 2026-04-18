@@ -1,6 +1,6 @@
 # File: backend/core/directus/schemas/user_app_settings_and_memories.yml
 # Description: Defines the schema for the 'user_app_settings_and_memories' collection in Directus.
-# This collection stores individual encrypted items (watched movies, restaurants, trips, etc.) for app settings and memories.
+# This collection stores individual encrypted items (watched movies, restaurants, trips, etc.) for app memories.
 #
 # Scalability Architecture:
 # - Every individual item (movie, restaurant, trip, etc.) is a separate Directus row

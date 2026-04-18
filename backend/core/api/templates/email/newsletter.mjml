@@ -33,15 +33,15 @@
         </mj-column>
       </mj-section>
       
-      <!-- Newsletter Content -->
+      <!-- Newsletter Content (left-aligned, regular weight) -->
       <mj-section padding="20px 0">
         <mj-column>
           {% if newsletter_content %}
-          <mj-text padding-bottom="20px">
+          <mj-text align="left" font-weight="normal" padding-bottom="20px">
             {{ newsletter_content | safe }}
           </mj-text>
           {% else %}
-          <mj-text padding-bottom="20px">
+          <mj-text align="left" font-weight="normal" padding-bottom="20px">
             {{ t.email.newsletter.default_content.text }}
           </mj-text>
           {% endif %}
@@ -78,26 +78,38 @@
       
       <mj-section padding="10px 0">
         <mj-group>
-          <mj-column width="50%">
-            <mj-button 
-              href="{{ instagram_url if instagram_url else 'https://instagram.com/openmates_official' }}" 
-              background-color="#E4405F" 
+          <mj-column width="33%">
+            <mj-button
+              href="{{ instagram_url if instagram_url else 'https://instagram.com/openmates_official' }}"
+              background-color="#E4405F"
               color="#ffffff"
               border-radius="8px"
               font-size="16px"
-              padding="12px 20px"
+              padding="12px 16px"
             >
               Instagram
             </mj-button>
           </mj-column>
-          <mj-column width="50%">
-            <mj-button 
-              href="{{ mastodon_url if mastodon_url else 'https://mastodon.social/@openmates' }}" 
-              background-color="#6364FF" 
+          <mj-column width="33%">
+            <mj-button
+              href="{{ bluesky_url if bluesky_url else 'https://bsky.app/profile/openmates.bsky.social' }}"
+              background-color="#0085FF"
               color="#ffffff"
               border-radius="8px"
               font-size="16px"
-              padding="12px 20px"
+              padding="12px 16px"
+            >
+              Bluesky
+            </mj-button>
+          </mj-column>
+          <mj-column width="33%">
+            <mj-button
+              href="{{ mastodon_url if mastodon_url else 'https://mastodon.social/@openmates' }}"
+              background-color="#6364FF"
+              color="#ffffff"
+              border-radius="8px"
+              font-size="16px"
+              padding="12px 16px"
             >
               Mastodon
             </mj-button>
@@ -106,8 +118,19 @@
       </mj-section>
       {% endif %}
       
-      <!-- Unsubscribe Link -->
-      {% if unsubscribe_url %}
+      <!-- Footer link: manage settings (registered users) or unsubscribe (non-registered) -->
+      {% if manage_settings_url %}
+      <mj-section padding="20px 0">
+        <mj-column>
+          <mj-text font-size="14px" color="#666666">
+            {{ t.email.newsletter.manage_settings_text.text }}
+            <a href="{{ manage_settings_url }}" style="color: #666666; text-decoration: underline;">
+              {{ t.email.newsletter.manage_settings_link.text }}
+            </a>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      {% elif unsubscribe_url %}
       <mj-section padding="20px 0">
         <mj-column>
           <mj-text font-size="14px" color="#666666">
@@ -115,17 +138,6 @@
             <a href="{{ unsubscribe_url }}" style="color: #666666; text-decoration: underline;">
               {{ t.email.newsletter.unsubscribe_link.text }}
             </a>
-          </mj-text>
-        </mj-column>
-      </mj-section>
-      {% endif %}
-
-      <!-- Block All Emails Link -->
-      {% if block_list_url %}
-      <mj-section padding="10px 0 20px 0">
-        <mj-column>
-          <mj-text font-size="14px" color="#666666">
-            {{ t.email.did_not_request_email.text }}
           </mj-text>
         </mj-column>
       </mj-section>

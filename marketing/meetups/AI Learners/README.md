@@ -11,7 +11,7 @@ AI tools can be used for so much more useful stuf than just producing annoying A
     - Workshops (
         - Ai for everyday useful tasks
             - Intro: what are your looking for, what is your experience so far?
-            - How do use focus modes, settings & memories & app skills in OpenMates to get better support for daily tasks
+            - How do use focus modes, memories & app skills in OpenMates to get better support for daily tasks
             - Research topics
             - Brainstorm ideas
             - “The infinity patient team partner”

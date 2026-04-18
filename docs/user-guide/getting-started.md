@@ -28,7 +28,7 @@ last_verified: 2026-03-24
 1. **Create an account** at the signup page. You will set up a passkey or password for secure login.
 2. **Meet Suki**, the welcome assistant, who will walk you through how OpenMates works.
 3. **Start a new chat** by clicking the compose button or pressing `Ctrl/Cmd + K`, then `N`.
-4. **Explore apps** in the App Store (Settings > App Store) to see what your digital team mates can do.
+4. **Explore apps** in the Apps (Settings > Apps) to see what your digital team mates can do.
 5. **Buy credits** when you are ready (Settings > Billing). If you signed up with an invite link, you may have starter credits waiting for you.
 
 ## Quick Links
@@ -37,7 +37,7 @@ last_verified: 2026-03-24
 - [Chats](chats.md) -- Managing your conversations
 - [Keyboard Shortcuts](keyboard-shortcuts.md) -- Speed up your workflow
 - [Pricing](pricing.md) -- How credits work
-- [Settings & Memories](apps/settings-and-memories.md) -- Personalise your experience
+- [Memories](apps/settings-and-memories.md) -- Personalise your experience
 
 ## Community
 

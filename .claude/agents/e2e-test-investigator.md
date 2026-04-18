@@ -68,7 +68,25 @@ Based on the failure step, identify and read the relevant Svelte component(s):
 - Auth services: `frontend/packages/ui/src/services/`
 - Stores: `frontend/packages/ui/src/stores/`
 
-### Step 5: Check for regressions
+### Step 5: Fallback — live reproduction via firecrawl browser
+
+When screenshots + OpenObserve logs are inconclusive (e.g., the failure mode cannot be explained by existing evidence, or the test behaves differently in CI vs. what you expect), reproduce the flow live in a real browser using the firecrawl MCP tools. This is a last-resort step — ~90% of investigations should be solvable from Steps 1-4 alone.
+
+When to use:
+- The failure is intermittent or only reproduces in CI
+- The screenshot shows an unexpected app state that doesn't match any known pattern
+- You suspect a backend error but cannot confirm from logs alone
+
+How:
+1. Read test credentials from `.env` (`OPENMATES_TEST_ACCOUNT_EMAIL`, `OPENMATES_TEST_ACCOUNT_PASSWORD`, `OPENMATES_TEST_ACCOUNT_OTP_KEY`). Base URL defaults to `https://app.dev.openmates.org`.
+2. Create a firecrawl browser session (`mcp__firecrawl__firecrawl_browser_create`), then drive it with `agent-browser` bash commands or Playwright Python via `mcp__firecrawl__firecrawl_browser_execute`.
+3. Generate TOTP on demand: `python3 -c "import pyotp; print(pyotp.TOTP('<otp-key>').now())"`.
+4. Reproduce the spec's exact flow step-by-step. Watch DOM state change in real time (`page.evaluate("() => ...")`) and correlate with backend logs (re-query OpenObserve with `--since-minutes 5`).
+5. Always `mcp__firecrawl__firecrawl_browser_delete` the session when done.
+
+If the flow works correctly in firecrawl but fails in CI, look for differences: `E2E_USE_MOCKS` env (test mock fixture missing/mismatched), viewport size (sidebar-closed vs. open), cold-boot vs. cached state, test account shared state.
+
+### Step 6: Check for regressions
 
 ```bash
 # Recent commits that might have caused the failure
@@ -81,7 +99,7 @@ git log -5 --oneline -- <component-file>
 git diff <last-good-sha>..HEAD -- <relevant-files>
 ```
 
-### Step 6: Identify root cause and fix
+### Step 7: Identify root cause and fix
 
 Synthesize all evidence into a root cause. Common E2E failure patterns:
 

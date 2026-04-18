@@ -27,7 +27,7 @@ The Videos app helps you find videos on any topic and extract the text content f
 - Summarise a video: "Summarise this video for me: [link]"
 - Fact-check a video: Share a link and ask "Analyse this video for bias and accuracy"
 
-## Settings and Memories
+## Memories
 
 - **To Watch List** -- Save videos you want to watch later, with the video name, link, and channel.
 

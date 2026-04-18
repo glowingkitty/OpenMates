@@ -863,53 +863,53 @@ messengers:
   he: "מסנג'רים"
   verified_by_human: []
 settings_memories:
-  context: App Settings & Memories settings menu item — shows all user-created settings/memories across apps
-  en: App Settings & Memories
-  de: App-Einstellungen & Erinnerungen
-  zh: 应用设置与记忆
-  es: Ajustes y memorias de apps
-  fr: Paramètres & mémoires des apps
-  pt: Configurações e memórias de apps
-  ru: Настройки и память приложений
-  ja: アプリ設定とメモリ
-  ko: 앱 설정 및 기억
-  it: Impostazioni e memorie delle app
-  tr: Uygulama ayarları ve anılar
-  vi: Cài đặt ứng dụng & Ký ức
-  id: Pengaturan & Memori Aplikasi
-  pl: Ustawienia i wspomnienia aplikacji
-  nl: App-instellingen & herinneringen
-  ar: إعدادات وذكريات التطبيقات
-  hi: ऐप सेटिंग्स और यादें
-  th: การตั้งค่าแอปและความทรงจำ
-  cs: Nastavení a vzpomínky aplikací
-  sv: App-inställningar och minnen
-  he: הגדרות וזיכרונות אפליקציה
+  context: Memories settings menu item — shows all user-created memories across apps
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 
 settings_memories.description:
-  context: Short description shown in the App Settings & Memories hub gradient banner header
-  en: All your app settings & memories in one place.
-  de: Alle deine App-Einstellungen & Erinnerungen an einem Ort.
-  zh: 所有应用设置和记忆集中在一处。
-  es: Todos tus ajustes y memorias de apps en un lugar.
-  fr: Tous vos paramètres et mémoires d'apps au même endroit.
-  pt: Todas as suas configurações e memórias de apps em um só lugar.
-  ru: Все настройки и память ваших приложений в одном месте.
-  ja: アプリの設定とメモリをまとめて管理。
-  ko: 모든 앱 설정과 기억을 한 곳에서 관리하세요.
-  it: Tutte le impostazioni e le memorie delle tue app in un unico posto.
-  tr: Tüm uygulama ayarlarınız ve anılarınız tek bir yerde.
-  vi: Tất cả cài đặt ứng dụng và ký ức của bạn ở một nơi.
-  id: Semua pengaturan dan memori aplikasi Anda di satu tempat.
-  pl: Wszystkie ustawienia i wspomnienia aplikacji w jednym miejscu.
-  nl: Al je app-instellingen en herinneringen op één plek.
-  ar: جميع إعدادات التطبيقات وذكرياتك في مكان واحد.
-  hi: आपकी सभी ऐप सेटिंग्स और यादें एक ही जगह।
-  th: การตั้งค่าแอปและความทรงจำทั้งหมดของคุณในที่เดียว
-  cs: Všechna nastavení a vzpomínky aplikací na jednom místě.
-  sv: Alla dina app-inställningar och minnen på ett ställe.
-  he: כל הגדרות האפליקציות והזיכרונות שלך במקום אחד.
+  context: Short description shown in the Memories hub gradient banner header
+  en: All your memories in one place.
+  de: Alle deine Erinnerungen an einem Ort.
+  zh: 所有记忆集中在一处。
+  es: Todas tus memorias en un lugar.
+  fr: Toutes vos mémoires au même endroit.
+  pt: Todas as suas memórias em um só lugar.
+  ru: Все ваши воспоминания в одном месте.
+  ja: メモリをまとめて管理。
+  ko: 모든 기억을 한 곳에서 관리하세요.
+  it: Tutte le tue memorie in un unico posto.
+  tr: Tüm anılarınız tek bir yerde.
+  vi: Tất cả ký ức của bạn ở một nơi.
+  id: Semua memori Anda di satu tempat.
+  pl: Wszystkie wspomnienia w jednym miejscu.
+  nl: Al je herinneringen op één plek.
+  ar: جميع ذكرياتك في مكان واحد.
+  hi: आपकी सभी यादें एक ही जगह।
+  th: ความทรงจำทั้งหมดของคุณในที่เดียว
+  cs: Všechny vzpomínky na jednom místě.
+  sv: Alla dina minnen på ett ställe.
+  he: כל הזיכרונות שלך במקום אחד.
   verified_by_human: []
 
 developers:
@@ -2200,6 +2200,30 @@ instagram:
   cs: Instagram
   sv: Instagram
   he: Instagram
+  verified_by_human: []
+bluesky:
+  context: Bluesky contact link
+  en: Bluesky
+  de: Bluesky
+  zh: Bluesky
+  es: Bluesky
+  fr: Bluesky
+  pt: Bluesky
+  ru: Bluesky
+  ja: Bluesky
+  ko: Bluesky
+  it: Bluesky
+  tr: Bluesky
+  vi: Bluesky
+  id: Bluesky
+  pl: Bluesky
+  nl: Bluesky
+  ar: Bluesky
+  hi: Bluesky
+  th: Bluesky
+  cs: Bluesky
+  sv: Bluesky
+  he: Bluesky
   verified_by_human: []
 mastodon:
   context: Mastodon contact link
@@ -5064,8 +5088,28 @@ app_embeds.loading:
   he: טוען הטמעות...
   verified_by_human: []
 app_settings_memories.encryption_notice:
-  context: Explanatory text at the top of the Settings & Memories hub explaining that entries are end-to-end encrypted like chats
-  en: "Just like your chats, your settings & memories are encrypted & decrypted on your devices. So the OpenMates server and AI providers can never see the actual content, unless you decide to explicitely share the content for a chat."
+  context: Explanatory text at the top of the Memories hub explaining what memories are and that they are end-to-end encrypted like chats
+  en: "Your digital team mates can request memories to give you more personalized responses and save you time from having to repeat details over and over again. Just like your chats, your memories are encrypted & decrypted on your devices. So the OpenMates server and AI providers can never see the actual content, unless you decide to explicitly share the content for a chat."
+  de: "Deine digitalen Teammitglieder können Erinnerungen anfordern, um dir personalisierte Antworten zu geben und dir Zeit zu sparen, damit du Details nicht immer wieder wiederholen musst. Genau wie deine Chats werden deine Erinnerungen auf deinen Geräten verschlüsselt und entschlüsselt. So können der OpenMates-Server und die KI-Anbieter den tatsächlichen Inhalt niemals einsehen, es sei denn, du entscheidest dich, den Inhalt ausdrücklich für einen Chat zu teilen."
+  zh: "你的数字团队成员可以请求记忆，为你提供更个性化的回复，并避免你一遍又一遍地重复细节，节省时间。与聊天一样，你的记忆在你的设备上加密和解密。因此，OpenMates 服务器和 AI 提供商永远无法看到实际内容，除非你决定明确为某个聊天分享内容。"
+  es: "Tus compañeros de equipo digitales pueden solicitar memorias para darte respuestas más personalizadas y ahorrarte tiempo de tener que repetir detalles una y otra vez. Al igual que tus chats, tus memorias se cifran y descifran en tus dispositivos. Así, el servidor de OpenMates y los proveedores de IA nunca pueden ver el contenido real, a menos que decidas compartir explícitamente el contenido para un chat."
+  fr: "Vos coéquipiers numériques peuvent demander des mémoires pour vous donner des réponses plus personnalisées et vous faire gagner du temps en évitant de répéter les mêmes détails encore et encore. Comme vos conversations, vos mémoires sont chiffrées et déchiffrées sur vos appareils. Le serveur OpenMates et les fournisseurs d'IA ne peuvent donc jamais voir le contenu réel, sauf si vous décidez de partager explicitement le contenu pour une conversation."
+  pt: "Seus companheiros de equipe digitais podem solicitar memórias para dar respostas mais personalizadas e economizar seu tempo de ter que repetir detalhes várias vezes. Assim como seus chats, suas memórias são criptografadas e descriptografadas em seus dispositivos. Então o servidor OpenMates e os provedores de IA nunca podem ver o conteúdo real, a menos que você decida compartilhar explicitamente o conteúdo para um chat."
+  ru: "Ваши цифровые помощники могут запрашивать воспоминания, чтобы давать вам более персонализированные ответы и экономить ваше время, избавляя от необходимости повторять детали снова и снова. Как и ваши чаты, ваши воспоминания шифруются и расшифровываются на ваших устройствах. Поэтому сервер OpenMates и поставщики ИИ никогда не смогут увидеть фактическое содержимое, если вы не решите явно поделиться им для чата."
+  ja: "デジタルチームメイトがメモリをリクエストすることで、よりパーソナライズされた回答を提供し、同じ情報を何度も繰り返す手間を省けます。チャットと同様、メモリはデバイス上で暗号化・復号化されます。そのため、OpenMatesサーバーやAIプロバイダーが実際のコンテンツを見ることはできません。チャットのためにコンテンツを明示的に共有する場合を除きます。"
+  ko: "디지털 팀원들이 메모리를 요청하여 더 개인화된 응답을 제공하고, 세부 사항을 반복하지 않아도 되어 시간을 절약할 수 있습니다. 채팅과 마찬가지로, 메모리는 기기에서 암호화 및 복호화됩니다. 따라서 OpenMates 서버와 AI 제공업체는 실제 콘텐츠를 절대 볼 수 없습니다. 채팅을 위해 명시적으로 콘텐츠를 공유하기로 결정하지 않는 한 말이죠."
+  it: "I tuoi compagni di squadra digitali possono richiedere memorie per darti risposte più personalizzate e farti risparmiare tempo evitando di ripetere i dettagli più e più volte. Come le tue chat, le tue memorie vengono crittografate e decrittografate sui tuoi dispositivi. Quindi il server OpenMates e i fornitori di IA non potranno mai vedere il contenuto reale, a meno che tu non decida di condividere esplicitamente il contenuto per una chat."
+  tr: "Dijital takım arkadaşlarınız, size daha kişiselleştirilmiş yanıtlar vermek ve aynı detayları tekrar tekrar tekrarlamak zorunda kalmaktan zaman kazandırmak için anılar talep edebilir. Sohbetleriniz gibi, anılarınız da cihazlarınızda şifrelenir ve şifresi çözülür. Bu nedenle OpenMates sunucusu ve yapay zeka sağlayıcıları gerçek içeriği asla göremez; bir sohbet için içeriği açıkça paylaşmaya karar vermediğiniz sürece."
+  vi: "Các đồng đội kỹ thuật số của bạn có thể yêu cầu ký ức để cung cấp phản hồi cá nhân hóa hơn và giúp bạn tiết kiệm thời gian không phải lặp lại chi tiết nhiều lần. Giống như cuộc trò chuyện, ký ức của bạn được mã hóa và giải mã trên thiết bị của bạn. Vì vậy, máy chủ OpenMates và các nhà cung cấp AI không bao giờ có thể xem nội dung thực tế, trừ khi bạn quyết định chia sẻ rõ ràng nội dung cho một cuộc trò chuyện."
+  id: "Rekan tim digital Anda dapat meminta memori untuk memberikan respons yang lebih personal dan menghemat waktu Anda agar tidak perlu mengulang detail berulang kali. Seperti obrolan Anda, memori Anda dienkripsi dan didekripsi di perangkat Anda. Jadi server OpenMates dan penyedia AI tidak pernah bisa melihat konten sebenarnya, kecuali Anda memutuskan untuk secara eksplisit membagikan konten untuk obrolan."
+  pl: "Twoi cyfrowi współpracownicy mogą prosić o wspomnienia, aby dawać ci bardziej spersonalizowane odpowiedzi i oszczędzać czas, żebyś nie musiał powtarzać szczegółów w kółko. Tak jak twoje czaty, twoje wspomnienia są szyfrowane i odszyfrowywane na twoich urządzeniach. Serwer OpenMates i dostawcy AI nigdy nie mogą zobaczyć rzeczywistej treści, chyba że zdecydujesz się jawnie udostępnić treść dla czatu."
+  nl: "Je digitale teamgenoten kunnen herinneringen opvragen om je meer gepersonaliseerde antwoorden te geven en je tijd te besparen doordat je details niet steeds opnieuw hoeft te herhalen. Net als je chats worden je herinneringen versleuteld en ontsleuteld op je apparaten. De OpenMates-server en AI-providers kunnen de daadwerkelijke inhoud dus nooit zien, tenzij je besluit de inhoud expliciet te delen voor een chat."
+  ar: "يمكن لزملائك الرقميين طلب الذكريات لتقديم استجابات أكثر تخصيصاً وتوفير وقتك من الاضطرار لتكرار التفاصيل مراراً وتكراراً. مثل محادثاتك، يتم تشفير ذكرياتك وفك تشفيرها على أجهزتك. لذلك لا يمكن لخادم OpenMates ومزودي الذكاء الاصطناعي رؤية المحتوى الفعلي أبداً، إلا إذا قررت مشاركة المحتوى صراحةً لمحادثة."
+  hi: "आपके डिजिटल टीम साथी अधिक व्यक्तिगत प्रतिक्रियाएँ देने और बार-बार विवरण दोहराने से बचाकर आपका समय बचाने के लिए यादें अनुरोध कर सकते हैं। आपकी चैट की तरह, आपकी यादें आपके उपकरणों पर एन्क्रिप्ट और डिक्रिप्ट की जाती हैं। इसलिए OpenMates सर्वर और AI प्रदाता वास्तविक सामग्री कभी नहीं देख सकते, जब तक आप किसी चैट के लिए सामग्री को स्पष्ट रूप से साझा करने का निर्णय नहीं लेते।"
+  th: "เพื่อนร่วมทีมดิจิทัลของคุณสามารถขอความทรงจำเพื่อให้คำตอบที่เป็นส่วนตัวมากขึ้นและช่วยประหยัดเวลาจากการต้องพูดซ้ำรายละเอียดซ้ำแล้วซ้ำเล่า เช่นเดียวกับแชทของคุณ ความทรงจำของคุณถูกเข้ารหัสและถอดรหัสบนอุปกรณ์ของคุณ ดังนั้นเซิร์ฟเวอร์ OpenMates และผู้ให้บริการ AI จะไม่สามารถเห็นเนื้อหาจริงได้ เว้นแต่คุณจะตัดสินใจแชร์เนื้อหาอย่างชัดเจนสำหรับแชท"
+  cs: "Vaši digitální spolupracovníci mohou požádat o vzpomínky, aby vám poskytli personalizovanější odpovědi a ušetřili vám čas od opakování detailů znovu a znovu. Stejně jako vaše chaty jsou vaše vzpomínky šifrovány a dešifrovány na vašich zařízeních. Server OpenMates a poskytovatelé AI proto nikdy nemohou vidět skutečný obsah, pokud se nerozhodnete obsah výslovně sdílet pro chat."
+  sv: "Dina digitala teammedlemmar kan begära minnen för att ge dig mer personliga svar och spara tid genom att du slipper upprepa detaljer om och om igen. Precis som dina chattar krypteras och dekrypteras dina minnen på dina enheter. OpenMates-servern och AI-leverantörerna kan alltså aldrig se det faktiska innehållet, om du inte väljer att uttryckligen dela innehållet för en chatt."
+  he: "חברי הצוות הדיגיטליים שלך יכולים לבקש זיכרונות כדי לתת לך תגובות מותאמות אישית יותר ולחסוך לך זמן מלחזור על פרטים שוב ושוב. כמו הצ'אטים שלך, הזיכרונות שלך מוצפנים ומפוענחים במכשירים שלך. כך ששרת OpenMates וספקי ה-AI לעולם לא יכולים לראות את התוכן בפועל, אלא אם כן תחליט לשתף במפורש את התוכן לצ'אט."
   verified_by_human:
     - en
 app_settings_memories.examples_label:
@@ -5095,7 +5139,7 @@ app_settings_memories.examples_label:
     - en
     - de
 app_settings_memories.my:
-  context: First line of the "My Settings & memories" section heading (shown above the section title)
+  context: First line of the "My Memories" section heading (shown above the section title)
   en: "My"
   de: "Meine"
   zh: "我的"
@@ -5119,52 +5163,52 @@ app_settings_memories.my:
   he: הגדרות וזיכרונות
   verified_by_human: []
 app_settings_memories.settings_and_memories:
-  context: Second line of the "My Settings & memories" section heading (the bold title)
-  en: Settings & memories
-  de: Einstellungen & Erinnerungen
-  zh: 设置与记忆
-  es: Configuración y recuerdos
-  fr: Paramètres et souvenirs
-  pt: Configurações e memórias
-  ru: Настройки и воспоминания
-  ja: 設定とメモリ
-  ko: 설정 및 메모리
-  it: Impostazioni e ricordi
-  tr: Ayarlar ve anılar
-  vi: Cài đặt và ký ức
-  id: Pengaturan dan memori
-  pl: Ustawienia i wspomnienia
-  nl: Instellingen en herinneringen
-  ar: الإعدادات والذكريات
-  hi: सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำ
-  cs: Nastavení a paměti
-  sv: Inställningar och minnen
-  he: שלי
+  context: Second line of the "My Memories" section heading (the bold title)
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: ذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
   verified_by_human: []
 app_settings_memories.my_settings_and_memories:
-  context: Section heading for the user's own settings and memories entries
-  en: My Settings & Memories
-  de: Meine Einstellungen & Erinnerungen
-  zh: 我的设置与记忆
-  es: Mi configuración y recuerdos
-  fr: Mes paramètres et souvenirs
-  pt: Minhas configurações e memórias
-  ru: Мои настройки и воспоминания
-  ja: 私の設定とメモリ
-  ko: 내 설정 및 메모리
-  it: Le mie impostazioni e ricordi
-  tr: Ayarlarım ve anılarım
-  vi: Cài đặt và ký ức của tôi
-  id: Pengaturan dan memori saya
-  pl: Moje ustawienia i wspomnienia
-  nl: Mijn instellingen en herinneringen
-  ar: إعداداتي وذكرياتي
-  hi: मेरी सेटिंग्स और यादें
-  th: การตั้งค่าและความทรงจำของฉัน
-  cs: Moje nastavení a paměti
-  sv: Mina inställningar och minnen
-  he: הגדרות וזיכרונות שלי
+  context: Section heading for the user's own memories entries
+  en: My Memories
+  de: Meine Erinnerungen
+  zh: 我的记忆
+  es: Mis memorias
+  fr: Mes mémoires
+  pt: Minhas memórias
+  ru: Мои воспоминания
+  ja: 私のメモリ
+  ko: 내 기억
+  it: Le mie memorie
+  tr: Anılarım
+  vi: Ký ức của tôi
+  id: Memori saya
+  pl: Moje wspomnienia
+  nl: Mijn herinneringen
+  ar: ذكرياتي
+  hi: मेरी यादें
+  th: ความทรงจำของฉัน
+  cs: Moje vzpomínky
+  sv: Mina minnen
+  he: הזיכרונות שלי
   verified_by_human: []
 app_settings_memories.no_entries_yet:
   context: Message shown when the user has no entries yet in this settings/memories category
@@ -5215,7 +5259,7 @@ app_settings_memories.examples:
   he: דוגמאות
   verified_by_human: []
 app_settings_memories.no_settings:
-  context: Message when no settings and memories have been synced for an app
+  context: Message when no memories have been synced for an app
   en: No settings or memories synced yet. They will appear here once available.
   de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
   zh: 尚未同步任何设置或记忆。可用后会在此显示。
@@ -5263,8 +5307,8 @@ app_settings_memories.add_entry:
   he: הוספת רשומה
   verified_by_human: []
 app_settings_memories.loading:
-  context: Loading message while fetching settings and memories
-  en: Loading settings and memories...
+  context: Loading message while fetching memories
+  en: Loading memories...
   de: Einstellungen und Erinnerungen werden geladen...
   zh: 正在加载设置和记忆...
   es: Cargando configuración y recuerdos...
@@ -5407,8 +5451,8 @@ app_settings_memories.creating:
   he: יוצר...
   verified_by_human: []
 app_settings_memories.placeholder:
-  context: Placeholder message when app settings and memories management is temporarily disabled
-  en: Soon you can manage and create your app settings and memories here.
+  context: Placeholder message when app memories management is temporarily disabled
+  en: Soon you can manage and create your app memories here.
   de: Bald können Sie hier Ihre App-Einstellungen und Erinnerungen verwalten und erstellen.
   zh: 很快您就能在这里管理和创建您的应用设置和记忆。
   es: Pronto podrás gestionar y crear tu configuración de aplicaciones y recuerdos aquí.
@@ -5645,6 +5689,30 @@ newsletter_email_placeholder:
   cs: Zadejte svou e-mailovou adresu
   sv: Ange din e-postadress
   he: הזן את כתובת האימייל שלך
+  verified_by_human: []
+newsletter_change_email:
+  context: Small link text to show email input for subscribing with a different email address
+  en: Use a different email address
+  de: Andere E-Mail-Adresse verwenden
+  zh: 使用其他电子邮件地址
+  es: Usar una dirección de correo diferente
+  fr: Utiliser une autre adresse e-mail
+  pt: Usar um endereço de e-mail diferente
+  ru: Использовать другой адрес электронной почты
+  ja: 別のメールアドレスを使用する
+  ko: 다른 이메일 주소 사용
+  it: Usa un indirizzo email diverso
+  tr: Farklı bir e-posta adresi kullan
+  vi: Sử dụng địa chỉ email khác
+  id: Gunakan alamat email lain
+  pl: Użyj innego adresu e-mail
+  nl: Gebruik een ander e-mailadres
+  ar: استخدم عنوان بريد إلكتروني مختلف
+  hi: एक अलग ईमेल पता उपयोग करें
+  th: ใช้ที่อยู่อีเมลอื่น
+  cs: Použít jinou e-mailovou adresu
+  sv: Använd en annan e-postadress
+  he: השתמש בכתובת אימייל אחרת
   verified_by_human: []
 newsletter_subscribe_button:
   context: Subscribe button text
@@ -5981,6 +6049,118 @@ newsletter_info:
   cs: Po přihlášení obdržíte potvrzovací e-mail. Klikněte na odkaz v e-mailu a dokončete přihlášení.
   sv: Efter prenumeration får du ett bekräftelsemejl. Klicka på länken i e-postmeddelandet för att slutföra din prenumeration.
   he: לאחר ההרשמה, תקבל אימייל אישור. לחץ על הקישור באימייל כדי להשלים את ההרשמה.
+  verified_by_human: []
+newsletter_categories.heading:
+  context: Heading for the per-category newsletter toggles section in Settings → Newsletter
+  en: What do you want to receive?
+  de: Was möchtest du erhalten?
+  verified_by_human: []
+newsletter_categories.description:
+  context: Short description under the newsletter categories heading
+  en: Choose which types of newsletter emails you'd like to get. You can change these anytime.
+  de: Wähle aus, welche Newsletter-E-Mails du erhalten möchtest. Du kannst das jederzeit ändern.
+  verified_by_human: []
+newsletter_categories.updates_and_announcements.title:
+  context: Title for the Updates & Announcements newsletter category toggle
+  en: Updates & Announcements
+  de: Updates & Ankündigungen
+  verified_by_human: []
+newsletter_categories.updates_and_announcements.description:
+  context: Description for the Updates & Announcements newsletter category
+  en: 1–2 emails per month about new features, OpenMates news, and important changes.
+  de: 1–2 E-Mails pro Monat über neue Funktionen, OpenMates-Neuigkeiten und wichtige Änderungen.
+  verified_by_human: []
+newsletter_categories.tips_and_tricks.title:
+  context: Title for the Tips & Tricks newsletter category toggle
+  en: Tips & Tricks
+  de: Tipps & Tricks
+  verified_by_human: []
+newsletter_categories.tips_and_tricks.description:
+  context: Description for the Tips & Tricks newsletter category
+  en: Occasional tips on how to get more out of OpenMates, with short explainer clips.
+  de: Gelegentliche Tipps, wie du mehr aus OpenMates herausholst, mit kurzen Erklär-Clips.
+  verified_by_human: []
+newsletter_categories.daily_inspirations.title:
+  context: Title for the Daily Inspirations newsletter category toggle
+  en: Daily Inspirations
+  de: Tägliche Inspirationen
+  verified_by_human: []
+newsletter_categories.daily_inspirations.description:
+  context: Description for the Daily Inspirations newsletter category
+  en: A daily email with a curated inspiration based on your interests. Off by default.
+  de: Eine tägliche E-Mail mit einer kuratierten Inspiration passend zu deinen Interessen. Standardmäßig aus.
+  verified_by_human: []
+newsletter_categories.save:
+  context: Save button text for newsletter category preferences
+  en: Save
+  de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
+  ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
+  he: שמירה
+  verified_by_human: []
+newsletter_categories.saved:
+  context: Notification shown after newsletter preferences are saved successfully
+  en: Newsletter preferences saved
+  de: Newsletter-Einstellungen gespeichert
+  zh: 通讯偏好已保存
+  es: Preferencias del boletín guardadas
+  fr: Préférences de newsletter enregistrées
+  pt: Preferências do boletim salvas
+  ru: Настройки рассылки сохранены
+  ja: ニュースレターの設定を保存しました
+  ko: 뉴스레터 기본 설정이 저장되었습니다
+  it: Preferenze newsletter salvate
+  tr: Bülten tercihleri kaydedildi
+  vi: Tùy chọn bản tin đã lưu
+  id: Preferensi buletin disimpan
+  pl: Preferencje newslettera zapisane
+  nl: Nieuwsbriefvoorkeuren opgeslagen
+  ar: تم حفظ تفضيلات النشرة الإخبارية
+  hi: न्यूज़लेटर प्राथमिकताएँ सहेजी गईं
+  th: บันทึกการตั้งค่าจดหมายข่าวแล้ว
+  cs: Předvolby newsletteru uloženy
+  sv: Nyhetsbrevsinställningar sparade
+  he: העדפות הניוזלטר נשמרו
+  verified_by_human: []
+newsletter_categories.save_error:
+  context: Error message shown when saving newsletter category preferences fails
+  en: We couldn't save your preferences. Please try again.
+  de: Deine Einstellungen konnten nicht gespeichert werden. Bitte versuche es erneut.
+  zh: 无法保存您的偏好设置。请重试。
+  es: No pudimos guardar tus preferencias. Inténtalo de nuevo.
+  fr: Impossible d'enregistrer vos préférences. Veuillez réessayer.
+  pt: Não foi possível salvar suas preferências. Tente novamente.
+  ru: Не удалось сохранить настройки. Попробуйте ещё раз.
+  ja: 設定を保存できませんでした。もう一度お試しください。
+  ko: 기본 설정을 저장할 수 없습니다. 다시 시도해 주세요.
+  it: Impossibile salvare le preferenze. Riprova.
+  tr: Tercihleriniz kaydedilemedi. Lütfen tekrar deneyin.
+  vi: Không thể lưu tùy chọn của bạn. Vui lòng thử lại.
+  id: Preferensi Anda tidak dapat disimpan. Silakan coba lagi.
+  pl: Nie udało się zapisać preferencji. Spróbuj ponownie.
+  nl: Je voorkeuren konden niet worden opgeslagen. Probeer het opnieuw.
+  ar: تعذر حفظ تفضيلاتك. يرجى المحاولة مرة أخرى.
+  hi: आपकी प्राथमिकताएँ सहेजी नहीं जा सकीं। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถบันทึกการตั้งค่าของคุณได้ กรุณาลองอีกครั้ง
+  cs: Předvolby se nepodařilo uložit. Zkuste to prosím znovu.
+  sv: Kunde inte spara dina inställningar. Försök igen.
+  he: לא ניתן לשמור את ההעדפות. נסה שוב.
   verified_by_human: []
 support.description:
   context: Short description shown in the support settings page gradient banner header

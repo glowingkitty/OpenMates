@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Recent chats resume card update test.
@@ -29,8 +28,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -263,6 +261,9 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	await clickNewChat(page, logStep);
 	await takeStepScreenshot(page, '02-new-chat-after-a');
 
+	// Blur message input so welcome-hiding CSS doesn't hide the resume cards
+	await page.evaluate(() => (document.activeElement as HTMLElement)?.blur?.());
+
 	// Wait for resume card to appear (loadResumeChatFromDB retries for up to 10s)
 	const resumeContainer = page.getByTestId('recent-chats-scroll-container');
 	await expect(resumeContainer).toBeVisible({ timeout: 20000 });
@@ -308,6 +309,9 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	logStep('Phase 3: Clicking New Chat...');
 	await clickNewChat(page, logStep);
 	await takeStepScreenshot(page, '03-new-chat-after-b');
+
+	// Blur message input so welcome-hiding CSS doesn't hide the resume cards
+	await page.evaluate(() => (document.activeElement as HTMLElement)?.blur?.());
 
 	// Wait for resume card
 	await expect(resumeContainer).toBeVisible({ timeout: 20000 });

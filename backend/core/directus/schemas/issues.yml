@@ -6,9 +6,8 @@ issues:
       primary: true
 
     title:
-      type: string
-      length: 200
-      note: "Issue title (cleartext for text search)"
+      type: text
+      note: "Issue title (cleartext for text search). Uses TEXT to accommodate HTML-escaped multi-byte titles that can expand well past the former 255-char varchar limit."
 
     description:
       type: text

@@ -22,11 +22,11 @@ Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits an
 
 - **Messages**: Every message you send uses credits based on the length of the conversation and the model selected.
 - **App skills**: Tools like web search, image generation, and code execution have their own prices. Some charge per use, per token, or per unit (like per image or per minute of audio).
-- **Prices are listed** in the App Store section for each skill.
+- **Prices are listed** in the Apps section for each skill.
 
 ## Cost Transparency
 
-- **Prices are listed** in the App Store section for each skill, so you know the cost before using them.
+- **Prices are listed** in the Apps section for each skill, so you know the cost before using them.
 - In your billing section, you can see a detailed breakdown of credits used per chat.
 - You can **export any chat** to see the full billing details and token counts.
 

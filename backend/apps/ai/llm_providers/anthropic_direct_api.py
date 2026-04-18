@@ -50,9 +50,15 @@ async def invoke_direct_api(
         request_kwargs = {
             "model": model_id,
             "messages": anthropic_messages,
-            "temperature": temperature,
             "max_tokens": max_tokens or 16384
         }
+
+        # Opus 4.7+ uses adaptive thinking and does not accept `temperature`.
+        # Strip the model ID prefix (e.g. "eu.anthropic.") to normalise Bedrock IDs.
+        bare_model = model_id.rsplit(".", 1)[-1] if model_id.startswith("eu.") else model_id
+        temperature_unsupported = bare_model.startswith("claude-opus-4-7")
+        if not temperature_unsupported:
+            request_kwargs["temperature"] = temperature
         
         if system_prompt:
             request_kwargs["system"] = system_prompt

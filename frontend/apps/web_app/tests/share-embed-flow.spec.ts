@@ -38,7 +38,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -83,8 +83,8 @@ test('shares a web search embed via fullscreen share button', async ({
 
 	// ── Step 4: Wait for AI response ──────────────────────────────────────
 	logCheckpoint('Waiting for assistant response with web search results...');
+	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
 	const assistantMessage = page.getByTestId('message-assistant');
-	await expect(assistantMessage.first()).toBeVisible({ timeout: 60000 });
 	logCheckpoint('Assistant response visible.');
 
 	// ── Step 5: Wait for web search embed to finish ───────────────────────

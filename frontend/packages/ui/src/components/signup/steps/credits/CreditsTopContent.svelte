@@ -73,9 +73,9 @@ step_9_top_content_svelte:
      * Sets both the store and the URL hash for proper deep linking support.
      */
     function openAppSettings() {
-        // Update URL hash for deep linking support (format: #settings/appstore)
+        // Update URL hash for deep linking support (format: #settings/apps)
         if (typeof window !== 'undefined') {
-            window.location.hash = '#settings/appstore';
+            window.location.hash = '#settings/apps';
         }
         
         // Set the deep link path to app_store (not apps)
@@ -160,7 +160,7 @@ step_9_top_content_svelte:
                         {@html $text('settings.billing.gift_card.have_code')}
                     </button>
                     
-                    <!-- App Store Link -->
+                    <!-- Apps Link -->
                     <button onclick={openAppSettings} class="text-button">
                         {@html $text('signup.prices_on_app_store_soon')}
                     </button>

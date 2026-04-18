@@ -11,7 +11,7 @@
   - Shows only AI Ask models (for_app_skill === 'ai.ask')
   - Sorted by tier (premium first, then standard, then economy)
   - Compact card design: provider logo + model name + provider name
-  - Clicking a card opens the App Store to that model's detail page
+  - Clicking a card opens the Apps to that model's detail page
   
   Uses modelsMetadata (generated at build time from backend provider YAMLs)
   and providerIcons for resolved icon URLs.
@@ -41,7 +41,7 @@
   })());
   
   /**
-   * Handle model card click - open the App Store to the AI Ask model's detail page.
+   * Handle model card click - open the Apps to the AI Ask model's detail page.
    * Uses the mobile-aware deep link sequencing pattern:
    * 1. settingsMenuVisible.set(true) - tell Settings.svelte to sync isMenuVisible
    * 2. panelState.openSettings() - track panel state

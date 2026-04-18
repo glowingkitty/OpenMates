@@ -29,7 +29,7 @@ import type { Chat, Message } from "../types/chat";
  * While `false`:
  *   - Signup.svelte skips auto-creating the onboarding chat after signup.
  *   - The welcome focus mode is also marked stage: planning in its SKILL.md
- *     so it's excluded from the App Store, @mention dropdown, and settings UI.
+ *     so it's excluded from the Apps, @mention dropdown, and settings UI.
  *   - `window.onboarding()` still works for manual QA testing.
  *
  * Flip to `true` once the reworked onboarding (sub-chat based) is ready.

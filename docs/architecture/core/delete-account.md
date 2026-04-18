@@ -60,7 +60,7 @@ The task `delete_user_account_task()` in [user_cache_tasks.py](../../backend/cor
 - Delete chats, messages, embeds (respecting FK constraints: messages first, then embeds, then chats)
 - Delete orphaned embeds by `hashed_user_id`
 - Delete usage data + all summary collections (monthly/daily chat/app/API key summaries)
-- Delete app settings & memories
+- Delete app memories
 - Delete drafts, new chat suggestions, embed keys, credit notes, creator income records
 
 **Phase 4 -- Cache Cleanup:**

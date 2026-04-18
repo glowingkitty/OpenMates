@@ -48,3 +48,8 @@ newsletter_subscribers:
       length: 20
       nullable: true
       note: "Registration status of this subscriber: null=unknown, not_signed_up, signup_incomplete, signup_complete. Updated on subscribe confirmation and on user account creation."
+
+    categories:
+      type: json
+      nullable: true
+      note: "Per-category newsletter preferences. Keys: updates_and_announcements (default true), tips_and_tricks (default true), daily_inspirations (default false). NULL means the subscriber signed up before category toggles shipped — treat as defaults. Dispatcher filters sends by meta.category; users manage toggles at Settings → Newsletter."

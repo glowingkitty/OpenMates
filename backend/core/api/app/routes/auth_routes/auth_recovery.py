@@ -154,7 +154,7 @@ async def _delete_user_client_data(
         except Exception as e:
             logger.error(f"[ACCOUNT_RESET] Error deleting chats/messages/embeds: {e}", exc_info=True)
         
-        # 2. Delete app settings and memories
+        # 2. Delete app memories
         deleted_app_data = 0
         try:
             app_settings = await directus_service.get_items(
@@ -496,7 +496,7 @@ async def reset_account(
     
     WARNING: This permanently deletes all client-encrypted data:
     - All chats and messages
-    - All app settings and memories
+    - All app memories
     - All embeds
     
     Server-encrypted data (credits, username, subscription) is preserved.

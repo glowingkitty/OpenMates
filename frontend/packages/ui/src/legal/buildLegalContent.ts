@@ -11,6 +11,7 @@
 
 import { privacyPolicyLinks } from "../config/links";
 import { SURFACED_PRIVACY_PROMISES } from "./privacyPromises.generated";
+import { PROVIDER_TRAINING_POLICIES } from "./trainingPolicies.generated";
 
 /**
  * Type for translation function (compatible with svelte-i18n's _ store)
@@ -118,7 +119,7 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   lines.push(t("legal.privacy.overview.summary"));
   lines.push("");
-  lines.push(t("legal.privacy.overview.website_vs_webapp"));
+  lines.push(t("legal.privacy.data_protection.website_vs_webapp"));
   lines.push("");
 
   // ──────────────────────────────────────────────────────────────
@@ -139,6 +140,59 @@ export function buildPrivacyPolicyContent(
     lines.push(t(`${promise.i18n_key}.description`));
     lines.push("");
   }
+
+  // ──────────────────────────────────────────────────────────────
+  // Section 2b — Per-provider model training disclosure table
+  // Backs the "no-training-on-user-data" promise with per-provider
+  // evidence, verbatim policy quotes, and verification dates.
+  // Data sourced from shared/docs/provider_training_policies.yml
+  // via trainingPolicies.generated.ts.
+  // ──────────────────────────────────────────────────────────────
+  const trainingStatusLabel = (
+    status: "no_training" | "no_training_opt_out" | "limited_use",
+  ): string =>
+    t(`legal.privacy.training_policies.status_${status}`);
+
+  // Map provider IDs to their existing i18n heading keys for display names
+  const providerHeadingKey: Record<string, string> = {
+    aws_bedrock: "legal.privacy.providers.ai_models.aws_bedrock.heading",
+    anthropic_direct: "legal.privacy.providers.ai_models.anthropic.heading",
+    openai: "legal.privacy.providers.ai_models.openai.heading",
+    mistral: "legal.privacy.providers.ai_models.mistral.heading",
+    google_gemini: "legal.privacy.providers.ai_models.google_gemini.heading",
+    google_vertex_maas: "legal.privacy.providers.ai_models.google_vertex_maas.heading",
+    together_ai: "legal.privacy.providers.ai_models.together.heading",
+    groq: "legal.privacy.providers.ai_models.groq.heading",
+    cerebras: "legal.privacy.providers.ai_models.cerebras.heading",
+    openrouter: "legal.privacy.providers.ai_models.openrouter.heading",
+    fal: "legal.privacy.providers.image_generation.fal.heading",
+    recraft: "legal.privacy.providers.image_generation.recraft.heading",
+  };
+
+  lines.push(`### ${t("legal.privacy.training_policies.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.training_policies.intro"));
+  lines.push("");
+
+  // Render as a markdown table
+  const colProvider = t("legal.privacy.training_policies.col_provider");
+  const colStatus = t("legal.privacy.training_policies.col_status");
+  const colDetails = t("legal.privacy.training_policies.col_details");
+  const colLastChecked = t("legal.privacy.training_policies.col_last_checked");
+
+  lines.push(`| ${colProvider} | ${colStatus} | ${colDetails} | ${colLastChecked} |`);
+  lines.push("| --- | --- | --- | --- |");
+
+  for (const provider of PROVIDER_TRAINING_POLICIES) {
+    const name = providerHeadingKey[provider.id]
+      ? t(providerHeadingKey[provider.id])
+      : provider.id;
+    const status = trainingStatusLabel(provider.status);
+    const details = `[${provider.source_document}](${provider.terms_url || provider.policy_url})`;
+    const lastChecked = formatDateForLocale(provider.last_verified, options.locale);
+    lines.push(`| ${name} | ${status} | ${details} | ${lastChecked} |`);
+  }
+  lines.push("");
 
   // ──────────────────────────────────────────────────────────────
   // Section 3 — Data we collect
@@ -321,6 +375,7 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.legal_basis.contract")}`);
   lines.push(`- ${t("legal.privacy.legal_basis.consent")}`);
   lines.push(`- ${t("legal.privacy.legal_basis.legitimate_interests")}`);
+  lines.push(`- ${t("legal.privacy.legal_basis.direct_marketing")}`);
   lines.push(`- ${t("legal.privacy.legal_basis.legal_obligation")}`);
   lines.push("");
 

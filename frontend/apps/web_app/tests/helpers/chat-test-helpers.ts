@@ -434,10 +434,129 @@ async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any
 	return assistantMessage;
 }
 
+/**
+ * Wait for the chat UI to be ready for sending a message after login.
+ *
+ * Addresses a common flake: specs that send a message immediately after
+ * `loginToTestAccount` occasionally race the initial WebSocket connect /
+ * phased sync, causing the message to be sent before chatSyncService has
+ * finished its startup handshake. The symptom downstream is that the
+ * assistant response element never renders (or renders into a chat that
+ * is then rehydrated and lost).
+ *
+ * Preconditions checked:
+ *  1. `data-authenticated="true"` marker is present (set by ActiveChat.svelte
+ *     when authStore.isAuthenticated flips to true).
+ *  2. `message-editor` is visible.
+ *  3. The send button is present in the DOM (proves MessageInput fully mounted).
+ */
+async function waitForChatReady(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog,
+	timeout = 30000
+): Promise<void> {
+	const start = Date.now();
+	const budget = () => Math.max(1000, timeout - (Date.now() - start));
+
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: budget() });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: budget() });
+	await expect(page.locator('[data-action="send-message"]')).toHaveCount(1, { timeout: budget() });
+
+	// Small post-mount settle: the MessageInput mounts before chatSyncService finishes
+	// its initial WS handshake. 1.5s matches the pattern in chat-flow.spec.ts which
+	// passes reliably on nightly.
+	await page.waitForTimeout(1500);
+
+	logCheckpoint('Chat UI ready: authenticated + editor + send button mounted.');
+}
+
+/**
+ * Robust wait for an assistant message. Replaces the fragile pattern
+ *   `await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 45000 })`
+ * which was failing ~9 nightly specs whenever CI AI latency exceeded the hard-coded
+ * timeout or when multiple messages were being rendered.
+ *
+ * Lifecycle modelled here:
+ *  1. Stream-started gate: wait for either a `typing-indicator` or a new
+ *     `message-assistant` element to appear (max 30s).
+ *  2. Visibility: wait for the targeted `message-assistant.{first|last|nth}` to be visible.
+ *  3. Optional text anchor (`contains`) — same mechanism `chat-flow.spec.ts` uses
+ *     (await expect(msg).toContainText('Berlin', { timeout })).
+ *
+ * Defaults to a generous 120s total timeout to cover slow GitHub Actions AI latency
+ * while remaining well under the 6-minute Playwright default.
+ *
+ * @param opts.which  'first' | 'last' (default 'last')
+ * @param opts.nth    Zero-based index; overrides `which` when provided.
+ * @param opts.contains  Text that must appear in the message body.
+ * @param opts.timeout  Total budget in ms (default 120000).
+ * @returns The Playwright Locator for the matched assistant message.
+ */
+async function waitForAssistantMessage(
+	page: any,
+	opts: {
+		which?: 'first' | 'last';
+		nth?: number;
+		contains?: string | RegExp;
+		timeout?: number;
+		logCheckpoint?: (message: string, metadata?: Record<string, unknown>) => void;
+	} = {}
+): Promise<any> {
+	const {
+		which = 'last',
+		nth,
+		contains,
+		timeout = 120000,
+		logCheckpoint = noopLog
+	} = opts;
+
+	const start = Date.now();
+	const budget = () => Math.max(1000, timeout - (Date.now() - start));
+
+	// Stage 1 — stream-started gate.
+	// Wait for any evidence that the AI pipeline has accepted the message.
+	// Either the typing-indicator appears, or an assistant message begins rendering.
+	const streamStartGate = page.locator(
+		'[data-testid="typing-indicator"], [data-testid="message-assistant"]'
+	);
+	const gateTimeout = Math.min(30000, budget());
+	try {
+		await expect(streamStartGate.first()).toBeVisible({ timeout: gateTimeout });
+		logCheckpoint('Assistant stream started (typing indicator or message bubble appeared).');
+	} catch (err) {
+		throw new Error(
+			`waitForAssistantMessage: stream never started within ${gateTimeout}ms ` +
+				`(neither typing-indicator nor message-assistant appeared). Original: ${err}`
+		);
+	}
+
+	// Stage 2 — target the specific assistant message and wait for it to render.
+	const assistantMessages = page.getByTestId('message-assistant');
+	const target =
+		typeof nth === 'number'
+			? assistantMessages.nth(nth)
+			: which === 'first'
+				? assistantMessages.first()
+				: assistantMessages.last();
+
+	await expect(target).toBeVisible({ timeout: budget() });
+	logCheckpoint(`Assistant message visible (${nth !== undefined ? `nth=${nth}` : which}).`);
+
+	// Stage 3 — optional text anchor.
+	if (contains !== undefined) {
+		await expect(target).toContainText(contains, { timeout: budget() });
+		logCheckpoint(`Assistant message contains expected text: ${String(contains)}`);
+	}
+
+	return target;
+}
+
 module.exports = {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
 	deleteActiveChat,
-	waitForAssistantResponse
+	waitForAssistantResponse,
+	waitForChatReady,
+	waitForAssistantMessage
 };

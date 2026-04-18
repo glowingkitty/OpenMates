@@ -17,7 +17,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
- * Focus mode settings / App Store page tests.
+ * Focus mode settings / Apps page tests.
  *
  * Verifies that focus modes (sourced from SKILL.md files at build time)
  * appear correctly in the app store settings panel:
@@ -45,7 +45,7 @@ const SELECTORS = {
 	profileButton: '[data-testid="profile-picture"]',
 	/** Settings menu container (visible state) */
 	settingsMenu: '[data-testid="settings-menu"]',
-	/** App Store menu item inside settings */
+	/** Apps menu item inside settings */
 	appStoreMenuItem: '[data-testid="settings-menu-item-app_store"]',
 	/** Individual app card in app store list */
 	appCard: (appId: string) => `[data-testid="app-card-${appId}"]`,
@@ -88,11 +88,11 @@ async function navigateToAppStore(
 	page: any,
 	logCheckpoint: (message: string) => void
 ): Promise<void> {
-	// Click the "App Store" text in the settings menu (no data-testid on menu items)
-	const appStoreLink = page.locator('[data-testid="settings-menu"]').getByText('App Store', { exact: true });
+	// Click the "Apps" text in the settings menu (no data-testid on menu items)
+	const appStoreLink = page.locator('[data-testid="settings-menu"]').getByText('Apps', { exact: true });
 	await expect(appStoreLink).toBeVisible({ timeout: 5000 });
 	await appStoreLink.click();
-	logCheckpoint('Clicked App Store menu item.');
+	logCheckpoint('Clicked Apps menu item.');
 	await page.waitForTimeout(1000);
 }
 
@@ -147,7 +147,7 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 	await openSettingsPanel(page, logCheckpoint);
 	await takeStepScreenshot(page, 'settings-opened');
 
-	// STEP 3: Navigate to App Store
+	// STEP 3: Navigate to Apps
 	await navigateToAppStore(page, logCheckpoint);
 	await takeStepScreenshot(page, 'app-store-opened');
 

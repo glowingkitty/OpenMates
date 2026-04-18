@@ -60,7 +60,7 @@ SECRET__PROTONMAIL__MAILBOX=INBOX
 SECRET__PROTONMAIL__ALLOWED_OPENMATES_EMAIL=you@example.com
 ```
 
-> **`ALLOWED_OPENMATES_EMAIL`** is the email address of the OpenMates account (not the Proton address). Only this user will see the mail search skill in the App Store and be able to run it.
+> **`ALLOWED_OPENMATES_EMAIL`** is the email address of the OpenMates account (not the Proton address). Only this user will see the mail search skill in the Apps and be able to run it.
 
 ### 4. Restart OpenMates
 

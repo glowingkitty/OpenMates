@@ -11,7 +11,7 @@ last_verified: 2026-03-24
 
 The Books app helps you organise your reading life. You can track books you have read, what you are currently reading, and what you want to read next. Your mate uses this information to give you personalised book recommendations and remember your reading preferences.
 
-**Settings and memories (available):**
+**Memories (available):**
 
 - **Favourite Books** -- Save books you love with the author, genre, your personal rating, and notes about why you liked them.
 - **Currently Reading** -- Track books you are in the middle of, with start dates and reading notes.

@@ -40,7 +40,7 @@ class RecoveryFullResetRequest(BaseModel):
     
     IMPORTANT: This permanently deletes all client-encrypted data:
     - All chats and messages
-    - All app settings and memories
+    - All app memories
     - All embeds
     
     Server-encrypted data (credits, username, subscription) is preserved.

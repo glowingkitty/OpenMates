@@ -723,7 +723,7 @@
         targetPath = 'app_store';
       }
 
-      navigateToSettings(targetPath, 'App Store', appId || 'app_store');
+      navigateToSettings(targetPath, 'Apps', appId || 'app_store');
       settingsMenuVisible.set(true);
       panelState.openSettings();
 

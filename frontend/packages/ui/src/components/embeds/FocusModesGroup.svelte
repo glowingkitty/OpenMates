@@ -13,10 +13,10 @@
   - Shows "+ N more" badge at the end when items are truncated
   - Supports custom sort order via sortOrder prop
   
-  Uses the same AppStoreCard design as the Settings App Store but scaled up
+  Uses the same AppStoreCard design as the Settings Apps but scaled up
   for the chat context.
   
-  Clicking a card opens the App Store to that focus mode's detail page.
+  Clicking a card opens the Apps to that focus mode's detail page.
 -->
 
 <script lang="ts">
@@ -145,7 +145,7 @@
   let remainingCount = $derived(Math.max(0, filteredFocusModes.length - MAX_DISPLAY_ITEMS));
   
   /**
-   * Handle focus mode card click - open the App Store to the focus mode's detail page.
+   * Handle focus mode card click - open the Apps to the focus mode's detail page.
    * Uses the mobile-aware deep link sequencing pattern:
    * 1. settingsMenuVisible.set(true) - tell Settings.svelte to sync isMenuVisible
    * 2. panelState.openSettings() - track panel state
@@ -170,7 +170,7 @@
   }
   
   /**
-   * Handle "+N more" badge click - open the App Store overview.
+   * Handle "+N more" badge click - open the Apps overview.
    * Uses the same mobile-aware deep link sequencing pattern.
    */
   async function handleMoreClick() {

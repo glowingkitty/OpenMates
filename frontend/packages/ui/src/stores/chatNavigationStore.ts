@@ -31,6 +31,7 @@ import {
   translateDemoChat,
 } from "../demo_chats";
 import { convertDemoChatToChat } from "../demo_chats/convertToChat";
+import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "../services/drafts/draftConstants";
 
 export interface ChatNavigationState {
   /** True when there is a chat before the current one in the sorted list. */
@@ -116,6 +117,21 @@ export function resetChatNavigationList(): void {
   currentChatId = null;
   chatListOwnedByChatsComponent = false;
   chatNavigationStore.set({ hasPrev: false, hasNext: false });
+}
+
+/**
+ * Release Chats.svelte's ownership of the navigation list without clearing
+ * the data. Called from Chats.svelte onDestroy so that, once the sidebar is
+ * unmounted, the store resumes self-managing — the next chat-list change or
+ * active-chat switch will rebuild the navigable list from cache/DB.
+ *
+ * Without this, `chatListOwnedByChatsComponent` stays true forever after the
+ * sidebar's first mount, which causes `updateNavFromCache()` to treat a stale
+ * list as authoritative — newly-created chats never show up in the header's
+ * prev/next arrows until the sidebar is remounted.
+ */
+export function releaseChatNavigationOwnership(): void {
+  chatListOwnedByChatsComponent = false;
 }
 
 /**
@@ -345,6 +361,33 @@ function _applyNavigableList(allChats: Chat[], activeChatId: string): void {
   chatNavigationStore.set({
     hasPrev: idx > 0,
     hasNext: idx >= 0 && idx < navigable.length - 1,
+  });
+}
+
+/**
+ * Rebuild the navigable list from the freshest source available for the
+ * currently-tracked active chat. Used by the `localChatListChanged` listener
+ * so newly-created chats land in the ChatHeader prev/next arrows immediately
+ * — no sidebar mount/remount required.
+ *
+ * No-op when Chats.svelte owns the list (its own $effect already tracks DB
+ * changes and calls setChatNavigationList) or when no active chat is tracked.
+ */
+function refreshNavFromLatestSources(): void {
+  if (chatListOwnedByChatsComponent) return;
+  if (!currentChatId) return;
+  // updateNavFromCache already walks cache → in-memory public chats → DB fallback
+  // in priority order, so delegate to it with the active chat we're tracking.
+  updateNavFromCache(currentChatId);
+}
+
+// Subscribe once at module load: any part of the app that creates, renames,
+// or deletes a chat dispatches LOCAL_CHAT_LIST_CHANGED_EVENT. This listener
+// guarantees the ChatHeader arrows stay in sync without depending on the
+// sidebar being mounted.
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, () => {
+    refreshNavFromLatestSources();
   });
 }
 

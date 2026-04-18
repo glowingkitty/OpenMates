@@ -60,8 +60,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       dompurify:
-        specifier: ^3.3.2
-        version: 3.3.3
+        specifier: ^3.4.0
+        version: 3.4.0
       markdown-it:
         specifier: ^14.1.1
         version: 14.1.1
@@ -335,8 +335,8 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0
       dompurify:
-        specifier: ^3.3.2
-        version: 3.3.3
+        specifier: ^3.4.0
+        version: 3.4.0
       function-plot:
         specifier: 1.25.3
         version: 1.25.3
@@ -3510,8 +3510,8 @@ packages:
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
 
-  dompurify@3.3.3:
-    resolution: {integrity: sha512-Oj6pzI2+RqBfFG+qOaOLbFXLQ90ARpcGG6UePL82bJLtdsa6CYJD7nmiU8MW9nQNOtCHV3lZ/Bzq1X0QYbBZCA==}
+  dompurify@3.4.0:
+    resolution: {integrity: sha512-nolgK9JcaUXMSmW+j1yaSvaEaoXYHwWyGJlkoCTghc97KgGDDSnpoU/PlEnw63Ah+TGKFOyY+X5LnxaWbCSfXg==}
 
   dot-prop@5.3.0:
     resolution: {integrity: sha512-QM8q3zDe58hqUqjraQOmzZ1LIH9SWQJTlEKCH4kJ2oQvLZk7RbQXvtDM2XEq3fwkV9CCvvH4LA0AV+ogFsBM2Q==}
@@ -4575,8 +4575,8 @@ packages:
     engines: {node: '>= 20'}
     hasBin: true
 
-  math-codegen@0.4.2:
-    resolution: {integrity: sha512-Zb24teVZ0UDH4FLepf2Yb9SacqEtJPXwb/UO21E7xPVN3TM3b5kgK3mZeAypt3syXrtHDUcY/oYZXcd5miq6hg==}
+  math-codegen@0.4.3:
+    resolution: {integrity: sha512-wDPK9BputFrirD7dXgpeIa1nkTy08Gh+nCALwEmmHSmKoCJtTYu1PjGC6Z08FmCjkHzVkhvep2mzyJWRgtOe5A==}
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -5037,8 +5037,8 @@ packages:
   prosemirror-view@1.41.0:
     resolution: {integrity: sha512-FatMIIl0vRHMcNc3sPy3cMw5MMyWuO1nWQxqvYpJvXAruucGvmQ2tyyjT2/Lbok77T9a/qZqBVCq4sj43V2ihw==}
 
-  protobufjs@7.5.4:
-    resolution: {integrity: sha512-CvexbZtbov6jW2eXAvLukXjXUW1TzFaivC46BpWc/3BpcCysb5Vffu+B3XHMm8lVEuy2Mm4XGex8hBSg1yapPg==}
+  protobufjs@7.5.5:
+    resolution: {integrity: sha512-rErggWRJXzMJClKqOzyA/rgJfyQ+l/xkj2Wos++yFLVVsKyWiSfp5D/xUyN9TZ53aSqqzd4gdbm9Y2KMbC/sdA==}
     engines: {node: '>=12.0.0'}
 
   pump@3.0.3:
@@ -7298,7 +7298,7 @@ snapshots:
       '@opentelemetry/sdk-logs': 0.214.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-metrics': 2.6.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 2.6.1(@opentelemetry/api@1.9.1)
-      protobufjs: 7.5.4
+      protobufjs: 7.5.5
 
   '@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.1)':
     dependencies:
@@ -8926,7 +8926,7 @@ snapshots:
 
   built-in-math-eval@0.3.1:
     dependencies:
-      math-codegen: 0.4.2
+      math-codegen: 0.4.3
 
   bundle-require@5.1.0(esbuild@0.27.2):
     dependencies:
@@ -9449,7 +9449,7 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
-  dompurify@3.3.3:
+  dompurify@3.4.0:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -10180,7 +10180,7 @@ snapshots:
   interval-arithmetic-eval@0.5.2:
     dependencies:
       interval-arithmetic: 1.1.3
-      math-codegen: 0.4.2
+      math-codegen: 0.4.3
 
   interval-arithmetic@1.1.3:
     dependencies:
@@ -10456,7 +10456,7 @@ snapshots:
     optionalDependencies:
       canvg: 3.0.11
       core-js: 3.48.0
-      dompurify: 3.3.3
+      dompurify: 3.4.0
       html2canvas: 1.4.1
 
   jszip@3.10.1:
@@ -10633,7 +10633,7 @@ snapshots:
 
   marked@16.4.2: {}
 
-  math-codegen@0.4.2:
+  math-codegen@0.4.3:
     dependencies:
       extend: 3.0.2
       mr-parser: 0.2.2
@@ -10683,7 +10683,7 @@ snapshots:
       d3-sankey: 0.12.3
       dagre-d3-es: 7.0.14
       dayjs: 1.11.20
-      dompurify: 3.3.3
+      dompurify: 3.4.0
       katex: 0.16.42
       khroma: 2.1.0
       lodash-es: 4.17.23
@@ -11127,7 +11127,7 @@ snapshots:
       prosemirror-state: 1.4.3
       prosemirror-transform: 1.10.4
 
-  protobufjs@7.5.4:
+  protobufjs@7.5.5:
     dependencies:
       '@protobufjs/aspromise': 1.1.2
       '@protobufjs/base64': 1.1.2

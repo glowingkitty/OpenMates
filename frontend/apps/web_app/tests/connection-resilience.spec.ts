@@ -50,7 +50,7 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -159,8 +159,8 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 	await takeStepScreenshot(page, 'message-sent');
 
 	// Wait briefly for streaming to start
+	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
 	const assistantMessage = page.getByTestId('message-assistant');
-	await expect(assistantMessage.first()).toBeVisible({ timeout: 30000 });
 	logCheckpoint('Assistant message placeholder appeared, streaming likely started.');
 
 	// Wait a moment for some tokens to arrive
@@ -234,8 +234,12 @@ test('delivers AI response after page reload during processing', async ({ page }
 	}
 
 	// The assistant response should arrive
-	const assistantMessage = page.getByTestId('message-assistant');
-	await expect(assistantMessage.last()).toContainText('Paris', { timeout: 60000 });
+	await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: 'Paris',
+		timeout: 120000,
+		logCheckpoint
+	});
 	await takeStepScreenshot(page, 'response-after-reload');
 	logCheckpoint('AI response received after page reload. Contains "Paris".');
 
@@ -309,8 +313,11 @@ test('orphaned streaming messages are cleaned up on reconnect', async ({ page, c
 	const chatId = await sendMessageAndGetChatId(page, 'Hello there!', logCheckpoint);
 
 	// Wait for response
-	const assistantMessage = page.getByTestId('message-assistant');
-	await expect(assistantMessage.last()).toContainText(/\w+/, { timeout: 45000 });
+	await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: /\w+/,
+		logCheckpoint
+	});
 	logCheckpoint('Initial response received.');
 
 	// Inject a fake orphaned "streaming" message into IndexedDB

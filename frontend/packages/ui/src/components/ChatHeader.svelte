@@ -50,8 +50,6 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
-  import { get } from 'svelte/store';
-  import { openIntroVideoFullscreen, closeIntroVideoFullscreen, introVideoFullscreenStore } from '../stores/introVideoFullscreenStore';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -68,18 +66,22 @@
     isIncognito = false,
     /** When true, shows an "Example chat" badge/pill in the loaded header state. */
     isExampleChat = false,
-    /** HLS URL stored for future HLS.js integration — not yet used directly in the video element.
-     *  Accepted as a prop so the parent can pass it without a type error. */
-    videoHlsUrl: _videoHlsUrl = null,
-    /** MP4 URL for the background video and fullscreen player. */
+    /** MP4 URL for the in-place video player. On play-button click the video element
+     *  is mounted inside the media frame and native browser fullscreen is requested.
+     *  No video is loaded before the user clicks play. */
     videoMp4Url = null,
-    /** Timestamp in seconds where the background video starts playing (e.g. 17 to skip intro). */
-    videoStartTime = 0,
-    /** Optional list of image URLs rendered as a crossfading Ken-Burns slideshow in the
-     *  header background. When non-empty, replaces the autoplay background video
-     *  (the real video is still available via the play button → fullscreen embed).
-     *  This avoids per-visitor video delivery cost on the public intro chat. */
+    /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
+     *  16:9 media frame. These are the only media assets the header ever loads —
+     *  the video is loaded on demand when the user clicks the play button. */
     backgroundFrames = null,
+    /** Aggregated highlight counts across all messages in this chat. When
+     *  `highlights > 0`, a yellow pill is rendered below the summary. Clicking
+     *  the pill fires `onHighlightJump` so the parent can scroll to the first
+     *  highlight and activate the navigation overlay. */
+    highlightStats = null,
+    /** Called when the user clicks the highlights pill. */
+    onHighlightJump = undefined,
+    autoplayVideo = false,
   }: {
     title?: string;
     category?: string | null;
@@ -94,101 +96,63 @@
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
     isExampleChat?: boolean;
-    /** api.video HLS URL for autoplay-muted background video. */
-    videoHlsUrl?: string | null;
-    /** api.video MP4 URL — used for background video + fullscreen player. */
+    /** MP4 URL — gates the play button in the media frame. The video is only
+     *  loaded by the fullscreen embed after the user clicks play. */
     videoMp4Url?: string | null;
-    /** Timestamp in seconds where the background video starts. */
-    videoStartTime?: number;
-    /** Image URLs for the crossfading Ken-Burns slideshow. */
+    /** Image URLs for the crossfading Ken-Burns slideshow inside the media frame. */
     backgroundFrames?: string[] | null;
+    /** Aggregated highlight counts across all messages in this chat. */
+    highlightStats?: { highlights: number; comments: number } | null;
+    /** Click handler for the highlights pill. */
+    onHighlightJump?: (() => void) | undefined;
+    /** When true, auto-starts video playback on mount (used by &autoplay-video deep link). */
+    autoplayVideo?: boolean;
   } = $props();
 
-  /** True when we should render the static-image slideshow instead of an autoplay video. */
+  /** True when the static-image slideshow should render inside the media frame. */
   const useSlideshow = $derived(Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
-  /** True when a header background (video or slideshow) should be shown at all. */
+  /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useSlideshow || !!videoMp4Url);
 
-  // ─── Video: background element + state ────────────────────────────────────
+  // ─── In-place video player ────────────────────────────────────────────────
+  //
+  // Clicking the play button mounts a <video> element inside the media frame
+  // and immediately requests native browser fullscreen. No video is fetched
+  // before the user clicks. When fullscreen exits the video is unmounted.
 
-  let bgVideoEl = $state<HTMLVideoElement | null>(null);
-  /** Mirror of introVideoFullscreenStore — used to pause bg video when fullscreen opens. */
-  let showVideoFullscreen = $derived($introVideoFullscreenStore);
+  let videoEl = $state<HTMLVideoElement | null>(null);
+  let isVideoActive = $state(false);
 
-  /** Seek to videoStartTime once metadata is loaded so the loop starts mid-video. */
-  function handleBgVideoMetadata() {
-    if (bgVideoEl && videoStartTime > 0) {
-      bgVideoEl.currentTime = videoStartTime;
-    }
+  function handlePlayClick(e: MouseEvent) {
+    e.stopPropagation();
+    isVideoActive = true;
   }
 
-  // ─── Video: IntersectionObserver — pause when scrolled out of view ─────────
-
-  let _intersectionObserver: IntersectionObserver | null = null;
-
-  function setupIntersectionObserver(el: HTMLVideoElement) {
-    _intersectionObserver = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting) {
-          // Use get() to read the store directly — $derived isn't reactive inside closures
-          if (!get(introVideoFullscreenStore)) el.play().catch(() => {});
-        } else {
-          el.pause();
-        }
-      },
-      { threshold: 0.1 },
-    );
-    _intersectionObserver.observe(el);
-  }
-
-  // Re-run observer setup whenever bgVideoEl is bound
+  // Once the video element is bound after isVideoActive flips, autoplay and
+  // request fullscreen. The effect re-runs whenever videoEl changes (i.e. on
+  // mount after the {#if} renders the element).
   $effect(() => {
-    if (bgVideoEl) {
-      setupIntersectionObserver(bgVideoEl);
-    }
-    return () => {
-      _intersectionObserver?.disconnect();
-      _intersectionObserver = null;
-    };
+    if (!videoEl) return;
+    videoEl.play().catch(() => {});
+    videoEl.requestFullscreen?.().catch(() => {});
   });
 
-  // ─── Video: fullscreen + deep-link via #intro-video hash ──────────────────
-
-  const INTRO_VIDEO_HASH = 'intro-video';
-
-  function openVideoFullscreen(e?: MouseEvent) {
-    e?.stopPropagation();
-    openIntroVideoFullscreen();
-    bgVideoEl?.pause();
-    if (browser) window.location.hash = INTRO_VIDEO_HASH;
-  }
-
-  /** Called by ActiveChat (via store) when the fullscreen closes — resume bg video. */
-  $effect(() => {
-    if (!showVideoFullscreen && bgVideoEl) {
-      bgVideoEl.play().catch(() => {});
-    }
-  });
-
-  /** Handle browser back/forward navigation clearing the hash. */
-  function handleHashChange() {
-    if (browser && !window.location.hash.includes(INTRO_VIDEO_HASH) && $introVideoFullscreenStore) {
-      closeIntroVideoFullscreen();
+  function handleFullscreenChange() {
+    if (!document.fullscreenElement && isVideoActive) {
+      videoEl?.pause();
+      isVideoActive = false;
     }
   }
 
   onMount(() => {
-    if (!browser || !videoMp4Url) return;
-    // Auto-open fullscreen if deep-linked via #intro-video
-    if (window.location.hash === `#${INTRO_VIDEO_HASH}`) {
-      openIntroVideoFullscreen();
+    if (browser) document.addEventListener('fullscreenchange', handleFullscreenChange);
+    if (autoplayVideo && videoMp4Url) {
+      isVideoActive = true;
     }
-    window.addEventListener('hashchange', handleHashChange);
   });
 
   onDestroy(() => {
-    if (browser) window.removeEventListener('hashchange', handleHashChange);
+    if (browser) document.removeEventListener('fullscreenchange', handleFullscreenChange);
   });
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -399,6 +363,32 @@
 
   /** Whether to show the creation time line. Only shown once we have a title+category. */
   let showTime = $derived(isLoaded && !!formattedTime);
+
+  // ─── Highlights pill ───────────────────────────────────────────────────────
+  /** True when at least one highlight exists in the chat — render the yellow pill. */
+  let showHighlightPill = $derived(
+    isLoaded && !!highlightStats && highlightStats.highlights > 0,
+  );
+  /** Pill label: "3 highlights" or "3 highlights, 2 comments". Picks the
+   *  comments variant only when at least one comment actually exists. */
+  let highlightPillLabel = $derived.by(() => {
+    if (!highlightStats || highlightStats.highlights <= 0) return '';
+    if (highlightStats.comments > 0) {
+      return $text('chat.header.highlights_with_comments', {
+        values: {
+          count: highlightStats.highlights,
+          comments: highlightStats.comments,
+        },
+      });
+    }
+    return $text('chat.header.highlights', {
+      values: { count: highlightStats.highlights },
+    });
+  });
+  function handleHighlightPillClick(e: MouseEvent) {
+    e.stopPropagation();
+    onHighlightJump?.();
+  }
 </script>
 
 <!-- Banner container: always rendered when either loading or loaded.
@@ -462,44 +452,8 @@
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
-    <!-- Background media: either a crossfading static-image slideshow (preferred for the
-         public intro chat to avoid per-visitor video delivery cost) or, as a fallback,
-         an autoplay muted video. The real video is always available via the play button
-         below, which opens the fullscreen embed on demand. -->
-    {#if useSlideshow}
-      <div class="header-slideshow" aria-hidden="true">
-        {#each backgroundFrames as frameUrl, i (frameUrl)}
-          <img
-            class="header-slide"
-            src={frameUrl}
-            alt=""
-            loading={i === 0 ? 'eager' : 'lazy'}
-            decoding="async"
-            style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
-          />
-        {/each}
-      </div>
-      <div class="header-video-overlay" aria-hidden="true"></div>
-    {:else if videoMp4Url}
-      <!-- api.video is our own CDN provider (added to privacy policy) — not proxied. -->
-      <video
-        bind:this={bgVideoEl}
-        class="header-video"
-        src={videoMp4Url}
-        autoplay
-        muted
-        loop
-        playsinline
-        preload="auto"
-        aria-hidden="true"
-        onloadedmetadata={handleBgVideoMetadata}
-      ></video>
-      <div class="header-video-overlay" aria-hidden="true"></div>
-    {/if}
-
-    <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity).
-         Hidden when header media (slideshow or video) fills the background instead. -->
-    {#if IconComponent && !hasHeaderMedia}
+    <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
+    {#if IconComponent}
       <div class="deco-icon deco-icon-left">
         <IconComponent size={126} color="white" />
       </div>
@@ -508,21 +462,61 @@
       </div>
     {/if}
 
-    <!-- When header media is present: stack play button above title, both centered.
-         Otherwise: standard loaded-content layout with icon, title, summary, time. -->
+    <!-- When the header has media: render a 16:9 rounded frame containing the
+         crossfading Ken-Burns slideshow with the play button centered over it,
+         and the chat title below the frame.
+
+         The header never loads a <video> element — clicking play opens the
+         DirectVideoEmbedFullscreen, which is the only place the MP4 is fetched. -->
     {#if hasHeaderMedia}
       <div class="media-center-group">
-        {#if videoMp4Url}
-          <button
-            class="video-play-btn"
-            onclick={(e) => openVideoFullscreen(e)}
-            type="button"
-            aria-label="Play video"
-            data-testid="chat-header-play-btn"
-          >
-            <div class="video-play-icon" aria-hidden="true"></div>
-          </button>
-        {/if}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
+          {#if useSlideshow}
+            <div class="header-slideshow" aria-hidden="true">
+              {#each backgroundFrames as frameUrl, i (frameUrl)}
+                <img
+                  class="header-slide"
+                  src={frameUrl}
+                  alt=""
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
+                />
+              {/each}
+            </div>
+          {/if}
+
+          {#if videoMp4Url && !isVideoActive}
+            <button
+              class="video-play-btn"
+              onclick={handlePlayClick}
+              type="button"
+              aria-label="Play video"
+              data-testid="chat-header-play-btn"
+            >
+              <div class="video-play-icon" aria-hidden="true"></div>
+            </button>
+          {/if}
+
+          {#if isVideoActive && videoMp4Url}
+            <!-- Mounted only after user clicks play. requestFullscreen is called
+                 via $effect once the element is bound. Unmounted when fullscreen exits. -->
+            <video
+              bind:this={videoEl}
+              class="media-video"
+              data-testid="chat-header-video"
+              src={videoMp4Url}
+              autoplay
+              controls
+              playsinline
+              preload="auto"
+            >
+              <track kind="captions" />
+            </video>
+          {/if}
+        </div>
 
         <div class="loaded-content">
           <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
@@ -554,6 +548,20 @@
         <!-- Summary: fades in with max-height expand when available -->
         {#if showSummary}
           <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
+        {/if}
+
+        <!-- Highlights pill: yellow annotation-layer count. Clickable when an
+             onHighlightJump handler is wired; falls back to a static badge
+             otherwise so the count is still visible in read-only contexts
+             (e.g. shared-chat preview rendered without the nav overlay). -->
+        {#if showHighlightPill}
+          <button
+            class="highlight-count-pill"
+            type="button"
+            data-testid="chat-header-highlight-count"
+            onclick={handleHighlightPillClick}
+            disabled={!onHighlightJump}
+          >{highlightPillLabel}</button>
         {/if}
 
         <!-- Creation time -->
@@ -592,9 +600,6 @@
 
 </div>
 
-<!-- DirectVideoEmbedFullscreen is rendered by ActiveChat.svelte at its level
-     (UnifiedEmbedFullscreen needs position:absolute within ActiveChat, not here).
-     ChatHeader only signals open/close via introVideoFullscreenStore. -->
 
 <style>
   /* ─── Banner container ──────────────────────────────────────────────────── */
@@ -611,7 +616,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Smooth background + height transition when switching states */
+    /* Create an independent stacking + paint context for the banner. Without
+       `isolation: isolate`, the blurred orbs (filter:blur(28px), mix with
+       animated gradient) share a compositor layer with the outer page, and
+       Chrome can leave that layer in a stale state after a neighbouring
+       layout disturbance (closing a fullscreen embed while the banner is
+       scrolled off-screen) — the symptom is title/summary/icon rendered in
+       the DOM but invisible until scroll/resize forces a recomposite. */
+    isolation: isolate;
     transition: background 0.5s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
     /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
@@ -632,6 +644,12 @@
   /* ─── Processing state ──────────────────────────────────────────────────── */
 
   .processing-content {
+    /* position:relative is REQUIRED for z-index to apply — without it the text
+       content paints in the default stacking layer and the blurred orbs (which
+       are position:absolute with z-index:0) can composite over the top of it
+       after a layout disturbance (e.g. closing a fullscreen embed), leaving
+       title/summary/time invisible until a scroll/resize forces a recomposite. */
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -722,6 +740,15 @@
   /* ─── Loaded state ──────────────────────────────────────────────────────── */
 
   .loaded-content {
+    /* position:relative is REQUIRED for z-index to apply — without it the
+       content paints in the default stacking layer and the blurred orbs
+       (which are position:absolute with z-index:0) composite over the top of
+       it. Normally the orbs are semi-transparent enough for text to show
+       through, but after a compositor disturbance (e.g. the layout change
+       when closing a fullscreen embed while the header is scrolled
+       off-screen) the orb layer goes opaque over the text region and stays
+       that way until a scroll/resize forces a full recomposite. */
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -731,7 +758,20 @@
     /* Narrow text block so it doesn't stretch the full banner width */
     max-width: 480px;
     width: 100%;
-    animation: fadeIn 0.35s ease-out;
+    opacity: 1;
+    /* Promote .loaded-content to its own GPU compositor layer so its paint is
+       independent of the banner's shared layer. translateZ(0) is a
+       well-established hint that forces own-layer promotion without changing
+       layout. Combined with the banner's `isolation: isolate` above, this
+       guarantees title / summary / icon / time stay painted regardless of
+       offscreen compositor optimizations that Chrome applies to the shared
+       banner layer after closing a fullscreen embed. */
+    transform: translateZ(0);
+    /* `contain: layout paint` tells the browser that this element's layout
+       and paint cannot affect anything outside of it — a strong hint that
+       its paint must be kept fresh when its own size/contents change, rather
+       than being cached at a stale position. */
+    contain: layout paint;
   }
 
   @keyframes fadeIn {
@@ -781,10 +821,50 @@
     letter-spacing: 0.02em;
   }
 
-  /* Summary: 14px, white, centered. Animates height from 0.
-     Always white regardless of theme — sits on the branded gradient header. */
+  /* Highlights pill: yellow chip showing "N highlights" or "N highlights, M
+     comments". Sits below the summary inside .loaded-content. Dark text on the
+     yellow token so it stays legible against any category gradient. When the
+     parent wires onHighlightJump it becomes clickable with a subtle hover. */
+  .highlight-count-pill {
+    all: unset;
+    display: inline-block;
+    margin-top: var(--spacing-4);
+    padding: 3px 12px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-grey-100, #000);
+    background: var(--color-highlight-yellow, rgba(255, 213, 0, 0.4));
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    /* Pill sits on top of banner media / orbs; re-enable pointer events
+       (banner container uses pointer-events:none for decorative content). */
+    pointer-events: auto;
+    transition: background-color var(--duration-fast) var(--easing-default),
+                transform var(--duration-fast) var(--easing-default);
+  }
+
+  .highlight-count-pill:hover {
+    background: var(--color-highlight-yellow-solid, #ffd500);
+  }
+
+  .highlight-count-pill:active {
+    transform: scale(0.97);
+  }
+
+  .highlight-count-pill:disabled {
+    cursor: default;
+    opacity: 0.85;
+  }
+
+  /* Summary: 14px, white, centered. Always white regardless of theme — sits on
+     the branded gradient header. No entrance animation: the previous
+     `summaryExpand` keyframe (opacity + max-height 0 → 1 / 100px) could get
+     stuck at the 0% keyframe when the header mounted while scrolled out of view
+     (e.g. right after closing a fullscreen embed), leaving the summary
+     collapsed and invisible until a scroll forced a recomposite. */
   .loaded-summary {
-    margin: 2px 0 0;
+    margin: calc(var(--spacing-1) + 2px) 0 0;
     font-size: var(--font-size-small);
     font-weight: 500;
     color: var(--color-font-button);
@@ -796,31 +876,20 @@
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    /* Smooth expand animation using max-height */
-    animation: summaryExpand 0.5s ease-out;
+    opacity: 1;
+    max-height: 100px; /* enough for 3 lines */
   }
 
-  @keyframes summaryExpand {
-    from {
-      opacity: 0;
-      max-height: 0;
-      margin-top: 0;
-    }
-    to {
-      opacity: 1;
-      max-height: 100px; /* enough for 3 lines */
-      margin-top: var(--spacing-1);
-    }
-  }
-
-  /* Creation time: 14px, white at 0.7 opacity */
+  /* Creation time: 14px, white at 0.7 opacity.
+     No entrance animation — see note on .loaded-content above for why offscreen
+     CSS animations were causing title/summary/time to render invisibly. */
   .loaded-time {
     font-size: var(--font-size-small);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.85);
     text-align: center;
     margin-top: var(--spacing-1);
-    animation: fadeIn 0.4s ease-out 0.15s both;
+    opacity: 1;
   }
 
   /* ─── Incognito header icon (38×38px) — uses anonym.svg via CSS mask ─── */
@@ -1139,31 +1208,39 @@
     .deco-icon-right {
       right: calc(50% - 180px - 70px);
     }
-  }
 
-  /* ─── Background video ──────────────────────────────────────────────────── */
+    .media-frame {
+      height: 60%;
+      max-width: calc(100% - 60px);
+    }
 
-  .header-video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 0;
+    .video-play-btn {
+      width: 56px !important;
+      height: 56px !important;
+    }
+
+    .video-play-icon {
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      border-left: 17px solid rgba(255, 255, 255, 0.95);
+      margin-left: 3px;
+    }
   }
 
   /* ─── Background slideshow (static-image Ken Burns) ─────────────────────────
-     Replaces the autoplay video on the public intro chat to avoid per-visitor
-     video delivery cost. All N frames share the same keyframe animation; each
-     frame's start is offset by a negative animation-delay so they sequence in.
-     A subtle scale transform gives a slow Ken-Burns-style motion.
-     Pure CSS — no JS timers, no IntersectionObserver needed.
+     Renders the intro frames inside the 16:9 .media-frame container. All N
+     frames share the same fade keyframe; each frame's start is offset by a
+     negative animation-delay so they sequence in. Per-frame Ken Burns
+     keyframes (headerSlideKB0–12) give each frame a unique pan/zoom direction.
+     Frame 0 is a locale-specific title card (zoom out). Dark #1a1a1a
+     background prevents gradient bleed during crossfades. Pure CSS — no JS
+     timers, no IntersectionObserver needed.
 
-     Crossfade design (12 frames, slot = 8.333% of 96s cycle):
+     Crossfade design (13 frames, slot = 7.692% of 104s cycle):
        • Incoming frame uses z-index 2 (on top) while fading in → old frame stays
          fully opaque below it, so the background is never visible during transition.
        • Old frame drops z-index to 1 once successor is fading in over it, then
-         becomes opacity 0 after successor is fully covering it at 10.13%.
+         becomes opacity 0 after successor is fully covering it at 9.49%.
        • At the wrap-around (frame 11 → frame 0), frame 0 fades in with z-index 2
          on top of frame 11 (z-index 1) — same seamless result. */
   .header-slideshow {
@@ -1173,6 +1250,8 @@
     height: 100%;
     overflow: hidden;
     z-index: 0;
+    /* Dark fallback so the parent frame background never peeks through during crossfades */
+    background: #1a1a1a;
   }
 
   .header-slide {
@@ -1182,77 +1261,163 @@
     height: 100%;
     object-fit: cover;
     opacity: 0;
-    /* Each frame occupies an 8s slot. Negative delay staggers across the full cycle. */
+    /* Each frame occupies an 8s slot. Negative delay staggers across the full cycle.
+       Per-frame Ken Burns keyframes are assigned via nth-child selectors below. */
     animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear,
-               headerSlideKenBurns calc(var(--slide-count) * 8s) infinite ease-in-out;
+               headerSlideKB1 calc(var(--slide-count) * 8s) infinite ease-in-out;
     animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
     will-change: opacity, transform;
   }
 
-  /* Timing based on 12 frames (slot = 8.333% of cycle, fade-in window = 1.8%).
+  /* Timing based on 13 frames (slot = 7.692% of cycle, fade-in window = 1.8%).
      Incoming frame holds z-index: 2 while fading in over the still-opaque outgoing
      frame (z-index: 1). Outgoing drops to opacity 0 only after successor fully covers
-     it at 10.13% — background is never peeking through.
+     it at 9.49% — background is never peeking through.
        0%      → opacity 0, z-index 2  (about to appear on top)
-       1.8%    → opacity 1, z-index 2  (fully in, ~1.73s)
-       8.333%  → opacity 1, z-index 2  (hold; successor now starting its fade-in below)
-       8.334%  → opacity 1, z-index 1  (drop below incoming successor)
-       10.13%  → opacity 1, z-index 1  (successor now fully opaque above)
-       10.14%  → opacity 0, z-index 0  (gone; covered by successor)
+       1.8%    → opacity 1, z-index 2  (fully in, ~1.87s)
+       7.692%  → opacity 1, z-index 2  (hold; successor now starting its fade-in below)
+       7.693%  → opacity 1, z-index 1  (drop below incoming successor)
+       9.49%   → opacity 1, z-index 1  (successor now fully opaque above)
+       9.50%   → opacity 0, z-index 0  (gone; covered by successor)
        100%    → opacity 0, z-index 0 */
   @keyframes headerSlideFade {
     0%      { opacity: 0; z-index: 2; }
     1.8%    { opacity: 1; z-index: 2; }
-    8.333%  { opacity: 1; z-index: 2; }
-    8.334%  { opacity: 1; z-index: 1; }
-    10.13%  { opacity: 1; z-index: 1; }
-    10.14%  { opacity: 0; z-index: 0; }
+    7.692%  { opacity: 1; z-index: 2; }
+    7.693%  { opacity: 1; z-index: 1; }
+    9.49%   { opacity: 1; z-index: 1; }
+    9.50%   { opacity: 0; z-index: 0; }
     100%    { opacity: 0; z-index: 0; }
   }
 
-  /* Ken-Burns motion — drift covers the full visible window (0% → 10.13%).
-     Alternates direction per frame for variety. */
-  @keyframes headerSlideKenBurns {
-    0%      { transform: scale(1.02) translate3d(2%, 1%, 0); }
-    10.13%  { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
-    100%    { transform: scale(1.18) translate3d(-2%, -1.5%, 0); }
+  /* Ken-Burns motion — per-frame directional variants assigned via nth-child.
+     Scale moves from ~1.05 to ~1.3, giving extra image area to pan through.
+     Large translations reveal portions hidden at rest.
+     Each variant covers the full visible window (0% → 9.49%). */
+
+  /* Frame 0 (title frame): zoom out, stay centered */
+  @keyframes headerSlideKB0 {
+    0%      { transform: scale(1.3) translate3d(0, 0, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
   }
 
-  /* Alternate drift direction on every other frame so the motion doesn't
-     always feel like the camera is panning the same way. */
-  .header-slide:nth-child(even) {
-    animation-name: headerSlideFade, headerSlideKenBurnsAlt;
+  /* Frame 1: pan right → left */
+  @keyframes headerSlideKB1 {
+    0%      { transform: scale(1.15) translate3d(8%, 0, 0); }
+    9.49%  { transform: scale(1.15) translate3d(-8%, 0, 0); }
+    100%    { transform: scale(1.15) translate3d(-8%, 0, 0); }
   }
 
-  @keyframes headerSlideKenBurnsAlt {
-    0%      { transform: scale(1.02) translate3d(-2%, -1%, 0); }
-    10.13%  { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
-    100%    { transform: scale(1.18) translate3d(2%, 1.5%, 0); }
+  /* Frame 2: zoom out, stay centered */
+  @keyframes headerSlideKB2 {
+    0%      { transform: scale(1.3) translate3d(0, 0, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
   }
+
+  /* Frame 3: pan bottom → top */
+  @keyframes headerSlideKB3 {
+    0%      { transform: scale(1.12) translate3d(0, 12%, 0); }
+    9.49%  { transform: scale(1.12) translate3d(0, -12%, 0); }
+    100%    { transform: scale(1.12) translate3d(0, -12%, 0); }
+  }
+
+  /* Frame 4: pan top-right → bottom-left */
+  @keyframes headerSlideKB4 {
+    0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+    100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+  }
+
+  /* Frame 5: pan bottom → top (default A) */
+  @keyframes headerSlideKB5 {
+    0%      { transform: scale(1.1) translate3d(0, 12%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(0, -12%, 0); }
+    100%    { transform: scale(1.28) translate3d(0, -12%, 0); }
+  }
+
+  /* Frame 6: pan left → right */
+  @keyframes headerSlideKB6 {
+    0%      { transform: scale(1.15) translate3d(-8%, 0, 0); }
+    9.49%  { transform: scale(1.15) translate3d(8%, 0, 0); }
+    100%    { transform: scale(1.15) translate3d(8%, 0, 0); }
+  }
+
+  /* Frame 7: pan top → bottom */
+  @keyframes headerSlideKB7 {
+    0%      { transform: scale(1.12) translate3d(0, -12%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(0, 12%, 0); }
+    100%    { transform: scale(1.28) translate3d(0, 12%, 0); }
+  }
+
+  /* Frame 8: pan bottom-left → top-right */
+  @keyframes headerSlideKB8 {
+    0%      { transform: scale(1.12) translate3d(-6%, 10%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(6%, -10%, 0); }
+    100%    { transform: scale(1.28) translate3d(6%, -10%, 0); }
+  }
+
+  /* Frame 9: zoom out from bottom (content at bottom of image) */
+  @keyframes headerSlideKB9 {
+    0%      { transform: scale(1.3) translate3d(0, 12%, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
+  }
+
+  /* Frame 10: pan top-right → bottom-left */
+  @keyframes headerSlideKB10 {
+    0%      { transform: scale(1.12) translate3d(6%, -10%, 0); }
+    9.49%  { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+    100%    { transform: scale(1.28) translate3d(-6%, 10%, 0); }
+  }
+
+  /* Frame 11: show top part, pan down to bottom */
+  @keyframes headerSlideKB11 {
+    0%      { transform: scale(1.15) translate3d(0, -12%, 0); }
+    9.49%  { transform: scale(1.15) translate3d(0, 12%, 0); }
+    100%    { transform: scale(1.15) translate3d(0, 12%, 0); }
+  }
+
+  /* Frame 12: focus on right side, zoom out from there */
+  @keyframes headerSlideKB12 {
+    0%      { transform: scale(1.3) translate3d(10%, 0, 0); }
+    9.49%  { transform: scale(1.05) translate3d(0, 0, 0); }
+    100%    { transform: scale(1.05) translate3d(0, 0, 0); }
+  }
+
+  /* Per-frame Ken Burns assignment — frame 0 is the locale-specific title frame (zoom out) */
+  .header-slide:nth-child(1)  { animation-name: headerSlideFade, headerSlideKB0; }
+  .header-slide:nth-child(2)  { animation-name: headerSlideFade, headerSlideKB1; }
+  .header-slide:nth-child(3)  { animation-name: headerSlideFade, headerSlideKB2; }
+  .header-slide:nth-child(4)  { animation-name: headerSlideFade, headerSlideKB3; }
+  .header-slide:nth-child(5)  { animation-name: headerSlideFade, headerSlideKB4; }
+  .header-slide:nth-child(6)  { animation-name: headerSlideFade, headerSlideKB5; }
+  .header-slide:nth-child(7)  { animation-name: headerSlideFade, headerSlideKB6; }
+  .header-slide:nth-child(8)  { animation-name: headerSlideFade, headerSlideKB7; }
+  .header-slide:nth-child(9)  { animation-name: headerSlideFade, headerSlideKB8; }
+  .header-slide:nth-child(10) { animation-name: headerSlideFade, headerSlideKB9; }
+  .header-slide:nth-child(11) { animation-name: headerSlideFade, headerSlideKB10; }
+  .header-slide:nth-child(12) { animation-name: headerSlideFade, headerSlideKB11; }
+  .header-slide:nth-child(13) { animation-name: headerSlideFade, headerSlideKB12; }
 
   @media (prefers-reduced-motion: reduce) {
     .header-slide,
-    .header-slide:nth-child(even) {
-      animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear;
-      animation-delay: calc(var(--slide-index) * -8s);
+    .header-slide:nth-child(n) {
+      animation: headerSlideFade calc(var(--slide-count) * 8s) infinite linear !important;
+      animation-delay: calc(var(--slide-index) * -8s) !important;
     }
-  }
-
-  /* Dark gradient overlay so title text stays readable over the video */
-  .header-video-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.15) 0%,
-      rgba(0, 0, 0, 0.45) 100%
-    );
-    z-index: 1;
   }
 
   /* ─── Play button ──────────────────────────────────────────────────────── */
 
+  /* Centered absolutely inside .media-frame. The transform combines the
+     centering offset with the hover/active scale so both compose cleanly. */
   .video-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1272,18 +1437,19 @@
     padding: 0 !important;
     margin: 0 !important;
     filter: none !important;
+    z-index: 3;
   }
 
   .video-play-btn:hover {
     background: rgba(255, 255, 255, 0.35) !important;
-    transform: scale(1.06);
+    transform: translate(-50%, -50%) scale(1.06);
     filter: none !important;
     scale: none !important;
   }
 
   .video-play-btn:active {
     background: rgba(255, 255, 255, 0.45) !important;
-    transform: scale(0.97);
+    transform: translate(-50%, -50%) scale(0.97);
     filter: none !important;
     scale: none !important;
   }
@@ -1298,29 +1464,63 @@
     margin-left: 4px; /* optical centering */
   }
 
-  /* Video fullscreen is handled by DirectVideoEmbedFullscreen + UnifiedEmbedFullscreen. */
+  /* In-place video player — mounted after play click, fills the media frame.
+     requestFullscreen is called via $effect; unmounted when fullscreen exits. */
+  .media-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 4;
+    background: #000;
+  }
 
-  /* ─── Media header: play button + title stacked and centered ────────────── */
+  /* ─── Media header: 16:9 framed slideshow + title below ──────────────────
+     The slideshow frames live inside a 16:9 rounded container with the play
+     button centered on top. The chat title is rendered below the frame so it
+     is always readable — the frames stay visually contained rather than
+     filling the entire banner. */
 
-  /* Groups the play button and title in a vertical flex column centered over
-     the slideshow/video background. Ensures the title always sits just below
-     the play button rather than at the bottom of the banner. */
   .media-center-group {
     position: relative;
     z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-5);
     pointer-events: auto;
     padding: var(--spacing-4) var(--spacing-8);
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  /* 16:9 rounded container that hosts the slideshow + play button. Height is
+     driven by the banner size so the frame scales responsively; aspect-ratio
+     keeps the 16:9 ratio, and max-width prevents collision with the nav arrows. */
+  .media-frame {
+    position: relative;
+    flex-shrink: 0;
+    aspect-ratio: 16 / 9;
+    height: 72%;
+    max-height: 1080px;
+    max-width: calc(100% - 100px);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #1a1a1a;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    pointer-events: auto;
   }
 
   /* Scoped override: inside the media group, loaded-content is inline (not
-     absolutely positioned) and inherits the group's centering. */
+     absolutely positioned) and inherits the group's centering. No entrance
+     animation — see .loaded-content rule above for rationale. */
   .media-center-group .loaded-content {
     position: static;
     padding: 0;
-    animation: fadeIn 0.35s ease-out;
+    opacity: 1;
   }
 </style>

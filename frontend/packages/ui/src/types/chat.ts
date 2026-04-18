@@ -121,6 +121,104 @@ export interface Message {
   // Server only sees placeholders (e.g., [EMAIL_1_com]), client restores originals for display
   encrypted_pii_mappings?: string; // Encrypted JSON of PII mappings: { "[EMAIL_1_com]": { original: "user@example.com", type: "EMAIL" }, ... }
   pii_mappings?: PIIMapping[]; // Decrypted PII mappings (computed on-demand, never stored)
+
+  // Highlights — transient field populated from the separate `message_highlights`
+  // IndexedDB store. NEVER serialised onto the message row itself; highlights live
+  // in their own per-row E2EE collection to avoid concurrent-edit races in shared
+  // chats. See MessageHighlight above.
+  highlights?: MessageHighlight[];
+}
+
+/**
+ * A single message annotation — yellow highlight on a text range or a whole embed,
+ * optionally carrying a comment. Stored as its own row in the `message_highlights`
+ * Directus collection (E2EE: the payload — offsets/embed_id/comment — is encrypted
+ * client-side with the chat key; the server only sees routing + auth metadata).
+ *
+ * Per-row storage (vs. one blob on the message) is what makes concurrent edits in
+ * shared chats safe: each user INSERTs a distinct uuid-keyed row; no client ever
+ * decrypts-then-re-encrypts a shared list.
+ *
+ * Anchoring:
+ *   - kind='text'  → character offsets on the decrypted raw markdown source of the
+ *     message. Stable across re-render because embeds live in the source as short
+ *     `[embed:xyz]` tokens.
+ *   - kind='embed' → references the embed by id; renders as a yellow ring on the
+ *     preview card.
+ */
+/**
+ * Text-quote anchor for a text highlight — the W3C Web Annotation pattern,
+ * same as Hypothesis.is / Readwise / Kindle Web. Robust against DOM offset
+ * drift caused by re-renders, responsive reflow, and streaming content:
+ * instead of "characters 47..63 in the rendered text", we store "the string
+ * 'lazy dog' that sits between context 'the ' and ' near'". At render time
+ * we find that text in the current DOM. Same approach every serious
+ * annotation system uses, precisely because offsets are fragile.
+ */
+export interface HighlightAnchor {
+  /** The selected passage verbatim. Trimmed of leading/trailing whitespace. */
+  exact: string;
+  /** Up to ~20 chars immediately before `exact` in the rendered text. Used
+   *  to disambiguate when `exact` appears more than once in the message. */
+  prefix: string;
+  /** Up to ~20 chars immediately after `exact` in the rendered text. */
+  suffix: string;
+}
+
+export type MessageHighlight =
+  | {
+      id: string; // uuid, generated client-side
+      kind: "text";
+      chat_id: string;
+      message_id: string;
+      /** Text-quote anchor — primary source of truth for render-time lookup. */
+      anchor: HighlightAnchor;
+      /** Offsets into the rendered text of the message at create time. Kept
+       *  only as an in-memory hint to speed up the first render — NEVER the
+       *  persistence source of truth. May be stale after reflow/streaming;
+       *  the overlay always falls back to text-anchor search. */
+      start?: number;
+      end?: number;
+      author_user_id: string;
+      author_display_name?: string; // denormalised for offline render
+      comment?: string; // ≤500 chars, trimmed; undefined = no comment
+      created_at: number;
+      updated_at?: number;
+      key_version?: number | null;
+    }
+  | {
+      id: string;
+      kind: "embed";
+      chat_id: string;
+      message_id: string;
+      embed_id: string;
+      author_user_id: string;
+      author_display_name?: string;
+      comment?: string;
+      created_at: number;
+      updated_at?: number;
+      key_version?: number | null;
+    };
+
+/**
+ * The encrypted-payload shape that lives inside `encrypted_payload` for one
+ * highlight row. Only the semantic fields — everything the server must not see.
+ *
+ * Mirrors MessageHighlight but is a flat DTO (no kind-level field splits)
+ * so it stays stable across type refactors. `anchor` is the primary
+ * persistence format for text highlights.
+ */
+export interface MessageHighlightPayload {
+  kind: "text" | "embed";
+  // text kind
+  anchor?: HighlightAnchor;
+  // embed kind
+  embed_id?: string;
+  // annotation
+  comment?: string;
+  author_display_name?: string;
+  created_at: number;
+  updated_at?: number;
 }
 
 /**
@@ -521,6 +619,72 @@ export interface MessageDeletedPayload {
   chat_id: string;
   message_id: string;
   embed_ids_to_delete?: string[]; // Embed IDs to delete from IndexedDB on other devices (broadcast from server)
+}
+
+// --- Message Highlights Payloads (per-row E2EE, chat-wide visibility in shared chats) ---
+
+/**
+ * Client → server: add a new highlight row. Server INSERTs into message_highlights
+ * and broadcasts `MessageHighlightAddedPayload` to every connected client with access
+ * to this chat.
+ */
+export interface AddMessageHighlightPayload {
+  chat_id: string;
+  message_id: string;
+  id: string; // client-generated uuid
+  author_user_id: string;
+  key_version?: number | null;
+  encrypted_payload: string; // E2EE JSON of MessageHighlightPayload
+  created_at: number;
+}
+
+/**
+ * Client → server: update a highlight (typically its comment). Server enforces
+ * author_user_id == sender_user_id before UPDATE.
+ */
+export interface UpdateMessageHighlightPayload {
+  chat_id: string;
+  message_id: string;
+  id: string;
+  encrypted_payload: string;
+  updated_at: number;
+}
+
+/**
+ * Client → server: delete a highlight. Author-only. Server DELETEs the row and
+ * broadcasts removal.
+ */
+export interface RemoveMessageHighlightPayload {
+  chat_id: string;
+  message_id: string;
+  id: string;
+}
+
+/** Server → client broadcast of an added highlight. */
+export interface MessageHighlightAddedPayload {
+  chat_id: string;
+  message_id: string;
+  id: string;
+  author_user_id: string;
+  key_version?: number | null;
+  encrypted_payload: string;
+  created_at: number;
+}
+
+/** Server → client broadcast of an updated highlight. */
+export interface MessageHighlightUpdatedPayload {
+  chat_id: string;
+  message_id: string;
+  id: string;
+  encrypted_payload: string;
+  updated_at: number;
+}
+
+/** Server → client broadcast of a removed highlight. */
+export interface MessageHighlightRemovedPayload {
+  chat_id: string;
+  message_id: string;
+  id: string;
 }
 // --- End Chat Update Payloads ---
 

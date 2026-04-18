@@ -26,7 +26,7 @@ view:
     - de
 
 view.skill_name:
-  context: Skill name shown in the App Store for the PDF view skill (distinct from embed label)
+  context: Skill name shown in the Apps for the PDF view skill (distinct from embed label)
   en: View
   de: Ansehen
   zh: 查看
@@ -79,7 +79,7 @@ view.description:
     - de
 
 view.skill_description:
-  context: Description shown in the App Store for the PDF view skill (distinct from embed description)
+  context: Description shown in the Apps for the PDF view skill (distinct from embed description)
   en: View page screenshots with vision AI.
   de: Seiten-Screenshots mit Vision-KI ansehen.
   zh: 使用视觉AI查看页面截图。

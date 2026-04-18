@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -221,7 +220,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// ========================================================================
 
 	// Click "Copy" button to copy the recovery key to clipboard
-	const copyButton = page.getByTestId('save-button').filter({ hasText: /copy/i });
+	const copyButton = page.getByTestId('copy-button');
 	await expect(copyButton).toBeVisible();
 	await copyButton.click();
 	logCheckpoint('Clicked Copy button for recovery key.');

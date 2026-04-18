@@ -46,3 +46,6 @@ export { default as SettingsLoadingState } from "./SettingsLoadingState.svelte";
 export { default as SettingsConfirmBlock } from "./SettingsConfirmBlock.svelte";
 export { default as SettingsAvatar } from "./SettingsAvatar.svelte";
 export { default as SettingsCheckboxList } from "./SettingsCheckboxList.svelte";
+
+// ── Menu Rows ───────────────────────────────────────────────────────
+export { default as SettingsItem } from "./SettingsItem.svelte";

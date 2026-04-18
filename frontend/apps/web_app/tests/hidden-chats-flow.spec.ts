@@ -49,7 +49,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
@@ -107,8 +107,7 @@ async function createTestChat(
 	// Wait for chat ID in URL
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	// Wait for some AI response so the chat has content and title
-	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
 	// Allow title to be generated
 	await page.waitForTimeout(4000);
 }

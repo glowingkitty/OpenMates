@@ -137,7 +137,7 @@ async def verify_device_2fa(
 
         # Verify the TOTP code using the directly fetched secret
         totp = pyotp.TOTP(decrypted_secret)
-        if not totp.verify(verify_request.tfa_code):
+        if not totp.verify(verify_request.tfa_code, valid_window=1):
             logger.warning(f"Invalid device verification 2FA code for user {user_id}")
             # Log compliance event ONLY for invalid code attempt
             compliance_service.log_auth_event(

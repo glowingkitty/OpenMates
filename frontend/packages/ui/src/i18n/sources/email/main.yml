@@ -6924,6 +6924,54 @@ newsletter.unsubscribe_link:
   sv: Avprenumerera
   he: הסרה מרשימת התפוצה
   verified_by_human: []
+newsletter.manage_settings_text:
+  context: Text before manage settings link in newsletter for registered users
+  en: Want to customize which newsletters you receive?
+  de: Möchten Sie anpassen, welche Newsletter Sie erhalten?
+  zh: 想要自定义接收哪些通讯？
+  es: ¿Quieres personalizar qué boletines recibes?
+  fr: Vous souhaitez personnaliser les newsletters que vous recevez ?
+  pt: Quer personalizar quais newsletters você recebe?
+  ru: Хотите настроить, какие рассылки получать?
+  ja: 受信するニュースレターをカスタマイズしますか？
+  ko: 수신할 뉴스레터를 맞춤 설정하시겠습니까?
+  it: Vuoi personalizzare quali newsletter ricevere?
+  tr: Hangi bültenleri alacağınızı özelleştirmek ister misiniz?
+  vi: Muốn tùy chỉnh bản tin bạn nhận?
+  id: Ingin menyesuaikan buletin yang Anda terima?
+  pl: Chcesz dostosować, które newslettery otrzymujesz?
+  nl: Wil je aanpassen welke nieuwsbrieven je ontvangt?
+  ar: هل تريد تخصيص النشرات الإخبارية التي تتلقاها؟
+  hi: आप कौन से न्यूज़लेटर प्राप्त करते हैं, इसे अनुकूलित करना चाहते हैं?
+  th: ต้องการปรับแต่งจดหมายข่าวที่คุณได้รับ?
+  cs: Chcete si přizpůsobit, které newslettery dostáváte?
+  sv: Vill du anpassa vilka nyhetsbrev du får?
+  he: "רוצה להתאים אישית אילו ניוזלטרים אתה מקבל?"
+  verified_by_human: []
+newsletter.manage_settings_link:
+  context: Link text to manage newsletter settings for registered users
+  en: Manage your newsletter settings
+  de: Newsletter-Einstellungen verwalten
+  zh: 管理您的通讯设置
+  es: Gestionar la configuración de tu boletín
+  fr: Gérer vos paramètres de newsletter
+  pt: Gerenciar configurações de newsletter
+  ru: Управление настройками рассылки
+  ja: ニュースレター設定を管理
+  ko: 뉴스레터 설정 관리
+  it: Gestisci le impostazioni della newsletter
+  tr: Bülten ayarlarınızı yönetin
+  vi: Quản lý cài đặt bản tin của bạn
+  id: Kelola pengaturan buletin Anda
+  pl: Zarządzaj ustawieniami newslettera
+  nl: Beheer je nieuwsbriefinstellingen
+  ar: إدارة إعدادات النشرة الإخبارية
+  hi: अपनी न्यूज़लेटर सेटिंग्स प्रबंधित करें
+  th: จัดการการตั้งค่าจดหมายข่าวของคุณ
+  cs: Spravovat nastavení newsletteru
+  sv: Hantera dina nyhetsbrevsinställningar
+  he: ניהול הגדרות הניוזלטר שלך
+  verified_by_human: []
 issue_report.title:
   context: Email subject for issue report email
   en: "Issue reported: {issue_title}"

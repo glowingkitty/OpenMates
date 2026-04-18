@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -345,46 +344,89 @@ test.describe('Unauthenticated app load', () => {
 		await expect(playBtn).toBeVisible({ timeout: 10000 });
 		console.log('[unauthenticated-load] Play button visible in chat header');
 
-		// ─── 3. Click play — expect embed fullscreen to open ────────────
+		// ─── 3. Click play — expect native video to render ────────────
 		await playBtn.click();
 
-		const videoFullscreen = page.getByTestId('intro-video-fullscreen');
-		await expect(videoFullscreen).toBeVisible({ timeout: 10000 });
-		console.log('[unauthenticated-load] Intro video fullscreen opened');
+		const videoEl = page.getByTestId('chat-header-video');
+		await expect(videoEl).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Video element rendered after play click');
 
-		// Verify it uses the embed fullscreen shell (UnifiedEmbedFullscreen top bar)
-		const embedTopBar = page.getByTestId('embed-fullscreen-overlay');
-		await expect(embedTopBar).toBeVisible({ timeout: 5000 });
-		console.log('[unauthenticated-load] Embed fullscreen shell visible');
+		// ─── 4. Verify video is inside the media frame ────────────────────
+		const mediaFrame = page.getByTestId('chat-header-media-frame');
+		await expect(mediaFrame.getByTestId('chat-header-video')).toBeVisible({ timeout: 5000 });
+		console.log('[unauthenticated-load] Video rendered inside media frame');
 
-		// Verify video element is present and autoplaying
-		const videoEl = videoFullscreen.locator('video');
-		await expect(videoEl).toBeVisible({ timeout: 5000 });
-		console.log('[unauthenticated-load] Video element rendered');
+		console.log('[unauthenticated-load] Intro video fullscreen test passed');
+	});
 
-		// ─── 4. Close button dismisses the fullscreen ────────────────────
-		// EmbedTopBar uses data-testid="embed-minimize" for the close/minimize button
-		const closeBtn = page.getByTestId('embed-minimize');
-		await expect(closeBtn).toBeVisible({ timeout: 5000 });
-		await closeBtn.click();
+	test('announcement chat opens when clicked in sidebar', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
 
-		await expect(videoFullscreen).not.toBeVisible({ timeout: 5000 });
-		console.log('[unauthenticated-load] Intro video fullscreen closed');
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
 
-		// ─── 5. Deep link — #intro-video hash opens fullscreen on load ───
-		await page.goto(getE2EDebugUrl('/#intro-video'), { waitUntil: 'domcontentloaded' });
+		// ─── 1. Load as fresh user, wait for intro chat ────────────────
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
 		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone') || window.location.hash.includes('intro-video'),
+			() => window.location.hash.includes('demo-for-everyone'),
 			null,
 			{ timeout: 15000 }
 		);
+		console.log('[unauthenticated-load] Intro chat loaded');
 
-		const videoFullscreenDeepLink = page.getByTestId('intro-video-fullscreen');
-		await expect(videoFullscreenDeepLink).toBeVisible({ timeout: 15000 });
-		console.log('[unauthenticated-load] #intro-video deep link auto-opened fullscreen');
+		// ─── 2. Open sidebar and find the announcements group ──────────
+		const sidebarToggle = page.getByTestId('sidebar-toggle');
+		await expect(sidebarToggle).toBeVisible({ timeout: 10000 });
+		await sidebarToggle.click();
+		console.log('[unauthenticated-load] Sidebar toggle clicked');
 
-		console.log('[unauthenticated-load] Intro video fullscreen test passed');
+		// Find the announcements group by its title text
+		const announcementsGroup = page.getByTestId('chat-group').filter({
+			hasText: /announcements/i
+		}).first();
+		await expect(announcementsGroup).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Announcements group visible');
+
+		// ─── 3. Click the first announcement chat item ─────────────────
+		const announcementItem = announcementsGroup.getByTestId('chat-item').first();
+		await expect(announcementItem).toBeVisible({ timeout: 5000 });
+		await announcementItem.click();
+		console.log('[unauthenticated-load] Clicked announcement chat item');
+
+		// ─── 4. Verify the announcement chat opens ─────────────────────
+		// URL hash should update to the announcement chat ID
+		await page.waitForFunction(
+			() => window.location.hash.includes('announcements-'),
+			null,
+			{ timeout: 10000 }
+		);
+		console.log('[unauthenticated-load] URL hash updated to announcement chat');
+
+		// Active chat container should be visible
+		const activeChatContainer = page.getByTestId('active-chat-container');
+		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
+
+		// Verify the assistant message content is rendered (not empty)
+		const assistantMessage = page.getByTestId('mate-message-content').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 10000 });
+		const messageText = await assistantMessage.textContent();
+		expect(
+			messageText?.trim().length,
+			'Announcement chat should have message content'
+		).toBeGreaterThan(5);
+		console.log(`[unauthenticated-load] Announcement message rendered (${messageText?.trim().length} chars)`);
+
+		// ─── 5. No missing translations ─────────────────────────────────
+		await assertNoMissingTranslations(page);
+		console.log('[unauthenticated-load] Announcement click test passed');
 	});
 });

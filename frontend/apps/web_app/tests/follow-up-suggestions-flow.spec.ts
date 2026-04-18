@@ -36,7 +36,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
@@ -114,8 +114,7 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	log('Message sent.');
 
 	// Wait for AI response
-	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
 	await screenshot(page, 'ai-response-received');
 	log('AI response received.');
 

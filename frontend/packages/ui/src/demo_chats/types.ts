@@ -24,6 +24,9 @@ export interface DemoChat {
 		featured: boolean;
 		order: number;
 		lastUpdated: string;
+		/** Key into OPENMATES_VIDEOS registry (e.g. "intro"). Used for locale-aware
+		 *  video resolution and by the autoplay-video deep link. */
+		video_key?: string;
 		/** api.video HLS URL for an autoplay-muted background video in the chat header. */
 		video_hls_url?: string;
 		/** api.video MP4 URL — used as fallback for the background video and for the fullscreen player. */

@@ -8,6 +8,19 @@
   import ThinkingSection from './ThinkingSection.svelte';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
+  import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
+  import HighlightCommentPopover from './HighlightCommentPopover.svelte';
+  import MessageSelectionToolbar from './MessageSelectionToolbar.svelte';
+  import { captureHighlightAnchor } from '../utils/messageHighlights';
+  import { selectHighlightsForMessage, myHighlightIdsStore } from '../stores/messageHighlightsStore';
+  import {
+    sendAddMessageHighlightImpl,
+    sendUpdateMessageHighlightImpl,
+    sendRemoveMessageHighlightImpl,
+  } from '../services/sendersMessageHighlights';
+  import { userProfile } from '../stores/userProfile';
+  import { authStore } from '../stores/authStore';
+  import type { HighlightAnchor, MessageHighlight } from '../types/chat';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
@@ -96,7 +109,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     onDeleteMessage = undefined,
     isFirstMessage = false,
     isCreditsRestored = false,
-    onResend = undefined
+    onResend = undefined,
+    canAnnotate = true
   }: {
     role?: MessageRole;
     category?: string;
@@ -131,10 +145,291 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     /** Callback to resend the original message after credits are restored.
      *  Called when the user clicks "Resend message" in the credits-restored banner. */
     onResend?: () => void;
+    /** False when the viewer is reading a shared chat they don't own. Hides
+     *  the Highlight entry points (context menu + selection toolbar) so the
+     *  UI mirrors the backend's owner-only enforcement. Defaults to true. */
+    canAnnotate?: boolean;
   } = $props();
   
   // State for thinking section expansion
   let thinkingExpanded = $state(false);
+
+  // ─── Highlights ────────────────────────────────────────────────────────────
+  // Reactive list of highlights for THIS message, from the shared store.
+  let highlightsStore = $derived(
+    messageId && original_message?.chat_id
+      ? selectHighlightsForMessage(original_message.chat_id, messageId)
+      : null,
+  );
+  let messageHighlights = $state<MessageHighlight[]>([]);
+  $effect(() => {
+    if (!highlightsStore) { messageHighlights = []; return; }
+    const unsub = highlightsStore.subscribe((v) => { messageHighlights = v; });
+    return unsub;
+  });
+
+  /** Bump to force MessageHighlightOverlay to recompute rects (after TipTap
+   *  content lands, window resize, etc.). */
+  let highlightRecomputeKey = $state(0);
+
+  /** Popover state — open when user clicks an existing highlight or uses
+   *  "Highlight & comment". */
+  let activeHighlightId = $state<string | null>(null);
+  let activeHighlightRect = $state<DOMRect | null>(null);
+  let popoverInEditMode = $state(false);
+  /** Text-quote anchor captured when the user opens the context menu. Read
+   *  by handleHighlightAction / handleHighlightAndCommentAction because the
+   *  live DOM selection may be cleared by the menu's focus change. */
+  let cachedSelectionAnchor = $state<HighlightAnchor | null>(null);
+
+  // `canAnnotate` is wired from the parent (ChatHistory) based on the chat's
+  // is_shared_by_others flag. Mirrors the backend's owner-only enforcement
+  // in message_highlight_handlers._verify_chat_accessible.
+  let isSharedReadOnly = $derived(!(canAnnotate ?? true));
+
+  /** The highlight the popover is bound to (or null). */
+  let activeHighlight = $derived(
+    activeHighlightId
+      ? messageHighlights.find((h) => h.id === activeHighlightId) ?? null
+      : null,
+  );
+
+  function makeUuid(): string {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+    // RFC4122 v4 fallback (rare)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  /** True when there's a non-empty user selection inside this message. */
+  function hasValidSelectionInMessage(): boolean {
+    if (!messageBodyElement) return false;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
+    const range = sel.getRangeAt(0);
+    return messageBodyElement.contains(range.commonAncestorContainer);
+  }
+
+  /** Capture a text-quote anchor from the current live selection. Returns
+   *  null when the selection is empty, collapsed, or outside this message. */
+  function captureAnchorNow(): HighlightAnchor | null {
+    if (!messageBodyElement) return null;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    return captureHighlightAnchor(messageBodyElement, range);
+  }
+
+  async function createHighlightFromAnchor(anchor: HighlightAnchor, openPopover: boolean) {
+    if (!messageId || !original_message?.chat_id) return;
+    const chatId = original_message.chat_id;
+    const now = Math.floor(Date.now() / 1000);
+    const uid = $userProfile.user_id ?? '';
+    const displayName = $userProfile.username || undefined;
+    const highlight: MessageHighlight = {
+      id: makeUuid(),
+      kind: 'text',
+      chat_id: chatId,
+      message_id: messageId,
+      anchor,
+      author_user_id: uid,
+      author_display_name: displayName,
+      created_at: now,
+    };
+    try {
+      await sendAddMessageHighlightImpl(highlight);
+      window.getSelection()?.removeAllRanges();
+      cachedSelectionAnchor = null;
+      committedToolbarAnchor = null;
+      if (openPopover) {
+        setTimeout(() => {
+          activeHighlightId = highlight.id;
+          popoverInEditMode = true;
+          activeHighlightRect = overlayRef?.getHighlightRect(highlight.id) ?? null;
+        }, 30);
+      }
+      highlightRecomputeKey += 1;
+    } catch (err) {
+      console.error('[ChatMessage] Failed to add highlight', err);
+    }
+  }
+
+  /** Context-menu handlers: use whatever anchor was cached when the menu was
+   *  opened (focus may have since cleared the selection). */
+  function handleHighlightAction() {
+    const anchor = cachedSelectionAnchor ?? captureAnchorNow();
+    if (anchor) void createHighlightFromAnchor(anchor, false);
+  }
+  function handleHighlightAndCommentAction() {
+    const anchor = cachedSelectionAnchor ?? captureAnchorNow();
+    if (anchor) void createHighlightFromAnchor(anchor, true);
+  }
+
+  /** Open popover on click of an existing highlight. */
+  function handleHighlightBoxClick(id: string, rect: DOMRect) {
+    activeHighlightId = id;
+    activeHighlightRect = rect;
+    popoverInEditMode = false;
+  }
+
+  async function handlePopoverSave(newComment: string | undefined) {
+    if (!activeHighlight) return;
+    const updated: MessageHighlight = { ...activeHighlight, comment: newComment };
+    try {
+      await sendUpdateMessageHighlightImpl(updated);
+    } catch (err) {
+      console.error('[ChatMessage] Failed to update highlight', err);
+    }
+  }
+
+  async function handlePopoverDelete() {
+    if (!activeHighlight) return;
+    try {
+      await sendRemoveMessageHighlightImpl(
+        activeHighlight.chat_id,
+        activeHighlight.message_id,
+        activeHighlight.id,
+      );
+    } finally {
+      activeHighlightId = null;
+      activeHighlightRect = null;
+    }
+  }
+
+  function handlePopoverClose() {
+    activeHighlightId = null;
+    activeHighlightRect = null;
+    popoverInEditMode = false;
+  }
+
+  /** Reference to the overlay so we can ask it for a highlight's DOMRect. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let overlayRef = $state<any>(null);
+
+  // ─── Selection toolbar (touch-first entry point for Highlight) ───────────
+  // iOS/iPadOS suppresses `contextmenu` on long-press and shows the native
+  // OS menu instead — so on touch devices the MessageContextMenu path is
+  // unreachable. We listen to the cross-platform `selectionchange` event and
+  // surface a small floating toolbar (Highlight / Highlight & comment) just
+  // above the current selection whenever it lives inside this message. The
+  // toolbar also shows on desktop as a convenience — both entry points coexist.
+  //
+  // The toolbar is a "committed affordance" — the range it anchors to is
+  // snapshotted on the LEADING edge (first selectionchange with a valid
+  // range) and ALSO refreshed whenever the user drags the selection handle
+  // to a new position. Crucially, when the user then taps a toolbar button
+  // we commit the last-known non-collapsed range — iOS can otherwise fire
+  // spurious selectionchange events during the tap that shrink/move the
+  // selection and would cause us to highlight the wrong text.
+  let selectionToolbarRect = $state<DOMRect | null>(null);
+  let selectionToolbarVisible = $state(false);
+  /** Text-quote anchor committed for the current toolbar instance. Updated
+   *  via the debounced handler below so spurious iOS selectionchange events
+   *  during a toolbar tap can be cancelled before they overwrite. */
+  let committedToolbarAnchor = $state<HighlightAnchor | null>(null);
+  /** Pending debounce timer for committedToolbarAnchor updates. */
+  let _toolbarCommitTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Commit window — selectionchange events batch within this window.
+   *  80ms is short enough to feel instantaneous while being wide enough
+   *  to swallow the stray event iOS fires when the user lifts their finger
+   *  from a selection handle and during a tap on the toolbar button. */
+  const TOOLBAR_COMMIT_DEBOUNCE_MS = 80;
+
+  function updateSelectionToolbarFromSelection() {
+    if (!messageBodyElement || !messageId) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      // Don't overwrite the committed anchor on collapsed events — the tap
+      // path still needs the last good value even if iOS briefly clears the
+      // selection during the tap itself.
+      selectionToolbarVisible = false;
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!messageBodyElement.contains(range.commonAncestorContainer)) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    const anchor = captureHighlightAnchor(messageBodyElement, range);
+    if (!anchor) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    // Anchor the toolbar to the FIRST line of the selection, not the full
+    // bounding rect. Inline embeds render as full-width block cards inside
+    // the paragraph flow — a selection that starts or ends adjacent to one
+    // produces a getBoundingClientRect() whose `top` sits above the embed
+    // card, far from the user's pointer. Using the first client rect keeps
+    // the toolbar pinned to the visible first line of the selection.
+    const rects = range.getClientRects();
+    const rect = rects.length > 0 ? rects[0] : range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      selectionToolbarVisible = false;
+      return;
+    }
+    selectionToolbarRect = rect;
+    selectionToolbarVisible = true;
+    if (_toolbarCommitTimer !== null) clearTimeout(_toolbarCommitTimer);
+    _toolbarCommitTimer = setTimeout(() => {
+      committedToolbarAnchor = anchor;
+      cachedSelectionAnchor = anchor;
+      _toolbarCommitTimer = null;
+    }, TOOLBAR_COMMIT_DEBOUNCE_MS);
+  }
+
+  $effect(() => {
+    if (typeof document === 'undefined') return;
+    const onSelChange = () => updateSelectionToolbarFromSelection();
+    document.addEventListener('selectionchange', onSelChange);
+    return () => document.removeEventListener('selectionchange', onSelChange);
+  });
+
+  /**
+   * Tap-handler for the floating toolbar buttons. Called on touchstart/
+   * mousedown — i.e. the instant the user's finger or mouse lands on the
+   * button, BEFORE iOS has any chance to fire a spurious selectionchange
+   * or collapse the selection.
+   *
+   * Resolution order for the anchor (first non-null wins):
+   *   1. The live DOM selection, captured SYNCHRONOUSLY right now. This is
+   *      the most reliable snapshot — the selection is guaranteed alive at
+   *      this exact instant.
+   *   2. committedToolbarAnchor — the debounced anchor from the last stable
+   *      selectionchange. Used if the live selection has already collapsed
+   *      (can happen on some Android browsers between mousedown and the
+   *      handler running).
+   *   3. cachedSelectionAnchor — the older context-menu path's cache.
+   */
+  function commitToolbarAction(openPopover: boolean) {
+    // Cancel any pending debounced commit so it doesn't land stale.
+    if (_toolbarCommitTimer !== null) {
+      clearTimeout(_toolbarCommitTimer);
+      _toolbarCommitTimer = null;
+    }
+    const liveAnchor = captureAnchorNow();
+    const anchor =
+      liveAnchor ?? committedToolbarAnchor ?? cachedSelectionAnchor;
+    selectionToolbarVisible = false;
+    committedToolbarAnchor = null;
+    if (!anchor) return;
+    void createHighlightFromAnchor(anchor, openPopover);
+  }
+
+  function handleToolbarHighlight() {
+    commitToolbarAction(false);
+  }
+  function handleToolbarHighlightAndComment() {
+    commitToolbarAction(true);
+  }
+  // ─── End highlights ────────────────────────────────────────────────────────
   
   /**
    * Get display name for an app settings/memories category.
@@ -320,6 +615,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let selectable = $state(false);
   let readOnlyMessageComponent = $state<ReturnType<typeof ReadOnlyMessage>>();
   let messageContentElement = $state<HTMLElement>();
+  /** Narrower ref than messageContentElement — wraps ONLY the rendered
+   *  message body (ReadOnlyMessage / DemoMessageContent / raw debug pre).
+   *  Excludes the selection toolbar, highlight overlay, comment popover,
+   *  thinking section, and truncation controls so their text nodes don't
+   *  pollute highlight-anchor capture/resolution. */
+  let messageBodyElement = $state<HTMLElement>();
 
   // State for report button hover
   let isReportHovered = $state(false);
@@ -759,23 +1060,23 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       return;
     }
 
-    // CRITICAL: If selection mode is active and there is a selection, allow browser context menu
-    // This allows users to use browser's native Copy/Look up for selected text
-    if (selectable) {
-      const selection = window.getSelection();
-      if (selection && selection.toString().length > 0) {
-        // Selection exists, don't prevent default, don't show custom menu
-        return;
-      }
-    }
+    // If a selection exists inside THIS message, capture a text-quote anchor
+    // up front so the Highlight button has somewhere to commit — the menu
+    // opens above the selection and the native selection is cleared by
+    // focus changes.
+    const hasSelection = hasValidSelectionInMessage();
+    if (hasSelection) cachedSelectionAnchor = captureAnchorNow();
 
     event.preventDefault();
     event.stopPropagation();
-    
+
     messageMenuX = event.clientX;
     messageMenuY = event.clientY;
     showMessageMenu = true;
-    console.debug('[ChatMessage] Message context menu triggered (right-click)');
+    console.debug('[ChatMessage] Message context menu triggered (right-click)', {
+      hasSelection,
+      cachedAnchor: cachedSelectionAnchor,
+    });
   }
 
   /**
@@ -2183,6 +2484,27 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       {/if}
 
       <div class="chat-message-text">
+        {#if activeHighlight && activeHighlightRect}
+          <HighlightCommentPopover
+            highlight={activeHighlight}
+            anchorRect={activeHighlightRect}
+            isAuthor={$myHighlightIdsStore.has(activeHighlight.id) || $userProfile.user_id === activeHighlight.author_user_id}
+            initialEditMode={popoverInEditMode}
+            onSaveComment={handlePopoverSave}
+            onDelete={handlePopoverDelete}
+            onClose={handlePopoverClose}
+          />
+        {/if}
+        <!-- Floating selection toolbar — appears whenever this message owns
+             a non-collapsed text selection. Primary entry point for touch
+             devices (iOS/iPadOS suppress our contextmenu path). -->
+        <MessageSelectionToolbar
+          show={selectionToolbarVisible && !!messageId && $authStore.isAuthenticated && !isSharedReadOnly}
+          anchorRect={selectionToolbarRect}
+          onHighlight={handleToolbarHighlight}
+          onHighlightAndComment={handleToolbarHighlightAndComment}
+        />
+
         <!-- Thinking Section: Displayed above message content for thinking models -->
         {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
           <ThinkingSection
@@ -2191,43 +2513,63 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             bind:isExpanded={thinkingExpanded}
           />
         {/if}
-        
-        {#if $chatDebugStore.rawTextMode}
-          <!-- Debug mode: render raw stored content without any processing -->
-          <pre class="debug-raw-content selectable">{debugRawContent}</pre>
-        {:else if showFullMessage && fullContent}
-          <ReadOnlyMessage
-              bind:this={readOnlyMessageComponent}
-              content={fullContent}
-              isStreaming={status === 'streaming'}
-              {_embedUpdateTimestamp}
-              {selectable}
-              {piiMappings}
-              {piiRevealed}
-              {role}
-              on:message-embed-click={handleEmbedClick}
-          />
-        {:else if hasExampleChatsPlaceholder}
-          <!-- Demo chat with {example_chats_group} placeholder - use special component -->
-          <DemoMessageContent
-              content={originalMarkdownContent}
-              chatId={currentChatId}
-              isStreaming={status === 'streaming'}
-              {selectable}
-          />
-        {:else}
-          <ReadOnlyMessage
-              bind:this={readOnlyMessageComponent}
-              {content}
-              isStreaming={status === 'streaming'}
-              {_embedUpdateTimestamp}
-              {selectable}
-              {piiMappings}
-              {piiRevealed}
-              {role}
-              on:message-embed-click={handleEmbedClick}
-          />
-        {/if}
+
+        <!-- Scoped wrapper for the rendered message body. Highlight capture
+             and resolution use this narrow element so overlay/toolbar/popover
+             text, thinking content, and truncation controls never leak into
+             the TreeWalker that computes text-quote anchors. -->
+        <div class="chat-message-body" bind:this={messageBodyElement}>
+          <!-- Highlight overlay: yellow boxes drawn over rendered text. Nested
+               inside messageBodyElement so the overlay's inset:0 layer and the
+               per-box coordinates share the same origin. -->
+          {#if messageId && messageHighlights.length > 0}
+            <MessageHighlightOverlay
+              bind:this={overlayRef}
+              contentRoot={messageBodyElement ?? null}
+              highlights={messageHighlights}
+              recomputeKey={highlightRecomputeKey + contentReadyCounter}
+              focusedId={activeHighlightId}
+              onHighlightClick={handleHighlightBoxClick}
+            />
+          {/if}
+
+          {#if $chatDebugStore.rawTextMode}
+            <!-- Debug mode: render raw stored content without any processing -->
+            <pre class="debug-raw-content selectable">{debugRawContent}</pre>
+          {:else if showFullMessage && fullContent}
+            <ReadOnlyMessage
+                bind:this={readOnlyMessageComponent}
+                content={fullContent}
+                isStreaming={status === 'streaming'}
+                {_embedUpdateTimestamp}
+                {selectable}
+                {piiMappings}
+                {piiRevealed}
+                {role}
+                on:message-embed-click={handleEmbedClick}
+            />
+          {:else if hasExampleChatsPlaceholder}
+            <!-- Demo chat with {example_chats_group} placeholder - use special component -->
+            <DemoMessageContent
+                content={originalMarkdownContent}
+                chatId={currentChatId}
+                isStreaming={status === 'streaming'}
+                {selectable}
+            />
+          {:else}
+            <ReadOnlyMessage
+                bind:this={readOnlyMessageComponent}
+                {content}
+                isStreaming={status === 'streaming'}
+                {_embedUpdateTimestamp}
+                {selectable}
+                {piiMappings}
+                {piiRevealed}
+                {role}
+                on:message-embed-click={handleEmbedClick}
+            />
+          {/if}
+        </div>
         
         {#if is_truncated && role === 'user'}
           <div class="message-truncation-controls">
@@ -2313,6 +2655,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            onEdit={role === 'user' && messageId ? handleEdit : undefined}
            onFork={handleFork}
            disableFork={isForkDisabled}
+           onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
+           onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
+           hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
            {messageId}
            {userMessageId}
            {role}
@@ -2379,7 +2724,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       </div>
     {/if}
     
-    <!-- App Settings & Memories action summary (only for user messages) -->
+    <!-- Memories action summary (only for user messages) -->
     <!-- This data comes from system messages stored in chat history and synced across devices -->
     <!-- Display name and icon are loaded client-side from app metadata (not stored in message) -->
     {#if role === 'user' && appSettingsMemoriesResponse}
@@ -2663,6 +3008,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     position: relative; /* Add this to properly position the menu */
   }
 
+  /* Scoped body wrapper — origin for MessageHighlightOverlay's absolute layer
+     and the DOM root passed to the text-quote anchor walk. Must stay
+     `position: relative` so the overlay's inset:0 matches this element's box. */
+  .chat-message-body {
+    position: relative;
+  }
+
   /* Debug mode: raw text view of stored message content */
   .debug-raw-content {
     font-family: monospace;
@@ -2801,7 +3153,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     cursor: not-allowed;
   }
   
-  /* App Settings & Memories Summary Styles */
+  /* Memories Summary Styles */
   .app-settings-memories-summary {
     margin-top: var(--spacing-3);
     padding: 0;

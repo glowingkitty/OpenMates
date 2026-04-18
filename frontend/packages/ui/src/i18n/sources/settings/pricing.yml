@@ -95,7 +95,7 @@ vat_note:
   he: "כל המחירים אינם כוללים מע\"מ. מחירים ב-EUR וב-USD."
   verified_by_human: []
 explore_heading:
-  context: Section heading for the App Store exploration links on the Pricing page
+  context: Section heading for the Apps exploration links on the Pricing page
   en: Explore App Skills & Costs
   de: App-Skills & Kosten erkunden
   zh: 探索应用技能与费用
@@ -167,31 +167,31 @@ ai_models_subtitle:
   he: גורם העלות העיקרי — גלה את מחירי המודלים
   verified_by_human: []
 browse_app_store:
-  context: Title for the App Store link on the Pricing page
-  en: Browse App Store
-  de: App Store durchsuchen
+  context: Title for the Apps link on the Pricing page
+  en: Browse Apps
+  de: Apps durchsuchen
   zh: 浏览应用商店
-  es: Explorar App Store
-  fr: Parcourir l'App Store
-  pt: Explorar App Store
-  ru: Обзор App Store
+  es: Explorar Apps
+  fr: Parcourir l'Apps
+  pt: Explorar Apps
+  ru: Обзор Apps
   ja: アプリストアを閲覧
-  ko: App Store 탐색
-  it: Sfoglia App Store
-  tr: App Store'a gözat
-  vi: Duyệt App Store
-  id: Jelajahi App Store
-  pl: Przeglądaj App Store
-  nl: App Store doorzoeken
+  ko: Apps 탐색
+  it: Sfoglia Apps
+  tr: Apps'a gözat
+  vi: Duyệt Apps
+  id: Jelajahi Apps
+  pl: Przeglądaj Apps
+  nl: Apps doorzoeken
   ar: تصفح متجر التطبيقات
-  hi: App Store ब्राउज़ करें
-  th: เรียกดู App Store
-  cs: Procházet App Store
-  sv: Bläddra i App Store
+  hi: Apps ब्राउज़ करें
+  th: เรียกดู Apps
+  cs: Procházet Apps
+  sv: Bläddra i Apps
   he: עיון בחנות האפליקציות
   verified_by_human: []
 browse_app_store_subtitle:
-  context: Subtitle for the App Store link on the Pricing page — tells user they can see per-skill pricing
+  context: Subtitle for the Apps link on the Pricing page — tells user they can see per-skill pricing
   en: See pricing for all available skills
   de: Preise für alle verfügbaren Skills einsehen
   zh: 查看所有可用技能的定价

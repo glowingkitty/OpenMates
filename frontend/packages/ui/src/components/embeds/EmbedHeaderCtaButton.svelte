@@ -18,6 +18,8 @@
     onclick?: () => void;
     /** Visual variant: 'primary' (default), 'loading' (spinner), 'fallback' (grey) */
     variant?: 'primary' | 'loading' | 'fallback';
+    /** Optional data-testid for E2E targeting */
+    testId?: string;
   }
 
   let {
@@ -25,12 +27,14 @@
     href,
     onclick,
     variant = 'primary',
+    testId,
   }: Props = $props();
 </script>
 
 {#if href}
   <a
     class="embed-header-cta {variant}"
+    data-testid={testId}
     {href}
     target="_blank"
     rel="noopener noreferrer"
@@ -38,11 +42,11 @@
     {label}
   </a>
 {:else if variant === 'loading'}
-  <div class="embed-header-cta loading">
+  <div class="embed-header-cta loading" data-testid={testId}>
     <span class="cta-spinner"></span>
   </div>
 {:else}
-  <button class="embed-header-cta {variant}" onclick={onclick}>
+  <button class="embed-header-cta {variant}" data-testid={testId} onclick={onclick}>
     {label}
   </button>
 {/if}

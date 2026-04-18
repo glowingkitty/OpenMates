@@ -11,7 +11,7 @@ last_verified: 2026-03-24
 
 The Study app helps you manage your learning journey. It stores your educational goals and background so your mate can provide personalised study help.
 
-**Settings and memories (available):**
+**Memories (available):**
 
 - **Learning Goals** -- Track topics you want to master, your current difficulty level, and target deadlines.
 

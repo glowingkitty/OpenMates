@@ -15,7 +15,11 @@ import enLocale from "../i18n/locales/en.json";
  */
 export function resolveExampleChatI18nKey(key: string): string {
   if (!key.startsWith("example_chats.")) return key;
+  return resolveI18nKey(key);
+}
 
+/** Resolve any i18n key (demo_chats.*, example_chats.*, etc.) to English text. */
+export function resolveI18nKey(key: string): string {
   const parts = key.split(".");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let current: any = enLocale;

@@ -1,0 +1,43 @@
+{
+  "fixture_id": "fork_conversation_turn1",
+  "recorded_at": "2026-04-15T20:04:55.469392+00:00",
+  "speed_profile": "instant",
+  "user_message_snippet": "Reply with the single word: alpha",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Alpha Word Definition",
+    "icon_names": [
+      "book"
+    ],
+    "selected_model_id": "google/gemini-3-flash-preview",
+    "selected_model_name": "Gemini 3 Flash",
+    "mate_id": "george",
+    "chat_summary": "User replied with the word 'alpha'.",
+    "chat_tags": [
+      "alpha"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Gemini 3 Flash",
+    "provider_name": "Google AI Studio",
+    "server_region": "US",
+    "icon_names": [
+      "book"
+    ]
+  },
+  "response": "alpha\n\nWould you like to know more about the [Alpha version of OpenMates](/#settings/apps/openmates) or the history of the project?",
+  "skill_executions": [],
+  "thinking_content": "**Assessing Response Feasibility**\n\nI'm evaluating the request to reply with \"alpha.\" The instructions indicate direct answers are appropriate for simple factual queries, and this seems to fit. I'm also considering the implications, such as \"subtly offering pathways,\" but currently, the direct approach seems suitable and compliant with the instructions.\n\n\n",
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Gemini 3 Flash"
+  }
+}
