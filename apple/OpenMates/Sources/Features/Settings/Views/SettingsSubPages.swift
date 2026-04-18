@@ -635,6 +635,7 @@ struct SettingsPrivacyView: View {
 
 struct SettingsAutoDeleteView: View {
     @State private var autoDeleteDays: Int = 0
+    @State private var isLoaded = false
 
     private let options = [
         (0, "Never"),
@@ -669,6 +670,14 @@ struct SettingsAutoDeleteView: View {
             }
         }
         .navigationTitle("Auto-Delete")
+        .task {
+            guard !isLoaded else { return }
+            do {
+                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
+                autoDeleteDays = response.user?.autoDeleteChatsAfterDays ?? 0
+            } catch {}
+            isLoaded = true
+        }
     }
 
     private func saveAutoDelete(_ days: Int) {
@@ -735,12 +744,16 @@ struct SettingsLanguageView: View {
 struct SettingsNotificationsView: View {
     @State private var chatNotifications = true
     @State private var emailNotifications = true
+    @State private var isLoaded = false
 
     var body: some View {
         Form {
             Section("Push Notifications") {
                 Toggle("Chat Messages", isOn: $chatNotifications)
                     .tint(Color.buttonPrimary)
+                    .onChange(of: chatNotifications) { _, newValue in
+                        savePushNotifications(newValue)
+                    }
             }
 
             Section("Email Notifications") {
@@ -757,6 +770,23 @@ struct SettingsNotificationsView: View {
             }
         }
         .navigationTitle("Notifications")
+        .task {
+            guard !isLoaded else { return }
+            do {
+                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
+                chatNotifications = response.user?.pushNotificationEnabled ?? true
+            } catch {}
+            isLoaded = true
+        }
+    }
+
+    private func savePushNotifications(_ enabled: Bool) {
+        Task {
+            try? await APIClient.shared.request(
+                .post, path: "/v1/settings/user/push-notifications",
+                body: ["enabled": enabled]
+            ) as Data
+        }
     }
 
     private func saveEmailNotifications(_ enabled: Bool) {
@@ -779,9 +809,15 @@ struct SettingsBackupRemindersView: View {
         Form {
             Toggle("Backup Reminders", isOn: $isEnabled)
                 .tint(Color.buttonPrimary)
+                .onChange(of: isEnabled) { _, newValue in
+                    saveBackupReminders()
+                }
 
             if isEnabled {
                 Stepper("Every \(reminderDays) days", value: $reminderDays, in: 7...365, step: 7)
+                    .onChange(of: reminderDays) { _, _ in
+                        saveBackupReminders()
+                    }
             }
 
             Section {
@@ -790,6 +826,15 @@ struct SettingsBackupRemindersView: View {
             }
         }
         .navigationTitle("Backup Reminders")
+    }
+
+    private func saveBackupReminders() {
+        Task {
+            try? await APIClient.shared.request(
+                .post, path: "/v1/settings/user/backup-reminders",
+                body: ["enabled": isEnabled, "interval_days": reminderDays]
+            ) as Data
+        }
     }
 }
 

@@ -127,12 +127,20 @@ struct VideoRenderer: View {
 
         case .fullscreen:
             VStack(alignment: .leading, spacing: .spacing4) {
-                if let thumbnailUrl, let imgURL = URL(string: thumbnailUrl) {
+                // In-app video player for direct URLs
+                if let url, let videoURL = URL(string: url) {
+                    VideoPlayerView(url: videoURL)
+                        .frame(minHeight: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                } else if let thumbnailUrl, let imgURL = URL(string: thumbnailUrl) {
                     AsyncImage(url: imgURL) { image in
                         image.resizable().aspectRatio(contentMode: .fit)
                     } placeholder: { ProgressView() }
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
                 }
+
+                Text(title).font(.omP).fontWeight(.medium).foregroundStyle(Color.fontPrimary)
+
                 if let channel {
                     Text(channel).font(.omSmall).foregroundStyle(Color.fontSecondary)
                 }
@@ -141,8 +149,8 @@ struct VideoRenderer: View {
                         .font(.omSmall).foregroundStyle(Color.fontTertiary)
                 }
                 if let url, let videoURL = URL(string: url) {
-                    Link("Open Video", destination: videoURL)
-                        .font(.omP).foregroundStyle(Color.buttonPrimary)
+                    Link("Open in Browser", destination: videoURL)
+                        .font(.omSmall).foregroundStyle(Color.buttonPrimary)
                 }
             }
         }
@@ -305,6 +313,7 @@ struct RecordingRenderer: View {
     @State private var isPlaying = false
     @State private var audioData: Data?
     @State private var loadError: String?
+    @State private var audioPlayer: AVAudioPlayer?
 
     var body: some View {
         switch mode {
@@ -371,19 +380,39 @@ struct RecordingRenderer: View {
             return
         }
 
-        if audioData == nil {
-            Task {
-                do {
-                    audioData = try await S3MediaClient.shared.fetchAndDecrypt(
-                        s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce
-                    )
-                    isPlaying = true
-                } catch {
-                    loadError = error.localizedDescription
-                }
+        if let player = audioPlayer {
+            // Already loaded — toggle play/pause
+            if player.isPlaying {
+                player.pause()
+                isPlaying = false
+            } else {
+                player.play()
+                isPlaying = true
             }
-        } else {
-            isPlaying.toggle()
+            return
+        }
+
+        // First play — fetch, decrypt, and start
+        Task {
+            do {
+                let data = try await S3MediaClient.shared.fetchAndDecrypt(
+                    s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce
+                )
+                audioData = data
+
+                #if os(iOS)
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                #endif
+
+                let player = try AVAudioPlayer(data: data)
+                player.prepareToPlay()
+                player.play()
+                audioPlayer = player
+                isPlaying = true
+            } catch {
+                loadError = error.localizedDescription
+            }
         }
     }
 }
@@ -488,6 +517,33 @@ struct PDFKitView: UIViewRepresentable {
     func updateUIView(_ uiView: PDFView, context: Context) {}
 }
 #endif
+
+// MARK: - In-app video player (AVKit)
+
+import AVKit
+
+struct VideoPlayerView: View {
+    let url: URL
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        Group {
+            if let player {
+                VideoPlayer(player: player)
+            } else {
+                Color.grey20.overlay(ProgressView())
+            }
+        }
+        .onAppear {
+            let avPlayer = AVPlayer(url: url)
+            player = avPlayer
+        }
+        .onDisappear {
+            player?.pause()
+            player = nil
+        }
+    }
+}
 
 // MARK: - Transcript
 

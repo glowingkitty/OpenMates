@@ -88,7 +88,25 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         if let chatId = userInfo["chat_id"] as? String {
             await MainActor.run {
                 pendingChatId = chatId
+                // Clear badge when user taps a notification
+                setBadgeCount(0)
             }
         }
+    }
+
+    /// Increment badge count (called when a push notification arrives while app is active).
+    func incrementBadge() {
+        #if os(iOS)
+        UNUserNotificationCenter.current().getBadgeCount { [weak self] currentCount in
+            Task { @MainActor in
+                self?.setBadgeCount(currentCount + 1)
+            }
+        }
+        #endif
+    }
+
+    /// Clear badge when user opens any chat.
+    func clearBadge() {
+        setBadgeCount(0)
     }
 }

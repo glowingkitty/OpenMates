@@ -114,6 +114,25 @@ final class OfflineSyncBridge: ObservableObject {
         ])
     }
 
+    func pinChatOffline(chatId: String, isPinned: Bool) {
+        offlineStore.queueOfflineAction(type: "pin_chat", payload: [
+            "chat_id": chatId,
+            "is_pinned": isPinned,
+        ])
+    }
+
+    func archiveChatOffline(chatId: String) {
+        offlineStore.queueOfflineAction(type: "archive_chat", payload: [
+            "chat_id": chatId,
+        ])
+    }
+
+    func hideChatOffline(chatId: String) {
+        offlineStore.queueOfflineAction(type: "hide_chat", payload: [
+            "chat_id": chatId,
+        ])
+    }
+
     // MARK: - Replay pending actions on reconnect
 
     func replayPendingActions() async {
@@ -138,6 +157,12 @@ final class OfflineSyncBridge: ObservableObject {
                     try await replaySendMessage(payload)
                 case "delete_message":
                     try await replayDeleteMessage(payload)
+                case "pin_chat":
+                    try await replayPinChat(payload)
+                case "archive_chat":
+                    try await replayArchiveChat(payload)
+                case "hide_chat":
+                    try await replayHideChat(payload)
                 default:
                     break
                 }
@@ -172,6 +197,30 @@ final class OfflineSyncBridge: ObservableObject {
               let messageId = payload["message_id"] as? String else { return }
         let _: Data = try await APIClient.shared.request(
             .delete, path: "/v1/chats/\(chatId)/messages/\(messageId)"
+        )
+    }
+
+    private func replayPinChat(_ payload: [String: Any]) async throws {
+        guard let chatId = payload["chat_id"] as? String else { return }
+        let isPinned = payload["is_pinned"] as? Bool ?? true
+        let _: Data = try await APIClient.shared.request(
+            .patch, path: "/v1/chats/\(chatId)",
+            body: ["is_pinned": isPinned]
+        )
+    }
+
+    private func replayArchiveChat(_ payload: [String: Any]) async throws {
+        guard let chatId = payload["chat_id"] as? String else { return }
+        let _: Data = try await APIClient.shared.request(
+            .patch, path: "/v1/chats/\(chatId)",
+            body: ["is_archived": true]
+        )
+    }
+
+    private func replayHideChat(_ payload: [String: Any]) async throws {
+        guard let chatId = payload["chat_id"] as? String else { return }
+        let _: Data = try await APIClient.shared.request(
+            .post, path: "/v1/chats/\(chatId)/hide"
         )
     }
 

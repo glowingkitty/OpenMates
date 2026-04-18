@@ -71,9 +71,22 @@ struct ChatView: View {
                 chatId: chatId,
                 chatTitle: viewModel.chat?.displayTitle
             )
+            // Clear notification badge when viewing a chat
+            PushNotificationManager.shared.clearBadge()
         }
         .onDisappear {
             handoffManager.stopAdvertising()
+        }
+        .onChange(of: viewModel.forkedChatId) { _, newChatId in
+            if let newChatId {
+                // Navigate to forked chat via deep link notification
+                NotificationCenter.default.post(
+                    name: .deepLinkReceived,
+                    object: nil,
+                    userInfo: ["url": URL(string: "openmates://chat/\(newChatId)")!]
+                )
+                viewModel.forkedChatId = nil
+            }
         }
         .sheet(isPresented: $showEmbedFullscreen) {
             if let embed = selectedEmbed {

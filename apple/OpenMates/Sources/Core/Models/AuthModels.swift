@@ -78,6 +78,10 @@ struct UserProfile: Decodable, Identifiable {
     let keyIv: String?          // 12-byte IV for master key wrapping (base64)
     let salt: String?           // PBKDF2 salt (base64)
     let userEmailSalt: String?  // Salt for email encryption key derivation
+
+    // Settings fields synced from server
+    let autoDeleteChatsAfterDays: Int?
+    let pushNotificationEnabled: Bool?
 }
 
 // MARK: - Passkey

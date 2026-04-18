@@ -94,7 +94,15 @@ struct MainAppView: View {
         .sheet(isPresented: $showHiddenChats) {
             NavigationStack {
                 if hiddenChatsUnlocked {
-                    Text("Hidden chats loaded")
+                    HiddenChatsListView(
+                        onSelectChat: { chatId in
+                            selectedChatId = chatId
+                            showHiddenChats = false
+                        },
+                        onUnhideChat: { chatId in
+                            unhideChat(chatId)
+                        }
+                    )
                 } else {
                     HiddenChatsUnlockView(isUnlocked: $hiddenChatsUnlocked)
                 }
@@ -488,6 +496,15 @@ struct MainAppView: View {
         }
     }
 
+    private func unhideChat(_ id: String) {
+        Task {
+            try? await APIClient.shared.request(
+                .post, path: "/v1/chats/\(id)/unhide"
+            ) as Data
+            await loadInitialData()
+        }
+    }
+
     private func archiveChat(_ id: String) {
         Task {
             try? await APIClient.shared.request(
@@ -511,9 +528,10 @@ struct MainAppView: View {
     }
 
     private func handleEmbedUpdate(_ notification: Notification) {
-        // Embed updates are handled by ChatViewModel per-chat via streaming events.
-        // The main app level receives these for future use (e.g., updating embed
-        // previews in the chat list sidebar).
+        // Forward embed updates so the active ChatView can reload its embeds.
+        // The notification carries the raw WS data; ChatViewModel listens for
+        // embed refresh signals via NotificationCenter.
+        NotificationCenter.default.post(name: .embedRefreshNeeded, object: nil, userInfo: notification.userInfo)
     }
 }
 

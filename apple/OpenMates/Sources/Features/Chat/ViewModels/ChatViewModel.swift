@@ -27,6 +27,7 @@ final class ChatViewModel: ObservableObject {
 
     private let api = APIClient.shared
     private var streamTask: Task<Void, Never>?
+    private var embedRefreshObserver: Any?
 
     func loadChat(id: String) async {
         isLoading = true
@@ -64,8 +65,9 @@ final class ChatViewModel: ObservableObject {
             // Load embeds for visible messages
             await loadEmbeds(for: messages.map(\.id))
 
-            // Start listening for streaming events
+            // Start listening for streaming events and embed updates
             subscribeToStream(chatId: id)
+            subscribeToEmbedUpdates(chatId: id)
         } catch {
             self.error = error.localizedDescription
         }
@@ -236,6 +238,26 @@ final class ChatViewModel: ObservableObject {
         case .error(let msg):
             error = msg
             isStreaming = false
+        }
+    }
+
+    // MARK: - Embed update subscription
+
+    /// Listen for WebSocket embed updates and reload embeds for this chat.
+    private func subscribeToEmbedUpdates(chatId: String) {
+        embedRefreshObserver = NotificationCenter.default.addObserver(
+            forName: .embedRefreshNeeded, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.chat?.id == chatId else { return }
+                await self.loadEmbeds(for: self.messages.map(\.id))
+            }
+        }
+    }
+
+    deinit {
+        if let observer = embedRefreshObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 
