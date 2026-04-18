@@ -27,6 +27,8 @@
 	import SettingsDropdown from '../elements/SettingsDropdown.svelte';
 	import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
 	import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
+	import SettingsButton from '../elements/SettingsButton.svelte';
+	import SettingsInput from '../elements/SettingsInput.svelte';
 	import { chatMetadataCache } from '../../../services/chatMetadataCache';
 	import { chatDB } from '../../../services/db';
 	import {
@@ -86,6 +88,8 @@
 	let time = $state('');
 	/** Reminder type: 'this_chat' (chat reminder notification) or 'new_task' (new chat + AI task) */
 	let reminderMode = $state<'this_chat' | 'new_task'>('this_chat');
+	/** Quick preset selection; 'custom' reveals the Day/Time pickers */
+	let whenPreset = $state('in_30_min');
 	let actionPrompt = $state('');
 	let repeatType = $state('none');
 	let customInterval = $state('1');
@@ -115,6 +119,55 @@
 	});
 
 	let showCustomRepeat = $derived(repeatType === 'custom');
+	let showCustomDatetime = $derived(whenPreset === 'custom');
+
+	/** Compute date/time strings for a given preset key (called at submit time for relative presets). */
+	function computePresetDatetime(preset: string): { date: string; time: string } {
+		const now = new Date();
+		const fmt = (d: Date) =>
+			`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+		const fmtTime = (h: number, m = 0) =>
+			`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+		if (preset === 'in_10_min') {
+			const t = new Date(now.getTime() + 10 * 60 * 1000);
+			return { date: fmt(t), time: fmtTime(t.getHours(), t.getMinutes()) };
+		}
+		if (preset === 'in_30_min') {
+			const t = new Date(now.getTime() + 30 * 60 * 1000);
+			return { date: fmt(t), time: fmtTime(t.getHours(), t.getMinutes()) };
+		}
+		if (preset === 'in_1_hour') {
+			const t = new Date(now.getTime() + 60 * 60 * 1000);
+			return { date: fmt(t), time: fmtTime(t.getHours(), t.getMinutes()) };
+		}
+		if (preset === 'today_8pm') {
+			return { date: fmt(now), time: '20:00' };
+		}
+		if (preset === 'tomorrow_9am') {
+			const t = new Date(now);
+			t.setDate(t.getDate() + 1);
+			return { date: fmt(t), time: '09:00' };
+		}
+		if (preset === 'saturday_11am') {
+			const t = new Date(now);
+			const day = t.getDay();
+			const daysUntilSat = day === 6 ? 7 : 6 - day;
+			t.setDate(t.getDate() + daysUntilSat);
+			return { date: fmt(t), time: '11:00' };
+		}
+		return { date: '', time: '' };
+	}
+
+	let whenOptions = $derived([
+		{ value: 'in_10_min', label: $text('reminder.settings.preset_10min') },
+		{ value: 'in_30_min', label: $text('reminder.settings.preset_30min') },
+		{ value: 'in_1_hour', label: $text('reminder.settings.preset_1hour') },
+		{ value: 'today_8pm', label: $text('reminder.settings.preset_today_8pm') },
+		{ value: 'tomorrow_9am', label: $text('reminder.settings.preset_tomorrow_9am') },
+		{ value: 'saturday_11am', label: $text('reminder.settings.preset_saturday_11am') },
+		{ value: 'custom', label: $text('reminder.settings.preset_custom') }
+	]);
 
 	let repeatOptions = $derived([
 		{ value: 'none', label: $text('reminder.panel.repeat_none') },
@@ -141,9 +194,18 @@
 	async function handleSubmit() {
 		errorMessage = '';
 
-		if (!date || !time) return;
+		let resolvedDate = date;
+		let resolvedTime = time;
 
-		const triggerDatetime = `${date}T${time}:00`;
+		if (whenPreset !== 'custom') {
+			const computed = computePresetDatetime(whenPreset);
+			resolvedDate = computed.date;
+			resolvedTime = computed.time;
+		}
+
+		if (!resolvedDate || !resolvedTime) return;
+
+		const triggerDatetime = `${resolvedDate}T${resolvedTime}:00`;
 		const triggerMs = new Date(triggerDatetime).getTime();
 		if (triggerMs <= Date.now()) {
 			errorMessage = $text('reminder.panel.error_past');
@@ -292,35 +354,46 @@
 		/>
 	{/if}
 
-	<!-- 5. Day? -->
+	<!-- 5. When? -->
 	<SettingsSectionHeading
-		icon="calendar"
-		title={$text('reminder.settings.day_heading')}
+		icon="clock"
+		title={$text('reminder.settings.when_heading')}
 	/>
-	<div class="native-input-wrapper">
-		<input
+	<SettingsDropdown
+		bind:value={whenPreset}
+		options={whenOptions}
+		ariaLabel={$text('reminder.settings.when_heading')}
+	/>
+
+	<!-- 5a. Day? — only when Custom is selected -->
+	{#if showCustomDatetime}
+		<SettingsSectionHeading
+			icon="calendar"
+			title={$text('reminder.settings.day_heading')}
+		/>
+		<SettingsInput
 			id="settings-reminder-date"
-			class="native-input"
+			dataTestid="settings-reminder-date"
 			type="date"
 			bind:value={date}
 			min={todayStr}
+			ariaLabel={$text('reminder.settings.day_heading')}
 		/>
-	</div>
 
-	<!-- 6. Time? -->
-	<SettingsSectionHeading
-		icon="clock"
-		title={$text('reminder.settings.time_heading')}
-	/>
-	<div class="native-input-wrapper">
-		<input
+		<!-- 5b. Time? — only when Custom is selected -->
+		<SettingsSectionHeading
+			icon="clock"
+			title={$text('reminder.settings.time_heading')}
+		/>
+		<SettingsInput
 			id="settings-reminder-time"
-			class="native-input"
+			dataTestid="settings-reminder-time"
 			type="time"
 			bind:value={time}
 			min={minTime || undefined}
+			ariaLabel={$text('reminder.settings.time_heading')}
 		/>
-	</div>
+	{/if}
 
 	<!-- 7. Repeat? -->
 	<SettingsSectionHeading
@@ -339,13 +412,14 @@
 			title={$text('reminder.panel.repeat_every')}
 		/>
 		<div class="custom-repeat-row">
-			<div class="native-input-wrapper interval-field">
-				<input
+			<div class="interval-field">
+				<SettingsInput
 					id="settings-reminder-interval"
-					class="native-input"
+					dataTestid="settings-reminder-interval"
 					type="number"
 					min="1"
 					bind:value={customInterval}
+					ariaLabel={$text('reminder.panel.repeat_every')}
 				/>
 			</div>
 			<div class="unit-field">
@@ -363,28 +437,29 @@
 			icon="calendar"
 			title={$text('reminder.panel.end_date')}
 		/>
-		<div class="native-input-wrapper">
-			<input
-				id="settings-reminder-end-date"
-				class="native-input"
-				type="date"
-				bind:value={endDate}
-				min={todayStr}
-			/>
-		</div>
+		<SettingsInput
+			id="settings-reminder-end-date"
+			dataTestid="settings-reminder-end-date"
+			type="date"
+			bind:value={endDate}
+			min={todayStr}
+			ariaLabel={$text('reminder.panel.end_date')}
+		/>
 	{/if}
 
 	{#if errorMessage}
 		<SettingsInfoBox type="error">{errorMessage}</SettingsInfoBox>
 	{/if}
 
-	<button
-		data-testid="settings-button-primary"
-		disabled={isSubmitting || !date || !time || (reminderMode === 'new_task' && !actionPrompt.trim())}
-		onclick={handleSubmit}
+	<SettingsButton
+		dataTestid="settings-button-primary"
+		disabled={whenPreset === 'custom' && (!date || !time) || (reminderMode === 'new_task' && !actionPrompt.trim())}
+		loading={isSubmitting}
+		fullWidth
+		onClick={handleSubmit}
 	>
 		{isSubmitting ? $text('reminder.panel.setting') : $text('reminder.settings.create_title')}
-	</button>
+	</SettingsButton>
 </SettingsPageContainer>
 
 <style>
@@ -469,41 +544,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	/* Wrapper to match SettingsDropdown horizontal padding */
-	.native-input-wrapper {
-		padding: 0 0.625rem;
-	}
-
-	/* Native date/time/number inputs styled to match SettingsDropdown */
-	.native-input {
-		width: 100%;
-		padding: 1.0625rem 1.4375rem;
-		background: var(--color-grey-0);
-		border: none;
-		border-radius: 1.5rem;
-		box-shadow: 0 0.25rem 0.25rem rgba(0, 0, 0, 0.1);
-		font-family:
-			'Lexend Deca Variable',
-			-apple-system,
-			BlinkMacSystemFont,
-			'Segoe UI',
-			Roboto,
-			sans-serif;
-		font-weight: 500;
-		font-size: var(--input-font-size, 1rem);
-		line-height: 1.25;
-		color: var(--color-grey-100);
-		appearance: none;
-		-webkit-appearance: none;
-		transition: box-shadow var(--duration-normal) var(--easing-default);
-		box-sizing: border-box;
-	}
-
-	.native-input:focus {
-		outline: none;
-		box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
 	}
 
 	.custom-repeat-row {

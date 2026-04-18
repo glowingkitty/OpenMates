@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -157,27 +156,26 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	// ── Step 3: Verify the reminder creation form and chat context ──
 	log('Verifying reminder creation form...');
 
-	// The settings panel should now show the reminder creation page
-	const dateInput = page.locator('#settings-reminder-date');
-	await expect(dateInput).toBeVisible({ timeout: 10000 });
-	log('Reminder creation form is visible.');
+	// The "When?" dropdown should be visible by default (new quick-preset UI)
+	const whenDropdown = page.getByTestId('settings-dropdown').nth(1);
+	await expect(whenDropdown).toBeVisible({ timeout: 10000 });
+	log('Reminder creation form is visible (When? dropdown found).');
 
 	// Verify chat context is shown (the current chat title should appear)
 	const chatContext = page.getByTestId('chat-context');
 	await expect(chatContext).toBeVisible({ timeout: 5000 });
 	log('Chat context visible in reminder form.');
 
-	// Verify target type dropdown defaults to "This chat"
-	const targetDropdown = page.getByTestId('settings-dropdown').first();
-	if (await targetDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
-		const selectedValue = await targetDropdown.inputValue();
-		log(`Target type: ${selectedValue}`);
-	}
+	// ── Step 4: Select "Custom" to reveal the date/time pickers, then fill them ──
+	log('Selecting Custom preset to reveal date/time inputs...');
+	await whenDropdown.selectOption('custom');
+	await page.waitForTimeout(300);
 
-	const timeInput = page.locator('#settings-reminder-time');
+	const dateInput = page.getByTestId('settings-reminder-date');
+	await expect(dateInput).toBeVisible({ timeout: 5000 });
+	const timeInput = page.getByTestId('settings-reminder-time');
 	await expect(timeInput).toBeVisible({ timeout: 5000 });
 
-	// ── Step 4: Fill in the form ──
 	const { date, time } = getOneMinuteFromNow();
 	log(`Setting reminder for: ${date} ${time}`);
 
