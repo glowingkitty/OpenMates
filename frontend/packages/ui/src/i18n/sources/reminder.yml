@@ -1123,8 +1123,208 @@ settings.type_heading:
   he: סוג תזכורת
   verified_by_human: [en, de]
 
+settings.when_heading:
+  context: Heading label for the quick "When?" preset dropdown in the reminder creation form
+  en: When?
+  de: Wann?
+  zh: 何时？
+  es: ¿Cuándo?
+  fr: Quand ?
+  pt: Quando?
+  ru: Когда?
+  ja: いつ?
+  ko: 언제?
+  it: Quando?
+  tr: Ne zaman?
+  vi: Khi nào?
+  id: Kapan?
+  pl: Kiedy?
+  nl: Wanneer?
+  ar: متى؟
+  hi: कब?
+  th: เมื่อไหร่?
+  cs: Kdy?
+  sv: När?
+  he: מתי?
+  verified_by_human: [en, de]
+
+settings.preset_10min:
+  context: Quick-select option in the When? dropdown — reminder fires 10 minutes from now
+  en: In 10 minutes
+  de: In 10 Minuten
+  zh: 10分钟后
+  es: En 10 minutos
+  fr: Dans 10 minutes
+  pt: Em 10 minutos
+  ru: Через 10 минут
+  ja: 10分後
+  ko: 10분 후
+  it: Fra 10 minuti
+  tr: 10 dakika sonra
+  vi: Sau 10 phút
+  id: Dalam 10 menit
+  pl: Za 10 minut
+  nl: Over 10 minuten
+  ar: بعد 10 دقائق
+  hi: 10 मिनट में
+  th: ใน 10 นาที
+  cs: Za 10 minut
+  sv: Om 10 minuter
+  he: בעוד 10 דקות
+  verified_by_human: [en, de]
+
+settings.preset_30min:
+  context: Quick-select option in the When? dropdown — reminder fires 30 minutes from now
+  en: In 30 minutes
+  de: In 30 Minuten
+  zh: 30分钟后
+  es: En 30 minutos
+  fr: Dans 30 minutes
+  pt: Em 30 minutos
+  ru: Через 30 минут
+  ja: 30分後
+  ko: 30분 후
+  it: Fra 30 minuti
+  tr: 30 dakika sonra
+  vi: Sau 30 phút
+  id: Dalam 30 menit
+  pl: Za 30 minut
+  nl: Over 30 minuten
+  ar: بعد 30 دقيقة
+  hi: 30 मिनट में
+  th: ใน 30 นาที
+  cs: Za 30 minut
+  sv: Om 30 minuter
+  he: בעוד 30 דקות
+  verified_by_human: [en, de]
+
+settings.preset_1hour:
+  context: Quick-select option in the When? dropdown — reminder fires 1 hour from now
+  en: In 1 hour
+  de: In 1 Stunde
+  zh: 1小时后
+  es: En 1 hora
+  fr: Dans 1 heure
+  pt: Em 1 hora
+  ru: Через 1 час
+  ja: 1時間後
+  ko: 1시간 후
+  it: Fra 1 ora
+  tr: 1 saat sonra
+  vi: Sau 1 giờ
+  id: Dalam 1 jam
+  pl: Za 1 godzinę
+  nl: Over 1 uur
+  ar: بعد ساعة واحدة
+  hi: 1 घंटे में
+  th: ใน 1 ชั่วโมง
+  cs: Za 1 hodinu
+  sv: Om 1 timme
+  he: בעוד שעה
+  verified_by_human: [en, de]
+
+settings.preset_today_8pm:
+  context: Quick-select option in the When? dropdown — reminder fires today at 8pm
+  en: Today at 8pm
+  de: Heute um 20:00 Uhr
+  zh: 今天晚上8点
+  es: Hoy a las 8pm
+  fr: Aujourd'hui à 20h
+  pt: Hoje às 20h
+  ru: Сегодня в 20:00
+  ja: 今日の20時
+  ko: 오늘 오후 8시
+  it: Oggi alle 20:00
+  tr: Bugün saat 20:00
+  vi: Hôm nay lúc 20:00
+  id: Hari ini pukul 20:00
+  pl: Dziś o 20:00
+  nl: Vandaag om 20:00
+  ar: اليوم الساعة 8 مساءً
+  hi: आज रात 8 बजे
+  th: วันนี้เวลา 20:00
+  cs: Dnes v 20:00
+  sv: Idag kl. 20:00
+  he: היום בשעה 20:00
+  verified_by_human: [en, de]
+
+settings.preset_tomorrow_9am:
+  context: Quick-select option in the When? dropdown — reminder fires tomorrow at 9am
+  en: Tomorrow at 9am
+  de: Morgen um 9:00 Uhr
+  zh: 明天上午9点
+  es: Mañana a las 9am
+  fr: Demain à 9h
+  pt: Amanhã às 9h
+  ru: Завтра в 9:00
+  ja: 明日の9時
+  ko: 내일 오전 9시
+  it: Domani alle 9:00
+  tr: Yarın saat 9:00
+  vi: Ngày mai lúc 9:00
+  id: Besok pukul 9:00
+  pl: Jutro o 9:00
+  nl: Morgen om 9:00
+  ar: غداً الساعة 9 صباحًا
+  hi: कल सुबह 9 बजे
+  th: พรุ่งนี้เวลา 9:00
+  cs: Zítra v 9:00
+  sv: Imorgon kl. 9:00
+  he: מחר בשעה 9:00
+  verified_by_human: [en, de]
+
+settings.preset_saturday_11am:
+  context: Quick-select option in the When? dropdown — reminder fires on the coming Saturday at 11am
+  en: Saturday at 11am
+  de: Samstag um 11:00 Uhr
+  zh: 周六上午11点
+  es: El sábado a las 11am
+  fr: Samedi à 11h
+  pt: Sábado às 11h
+  ru: В субботу в 11:00
+  ja: 土曜日の11時
+  ko: 토요일 오전 11시
+  it: Sabato alle 11:00
+  tr: Cumartesi saat 11:00
+  vi: Thứ Bảy lúc 11:00
+  id: Sabtu pukul 11:00
+  pl: W sobotę o 11:00
+  nl: Zaterdag om 11:00
+  ar: السبت الساعة 11 صباحًا
+  hi: शनिवार को सुबह 11 बजे
+  th: วันเสาร์เวลา 11:00
+  cs: V sobotu v 11:00
+  sv: Lördag kl. 11:00
+  he: שבת בשעה 11:00
+  verified_by_human: [en, de]
+
+settings.preset_custom:
+  context: Quick-select option in the When? dropdown — user picks a custom date and time
+  en: Custom
+  de: Benutzerdefiniert
+  zh: 自定义
+  es: Personalizado
+  fr: Personnalisé
+  pt: Personalizado
+  ru: Произвольно
+  ja: カスタム
+  ko: 직접 입력
+  it: Personalizzato
+  tr: Özel
+  vi: Tùy chỉnh
+  id: Kustom
+  pl: Niestandardowy
+  nl: Aangepast
+  ar: مخصص
+  hi: कस्टम
+  th: กำหนดเอง
+  cs: Vlastní
+  sv: Anpassad
+  he: מותאם אישית
+  verified_by_human: [en, de]
+
 settings.day_heading:
-  context: Heading label for the day/date picker field
+  context: Heading label for the day/date picker field (shown only when Custom is selected)
   en: Day?
   de: Tag?
   zh: 哪天？

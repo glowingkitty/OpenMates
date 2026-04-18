@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
     /** Input type — standard HTML input types */
-    type InputType = 'text' | 'email' | 'password' | 'number' | 'search' | 'url' | 'tel';
+    type InputType = 'text' | 'email' | 'password' | 'number' | 'search' | 'url' | 'tel' | 'date' | 'time';
 
     /** inputmode — virtual keyboard hint for mobile */
     type InputMode = 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
@@ -23,11 +23,12 @@
         name = '',
         id = '',
         ariaLabel = '',
-        autocomplete = 'off' as AutoFill,
+        autocomplete = 'off',
         spellcheck = undefined as boolean | undefined,
         maxlength = undefined,
         pattern = undefined as string | undefined,
         inputmode = undefined as InputMode | undefined,
+        min = undefined as string | undefined,
         hasError = false,
         dataTestid = '',
         onInput = undefined,
@@ -42,9 +43,10 @@
         name?: string;
         id?: string;
         ariaLabel?: string;
-        autocomplete?: AutoFill;
+        autocomplete?: string;
         spellcheck?: boolean | undefined;
         maxlength?: number | undefined;
+        min?: string | undefined;
         pattern?: string | undefined;
         inputmode?: InputMode | undefined;
         hasError?: boolean;
@@ -79,6 +81,7 @@
         {autocomplete}
         spellcheck={spellcheck}
         maxlength={maxlength}
+        min={min}
         pattern={pattern}
         inputmode={inputmode}
         aria-label={ariaLabel || placeholder}
