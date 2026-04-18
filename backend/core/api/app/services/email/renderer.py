@@ -42,22 +42,21 @@ def render_mjml_template(
         
         # Get dark mode setting from context
         dark_mode = context.get('darkmode', False)
-        
-        # Process brand name to add mark tags with appropriate styling
-        rendered_mjml = process_brand_name(rendered_mjml, dark_mode)
-        
-        # Process mark tags in the rendered content
-        rendered_mjml = process_mark_tags(rendered_mjml)
-        
+
         # Log the MJML before image embedding (first portion)
         logger.debug(f"MJML content before image embedding (first 500 chars): {rendered_mjml[:500]}")
-        
+
         # Embed images as base64
         rendered_mjml = embed_images(templates_dir, rendered_mjml)
-        
+
         # Convert to HTML with fallback handling
         html_output = convert_mjml_to_html(rendered_mjml, processed_mjml, context, dark_mode)
-        
+
+        # Brand-name and mark-tag processing runs on final HTML, not on MJML
+        # source — injecting <a>/<mark> into MJML breaks the parser.
+        html_output = process_brand_name(html_output, dark_mode)
+        html_output = process_mark_tags(html_output)
+
         # Process links to style them
         html_output = process_link_tags(html_output)
 
@@ -133,9 +132,7 @@ def convert_mjml_to_html(
             # Use a different approach - instead of embedding, use HTTP URLs
             jinja_template = Template(original_mjml)
             original_rendered = jinja_template.render(**context)
-            processed_original = process_brand_name(original_rendered, dark_mode)
-            processed_original = process_mark_tags(processed_original)
-            html_output = mjml2html(processed_original)
+            html_output = mjml2html(original_rendered)
             logger.info("Fallback to original image links successful!")
             return html_output
         except Exception as e2:
