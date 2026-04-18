@@ -26,7 +26,7 @@ Three-step workflow on dev (mandatory order):
        One email via Brevo to a single address (no subscriber list,
        no sent_at write).
 
-    3. --confirm-send
+    3. --send
        Broadcast to every confirmed subscriber whose
        ``categories[<this issue's category>]`` is true. Prompts for a
        typed ``SEND`` confirmation, refuses piped stdin, and writes
@@ -40,7 +40,7 @@ Usage:
         --slug <slug> --test-to testing@openmates.org --lang en
 
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
-        --slug <slug> --confirm-send
+        --slug <slug> --send
 """
 
 from __future__ import annotations
@@ -349,7 +349,11 @@ async def check_landing_page_live(landing_url: str) -> bool:
     """
     timeout = aiohttp.ClientTimeout(total=10)
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(
+            timeout=timeout,
+            max_line_size=32768,
+            max_field_size=32768,
+        ) as session:
             async with session.head(landing_url, allow_redirects=True) as resp:
                 return resp.status == 200
     except Exception as exc:  # noqa: BLE001
@@ -446,7 +450,7 @@ async def run(args: argparse.Namespace) -> int:
 
     base_url = resolve_base_url(
         override=args.base_url,
-        for_test_send=bool(args.test_to) and not args.confirm_send,
+        for_test_send=bool(args.test_to) and not args.send,
     )
     landing_url = build_landing_url(manifest, base_url)
     logger.info(f"Base URL: {base_url}")
@@ -504,10 +508,10 @@ async def run(args: argparse.Namespace) -> int:
         return 0 if success else 1
 
     # ── Real broadcast ───────────────────────────────────────────────────
-    if not args.confirm_send:
+    if not args.send:
         logger.error(
-            "Refusing to broadcast without --confirm-send. "
-            "Run with --dry-run, --test-to <email>, or --confirm-send."
+            "Refusing to broadcast without --send. "
+            "Run with --dry-run, --test-to <email>, or --send."
         )
         return 2
 
@@ -680,7 +684,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--render-to", type=str, default=None)
     parser.add_argument("--test-to", type=str, default=None)
-    parser.add_argument("--confirm-send", action="store_true")
+    parser.add_argument("--send", action="store_true")
     parser.add_argument("--resend-confirm", action="store_true", help="Override the sent_at double-send guard.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
@@ -690,7 +694,7 @@ def main() -> int:
         help=(
             "Override the webapp origin that appears in the email "
             "(e.g. https://app.dev.openmates.org). Defaults to the dev webapp "
-            "for --test-to sends and to the prod webapp for --confirm-send."
+            "for --test-to sends and to the prod webapp for --send."
         ),
     )
     args = parser.parse_args()
