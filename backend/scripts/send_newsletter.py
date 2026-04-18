@@ -159,10 +159,10 @@ def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
             f"Demo chat i18n source not found: {yml_path}. Did publish_newsletter.py run?"
         )
     parsed = yaml.safe_load(yml_path.read_text(encoding="utf-8")) or {}
-    message = (parsed.get("message") or {})
-    if not isinstance(message, dict):
+    email_body = parsed.get("email_body") or parsed.get("message") or {}
+    if not isinstance(email_body, dict):
         return None
-    value = message.get(lang)
+    value = email_body.get(lang)
     if value and value.strip():
         return value
     return None

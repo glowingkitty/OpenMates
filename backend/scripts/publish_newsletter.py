@@ -414,6 +414,7 @@ def write_i18n_yml(inputs: Dict[str, Any]) -> Path:
         de["subtitle"] or de["subject"],
     )
     message_block = _block("message", en["chat_body"], de["chat_body"])
+    email_body_block = _block("email_body", en["raw_body"], de["raw_body"])
 
     content = (
         f"# Newsletter {kind}/{slug}\n"
@@ -422,6 +423,7 @@ def write_i18n_yml(inputs: Dict[str, Any]) -> Path:
         f"{title_block}\n"
         f"{description_block}\n"
         f"{message_block}\n"
+        f"{email_body_block}\n"
     )
 
     I18N_DIR.mkdir(parents=True, exist_ok=True)

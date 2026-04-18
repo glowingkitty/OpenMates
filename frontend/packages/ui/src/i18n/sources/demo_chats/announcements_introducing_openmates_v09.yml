@@ -230,3 +230,191 @@ message:
   sv: ''
   he: ''
   verified_by_human: []
+email_body:
+  context: 'Newsletter announcements/introducing-openmates-v09 — email_body'
+  en: |-
+    Hey there,
+    Marco (aka [glowingkitty](https://github.com/glowingkitty)) here — the creator of OpenMates.
+    I haven't forgotten about OpenMates — quite the opposite. 
+    
+    [video]
+    
+    # 🙏 A few words of thanks first
+    
+    At the end of December, in the context of Chaos Communication Congress, I was unexpectedly asked for an interview on the German TV channel ZDF [(a report discussing the importance of privacy-focused alternatives to big tech AI companies)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). And wow, what an experience. Despite OpenMates having been a lot rougher around the edges at that time, the first people started to sign up and use it — and also finding bugs and edge cases which I didn't experience during my testing on my own devices, and thankfully reported them. Thanks a lot to everyone who did that — it really helped a lot with making OpenMates more polished, more stable and more complete! And of course you are super welcome to keep reporting issues if you notice anything feeling wrong or broken on OpenMates.
+    
+    While this wasn't the first software I created, it was the first time that more than a handful of people started using software I built — over 180 active users so far are using OpenMates! Which has been super exciting, and admittedly at first also a bit overwhelming.
+    
+    Since then, I've focused completely on improving and debugging OpenMates, and getting it more feature-complete and polished — and made a ton of changes to the code. Bug fixes, new features, an improved user interface, and many more improvements. 
+    
+    And today, I'm happy to give you an update with the most exciting changes from the past few months! Keep in mind, talking about all the changes would be too much for a single newsletter — so instead I'll focus on the highlights and also publish multiple short videos about various features on OpenMates in the weeks to come, on [Instagram](https://instagram.com/openmates_official), [Bluesky](https://bsky.app/profile/openmates.bsky.social), [Mastodon](https://mastodon.social/@OpenMates).
+    
+    # ✨ The highlights of the last months
+    
+    ## 1. 🧩 New apps & app skills
+    
+    In addition to the existing capabilities of searching the web, reading & analyzing websites, and reading the transcripts of YouTube videos to start discussions — OpenMates got a lot of new apps and app skills. Here are some highlights:
+    
+    - 🏥 **[Health](https://openmates.org/#settings/apps/health/skills/search_appointments):** Looking for doctor appointments? The Health app can now check Doctolib and Jameda for available slots.
+    - 🏠 **[Home](https://openmates.org/#settings/apps/home/skills/search):** Search for apartments on ImmoScout24, WG-Gesucht and Kleinanzeigen — with the key details directly visible on OpenMates.
+    - 🎉 **[Events](https://openmates.org/#settings/apps/events/skills/search):** Search & filter for events on Meetup, Luma, Resident Advisor and Google — with details like descriptions, images, when and where the events are, and direct links to RSVP or join them.
+    - ✈️ **[Travel](https://openmates.org/#settings/apps/travel):** The new '[Search connection](https://openmates.org/#settings/apps/travel/skills/search_connections)' skill lets you search for flights via Google, across multiple connections on various days simultaneously — incl. full flight details and booking links. Support for train connections will follow. And the '[Price calendar](https://openmates.org/#settings/apps/travel/skills/price_calendar)' skill shows you a quick overview of the price development across a month.
+    - ⏰ **[Reminders](https://openmates.org/#settings/apps/reminder):** Create a reminder for a chat to come back to it later — or even trigger OpenMates to search & summarize the latest daily news for a given topic, for example.
+    - 🖼️ **[Images](https://openmates.org/#settings/apps/images):** [Search](https://openmates.org/#settings/apps/images/skills/search) for images on the web, [generate](https://openmates.org/#settings/apps/images/skills/generate) images and [vector graphics](https://openmates.org/#settings/apps/images/skills/vectorize).
+    - 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** Upload PDFs and ask questions about the text or even the visual layout — OpenMates can both read and view PDFs! 
+    - 💻 **[Code](https://openmates.org/#settings/apps/code):** OpenMates can [search for the latest docs](https://openmates.org/#settings/apps/code/skills/get_docs) to answer coding-related questions, then write code — and even let you preview website designs and code directly in the browser! And this is only the early beginning of its coding capabilities.
+    - 🧮 **[Math](https://openmates.org/#settings/apps/math):** Calculate expressions and even visualize plots, all within OpenMates.
+    - 📝 **[Docs](https://openmates.org/#settings/apps/docs):** Ask for Word documents to be generated — and download them as .docx files.
+    - 📊 **[Sheets](https://openmates.org/#settings/apps/sheets):** OpenMates can also create tables and let you download them as .xlsx files. And both Docs and Sheets will get even better and more powerful in the weeks to come.
+    - 📧 **[Mail](https://openmates.org/#settings/apps/mail):** OpenMates can draft emails for you, which you can then easily open & send via your default email program on your device.
+    - 🎙️ **[Audio](https://openmates.org/#settings/apps/audio):** Don't want to type? Record and send a voice message to OpenMates, directly from the message field.
+    
+    And even more app skills have been added. Just [check out & explore the OpenMates Apps](https://openmates.org/#settings/apps).
+    
+    ## 2. 🔒 Personal Data Placeholders
+    
+    Unlike AI chatbots from big tech companies and typical startups, OpenMates is designed with your privacy as a main priority. And it already had various privacy protections in place:
+    - 🔐 all your chats are encrypted & decrypted on your device only
+    - 🖼️ all external images are loaded via our OpenMates server (so external websites don't see your IP address or device information)
+    - 📉 no Google Analytics or any other analytics software is used on OpenMates (which is also why you don't see a cookie banner on OpenMates)
+    
+    What's new: sensitive data like email addresses, phone numbers, API keys and more is automatically detected and replaced with placeholders on your device, when you draft and send a message to OpenMates. You can always switch back to the original value in the user interface, and you can click on detected data to prevent the replacement. But by default, this feature ensures that neither OpenMates nor the AI providers that process your messages will ever see the sensitive data in the first place.
+    
+    [Try it yourself](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — click this link to see the Personal Data Placeholders in action: your email and phone number will be auto-detected and replaced before being sent to the AI.
+    
+    ## 3. 🧠 Memories
+    
+    OpenMates can now remember app-specific memories, like your upcoming trips or project details. BUT: all the memories are encrypted & decrypted only on your device, and are only ever shared temporarily with the OpenMates server and AI provider if you explicitly confirm it for the given chat. This lets you make full use of personalized responses without constantly repeating your project details — while still staying fully in control over what data you share, when, and with which AI provider. Check out the [Memories in the OpenMates Apps](https://openmates.org/#settings/apps/all/memories).
+    
+    ## 4. 🎯 Focus Modes
+    
+    Knowing how to give the right instructions to an AI chatbot makes a huge difference in terms of how helpful the chatbot will be and the quality of the responses. With Focus Modes, you don't need to be an expert in prompt engineering to make full use of great, targeted instructions. Just ask OpenMates for career insights, for example, and the 'Career insights' focus mode should automatically get activated to guide you through the process. And of course: this is only the beginning. A lot more Focus Modes will be added, and the quality of the existing ones will be further improved in the weeks to come. Feel free to check out the [Focus Modes in the OpenMates Apps](https://openmates.org/#settings/apps/all/focus-modes).
+    
+    ## 5. 🤖 New models
+    
+    OpenMates has a wide selection of the most efficient and best-performing AI models out there. By default, it auto-selects the right one based on the task. But you can always override this behaviour [in the AI settings](https://openmates.org/#settings/ai) permanently, or on demand by mentioning a specific model in the message field via `@{modelname}`. You can now select from a wide range of AI models, for example:
+    
+    - [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)
+    - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
+    - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
+    - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
+    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - `@best` and `@fast` model aliases — type `@best` to auto-route to the strongest model, `@fast` to use the fastest model available on OpenMates.
+    
+    ## 6. 💡 Daily Inspirations & Wikipedia links
+    
+    AI, if used properly, can be an amazing tool for learning. And OpenMates is optimized to encourage people to learn, to explore, to get inspired. That's what the Daily Inspirations are for, which you see at the top of the interface after you log in. They show interesting new videos — and soon also other content like Wikipedia articles, new OpenMates features, photos and details of art pieces, important historical events and more. Daily Inspirations are tailored to your chats, then locked on your device with a key only you have — so they stay private to you.
+    In addition, OpenMates is also auto-highlighting Wikipedia articles in the responses of assistant messages. Which makes it super easy to learn more about a topic by just clicking on the orange highlighted word with the study icon next to it.
+    
+    # 🚀 What comes next
+    
+    In the weeks to come I will post various short clips showing the many features of OpenMates and the useful things one can do with it, as well as further improving the software and adding more apps, providers and features.
+    
+    From now on my plan is to send newsletter emails for announcements & updates every few weeks, and separately also tips & tricks on how to use OpenMates. Feel free to [check your newsletter settings any time](https://openmates.org/#settings/newsletter), if you want to receive more or less newsletter emails.
+    
+    Have fun using OpenMates, and stay tuned for more updates!
+    
+    [cta]
+  de: |-
+    Hallo,
+    Marco (aka [glowingkitty](https://github.com/glowingkitty)) hier — der Entwickler von OpenMates.
+    Ich habe OpenMates nicht vergessen — ganz im Gegenteil.
+    
+    [video]
+    
+    # 🙏 Zunächst ein paar dankende Worte
+    
+    Ende Dezember wurde ich im Rahmen des Chaos Communication Congress unerwartet für ein Interview beim ZDF angefragt [(ein Bericht über die Wichtigkeit datenschutzfreundlicher Alternativen zu KI-Produkten großer Tech-Konzerne)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). Und wow, was für eine Erfahrung. Obwohl OpenMates zu diesem Zeitpunkt noch deutlich unfertiger war, haben sich die ersten Nutzer angemeldet und es genutzt — dabei auch Fehler und Grenzfälle entdeckt, die mir beim Testen auf meinen eigenen Geräten nicht aufgefallen waren, und diese dankenswerterweise gemeldet. Vielen Dank an alle, die das getan haben — das hat enorm dabei geholfen, OpenMates ausgereifter, stabiler und vollständiger zu machen! Und natürlich seid ihr herzlich eingeladen, weiterhin Probleme zu melden, wenn euch etwas falsch oder kaputt vorkommt.
+    
+    Das war zwar nicht die erste Software die ich entwickelt habe, aber es war das erste Mal, dass mehr als eine Handvoll Leute Software von mir genutzt haben — über 180 aktive Nutzer:innen verwenden OpenMates inzwischen! Das war super aufregend und zugegebenermaßen anfangs auch etwas überwältigend.
+    
+    Seitdem habe ich mich voll darauf konzentriert OpenMates zu verbessern, zu debuggen und funktional vollständiger und ausgereifter zu machen — und dabei eine Menge am Code verändert. Fehlerbehebungen, neue Funktionen, eine verbesserte Benutzeroberfläche und viele weitere Verbesserungen.
+    
+    Und heute freue ich mich, euch ein Update mit den spannendsten Änderungen der letzten Monate zu geben! Alle Änderungen zu besprechen wäre für einen einzelnen Newsletter zu viel — deshalb konzentriere ich mich auf die Highlights und werde in den kommenden Wochen außerdem mehrere kurze Videos zu verschiedenen Funktionen von OpenMates veröffentlichen, auf [Instagram](https://instagram.com/openmates_official), [Bluesky](https://bsky.app/profile/openmates.bsky.social), [Mastodon](https://mastodon.social/@OpenMates).
+    
+    # ✨ Die Highlights der letzten Monate
+    
+    ## 1. 🧩 Neue Apps & App-Skills
+    
+    Neben den bestehenden Fähigkeiten wie Websuche, dem Lesen & Analysieren von Websites und dem Lesen von YouTube-Video-Transkripten für Diskussionen — hat OpenMates eine Menge neuer Apps und App-Skills bekommen. Hier sind einige Highlights:
+    
+    - 🏥 **[Gesundheit](https://openmates.org/#settings/apps/health/skills/search_appointments):** Auf der Suche nach Arztterminen? Die Gesundheits-App kann jetzt Doctolib und Jameda nach freien Terminen durchsuchen.
+    - 🏠 **[Wohnung](https://openmates.org/#settings/apps/home/skills/search):** Wohnungen auf ImmoScout24, WG-Gesucht und Kleinanzeigen suchen — mit den wichtigsten Details direkt auf OpenMates sichtbar.
+    - 🎉 **[Veranstaltungen](https://openmates.org/#settings/apps/events/skills/search):** Veranstaltungen auf Meetup, Luma, Resident Advisor und Google suchen & filtern — mit Details wie Beschreibungen, Bildern, wann und wo die Veranstaltungen stattfinden, und direkten Links zum Anmelden.
+    - ✈️ **[Reisen](https://openmates.org/#settings/apps/travel):** Der neue Skill '[Verbindung suchen](https://openmates.org/#settings/apps/travel/skills/search_connections)' ermöglicht die Suche nach Flügen über Google, an verschiedenen Tagen gleichzeitig — inkl. vollständiger Flugdetails und Buchungslinks. Zugverbindungen folgen. Und der Skill '[Preiskalender](https://openmates.org/#settings/apps/travel/skills/price_calendar)' zeigt einen schnellen Überblick über die Preisentwicklung über einen Monat.
+    - ⏰ **[Erinnerung](https://openmates.org/#settings/apps/reminder):** Erstelle eine Erinnerung für einen Chat, um später darauf zurückzukommen — oder starte zum Beispiel eine automatische Suche & Zusammenfassung der neuesten Nachrichten zu einem bestimmten Thema.
+    - 🖼️ **[Bilder](https://openmates.org/#settings/apps/images):** [Suche](https://openmates.org/#settings/apps/images/skills/search) nach Bildern im Web, [generiere](https://openmates.org/#settings/apps/images/skills/generate) Bilder und [Vektorgrafiken](https://openmates.org/#settings/apps/images/skills/vectorize).
+    - 📄 **[PDFs](https://openmates.org/#settings/apps/pdf):** Lade PDFs hoch und stelle Fragen zum Text oder sogar zum visuellen Layout — OpenMates kann PDFs sowohl lesen als auch anschauen!
+    - 💻 **[Code](https://openmates.org/#settings/apps/code):** OpenMates kann [die neueste Dokumentation durchsuchen](https://openmates.org/#settings/apps/code/skills/get_docs), um Programmierfragen zu beantworten, dann Code schreiben — und sogar Code von Website-Designs direkt im Browser als Vorschau anzeigen! Und das ist erst der Anfang der Coding-Fähigkeiten.
+    - 🧮 **[Mathe](https://openmates.org/#settings/apps/math):** Ausdrücke berechnen und sogar Diagramme visualisieren — alles direkt in OpenMates.
+    - 📝 **[Dokumente](https://openmates.org/#settings/apps/docs):** Lass dir Word-Dokumente generieren — und lade sie als .docx-Dateien herunter.
+    - 📊 **[Tabellen](https://openmates.org/#settings/apps/sheets):** OpenMates kann auch Tabellen erstellen und als .xlsx-Dateien zum Download anbieten. Und sowohl Dokumente als auch Tabellen werden in den kommenden Wochen noch besser und leistungsfähiger.
+    - 📧 **[Post](https://openmates.org/#settings/apps/mail):** OpenMates kann E-Mails für dich entwerfen, die du dann ganz einfach über dein Standard-E-Mail-Programm auf deinem Gerät öffnen & senden kannst.
+    - 🎙️ **[Audio](https://openmates.org/#settings/apps/audio):** Keine Lust zu tippen? Nimm eine Sprachnachricht auf und sende sie direkt aus dem Nachrichtenfeld an OpenMates.
+    
+    Und noch einige weitere App-Skills wurden hinzugefügt. Schau einfach in den [OpenMates Apps](https://openmates.org/#settings/apps) vorbei.
+    
+    ## 2. 🔒 Persönliche Daten-Platzhalter
+    
+    Anders als KI-Chatbots von großen Tech-Konzernen und typischen Startups priorisiert OpenMates Datenschutz. Es hatte bereits verschiedene Datenschutzmaßnahmen:
+    - 🔐 alle deine Chats werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt
+    - 🖼️ alle externen Bilder werden über unseren OpenMates-Server geladen (sodass externe Websites weder deine IP-Adresse noch Geräteinformationen sehen)
+    - 📉 kein Google Analytics oder sonstige Analyse-Software wird auf OpenMates verwendet (weshalb du auch kein Cookie-Banner auf OpenMates siehst)
+    
+    Was neu ist: Sensible Daten wie E-Mail-Adressen, Telefonnummern, API-Schlüssel und mehr werden automatisch erkannt und auf deinem Gerät durch Platzhalter ersetzt, wenn du eine Nachricht an OpenMates verfasst und sendest. Du kannst jederzeit in der Benutzeroberfläche zum Originalwert zurückwechseln und erkannte Daten anklicken, um die Ersetzung zu verhindern. Standardmäßig stellt diese Funktion aber sicher, dass weder OpenMates noch die KI-Anbieter, die deine Nachrichten verarbeiten, jemals die sensiblen Daten zu sehen bekommen.
+    
+    [Probier es selbst aus](https://openmates.org/#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.) — klicke auf diesen Link, um die Persönlichen Daten-Platzhalter in Aktion zu sehen: deine E-Mail-Adresse und Telefonnummer werden automatisch erkannt und ersetzt, bevor sie versendet werden.
+    
+    ## 3. 🧠 Erinnerungen
+    
+    OpenMates kann sich jetzt app-spezifische Erinnerungen merken, wie deine anstehenden Reisen oder Projektdetails. ABER: Alle Erinnerungen werden ausschließlich auf deinem Gerät verschlüsselt & entschlüsselt und nur dann vorübergehend mit dem OpenMates-Server und dem KI-Anbieter geteilt, wenn du dies für den jeweiligen Chat ausdrücklich bestätigst. So kannst du personalisierte Antworten voll nutzen, ohne ständig deine Projektdetails zu wiederholen — und behältst dabei die volle Kontrolle darüber, welche Daten du wann und mit welchem KI-Anbieter teilst. Entdecke die [Erinnerungen in OpenMates Apps](https://openmates.org/#settings/apps/all/memories).
+    
+    ## 4. 🎯 Fokus-Modi
+    
+    Die richtigen Anweisungen an einen KI-Chatbot zu geben, macht einen enormen Unterschied in Bezug darauf, wie hilfreich der Chatbot ist und wie gut die Antworten ausfallen. Mit Fokus-Modi musst du kein Experte im Prompt Engineering sein, um großartige, zielgerichtete Anweisungen voll zu nutzen. Frag OpenMates zum Beispiel einfach nach Karriere-Einschätzungen, und der Fokus-Modus „Karriere-Einschätzungen" sollte automatisch aktiviert werden, um dich durch den Prozess zu führen. Und natürlich: Das ist erst der Anfang. Viele weitere Fokus-Modi werden folgen, und die Qualität der bestehenden wird in den kommenden Wochen weiter verbessert. Schau dir die [Fokus-Modi in OpenMates Apps](https://openmates.org/#settings/apps/all/focus-modes) an.
+    
+    ## 5. 🤖 Neue Modelle
+    
+    OpenMates bietet eine breite Auswahl der effizientesten und leistungsstärksten KI-Modelle. Standardmäßig wird automatisch das richtige Modell basierend auf der Aufgabe ausgewählt. Du kannst dieses Verhalten aber jederzeit [in den KI-Einstellungen](https://openmates.org/#settings/ai) dauerhaft ändern oder bei Bedarf ein bestimmtes Modell im Nachrichtenfeld über `@{Modellname}` auswählen. Du kannst jetzt aus einer breiten Palette von KI-Modellen wählen, zum Beispiel:
+    
+    - [Claude Opus 4.7](https://openmates.org/#settings/ai/model/claude-opus-4-7) & [Claude Sonnet 4.6](https://openmates.org/#settings/ai/model/claude-sonnet-4-6)
+    - [Gemini 3.1 Pro](https://openmates.org/#settings/ai/model/gemini-3.1-pro-preview) & [Gemini 3 Flash](https://openmates.org/#settings/ai/model/gemini-3-flash-preview)
+    - [GPT-5.4](https://openmates.org/#settings/ai/model/gpt-5.4)
+    - [DeepSeek V3.2](https://openmates.org/#settings/ai/model/deepseek-v3.2)
+    - [Devstral 2](https://openmates.org/#settings/ai/model/devstral-2512)
+    - `@best` und `@fast` Modell-Aliase — tippe `@best`, um automatisch das stärkste Modell zu verwenden, oder `@fast` für das schnellste verfügbare Modell auf OpenMates.
+    
+    ## 6. 💡 Tägliche Inspirationen & Wikipedia-Links
+    
+    KI kann, richtig eingesetzt, ein großartiges Werkzeug zum Lernen sein. Und OpenMates ist darauf optimiert, Menschen zum Lernen und Entdecken zu ermutigen und zu inspirieren. Dafür gibt es die Täglichen Inspirationen, die du oben in der Oberfläche siehst, nachdem du dich eingeloggt hast. Sie zeigen interessante neue Videos — und bald auch andere Inhalte wie Wikipedia-Artikel, neue OpenMates-Funktionen, Fotos und Details von Kunstwerken, wichtige historische Ereignisse und mehr. Tägliche Inspirationen sind auf deine Chats abgestimmt und werden auf deinem Gerät mit einem Schlüssel gesperrt, den nur du hast — sie bleiben also privat.
+    Außerdem hebt OpenMates automatisch Wikipedia-Artikel in den Antworten der Assistenten-Nachrichten hervor. Das macht es super einfach, mehr über ein Thema zu erfahren, indem du einfach auf das orange hervorgehobene Wort mit dem Lern-Symbol daneben klickst.
+    
+    # 🚀 Was als Nächstes kommt
+    
+    In den kommenden Wochen werde ich verschiedene kurze Clips veröffentlichen, die die vielen Funktionen von OpenMates und die nützlichen Dinge zeigen, die man damit machen kann, und gleichzeitig die Software weiter verbessern und weitere Apps, Anbieter und Funktionen hinzufügen.
+    
+    Ab jetzt plane ich, alle paar Wochen Newsletter-E-Mails für Ankündigungen & Updates zu senden, und separat auch Tipps & Tricks zur Nutzung von OpenMates. Du kannst jederzeit [deine Newsletter-Einstellungen überprüfen](https://openmates.org/#settings/newsletter), wenn du mehr oder weniger Newsletter-E-Mails erhalten möchtest.
+    
+    Viel Spaß mit OpenMates, und bleib gespannt auf weitere Updates!
+    
+    [cta]
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  he: ''
+  verified_by_human: []
