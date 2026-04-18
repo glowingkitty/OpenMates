@@ -27,5 +27,8 @@ fastlane/Preview.html
 fastlane/screenshots/
 fastlane/test_output/
 
+# Bundled i18n JSON files (built from frontend YAML sources via npm run build:translations)
+OpenMates/Resources/i18n/
+
 # OS
 .DS_Store
