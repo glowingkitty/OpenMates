@@ -6,7 +6,7 @@ import SwiftUI
 import CoreText
 
 enum FontRegistration {
-    static var isRegistered = false
+    nonisolated(unsafe) static var isRegistered = false
 
     static func registerFonts() {
         guard !isRegistered else { return }

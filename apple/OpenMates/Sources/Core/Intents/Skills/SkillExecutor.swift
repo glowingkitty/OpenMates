@@ -10,8 +10,10 @@ import Foundation
 enum SkillExecutor {
     /// Execute a skill via the REST API and return the raw JSON response.
     static func execute(appId: String, skillId: String, body: [String: Any]) async throws -> [String: Any] {
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        let rawBody = JSONRawBody(data: jsonData)
         let data: Data = try await APIClient.shared.request(
-            .post, path: "/v1/apps/\(appId)/skills/\(skillId)", body: body
+            .post, path: "/v1/apps/\(appId)/skills/\(skillId)", body: rawBody
         )
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {

@@ -31,7 +31,9 @@ final class HandoffManager: ObservableObject {
         activity.userInfo = ["chatId": chatId]
         activity.isEligibleForHandoff = true
         activity.isEligibleForSearch = true
+        #if os(iOS)
         activity.isEligibleForPrediction = true
+        #endif
 
         // Universal link fallback for devices without the app
         if let url = URL(string: "https://openmates.org/#chat-id=\(chatId)") {

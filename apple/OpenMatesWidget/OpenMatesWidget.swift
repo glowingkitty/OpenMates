@@ -104,6 +104,7 @@ struct InspirationTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<InspirationEntry>) -> Void) {
+        nonisolated(unsafe) let completion = completion
         Task {
             let inspiration = await fetchInspiration()
             let entry = InspirationEntry(date: Date(), inspiration: inspiration)

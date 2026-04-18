@@ -11,16 +11,18 @@ struct KeyboardShortcutModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .keyboardShortcut("n", modifiers: .command)
-            .onKeyPress(.init("n"), modifiers: .command) {
+            .onKeyPress(.init("n"), phases: .down) { press in
+                guard press.modifiers == .command else { return .ignored }
                 onNewChat()
                 return .handled
             }
-            .onKeyPress(.init("k"), modifiers: .command) {
+            .onKeyPress(.init("k"), phases: .down) { press in
+                guard press.modifiers == .command else { return .ignored }
                 onSearch()
                 return .handled
             }
-            .onKeyPress(.init(","), modifiers: .command) {
+            .onKeyPress(.init(","), phases: .down) { press in
+                guard press.modifiers == .command else { return .ignored }
                 onSettings()
                 return .handled
             }
@@ -36,12 +38,14 @@ struct ChatKeyboardShortcutModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             // Cmd-. → stop AI response
-            .onKeyPress(.init("."), modifiers: .command) {
+            .onKeyPress(.init("."), phases: .down) { press in
+                guard press.modifiers == .command else { return .ignored }
                 onStopStreaming()
                 return .handled
             }
             // Cmd-Shift-I → toggle incognito mode
-            .onKeyPress(.init("i"), modifiers: [.command, .shift]) {
+            .onKeyPress(.init("i"), phases: .down) { press in
+                guard press.modifiers == [.command, .shift] else { return .ignored }
                 onToggleIncognito()
                 return .handled
             }

@@ -6,7 +6,7 @@ import Foundation
 
 // MARK: - Embed status
 
-enum EmbedStatus: String, Codable {
+enum EmbedStatus: String, Codable, Sendable {
     case processing
     case finished
     case error
@@ -15,7 +15,7 @@ enum EmbedStatus: String, Codable {
 
 // MARK: - Embed record
 
-struct EmbedRecord: Identifiable, Decodable {
+struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     let id: String
     let type: String
     let status: EmbedStatus
@@ -188,7 +188,7 @@ enum EmbedType: String, CaseIterable {
 
 // MARK: - Decoded embed content types
 
-enum EmbedData: Decodable {
+enum EmbedData: Decodable, @unchecked Sendable {
     case webSearch(WebSearchContent)
     case website(WebsiteContent)
     case webRead(WebReadContent)

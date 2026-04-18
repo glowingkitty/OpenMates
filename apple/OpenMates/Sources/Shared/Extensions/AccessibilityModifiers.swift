@@ -161,16 +161,25 @@ extension Font {
 
 // MARK: - Accessibility announcement helper
 
+@MainActor
 enum AccessibilityAnnouncement {
     static func announce(_ message: String) {
+        #if os(iOS)
         UIAccessibility.post(notification: .announcement, argument: message)
+        #elseif os(macOS)
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested, userInfo: [.announcement: message])
+        #endif
     }
 
     static func screenChanged(_ message: String? = nil) {
+        #if os(iOS)
         UIAccessibility.post(notification: .screenChanged, argument: message)
+        #endif
     }
 
     static func layoutChanged(_ element: Any? = nil) {
+        #if os(iOS)
         UIAccessibility.post(notification: .layoutChanged, argument: element)
+        #endif
     }
 }

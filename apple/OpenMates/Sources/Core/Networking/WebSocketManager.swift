@@ -24,13 +24,12 @@ final class WebSocketManager: ObservableObject {
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
 
-    override init() {
+    init() {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
         config.httpShouldSetCookies = true
         config.httpCookieStorage = .shared
         self.session = URLSession(configuration: config)
-        super.init()
     }
 
     func connect(sessionId: String) {

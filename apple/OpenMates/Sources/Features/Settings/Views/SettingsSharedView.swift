@@ -167,7 +167,9 @@ struct SettingsTipView: View {
                 HStack {
                     Text(LocalizationManager.shared.text("settings.shared.credits_label"))
                     TextField("0.00", text: $amount)
+                        #if os(iOS)
                         .keyboardType(.decimalPad)
+                        #endif
                 }
             }
 

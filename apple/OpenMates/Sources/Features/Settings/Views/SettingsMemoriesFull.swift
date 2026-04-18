@@ -168,7 +168,9 @@ struct MemoryDetailView: View {
                 }
             }
             .navigationTitle(group.category)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.done) { dismiss() }
@@ -271,7 +273,9 @@ struct MemoryEntryEditView: View {
                 }
             }
             .navigationTitle(isEditing ? AppStrings.edit : AppStrings.add)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.cancel) { dismiss() }

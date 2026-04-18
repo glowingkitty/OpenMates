@@ -45,34 +45,34 @@ enum CopyMessageFormatter {
     // MARK: - Embed type to readable placeholder
 
     private static func embedPlaceholder(_ embed: EmbedRecord) -> String {
-        let title = embed.title ?? embed.embedType
-        switch embed.embedType {
+        let displayName = EmbedType(rawValue: embed.type)?.displayName ?? embed.type
+        switch embed.type {
         case "image", "image_generated":
-            return "[Image: \(title)]"
+            return "[Image: \(displayName)]"
         case "video":
-            return "[Video: \(title)]"
+            return "[Video: \(displayName)]"
         case "audio":
-            return "[Audio: \(title)]"
+            return "[Audio: \(displayName)]"
         case "link", "web_page":
-            return "[Link: \(title)]"
+            return "[Link: \(displayName)]"
         case "code":
-            return "[Code: \(title)]"
+            return "[Code: \(displayName)]"
         case "map", "place":
-            return "[Map: \(title)]"
+            return "[Map: \(displayName)]"
         case "file", "pdf":
-            return "[File: \(title)]"
+            return "[File: \(displayName)]"
         case "search_results":
-            return "[Search Results: \(title)]"
+            return "[Search Results: \(displayName)]"
         case "travel_stay", "travel_connection":
-            return "[Travel: \(title)]"
+            return "[Travel: \(displayName)]"
         case "event":
-            return "[Event: \(title)]"
+            return "[Event: \(displayName)]"
         case "product":
-            return "[Product: \(title)]"
+            return "[Product: \(displayName)]"
         case "recipe":
-            return "[Recipe: \(title)]"
+            return "[Recipe: \(displayName)]"
         default:
-            return "[\(embed.embedType): \(title)]"
+            return "[\(embed.type): \(displayName)]"
         }
     }
 

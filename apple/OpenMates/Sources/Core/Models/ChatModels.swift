@@ -4,7 +4,7 @@
 
 import Foundation
 
-struct Chat: Identifiable, Decodable {
+struct Chat: Identifiable, Decodable, Sendable {
     let id: String
     var title: String?             // Decrypted title (set client-side after decryption)
     let lastMessageAt: String?
@@ -26,7 +26,7 @@ struct Chat: Identifiable, Decodable {
     }
 }
 
-struct Message: Identifiable, Decodable {
+struct Message: Identifiable, Decodable, Sendable {
     let id: String
     let chatId: String
     let role: MessageRole
@@ -39,13 +39,13 @@ struct Message: Identifiable, Decodable {
     let embedRefs: [EmbedRef]?
 }
 
-enum MessageRole: String, Decodable {
+enum MessageRole: String, Decodable, Sendable {
     case user
     case assistant
     case system
 }
 
-struct EmbedRef: Decodable, Identifiable {
+struct EmbedRef: Decodable, Identifiable, @unchecked Sendable {
     let id: String
     let type: String
     let status: String?

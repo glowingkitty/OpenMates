@@ -30,7 +30,7 @@ struct EmbedContextMenuView: View {
                 }
             }
 
-            if embed.embedType.contains("image") || embed.embedType.contains("video") || embed.embedType.contains("pdf") {
+            if embed.type.contains("image") || embed.type.contains("video") || embed.type.contains("pdf") {
                 Button { downloadEmbed() } label: {
                     Label("Download", systemImage: "arrow.down.circle")
                 }
@@ -45,8 +45,9 @@ struct EmbedContextMenuView: View {
     }
 
     private var embedURL: String? {
-        embed.data?["url"]?.value as? String ??
-        embed.data?["source_url"]?.value as? String
+        guard case .raw(let dict) = embed.data else { return nil }
+        return dict["url"]?.value as? String ??
+            dict["source_url"]?.value as? String
     }
 
     private func copyToClipboard(_ text: String) {

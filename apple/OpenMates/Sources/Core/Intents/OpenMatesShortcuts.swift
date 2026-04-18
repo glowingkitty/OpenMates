@@ -6,6 +6,10 @@
 // (30+ total) are still discoverable in the Shortcuts app via "Add Action" and
 // can be added to Siri manually — they just don't get proactive phrase suggestions.
 // We pick the 10 most voice-natural actions for the slots.
+//
+// Note: AppShortcut phrase parameters require AppEntity/AppEnum types,
+// so we use plain phrases without parameter interpolation. Siri will
+// prompt users for required values when triggered.
 
 import AppIntents
 
@@ -15,7 +19,6 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: AskOpenMatesIntent(),
             phrases: [
-                "Ask \(.applicationName) \(\.$question)",
                 "Ask \(.applicationName)",
                 "Question for \(.applicationName)",
             ],
@@ -28,7 +31,6 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
             intent: TodaysInspirationIntent(),
             phrases: [
                 "Today's inspiration from \(.applicationName)",
-                "What's today's \(.applicationName) inspiration",
                 "Daily inspiration from \(.applicationName)",
             ],
             shortTitle: "Today's Inspiration",
@@ -39,8 +41,8 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: WebSearchIntent(),
             phrases: [
-                "Search the web with \(.applicationName) for \(\.$query)",
-                "\(.applicationName) web search \(\.$query)",
+                "Search the web with \(.applicationName)",
+                "\(.applicationName) web search",
             ],
             shortTitle: "Web Search",
             systemImageName: "globe"
@@ -50,9 +52,8 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: NewsSearchIntent(),
             phrases: [
-                "Search news with \(.applicationName) about \(\.$topic)",
-                "\(.applicationName) news about \(\.$topic)",
-                "What's the news about \(\.$topic) on \(.applicationName)",
+                "Search news with \(.applicationName)",
+                "\(.applicationName) news",
             ],
             shortTitle: "Search News",
             systemImageName: "newspaper"
@@ -62,8 +63,8 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: EventsSearchIntent(),
             phrases: [
-                "Find events with \(.applicationName) for \(\.$query)",
-                "\(.applicationName) events \(\.$query)",
+                "Find events with \(.applicationName)",
+                "\(.applicationName) events",
             ],
             shortTitle: "Find Events",
             systemImageName: "calendar"
@@ -73,8 +74,8 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: SearchConnectionsIntent(),
             phrases: [
-                "Search flights with \(.applicationName) from \(\.$origin) to \(\.$destination)",
-                "\(.applicationName) flights from \(\.$origin) to \(\.$destination)",
+                "Search flights with \(.applicationName)",
+                "\(.applicationName) flights",
             ],
             shortTitle: "Search Flights",
             systemImageName: "airplane"
@@ -84,8 +85,8 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: SearchStaysIntent(),
             phrases: [
-                "Find hotels with \(.applicationName) in \(\.$location)",
-                "\(.applicationName) hotels in \(\.$location)",
+                "Find hotels with \(.applicationName)",
+                "\(.applicationName) hotels",
             ],
             shortTitle: "Search Hotels",
             systemImageName: "bed.double"
@@ -95,8 +96,8 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: SetReminderIntent(),
             phrases: [
-                "Set \(.applicationName) reminder \(\.$prompt)",
-                "Remind me with \(.applicationName) to \(\.$prompt)",
+                "Set \(.applicationName) reminder",
+                "Remind me with \(.applicationName)",
             ],
             shortTitle: "Set Reminder",
             systemImageName: "bell"
@@ -118,8 +119,8 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: MathCalculateIntent(),
             phrases: [
-                "Calculate \(\.$expression) with \(.applicationName)",
-                "\(.applicationName) calculate \(\.$expression)",
+                "Calculate with \(.applicationName)",
+                "\(.applicationName) calculate",
             ],
             shortTitle: "Calculate",
             systemImageName: "function"

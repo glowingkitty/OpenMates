@@ -125,8 +125,8 @@ final class LocalizationManager: ObservableObject {
 
 // MARK: - SwiftUI Environment
 
-private struct LocalizationManagerKey: EnvironmentKey {
-    static let defaultValue = LocalizationManager.shared
+private struct LocalizationManagerKey: @preconcurrency EnvironmentKey {
+    @MainActor static let defaultValue = LocalizationManager.shared
 }
 
 extension EnvironmentValues {

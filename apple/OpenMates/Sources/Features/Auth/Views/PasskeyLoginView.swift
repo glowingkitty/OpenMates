@@ -142,7 +142,7 @@ struct PasskeyLoginView: View {
 }
 
 private enum AssociatedKeys {
-    static var delegate = "passkeyDelegate"
+    nonisolated(unsafe) static var delegate = "passkeyDelegate"
 }
 
 enum PasskeyError: LocalizedError {

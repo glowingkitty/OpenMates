@@ -48,7 +48,9 @@ struct PasswordLoginView: View {
                 if showTfaField {
                     TextField(LocalizationManager.shared.text("auth.authenticator_code"), text: $tfaCode)
                         .textFieldStyle(OMTextFieldStyle())
+                        #if os(iOS)
                         .keyboardType(.numberPad)
+                        #endif
                         .focused($focusedField, equals: .tfa)
                         .onSubmit { performLogin() }
                         .transition(.move(edge: .top).combined(with: .opacity))

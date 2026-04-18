@@ -37,7 +37,7 @@ struct EmbedPreviewCard: View {
         .accessibilityIdentifier("embed-preview")
         .accessibleEmbed(
             type: embedType?.displayName ?? embed.type,
-            title: embed.title
+            title: embedType?.displayName
         )
         .accessibilityValue(embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready")
         .simultaneousGesture(

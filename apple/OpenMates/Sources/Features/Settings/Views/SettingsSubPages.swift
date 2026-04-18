@@ -399,7 +399,9 @@ struct Settings2FAView: View {
                                 .textSelection(.enabled)
 
                             TextField(L("settings.two_factor_auth.enter_code"), text: $verificationCode)
+                                #if os(iOS)
                                 .keyboardType(.numberPad)
+                                #endif
                                 .accessibleInput(L("settings.two_factor_auth.enter_code"), hint: L("auth.enter_6_digit_code"))
 
                             Button(L("settings.two_factor_auth.verify")) {
@@ -883,10 +885,12 @@ struct SettingsBackupRemindersView: View {
 
 // MARK: - i18n Helper (file-local shorthand)
 
+@MainActor
 private func L(_ key: String) -> String {
     LocalizationManager.shared.text(key)
 }
 
+@MainActor
 private func L(_ key: String, _ replacements: [String: String]) -> String {
     LocalizationManager.shared.text(key, replacements: replacements)
 }

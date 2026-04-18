@@ -185,7 +185,9 @@ struct StorageFilesView: View {
                 }
             }
             .navigationTitle(category.capitalized)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.done) { dismiss() }

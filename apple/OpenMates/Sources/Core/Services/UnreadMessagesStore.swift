@@ -78,22 +78,3 @@ final class UnreadMessagesStore: ObservableObject {
         #endif
     }
 }
-
-// MARK: - Unread badge view
-
-struct UnreadBadge: View {
-    let count: Int
-
-    var body: some View {
-        if count > 0 {
-            Text(count > 99 ? "99+" : "\(count)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, count > 9 ? 5 : 4)
-                .padding(.vertical, 2)
-                .background(Color.error)
-                .clipShape(Capsule())
-                .accessibilityLabel("\(count) unread messages")
-        }
-    }
-}

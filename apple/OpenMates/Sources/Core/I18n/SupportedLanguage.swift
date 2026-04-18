@@ -1,7 +1,7 @@
 // Supported language definitions — mirrors frontend/packages/ui/src/i18n/languages.json.
 // 21 languages with RTL support for Arabic and Hebrew.
 
-import Foundation
+import SwiftUI
 
 enum SupportedLanguage: String, CaseIterable, Identifiable {
     case en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he

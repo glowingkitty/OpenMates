@@ -2,6 +2,7 @@
 // Used throughout the crypto and passkey flows.
 
 import Foundation
+import SwiftUI
 
 extension Data {
     init(hexString: String) {

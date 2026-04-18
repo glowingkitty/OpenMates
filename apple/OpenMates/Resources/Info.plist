@@ -2,57 +2,34 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>OpenMates</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>OpenMates</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
-
-	<!-- Privacy usage descriptions (shown in system permission dialogs) -->
-	<key>NSFaceIDUsageDescription</key>
-	<string>OpenMates uses Face ID to securely unlock your account and verify your identity.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>OpenMates needs access to your photos to attach images to chats, set your profile picture, or include screenshots in issue reports.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>OpenMates needs microphone access to record voice messages in your chats.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>OpenMates needs camera access to take photos for chat attachments.</string>
-
-	<!-- Custom font registration -->
-	<key>UIAppFonts</key>
-	<array>
-		<string>LexendDeca-VariableFont_wght.ttf</string>
-	</array>
-
-	<!-- ATSApplicationFontsPath for macOS -->
-	<key>ATSApplicationFontsPath</key>
-	<string>.</string>
-
-	<!-- Handoff activity types — registered for Continuity between Apple devices -->
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>org.openmates.app.viewChat</string>
 		<string>org.openmates.app.composeChat</string>
 		<string>org.openmates.app.browseChats</string>
 	</array>
-
-	<!-- Background modes -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-		<string>fetch</string>
-	</array>
-
-	<!-- Launch screen -->
 	<key>UILaunchScreen</key>
 	<dict/>
-
-	<!-- Orientations -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -66,17 +43,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
-	<!-- iPad multitasking: enable full support for Split View, Slide Over, Stage Manager -->
-	<key>UIRequiresFullScreen</key>
-	<false/>
-	<key>UISupportsMultipleScenes</key>
-	<true/>
-
-	<!-- Export compliance: app uses encryption (AES-GCM for E2EE) -->
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<true/>
-	<key>ITSEncryptionExportComplianceCode</key>
-	<string></string>
 </dict>
 </plist>

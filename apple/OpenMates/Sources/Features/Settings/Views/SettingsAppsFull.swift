@@ -238,7 +238,9 @@ struct AppDetailView: View {
                 }
             }
             .navigationTitle(app.name)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.done) { dismiss() }

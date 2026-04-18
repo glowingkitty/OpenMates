@@ -100,12 +100,14 @@ final class PersistedEmbed {
 
     init(from embed: EmbedRecord) {
         self.id = embed.id
-        self.embedType = embed.embedType
-        self.title = embed.title
-        self.status = embed.status
+        self.embedType = embed.type
+        self.title = EmbedType(rawValue: embed.type)?.displayName
+        self.status = embed.status.rawValue
         self.createdAt = embed.createdAt
-        self.rawDataJSON = try? JSONSerialization.data(
-            withJSONObject: embed.data?.mapValues { $0.value } ?? [:])
+        if case .raw(let dict) = embed.data {
+            self.rawDataJSON = try? JSONSerialization.data(
+                withJSONObject: dict.mapValues { $0.value })
+        }
         self.childEmbedIdsJSON = try? JSONEncoder().encode(embed.childEmbedIds)
     }
 }
@@ -166,8 +168,9 @@ final class OfflineStore: ObservableObject {
     func persistChats(_ chats: [Chat]) {
         guard let context = modelContext else { return }
         for chat in chats {
+            let targetId = chat.id
             let descriptor = FetchDescriptor<PersistedChat>(
-                predicate: #Predicate { $0.id == chat.id }
+                predicate: #Predicate { $0.id == targetId }
             )
             if let existing = try? context.fetch(descriptor).first {
                 existing.title = chat.title
@@ -187,14 +190,16 @@ final class OfflineStore: ObservableObject {
     func persistMessages(_ messages: [Message], chatId: String) {
         guard let context = modelContext else { return }
 
+        let targetChatId = chatId
         let chatDescriptor = FetchDescriptor<PersistedChat>(
-            predicate: #Predicate { $0.id == chatId }
+            predicate: #Predicate { $0.id == targetChatId }
         )
         let persistedChat = try? context.fetch(chatDescriptor).first
 
         for message in messages {
+            let targetId = message.id
             let descriptor = FetchDescriptor<PersistedMessage>(
-                predicate: #Predicate { $0.id == message.id }
+                predicate: #Predicate { $0.id == targetId }
             )
             if let existing = try? context.fetch(descriptor).first {
                 existing.content = message.content
@@ -211,8 +216,9 @@ final class OfflineStore: ObservableObject {
     func persistEmbeds(_ embeds: [EmbedRecord]) {
         guard let context = modelContext else { return }
         for embed in embeds {
+            let targetId = embed.id
             let descriptor = FetchDescriptor<PersistedEmbed>(
-                predicate: #Predicate { $0.id == embed.id }
+                predicate: #Predicate { $0.id == targetId }
             )
             if (try? context.fetch(descriptor).first) == nil {
                 context.insert(PersistedEmbed(from: embed))
@@ -233,8 +239,9 @@ final class OfflineStore: ObservableObject {
 
     func loadMessages(chatId: String) -> [Message] {
         guard let context = modelContext else { return [] }
+        let targetChatId = chatId
         let descriptor = FetchDescriptor<PersistedMessage>(
-            predicate: #Predicate { $0.chatId == chatId },
+            predicate: #Predicate { $0.chatId == targetChatId },
             sortBy: [SortDescriptor(\.createdAt)]
         )
         return (try? context.fetch(descriptor))?.map { $0.toMessage() } ?? []
@@ -244,14 +251,15 @@ final class OfflineStore: ObservableObject {
 
     func deleteChat(_ chatId: String) {
         guard let context = modelContext else { return }
+        let targetChatId = chatId
         let chatDescriptor = FetchDescriptor<PersistedChat>(
-            predicate: #Predicate { $0.id == chatId }
+            predicate: #Predicate { $0.id == targetChatId }
         )
         if let chat = try? context.fetch(chatDescriptor).first {
             context.delete(chat)
         }
         let msgDescriptor = FetchDescriptor<PersistedMessage>(
-            predicate: #Predicate { $0.chatId == chatId }
+            predicate: #Predicate { $0.chatId == targetChatId }
         )
         for msg in (try? context.fetch(msgDescriptor)) ?? [] {
             context.delete(msg)

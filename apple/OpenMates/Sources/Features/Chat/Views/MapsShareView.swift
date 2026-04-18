@@ -19,7 +19,7 @@ struct MapsShareView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Map(position: $position, selection: $selectedLocation) {
+                Map(position: $position) {
                     if let loc = selectedLocation {
                         Marker(selectedName.isEmpty ? "Selected" : selectedName, coordinate: loc)
                             .tint(.red)
@@ -48,7 +48,9 @@ struct MapsShareView: View {
                 }
             }
             .navigationTitle("Share Location")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { onCancel() }

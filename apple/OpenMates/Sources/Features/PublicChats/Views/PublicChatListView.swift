@@ -145,7 +145,7 @@ struct PublicChatDetailView: View {
                                 Spacer()
                             }
 
-                            MarkdownText(content: message.content)
+                            InlineMarkdownText(content: message.content ?? "", isUserMessage: message.role == "user")
                                 .padding(.spacing4)
                                 .background(
                                     message.role == "user"
@@ -153,14 +153,15 @@ struct PublicChatDetailView: View {
                                         : AnyShapeStyle(Color.grey10)
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                                .environment(\.isUserMessage, message.role == "user")
                         }
                     }
                 }
                 .padding(.spacing6)
             }
             .navigationTitle(chat.title)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

@@ -66,7 +66,9 @@ struct HiddenChatsListView: View {
                         }
                     }
                 }
+                #if os(iOS)
                 .listStyle(.insetGrouped)
+                #endif
             }
         }
         .navigationTitle("Hidden Chats")

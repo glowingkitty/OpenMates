@@ -146,7 +146,9 @@ struct MateDetailView: View {
                 .padding(.spacing8)
             }
             .navigationTitle(mate.name)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

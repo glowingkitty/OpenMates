@@ -105,7 +105,9 @@ struct ChatShareView: View {
                 }
             }
             .navigationTitle("Share Chat")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

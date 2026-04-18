@@ -4,7 +4,7 @@
 
 import Foundation
 
-struct AnyCodable: Decodable {
+struct AnyCodable: Decodable, @unchecked Sendable {
     let value: Any
 
     init(_ value: Any) {

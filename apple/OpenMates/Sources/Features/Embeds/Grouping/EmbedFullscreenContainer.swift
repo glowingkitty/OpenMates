@@ -45,7 +45,9 @@ struct EmbedFullscreenContainer: View {
                         navigationArrows
                     }
                 }
+                #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
+                #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button { dismiss() } label: { Image(systemName: SFSymbol.x) }

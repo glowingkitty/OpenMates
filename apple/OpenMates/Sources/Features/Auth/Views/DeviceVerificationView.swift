@@ -35,7 +35,9 @@ struct DeviceVerificationView: View {
                 VStack(spacing: .spacing4) {
                     TextField(LocalizationManager.shared.text("auth.six_digit_code"), text: $code)
                         .textFieldStyle(OMTextFieldStyle())
+                        #if os(iOS)
                         .keyboardType(.numberPad)
+                        #endif
                         .focused($isFocused)
                         .onSubmit { verify() }
                         .onChange(of: code) { _, newValue in

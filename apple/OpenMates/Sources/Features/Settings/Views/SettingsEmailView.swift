@@ -39,7 +39,9 @@ struct SettingsEmailView: View {
             case .enterNew:
                 Section("New Email") {
                     TextField("Enter new email", text: $newEmail)
+                        #if os(iOS)
                         .keyboardType(.emailAddress)
+                        #endif
                         .autocorrectionDisabled()
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
@@ -69,7 +71,9 @@ struct SettingsEmailView: View {
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
 
                     TextField("Enter code", text: $verificationCode)
+                        #if os(iOS)
                         .keyboardType(.numberPad)
+                        #endif
 
                     Button("Confirm Email Change") {
                         confirmEmailChange()

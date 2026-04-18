@@ -27,7 +27,7 @@ final class ChatViewModel: ObservableObject {
 
     private let api = APIClient.shared
     private var streamTask: Task<Void, Never>?
-    private var embedRefreshObserver: Any?
+    nonisolated(unsafe) private var embedRefreshObserver: Any?
 
     func loadChat(id: String) async {
         isLoading = true

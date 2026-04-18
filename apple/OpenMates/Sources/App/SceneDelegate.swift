@@ -15,7 +15,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         // Enable all iPad multitasking sizes — Split View, Slide Over, Stage Manager
         if windowScene.responds(to: #selector(getter: UIWindowScene.sizeRestrictions)) {
             windowScene.sizeRestrictions?.minimumSize = CGSize(width: 320, height: 480)
-            windowScene.sizeRestrictions?.maximumSize = CGSize(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+            windowScene.sizeRestrictions?.maximumSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         }
 
         // Handle Handoff activities that arrived at launch
@@ -73,8 +73,9 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     }
 }
 
+#endif
+
 extension Notification.Name {
     static let deepLinkReceived = Notification.Name("openmates.deepLinkReceived")
     static let handoffChatReceived = Notification.Name("openmates.handoffChatReceived")
 }
-#endif

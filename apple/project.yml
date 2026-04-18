@@ -17,7 +17,7 @@ settings:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: 1
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: 3QCDAKVQFU
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: true
 
@@ -58,15 +58,6 @@ targets:
     entitlements:
       path: OpenMates/Resources/OpenMates.entitlements
       properties:
-        com.apple.developer.authentication-services.autofill-credential-provider: true
-        com.apple.developer.web-credentials: true
-        com.apple.developer.associated-domains:
-          - webcredentials:openmates.org
-          - webcredentials:dev.openmates.org
-          - applinks:openmates.org
-          - applinks:dev.openmates.org
-          - activitycontinuation:openmates.org
-          - activitycontinuation:dev.openmates.org
         keychain-access-groups:
           - $(AppIdentifierPrefix)org.openmates.app
     info:
@@ -93,7 +84,9 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     dependencies:
       - target: OpenMatesShareExtension
+        platformFilter: iOS
       - target: OpenMatesWidget
+        platformFilter: iOS
 
   # Share extension — share URLs, text, and images from other apps into OpenMates chats
   OpenMatesShareExtension:
@@ -127,27 +120,47 @@ targets:
       path: OpenMatesWidget/OpenMatesWidget.entitlements
 
   # Unit + integration tests (XCTest) — mirrors vitest/pytest suites
-  OpenMatesTests:
+  OpenMatesTests_iOS:
     type: bundle.unit-test
-    platform: [iOS, macOS]
+    platform: iOS
     sources:
       - path: OpenMates/Tests/Unit
     dependencies:
-      - target: OpenMates
+      - target: OpenMates_iOS
     settings:
       base:
-        INFOPLIST_FILE: OpenMates/Tests/Info.plist
+        GENERATE_INFOPLIST_FILE: true
+
+  OpenMatesTests_macOS:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: OpenMates/Tests/Unit
+    dependencies:
+      - target: OpenMates_macOS
+    settings:
+      base:
         GENERATE_INFOPLIST_FILE: true
 
   # UI tests (XCUITest) — mirrors Playwright E2E specs
-  OpenMatesUITests:
+  OpenMatesUITests_iOS:
     type: bundle.ui-testing
-    platform: [iOS, macOS]
+    platform: iOS
     sources:
       - path: OpenMates/Tests/UI
     dependencies:
-      - target: OpenMates
+      - target: OpenMates_iOS
     settings:
       base:
-        INFOPLIST_FILE: OpenMates/Tests/Info.plist
+        GENERATE_INFOPLIST_FILE: true
+
+  OpenMatesUITests_macOS:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: OpenMates/Tests/UI
+    dependencies:
+      - target: OpenMates_macOS
+    settings:
+      base:
         GENERATE_INFOPLIST_FILE: true

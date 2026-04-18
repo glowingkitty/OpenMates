@@ -36,32 +36,31 @@ struct HighlightedMessageText: View {
     }
 
     private var highlightedText: Text {
-        var result = Text("")
+        var attributed = AttributedString(content)
         let sorted = highlights.sorted { $0.startOffset < $1.startOffset }
-        var cursor = content.startIndex
 
         for highlight in sorted {
-            let startIdx = content.index(content.startIndex, offsetBy: highlight.startOffset, limitedBy: content.endIndex) ?? content.endIndex
-            let endIdx = content.index(content.startIndex, offsetBy: highlight.endOffset, limitedBy: content.endIndex) ?? content.endIndex
+            let utf8Start = content.utf8.index(content.utf8.startIndex, offsetBy: highlight.startOffset, limitedBy: content.utf8.endIndex) ?? content.utf8.endIndex
+            let utf8End = content.utf8.index(content.utf8.startIndex, offsetBy: highlight.endOffset, limitedBy: content.utf8.endIndex) ?? content.utf8.endIndex
 
-            guard startIdx < endIdx, startIdx >= cursor else { continue }
+            guard utf8Start < utf8End else { continue }
 
-            if cursor < startIdx {
-                result = result + Text(content[cursor..<startIdx])
-            }
+            let startIdx = String.Index(utf8Start, within: content) ?? content.startIndex
+            let endIdx = String.Index(utf8End, within: content) ?? content.endIndex
 
+            let attrStart = AttributedString.Index(startIdx, within: attributed) ?? attributed.startIndex
+            let attrEnd = AttributedString.Index(endIdx, within: attributed) ?? attributed.endIndex
+
+            guard attrStart < attrEnd else { continue }
             let highlightColor = highlightUIColor(highlight.color)
-            result = result + Text(content[startIdx..<endIdx])
-                .background(highlightColor.opacity(0.3))
-
-            cursor = endIdx
+            #if os(iOS)
+            attributed[attrStart..<attrEnd].backgroundColor = UIColor(highlightColor.opacity(0.3))
+            #elseif os(macOS)
+            attributed[attrStart..<attrEnd].backgroundColor = NSColor(highlightColor.opacity(0.3))
+            #endif
         }
 
-        if cursor < content.endIndex {
-            result = result + Text(content[cursor..<content.endIndex])
-        }
-
-        return result
+        return Text(attributed)
     }
 
     private func highlightUIColor(_ name: String) -> Color {

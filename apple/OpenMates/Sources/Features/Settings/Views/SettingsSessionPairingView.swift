@@ -190,7 +190,9 @@ struct CLIPairAuthorizeView: View {
                 .padding(.spacing8)
             }
             .navigationTitle(LocalizationManager.shared.text("settings.authorize_device"))
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.cancel) { dismiss() }

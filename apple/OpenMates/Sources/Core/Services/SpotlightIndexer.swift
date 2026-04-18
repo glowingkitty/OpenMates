@@ -4,8 +4,10 @@
 // Items are updated incrementally when chats are loaded and removed when deleted.
 
 import CoreSpotlight
-import MobileCoreServices
 import UniformTypeIdentifiers
+#if os(iOS)
+import UIKit
+#endif
 
 @MainActor
 final class SpotlightIndexer {

@@ -42,7 +42,7 @@ final class StoreManager: ObservableObject {
         "org.openmates.credits.54000",
     ]
 
-    static let creditsByProductID: [String: Int] = [
+    nonisolated static let creditsByProductID: [String: Int] = [
         "org.openmates.credits.1000": 1_000,
         "org.openmates.credits.10000": 10_000,
         "org.openmates.credits.21000": 21_000,
@@ -156,7 +156,7 @@ final class StoreManager: ObservableObject {
 
     // MARK: - Verification
 
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+    private nonisolated func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified(_, let error):
             throw StoreError.verificationFailed(error.localizedDescription)
@@ -167,7 +167,7 @@ final class StoreManager: ObservableObject {
 
     // MARK: - Backend fulfillment
 
-    private func fulfillOnBackend(transaction: Transaction, productID: String, credits: Int) async {
+    private func fulfillOnBackend(transaction: StoreKit.Transaction, productID: String, credits: Int) async {
         do {
             let body: [String: Any] = [
                 "transaction_id": String(transaction.id),

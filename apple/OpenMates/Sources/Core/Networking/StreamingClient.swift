@@ -13,7 +13,7 @@ actor StreamingClient {
 
     // MARK: - Stream events
 
-    enum StreamEvent {
+    enum StreamEvent: @unchecked Sendable {
         case taskInitiated(chatId: String, taskId: String, userMessageId: String)
         case typingStarted(chatId: String, messageId: String, metadata: ChatMetadata?)
         case chunk(chatId: String, messageId: String, sequence: Int, content: String, isFinal: Bool)

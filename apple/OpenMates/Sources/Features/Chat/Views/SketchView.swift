@@ -31,7 +31,9 @@ struct SketchView: View {
                 )
             }
             .navigationTitle("Sketch")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { onCancel() }

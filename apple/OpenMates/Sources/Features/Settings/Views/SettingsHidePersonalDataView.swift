@@ -277,7 +277,9 @@ struct AddPersonalDataEntryView: View {
                 }
             }
             .navigationTitle("Add \(entryType.rawValue.capitalized)")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

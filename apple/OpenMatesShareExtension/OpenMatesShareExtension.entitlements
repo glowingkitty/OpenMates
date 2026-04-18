@@ -1,16 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-	<!-- Same keychain group as the main app for shared auth access -->
-	<key>keychain-access-groups</key>
-	<array>
-		<string>$(AppIdentifierPrefix)org.openmates.app</string>
-	</array>
-	<!-- App group for shared cookie storage between main app and extension -->
-	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>group.org.openmates.app</string>
-	</array>
-</dict>
+<dict/>
 </plist>

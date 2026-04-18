@@ -78,29 +78,41 @@ struct ChatView: View {
         .onDisappear {
             handoffManager.stopAdvertising()
         }
-        .onChange(of: viewModel.forkedChatId) { _, newChatId in
-            if let newChatId {
-                // Navigate to forked chat via deep link notification
-                NotificationCenter.default.post(
-                    name: .deepLinkReceived,
-                    object: nil,
-                    userInfo: ["url": URL(string: "openmates://chat/\(newChatId)")!]
-                )
-                viewModel.forkedChatId = nil
-            }
+        .onChange(of: viewModel.forkedChatId) {
+            guard let newChatId = viewModel.forkedChatId else { return }
+            // Navigate to forked chat via deep link notification
+            NotificationCenter.default.post(
+                name: .deepLinkReceived,
+                object: nil,
+                userInfo: ["url": URL(string: "openmates://chat/\(newChatId)")!]
+            )
+            viewModel.forkedChatId = nil
         }
         .sheet(isPresented: $showEmbedFullscreen) {
             if let embed = selectedEmbed {
-                let messageEmbeds = viewModel.embeds(for: viewModel.messages.first { msg in
-                    msg.embedRefs?.contains(where: { $0.id == embed.id }) == true
-                } ?? viewModel.messages.last!)
-                EmbedFullscreenContainer(
-                    embeds: messageEmbeds.isEmpty ? [embed] : messageEmbeds,
-                    initialEmbedId: embed.id,
-                    allEmbedRecords: viewModel.embedRecords
-                )
+                embedFullscreenSheet(for: embed)
             }
         }
+    }
+
+    // MARK: - Embed fullscreen helper
+
+    @ViewBuilder
+    private func embedFullscreenSheet(for embed: EmbedRecord) -> some View {
+        let matchingMessage = viewModel.messages.first { msg in
+            msg.embedRefs?.contains(where: { $0.id == embed.id }) == true
+        }
+        let fallbackMessage = matchingMessage ?? viewModel.messages.last
+        let messageEmbeds: [EmbedRecord] = if let msg = fallbackMessage {
+            viewModel.embeds(for: msg)
+        } else {
+            []
+        }
+        EmbedFullscreenContainer(
+            embeds: messageEmbeds.isEmpty ? [embed] : messageEmbeds,
+            initialEmbedId: embed.id,
+            allEmbedRecords: viewModel.embedRecords
+        )
     }
 
     // MARK: - Message list

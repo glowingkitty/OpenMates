@@ -27,7 +27,9 @@ struct EmailLookupView: View {
                 TextField(LocalizationManager.shared.text("auth.email_address"), text: $email)
                     .textFieldStyle(OMTextFieldStyle())
                     .textContentType(.emailAddress)
+                    #if os(iOS)
                     .keyboardType(.emailAddress)
+                    #endif
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)

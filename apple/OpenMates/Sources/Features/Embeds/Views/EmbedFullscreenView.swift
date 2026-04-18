@@ -28,7 +28,9 @@ struct EmbedFullscreenView: View {
                 }
             }
             .background(Color.grey0)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: {
@@ -183,7 +185,8 @@ struct AppGradientBackground: View {
     let appId: String
 
     var body: some View {
-        gradient
+        Rectangle()
+            .fill(gradient)
             .overlay(
                 LinearGradient(
                     colors: [.clear, .black.opacity(0.3)],
@@ -193,7 +196,7 @@ struct AppGradientBackground: View {
             )
     }
 
-    private var gradient: some ShapeStyle {
+    private var gradient: AnyShapeStyle {
         switch appId {
         case "web": return AnyShapeStyle(LinearGradient.appWeb)
         case "videos": return AnyShapeStyle(LinearGradient.appVideos)

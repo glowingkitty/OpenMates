@@ -65,7 +65,10 @@ struct AccountRecoveryView: View {
                 .font(.omSmall).foregroundStyle(Color.fontSecondary).multilineTextAlignment(.center)
 
             TextField(LocalizationManager.shared.text("auth.email"), text: $email)
-                .keyboardType(.emailAddress).autocorrectionDisabled()
+                #if os(iOS)
+                .keyboardType(.emailAddress)
+                #endif
+                .autocorrectionDisabled()
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif

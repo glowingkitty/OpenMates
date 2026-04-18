@@ -103,7 +103,9 @@ struct SupportOneTimeView: View {
                 HStack {
                     Text("$")
                     TextField("Custom amount", text: $customAmount)
+                        #if os(iOS)
                         .keyboardType(.numberPad)
+                        #endif
                         .onChange(of: customAmount) { _, _ in
                             selectedAmount = nil
                         }

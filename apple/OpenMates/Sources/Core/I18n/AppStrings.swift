@@ -5,6 +5,7 @@
 
 import Foundation
 
+@MainActor
 enum AppStrings {
     // MARK: - Common
     static var settings: String { L("common.settings") }

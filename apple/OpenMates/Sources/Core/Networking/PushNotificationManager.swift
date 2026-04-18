@@ -97,11 +97,8 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
     /// Increment badge count (called when a push notification arrives while app is active).
     func incrementBadge() {
         #if os(iOS)
-        UNUserNotificationCenter.current().getBadgeCount { [weak self] currentCount in
-            Task { @MainActor in
-                self?.setBadgeCount(currentCount + 1)
-            }
-        }
+        let currentCount = UIApplication.shared.applicationIconBadgeNumber
+        setBadgeCount(currentCount + 1)
         #endif
     }
 

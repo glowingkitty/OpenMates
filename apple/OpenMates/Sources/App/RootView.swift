@@ -13,7 +13,7 @@ struct RootView: View {
                 LaunchScreen()
 
             case .unauthenticated:
-                AuthFlowView()
+                MainAppView()
                     .transition(.opacity)
 
             case .needsDeviceVerification(let type):

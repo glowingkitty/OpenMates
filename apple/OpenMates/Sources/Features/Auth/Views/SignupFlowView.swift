@@ -203,7 +203,9 @@ struct SignupBasicsStep: View {
                     .font(.omH2).fontWeight(.bold)
 
                 TextField(LocalizationManager.shared.text("auth.email"), text: $viewModel.email)
+                    #if os(iOS)
                     .keyboardType(.emailAddress)
+                    #endif
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
@@ -261,7 +263,9 @@ struct SignupConfirmEmailStep: View {
                     .multilineTextAlignment(.center)
 
                 TextField(LocalizationManager.shared.text("auth.verification_code"), text: $viewModel.verificationCode)
+                    #if os(iOS)
                     .keyboardType(.numberPad)
+                    #endif
                     .textFieldStyle(.roundedBorder)
                     .multilineTextAlignment(.center)
                     .font(.system(.title2, design: .monospaced))

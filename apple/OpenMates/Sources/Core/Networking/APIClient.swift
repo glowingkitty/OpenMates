@@ -4,6 +4,15 @@
 
 import Foundation
 
+/// Wrapper for sending pre-serialized JSON data without re-encoding through JSONEncoder.
+struct JSONRawBody: Encodable {
+    let data: Data
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(data)
+    }
+}
+
 actor APIClient {
     static let shared = APIClient()
 

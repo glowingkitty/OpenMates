@@ -34,6 +34,12 @@ struct MainAppView: View {
     @State private var showRenameAlert = false
     @State private var renameChatId: String?
     @State private var renameChatTitle = ""
+    @State private var showAuthSheet = false
+
+    /// Whether the user is currently authenticated
+    private var isAuthenticated: Bool {
+        authManager.state == .authenticated
+    }
 
     private var filteredPinnedChats: [Chat] {
         let pinned = chatStore.pinnedChats
@@ -56,8 +62,10 @@ struct MainAppView: View {
                 sidebar
             }
         } detail: {
-            if let chatId = selectedChatId {
+            if isAuthenticated, let chatId = selectedChatId {
                 ChatView(chatId: chatId)
+            } else if !isAuthenticated {
+                WelcomeView(onLogin: { showAuthSheet = true })
             } else {
                 EmptyStateView()
             }
@@ -166,6 +174,16 @@ struct MainAppView: View {
                 CLIPairAuthorizeView(token: pairToken)
             }
         }
+        .sheet(isPresented: $showAuthSheet) {
+            NavigationStack {
+                AuthFlowView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(AppStrings.close) { showAuthSheet = false }
+                        }
+                    }
+            }
+        }
         .alert(AppStrings.renameChat, isPresented: $showRenameAlert) {
             TextField(AppStrings.chatTitle, text: $renameChatTitle)
             Button(AppStrings.rename) { submitRename() }
@@ -189,21 +207,31 @@ struct MainAppView: View {
         }
         #endif
         .task {
-            // Initialize offline bridge and load cached data before network
-            let bridge = OfflineSyncBridge(chatStore: chatStore)
-            chatStore.setBridge(bridge)
-            syncBridge = bridge
-            bridge.loadFromDisk()
+            if isAuthenticated {
+                // Initialize offline bridge and load cached data before network
+                let bridge = OfflineSyncBridge(chatStore: chatStore)
+                chatStore.setBridge(bridge)
+                syncBridge = bridge
+                bridge.loadFromDisk()
 
-            await loadInitialData()
-            await syncInspirationToWidget()
-            connectWebSocket()
+                await loadInitialData()
+                await syncInspirationToWidget()
+                connectWebSocket()
+            } else {
+                // Unauthenticated: populate sidebar with demo chats
+                loadDemoChats()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
             handleChatUpdate(notification)
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsEmbedUpdate)) { notification in
             handleEmbedUpdate(notification)
+        }
+        .onChange(of: authManager.state) { _, newState in
+            if newState == .authenticated {
+                showAuthSheet = false
+            }
         }
         .onChange(of: pushManager.pendingChatId) { _, chatId in
             if let chatId {
@@ -231,23 +259,25 @@ struct MainAppView: View {
                 }
             }
 
-            // Pagination
-            if chatStore.chats.count < totalChatCount {
-                ShowMoreChatsButton(
-                    totalCount: totalChatCount,
-                    loadedCount: chatStore.chats.count,
-                    isLoading: isLoadingMore,
-                    onLoadMore: { loadMoreChats() }
-                )
-            }
+            if isAuthenticated {
+                // Pagination
+                if chatStore.chats.count < totalChatCount {
+                    ShowMoreChatsButton(
+                        totalCount: totalChatCount,
+                        loadedCount: chatStore.chats.count,
+                        isLoading: isLoadingMore,
+                        onLoadMore: { loadMoreChats() }
+                    )
+                }
 
-            // Hidden chats section
-            Section {
-                Button {
-                    showHiddenChats = true
-                } label: {
-                    Label(AppStrings.hiddenChats, systemImage: "eye.slash")
-                        .foregroundStyle(Color.fontSecondary)
+                // Hidden chats section
+                Section {
+                    Button {
+                        showHiddenChats = true
+                    } label: {
+                        Label(AppStrings.hiddenChats, systemImage: "eye.slash")
+                            .foregroundStyle(Color.fontSecondary)
+                    }
                 }
             }
         }
@@ -258,64 +288,121 @@ struct MainAppView: View {
         .navigationBarTitleDisplayMode(.large)
         #endif
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { showNewChatSheet = true } label: {
-                    Image(systemName: "square.and.pencil")
+            if isAuthenticated {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showNewChatSheet = true } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .accessibilityIdentifier("new-chat-button")
+                    .accessibilityLabel(AppStrings.newChat)
+                    .accessibilityHint("Start a new conversation")
                 }
-                .accessibilityIdentifier("new-chat-button")
-                .accessibilityLabel(AppStrings.newChat)
-                .accessibilityHint("Start a new conversation")
-            }
-            ToolbarItem(placement: .secondaryAction) {
-                Button { showSearch = true } label: {
-                    Label(AppStrings.search, systemImage: "magnifyingglass")
+                ToolbarItem(placement: .secondaryAction) {
+                    Button { showSearch = true } label: {
+                        Label(AppStrings.search, systemImage: "magnifyingglass")
+                    }
+                    .accessibilityIdentifier("search-button")
                 }
-                .accessibilityIdentifier("search-button")
-            }
-            ToolbarItem(placement: .secondaryAction) {
-                Button { showExplore = true } label: {
-                    Label(AppStrings.explore, systemImage: "globe")
+                ToolbarItem(placement: .secondaryAction) {
+                    Button { showExplore = true } label: {
+                        Label(AppStrings.explore, systemImage: "globe")
+                    }
                 }
             }
             #if os(iOS)
             ToolbarItem(placement: .navigationBarLeading) {
-                Button { showSettings = true } label: {
-                    Image(systemName: "gearshape")
+                if isAuthenticated {
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityIdentifier("settings-button")
+                    .accessibilityLabel(AppStrings.settings)
+                } else {
+                    Button { showAuthSheet = true } label: {
+                        Text(AppStrings.login)
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityIdentifier("login-button")
                 }
-                .accessibilityIdentifier("settings-button")
-                .accessibilityLabel(AppStrings.settings)
+            }
+            #else
+            if !isAuthenticated {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showAuthSheet = true } label: {
+                        Text(AppStrings.login)
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityIdentifier("login-button")
+                }
             }
             #endif
         }
         .refreshable {
-            await loadInitialData()
+            if isAuthenticated {
+                await loadInitialData()
+            }
         }
     }
 
     // MARK: - Chat row with context menu
 
+    @ViewBuilder
     private func chatRow(_ chat: Chat) -> some View {
-        ChatListRow(chat: chat)
-            .tag(chat.id)
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button(role: .destructive) { deleteChat(chat.id) } label: {
-                    Label(AppStrings.delete, systemImage: "trash")
+        if isAuthenticated {
+            ChatListRow(chat: chat)
+                .tag(chat.id)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) { deleteChat(chat.id) } label: {
+                        Label(AppStrings.delete, systemImage: "trash")
+                    }
                 }
-            }
-            .contextMenu {
-                ChatContextMenuActions(
-                    chat: chat,
-                    onPin: { pinChat(chat) },
-                    onHide: { hideChat(chat.id) },
-                    onShare: {
-                        selectedChatId = chat.id
-                        showShareChat = true
-                    },
-                    onArchive: { archiveChat(chat.id) },
-                    onRename: { renameChat(chat) },
-                    onDelete: { deleteChat(chat.id) }
-                )
-            }
+                .contextMenu {
+                    ChatContextMenuActions(
+                        chat: chat,
+                        onPin: { pinChat(chat) },
+                        onHide: { hideChat(chat.id) },
+                        onShare: {
+                            selectedChatId = chat.id
+                            showShareChat = true
+                        },
+                        onArchive: { archiveChat(chat.id) },
+                        onRename: { renameChat(chat) },
+                        onDelete: { deleteChat(chat.id) }
+                    )
+                }
+        } else {
+            ChatListRow(chat: chat)
+                .tag(chat.id)
+        }
+    }
+
+    // MARK: - Demo chats for unauthenticated users
+
+    /// Populates the sidebar with static demo chats so unauthenticated users
+    /// see the same welcoming experience as the web app's landing page.
+    private func loadDemoChats() {
+        let now = ISO8601DateFormatter().string(from: Date())
+        let demoChats: [Chat] = [
+            Chat(id: "demo-1", title: "Welcome to OpenMates", lastMessageAt: now,
+                 createdAt: now, updatedAt: now, isArchived: false, isPinned: true,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "demo-2", title: "Plan a trip to Japan", lastMessageAt: now,
+                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
+                 appId: "travel", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "demo-3", title: "Healthy meal ideas", lastMessageAt: now,
+                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
+                 appId: "nutrition", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "demo-4", title: "Today's top news", lastMessageAt: now,
+                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
+                 appId: "news", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "demo-5", title: "Weekend events nearby", lastMessageAt: now,
+                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
+                 appId: "events", encryptedTitle: nil, encryptedChatKey: nil),
+        ]
+        chatStore.upsertChats(demoChats)
+        selectedChatId = "demo-1"
     }
 
     // MARK: - Data loading
@@ -535,6 +622,48 @@ struct MainAppView: View {
     }
 }
 
+// MARK: - Welcome view for unauthenticated users
+
+struct WelcomeView: View {
+    let onLogin: () -> Void
+
+    var body: some View {
+        VStack(spacing: .spacing8) {
+            Spacer()
+
+            Image.iconOpenmates
+                .resizable()
+                .frame(width: 72, height: 72)
+
+            Text("OpenMates")
+                .font(.omH1)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+
+            Text(LocalizationManager.shared.text("chat.select_or_new"))
+                .font(.omP)
+                .foregroundStyle(Color.fontSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, .spacing10)
+
+            Button(action: onLogin) {
+                Text("\(AppStrings.login) / \(AppStrings.signup)")
+                    .font(.omP)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, .spacing8)
+                    .padding(.vertical, .spacing4)
+                    .background(Color.buttonPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+            }
+            .accessibilityIdentifier("welcome-login-button")
+            .padding(.top, .spacing4)
+
+            Spacer()
+        }
+    }
+}
+
 // MARK: - Empty state
 
 struct EmptyStateView: View {
@@ -622,7 +751,9 @@ struct NewChatView: View {
             }
             .padding(.top, .spacing8)
             .navigationTitle(AppStrings.newChat)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.cancel) { dismiss() }
