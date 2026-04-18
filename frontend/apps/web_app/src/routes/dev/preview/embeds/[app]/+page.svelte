@@ -898,7 +898,7 @@
 	</header>
 
 	<!-- Scrollable content -->
-	<div class="showcase-body" style={backgroundStyle}>
+	<div class="showcase-body" data-testid="showcase-body" style={backgroundStyle}>
 		{#if isUnknownApp}
 			<div class="unknown-app" data-testid="unknown-app">
 				<h2>Unknown app: "{currentApp}"</h2>
