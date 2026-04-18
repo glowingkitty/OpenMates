@@ -4,8 +4,8 @@
 
 title:
   context: 'Newsletter announcements/introducing-openmates-v09 — title'
-  en: 'Introducing OpenMates v0.9: New apps & skills, new models, file upload & so much more.'
-  de: 'Einführung von OpenMates v0.9: Neue Apps & Skills, neue Modelle, Datei-Upload & vieles mehr.'
+  en: 'OpenMates v0.9: New apps & skills, AI models, file upload & more'
+  de: 'OpenMates v0.9: Neue Apps & Skills, KI-Modelle, Datei-Upload & mehr'
   zh: ''
   es: ''
   fr: ''
@@ -28,8 +28,8 @@ title:
   verified_by_human: []
 description:
   context: 'Newsletter announcements/introducing-openmates-v09 — description'
-  en: 'Introducing OpenMates v0.9: New apps & skills, new models, file upload & so much more.'
-  de: 'Einführung von OpenMates v0.9: Neue Apps & Skills, neue Modelle, Datei-Upload & vieles mehr.'
+  en: 'OpenMates v0.9: New apps & skills, AI models, file upload & more'
+  de: 'OpenMates v0.9: Neue Apps & Skills, KI-Modelle, Datei-Upload & mehr'
   zh: ''
   es: ''
   fr: ''
