@@ -151,6 +151,17 @@ def _strip_markers(body: str) -> str:
     return body.strip()
 
 
+def _relativize_links(body: str) -> str:
+    """Convert absolute ``https://openmates.org/...`` URLs to relative paths.
+
+    The announcement page runs on any environment (dev/prod), so links in
+    the chat body must be relative. Hash-only links like ``/#settings/...``
+    become ``#settings/...``. Path links keep their leading slash."""
+    body = re.sub(r"https?://(?:www\.)?openmates\.org/#", "#", body)
+    body = re.sub(r"https?://(?:www\.)?openmates\.org/", "/", body)
+    return body
+
+
 def _camel(slug: str) -> str:
     """``april-2026-update`` → ``april2026Update``."""
     parts = re.split(r"[-_]+", slug)
@@ -203,7 +214,7 @@ def load_issue_inputs(issue_dir: Path) -> Dict[str, Any]:
             "subtitle": (front.get("subtitle") or "").strip() or None,
             "cta_text": (front.get("cta_text") or "").strip() or None,
             "raw_body": body,
-            "chat_body": _strip_markers(body),
+            "chat_body": _relativize_links(_strip_markers(body)),
         }
 
     if bodies["en"] is None:
