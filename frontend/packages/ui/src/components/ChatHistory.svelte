@@ -57,6 +57,7 @@
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { authStore } from '../stores/authStore';
+  import { introBannerVisible } from '../stores/uiStateStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -469,6 +470,32 @@
 
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
+
+  // Bound to the chat-header-wrapper div; used by the IntersectionObserver below.
+  let headerWrapperEl = $state<HTMLElement | null>(null);
+
+  // True only for non-auth users on intro chats — shows CTA inside the banner.
+  const showSignupCta = $derived(
+    !$authStore.isAuthenticated && !!currentChatId && isDemoChat(currentChatId)
+  );
+
+  // Keep introBannerVisible in sync with whether the banner is visible in the viewport.
+  // When it is visible, Header hides its own signup button so there's no duplicate CTA.
+  $effect(() => {
+    if (!headerWrapperEl || !showSignupCta) {
+      introBannerVisible.set(false);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => { introBannerVisible.set(entry.isIntersecting); },
+      { threshold: 0.1 }
+    );
+    observer.observe(headerWrapperEl);
+    return () => {
+      observer.disconnect();
+      introBannerVisible.set(false);
+    };
+  });
 
   // Props using Svelte 5 runes mode
   let {
@@ -1620,7 +1647,7 @@
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
     {#if showChatHeader}
-        <div class="chat-header-wrapper">
+        <div class="chat-header-wrapper" bind:this={headerWrapperEl}>
             <ChatHeader
                 title={chatTitle}
                 category={chatCategory}
@@ -1636,20 +1663,8 @@
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}
+                {showSignupCta}
             />
-        </div>
-    {/if}
-
-    <!-- Sign-up CTA below the video banner for non-authenticated users on intro chats.
-         Scrolls away naturally as the user reads messages, at which point the header button takes over. -->
-    {#if !$authStore.isAuthenticated && currentChatId && isDemoChat(currentChatId)}
-        <div class="video-signup-cta">
-            <button
-                class="video-signup-button"
-                onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
-            >
-                {$text('signup.sign_up')}
-            </button>
         </div>
     {/if}
 
@@ -2060,33 +2075,4 @@
     width: calc(100% + 20px);
   }
 
-  .video-signup-cta {
-    display: flex;
-    justify-content: center;
-    padding: var(--spacing-6) var(--spacing-4);
-  }
-
-  .video-signup-button {
-    all: unset;
-    padding: var(--spacing-4) var(--spacing-8);
-    border-radius: var(--radius-3);
-    background-color: var(--color-button-primary);
-    color: white;
-    cursor: pointer;
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    transition: all var(--duration-normal) var(--easing-default);
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  .video-signup-button:hover {
-    transform: scale(1.02);
-  }
-
-  .video-signup-button:active {
-    background-color: var(--color-button-primary-pressed);
-    transform: scale(0.98);
-    box-shadow: none;
-  }
 </style>

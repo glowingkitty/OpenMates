@@ -82,6 +82,9 @@
     /** Called when the user clicks the highlights pill. */
     onHighlightJump = undefined,
     autoplayVideo = false,
+    /** When true, shows a large Sign Up CTA below the title inside the banner.
+     *  Only used for intro chats shown to non-authenticated users. */
+    showSignupCta = false,
   }: {
     title?: string;
     category?: string | null;
@@ -107,6 +110,8 @@
     onHighlightJump?: (() => void) | undefined;
     /** When true, auto-starts video playback on mount (used by &autoplay-video deep link). */
     autoplayVideo?: boolean;
+    /** When true, shows a large Sign Up CTA below the title inside the banner. */
+    showSignupCta?: boolean;
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
@@ -527,6 +532,16 @@
             <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {/if}
         </div>
+
+        {#if showSignupCta}
+          <button
+            class="banner-signup-button"
+            data-testid="banner-signup-button"
+            onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
+          >
+            {$text('signup.sign_up')}
+          </button>
+        {/if}
       </div>
     {:else}
       <div class="loaded-content">
@@ -1209,12 +1224,6 @@
       right: calc(50% - 180px - 70px);
     }
 
-    .media-frame {
-      height: auto;
-      width: calc(100% - 60px);
-      max-width: unset;
-    }
-
     .video-play-btn {
       width: 56px !important;
       height: 56px !important;
@@ -1523,5 +1532,45 @@
     position: static;
     padding: 0;
     opacity: 1;
+  }
+
+  /* Mobile: switch from height%-driven to width-driven sizing so aspect-ratio:16/9
+     is honored. This block must come AFTER the base .media-frame rule above so the
+     mobile override wins in the cascade. */
+  @media (max-width: 730px) {
+    .media-frame {
+      height: auto;
+      width: 100%;
+      max-width: 100%;
+      max-height: unset;
+    }
+  }
+
+  /* Sign-up CTA rendered inside the banner below the title, for non-auth intro chats. */
+  .banner-signup-button {
+    all: unset;
+    margin-top: var(--spacing-2);
+    padding: var(--spacing-5) var(--spacing-10);
+    border-radius: var(--radius-3);
+    background-color: var(--color-button-primary);
+    color: white;
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    transition: transform var(--duration-normal) var(--easing-default), box-shadow var(--duration-normal) var(--easing-default);
+    pointer-events: auto;
+  }
+
+  .banner-signup-button:hover {
+    transform: scale(1.03);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .banner-signup-button:active {
+    background-color: var(--color-button-primary-pressed);
+    transform: scale(0.97);
+    box-shadow: none;
   }
 </style>

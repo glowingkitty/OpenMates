@@ -9,7 +9,7 @@
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
-    import { loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
+    import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
     import { demoMode } from '../stores/demoModeStore';
 
@@ -356,7 +356,7 @@
                 {#if !docsMode}
                     <div
                         class="right-section"
-                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible}
                     >
                         <button
                             class="login-signup-button"
