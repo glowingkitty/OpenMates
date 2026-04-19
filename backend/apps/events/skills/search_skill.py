@@ -44,6 +44,7 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.apps.events.providers import berlin_philharmonic as berlin_philharmonic_provider
 from backend.apps.events.providers import google_events as google_events_provider
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
@@ -55,7 +56,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # Valid provider values. "auto" runs all applicable providers in parallel.
-_VALID_PROVIDERS = {"auto", "meetup", "luma", "google_events", "resident_advisor", "siegessaeule"}
+_VALID_PROVIDERS = {"auto", "meetup", "luma", "google_events", "resident_advisor", "siegessaeule", "berlin_philharmonic"}
 
 # Normalize provider names from LLM tool calls (e.g. "Google Events" -> "google_events").
 _PROVIDER_ALIASES: Dict[str, str] = {
@@ -70,6 +71,9 @@ _PROVIDER_ALIASES: Dict[str, str] = {
     "ra.co": "resident_advisor",
     "siegessäule": "siegessaeule",
     "siegessaule": "siegessaeule",
+    "berlin philharmonic": "berlin_philharmonic",
+    "berliner philharmoniker": "berlin_philharmonic",
+    "bphil": "berlin_philharmonic",
 }
 
 # Platform-brand and generic filler words that narrow provider results unnecessarily.
@@ -167,6 +171,15 @@ class SearchRequestItem(BaseModel):
     provider: Optional[str] = Field(
         default=None,
         description="Provider to use for this request. Overrides top-level provider if set.",
+    )
+    concert_tags: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional tag filters for the Berlin Philharmonic provider. "
+            "Known values: Piano, Chamber Music, Jazz, Organ, Modern, "
+            "Lunch Concerts, Singers, Children and Family, World. "
+            "Ignored by all other providers."
+        ),
     )
 
 
@@ -522,6 +535,35 @@ class SearchSkill(BaseSkill):
             logger.warning("Siegessäule search failed for query=%r: %s", query, exc)
             return [], 0, str(exc)
 
+    async def _search_berlin_philharmonic(
+        self,
+        query: str,
+        location_str: str,
+        concert_tags: Optional[List[str]],
+        count: int,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """
+        Search Berlin Philharmonic calendar and return (events, total, error_or_None).
+        Never raises — errors are returned as the third tuple element.
+
+        Berlin-only. Returns empty list for non-Berlin cities (not an error).
+        Uses Typesense full-text search via q= plus optional tag filters.
+        """
+        if "berlin" not in location_str.lower():
+            return [], 0, None
+
+        try:
+            events, total = await berlin_philharmonic_provider.search_events_async(
+                location=location_str,
+                query=query,
+                tags=concert_tags or [],
+                count=count,
+            )
+            return events, total, None
+        except Exception as exc:
+            logger.warning("Berlin Philharmonic search failed for query=%r: %s", query, exc)
+            return [], 0, str(exc)
+
     @staticmethod
     def _merge_and_sort(
         *provider_results: List[Dict[str, Any]],
@@ -665,6 +707,7 @@ class SearchSkill(BaseSkill):
         event_type: Optional[str] = req.get("event_type")
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
+        concert_tags: Optional[List[str]] = req.get("concert_tags") or None
 
         if event_type and event_type not in ("PHYSICAL", "ONLINE"):
             logger.warning(
@@ -761,6 +804,19 @@ class SearchSkill(BaseSkill):
             all_events = ss_events
             total_available = total
 
+        elif provider_choice == "berlin_philharmonic":
+            # Berlin Philharmonic only (classical concerts, Berlin-only)
+            bp_events, total, bp_err = await self._search_berlin_philharmonic(
+                query=query,
+                location_str=luma_city,
+                concert_tags=concert_tags,
+                count=count,
+            )
+            if bp_err and not bp_events:
+                return (request_id, [], f"Berlin Philharmonic search failed: {bp_err}", 0)
+            all_events = bp_events
+            total_available = total
+
         else:
             # "auto" or per-request providers list: query applicable providers
             # in parallel with extra headroom for deduplication.
@@ -801,6 +857,10 @@ class SearchSkill(BaseSkill):
                 "siegessaeule": lambda: self._search_siegessaeule(
                     query=query, location_str=luma_city,
                     start_date=start_date, count=per_provider_count, proxy_url=proxy_url,
+                ),
+                "berlin_philharmonic": lambda: self._search_berlin_philharmonic(
+                    query=query, location_str=luma_city,
+                    concert_tags=concert_tags, count=per_provider_count,
                 ),
             }
 
