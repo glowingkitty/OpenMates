@@ -5,13 +5,18 @@
  * This ensures the chat list can correctly highlight the active chat even when
  * the Chats panel is closed and reopened.
  *
- * Also manages URL hash to allow users to share/bookmark specific chats.
- * Format: #chat-id={chatId}
+ * URL management (privacy-first):
+ *   - Public chats (intro, example, announcements, tips, legal) → semantic path
+ *     e.g. /intro/for-everyone, /announcements/introducing-openmates-v09
+ *     Shared links hit an SSR page with full OG tags, then redirect to the SPA.
+ *   - Private chats → hash fragment (#chat-id=xxx), never sent to the server.
+ *   All updates use replaceState — no browser history entries are added.
  */
 
 import { writable } from "svelte/store";
 import { browser } from "$app/environment";
 import { replaceState } from "$app/navigation";
+import { getSemanticUrlForChat, isOnSemanticChatPath } from "../services/chatUrlService";
 
 /**
  * Store to track when deep link processing is happening
@@ -28,33 +33,53 @@ let lastProgrammaticHashUpdate = 0;
 const PROGRAMMATIC_UPDATE_WINDOW_MS = 100; // Window to ignore hashchange events after programmatic update
 
 /**
- * Update the URL hash with the chat ID
- * Format: #chat-id={chatId}
- * Only updates if the hash doesn't already match to prevent unnecessary hashchange events
+ * Update the browser URL to reflect the active chat.
+ *
+ * Public chats (intro, example, announcements, tips, legal) get a semantic path
+ * (e.g. /intro/for-everyone) so shared links hit an SSR page with OG tags.
+ * Private chats use the hash fragment (#chat-id=xxx) which is never sent to the
+ * server, preserving privacy.
+ *
+ * Always uses replaceState — no browser history entries are added.
  */
 function updateUrlHash(chatId: string | null) {
-  if (!browser) return; // Only update URL in browser environment
-
-  const currentHash = window.location.hash;
-  const expectedHash = chatId ? `#chat-id=${chatId}` : "";
-
-  // Only update if hash doesn't already match (prevents unnecessary hashchange events)
-  if (currentHash === expectedHash) {
-    return; // Hash already matches, no update needed
-  }
-
-  // Record timestamp of programmatic update
-  lastProgrammaticHashUpdate = Date.now();
+  if (!browser) return;
 
   if (chatId) {
-    // Set hash to #chat-id={chatId} (chat-only; any open embed will update hash itself via setActiveEmbed)
-    window.location.hash = `chat-id=${chatId}`;
-  } else {
-    // Clear hash if no chat is selected.
-    // Handle both plain #chat-id= and combined #chat-id=X&embed-id=Y formats.
-    if (window.location.hash.startsWith("#chat-id=")) {
-      replaceState(window.location.pathname + window.location.search, {});
+    const semanticUrl = getSemanticUrlForChat(chatId);
+
+    if (semanticUrl) {
+      // Public chat → update path to semantic URL (no hash, no history entry)
+      if (window.location.pathname !== semanticUrl) {
+        replaceState(semanticUrl, {});
+      }
+      return;
     }
+
+    // Private chat → use hash fragment.
+    // If we're currently on a semantic path, move back to root first so the hash
+    // doesn't get appended to e.g. /intro/for-everyone.
+    const expectedHash = `#chat-id=${chatId}`;
+    if (isOnSemanticChatPath()) {
+      replaceState(`/${expectedHash}`, {});
+      return;
+    }
+
+    const currentHash = window.location.hash;
+    if (currentHash !== expectedHash) {
+      lastProgrammaticHashUpdate = Date.now();
+      window.location.hash = `chat-id=${chatId}`;
+    }
+    return;
+  }
+
+  // Clearing: go back to root (no hash, no semantic path)
+  if (isOnSemanticChatPath()) {
+    replaceState("/", {});
+    return;
+  }
+  if (window.location.hash.startsWith("#chat-id=")) {
+    replaceState(window.location.pathname + window.location.search, {});
   }
 }
 

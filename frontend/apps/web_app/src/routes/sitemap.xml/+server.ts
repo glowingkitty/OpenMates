@@ -16,7 +16,7 @@
 //   The robots.txt at /robots.txt already points to this sitemap.
 
 import type { RequestHandler } from './$types';
-import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId } from '@repo/ui';
+import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, LEGAL_CHATS } from '@repo/ui';
 import docsData from '$lib/generated/docs-data.json';
 import type { DocFolder, DocStructure } from '$lib/types/docs';
 
@@ -84,6 +84,13 @@ export const GET: RequestHandler = async ({ url }) => {
   </url>`
 	];
 
+	// Legal document pages — now have SSR SEO pages at /legal/{slug}
+	const legalUrls = LEGAL_CHATS.map((chat) => `  <url>
+    <loc>${siteOrigin}/legal/${chat.slug}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`);
+
 	// Example chat pages (hardcoded static data — no backend fetch needed)
 	const exampleChats = getAllExampleChatData();
 	const exampleUrls = exampleChats.map((chat) => {
@@ -126,6 +133,7 @@ export const GET: RequestHandler = async ({ url }) => {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${staticUrls.join('\n')}
 ${docsUrls.join('\n')}
+${legalUrls.join('\n')}
 ${exampleUrls.join('\n')}
 ${newsletterUrls.join('\n')}
 </urlset>`;
