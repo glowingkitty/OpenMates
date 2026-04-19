@@ -25,9 +25,9 @@ struct LegalChatView: View {
 
         var icon: String {
             switch self {
-            case .privacy: return "hand.raised"
-            case .terms: return "doc.text"
-            case .imprint: return "building.2"
+            case .privacy: return "safety"
+            case .terms: return "text"
+            case .imprint: return "business"
             }
         }
     }
@@ -39,8 +39,7 @@ struct LegalChatView: View {
                     .padding(.top, .spacing16)
             } else if let error {
                 VStack(spacing: .spacing4) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
+                    Icon("warning", size: 36)
                         .foregroundStyle(Color.error)
                     Text(error)
                         .font(.omSmall)

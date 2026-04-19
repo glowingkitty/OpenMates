@@ -30,8 +30,7 @@ struct IncognitoBanner: View {
     var body: some View {
         if incognitoManager.isEnabled {
             HStack(spacing: .spacing3) {
-                Image(systemName: "eye.slash.fill")
-                    .font(.caption)
+                Icon("hidden", size: 14)
                     .accessibilityHidden(true)
                 Text(LocalizationManager.shared.text("settings.incognito_mode_active"))
                     .font(.omXs)

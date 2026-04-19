@@ -20,7 +20,7 @@ struct TravelConnectionRenderer: View {
             VStack(alignment: .leading, spacing: .spacing3) {
                 HStack {
                     Text(departure).font(.omSmall).fontWeight(.medium)
-                    Image(systemName: "arrow.right").font(.caption)
+                    Icon("back", size: 12).scaleEffect(x: -1, y: 1)
                     Text(arrival).font(.omSmall).fontWeight(.medium)
                 }
                 .foregroundStyle(Color.fontPrimary)
@@ -31,8 +31,8 @@ struct TravelConnectionRenderer: View {
                             .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
                     }
                     if let duration {
-                        Label(duration, systemImage: SFSymbol.clock)
-                            .font(.omXs).foregroundStyle(Color.fontTertiary)
+                        Label { Text(duration).font(.omXs) } icon: { Icon("time", size: 12) }
+                            .foregroundStyle(Color.fontTertiary)
                     }
                 }
 
@@ -47,7 +47,7 @@ struct TravelConnectionRenderer: View {
             VStack(alignment: .leading, spacing: .spacing6) {
                 HStack(spacing: .spacing4) {
                     VStack { Text(departure).font(.omH3).fontWeight(.bold) }
-                    Image(systemName: "airplane").font(.title2).foregroundStyle(Color.fontTertiary)
+                    Icon("travel", size: 28).foregroundStyle(Color.fontTertiary)
                     VStack { Text(arrival).font(.omH3).fontWeight(.bold) }
                 }
                 .foregroundStyle(Color.fontPrimary)
@@ -92,7 +92,7 @@ struct TravelStayRenderer: View {
                         Color.grey20
                     }
                 } else {
-                    Color.grey20.overlay(Image(systemName: "bed.double.fill").font(.largeTitle).foregroundStyle(Color.fontTertiary))
+                    Color.grey20.overlay(Icon("travel", size: 36).foregroundStyle(Color.fontTertiary))
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -103,8 +103,8 @@ struct TravelStayRenderer: View {
                                 .font(.omXs).foregroundStyle(.white)
                         }
                         if let rating {
-                            Label(String(format: "%.1f", rating), systemImage: "star.fill")
-                                .font(.omTiny).foregroundStyle(.yellow)
+                            Label { Text(String(format: "%.1f", rating)).font(.omTiny) } icon: { Icon("rating", size: 10) }
+                                .foregroundStyle(.yellow)
                         }
                     }
                 }
@@ -122,7 +122,7 @@ struct TravelStayRenderer: View {
                     } placeholder: { ProgressView() }
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
                 }
-                if let location { Label(location, systemImage: "mappin").font(.omSmall).foregroundStyle(Color.fontSecondary) }
+                if let location { Label { Text(location).font(.omSmall) } icon: { Icon("maps", size: 14) }.foregroundStyle(Color.fontSecondary) }
                 if let pricePerNight {
                     Text("\(currency)\(String(format: "%.2f", pricePerNight)) per night")
                         .font(.omH4).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
@@ -130,7 +130,7 @@ struct TravelStayRenderer: View {
                 if let rating {
                     HStack {
                         ForEach(0..<Int(rating), id: \.self) { _ in
-                            Image(systemName: "star.fill").foregroundStyle(.yellow)
+                            Icon("rating", size: 14).foregroundStyle(.yellow)
                         }
                         Text(String(format: "%.1f", rating)).font(.omSmall).foregroundStyle(Color.fontSecondary)
                     }
@@ -149,8 +149,7 @@ struct TravelPriceCalendarRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.system(size: mode == .preview ? 24 : 32))
+            Icon("calendar", size: mode == .preview ? 24 : 32)
                 .foregroundStyle(Color.fontTertiary)
             if let origin, let destination {
                 Text("\(origin) → \(destination)")
@@ -189,7 +188,7 @@ struct TravelFlightRenderer: View {
             if let departure, let arrival {
                 HStack {
                     Text(departure)
-                    Image(systemName: "arrow.right").font(.caption)
+                    Icon("back", size: 12).scaleEffect(x: -1, y: 1)
                     Text(arrival)
                 }
                 .font(.omSmall).foregroundStyle(Color.fontSecondary)

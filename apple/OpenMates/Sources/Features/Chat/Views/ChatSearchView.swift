@@ -26,7 +26,7 @@ struct ChatSearchView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 HStack(spacing: .spacing3) {
-                    Image(systemName: "magnifyingglass")
+                    Icon("search", size: 18)
                         .foregroundStyle(Color.fontTertiary)
                         .accessibilityHidden(true)
                     TextField("Search chats and messages...", text: $query)
@@ -40,7 +40,7 @@ struct ChatSearchView: View {
                         .accessibleInput("Search chats and messages", hint: "Type at least 2 characters to search")
                     if !query.isEmpty {
                         Button { query = ""; results.removeAll() } label: {
-                            Image(systemName: "xmark.circle.fill")
+                            Icon("close", size: 18)
                                 .foregroundStyle(Color.fontTertiary)
                         }
                         .accessibleButton("Clear search", hint: "Clears the search field and results")
@@ -62,8 +62,7 @@ struct ChatSearchView: View {
                     Spacer()
                 } else if results.isEmpty && !query.isEmpty {
                     VStack(spacing: .spacing4) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 36))
+                        Icon("search", size: 36)
                             .foregroundStyle(Color.fontTertiary)
                             .accessibilityHidden(true)
                         Text(LocalizationManager.shared.text("chats.search.no_results"))

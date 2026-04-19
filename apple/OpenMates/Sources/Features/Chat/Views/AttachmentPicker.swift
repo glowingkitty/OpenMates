@@ -29,8 +29,7 @@ struct AttachmentPicker: View {
                 Label("Browse Files", systemImage: "folder")
             }
         } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 24))
+            Icon("plus", size: 24)
                 .foregroundStyle(Color.fontTertiary)
         }
         .onChange(of: selectedPhotoItem) { _, newValue in
@@ -45,8 +44,7 @@ struct AttachmentPicker: View {
         Button {
             openFilePicker()
         } label: {
-            Image(systemName: "paperclip")
-                .font(.system(size: 18))
+            Icon("files", size: 18)
                 .foregroundStyle(Color.fontTertiary)
         }
         #endif

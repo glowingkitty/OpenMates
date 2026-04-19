@@ -50,7 +50,7 @@ struct EmbedFullscreenContainer: View {
                 #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button { dismiss() } label: { Image(systemName: SFSymbol.x) }
+                        Button { dismiss() } label: { Icon("close", size: 20) }
                     }
                     ToolbarItem(placement: .principal) {
                         if embeds.count > 1 {
@@ -80,8 +80,7 @@ struct EmbedFullscreenContainer: View {
         HStack {
             if currentIndex > 0 {
                 Button { withAnimation { currentIndex -= 1 } } label: {
-                    Image(systemName: "chevron.left.circle.fill")
-                        .font(.system(size: 36))
+                    Icon("back", size: 36)
                         .foregroundStyle(.white)
                         .shadow(radius: 4)
                 }
@@ -89,8 +88,8 @@ struct EmbedFullscreenContainer: View {
             Spacer()
             if currentIndex < embeds.count - 1 {
                 Button { withAnimation { currentIndex += 1 } } label: {
-                    Image(systemName: "chevron.right.circle.fill")
-                        .font(.system(size: 36))
+                    Icon("back", size: 36)
+                        .scaleEffect(x: -1, y: 1)
                         .foregroundStyle(.white)
                         .shadow(radius: 4)
                 }
@@ -127,13 +126,13 @@ struct EmbedFullscreenContainer: View {
     private func shareMenu(embed: EmbedRecord) -> some View {
         Menu {
             Button { shareEmbed(embed) } label: {
-                Label("Share", systemImage: SFSymbol.share2)
+                Label { Text("Share") } icon: { Icon("share", size: 16) }
             }
             Button { copyEmbedContent(embed) } label: {
                 Label("Copy", systemImage: "doc.on.doc")
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Icon("more", size: 22)
         }
     }
 

@@ -36,7 +36,7 @@ struct ChatShareView: View {
                                 copied = true
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
                             } label: {
-                                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                                Icon(copied ? "check" : "copy", size: 18)
                                     .foregroundStyle(copied ? .green : Color.buttonPrimary)
                             }
                         }
@@ -65,7 +65,7 @@ struct ChatShareView: View {
                             }
                             #endif
                         } label: {
-                            Label("Share via...", systemImage: SFSymbol.share2)
+                            Label { Text("Share via...") } icon: { Icon("share", size: 16) }
                         }
                     }
                 } else {

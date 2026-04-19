@@ -94,8 +94,7 @@ struct HighlightToolbar: View {
                         .frame(width: 28, height: 28)
                         .overlay {
                             if selectedColor == color {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 12, weight: .bold))
+                                Icon("check", size: 12)
                                     .foregroundStyle(.white)
                             }
                         }
@@ -107,15 +106,14 @@ struct HighlightToolbar: View {
                 Button {
                     showComment.toggle()
                 } label: {
-                    Image(systemName: "text.bubble")
+                    Icon("chat", size: 20)
                         .foregroundStyle(showComment ? Color.buttonPrimary : Color.fontSecondary)
                 }
 
                 Button {
                     onHighlight(selectedColor, showComment ? comment : nil)
                 } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 24))
+                    Icon("check", size: 24)
                         .foregroundStyle(Color.buttonPrimary)
                 }
             }

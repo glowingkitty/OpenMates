@@ -19,12 +19,12 @@ struct PIIWarningBanner: View {
             case email, phone, address, name, birthday, custom
             var icon: String {
                 switch self {
-                case .email: return "envelope"
+                case .email: return "mail"
                 case .phone: return "phone"
-                case .address: return "mappin"
-                case .name: return "person"
+                case .address: return "maps"
+                case .name: return "user"
                 case .birthday: return "gift"
-                case .custom: return "eye.slash"
+                case .custom: return "hidden"
                 }
             }
         }
@@ -36,7 +36,7 @@ struct PIIWarningBanner: View {
         if !detectedItems.isEmpty {
             VStack(alignment: .leading, spacing: .spacing2) {
                 HStack {
-                    Image(systemName: "eye.slash.fill")
+                    Icon("hidden", size: 16)
                         .foregroundStyle(Color.warning)
                         .accessibilityHidden(true)
                     Text("\(activeCount) personal data item\(activeCount == 1 ? "" : "s") detected")
@@ -44,7 +44,7 @@ struct PIIWarningBanner: View {
                         .foregroundStyle(Color.fontPrimary)
                     Spacer()
                     Button { onDismiss() } label: {
-                        Image(systemName: "xmark").font(.caption)
+                        Icon("close", size: 12)
                             .foregroundStyle(Color.fontTertiary)
                     }
                     .accessibleButton("Dismiss privacy warning", hint: "Closes this personal data warning banner")
@@ -52,8 +52,8 @@ struct PIIWarningBanner: View {
 
                 ForEach(detectedItems) { item in
                     HStack(spacing: .spacing2) {
-                        Image(systemName: item.type.icon)
-                            .font(.caption).foregroundStyle(Color.fontTertiary)
+                        Icon(item.type.icon, size: 12)
+                            .foregroundStyle(Color.fontTertiary)
                             .accessibilityHidden(true)
                         Text(item.value)
                             .font(.omXs).foregroundStyle(Color.fontSecondary)
@@ -98,8 +98,7 @@ struct PIIToggleButton: View {
             showPlaceholders.toggle()
             AccessibilityAnnouncement.announce(showPlaceholders ? "Showing placeholders" : "Showing original values")
         } label: {
-            Image(systemName: showPlaceholders ? "eye.slash.fill" : "eye.fill")
-                .font(.caption)
+            Icon(showPlaceholders ? "hidden" : "visible", size: 16)
                 .foregroundStyle(showPlaceholders ? Color.buttonPrimary : Color.fontTertiary)
         }
         .accessibleButton(

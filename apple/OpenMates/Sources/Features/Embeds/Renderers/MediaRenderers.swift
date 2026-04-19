@@ -30,7 +30,7 @@ struct EncryptedImageView: View {
             } else if let error {
                 Color.grey20.overlay(
                     VStack(spacing: .spacing2) {
-                        Image(systemName: "photo.badge.exclamationmark")
+                        Icon("image", size: 24)
                             .foregroundStyle(Color.error)
                         Text(error)
                             .font(.omTiny).foregroundStyle(Color.error)
@@ -93,8 +93,7 @@ struct VideoRenderer: View {
                 }
 
                 // Play button overlay
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 36))
+                Icon("play", size: 36)
                     .foregroundStyle(.white.opacity(0.9))
                     .shadow(radius: 4)
 
@@ -145,8 +144,8 @@ struct VideoRenderer: View {
                     Text(channel).font(.omSmall).foregroundStyle(Color.fontSecondary)
                 }
                 if let duration {
-                    Label(duration, systemImage: SFSymbol.clock)
-                        .font(.omSmall).foregroundStyle(Color.fontTertiary)
+                    Label { Text(duration).font(.omSmall) } icon: { Icon("time", size: 14) }
+                        .foregroundStyle(Color.fontTertiary)
                 }
                 if let url, let videoURL = URL(string: url) {
                     Link(AppStrings.openInBrowser, destination: videoURL)
@@ -179,8 +178,7 @@ struct ImageRenderer: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: .spacing3) {
-                    Image(systemName: "photo")
-                        .font(.system(size: 32)).foregroundStyle(Color.fontTertiary)
+                    Icon("image", size: 32).foregroundStyle(Color.fontTertiary)
                     if let filename {
                         Text(filename).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
                     }
@@ -262,8 +260,7 @@ struct ImageGenerateRenderer: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(alignment: .leading, spacing: .spacing3) {
-                    Image(systemName: "paintbrush.fill")
-                        .font(.system(size: 24)).foregroundStyle(Color.fontTertiary)
+                    Icon("design", size: 24).foregroundStyle(Color.fontTertiary)
                     if let prompt {
                         Text(prompt).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(3)
                     }
@@ -319,8 +316,7 @@ struct RecordingRenderer: View {
         switch mode {
         case .preview:
             VStack(spacing: .spacing3) {
-                Image(systemName: isPlaying ? "waveform.circle.fill" : "waveform")
-                    .font(.system(size: 28))
+                Icon(isPlaying ? "play" : "audio", size: 28)
                     .foregroundStyle(isPlaying ? Color.buttonPrimary : Color.fontTertiary)
                 if let duration {
                     Text(formatDuration(duration))
@@ -336,8 +332,7 @@ struct RecordingRenderer: View {
                     Button {
                         togglePlayback()
                     } label: {
-                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 48))
+                        Icon(isPlaying ? "pause" : "play", size: 48)
                             .foregroundStyle(Color.buttonPrimary)
                     }
 
@@ -437,8 +432,7 @@ struct PDFRenderer: View {
         switch mode {
         case .preview:
             VStack(spacing: .spacing3) {
-                Image(systemName: "doc.richtext")
-                    .font(.system(size: 32))
+                Icon("pdf", size: 32)
                     .foregroundStyle(Color(hex: 0xE84545))
                 if let filename {
                     Text(filename).font(.omXs).foregroundStyle(Color.fontPrimary).lineLimit(1)

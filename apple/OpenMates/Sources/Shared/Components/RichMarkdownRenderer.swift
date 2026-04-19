@@ -276,8 +276,7 @@ struct CodeBlockView: View {
                     copyCode()
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 11))
+                        Icon(copied ? "check" : "copy", size: 11)
                         Text(copied ? "Copied" : "Copy")
                             .font(.system(size: 11))
                     }

@@ -47,8 +47,7 @@ struct MathPlotRenderer: View {
                     SVGImageView(svgData: data)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    Image(systemName: "chart.xyaxis.line")
-                        .font(.system(size: 32))
+                    Icon("diagram", size: 32)
                         .foregroundStyle(Color.fontTertiary)
                 }
                 if let title {
@@ -69,8 +68,7 @@ struct MathPlotRenderer: View {
                         .frame(minHeight: 300)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                 } else {
-                    Image(systemName: "chart.xyaxis.line")
-                        .font(.system(size: 48))
+                    Icon("diagram", size: 48)
                         .foregroundStyle(Color.fontTertiary)
                         .frame(maxWidth: .infinity)
                 }
@@ -171,15 +169,14 @@ struct ReminderRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            Image(systemName: SFSymbol.bell)
-                .font(.system(size: mode == .preview ? 24 : 32))
+            Icon("reminder", size: mode == .preview ? 24 : 32)
                 .foregroundStyle(Color.buttonPrimary)
             if let title {
                 Text(title).font(mode == .preview ? .omSmall : .omH4).fontWeight(.medium)
                     .foregroundStyle(Color.fontPrimary)
             }
             if let datetime {
-                Label(datetime, systemImage: SFSymbol.clock).font(.omXs)
+                Label { Text(datetime).font(.omXs) } icon: { Icon("time", size: 12) }
                     .foregroundStyle(Color.fontSecondary)
             }
             if let recurring {
@@ -198,8 +195,7 @@ struct FocusModeRenderer: View {
 
     var body: some View {
         VStack(spacing: .spacing3) {
-            Image(systemName: "scope")
-                .font(.system(size: mode == .preview ? 28 : 36))
+            Icon("select", size: mode == .preview ? 28 : 36)
                 .foregroundStyle(Color.buttonPrimary)
             Text(LocalizationManager.shared.text("embed.focus_mode_active"))
                 .font(mode == .preview ? .omSmall : .omP)
@@ -217,8 +213,7 @@ struct GenericEmbedRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            Image(systemName: "doc.text")
-                .font(.system(size: mode == .preview ? 24 : 32))
+            Icon("text", size: mode == .preview ? 24 : 32)
                 .foregroundStyle(Color.fontTertiary)
             Text(type)
                 .font(.omSmall)

@@ -51,11 +51,11 @@ enum PublicChatCategory: String, CaseIterable {
 
     var icon: String {
         switch self {
-        case .intro: return "hand.wave"
-        case .example: return "text.bubble"
-        case .legal: return "doc.text"
-        case .announcement: return "megaphone"
-        case .tips: return "lightbulb"
+        case .intro: return "introduction"
+        case .example: return "chat"
+        case .legal: return "legal"
+        case .announcement: return "announcement"
+        case .tips: return "insight"
         }
     }
 }
