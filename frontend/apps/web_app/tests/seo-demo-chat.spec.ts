@@ -94,20 +94,24 @@ test.describe('SEO example chat pages', () => {
 	// 2. BROWSER REDIRECT (human users see this)
 	// =========================================================================
 
-	test('individual example chat page redirects browser to SPA with correct chat-id', async ({
+	test('individual example chat page redirects browser to SPA and restores semantic URL', async ({
 		page
 	}) => {
 		test.setTimeout(30000);
 
 		await page.goto(EXAMPLE_PATH, { waitUntil: 'commit' });
 
-		// Wait for the redirect to fire (onMount is fast but needs a tick)
-		await page.waitForURL((url: URL) => url.hash.includes('chat-id='), { timeout: 10000 });
+		// The SSR page fires window.location.replace('/#chat-id=...') in onMount, then
+		// the SPA calls setActiveChat which uses replaceState to restore the semantic path.
+		// Wait for the final URL to settle at the semantic path (no hash).
+		await page.waitForURL(
+			(url: URL) => url.pathname === EXAMPLE_PATH && !url.hash,
+			{ timeout: 15000 }
+		);
 
-		const url = page.url();
-		// Should be on the SPA root (path is / or just the hash)
-		const parsedUrl = new URL(url);
-		expect(parsedUrl.pathname).toBe('/');
+		const parsedUrl = new URL(page.url());
+		expect(parsedUrl.pathname).toBe(EXAMPLE_PATH);
+		expect(parsedUrl.hash).toBe('');
 	});
 
 	// =========================================================================
