@@ -20,7 +20,7 @@
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, isDemoChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -56,6 +56,8 @@
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
+  import { authStore } from '../stores/authStore';
+  import { introBannerVisible } from '../stores/uiStateStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -468,6 +470,32 @@
 
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
+
+  // Bound to the chat-header-wrapper div; used by the IntersectionObserver below.
+  let headerWrapperEl = $state<HTMLElement | null>(null);
+
+  // True only for non-auth users on intro chats — shows CTA inside the banner.
+  const showSignupCta = $derived(
+    !$authStore.isAuthenticated && !!currentChatId && isDemoChat(currentChatId)
+  );
+
+  // Keep introBannerVisible in sync with whether the banner is visible in the viewport.
+  // When it is visible, Header hides its own signup button so there's no duplicate CTA.
+  $effect(() => {
+    if (!headerWrapperEl || !showSignupCta) {
+      introBannerVisible.set(false);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => { introBannerVisible.set(entry.isIntersecting); },
+      { threshold: 0.1 }
+    );
+    observer.observe(headerWrapperEl);
+    return () => {
+      observer.disconnect();
+      introBannerVisible.set(false);
+    };
+  });
 
   // Props using Svelte 5 runes mode
   let {
@@ -1619,7 +1647,7 @@
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
     {#if showChatHeader}
-        <div class="chat-header-wrapper">
+        <div class="chat-header-wrapper" bind:this={headerWrapperEl}>
             <ChatHeader
                 title={chatTitle}
                 category={chatCategory}
@@ -1635,6 +1663,7 @@
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}
+                {showSignupCta}
             />
         </div>
     {/if}
@@ -2045,4 +2074,5 @@
     /* Full width including the cancelled side padding */
     width: calc(100% + 20px);
   }
+
 </style>

@@ -3,10 +3,41 @@
 // inline embed previews, and fullscreen embed sheets. Advertises the current
 // chat for Handoff so users can continue on another Apple device.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// MessageBubble:
+//   Svelte:  frontend/packages/ui/src/components/ChatMessage.svelte
+//   CSS:     frontend/packages/ui/src/styles/chat.css
+//            .mate-message-content  { background:var(--color-grey-0); border-radius:13px;
+//              filter:drop-shadow(0 4px 4px rgba(0,0,0,.25)); padding:12px }
+//            .user-message-content  { background:var(--color-grey-blue); color:var(--color-grey-100) }
+//            .user-message-content::before / .mate-message-content::before  (SVG tail)
+//            speechbubble.svg       { viewBox: 0 0 7 11 → rendered 12×20pt }
+//
+// inputBar:
+//   Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+//   CSS:     frontend/packages/ui/src/styles/fields.css
+//            border-radius:24px; border:2px solid var(--color-grey-0);
+//            :focus { border-color:var(--color-button-primary);
+//              box-shadow:0 0 0 3px rgba(255,85,59,.22), 0 4px 12px rgba(0,0,0,.08) }
+//
+// messageList / StreamingIndicator:
+//   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
+//   CSS:     frontend/packages/ui/src/styles/chat.css
+//            .chat-history-content { max-width:1000px; margin:0 auto }
+//
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct ChatView: View {
     let chatId: String
+    /// Optional gradient banner state. Provide `.loaded` for demo/example chats;
+    /// omit (nil) for regular user chats where no banner should appear.
+    var bannerState: ChatBannerState? = nil
+    var bannerCreatedAt: Date? = nil
+
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
     @State private var messageText = ""
@@ -122,6 +153,14 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: .spacing4) {
+                    // Gradient banner — shown for demo/example chats (ChatHeader.svelte equivalent)
+                    if let banner = bannerState {
+                        ChatBannerView(state: banner, createdAt: bannerCreatedAt)
+                            .padding(.horizontal, .spacing4)
+                            .padding(.top, .spacing4)
+                            .id("banner")
+                    }
+
                     // Load older messages button at the top
                     if viewModel.hasOlderMessages {
                         Button {
@@ -231,7 +270,7 @@ struct ChatView: View {
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing2)
-        .background(Color.grey10)
+        .background(Color.grey0)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(AppStrings.aiResponding)
     }
@@ -264,7 +303,7 @@ struct ChatView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: .radiusFull)
                             .stroke(
-                                isInputFocused ? Color.buttonPrimary : Color.grey0,
+                                isInputFocused ? Color.buttonPrimary : Color.grey30,
                                 lineWidth: 2
                             )
                     )

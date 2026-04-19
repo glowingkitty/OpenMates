@@ -1,6 +1,11 @@
 // Chat context menu — long-press/right-click actions on chat list items.
 // Mirrors ChatContextMenu.svelte: pin, hide, share, archive, delete, rename.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct ChatContextMenuActions: View {

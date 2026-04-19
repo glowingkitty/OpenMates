@@ -1,6 +1,12 @@
 // Public chat browser — shows intro, example, announcement, and tips chats.
 // Shown from the main app's "Explore" tab or from the sidebar.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/apps/web_app/src/routes/+page.svelte (explore/public chats)
+//          frontend/packages/ui/src/components/ChatHistory.svelte (chat list)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct PublicChatListView: View {

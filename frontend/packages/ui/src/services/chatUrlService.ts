@@ -1,27 +1,75 @@
 /**
  * Chat URL Service
- * 
+ *
  * Manages URL-based chat navigation with privacy-first approach.
- * 
- * Current Behavior (Privacy-First):
- * - Deep linking is supported: opening a URL with #chat-id=xxx will load that chat
- * - URL is immediately cleared after loading the deep-linked chat
- * - Normal chat navigation does NOT update the URL (no automatic URL updates)
- * - This prevents accidental sharing of chat history via URL
- * 
- * Privacy Features:
- * - Uses SvelteKit's replaceState() to update URL WITHOUT adding browser history entries
- * - Hash fragments (#) are never sent to server, providing server-side privacy
- * - Combined approach: Private from both server AND browser history
- * 
- * Use Cases:
- * - Share direct links to specific chats (recipient-initiated only)
- * - Deep link to chats from external sources
- * - URL is cleared immediately after loading to prevent accidental sharing
+ *
+ * Public chats (intro, example, announcement, tips, legal) get semantic paths
+ * (e.g. /intro/for-everyone, /announcements/introducing-openmates-v09) so that
+ * shared links show proper OG previews — those paths have SSR SEO pages.
+ *
+ * Private chats still use the hash fragment (#chat-id=xxx) which is never sent
+ * to the server, preserving server-side privacy.
  */
 
 import { replaceState } from '$app/navigation';
 import { browser } from '$app/environment';
+import { getExampleChatData } from '../demo_chats/exampleChatStore';
+import { getNewsletterChatById } from '../demo_chats/newsletterChatStore';
+
+// Path prefixes that correspond to public-chat SEO routes.
+// Used to detect when the URL should be reverted to / on navigation away.
+export const SEMANTIC_CHAT_PATH_PREFIXES = [
+	'/intro/',
+	'/example/',
+	'/announcements/',
+	'/tips/',
+	'/legal/'
+] as const;
+
+/**
+ * Returns true when the current browser path is a public-chat semantic path
+ * (i.e. one that should revert to / when the user navigates to a private chat).
+ */
+export function isOnSemanticChatPath(): boolean {
+	if (typeof window === 'undefined') return false;
+	const path = window.location.pathname;
+	return SEMANTIC_CHAT_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
+/**
+ * Map a chat ID to its shareable semantic URL path.
+ * Returns null for private chats (they stay on the hash).
+ *
+ * Mappings:
+ *   demo-*          → /intro/{slug}
+ *   example-*       → /example/{slug}   (slug from ExampleChat.slug)
+ *   announcements-* → /announcements/{slug}
+ *   tips-*          → /tips/{slug}
+ *   legal-*         → /legal/{slug}
+ */
+export function getSemanticUrlForChat(chatId: string): string | null {
+	if (chatId.startsWith('demo-')) {
+		// demo-for-everyone is the default welcome state — no semantic URL
+		if (chatId === 'demo-for-everyone') return null;
+		return `/intro/${chatId.slice('demo-'.length)}`;
+	}
+	if (chatId.startsWith('example-')) {
+		const data = getExampleChatData(chatId);
+		return data ? `/example/${data.slug}` : null;
+	}
+	if (chatId.startsWith('announcements-')) {
+		const chat = getNewsletterChatById(chatId);
+		return chat ? `/announcements/${chat.slug}` : null;
+	}
+	if (chatId.startsWith('tips-')) {
+		const chat = getNewsletterChatById(chatId);
+		return chat ? `/tips/${chat.slug}` : null;
+	}
+	if (chatId.startsWith('legal-')) {
+		return `/legal/${chatId.slice('legal-'.length)}`;
+	}
+	return null;
+}
 
 /**
  * Update the browser URL to reflect the currently active chat
@@ -87,20 +135,4 @@ export function getChatIdFromUrl(): string | null {
 	}
 }
 
-/**
- * Clear the chat ID from the URL
- * Convenience function that calls updateChatUrl(null)
- */
-function clearChatUrl(): void {
-	updateChatUrl(null);
-}
-
-/**
- * Check if a chat URL is currently set
- * 
- * @returns True if a chat ID is present in the URL
- */
-function hasChatUrl(): boolean {
-	return getChatIdFromUrl() !== null;
-}
 

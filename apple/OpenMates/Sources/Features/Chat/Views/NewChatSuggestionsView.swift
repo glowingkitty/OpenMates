@@ -2,6 +2,12 @@
 // Mirrors the web app's NewChatSuggestions.svelte + ChatSearchSuggestions.svelte.
 // Shows app-aware suggestions and search-based quick actions.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/NewChatSuggestions.svelte
+//          frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct NewChatSuggestionsView: View {
