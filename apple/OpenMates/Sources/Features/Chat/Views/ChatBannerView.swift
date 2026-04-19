@@ -49,11 +49,11 @@ struct ChatBannerView: View {
             if case .loaded(_, let appId, _) = state {
                 HStack {
                     AppIconView(appId: appId, size: 100)
-                        .opacity(0.25)
+                        .opacity(0.4)
                         .offset(x: -28)
                     Spacer()
                     AppIconView(appId: appId, size: 100)
-                        .opacity(0.25)
+                        .opacity(0.4)
                         .offset(x: 28)
                 }
                 .clipped()
@@ -72,11 +72,7 @@ struct ChatBannerView: View {
     private var gradientBackground: some View {
         switch state {
         case .incognito:
-            LinearGradient(
-                colors: [Color(hex: 0x1A1A2E), Color(hex: 0x2D2D44), Color(hex: 0x1E1E35)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            LinearGradient.incognito
         case .loading:
             LinearGradient.primary
         case .loaded(_, let appId, _):

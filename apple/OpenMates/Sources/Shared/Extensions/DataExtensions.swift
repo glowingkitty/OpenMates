@@ -52,3 +52,13 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 }
+
+extension LinearGradient {
+    /// Dark incognito gradient — matches ChatHeader.svelte's fixed incognito state:
+    /// `linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1e1e35 100%)`
+    static let incognito = LinearGradient(
+        colors: [Color(hex: 0x1A1A2E), Color(hex: 0x2D2D44), Color(hex: 0x1E1E35)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
