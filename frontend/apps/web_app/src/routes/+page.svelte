@@ -45,6 +45,7 @@
 		setForcedLogoutInProgress,
 		resetForcedLogoutInProgress,
 		isPublicChat,
+		isNewsletterChat,
 		loadSessionStorageDraft,
 		getAllDraftChatIdsWithDrafts,
 		NEW_CHAT_SENTINEL,
@@ -182,10 +183,11 @@
 		chatId: string,
 		messageId?: string | null,
 		scrollToLatestResponse?: boolean,
-		embedId?: string | null
+		embedId?: string | null,
+		autoplayVideo?: boolean
 	) {
 		console.debug(
-			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}${embedId ? `, embed: ${embedId}` : ''}`
+			`[+page.svelte] Handling chat deep link for: ${chatId}${messageId ? `, message: ${messageId}` : ''}${scrollToLatestResponse ? ' (scroll to latest response)' : ''}${embedId ? `, embed: ${embedId}` : ''}${autoplayVideo ? ' (autoplay-video)' : ''}`
 		);
 
 		// If messageId is provided, set it in the highlight store
@@ -211,7 +213,7 @@
 			const exampleChatObj = getExampleChat(chatId);
 			if (exampleChatObj && activeChat) {
 				// Example chats are static — load directly (embed refs already registered on page load)
-				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse });
+				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse, autoplayVideo });
 
 				const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
 					detail: { chat: exampleChatObj },
@@ -257,7 +259,7 @@
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
-					activeChat.loadChat(chat, { scrollToLatestResponse });
+					activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo });
 
 					// Dispatch globalChatSelected event so Chats.svelte highlights the chat
 					const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -582,8 +584,8 @@
 		// authenticated users. These get into the hash when: (a) forced logout sets it during
 		// missing-master-key cleanup, or (b) non-auth welcome chat sets it before the user logs in.
 		// After login, the user should land on their last-opened chat, not the demo.
-		const hasExplicitDeepLink = browser && window.location.hash.includes('autoplay-video');
-		if (hashChatIdToLoad && isPublicChat(hashChatIdToLoad) && $authStore.isAuthenticated && !hasExplicitDeepLink) {
+		// EXCEPTION: Newsletter chats are always intentional deep links (from email CTAs) — never skip them.
+		if (hashChatIdToLoad && isPublicChat(hashChatIdToLoad) && !isNewsletterChat(hashChatIdToLoad) && $authStore.isAuthenticated) {
 			console.debug(
 				'[+page.svelte] Skipping public/demo chat hash override for authenticated user:',
 				hashChatIdToLoad
@@ -634,9 +636,8 @@
 		// PRIORITY 2: Skip if hash is a chat (hash chat takes precedence)
 		// OPE-215: Don't skip for public/demo chats when user is authenticated — those are
 		// just defaults from the non-auth state, not intentional deep links.
-		// Exception: explicit deep links (e.g. &autoplay-video from newsletter emails) should always load.
-		const hasAutoplayDeepLink = browser && window.location.hash.includes('autoplay-video');
-		if (originalHashChatId && !(isPublicChat(originalHashChatId) && $authStore.isAuthenticated && !hasAutoplayDeepLink)) {
+		// Exception: newsletter chats are always intentional deep links (email CTAs) — never skip them.
+		if (originalHashChatId && !(isPublicChat(originalHashChatId) && !isNewsletterChat(originalHashChatId) && $authStore.isAuthenticated)) {
 			console.debug(
 				'[+page.svelte] [PRIORITY 2] Skipping last_opened chat - hash chat has priority:',
 				originalHashChatId
@@ -2358,7 +2359,8 @@
 				chatId: string,
 				messageId?: string | null,
 				scrollToLatestResponse?: boolean,
-				embedId?: string | null
+				embedId?: string | null,
+				autoplayVideo?: boolean
 			) => {
 				// Update originalHashChatId to reflect the new hash (important for sync completion handler)
 				originalHashChatId = chatId;
@@ -2367,7 +2369,7 @@
 				isProcessingInitialHash = true;
 				deepLinkProcessed = true; // Mark that a deep link was processed
 
-				await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId);
+				await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId, autoplayVideo);
 
 				// Reset flag after processing
 				isProcessingInitialHash = false;
