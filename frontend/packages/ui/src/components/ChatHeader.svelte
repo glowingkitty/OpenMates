@@ -539,7 +539,7 @@
             data-testid="banner-signup-button"
             onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
           >
-            {$text('signup.sign_up')}
+            {$text('signup.sign_up')} / {$text('login.login')}
           </button>
         {/if}
       </div>

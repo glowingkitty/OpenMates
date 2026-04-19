@@ -544,8 +544,8 @@
         background: var(--color-grey-blue);
         border-radius: var(--radius-7);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        min-width: 380px;
-        max-width: 450px;
+        min-width: min(380px, calc(100vw - 10px));
+        max-width: calc(100vw - 10px);
         max-height: 420px;
         overflow-y: auto;
         overflow-x: hidden;
