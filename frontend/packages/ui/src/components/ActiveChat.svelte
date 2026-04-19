@@ -9557,9 +9557,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </button>
                                 </div>
                             {/if}
-                            {#if !showWelcome}
+                            {#if !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                                 <!-- Share button - opens settings menu with share submenu -->
-                                <!-- Use same wrapper design as new chat button -->
+                                <!-- Hidden for intro, example, and legal chats (public/static chats the user doesn't own) -->
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_share top-button"

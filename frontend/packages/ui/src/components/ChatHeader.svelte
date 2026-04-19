@@ -1210,8 +1210,9 @@
     }
 
     .media-frame {
-      height: 60%;
-      max-width: calc(100% - 60px);
+      height: auto;
+      width: calc(100% - 60px);
+      max-width: unset;
     }
 
     .video-play-btn {

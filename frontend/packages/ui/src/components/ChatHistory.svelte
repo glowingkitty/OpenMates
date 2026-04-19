@@ -20,7 +20,7 @@
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, isDemoChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -56,6 +56,7 @@
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
+  import { authStore } from '../stores/authStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -1639,6 +1640,19 @@
         </div>
     {/if}
 
+    <!-- Sign-up CTA below the video banner for non-authenticated users on intro chats.
+         Scrolls away naturally as the user reads messages, at which point the header button takes over. -->
+    {#if !$authStore.isAuthenticated && currentChatId && isDemoChat(currentChatId)}
+        <div class="video-signup-cta">
+            <button
+                class="video-signup-button"
+                onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
+            >
+                {$text('signup.sign_up')}
+            </button>
+        </div>
+    {/if}
+
     <!-- Floating up/down arrows for highlight navigation. Only visible when
          more than one highlight exists and the user has opened navigation. -->
     <HighlightNavigationOverlay anchorRect={overlayAnchorRect} />
@@ -2044,5 +2058,35 @@
     margin-inline-end: -10px;
     /* Full width including the cancelled side padding */
     width: calc(100% + 20px);
+  }
+
+  .video-signup-cta {
+    display: flex;
+    justify-content: center;
+    padding: var(--spacing-6) var(--spacing-4);
+  }
+
+  .video-signup-button {
+    all: unset;
+    padding: var(--spacing-4) var(--spacing-8);
+    border-radius: var(--radius-3);
+    background-color: var(--color-button-primary);
+    color: white;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    transition: all var(--duration-normal) var(--easing-default);
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .video-signup-button:hover {
+    transform: scale(1.02);
+  }
+
+  .video-signup-button:active {
+    background-color: var(--color-button-primary-pressed);
+    transform: scale(0.98);
+    box-shadow: none;
   }
 </style>
