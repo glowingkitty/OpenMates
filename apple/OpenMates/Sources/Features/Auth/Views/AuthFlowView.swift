@@ -3,6 +3,13 @@
 // password entry, passkey, recovery key, and backup code screens.
 // VoiceOver: screen change announcements on step transitions, combined header group.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/Login.svelte
+//          frontend/packages/ui/src/components/LoginMethodSelector.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct AuthFlowView: View {

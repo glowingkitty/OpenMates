@@ -2,6 +2,12 @@
 // Mirrors the EMBED_PREVIEW_COMPONENTS / EMBED_FULLSCREEN_COMPONENTS registry.
 // Supports preview (compact card) and fullscreen (full detail) modes.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 enum EmbedDisplayMode {
