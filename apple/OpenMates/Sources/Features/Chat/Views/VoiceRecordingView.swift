@@ -97,20 +97,18 @@ struct VoiceRecordingButton: View {
                         .foregroundStyle(Color.fontPrimary)
 
                     Button { cancel() } label: {
-                        Image(systemName: "xmark.circle.fill")
+                        Icon("close", size: 20)
                             .foregroundStyle(Color.fontTertiary)
                     }
 
                     Button { stop() } label: {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.system(size: 24))
+                        Icon("stop_processing", size: 24)
                             .foregroundStyle(Color.error)
                     }
                 }
             } else {
                 Button { recorder.startRecording() } label: {
-                    Image(systemName: "mic.circle.fill")
-                        .font(.system(size: 24))
+                    Icon("recordaudio", size: 24)
                         .foregroundStyle(Color.fontTertiary)
                 }
             }

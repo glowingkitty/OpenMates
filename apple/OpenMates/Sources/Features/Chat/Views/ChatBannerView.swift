@@ -106,8 +106,7 @@ struct ChatBannerView: View {
 
         case .incognito:
             VStack(spacing: .spacing4) {
-                Image(systemName: "person.fill.questionmark")
-                    .font(.system(size: 38))
+                Icon("anonym", size: 38)
                     .foregroundStyle(.white)
                 // i18n: settings.incognito_mode_active
                 Text(AppStrings.incognitoModeActive)

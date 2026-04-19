@@ -31,7 +31,7 @@ struct ChatContextMenuActions: View {
             }
 
             Button { onShare() } label: {
-                Label("Share Chat", systemImage: SFSymbol.share2)
+                Label { Text("Share Chat") } icon: { Icon("share", size: 16) }
             }
 
             Divider()

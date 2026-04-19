@@ -60,8 +60,7 @@ struct MentionDropdownView: View {
                                         AppIconView(appId: icon, size: 24)
                                             .accessibilityHidden(true)
                                     } else {
-                                        Image(systemName: iconForType(item.type))
-                                            .frame(width: 24, height: 24)
+                                        Icon(iconForType(item.type), size: 24)
                                             .foregroundStyle(Color.fontSecondary)
                                             .accessibilityHidden(true)
                                     }
@@ -106,10 +105,10 @@ struct MentionDropdownView: View {
 
     private func iconForType(_ type: MentionItem.MentionType) -> String {
         switch type {
-        case .app: return "square.grid.2x2"
-        case .skill: return "wand.and.stars"
-        case .memory: return "brain.head.profile"
-        case .focusMode: return "target"
+        case .app: return "app"
+        case .skill: return "skill"
+        case .memory: return "reasoning"
+        case .focusMode: return "select"
         }
     }
 

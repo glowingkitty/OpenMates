@@ -28,7 +28,7 @@ struct DailyInspirationBanner: View {
                 onTap(inspiration.text)
             } label: {
                 HStack(spacing: .spacing3) {
-                    Image(systemName: "lightbulb.fill")
+                    Icon("insight", size: 16)
                         .foregroundStyle(Color.buttonPrimary)
                         .accessibilityHidden(true)
 
@@ -45,9 +45,9 @@ struct DailyInspirationBanner: View {
 
                     Spacer()
 
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
+                    Icon("back", size: 12)
                         .foregroundStyle(Color.fontTertiary)
+                        .scaleEffect(x: -1, y: 1)
                         .accessibilityHidden(true)
                 }
                 .padding(.spacing4)
