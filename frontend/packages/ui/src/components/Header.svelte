@@ -707,11 +707,14 @@
         position: absolute;
         right: 50px; /* Space for settings menu button */
         top: 50%; /* Center vertically */
-        transform: translateY(-50%); /* Center vertically */
+        transform: translateY(-50%) translateX(0);
         display: flex;
         align-items: center;
         gap: 0.75rem; /* Add gap between sign in button and language icon */
-        transition: opacity var(--duration-normal) var(--easing-default), visibility var(--duration-normal) var(--easing-default);
+        transition:
+            opacity var(--duration-normal) var(--easing-default),
+            visibility var(--duration-normal) var(--easing-default),
+            transform var(--duration-normal) var(--easing-default);
         margin-right: var(--spacing-5);
         /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
     }
@@ -721,6 +724,7 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none; /* Prevent interaction when hidden */
+        transform: translateY(-50%) translateX(16px);
     }
 
     .login-signup-button {
