@@ -49,6 +49,8 @@ export function isOnSemanticChatPath(): boolean {
  */
 export function getSemanticUrlForChat(chatId: string): string | null {
 	if (chatId.startsWith('demo-')) {
+		// demo-for-everyone is the default welcome state — no semantic URL
+		if (chatId === 'demo-for-everyone') return null;
 		return `/intro/${chatId.slice('demo-'.length)}`;
 	}
 	if (chatId.startsWith('example-')) {

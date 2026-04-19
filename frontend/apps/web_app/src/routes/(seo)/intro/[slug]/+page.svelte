@@ -41,7 +41,11 @@
 	 */
 	onMount(() => {
 		if (data.spaUrl) {
-			window.location.replace(data.spaUrl);
+			// Use a relative redirect so prerendered pages (built with sveltekit-prerender
+			// hostname → origin always resolves to openmates.org) don't forward dev/staging
+			// visitors to the production domain.
+			const { pathname, search, hash } = new URL(data.spaUrl);
+			window.location.replace(pathname + search + hash);
 		}
 	});
 </script>

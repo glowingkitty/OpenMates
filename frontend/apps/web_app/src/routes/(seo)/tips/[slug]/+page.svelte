@@ -15,7 +15,8 @@
 
 	onMount(() => {
 		if (data.spaUrl) {
-			window.location.replace(data.spaUrl);
+			const { pathname, search, hash } = new URL(data.spaUrl);
+			window.location.replace(pathname + search + hash);
 		}
 	});
 </script>
