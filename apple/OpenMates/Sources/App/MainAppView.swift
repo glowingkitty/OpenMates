@@ -310,6 +310,8 @@ struct MainAppView: View {
         }
         .listStyle(.plain)
         .listRowSeparator(.hidden)
+        .scrollContentBackground(.hidden)
+        .background(Color.grey0)
         .searchable(text: $searchText, prompt: AppStrings.search)
         .navigationTitle(AppStrings.chats)
         #if os(iOS)
@@ -412,44 +414,122 @@ struct MainAppView: View {
 
     // MARK: - Demo chats for unauthenticated users
 
-    /// Populates the sidebar with demo chats matching the web app's landing page.
+    /// Populates the sidebar with all public chats matching the web app's cold-boot landing page.
     /// Opens demo-for-everyone by default — same as +page.svelte cold-boot behaviour.
+    /// Mirrors: INTRO_CHATS + LEGAL_CHATS + announcements + example chats from demo_chats/index.ts
     private func loadDemoChats() {
         let now = ISO8601DateFormatter().string(from: Date())
-        // Titles via AppStrings → LocalizationManager → i18n JSON (never hardcoded English)
+        // All strings via AppStrings → LocalizationManager → i18n JSON (never hardcoded English)
         let demoChats: [Chat] = [
-            // demo_chats.for_everyone.title
+            // INTRO_CHATS (featured: true, pinned in sidebar)
             Chat(id: "demo-for-everyone", title: AppStrings.demoForEveryoneTitle,
                  lastMessageAt: now, createdAt: now, updatedAt: now,
                  isArchived: false, isPinned: true,
                  appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
-            // demo_chats.for_developers.title
             Chat(id: "demo-for-developers", title: AppStrings.demoForDevelopersTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: true,
+                 appId: "code", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "demo-who-develops-openmates", title: AppStrings.demoWhoDevTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: true,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            // Announcements newsletter chat
+            Chat(id: "announcements-introducing-openmates-v09", title: AppStrings.demoAnnouncementsV09Title,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            // Legal chats (accessible via sidebar + settings)
+            Chat(id: "legal-privacy", title: AppStrings.legalPrivacyTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "legal-terms", title: AppStrings.legalTermsTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "legal-imprint", title: AppStrings.legalImprintTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            // Example chats — real conversations (exampleChatStore.ts)
+            Chat(id: "example-gigantic-airplanes", title: AppStrings.exampleGiganticAirplanesTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "example-artemis-ii-mission", title: AppStrings.exampleArtemisMissionTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "example-beautiful-single-page-html", title: AppStrings.exampleBeautifulHtmlTitle,
                  lastMessageAt: now, createdAt: now, updatedAt: now,
                  isArchived: false, isPinned: false,
                  appId: "code", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "example-eu-chat-control-law", title: AppStrings.exampleEuChatControlTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "legal", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "example-flights-berlin-bangkok", title: AppStrings.exampleFlightsBerlinBangkokTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "travel", encryptedTitle: nil, encryptedChatKey: nil),
+            Chat(id: "example-creativity-drawing-meetups-berlin", title: AppStrings.exampleCreativityDrawingTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "events", encryptedTitle: nil, encryptedChatKey: nil),
         ]
         chatStore.upsertChats(demoChats)
         // Open the for-everyone chat by default — matches web app's cold-boot behaviour
         selectedChatId = "demo-for-everyone"
     }
 
-    /// Returns the gradient banner state for a given demo chat ID.
-    /// Titles and descriptions via AppStrings → i18n JSON — never hardcoded English.
+    /// Returns the gradient banner state for a given demo/legal/example chat ID.
+    /// All strings via AppStrings → i18n JSON — never hardcoded English.
     private func demoBannerState(for chatId: String) -> ChatBannerState? {
         switch chatId {
+        // INTRO_CHATS
         case "demo-for-everyone":
-            return .loaded(
-                title: AppStrings.demoForEveryoneTitle,
-                appId: "ai",
-                summary: AppStrings.demoForEveryoneDescription
-            )
+            return .loaded(title: AppStrings.demoForEveryoneTitle, appId: "ai",
+                           summary: AppStrings.demoForEveryoneDescription)
         case "demo-for-developers":
-            return .loaded(
-                title: AppStrings.demoForDevelopersTitle,
-                appId: "code",
-                summary: AppStrings.demoForDevelopersDescription
-            )
+            return .loaded(title: AppStrings.demoForDevelopersTitle, appId: "code",
+                           summary: AppStrings.demoForDevelopersDescription)
+        case "demo-who-develops-openmates":
+            return .loaded(title: AppStrings.demoWhoDevTitle, appId: "ai",
+                           summary: AppStrings.demoWhoDevDescription)
+        // Announcements
+        case "announcements-introducing-openmates-v09":
+            return .loaded(title: AppStrings.demoAnnouncementsV09Title, appId: "ai",
+                           summary: AppStrings.demoAnnouncementsV09Description)
+        // Legal chats
+        case "legal-privacy":
+            return .loaded(title: AppStrings.legalPrivacyTitle, appId: "ai",
+                           summary: AppStrings.legalPrivacyDescription)
+        case "legal-terms":
+            return .loaded(title: AppStrings.legalTermsTitle, appId: "ai",
+                           summary: AppStrings.legalTermsDescription)
+        case "legal-imprint":
+            return .loaded(title: AppStrings.legalImprintTitle, appId: "ai",
+                           summary: AppStrings.legalImprintDescription)
+        // Example chats
+        case "example-gigantic-airplanes":
+            return .loaded(title: AppStrings.exampleGiganticAirplanesTitle, appId: "ai",
+                           summary: AppStrings.exampleGiganticAirplanesSummary)
+        case "example-artemis-ii-mission":
+            return .loaded(title: AppStrings.exampleArtemisMissionTitle, appId: "ai",
+                           summary: AppStrings.exampleArtemisMissionSummary)
+        case "example-beautiful-single-page-html":
+            return .loaded(title: AppStrings.exampleBeautifulHtmlTitle, appId: "code",
+                           summary: AppStrings.exampleBeautifulHtmlSummary)
+        case "example-eu-chat-control-law":
+            return .loaded(title: AppStrings.exampleEuChatControlTitle, appId: "legal",
+                           summary: AppStrings.exampleEuChatControlSummary)
+        case "example-flights-berlin-bangkok":
+            return .loaded(title: AppStrings.exampleFlightsBerlinBangkokTitle, appId: "travel",
+                           summary: AppStrings.exampleFlightsBerlinBangkokSummary)
+        case "example-creativity-drawing-meetups-berlin":
+            return .loaded(title: AppStrings.exampleCreativityDrawingTitle, appId: "events",
+                           summary: AppStrings.exampleCreativityDrawingSummary)
         default:
             return nil
         }

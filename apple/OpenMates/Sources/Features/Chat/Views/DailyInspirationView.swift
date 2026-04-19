@@ -1,6 +1,15 @@
 // Daily inspiration banner — shows a rotating inspiration prompt.
 // Tapping creates a new chat with the inspiration as the first message.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+// CSS:     DailyInspirationBanner.svelte <style>
+//          Banner height: 240px desktop, 190px mobile (≤730px)
+//          Background: getCategoryGradientColors per inspiration category
+// i18n:    common.daily_inspiration (AppStrings.dailyInspiration)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct DailyInspirationBanner: View {

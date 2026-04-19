@@ -1,6 +1,14 @@
 // Voice recording input — record audio messages directly in chat.
 // Mirrors RecordAudio.svelte: start/stop/cancel, duration timer, waveform.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+// CSS:     RecordAudio.svelte <style>
+// i18n:    enter_message.record_audio.{slide_left_to_cancel,release_to_finish,
+//          press_and_hold_reminder,allow_microphone_access,microphone_blocked}
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import AVFoundation
 

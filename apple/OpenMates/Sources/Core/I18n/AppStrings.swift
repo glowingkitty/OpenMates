@@ -203,6 +203,15 @@ enum AppStrings {
     static var twoFactorRequired: String { L("auth.two_factor_required") }
     static var invalidCredentials: String { L("auth.invalid_credentials") }
 
+    // MARK: - Enter message / action buttons (ActionButtons.svelte)
+    static var attachFiles: String { L("enter_message.attachments.attach_files") }
+    static var shareLocation: String { L("enter_message.attachments.share_location") }
+    static var sketchAction: String { L("enter_message.attachments.sketch") }
+    static var takePhoto: String { L("enter_message.attachments.take_photo") }
+    static var recordAudio: String { L("enter_message.attachments.record_audio") }
+    static var pressAndHoldToRecord: String { L("enter_message.record_audio.press_and_hold_reminder") }
+    static var enterMessagePlaceholder: String { L("enter_message.placeholder.touch") }
+
     // MARK: - Embeds
     static var voiceRecording: String { L("embed.voice_recording") }
     static var transcription: String { L("embed.transcription") }
@@ -250,11 +259,37 @@ enum AppStrings {
         "\(date), \(time)"
     }
 
-    // MARK: - Demo chats
+    // MARK: - Demo chats — intro
     static var demoForEveryoneTitle: String { L("demo_chats.for_everyone.title") }
     static var demoForEveryoneDescription: String { L("demo_chats.for_everyone.description") }
     static var demoForDevelopersTitle: String { L("demo_chats.for_developers.title") }
     static var demoForDevelopersDescription: String { L("demo_chats.for_developers.description") }
+    static var demoWhoDevTitle: String { L("demo_chats.who_develops_openmates.title") }
+    static var demoWhoDevDescription: String { L("demo_chats.who_develops_openmates.description") }
+    static var demoAnnouncementsV09Title: String { L("demo_chats.announcements_introducing_openmates_v09.title") }
+    static var demoAnnouncementsV09Description: String { L("demo_chats.announcements_introducing_openmates_v09.description") }
+
+    // MARK: - Legal chats
+    static var legalPrivacyTitle: String { L("legal.privacy.title") }
+    static var legalPrivacyDescription: String { L("metadata.legal_privacy.description") }
+    static var legalTermsTitle: String { L("legal.terms.title") }
+    static var legalTermsDescription: String { L("metadata.legal_terms.description") }
+    static var legalImprintTitle: String { L("legal.imprint.title") }
+    static var legalImprintDescription: String { L("metadata.legal_imprint.description") }
+
+    // MARK: - Example chats
+    static var exampleGiganticAirplanesTitle: String { L("example_chats.gigantic_airplanes.title") }
+    static var exampleGiganticAirplanesSummary: String { L("example_chats.gigantic_airplanes.summary") }
+    static var exampleArtemisMissionTitle: String { L("example_chats.artemis_ii_mission.title") }
+    static var exampleArtemisMissionSummary: String { L("example_chats.artemis_ii_mission.summary") }
+    static var exampleBeautifulHtmlTitle: String { L("example_chats.beautiful_single_page_html.title") }
+    static var exampleBeautifulHtmlSummary: String { L("example_chats.beautiful_single_page_html.summary") }
+    static var exampleEuChatControlTitle: String { L("example_chats.eu_chat_control_law.title") }
+    static var exampleEuChatControlSummary: String { L("example_chats.eu_chat_control_law.summary") }
+    static var exampleFlightsBerlinBangkokTitle: String { L("example_chats.flights_berlin_bangkok.title") }
+    static var exampleFlightsBerlinBangkokSummary: String { L("example_chats.flights_berlin_bangkok.summary") }
+    static var exampleCreativityDrawingTitle: String { L("example_chats.creativity_drawing_meetups_berlin.title") }
+    static var exampleCreativityDrawingSummary: String { L("example_chats.creativity_drawing_meetups_berlin.summary") }
 
     // MARK: - Credits
     static func creditsAmount(_ amount: String) -> String {
