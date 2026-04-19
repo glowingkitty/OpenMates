@@ -72,6 +72,11 @@ skills:
         scope: city
         region: Berlin
         no_api_key: true
+      - name: Berlin Philharmonic
+        id: berlin_philharmonic
+        scope: city
+        region: Berlin
+        no_api_key: true
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"
@@ -101,6 +106,7 @@ skills:
             - "Google Events"
             - "Resident Advisor"
             - "Siegessäule"
+            - "Berlin Philharmonic"
         requests:
           type: array
           description: |
@@ -151,6 +157,16 @@ skills:
                 minimum: 1
                 maximum: 50
                 default: 10
+              concert_tags:
+                type: array
+                items:
+                  type: string
+                description: >
+                  Optional tag filters for the Berlin Philharmonic provider.
+                  Use when the user asks about classical concerts in Berlin.
+                  Known values: Piano, Chamber Music, Jazz, Organ, Modern,
+                  Lunch Concerts, Singers, Children and Family, World.
+                  Ignored by all other providers.
             required:
               - query
               - location

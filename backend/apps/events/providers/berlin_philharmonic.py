@@ -42,6 +42,7 @@ def _build_filter_expression(
 async def search_events_async(
     *,
     location: str,
+    query: str = "",
     tags: List[str],
     count: int,
     include_guest_events: bool = False,
@@ -55,7 +56,7 @@ async def search_events_async(
         "x-typesense-api-key": SEARCH_API_KEY,
     }
     params = {
-        "q": "",
+        "q": query.strip() if query else "*",
         "query_by": DEFAULT_QUERY_BY,
         "filter_by": _build_filter_expression(
             include_guest_events=include_guest_events,
