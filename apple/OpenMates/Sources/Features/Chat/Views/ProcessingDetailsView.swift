@@ -2,6 +2,11 @@
 // Mirrors the web app's ProcessingDetails.svelte: "Using apps", "Loaded preferences",
 // skill execution steps, and preprocessing progress.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/ProcessingDetails.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct ProcessingDetailsView: View {

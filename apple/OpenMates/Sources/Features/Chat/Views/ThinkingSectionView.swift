@@ -2,6 +2,11 @@
 // Mirrors the web app's ThinkingSection.svelte: collapsible section that shows
 // the AI's chain-of-thought when the model returns thinking blocks.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/ThinkingSection.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct ThinkingSectionView: View {

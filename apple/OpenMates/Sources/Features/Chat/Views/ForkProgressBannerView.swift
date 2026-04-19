@@ -2,6 +2,11 @@
 // Mirrors the web app's chats/ForkProgressBanner.svelte: progress indicator
 // displayed while the backend copies messages to the new forked chat.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/chats/ForkProgressBanner.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct ForkProgressBanner: View {

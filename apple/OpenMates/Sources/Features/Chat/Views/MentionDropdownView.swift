@@ -2,6 +2,11 @@
 // Mirrors the web app's enter_message/MentionDropdown.svelte: triggered when user
 // types @ in the message input, shows filterable list of mentionable items.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct MentionDropdownView: View {

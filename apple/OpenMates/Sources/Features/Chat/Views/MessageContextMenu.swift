@@ -1,6 +1,11 @@
 // Message context menu — long-press/right-click actions on individual messages.
 // Mirrors MessageContextMenu.svelte: copy, edit, delete, fork.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct MessageContextMenu: View {
