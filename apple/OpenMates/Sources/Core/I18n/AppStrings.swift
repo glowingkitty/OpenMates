@@ -232,6 +232,30 @@ enum AppStrings {
     static var rename: String { L("common.rename") }
     static var stop: String { L("common.stop") }
 
+    // MARK: - Chat banner (ChatHeader.svelte)
+    static var creatingNewChat: String { L("chat.creating_new_chat") }
+    static var chatHeaderJustNow: String { L("chat.header.just_now") }
+    static var incognitoModeActive: String { L("settings.incognito_mode_active") }
+
+    static func chatHeaderMinutesAgo(count: Int) -> String {
+        LocalizationManager.shared.text("chat.header.minutes_ago", replacements: ["count": "\(count)"])
+    }
+    static func chatHeaderStartedToday(time: String) -> String {
+        LocalizationManager.shared.text("chat.header.started_today", replacements: ["time": time])
+    }
+    static func chatHeaderStartedYesterday(time: String) -> String {
+        LocalizationManager.shared.text("chat.header.started_yesterday", replacements: ["time": time])
+    }
+    static func chatHeaderStartedOn(date: String, time: String) -> String {
+        "\(date), \(time)"
+    }
+
+    // MARK: - Demo chats
+    static var demoForEveryoneTitle: String { L("demo_chats.for_everyone.title") }
+    static var demoForEveryoneDescription: String { L("demo_chats.for_everyone.description") }
+    static var demoForDevelopersTitle: String { L("demo_chats.for_developers.title") }
+    static var demoForDevelopersDescription: String { L("demo_chats.for_developers.description") }
+
     // MARK: - Credits
     static func creditsAmount(_ amount: String) -> String {
         LocalizationManager.shared.text("settings.credits_amount", replacements: ["credits_amount": amount])

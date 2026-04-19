@@ -3,6 +3,16 @@
 // Sidebar shows chat list; detail shows active chat or empty state.
 // Manages WebSocket connection and phased sync lifecycle.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/apps/web_app/src/routes/+page.svelte  (top-level layout)
+//          frontend/packages/ui/src/components/ChatHistory.svelte (sidebar)
+//          frontend/packages/ui/src/components/Header.svelte (top nav)
+// Default: Opens demo-for-everyone chat on cold-boot for unauthenticated users,
+//          matching +page.svelte logic (activeChatStore.setActiveChat('demo-for-everyone'))
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import WidgetKit
 import CoreSpotlight
@@ -64,6 +74,13 @@ struct MainAppView: View {
         } detail: {
             if isAuthenticated, let chatId = selectedChatId {
                 ChatView(chatId: chatId)
+            } else if !isAuthenticated, let chatId = selectedChatId {
+                // Unauthenticated: show demo chat with its gradient banner
+                ChatView(
+                    chatId: chatId,
+                    bannerState: demoBannerState(for: chatId),
+                    bannerCreatedAt: nil
+                )
             } else if !isAuthenticated {
                 WelcomeView(onLogin: { showAuthSheet = true })
             } else {
@@ -395,29 +412,47 @@ struct MainAppView: View {
 
     // MARK: - Demo chats for unauthenticated users
 
-    /// Populates the sidebar with static demo chats so unauthenticated users
-    /// see the same welcoming experience as the web app's landing page.
+    /// Populates the sidebar with demo chats matching the web app's landing page.
+    /// Opens demo-for-everyone by default — same as +page.svelte cold-boot behaviour.
     private func loadDemoChats() {
         let now = ISO8601DateFormatter().string(from: Date())
+        // Titles via AppStrings → LocalizationManager → i18n JSON (never hardcoded English)
         let demoChats: [Chat] = [
-            Chat(id: "demo-1", title: "Welcome to OpenMates", lastMessageAt: now,
-                 createdAt: now, updatedAt: now, isArchived: false, isPinned: true,
+            // demo_chats.for_everyone.title
+            Chat(id: "demo-for-everyone", title: AppStrings.demoForEveryoneTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: true,
                  appId: "ai", encryptedTitle: nil, encryptedChatKey: nil),
-            Chat(id: "demo-2", title: "Plan a trip to Japan", lastMessageAt: now,
-                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
-                 appId: "travel", encryptedTitle: nil, encryptedChatKey: nil),
-            Chat(id: "demo-3", title: "Healthy meal ideas", lastMessageAt: now,
-                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
-                 appId: "nutrition", encryptedTitle: nil, encryptedChatKey: nil),
-            Chat(id: "demo-4", title: "Today's top news", lastMessageAt: now,
-                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
-                 appId: "news", encryptedTitle: nil, encryptedChatKey: nil),
-            Chat(id: "demo-5", title: "Weekend events nearby", lastMessageAt: now,
-                 createdAt: now, updatedAt: now, isArchived: false, isPinned: false,
-                 appId: "events", encryptedTitle: nil, encryptedChatKey: nil),
+            // demo_chats.for_developers.title
+            Chat(id: "demo-for-developers", title: AppStrings.demoForDevelopersTitle,
+                 lastMessageAt: now, createdAt: now, updatedAt: now,
+                 isArchived: false, isPinned: false,
+                 appId: "code", encryptedTitle: nil, encryptedChatKey: nil),
         ]
         chatStore.upsertChats(demoChats)
-        selectedChatId = "demo-1"
+        // Open the for-everyone chat by default — matches web app's cold-boot behaviour
+        selectedChatId = "demo-for-everyone"
+    }
+
+    /// Returns the gradient banner state for a given demo chat ID.
+    /// Titles and descriptions via AppStrings → i18n JSON — never hardcoded English.
+    private func demoBannerState(for chatId: String) -> ChatBannerState? {
+        switch chatId {
+        case "demo-for-everyone":
+            return .loaded(
+                title: AppStrings.demoForEveryoneTitle,
+                appId: "ai",
+                summary: AppStrings.demoForEveryoneDescription
+            )
+        case "demo-for-developers":
+            return .loaded(
+                title: AppStrings.demoForDevelopersTitle,
+                appId: "code",
+                summary: AppStrings.demoForDevelopersDescription
+            )
+        default:
+            return nil
+        }
     }
 
     // MARK: - Data loading
@@ -650,6 +685,7 @@ struct WelcomeView: View {
                 .resizable()
                 .frame(width: 72, height: 72)
 
+            // Brand name — intentionally not translated (proper noun, same in all locales)
             Text("OpenMates")
                 .font(.omH1)
                 .fontWeight(.bold)
@@ -744,21 +780,38 @@ struct NewChatView: View {
                 }
                 .padding(.horizontal)
 
-                // Message input
+                // Message input — pill style matching ChatView.inputBar and fields.css
                 HStack(alignment: .bottom, spacing: .spacing3) {
                     TextField(AppStrings.startTyping, text: $messageText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .font(.omP)
                         .lineLimit(1...4)
-                        .padding(.spacing4)
-                        .background(Color.grey10)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing6)
+                        .background(Color.grey0)
+                        .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: .radiusFull)
+                                .stroke(isFocused ? Color.buttonPrimary : Color.grey30, lineWidth: 2)
+                        )
+                        .shadow(
+                            color: isFocused ? Color.buttonPrimary.opacity(0.22) : .clear,
+                            radius: 3, x: 0, y: 0
+                        )
+                        .shadow(
+                            color: isFocused ? .black.opacity(0.08) : .black.opacity(0.05),
+                            radius: isFocused ? 12 : 2, x: 0, y: 4
+                        )
+                        .tint(Color.buttonPrimary)
                         .focused($isFocused)
 
-                    Button { createChat() } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(messageText.isEmpty ? Color.fontTertiary : Color.buttonPrimary)
+                    Button(action: createChat) {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(messageText.isEmpty ? Color.fontTertiary : Color.fontButton)
+                            .frame(width: 32, height: 32)
+                            .background(messageText.isEmpty ? Color.grey20 : Color.buttonPrimary)
+                            .clipShape(Circle())
                     }
                     .disabled(messageText.isEmpty)
                 }

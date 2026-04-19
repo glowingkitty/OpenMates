@@ -6,6 +6,52 @@ Design tokens are pre-generated — never hardcode colors, spacing, or radii.
 
 ---
 
+## CRITICAL: No Hardcoded Strings — Ever
+
+**Every user-visible string MUST go through `AppStrings` or `LocalizationManager`.**
+Hardcoding English text in Swift files is a bug, not a shortcut.
+
+### The chain
+```
+i18n YML source files  (frontend/packages/ui/src/i18n/sources/**/*.yml)
+       ↓  built by npm run build:translations
+i18n JSON locales      (frontend/packages/ui/src/i18n/locales/{locale}.json)
+       ↓  bundled into the iOS/macOS app at build time
+LocalizationManager    (apple/.../Core/I18n/LocalizationManager.swift)
+       ↓  type-safe accessors
+AppStrings             (apple/.../Core/I18n/AppStrings.swift)
+       ↓
+Swift UI
+```
+
+### Rules
+1. **NEVER write `Text("Some English text")` in a Swift view.** Always `Text(AppStrings.myKey)`.
+2. **NEVER call `LocalizationManager.shared.text("key")` directly from a view.** Add a
+   typed accessor to `AppStrings` first, then use that.
+3. **Every new string displayed in the UI needs a matching key in the YML source files**
+   (under `frontend/packages/ui/src/i18n/sources/`) AND a typed accessor in `AppStrings.swift`.
+4. If the key already exists in the JSON (check `en.json`), add only the `AppStrings` accessor.
+5. If the key does NOT exist, add it to the appropriate YML source file FIRST, run
+   `cd frontend/packages/ui && npm run build:translations`, then add the accessor.
+6. Replacements (e.g. `{count}`, `{time}`) use `LocalizationManager.shared.text(key, replacements: [...])`
+   wrapped in a typed `AppStrings` helper function.
+
+### Quick reference — keys for chat banner UI (all exist in en.json)
+| Displayed text | YML key | AppStrings accessor to add |
+|---|---|---|
+| "Creating new chat ..." | `chat.creating_new_chat` | `AppStrings.creatingNewChat` |
+| "Just now" | `chat.header.just_now` | `AppStrings.chatHeaderJustNow` |
+| "{n} min ago" | `chat.header.minutes_ago` | `AppStrings.chatHeaderMinutesAgo(count:)` |
+| "Started today, HH:MM" | `chat.header.started_today` | `AppStrings.chatHeaderStartedToday(time:)` |
+| "Started yesterday, HH:MM" | `chat.header.started_yesterday` | `AppStrings.chatHeaderStartedYesterday(time:)` |
+| "Incognito Mode" | `settings.incognito_mode_active` | `AppStrings.incognitoModeActive` |
+| Demo chat: "OpenMates \| For everyone" | `demo_chats.for_everyone.title` | `AppStrings.demoForEveryoneTitle` |
+| Demo chat: description | `demo_chats.for_everyone.description` | `AppStrings.demoForEveryoneDescription` |
+| Demo chat: "OpenMates \| For developers" | `demo_chats.for_developers.title` | `AppStrings.demoForDevelopersTitle` |
+| Demo chat: description | `demo_chats.for_developers.description` | `AppStrings.demoForDevelopersDescription` |
+
+---
+
 ## Mandatory: Web-Source Comment Block
 
 Every `.swift` file under `apple/OpenMates/Sources/` with visual output MUST
