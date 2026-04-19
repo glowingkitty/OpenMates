@@ -6716,7 +6716,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean }) {
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
@@ -7306,9 +7306,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
 
         // ─── Autoplay video deep link ────────────────────────────────────
-        // Hash format: #chat-id=<id>&autoplay-video
-        // Sets a flag so ChatHeader auto-triggers native fullscreen playback on mount.
-        if (typeof window !== 'undefined' && window.location.hash.includes('autoplay-video') && currentChat?.chat_id) {
+        // Passed explicitly via loadChat options rather than read from window.location.hash
+        // (which may already be rewritten by activeChatStore.setActiveChat before loadChat runs).
+        if (options?.autoplayVideo && currentChat?.chat_id) {
             pendingAutoplayVideo = true;
             console.debug('[ActiveChat] Autoplay video flag set from deep link for chat:', currentChat.chat_id);
         }

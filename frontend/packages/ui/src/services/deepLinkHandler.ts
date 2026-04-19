@@ -38,6 +38,7 @@ export interface DeepLinkHandlers {
     messageId?: string | null,
     scrollToLatestResponse?: boolean,
     embedId?: string | null,
+    autoplayVideo?: boolean,
   ) => Promise<void>;
   onSettings?: (path: string, hash: string) => void;
   onSignup?: (step: string) => void;
@@ -72,53 +73,26 @@ export function parseDeepLink(
   // Optional params: &message-id={id}  &scroll=latest-response  &embed-id={id}
   const normalizedHash = hash.startsWith("#/") ? "#" + hash.substring(2) : hash;
 
-  // Combined chat+embed format: #chat-id={chatId}&embed-id={embedId}
-  // Must be checked before the generic chat-only regex so the embed-id param is captured.
-  const combinedMatch = normalizedHash.match(
-    /^#chat[-_]?id=([^&]+)&embed[-_]?id=([^&]+)((?:&[^=]+=[^&]*)*)$/,
-  );
-  if (combinedMatch) {
-    const chatId = combinedMatch[1];
-    const embedId = combinedMatch[2];
-    const extraParams = combinedMatch[3] || "";
-    const messageIdMatch = extraParams.match(/&message[-_]?id=([^&]+)/);
-    const messageId = messageIdMatch ? messageIdMatch[1] : null;
-    const scrollMatch = extraParams.match(/&scroll=([^&]+)/);
-    const scrollToLatestResponse = scrollMatch
-      ? scrollMatch[1] === "latest-response"
-      : false;
-    return {
-      type: "chat",
-      data: {
-        chatId,
-        messageId,
-        scrollToLatestResponse,
-        embedId,
-      },
-    };
-  }
-
-  const chatMatch = normalizedHash.match(
-    /^#chat[-_]?id=([^&]+)((?:&[^=]+=.[^&]*)*)$/,
-  );
+  const chatMatch = normalizedHash.match(/^#chat[-_]?id=([^&]+)(.*)$/);
   if (chatMatch) {
     const chatId = chatMatch[1];
     const extraParams = chatMatch[2] || "";
+    const params = new URLSearchParams(extraParams.startsWith("&") ? extraParams.slice(1) : extraParams);
+
     // Extract optional message-id param
-    const messageIdMatch = extraParams.match(/&message[-_]?id=([^&]+)/);
-    const messageId = messageIdMatch ? messageIdMatch[1] : null;
+    const messageId = params.get("message-id") ?? params.get("message_id");
+
     // Extract optional scroll param — 'latest-response' means scroll to top of newest assistant message
-    const scrollMatch = extraParams.match(/&scroll=([^&]+)/);
-    const scrollToLatestResponse = scrollMatch
-      ? scrollMatch[1] === "latest-response"
-      : false;
+    const scrollToLatestResponse = params.get("scroll") === "latest-response";
+
     return {
       type: "chat",
       data: {
         chatId,
         messageId,
         scrollToLatestResponse,
-        embedId: null,
+        embedId: params.get("embed-id") ?? params.get("embed_id"),
+        autoplayVideo: params.has("autoplay-video") || params.has("autoplay_video"),
       },
     };
   }
@@ -219,6 +193,7 @@ export async function processDeepLink(
           parsed.data.messageId,
           parsed.data.scrollToLatestResponse,
           parsed.data.embedId ?? null,
+          parsed.data.autoplayVideo ?? false,
         );
         return { type: "chat", processed: true };
       }

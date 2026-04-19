@@ -35,6 +35,7 @@ struct ChatView: View {
             }
             inputBar
         }
+        .background(Color.grey0)
         .navigationTitle(viewModel.chat?.displayTitle ?? AppStrings.chats)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -153,6 +154,7 @@ struct ChatView: View {
                     ForEach(viewModel.messages) { message in
                         MessageBubble(
                             message: message,
+                            appId: viewModel.chat?.appId,
                             embeds: viewModel.embeds(for: message),
                             streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
                             onEmbedTap: { embed in
@@ -193,6 +195,9 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, .spacing4)
                 .padding(.vertical, .spacing4)
+                // Cap message area width on iPad/Mac, centered
+                .frame(maxWidth: 1000)
+                .frame(maxWidth: .infinity)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
                 withAnimation {
@@ -235,7 +240,6 @@ struct ChatView: View {
 
     private var inputBar: some View {
         VStack(spacing: 0) {
-            Divider()
             HStack(alignment: .bottom, spacing: .spacing3) {
                 AttachmentPicker(
                     isPresented: .constant(false),
@@ -247,14 +251,37 @@ struct ChatView: View {
                     }
                 )
 
+                // Pill-shaped input field matching web app's fields.css:
+                // border-radius: 24px, border: 2px, orange focus ring
                 TextField(AppStrings.typeMessage, text: $messageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.omP)
                     .lineLimit(1...6)
-                    .padding(.horizontal, .spacing4)
-                    .padding(.vertical, .spacing3)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .padding(.horizontal, .spacing8)
+                    .padding(.vertical, .spacing6)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: .radiusFull)
+                            .stroke(
+                                isInputFocused ? Color.buttonPrimary : Color.grey0,
+                                lineWidth: 2
+                            )
+                    )
+                    .shadow(
+                        color: isInputFocused
+                            ? Color.buttonPrimary.opacity(0.22)
+                            : .clear,
+                        radius: 3, x: 0, y: 0
+                    )
+                    .shadow(
+                        color: isInputFocused
+                            ? .black.opacity(0.08)
+                            : .black.opacity(0.05),
+                        radius: isInputFocused ? 12 : 2,
+                        x: 0, y: 4
+                    )
+                    .tint(Color.buttonPrimary)
                     .focused($isInputFocused)
                     .onSubmit { sendMessage() }
                     .accessibilityLabel(AppStrings.chatMessageInput)
@@ -269,12 +296,19 @@ struct ChatView: View {
                         }
                     }
                 } else {
+                    // Circular send button — orange fill when text present,
+                    // grey when empty (matching web app)
                     Button(action: sendMessage) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 32))
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(
-                                messageText.isEmpty ? Color.fontTertiary : Color.buttonPrimary
+                                messageText.isEmpty ? Color.fontTertiary : Color.fontButton
                             )
+                            .frame(width: 32, height: 32)
+                            .background(
+                                messageText.isEmpty ? Color.grey20 : Color.buttonPrimary
+                            )
+                            .clipShape(Circle())
                     }
                     .disabled(messageText.isEmpty || viewModel.isStreaming)
                     .accessibilityLabel(AppStrings.sendMessage)
@@ -305,9 +339,12 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: Message
+    let appId: String?
     let embeds: [EmbedRecord]
     let streamingContent: String?
     let onEmbedTap: (EmbedRecord) -> Void
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @State private var hasAppeared = false
 
     var isUser: Bool { message.role == .user }
 
@@ -316,26 +353,64 @@ struct MessageBubble: View {
         return message.content ?? ""
     }
 
+    // MARK: - Assistant avatar with AI badge
+
+    private var assistantAvatar: some View {
+        AppIconView(appId: appId ?? "ai", size: 60)
+            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+            .overlay(alignment: .bottomTrailing) {
+                // White 24px circle housing a 16px AI gradient icon
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 24, height: 24)
+                    .overlay {
+                        Circle()
+                            .fill(LinearGradient.appAi)
+                            .frame(width: 16, height: 16)
+                            .overlay {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                    }
+                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+            }
+    }
+
     var body: some View {
-        HStack(alignment: .top) {
-            if isUser { Spacer(minLength: 40) }
+        HStack(alignment: .top, spacing: .spacing3) {
+            if isUser {
+                Spacer(minLength: 100)
+            } else {
+                assistantAvatar
+            }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: .spacing3) {
                 // Message text — user messages use inline-only markdown,
                 // assistant messages use full block-level rendering (code blocks, tables, etc.)
                 if !displayContent.isEmpty {
                     if isUser {
+                        // User bubble: grey-blue bg, speech tail on right, drop shadow
                         InlineMarkdownText(content: displayContent, isUserMessage: true)
-                            .padding(.horizontal, .spacing4)
-                            .padding(.vertical, .spacing3)
-                            .background(AnyShapeStyle(LinearGradient.primary))
-                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                            .foregroundStyle(Color.grey100)
+                            .padding(.spacing6)
+                            .background(Color.greyBlue)
+                            .clipShape(RoundedRectangle(cornerRadius: 13))
+                            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                            .overlay(alignment: .bottomTrailing) {
+                                SpeechTailView(side: .trailing, color: Color.greyBlue)
+                            }
                     } else {
+                        // Assistant bubble: white/grey0 bg, speech tail on left, drop shadow
                         RichMarkdownView(content: displayContent, isUserMessage: false)
-                            .padding(.horizontal, .spacing4)
-                            .padding(.vertical, .spacing3)
-                            .background(AnyShapeStyle(Color.grey10))
-                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                            .foregroundStyle(Color.fontPrimary)
+                            .padding(.spacing6)
+                            .background(Color.grey0)
+                            .clipShape(RoundedRectangle(cornerRadius: 13))
+                            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                            .overlay(alignment: .topLeading) {
+                                SpeechTailView(side: .leading, color: Color.grey0)
+                            }
                     }
                 }
 
@@ -350,11 +425,73 @@ struct MessageBubble: View {
                 }
             }
 
-            if !isUser { Spacer(minLength: 40) }
+            if !isUser { Spacer(minLength: 70) }
+        }
+        // Fade-in animation matching web CSS: opacity 0→1, translateY 10→0, 0.4s easeIn
+        .opacity(hasAppeared ? 1 : 0)
+        .offset(y: hasAppeared ? 0 : 10)
+        .onAppear {
+            if reduceMotion {
+                hasAppeared = true
+            } else {
+                withAnimation(.easeIn(duration: 0.4)) {
+                    hasAppeared = true
+                }
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
         .accessibilityHint("Long press for options")
+    }
+}
+
+// MARK: - Speech bubble tail overlay
+
+private enum BubbleTailSide { case leading, trailing }
+
+/// Renders the triangular speech tail as an overlay, positioned to extend
+/// beyond the bubble's clipped edge. Uses the SVG curve shape.
+private struct SpeechTailView: View {
+    let side: BubbleTailSide
+    let color: Color
+
+    /// Tail dimensions matching web CSS (12×20px)
+    private let tailWidth: CGFloat = 12
+    private let tailHeight: CGFloat = 20
+
+    var body: some View {
+        Canvas { context, _ in
+            // Draw the SVG path: M0 9.926c0 .992 3.191 1.814 7 0V0C5.093 4.893 0 8.933 0 9.926z
+            // Scaled from 7×11 viewBox to 12×20pt
+            let sx = tailWidth / 7.0
+            let sy = tailHeight / 11.0
+
+            var path = Path()
+            path.move(to: CGPoint(x: 0, y: 9.926 * sy))
+            // First curve: c0 .992 3.191 1.814 7 0
+            path.addCurve(
+                to: CGPoint(x: 7 * sx, y: 9.926 * sy),
+                control1: CGPoint(x: 0, y: (9.926 + 0.992) * sy),
+                control2: CGPoint(x: 3.191 * sx, y: (9.926 + 1.814) * sy)
+            )
+            // V0 — line to top
+            path.addLine(to: CGPoint(x: 7 * sx, y: 0))
+            // C5.093 4.893 0 8.933 0 9.926
+            path.addCurve(
+                to: CGPoint(x: 0, y: 9.926 * sy),
+                control1: CGPoint(x: 5.093 * sx, y: 4.893 * sy),
+                control2: CGPoint(x: 0, y: 8.933 * sy)
+            )
+            path.closeSubpath()
+
+            context.fill(path, with: .color(color))
+        }
+        .frame(width: tailWidth, height: tailHeight)
+        .offset(
+            x: side == .trailing ? tailWidth : -tailWidth,
+            y: side == .trailing ? -10 : 20
+        )
+        .allowsHitTesting(false)
     }
 }
 
@@ -379,8 +516,9 @@ struct StreamingIndicator: View {
             }
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing4)
-            .background(Color.grey10)
-            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: 13))
+            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
 
             Spacer()
         }
