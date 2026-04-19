@@ -24,10 +24,10 @@ final class ToastManager: ObservableObject {
 
         var icon: String {
             switch self {
-            case .success: return "checkmark.circle.fill"
-            case .error: return "exclamationmark.triangle.fill"
-            case .info: return "info.circle.fill"
-            case .warning: return "exclamationmark.circle.fill"
+            case .success: return "check"
+            case .error: return "warning"
+            case .info: return "question"
+            case .warning: return "warning"
             }
         }
 
@@ -73,7 +73,7 @@ struct ToastOverlay: View {
         VStack {
             if let toast = manager.currentToast {
                 HStack(spacing: .spacing3) {
-                    Image(systemName: toast.type.icon)
+                    Icon(toast.type.icon, size: 18)
                         .foregroundStyle(toast.type.color)
                         .accessibilityHidden(true)
                     Text(toast.message)
@@ -81,8 +81,7 @@ struct ToastOverlay: View {
                         .foregroundStyle(Color.fontPrimary)
                     Spacer()
                     Button { manager.dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.caption)
+                        Icon("close", size: 14)
                             .foregroundStyle(Color.fontTertiary)
                     }
                     .accessibleButton("Dismiss notification", hint: "Closes this toast notification")
