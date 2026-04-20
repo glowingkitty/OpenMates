@@ -5088,7 +5088,7 @@ app_embeds.loading:
   he: טוען הטמעות...
   verified_by_human: []
 app_settings_memories.encryption_notice:
-  context: Explanatory text at the top of the Memories hub explaining what memories are and that they are end-to-end encrypted like chats
+  context: Explanatory text at the top of the Memories hub explaining what memories are and that they are client-side encrypted like chats
   en: "Your digital team mates can request memories to give you more personalized responses and save you time from having to repeat details over and over again. Just like your chats, your memories are encrypted & decrypted on your devices. So the OpenMates server and AI providers can never see the actual content, unless you decide to explicitly share the content for a chat."
   de: "Deine digitalen Teammitglieder können Erinnerungen anfordern, um dir personalisierte Antworten zu geben und dir Zeit zu sparen, damit du Details nicht immer wieder wiederholen musst. Genau wie deine Chats werden deine Erinnerungen auf deinen Geräten verschlüsselt und entschlüsselt. So können der OpenMates-Server und die KI-Anbieter den tatsächlichen Inhalt niemals einsehen, es sei denn, du entscheidest dich, den Inhalt ausdrücklich für einen Chat zu teilen."
   zh: "你的数字团队成员可以请求记忆，为你提供更个性化的回复，并避免你一遍又一遍地重复细节，节省时间。与聊天一样，你的记忆在你的设备上加密和解密。因此，OpenMates 服务器和 AI 提供商永远无法看到实际内容，除非你决定明确为某个聊天分享内容。"

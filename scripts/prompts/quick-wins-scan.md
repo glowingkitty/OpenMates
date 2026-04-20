@@ -4,7 +4,7 @@ You are scanning the OpenMates codebase for quick-win improvements — things th
 
 ## Architecture context
 
-SvelteKit frontend, Python/FastAPI backend, PostgreSQL via Directus CMS, Docker microservices, end-to-end encryption, WebSocket real-time sync, Celery task queue.
+SvelteKit frontend, Python/FastAPI backend, PostgreSQL via Directus CMS, Docker microservices, client-side encryption, WebSocket real-time sync, Celery task queue.
 
 ## Scope
 
