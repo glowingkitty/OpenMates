@@ -2215,6 +2215,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     let showWelcome = $state(true);
     let showNewChatTransition = $state(false);
+    // Guard: only fire the welcome transition once per welcome-screen session.
+    let welcomeTransitionShown = $state(false);
     let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
@@ -3732,6 +3734,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
+    // Trigger the expanding circle animation when the user first focuses the message
+    // input on the welcome screen. Fires once per welcome-screen session (guarded by
+    // welcomeTransitionShown) and suppresses the keyboard fade-out for the animation's
+    // duration so the circle is visible against the banner/cards.
+    $effect(() => {
+        if (messageInputFocused && showWelcome && !welcomeTransitionShown) {
+            welcomeTransitionShown = true;
+            showNewChatTransition = true;
+            setTimeout(() => { showNewChatTransition = false; }, 700);
+        }
+        if (!showWelcome) {
+            // Reset guard when we return to the welcome screen (new chat)
+            welcomeTransitionShown = false;
+        }
+    });
+
     // Hide the welcome greeting and resume-chat card when the keyboard is open (mobile) OR
     // when the suggestions panel would overlap the welcome content and the input is focused.
     // In both cases the user has signalled intent to type — hiding the greeting frees up
@@ -5157,10 +5175,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // delay for new chats, letting the user see the "Creating new chat…" header
             // transition before the view scrolls down to the user message.
             chatHistoryRef.updateMessages(currentMessages, isNewChatProcessing);
-        }
-        if (showWelcome) {
-            showNewChatTransition = true;
-            setTimeout(() => { showNewChatTransition = false; }, 700);
         }
         showWelcome = false;
 
@@ -9468,6 +9482,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:ai-typing={isAssistantTyping}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
+    class:new-chat-animating={showNewChatTransition}
     class:scaled={activeScaling}
     class:narrow={isEffectivelyNarrow}
     class:medium={isMedium && !showSideBySideLayout}
@@ -10950,10 +10965,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .center-content {
         position: absolute;
         /*
-         * Center vertically in the space below the daily inspiration banner.
-         * Offset of 80px keeps welcome content clear of top-left actions.
+         * Center vertically in the space below the daily inspiration banner (35vh).
+         * Formula: 50% of chat-side + half the banner height keeps the element
+         * ~40px below the mathematical midpoint of the remaining space on all
+         * viewport sizes, compensating for the variable 35vh banner height.
          */
-        top: calc(58% + 80px);
+        top: calc(50% + 17.5vh);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -11849,6 +11866,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             left: 10px;
             right: 10px;
         }
+        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh),
+           so recalibrate: 50% + 190px/2 = 50% + 95px */
+        .center-content {
+            top: calc(50% + 95px);
+        }
     }
 
     /*
@@ -11902,6 +11924,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         opacity: 0;
         visibility: hidden;
         transition: opacity 200ms ease, visibility 0s 200ms;
+    }
+
+    /* While the new-chat circle animation is playing, keep welcome content fully
+       visible so the circle is visible against the banner/cards (not invisible
+       against a grey background). The circle (z-index: modal) covers the content. */
+    .active-chat-container.new-chat-animating .daily-inspiration-area.welcome-hiding,
+    .active-chat-container.new-chat-animating .center-content.welcome-hiding,
+    .active-chat-container.new-chat-animating .top-buttons.welcome-hiding {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transition: none !important;
     }
 
     /* Add styles for left and right button containers */

@@ -475,6 +475,29 @@
          DirectVideoEmbedFullscreen, which is the only place the MP4 is fetched. -->
     {#if hasHeaderMedia}
       <div class="media-center-group">
+        <!-- Title and signup CTA rendered ABOVE the media frame -->
+        {#if !showSignupCta}
+          <div class="loaded-content">
+            <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+                 never render as HTML to prevent stored XSS via prompt injection. -->
+            <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+
+            {#if isExampleChat}
+              <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            {/if}
+          </div>
+        {/if}
+
+        {#if showSignupCta}
+          <button
+            class="banner-signup-button"
+            data-testid="banner-signup-button"
+            onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
+          >
+            {$text('signup.sign_up')} / {$text('login.login')}
+          </button>
+        {/if}
+
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
@@ -522,28 +545,6 @@
             </video>
           {/if}
         </div>
-
-        {#if !showSignupCta}
-          <div class="loaded-content">
-            <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-                 never render as HTML to prevent stored XSS via prompt injection. -->
-            <span class="loaded-title" data-testid="chat-header-title">{title}</span>
-
-            {#if isExampleChat}
-              <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-            {/if}
-          </div>
-        {/if}
-
-        {#if showSignupCta}
-          <button
-            class="banner-signup-button"
-            data-testid="banner-signup-button"
-            onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
-          >
-            {$text('signup.sign_up')} / {$text('login.login')}
-          </button>
-        {/if}
       </div>
     {:else}
       <div class="loaded-content">

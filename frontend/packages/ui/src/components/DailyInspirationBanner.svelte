@@ -711,14 +711,19 @@
     /* Right-align the embed content within the wrapper */
     display: flex;
     justify-content: flex-end;
+    /* Center embed card vertically so it doesn't pin to the top on tall banners */
+    align-items: center;
   }
 
-  /* Make the embed preview card fill the wrapper height and float right */
+  /* Make the embed preview card fill the wrapper height and float right.
+     Cap at 252px so the card doesn't over-stretch on tall (35vh) banners — at
+     240px min-height the cap is never hit; on taller banners the card is
+     centered by the parent align-items:center rule above. */
   .banner-embed-wrapper :global(.embed-preview-container) {
     border-radius: var(--radius-4);
     box-shadow: none;
     width: 100%;
-    height: calc(100% + 15px + 12px); /* compensate for negative margins */
+    height: min(calc(100% + 15px + 12px), 252px);
     max-width: 220px;
     margin-left: auto; /* push card to the right */
   }
