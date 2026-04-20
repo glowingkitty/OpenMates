@@ -1159,12 +1159,12 @@
   @media (max-width: 730px) {
     .chat-header-banner {
       height: 35vh;
-      min-height: 190px;
+      min-height: 230px;
     }
 
     :global(.menu-open) .chat-header-banner,
     :global(.side-by-side-active) .chat-header-banner {
-      height: 190px;
+      height: 230px;
       min-height: unset;
     }
 
