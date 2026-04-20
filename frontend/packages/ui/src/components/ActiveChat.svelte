@@ -2214,6 +2214,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let messageInputHeight = $state(0);
 
     let showWelcome = $state(true);
+    let showNewChatTransition = $state(false);
     let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
@@ -5156,6 +5157,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // delay for new chats, letting the user see the "Creating new chat…" header
             // transition before the view scrolls down to the user message.
             chatHistoryRef.updateMessages(currentMessages, isNewChatProcessing);
+        }
+        if (showWelcome) {
+            showNewChatTransition = true;
+            setTimeout(() => { showNewChatTransition = false; }, 700);
         }
         showWelcome = false;
 
@@ -10448,6 +10453,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             />
         </div>
     {/if}
+
+    <!-- Expanding grey circle ripple when starting a new chat from the welcome screen -->
+    {#if showNewChatTransition}
+        <div class="new-chat-transition-overlay" aria-hidden="true"></div>
+    {/if}
 </div>
 
 <!-- Focus mode context menu (body-appended, shown on right-click/long-press on focus mode embeds) -->
@@ -12181,6 +12191,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             right: 10px;
             left: auto;
             top: auto;
+        }
+    }
+
+    /* ── New-chat expanding circle transition ─────────────────────────────────
+       Ripples from the MessageInput (bottom-center) outward to fill the screen,
+       then fades out to reveal the active chat view underneath. */
+    .new-chat-transition-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: var(--z-index-modal);
+        pointer-events: none;
+        background: var(--color-grey-20);
+        border-radius: 17px;
+        animation: new-chat-circle-expand 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    @keyframes new-chat-circle-expand {
+        from {
+            clip-path: circle(0% at 50% 92%);
+            opacity: 1;
+        }
+        65% {
+            clip-path: circle(150% at 50% 92%);
+            opacity: 1;
+        }
+        to {
+            clip-path: circle(150% at 50% 92%);
+            opacity: 0;
         }
     }
 
