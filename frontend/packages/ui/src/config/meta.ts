@@ -28,7 +28,7 @@ interface PageMetaTags {
 export let defaultMeta: MetaTagConfig = {
   title: "OpenMates",
   description:
-    "Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.",
+    "AI team mates for everyday tasks & learning. Plan trips, discuss news, build projects - and more. With user interests & privacy above anything else.",
   image: "/images/og-image.jpg",
   imageWidth: 1200,
   imageHeight: 630,
@@ -86,8 +86,34 @@ const allLocaleFiles = import.meta.glob("../i18n/locales/*.json");
  * Create a filtered locale import map from LANGUAGE_CODES
  * This ensures we only use languages that are in languages.json AND have locale files
  */
-function createLocaleImportMap(): Record<string, () => Promise<any>> {
-  const map: Record<string, () => Promise<any>> = {};
+interface LocaleMetaEntry { text?: string }
+interface LocaleMetaSection {
+  title?: LocaleMetaEntry;
+  description?: LocaleMetaEntry;
+  keywords?: LocaleMetaEntry;
+}
+interface LocaleData {
+  metadata?: {
+    default?: LocaleMetaSection;
+    for_all_of_us?: LocaleMetaSection;
+    for_developers?: LocaleMetaSection;
+    docs?: LocaleMetaSection;
+    docs_api?: LocaleMetaSection;
+    docs_design_guidelines?: LocaleMetaSection;
+    docs_design_system?: LocaleMetaSection;
+    docs_roadmap?: LocaleMetaSection;
+    docs_user_guide?: LocaleMetaSection;
+    legal_imprint?: LocaleMetaSection;
+    legal_privacy?: LocaleMetaSection;
+    legal_terms?: LocaleMetaSection;
+    webapp?: LocaleMetaSection;
+  };
+}
+type LocaleModule = { default?: LocaleData } & LocaleData;
+type LocaleLoader = () => Promise<LocaleModule>;
+
+function createLocaleImportMap(): Record<string, LocaleLoader> {
+  const map: Record<string, LocaleLoader> = {};
 
   // Check if LANGUAGE_CODES is available
   if (!LANGUAGE_CODES || LANGUAGE_CODES.length === 0) {
@@ -97,7 +123,7 @@ function createLocaleImportMap(): Record<string, () => Promise<any>> {
     // Try to find English as fallback
     const enPath = "../i18n/locales/en.json";
     if (allLocaleFiles[enPath]) {
-      map["en"] = allLocaleFiles[enPath] as () => Promise<any>;
+      map["en"] = allLocaleFiles[enPath] as LocaleLoader;
     }
     return map;
   }
@@ -106,7 +132,7 @@ function createLocaleImportMap(): Record<string, () => Promise<any>> {
   for (const langCode of LANGUAGE_CODES) {
     const localePath = `../i18n/locales/${langCode}.json`;
     if (allLocaleFiles[localePath]) {
-      map[langCode] = allLocaleFiles[localePath] as () => Promise<any>;
+      map[langCode] = allLocaleFiles[localePath] as LocaleLoader;
     } else {
       console.warn(
         `Language ${langCode} is in languages.json but locale file ${localePath} does not exist`,
@@ -121,7 +147,7 @@ function createLocaleImportMap(): Record<string, () => Promise<any>> {
     );
     const enPath = "../i18n/locales/en.json";
     if (allLocaleFiles[enPath]) {
-      map["en"] = allLocaleFiles[enPath] as () => Promise<any>;
+      map["en"] = allLocaleFiles[enPath] as LocaleLoader;
     }
   }
 
@@ -136,7 +162,7 @@ const localeImportMap = createLocaleImportMap();
 export async function loadMetaTags(): Promise<void> {
   try {
     const currentLanguage = getCurrentLanguage();
-    let metaData;
+    let metaData: LocaleData;
 
     // Try to load the current language's metadata using the static import map
     // This allows Vite to statically analyze all imports at build time
@@ -205,14 +231,14 @@ export async function loadMetaTags(): Promise<void> {
       logoHeight: 92,
     };
 
-    // Safe function to get nested properties with fallback
     const getMetaProperty = (path: string[], fallback: string = ""): string => {
-      let obj = metaData.metadata;
+      let obj: unknown = metaData.metadata;
       for (const key of path) {
         if (!obj || typeof obj !== "object") return fallback;
-        obj = obj[key];
+        obj = (obj as Record<string, unknown>)[key];
       }
-      return obj?.text || fallback;
+      if (!obj || typeof obj !== "object") return fallback;
+      return (obj as LocaleMetaEntry).text || fallback;
     };
 
     // Update pageMeta with safe property access
@@ -331,22 +357,4 @@ loadMetaTags();
 export function getMetaTags(page: string = "home"): MetaTagConfig {
   // Ensure we always return a valid meta config even if pageMeta[page] is undefined
   return pageMeta[page] || defaultMeta;
-}
-
-// Helper function to generate dynamic meta tags (e.g., for blog posts or docs)
-function generateMetaTags(
-  title: string,
-  description: string,
-  slug: string,
-  type: string = "article",
-  keywords?: string[],
-): MetaTagConfig {
-  return {
-    ...defaultMeta,
-    title: `${title} | ${defaultMeta.siteName}`,
-    description,
-    url: `${defaultMeta.url}/${slug}`,
-    type,
-    keywords: keywords || defaultMeta.keywords,
-  };
 }
