@@ -2214,9 +2214,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let messageInputHeight = $state(0);
 
     let showWelcome = $state(true);
-    let showNewChatTransition = $state(false);
-    // Guard: only fire the welcome transition once per welcome-screen session.
-    let welcomeTransitionShown = $state(false);
     let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
@@ -3734,28 +3731,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
-    // Trigger the expanding circle animation when the user first focuses the message
-    // input on the welcome screen. Fires once per welcome-screen session (guarded by
-    // welcomeTransitionShown) and suppresses the keyboard fade-out for the animation's
-    // duration so the circle is visible against the banner/cards.
-    $effect(() => {
-        if (messageInputFocused && showWelcome && !welcomeTransitionShown) {
-            welcomeTransitionShown = true;
-            showNewChatTransition = true;
-            setTimeout(() => { showNewChatTransition = false; }, 700);
-        }
-        if (!showWelcome) {
-            // Reset guard when we return to the welcome screen (new chat)
-            welcomeTransitionShown = false;
-        }
-    });
-
-    // Hide the welcome greeting and resume-chat card when the keyboard is open (mobile) OR
-    // when the suggestions panel would overlap the welcome content and the input is focused.
-    // In both cases the user has signalled intent to type — hiding the greeting frees up
-    // vertical space so the suggestions are visible without collision.
+    // Fade out and disable pointer-events on the welcome content (banner + resume cards)
+    // whenever the message input is focused on the welcome screen (all devices), or when
+    // the keyboard opens on mobile / narrow viewports, or when suggestions would overlap.
     let hideWelcomeForKeyboard = $derived(
-        messageInputFocused && (isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+        messageInputFocused && (showWelcome || isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
     );
 
     // Effective chat width: The actual width of the chat area
@@ -9482,7 +9462,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:ai-typing={isAssistantTyping}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
-    class:new-chat-animating={showNewChatTransition}
     class:scaled={activeScaling}
     class:narrow={isEffectivelyNarrow}
     class:medium={isMedium && !showSideBySideLayout}
@@ -10469,10 +10448,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         </div>
     {/if}
 
-    <!-- Expanding grey circle ripple when starting a new chat from the welcome screen -->
-    {#if showNewChatTransition}
-        <div class="new-chat-transition-overlay" aria-hidden="true"></div>
-    {/if}
 </div>
 
 <!-- Focus mode context menu (body-appended, shown on right-click/long-press on focus mode embeds) -->
@@ -11926,17 +11901,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transition: opacity 200ms ease, visibility 0s 200ms;
     }
 
-    /* While the new-chat circle animation is playing, keep welcome content fully
-       visible so the circle is visible against the banner/cards (not invisible
-       against a grey background). The circle (z-index: modal) covers the content. */
-    .active-chat-container.new-chat-animating .daily-inspiration-area.welcome-hiding,
-    .active-chat-container.new-chat-animating .center-content.welcome-hiding,
-    .active-chat-container.new-chat-animating .top-buttons.welcome-hiding {
-        opacity: 1 !important;
-        visibility: visible !important;
-        transition: none !important;
-    }
-
     /* Add styles for left and right button containers */
     .left-buttons {
         display: flex;
@@ -12227,39 +12191,5 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    /* ── New-chat expanding circle transition ─────────────────────────────────
-       A circle starts small at the MessageInput (bottom-center) and scales up
-       to cover the screen, then fades out. Uses transform:scale instead of
-       clip-path to avoid a known WebKit/iOS Safari rendering crash triggered
-       by clip-path percentage values inside @keyframes. */
-    .new-chat-transition-overlay {
-        position: absolute;
-        bottom: 60px;
-        left: 50%;
-        width: 80px;
-        height: 80px;
-        margin-left: -40px;
-        border-radius: 50%;
-        z-index: var(--z-index-modal);
-        pointer-events: none;
-        background: var(--color-grey-20);
-        transform-origin: center center;
-        animation: new-chat-circle-expand 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-    }
-
-    @keyframes new-chat-circle-expand {
-        from {
-            transform: scale(0);
-            opacity: 1;
-        }
-        65% {
-            transform: scale(40);
-            opacity: 1;
-        }
-        to {
-            transform: scale(40);
-            opacity: 0;
-        }
-    }
 
 </style>
