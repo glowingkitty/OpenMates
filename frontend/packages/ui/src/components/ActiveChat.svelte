@@ -12195,29 +12195,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /* ── New-chat expanding circle transition ─────────────────────────────────
-       Ripples from the MessageInput (bottom-center) outward to fill the screen,
-       then fades out to reveal the active chat view underneath. */
+       A circle starts small at the MessageInput (bottom-center) and scales up
+       to cover the screen, then fades out. Uses transform:scale instead of
+       clip-path to avoid a known WebKit/iOS Safari rendering crash triggered
+       by clip-path percentage values inside @keyframes. */
     .new-chat-transition-overlay {
         position: absolute;
-        inset: 0;
+        bottom: 60px;
+        left: 50%;
+        width: 80px;
+        height: 80px;
+        margin-left: -40px;
+        border-radius: 50%;
         z-index: var(--z-index-modal);
         pointer-events: none;
         background: var(--color-grey-20);
-        border-radius: 17px;
+        transform-origin: center center;
         animation: new-chat-circle-expand 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
     }
 
     @keyframes new-chat-circle-expand {
         from {
-            clip-path: circle(0% at 50% 92%);
+            transform: scale(0);
             opacity: 1;
         }
         65% {
-            clip-path: circle(150% at 50% 92%);
+            transform: scale(40);
             opacity: 1;
         }
         to {
-            clip-path: circle(150% at 50% 92%);
+            transform: scale(40);
             opacity: 0;
         }
     }
