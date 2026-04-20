@@ -622,8 +622,8 @@
   .chat-header-banner {
     position: relative;
     width: 100%;
-    height: 50vh;
-    min-height: 240px;
+    height: 35vh;
+    min-height: 200px;
     /* Top corners are flush with the top of the scroll area — no top radius.
        Only bottom corners are rounded to separate the banner from messages below. */
     border-radius: 0 0 14px 14px;
@@ -652,7 +652,7 @@
      .side-by-side-active is set on .active-chat-container by ActiveChat.svelte. */
   :global(.menu-open) .chat-header-banner,
   :global(.side-by-side-active) .chat-header-banner {
-    height: 240px;
+    height: 200px;
     min-height: unset;
   }
 
@@ -1156,7 +1156,7 @@
 
   @media (max-width: 730px) {
     .chat-header-banner {
-      height: 50vh;
+      height: 35vh;
       min-height: 190px;
     }
 
