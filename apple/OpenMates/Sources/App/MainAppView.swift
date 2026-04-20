@@ -321,7 +321,7 @@ struct MainAppView: View {
             if isAuthenticated {
                 ToolbarItem(placement: .primaryAction) {
                     Button { showNewChatSheet = true } label: {
-                        Image(systemName: "square.and.pencil")
+                        Icon("create", size: 20)
                     }
                     .accessibilityIdentifier("new-chat-button")
                     .accessibilityLabel(AppStrings.newChat)
@@ -343,7 +343,7 @@ struct MainAppView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 if isAuthenticated {
                     Button { showSettings = true } label: {
-                        Image(systemName: "gearshape")
+                        Icon("settings", size: 20)
                     }
                     .accessibilityIdentifier("settings-button")
                     .accessibilityLabel(AppStrings.settings)
@@ -886,8 +886,7 @@ struct NewChatView: View {
                         .focused($isFocused)
 
                     Button(action: createChat) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
+                        Icon("up", size: 16)
                             .foregroundStyle(messageText.isEmpty ? Color.fontTertiary : Color.fontButton)
                             .frame(width: 32, height: 32)
                             .background(messageText.isEmpty ? Color.grey20 : Color.buttonPrimary)

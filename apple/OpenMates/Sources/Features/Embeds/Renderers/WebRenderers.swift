@@ -20,7 +20,7 @@ struct WebsiteRenderer: View {
                         AsyncImage(url: faviconURL) { image in
                             image.resizable().frame(width: 16, height: 16)
                         } placeholder: {
-                            Image(systemName: "globe").font(.caption)
+                            Icon("web", size: 14)
                         }
                     }
                     Text(hostFrom(url))
@@ -49,7 +49,7 @@ struct WebsiteRenderer: View {
             VStack(alignment: .leading, spacing: .spacing4) {
                 Link(destination: URL(string: url) ?? URL(string: "https://openmates.org")!) {
                     HStack(spacing: .spacing2) {
-                        Image(systemName: "link")
+                        Icon("web", size: 14)
                         Text(url)
                             .lineLimit(1)
                     }

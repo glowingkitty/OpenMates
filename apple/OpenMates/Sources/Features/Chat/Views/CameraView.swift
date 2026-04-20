@@ -57,8 +57,7 @@ struct CameraButton: View {
         Button {
             showCamera = true
         } label: {
-            Image(systemName: "camera")
-                .font(.system(size: 20))
+            Icon("camera", size: 20)
                 .foregroundStyle(Color.fontSecondary)
         }
         .accessibilityLabel("Take photo")

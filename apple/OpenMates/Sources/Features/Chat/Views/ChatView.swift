@@ -78,11 +78,11 @@ struct ChatView: View {
                         Label("App: \(appId)", systemImage: "app")
                     }
                     Button { showReminder = true } label: {
-                        Label(AppStrings.setReminder, systemImage: SFSymbol.bell)
+                        Label { Text(AppStrings.setReminder) } icon: { Icon("reminder", size: 16) }
                     }
                     PIIToggleButton(showPlaceholders: $showPIIPlaceholders)
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Icon("more", size: 22)
                 }
             }
         }
@@ -176,8 +176,7 @@ struct ChatView: View {
                                     ProgressView()
                                         .scaleEffect(0.7)
                                 } else {
-                                    Image(systemName: "arrow.up")
-                                        .font(.caption)
+                                    Icon("up", size: 12)
                                 }
                                 Text(AppStrings.loadEarlierMessages)
                                     .font(.omXs)
@@ -338,8 +337,7 @@ struct ChatView: View {
                     // Circular send button — orange fill when text present,
                     // grey when empty (matching web app)
                     Button(action: sendMessage) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
+                        Icon("up", size: 16)
                             .foregroundStyle(
                                 messageText.isEmpty ? Color.fontTertiary : Color.fontButton
                             )
@@ -407,8 +405,7 @@ struct MessageBubble: View {
                             .fill(LinearGradient.appAi)
                             .frame(width: 16, height: 16)
                             .overlay {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 7, weight: .bold))
+                                Icon("ai", size: 8)
                                     .foregroundStyle(.white)
                             }
                     }

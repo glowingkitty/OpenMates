@@ -5,7 +5,7 @@ last_verified: 2026-03-24
 
 # Chat Commands
 
-End-to-end encrypted chat operations -- list, search, view, send messages, share, download, and manage incognito sessions. All chat data is decrypted client-side using your session's encryption keys.
+Encrypted chat operations -- list, search, view, send messages, share, download, and manage incognito sessions. All chat data is decrypted client-side using your session's encryption keys.
 
 ## Listing Chats
 

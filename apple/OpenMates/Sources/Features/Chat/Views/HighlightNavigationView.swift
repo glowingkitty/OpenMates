@@ -17,8 +17,7 @@ struct HighlightNavigationOverlay: View {
                 Button {
                     currentIndex = max(0, currentIndex - 1)
                 } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 14, weight: .semibold))
+                    Icon("up", size: 14)
                 }
                 .disabled(currentIndex <= 0)
                 .accessibilityLabel("Previous highlight")
@@ -31,8 +30,7 @@ struct HighlightNavigationOverlay: View {
                 Button {
                     currentIndex = min(highlightCount - 1, currentIndex + 1)
                 } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
+                    Icon("down", size: 14)
                 }
                 .disabled(currentIndex >= highlightCount - 1)
                 .accessibilityLabel("Next highlight")
@@ -42,8 +40,7 @@ struct HighlightNavigationOverlay: View {
                 Button {
                     onDismiss()
                 } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .medium))
+                    Icon("close", size: 12)
                         .foregroundStyle(Color.fontTertiary)
                 }
                 .accessibilityLabel("Close highlight navigation")
@@ -74,13 +71,13 @@ struct TextSelectionToolbar: View {
 
             Divider().frame(height: 24)
 
-            ToolbarButton(icon: "text.bubble", label: "Comment") {
+            ToolbarButton(icon: "chat", label: "Comment") {
                 onHighlightWithComment()
             }
 
             Divider().frame(height: 24)
 
-            ToolbarButton(icon: "doc.on.doc", label: "Copy") {
+            ToolbarButton(icon: "copy", label: "Copy") {
                 onCopy()
             }
         }
@@ -99,8 +96,7 @@ private struct ToolbarButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 2) {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
+                Icon(icon, size: 16)
                 Text(label)
                     .font(.system(size: 10))
             }

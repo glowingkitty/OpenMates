@@ -49,9 +49,9 @@ struct SketchView: View {
         HStack(spacing: .spacing4) {
             // Tool type picker
             Picker("Tool", selection: $toolType) {
-                Image(systemName: "pencil").tag(PKInkingTool.InkType.pen)
-                Image(systemName: "pencil.tip").tag(PKInkingTool.InkType.marker)
-                Image(systemName: "paintbrush.pointed").tag(PKInkingTool.InkType.pencil)
+                Icon("modify", size: 18).tag(PKInkingTool.InkType.pen)
+                Icon("modify", size: 18).tag(PKInkingTool.InkType.marker)
+                Icon("design", size: 18).tag(PKInkingTool.InkType.pencil)
             }
             .pickerStyle(.segmented)
             .frame(width: 140)
@@ -87,10 +87,10 @@ struct SketchView: View {
 
             // Undo / Clear
             Button { canvasView.undoManager?.undo() } label: {
-                Image(systemName: "arrow.uturn.backward")
+                Icon("restore", size: 20)
             }
             Button { canvasView.drawing = PKDrawing() } label: {
-                Image(systemName: "trash")
+                Icon("delete", size: 20)
             }
         }
         .padding(.horizontal, .spacing4)

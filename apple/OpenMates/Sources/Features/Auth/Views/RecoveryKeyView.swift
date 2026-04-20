@@ -1,6 +1,16 @@
 // Recovery key login — emergency access when password and 2FA are unavailable.
 // Mirrors EnterRecoveryKey.svelte. Accepts the 24-character recovery key.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/Login.svelte
+//          (recovery key step within login flow)
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          frontend/packages/ui/src/styles/fields.css (recovery key input)
+//          frontend/packages/ui/src/styles/buttons.css (recover button)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct RecoveryKeyView: View {

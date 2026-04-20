@@ -3,6 +3,16 @@
 // ALL navigation targets are native SwiftUI views — no web redirects.
 // ALL strings go through AppStrings (i18n) — no hardcoded English.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+//          frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+//          frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsSectionHeading.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsView: View {

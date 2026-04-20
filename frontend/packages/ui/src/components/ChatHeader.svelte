@@ -475,6 +475,19 @@
          DirectVideoEmbedFullscreen, which is the only place the MP4 is fetched. -->
     {#if hasHeaderMedia}
       <div class="media-center-group">
+        <!-- Title rendered above the media frame -->
+        {#if !showSignupCta}
+          <div class="loaded-content">
+            <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+                 never render as HTML to prevent stored XSS via prompt injection. -->
+            <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+
+            {#if isExampleChat}
+              <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            {/if}
+          </div>
+        {/if}
+
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
@@ -523,16 +536,7 @@
           {/if}
         </div>
 
-        <div class="loaded-content">
-          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-               never render as HTML to prevent stored XSS via prompt injection. -->
-          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
-
-          {#if isExampleChat}
-            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-          {/if}
-        </div>
-
+        <!-- Signup CTA rendered BELOW the media frame -->
         {#if showSignupCta}
           <button
             class="banner-signup-button"
@@ -622,7 +626,7 @@
   .chat-header-banner {
     position: relative;
     width: 100%;
-    height: 50vh;
+    height: 35vh;
     min-height: 240px;
     /* Top corners are flush with the top of the scroll area — no top radius.
        Only bottom corners are rounded to separate the banner from messages below. */
@@ -1156,13 +1160,13 @@
 
   @media (max-width: 730px) {
     .chat-header-banner {
-      height: 50vh;
-      min-height: 190px;
+      height: 35vh;
+      min-height: 230px;
     }
 
     :global(.menu-open) .chat-header-banner,
     :global(.side-by-side-active) .chat-header-banner {
-      height: 190px;
+      height: 230px;
       min-height: unset;
     }
 
@@ -1501,7 +1505,7 @@
     justify-content: center;
     gap: var(--spacing-5);
     pointer-events: auto;
-    padding: var(--spacing-4) var(--spacing-8);
+    padding: var(--spacing-4) var(--spacing-8) var(--spacing-5);
     width: 100%;
     height: 100%;
     box-sizing: border-box;
@@ -1534,15 +1538,27 @@
     opacity: 1;
   }
 
-  /* Mobile: switch from height%-driven to width-driven sizing so aspect-ratio:16/9
-     is honored. This block must come AFTER the base .media-frame rule above so the
-     mobile override wins in the cascade. */
+  /* Tablet and below (≤900px): push content below the absolute-positioned
+     new-chat/report-issue buttons (≈50px from top) and keep 16:9 ratio.
+     height:min() provides a definite value so width:auto (inherited from base)
+     can derive the correct width via aspect-ratio:16/9 — no ratio-breaking
+     width:100% is needed. 46px = title(30) + gap(16). */
+  @media (max-width: 900px) {
+    .media-center-group {
+      padding-top: 55px;
+      justify-content: flex-start;
+    }
+    .media-frame {
+      height: min(72%, calc(100% - 46px));
+      max-height: unset;
+    }
+  }
+
+  /* Mobile (≤730px): same height-driven sizing as ≤900px (inherited).
+     Relax max-width so the frame can be slightly wider on narrow screens. */
   @media (max-width: 730px) {
     .media-frame {
-      height: auto;
-      width: 100%;
-      max-width: 100%;
-      max-height: unset;
+      max-width: calc(100% - 40px);
     }
   }
 

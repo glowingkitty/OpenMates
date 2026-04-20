@@ -25,16 +25,16 @@ struct InputActionButtons: View {
 
     var body: some View {
         HStack {
-            // Left buttons: files, location, sketch
+            // Left buttons: files, location, sketch (matches ActionButtons.svelte .left-buttons)
             HStack(spacing: .spacing8) {
-                ActionIcon(systemName: "paperclip", label: AppStrings.attachFiles, action: onAttach)
-                ActionIcon(systemName: "location", label: AppStrings.shareLocation, action: onMaps)
-                ActionIcon(systemName: "pencil.tip", label: AppStrings.sketchAction, action: onSketch)
+                ActionIcon("files", label: AppStrings.attachFiles, action: onAttach)
+                ActionIcon("maps", label: AppStrings.shareLocation, action: onMaps)
+                ActionIcon("modify", label: AppStrings.sketchAction, action: onSketch)
             }
 
             Spacer()
 
-            // Right buttons: [press-hold hint] camera, record
+            // Right buttons: [press-hold hint] camera, record (matches .right-buttons)
             HStack(spacing: .spacing8) {
                 if showPressHoldHint {
                     Text(AppStrings.pressAndHoldToRecord)
@@ -43,9 +43,9 @@ struct InputActionButtons: View {
                         .transition(.opacity)
                 }
                 #if os(iOS)
-                ActionIcon(systemName: "camera", label: AppStrings.takePhoto, action: onCamera)
+                ActionIcon("take_photo", label: AppStrings.takePhoto, action: onCamera)
                 #endif
-                ActionIcon(systemName: "mic", label: AppStrings.recordAudio, action: onRecord)
+                ActionIcon("recordaudio", label: AppStrings.recordAudio, action: onRecord)
             }
         }
         .frame(height: 40)
@@ -54,14 +54,19 @@ struct InputActionButtons: View {
 }
 
 private struct ActionIcon: View {
-    let systemName: String
+    let iconName: String
     let label: String
     let action: () -> Void
 
+    init(_ iconName: String, label: String, action: @escaping () -> Void) {
+        self.iconName = iconName
+        self.label = label
+        self.action = action
+    }
+
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 18))
+            Icon(iconName, size: 22)
                 .foregroundStyle(Color.fontSecondary)
                 .frame(width: 32, height: 32)
         }

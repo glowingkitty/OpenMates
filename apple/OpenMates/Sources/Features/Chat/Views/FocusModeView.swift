@@ -53,8 +53,7 @@ struct FocusModePill: View {
                     focusModeManager.deactivate()
                     AccessibilityAnnouncement.announce("Focus mode \(focus.name) deactivated")
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.caption)
+                    Icon("close", size: 14)
                         .foregroundStyle(Color.fontTertiary)
                 }
                 .accessibleButton("Deactivate \(focus.name) focus mode", hint: "Removes the active focus mode from this chat")
@@ -87,8 +86,7 @@ struct FocusModeBadge: View {
     let appId: String
 
     var body: some View {
-        Image(systemName: "scope")
-            .font(.system(size: 8))
+        Icon("select", size: 8)
             .foregroundStyle(.white)
             .padding(3)
             .background(

@@ -1,6 +1,16 @@
 // Email lookup — first step of login. User enters email, we call /v1/auth/lookup
 // to discover available login methods. Mirrors EmailLookup.svelte.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/EmailLookup.svelte
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          .login-container, .login-content
+//          frontend/packages/ui/src/styles/fields.css (inputs)
+//          frontend/packages/ui/src/styles/buttons.css (continue button)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct EmailLookupView: View {

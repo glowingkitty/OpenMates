@@ -19,8 +19,7 @@ struct HiddenChatsListView: View {
                     .accessibilityLabel("Loading hidden chats")
             } else if hiddenChats.isEmpty {
                 VStack(spacing: .spacing4) {
-                    Image(systemName: "eye.slash")
-                        .font(.system(size: 40))
+                    Icon("hidden", size: 40)
                         .foregroundStyle(Color.fontTertiary)
                         .accessibilityHidden(true)
                     Text(AppStrings.noHiddenChats)

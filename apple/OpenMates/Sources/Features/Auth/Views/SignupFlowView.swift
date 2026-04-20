@@ -2,6 +2,18 @@
 // Steps: basics (email) → confirm email → password → passkey → recovery key →
 // backup codes → payment → profile picture → settings → complete.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/signup/Signup.svelte
+//          frontend/packages/ui/src/components/signup/SignupNav.svelte
+//          frontend/packages/ui/src/components/signup/SignupStatusbar.svelte
+//          frontend/packages/ui/src/components/signup/steps/ (per-step components)
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          frontend/packages/ui/src/styles/fields.css (form inputs)
+//          frontend/packages/ui/src/styles/buttons.css (continue/submit buttons)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import AuthenticationServices
 

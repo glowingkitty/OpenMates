@@ -34,22 +34,22 @@ struct EmbedFullscreenView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: {
-                        Image(systemName: SFSymbol.x)
+                        Icon("close", size: 20)
                     }
                     .accessibleButton("Close", hint: "Closes the fullscreen embed view")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button { shareEmbed() } label: {
-                            Label("Share", systemImage: SFSymbol.share2)
+                            Label { Text("Share") } icon: { Icon("share", size: 16) }
                         }
                         .accessibilityLabel("Share embed")
                         Button { copyContent() } label: {
-                            Label("Copy", systemImage: "doc.on.doc")
+                            Label { Text("Copy") } icon: { Icon("copy", size: 16) }
                         }
                         .accessibilityLabel("Copy embed content")
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Icon("more", size: 22)
                     }
                     .accessibilityLabel("More actions")
                     .accessibilityHint("Share or copy this embed")

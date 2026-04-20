@@ -5,7 +5,7 @@ last_verified: 2026-03-24
 
 # OpenMates CLI
 
-A terminal interface and Node.js SDK for interacting with OpenMates. Provides pair-auth login, end-to-end encrypted chat operations, app skill execution, settings management, and self-hosted server administration.
+A terminal interface and Node.js SDK for interacting with OpenMates. Provides pair-auth login, encrypted chat operations, app skill execution, settings management, and self-hosted server administration.
 
 ## Installation
 

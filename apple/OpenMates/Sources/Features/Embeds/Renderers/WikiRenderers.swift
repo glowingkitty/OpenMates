@@ -10,9 +10,8 @@ struct WikiInlineLinkView: View {
 
     var body: some View {
         HStack(spacing: .spacing3) {
-            Image(systemName: "book.closed")
+            Icon("book", size: 20)
                 .foregroundStyle(Color.fontTertiary)
-                .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
@@ -58,7 +57,7 @@ struct WikiRenderer: View {
     private var previewLayout: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             HStack(spacing: .spacing3) {
-                Image(systemName: "book.closed.fill")
+                Icon("book", size: 16)
                     .foregroundStyle(Color.buttonPrimary)
                 Text(LocalizationManager.shared.text("embed.wikipedia"))
                     .font(.omTiny).foregroundStyle(Color.fontTertiary)

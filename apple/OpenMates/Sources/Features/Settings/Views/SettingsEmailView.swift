@@ -2,6 +2,15 @@
 // Mirrors the web app's account/SettingsEmail.svelte.
 // Requires identity verification before changing email.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/account/SettingsEmail.svelte
+//          frontend/packages/ui/src/components/settings/user/SettingsEmail.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+//          frontend/packages/ui/src/styles/fields.css (email input)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsEmailView: View {

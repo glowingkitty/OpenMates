@@ -3731,12 +3731,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
-    // Hide the welcome greeting and resume-chat card when the keyboard is open (mobile) OR
-    // when the suggestions panel would overlap the welcome content and the input is focused.
-    // In both cases the user has signalled intent to type — hiding the greeting frees up
-    // vertical space so the suggestions are visible without collision.
+    // Fade out and disable pointer-events on the welcome content (banner + resume cards)
+    // whenever the message input is focused on the welcome screen (all devices), or when
+    // the keyboard opens on mobile / narrow viewports, or when suggestions would overlap.
     let hideWelcomeForKeyboard = $derived(
-        messageInputFocused && (isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+        messageInputFocused && (showWelcome || isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
     );
 
     // Effective chat width: The actual width of the chat area
@@ -10448,6 +10447,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             />
         </div>
     {/if}
+
 </div>
 
 <!-- Focus mode context menu (body-appended, shown on right-click/long-press on focus mode embeds) -->
@@ -10940,10 +10940,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .center-content {
         position: absolute;
         /*
-         * Center vertically in the space below the daily inspiration banner.
-         * Offset of 80px keeps welcome content clear of top-left actions.
+         * Center vertically in the space below the daily inspiration banner (35vh).
+         * Formula: 50% of chat-side + half the banner height keeps the element
+         * ~40px below the mathematical midpoint of the remaining space on all
+         * viewport sizes, compensating for the variable 35vh banner height.
          */
-        top: calc(58% + 80px);
+        top: calc(50% + 17.5vh);
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -11839,6 +11841,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             left: 10px;
             right: 10px;
         }
+        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh),
+           so recalibrate: 50% + 190px/2 = 50% + 95px */
+        .center-content {
+            top: calc(50% + 95px);
+        }
     }
 
     /*
@@ -12183,5 +12190,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             top: auto;
         }
     }
+
 
 </style>

@@ -35,8 +35,7 @@ struct ProcessingDetailsView: View {
                 ForEach(steps) { step in
                     HStack(spacing: .spacing3) {
                         if step.isComplete {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 12))
+                            Icon("check", size: 12)
                                 .foregroundStyle(.green)
                         } else {
                             ProgressView()

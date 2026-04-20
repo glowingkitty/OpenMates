@@ -13,8 +13,7 @@ struct MapsPlaceRenderer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            Image(systemName: "mappin.circle.fill")
-                .font(.system(size: mode == .preview ? 24 : 32))
+            Icon("maps", size: mode == .preview ? 24 : 32)
                 .foregroundStyle(Color.buttonPrimary)
             Text(name).font(mode == .preview ? .omSmall : .omH4).fontWeight(.medium)
                 .foregroundStyle(Color.fontPrimary).lineLimit(mode == .preview ? 1 : nil)
@@ -24,7 +23,7 @@ struct MapsPlaceRenderer: View {
             }
             if let rating {
                 HStack(spacing: 2) {
-                    Image(systemName: "star.fill").foregroundStyle(.yellow).font(.caption)
+                    Icon("rating", size: 12).foregroundStyle(.yellow)
                     Text(String(format: "%.1f", rating)).font(.omXs).foregroundStyle(Color.fontSecondary)
                 }
             }
@@ -164,9 +163,9 @@ struct RecipeRenderer: View {
             Text(title).font(mode == .preview ? .omSmall : .omH4).fontWeight(.medium)
                 .foregroundStyle(Color.fontPrimary).lineLimit(mode == .preview ? 2 : nil)
             HStack(spacing: .spacing4) {
-                if let prepTime { Label(prepTime, systemImage: SFSymbol.clock).font(.omXs) }
-                if let servings { Label("\(servings) servings", systemImage: SFSymbol.users).font(.omXs) }
-                if let calories { Label("\(calories) kcal", systemImage: SFSymbol.zap).font(.omXs) }
+                if let prepTime { Label { Text(prepTime).font(.omXs) } icon: { Icon("time", size: 12) } }
+                if let servings { Label { Text("\(servings) servings").font(.omXs) } icon: { Icon("team", size: 12) } }
+                if let calories { Label { Text("\(calories) kcal").font(.omXs) } icon: { Icon("fitness", size: 12) } }
             }
             .foregroundStyle(Color.fontTertiary)
         }
@@ -204,7 +203,7 @@ struct ShoppingProductRenderer: View {
             HStack(spacing: .spacing3) {
                 if let rating {
                     HStack(spacing: 2) {
-                        Image(systemName: "star.fill").foregroundStyle(.yellow).font(.caption2)
+                        Icon("rating", size: 10).foregroundStyle(.yellow)
                         Text(String(format: "%.1f", rating)).font(.omTiny)
                     }
                 }

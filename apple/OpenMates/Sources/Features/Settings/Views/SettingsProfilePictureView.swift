@@ -1,6 +1,13 @@
 // Profile picture management — upload, preview, and remove profile avatar.
 // Mirrors the web app's account/SettingsProfilePicture.svelte.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/account/SettingsProfilePicture.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import PhotosUI
 

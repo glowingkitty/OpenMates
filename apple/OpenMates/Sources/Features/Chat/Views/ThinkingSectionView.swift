@@ -22,8 +22,7 @@ struct ThinkingSectionView: View {
                 }
             } label: {
                 HStack(spacing: .spacing2) {
-                    Image(systemName: "brain")
-                        .font(.omXs)
+                    Icon("reasoning", size: 14)
                         .foregroundStyle(Color.fontTertiary)
                         .accessibilityHidden(true)
 
@@ -33,8 +32,7 @@ struct ThinkingSectionView: View {
 
                     Spacer()
 
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.omTiny)
+                    Icon(isExpanded ? "up" : "down", size: 12)
                         .foregroundStyle(Color.fontTertiary)
                         .accessibilityHidden(true)
                 }
@@ -71,8 +69,7 @@ struct ThinkingIndicator: View {
 
     var body: some View {
         HStack(spacing: .spacing2) {
-            Image(systemName: "brain")
-                .font(.omXs)
+            Icon("reasoning", size: 14)
                 .foregroundStyle(Color.fontTertiary)
                 .accessibilityHidden(true)
 

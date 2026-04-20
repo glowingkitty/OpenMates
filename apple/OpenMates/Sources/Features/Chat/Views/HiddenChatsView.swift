@@ -17,8 +17,7 @@ struct HiddenChatsUnlockView: View {
 
     var body: some View {
         VStack(spacing: .spacing6) {
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 48))
+            Icon("lock", size: 48)
                 .foregroundStyle(Color.buttonPrimary)
 
             Text(isFirstSetup ? "Set Up Hidden Chats" : "Unlock Hidden Chats")

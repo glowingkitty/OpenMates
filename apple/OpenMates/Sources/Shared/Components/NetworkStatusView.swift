@@ -35,13 +35,13 @@ struct NetworkStatusBanner: View {
         VStack(spacing: 0) {
             if !networkMonitor.isConnected {
                 banner(
-                    icon: "wifi.slash",
+                    icon: "offline",
                     message: "No internet connection",
                     color: Color.error
                 )
             } else if case .reconnecting(let attempt) = wsManager.connectionState {
                 banner(
-                    icon: "arrow.triangle.2.circlepath",
+                    icon: "reload",
                     message: "Reconnecting... (attempt \(attempt))",
                     color: Color.warning
                 )
@@ -53,8 +53,7 @@ struct NetworkStatusBanner: View {
 
     private func banner(icon: String, message: String, color: Color) -> some View {
         HStack(spacing: .spacing3) {
-            Image(systemName: icon)
-                .font(.caption)
+            Icon(icon, size: 14)
             Text(message)
                 .font(.omXs)
         }

@@ -2,6 +2,14 @@
 // Mirrors the web app's SettingsMates.svelte: vertical list of mates
 // with profile images, names, and expertise descriptions.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsMates.svelte
+//          frontend/packages/ui/src/components/settings/MateDetails.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsMatesView: View {

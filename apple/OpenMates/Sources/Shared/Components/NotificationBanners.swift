@@ -40,8 +40,7 @@ struct PushNotificationBanner: View {
                 Spacer()
 
                 Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.omXs)
+                    Icon("close", size: 14)
                         .foregroundStyle(Color.fontTertiary)
                 }
                 .accessibleButton("Dismiss notification", hint: "Closes this notification banner")
@@ -71,7 +70,7 @@ struct WebhookPendingBanner: View {
         if pendingCount > 0 {
             Button(action: onTap) {
                 HStack(spacing: .spacing3) {
-                    Image(systemName: "arrow.down.message")
+                    Icon("chat", size: 18)
                         .foregroundStyle(Color.buttonPrimary)
                         .accessibilityHidden(true)
 
@@ -110,8 +109,7 @@ struct OfflineBanner: View {
     var body: some View {
         if isOffline {
             HStack(spacing: .spacing2) {
-                Image(systemName: "wifi.slash")
-                    .font(.omXs)
+                Icon("offline", size: 14)
                     .accessibilityHidden(true)
                 Text(LocalizationManager.shared.text("common.offline"))
                     .font(.omXs).fontWeight(.medium)

@@ -13,7 +13,7 @@ const sampleHtml = `<h1>Project Architecture Overview</h1>
 <li>Component-based architecture with shared UI package</li>
 <li>CSS custom properties for theming</li>
 <li>IndexedDB for local data persistence</li>
-<li>End-to-end encryption for user data</li>
+<li>Client-side encryption for user data</li>
 </ul>
 <h2>2. Backend Architecture</h2>
 <p>The backend uses <strong>FastAPI</strong> with Python, providing RESTful APIs for all services. Core components:</p>

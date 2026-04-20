@@ -35,9 +35,14 @@ skills:
       skill for event searches — do NOT additionally call web.search or any other
       search skill for the same query.
       Sources: Meetup, Luma, Google Events, Resident Advisor (electronic music/clubs),
-      and Siegessäule (Berlin LGBTQ+ events). Use 'auto' provider for best coverage.
+      Siegessäule (Berlin LGBTQ+ events), and Berlin Philharmonic (classical concerts in Berlin).
+      Use 'auto' provider for best coverage.
       Use 'Resident Advisor' when user asks about clubs, DJs, electronic music, raves,
       or techno events. Use 'Siegessäule' when user asks about LGBTQ+ events in Berlin.
+      When searching for classical concerts in Berlin, set concert_tags to match the genre
+      (e.g. concert_tags: ["Piano"] for piano concerts, ["Chamber Music"] for chamber music,
+      ["Jazz"] for jazz, ["Organ"] for organ). Known tags: Piano, Chamber Music, Jazz, Organ,
+      Modern, Lunch Concerts, Singers, Children and Family, World.
       When the user mentions a city or location, default to PHYSICAL (in-person) events.
       When the user explicitly asks for online or virtual events, use ONLINE filter.
       Always limit results to 10 (default) unless the user explicitly requests more.
@@ -72,6 +77,11 @@ skills:
         scope: city
         region: Berlin
         no_api_key: true
+      - name: Berlin Philharmonic
+        id: berlin_philharmonic
+        scope: city
+        region: Berlin
+        no_api_key: true
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Find more events this week"
@@ -101,6 +111,7 @@ skills:
             - "Google Events"
             - "Resident Advisor"
             - "Siegessäule"
+            - "Berlin Philharmonic"
         requests:
           type: array
           description: |
@@ -151,6 +162,16 @@ skills:
                 minimum: 1
                 maximum: 50
                 default: 10
+              concert_tags:
+                type: array
+                items:
+                  type: string
+                description: >
+                  Optional tag filters for the Berlin Philharmonic provider.
+                  Use when the user asks about classical concerts in Berlin.
+                  Known values: Piano, Chamber Music, Jazz, Organ, Modern,
+                  Lunch Concerts, Singers, Children and Family, World.
+                  Ignored by all other providers.
             required:
               - query
               - location

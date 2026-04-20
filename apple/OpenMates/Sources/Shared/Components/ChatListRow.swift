@@ -52,8 +52,7 @@ struct ChatListRow: View {
             Spacer()
 
             if chat.isPinned == true {
-                Image(systemName: SFSymbol.pin)
-                    .font(.omTiny)
+                Icon("pin", size: 12)
                     .foregroundStyle(Color.fontTertiary)
             }
         }

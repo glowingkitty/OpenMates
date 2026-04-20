@@ -1,6 +1,15 @@
 // Developer settings — API keys and webhook management.
 // Mirrors SettingsDevelopers.svelte.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsDevelopers.svelte
+//          frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+//          frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsDeveloperView: View {

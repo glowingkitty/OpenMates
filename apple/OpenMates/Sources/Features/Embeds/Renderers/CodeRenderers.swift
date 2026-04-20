@@ -55,9 +55,8 @@ struct CodeRenderer: View {
                         .foregroundStyle(Color.fontTertiary)
 
                     Button { copyCode() } label: {
-                        Image(systemName: "doc.on.doc")
+                        Icon("copy", size: 16)
                     }
-                    .font(.omSmall)
                 }
 
                 ScrollView(.horizontal, showsIndicators: true) {
@@ -151,8 +150,7 @@ struct SheetRenderer: View {
                         .fontWeight(.medium)
                         .foregroundStyle(Color.fontPrimary)
                 }
-                Image(systemName: "tablecells")
-                    .font(.system(size: 32))
+                Icon("sheets", size: 32)
                     .foregroundStyle(Color.fontTertiary)
             }
             .padding(.spacing4)

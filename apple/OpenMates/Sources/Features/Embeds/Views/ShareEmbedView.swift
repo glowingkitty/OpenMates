@@ -34,7 +34,7 @@ struct ShareEmbedView: View {
                                     copied = false
                                 }
                             } label: {
-                                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                                Icon(copied ? "check" : "copy", size: 18)
                                     .foregroundStyle(copied ? .green : Color.buttonPrimary)
                             }
                             .accessibleButton(

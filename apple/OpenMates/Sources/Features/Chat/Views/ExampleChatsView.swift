@@ -97,8 +97,8 @@ struct ExampleChatRow: View {
 
             Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.omXs)
+            Icon("back", size: 12)
+                .scaleEffect(x: -1, y: 1)
                 .foregroundStyle(Color.fontTertiary)
         }
         .padding(.vertical, .spacing2)
@@ -144,9 +144,11 @@ struct ExampleChatPreviewView: View {
                             ProgressView()
                                 .frame(width: 32, height: 32)
                         } else {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 32))
-                                .foregroundStyle(userMessage.isEmpty ? Color.fontTertiary : Color.buttonPrimary)
+                            Icon("up", size: 20)
+                                .foregroundStyle(userMessage.isEmpty ? Color.fontTertiary : Color.fontButton)
+                                .frame(width: 32, height: 32)
+                                .background(userMessage.isEmpty ? Color.grey20 : Color.buttonPrimary)
+                                .clipShape(Circle())
                         }
                     }
                     .disabled(userMessage.isEmpty || isCloning)

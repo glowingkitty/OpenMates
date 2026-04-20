@@ -102,9 +102,8 @@ struct ChatSearchSuggestionsView: View {
                         onSelect(result.text)
                     } label: {
                         HStack(spacing: .spacing3) {
-                            Image(systemName: iconForType(result.type))
+                            Icon(iconForType(result.type), size: 20)
                                 .foregroundStyle(Color.fontTertiary)
-                                .frame(width: 20)
                             Text(result.text)
                                 .font(.omSmall).foregroundStyle(Color.fontPrimary)
                                 .lineLimit(1)
@@ -121,9 +120,9 @@ struct ChatSearchSuggestionsView: View {
 
     private func iconForType(_ type: SearchSuggestion.SuggestionType) -> String {
         switch type {
-        case .chat: return "message"
-        case .web: return "globe"
-        case .app: return "square.grid.2x2"
+        case .chat: return "chat"
+        case .web: return "web"
+        case .app: return "app"
         }
     }
 }

@@ -78,8 +78,7 @@ struct EmbedPreviewCard: View {
 
     private var errorView: some View {
         VStack(spacing: .spacing3) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 24))
+            Icon("warning", size: 24)
                 .foregroundStyle(Color.error)
             Text(LocalizationManager.shared.text("embed.failed_to_load"))
                 .font(.omSmall)
@@ -89,8 +88,7 @@ struct EmbedPreviewCard: View {
 
     private var cancelledView: some View {
         VStack(spacing: .spacing3) {
-            Image(systemName: "xmark.circle")
-                .font(.system(size: 24))
+            Icon("close", size: 24)
                 .foregroundStyle(Color.fontTertiary)
             Text(LocalizationManager.shared.text("embed.cancelled"))
                 .font(.omSmall)
@@ -125,8 +123,8 @@ struct EmbedPreviewCard: View {
             Spacer()
 
             if embed.status == .finished {
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
+                Icon("back", size: 10)
+                    .scaleEffect(x: -1, y: 1)
                     .foregroundStyle(Color.fontTertiary)
             }
         }

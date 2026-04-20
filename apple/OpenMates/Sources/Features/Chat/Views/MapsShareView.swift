@@ -61,7 +61,7 @@ struct MapsShareView: View {
 
     private var searchBar: some View {
         HStack {
-            Image(systemName: "magnifyingglass")
+            Icon("search", size: 18)
                 .foregroundStyle(Color.fontTertiary)
                 .accessibilityHidden(true)
             TextField("Search places", text: $searchText)
@@ -83,7 +83,7 @@ struct MapsShareView: View {
             }
         } label: {
             HStack {
-                Image(systemName: "location.fill")
+                Icon("current_location", size: 16)
                     .accessibilityHidden(true)
                 Text(LocalizationManager.shared.text("enter_message.attachments.share_location"))
                     .fontWeight(.medium)

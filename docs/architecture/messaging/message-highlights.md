@@ -4,7 +4,7 @@ Architecture doc for the text-highlighting (annotation) feature in chat messages
 
 ## Overview
 
-Users can select text in any chat message, right-click (or use the floating toolbar on touch devices), and apply a yellow highlight with an optional comment. Highlights are end-to-end encrypted, persisted to IndexedDB, and synced across devices via WebSocket.
+Users can select text in any chat message, right-click (or use the floating toolbar on touch devices), and apply a yellow highlight with an optional comment. Highlights are client-side encrypted, persisted to IndexedDB, and synced across devices via WebSocket.
 
 ## User Flow
 

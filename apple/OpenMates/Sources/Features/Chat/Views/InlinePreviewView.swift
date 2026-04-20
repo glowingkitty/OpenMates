@@ -29,7 +29,7 @@ struct InlineAttachmentPreview: View {
             Spacer()
 
             Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
+                Icon("close", size: 18)
                     .foregroundStyle(Color.fontTertiary)
             }
             .buttonStyle(.plain)
@@ -64,22 +64,20 @@ struct InlineAttachmentPreview: View {
                 }
                 #endif
             } else {
-                placeholderIcon("photo")
+                placeholderIcon("image")
             }
 
         case .pdf:
             ZStack {
                 Color.red.opacity(0.1)
-                Image(systemName: "doc.richtext")
-                    .font(.system(size: 24))
+                Icon("pdf", size: 24)
                     .foregroundStyle(.red)
             }
 
         case .file:
             ZStack {
                 Color.grey20
-                Image(systemName: iconForExtension(attachment.fileExtension))
-                    .font(.system(size: 24))
+                Icon(iconForExtension(attachment.fileExtension), size: 24)
                     .foregroundStyle(Color.fontSecondary)
             }
         }
@@ -88,22 +86,21 @@ struct InlineAttachmentPreview: View {
     private func placeholderIcon(_ name: String) -> some View {
         ZStack {
             Color.grey20
-            Image(systemName: name)
-                .font(.system(size: 24))
+            Icon(name, size: 24)
                 .foregroundStyle(Color.fontSecondary)
         }
     }
 
     private func iconForExtension(_ ext: String?) -> String {
         switch ext?.lowercased() {
-        case "pdf": return "doc.richtext"
-        case "doc", "docx": return "doc.text"
-        case "xls", "xlsx", "csv": return "tablecells"
-        case "zip", "tar", "gz": return "archivebox"
-        case "mp3", "wav", "m4a": return "waveform"
-        case "mp4", "mov", "avi": return "video"
-        case "txt", "md": return "doc.plaintext"
-        default: return "doc"
+        case "pdf": return "pdf"
+        case "doc", "docx": return "docs"
+        case "xls", "xlsx", "csv": return "sheets"
+        case "zip", "tar", "gz": return "files"
+        case "mp3", "wav", "m4a": return "audio"
+        case "mp4", "mov", "avi": return "videos"
+        case "txt", "md": return "text"
+        default: return "files"
         }
     }
 }
