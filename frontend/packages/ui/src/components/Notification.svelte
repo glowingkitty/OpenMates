@@ -214,7 +214,7 @@
         
         /* Figma design: 430px or 100% viewport width, with 5px margin on smaller screens */
         width: 430px;
-        max-width: calc(100vw - 10px);
+        max-width: calc(100vw - 40px);
         overflow: hidden;
         
         /* Base styling */
