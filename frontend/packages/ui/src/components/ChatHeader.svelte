@@ -1537,33 +1537,27 @@
     opacity: 1;
   }
 
-  /* Tablet and below (≤900px): on narrower viewports the absolute-positioned
-     new-chat/report-issue buttons sit at ~15px from the top and overlap the
-     title when it's above the video. Push content below the button zone with
-     extra padding-top, top-align with flex-start, and cap the video height so
-     everything still fits within the banner. */
+  /* Tablet and below (≤900px): push content below the absolute-positioned
+     new-chat/report-issue buttons (≈50px from top) and keep 16:9 ratio.
+     height:min() provides a definite value so width:auto (inherited from base)
+     can derive the correct width via aspect-ratio:16/9 — no ratio-breaking
+     width:100% is needed. 46px = title(30) + gap(16). */
   @media (max-width: 900px) {
     .media-center-group {
       padding-top: 55px;
       justify-content: flex-start;
     }
-    /* max-height: calc(100% - 46px) — 100% = inner height of group (banner minus 71px
-       padding), subtract another 46px for title (30px) + gap (16px), so the video
-       never pushes the total content past the banner height. */
     .media-frame {
-      max-height: calc(100% - 46px);
+      height: min(72%, calc(100% - 46px));
+      max-height: unset;
     }
   }
 
-  /* Mobile (≤730px): switch to width-driven sizing. width:100% provides a definite
-     size so the frame doesn't collapse; max-height from the 900px block caps the
-     height so title + video fit within the banner. Must come AFTER the 900px block. */
+  /* Mobile (≤730px): same height-driven sizing as ≤900px (inherited).
+     Relax max-width so the frame can be slightly wider on narrow screens. */
   @media (max-width: 730px) {
     .media-frame {
-      height: auto;
-      width: 100%;
       max-width: calc(100% - 40px);
-      /* max-height: calc(100% - 46px) inherited from ≤900px block above */
     }
   }
 
