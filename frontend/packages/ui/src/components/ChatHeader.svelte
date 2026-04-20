@@ -1555,15 +1555,15 @@
     }
   }
 
-  /* Mobile (≤730px): switch from height%-driven to aspect-ratio+max-height sizing.
-     width:auto lets max-height+aspect-ratio determine the frame size so the video
-     doesn't overflow the banner. Must come AFTER the 900px block. */
+  /* Mobile (≤730px): switch to width-driven sizing. width:100% provides a definite
+     size so the frame doesn't collapse; max-height from the 900px block caps the
+     height so title + video fit within the banner. Must come AFTER the 900px block. */
   @media (max-width: 730px) {
     .media-frame {
       height: auto;
-      width: auto;
+      width: 100%;
       max-width: calc(100% - 40px);
-      /* max-height inherited from 900px block: calc(100% - 46px) */
+      /* max-height: calc(100% - 46px) inherited from ≤900px block above */
     }
   }
 
