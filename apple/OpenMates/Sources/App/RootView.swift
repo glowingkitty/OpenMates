@@ -1,6 +1,12 @@
 // Root view controller — switches between auth flow and main app
 // based on AuthManager state, mirroring the web app's +page.svelte logic.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/apps/web_app/src/routes/+page.svelte
+//          (top-level routing: unauthenticated → landing, authenticated → app)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct RootView: View {

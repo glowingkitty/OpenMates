@@ -1,6 +1,15 @@
 // Password + optional 2FA login screen. Mirrors PasswordAndTfaOtp.svelte.
 // Shows password field first; if server returns tfaRequired, shows OTP field.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          frontend/packages/ui/src/styles/fields.css (password input)
+//          frontend/packages/ui/src/styles/buttons.css (login button)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct PasswordLoginView: View {

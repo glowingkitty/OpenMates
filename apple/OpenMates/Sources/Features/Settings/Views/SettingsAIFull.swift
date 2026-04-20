@@ -2,6 +2,15 @@
 // Mirrors the web app's SettingsAI.svelte with model picker, auto-select toggle,
 // and provider enable/disable. All strings use AppStrings (i18n).
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsAI.svelte
+//          frontend/packages/ui/src/components/settings/AiModelDetailsWrapper.svelte
+//          frontend/packages/ui/src/components/settings/AiProviderDetailsWrapper.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsAIFullView: View {

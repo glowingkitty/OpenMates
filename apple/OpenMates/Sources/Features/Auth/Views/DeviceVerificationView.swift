@@ -1,6 +1,16 @@
 // Device verification — shown when logging in from a new device.
 // Supports 2FA OTP verification. Mirrors VerifyDevice2FA.svelte.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/Login.svelte
+//          (device verification / 2FA OTP step in login flow)
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          frontend/packages/ui/src/styles/fields.css (OTP input)
+//          frontend/packages/ui/src/styles/buttons.css (verify button)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct DeviceVerificationView: View {

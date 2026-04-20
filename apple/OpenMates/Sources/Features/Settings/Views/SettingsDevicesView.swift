@@ -1,6 +1,13 @@
 // API key devices management — approve and revoke devices that use API keys.
 // Mirrors the web app's developers/SettingsDevices.svelte.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsDevicesView: View {

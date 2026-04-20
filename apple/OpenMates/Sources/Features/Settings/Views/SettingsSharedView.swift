@@ -2,6 +2,14 @@
 // Mirrors the web app's SettingsShared.svelte: two sections showing owned shared items
 // and items shared by others. Users can unshare owned items.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsShared.svelte
+//          frontend/packages/ui/src/components/settings/tip/SettingsTip.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct SettingsSharedView: View {

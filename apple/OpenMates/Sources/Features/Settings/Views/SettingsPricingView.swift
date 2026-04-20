@@ -2,6 +2,14 @@
 // Falls back to hardcoded tiers from pricing.yml if StoreKit products aren't available.
 // Links to Apps and AI models for browsing before signup.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsPricing.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+//          frontend/packages/ui/src/styles/cards.css (.pricing-card)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import StoreKit
 

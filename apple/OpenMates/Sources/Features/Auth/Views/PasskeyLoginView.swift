@@ -2,6 +2,15 @@
 // Better UX than WebAuthn in a browser — Face ID / Touch ID native prompt.
 // Handles PRF extension for zero-knowledge master key derivation.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/LoginMethodSelector.svelte
+//          (passkey option in login method picker)
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          frontend/packages/ui/src/styles/buttons.css (primary button)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import AuthenticationServices
 

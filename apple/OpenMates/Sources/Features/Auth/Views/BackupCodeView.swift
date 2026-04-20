@@ -1,6 +1,16 @@
 // Backup code login — fallback when authenticator app is unavailable.
 // Mirrors EnterBackupCode.svelte. Accepts XXXX-XXXX-XXXX format code.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/Login.svelte
+//          (backup code step within login flow)
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          frontend/packages/ui/src/styles/fields.css (code input)
+//          frontend/packages/ui/src/styles/buttons.css (login button)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct BackupCodeView: View {

@@ -3,6 +3,15 @@
 // (recovery key or backup code), verify, reset password.
 // VoiceOver: step change announcements, grouped method rows, accessible inputs.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/AccountRecovery.svelte
+// CSS:     frontend/packages/ui/src/styles/auth.css
+//          frontend/packages/ui/src/styles/fields.css (inputs)
+//          frontend/packages/ui/src/styles/buttons.css (action buttons)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct AccountRecoveryView: View {

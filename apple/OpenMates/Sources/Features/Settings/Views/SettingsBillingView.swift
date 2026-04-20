@@ -2,6 +2,15 @@
 // Uses StoreKit 2 for native Apple payment. Credits are consumable products fulfilled
 // by the backend after Apple transaction verification.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsBilling.svelte
+//          frontend/packages/ui/src/components/settings/billing/SettingsBuyCredits.svelte
+//          frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import StoreKit
 
