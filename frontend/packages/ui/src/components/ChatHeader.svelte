@@ -1505,7 +1505,7 @@
     justify-content: center;
     gap: var(--spacing-5);
     pointer-events: auto;
-    padding: var(--spacing-4) var(--spacing-8);
+    padding: var(--spacing-4) var(--spacing-8) var(--spacing-5);
     width: 100%;
     height: 100%;
     box-sizing: border-box;
