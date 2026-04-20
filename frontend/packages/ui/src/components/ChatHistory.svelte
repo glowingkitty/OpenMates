@@ -1942,7 +1942,7 @@
   }
 
   /* When the header banner is showing, push messages below the banner.
-     Banner height: 200px desktop / 190px mobile (matches ChatHeader.svelte dimensions).
+     Banner height: 240px desktop / 190px mobile (matches ChatHeader.svelte dimensions).
      12px gap between banner bottom and first message.
      The banner itself is positioned in-flow (not absolute) so the content's padding-top
      stacks on top of it — we only need the extra padding-top offset removed since

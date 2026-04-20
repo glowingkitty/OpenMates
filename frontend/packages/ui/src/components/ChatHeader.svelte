@@ -523,15 +523,17 @@
           {/if}
         </div>
 
-        <div class="loaded-content">
-          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-               never render as HTML to prevent stored XSS via prompt injection. -->
-          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+        {#if !showSignupCta}
+          <div class="loaded-content">
+            <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+                 never render as HTML to prevent stored XSS via prompt injection. -->
+            <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
-          {#if isExampleChat}
-            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-          {/if}
-        </div>
+            {#if isExampleChat}
+              <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            {/if}
+          </div>
+        {/if}
 
         {#if showSignupCta}
           <button
@@ -623,7 +625,7 @@
     position: relative;
     width: 100%;
     height: 35vh;
-    min-height: 200px;
+    min-height: 240px;
     /* Top corners are flush with the top of the scroll area — no top radius.
        Only bottom corners are rounded to separate the banner from messages below. */
     border-radius: 0 0 14px 14px;
@@ -652,7 +654,7 @@
      .side-by-side-active is set on .active-chat-container by ActiveChat.svelte. */
   :global(.menu-open) .chat-header-banner,
   :global(.side-by-side-active) .chat-header-banner {
-    height: 200px;
+    height: 240px;
     min-height: unset;
   }
 

@@ -531,7 +531,7 @@
     border: none;
     border-radius: var(--radius-6);
     height: 35vh;
-    min-height: 200px;
+    min-height: 240px;
     cursor: pointer;
     overflow: hidden;
     transition: filter 0.15s ease, transform 0.1s ease;
