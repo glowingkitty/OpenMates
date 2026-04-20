@@ -1,6 +1,15 @@
 // AI typing indicator — shows which app/skill is currently processing.
 // Mirrors aiTypingStore.ts: displays app icon with gradient and skill name.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
+//          (typing indicator block: app icon + skill name or "typing…")
+// CSS:     frontend/packages/ui/src/styles/chat.css
+//          .ai-typing-indicator (background, padding, layout)
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 struct AITypingIndicator: View {
