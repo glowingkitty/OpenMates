@@ -160,6 +160,49 @@ export class OpenMatesWsClient {
   }
 
   /**
+   * Collect all frames until `terminatorType` arrives (or timeout).
+   * Returns every frame received before the terminator, in order.
+   * Used by ensureSynced to consume the full phased-sync event stream.
+   */
+  collectMessages(terminatorType: string, timeoutMs = 90_000): Promise<WsEnvelope[]> {
+    return new Promise<WsEnvelope[]>((resolve, reject) => {
+      const collected: WsEnvelope[] = [];
+
+      const onMessage = (rawData: RawData) => {
+        try {
+          const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
+          if (parsed.type === terminatorType) {
+            cleanup();
+            resolve(collected);
+            return;
+          }
+          collected.push(parsed);
+        } catch {
+          // ignore non-JSON frames
+        }
+      };
+
+      const onError = (error: Error) => { cleanup(); reject(error); };
+      const onClose = () => { cleanup(); resolve(collected); };
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Timeout waiting for '${terminatorType}'`));
+      }, timeoutMs);
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        this.socket.off("message", onMessage);
+        this.socket.off("error", onError);
+        this.socket.off("close", onClose);
+      };
+
+      this.socket.on("message", onMessage);
+      this.socket.on("error", onError);
+      this.socket.on("close", onClose);
+    });
+  }
+
+  /**
    * Collect the AI response for a sent message.
    *
    * The server has two delivery paths:

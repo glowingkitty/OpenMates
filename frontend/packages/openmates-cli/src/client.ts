@@ -2780,66 +2780,87 @@ export class OpenMatesClient {
     let totalChatCount = 0;
 
     try {
+      // Send phase:all so the server runs all sync phases over a single WS
+      // connection and terminates with phased_sync_complete.
       ws.send("phased_sync_request", {
-        phase: "phase3",
+        phase: "all",
         client_chat_versions: clientChatVersions,
         client_chat_ids: clientChatIds,
         client_embed_ids: clientEmbedIds,
       });
-      const initial = await ws.waitForMessage("phase_3_last_100_chats_ready");
-      const initialPayload = initial.payload as {
-        chats?: Array<Record<string, unknown>>;
-        total_chat_count?: number;
-        embeds?: Record<string, unknown>[];
-        embed_keys?: Record<string, unknown>[];
-        new_chat_suggestions?: Record<string, unknown>[];
-      };
 
-      const firstChats = initialPayload.chats ?? [];
-      for (const wrapper of firstChats) {
-        const details = wrapper.chat_details as
-          | Record<string, unknown>
-          | undefined;
-        if (!details || typeof details.id !== "string") continue;
-        const messages = Array.isArray(wrapper.messages)
-          ? (wrapper.messages as string[])
-          : [];
-        chats.push({ details, messages });
-      }
+      // Collect every frame until phased_sync_complete (or 90s timeout).
+      // Processing inline rather than per-event avoids race conditions where
+      // a fast server response could arrive before a waitForMessage listener
+      // is registered.
+      const frames = await ws.collectMessages("phased_sync_complete", 90_000);
 
-      totalChatCount = initialPayload.total_chat_count ?? firstChats.length;
-      embeds = initialPayload.embeds ?? [];
-      embedKeys = initialPayload.embed_keys ?? [];
-      newChatSuggestions = initialPayload.new_chat_suggestions ?? [];
+      // Messages keyed by chat_id — merged from phase_1b and background_message_sync.
+      const messagesByChatId = new Map<string, string[]>();
 
-      // Load remaining chats if there are more
-      let offset = firstChats.length;
-      while (offset < totalChatCount) {
-        ws.send("load_more_chats", { offset, limit: 50 });
-        const more = await ws.waitForMessage("load_more_chats_response");
-        const payload = more.payload as {
-          chats?: Array<Record<string, unknown>>;
-          has_more?: boolean;
-          embeds?: Record<string, unknown>[];
-          embed_keys?: Record<string, unknown>[];
-        };
-        const batch = payload.chats ?? [];
-        for (const wrapper of batch) {
-          const details = wrapper.chat_details as
-            | Record<string, unknown>
-            | undefined;
-          if (!details || typeof details.id !== "string") continue;
-          const messages = Array.isArray(wrapper.messages)
-            ? (wrapper.messages as string[])
-            : [];
-          chats.push({ details, messages });
+      for (const frame of frames) {
+        if (frame.type === "phase_1_last_chat_ready") {
+          // Primary source for new_chat_suggestions (not included in phase2/3).
+          const p = frame.payload as {
+            new_chat_suggestions?: Record<string, unknown>[];
+          };
+          newChatSuggestions = p.new_chat_suggestions ?? [];
+
+        } else if (frame.type === "phase_1b_chat_content_ready") {
+          // Messages + embeds for the most recent ~11 chats.
+          const p = frame.payload as {
+            chats?: Array<{ chat_id: string; messages: string[] | null }>;
+            embeds?: Record<string, unknown>[];
+            embed_keys?: Record<string, unknown>[];
+          };
+          for (const c of (p.chats ?? [])) {
+            if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
+              messagesByChatId.set(c.chat_id, c.messages);
+            }
+          }
+          if (p.embeds) embeds.push(...p.embeds);
+          if (p.embed_keys) embedKeys.push(...p.embed_keys);
+
+        } else if (frame.type === "phase_2_last_20_chats_ready") {
+          // Metadata (no messages) for up to 100 chats + authoritative total count.
+          const p = frame.payload as {
+            chats?: Array<Record<string, unknown>>;
+            total_chat_count?: number;
+          };
+          totalChatCount = p.total_chat_count ?? 0;
+          for (const wrapper of (p.chats ?? [])) {
+            const details = wrapper.chat_details as Record<string, unknown> | undefined;
+            if (!details || typeof details.id !== "string") continue;
+            chats.push({ details, messages: [] });
+          }
+
+        } else if (frame.type === "background_message_sync") {
+          // Chunked message batches for chats not already covered by phase_1b.
+          const p = frame.payload as {
+            chats?: Array<{ chat_id: string; messages: string[] }>;
+            embeds?: Record<string, unknown>[];
+            embed_keys?: Record<string, unknown>[];
+          };
+          for (const c of (p.chats ?? [])) {
+            if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
+              messagesByChatId.set(c.chat_id, c.messages);
+            }
+          }
+          if (p.embeds) embeds.push(...p.embeds);
+          if (p.embed_keys) embedKeys.push(...p.embed_keys);
         }
-        // Merge additional embeds/embed_keys from paginated responses
-        if (payload.embeds) embeds.push(...payload.embeds);
-        if (payload.embed_keys) embedKeys.push(...payload.embed_keys);
-        offset += batch.length;
-        if (!payload.has_more || batch.length === 0) break;
       }
+
+      // Attach collected messages to their chat metadata entries.
+      for (const chat of chats) {
+        const id = typeof chat.details.id === "string" ? chat.details.id : "";
+        const msgs = messagesByChatId.get(id);
+        if (msgs && msgs.length > 0) {
+          chat.messages = msgs;
+        }
+      }
+
+      if (totalChatCount === 0) totalChatCount = chats.length;
     } finally {
       ws.close();
     }
