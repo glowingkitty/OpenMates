@@ -53,6 +53,15 @@ jobs:
           fi
           npm version prerelease --preid alpha --no-git-tag-version
 
+      - name: Bump to stable version (main only)
+        if: github.ref == 'refs/heads/main'
+        working-directory: frontend/packages/openmates-cli
+        run: |
+          # Strip prerelease suffix so e.g. 0.9.0-alpha.5 → 0.9.0 before stable publish.
+          CURRENT=$(node -p "require('./package.json').version")
+          BASE="${CURRENT%%-*}"
+          npm version "$BASE" --no-git-tag-version --allow-same-version
+
       - name: Publish to npm (stable)
         if: github.ref == 'refs/heads/main'
         working-directory: frontend/packages/openmates-cli
