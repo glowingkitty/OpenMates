@@ -32,14 +32,21 @@ async function decryptInto(
   updated_at?: number,
   key_version?: number | null,
 ): Promise<MessageHighlight | null> {
-  const chatKey = chatKeyManager.getKeySync(chat_id)
-    ?? (await chatKeyManager.getKey(chat_id));
-  if (!chatKey) {
+  // KEYS-04: use withKey() so decrypt is buffered until the key is resident in
+  // memory — getKeySync()/getKey() returns null during async IDB unwrap on
+  // secondary devices, silently dropping highlights received during phased sync.
+  let chatKey: Uint8Array | null = null;
+  try {
+    await chatKeyManager.withKey(chat_id, "decrypt-highlight", async (key) => {
+      chatKey = key;
+    });
+  } catch {
     console.warn(
       `[handlersMessageHighlights] no chat key for chat ${chat_id} — dropping highlight ${id}`,
     );
     return null;
   }
+  if (!chatKey) return null;
   const plain = await decryptHighlightPayload(encrypted_payload, chatKey, {
     chatId: chat_id,
     messageId: message_id,
