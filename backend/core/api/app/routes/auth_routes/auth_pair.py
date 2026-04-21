@@ -20,7 +20,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 import secrets
@@ -133,8 +132,6 @@ class PairCredentialsResponse(BaseModel):
     lookup_hash: str
     user_email_salt: str
     hashed_email: str  # SHA256(email) — needed by /auth/login for user lookup
-    encrypted_key: str
-    salt: str
 
 
 class PairCompleteRequest(BaseModel):
@@ -272,10 +269,10 @@ async def pair_credentials(
     """
     Return pair-login credentials for the authenticated authorizing device.
 
-    lookup_hashes and user_email_salt come from the cached User object.
-    encrypted_key and salt are stored in the encryption_keys collection (keyed by
-    hashed_user_id = SHA256(user_uuid)) — NOT on the directus_users record — so we
-    fetch them via get_encryption_key() rather than from current_user fields.
+    lookup_hash and user_email_salt come from the cached User object.
+    hashed_email is fetched from the user profile cache / Directus fallback.
+    The master key is exported client-side and placed in the encrypted bundle;
+    this endpoint only provides the identifiers needed for /auth/login.
     """
     lookup_hashes = current_user.lookup_hashes or []
     lookup_hash = next(
@@ -305,39 +302,10 @@ async def pair_credentials(
             detail="Pair login credentials not available for current session",
         )
 
-    # encrypted_key + salt live in the encryption_keys collection, not on directus_users.
-    hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
-    encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
-
-    if not encryption_key_data:
-        logger.warning(
-            "pair/credentials: no password encryption key found for user %s",
-            current_user.id[:8],
-        )
-        raise HTTPException(
-            status_code=409,
-            detail="Pair login credentials not available for current session",
-        )
-
-    encrypted_key = encryption_key_data.get("encrypted_key")
-    salt = encryption_key_data.get("salt")
-
-    if not encrypted_key or not salt:
-        logger.warning(
-            "pair/credentials: encryption key record incomplete for user %s",
-            current_user.id[:8],
-        )
-        raise HTTPException(
-            status_code=409,
-            detail="Pair login credentials not available for current session",
-        )
-
     return PairCredentialsResponse(
         lookup_hash=lookup_hash,
         user_email_salt=current_user.user_email_salt,
         hashed_email=hashed_email,
-        encrypted_key=encrypted_key,
-        salt=salt,
     )
 
 
