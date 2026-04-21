@@ -1194,6 +1194,11 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
     transition: scrollbar-color var(--duration-normal) var(--easing-default);
+    /* Allow users to select and copy text in fullscreen embed content */
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
 
   .content-area:hover {

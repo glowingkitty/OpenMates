@@ -13,6 +13,7 @@
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -445,7 +446,7 @@
     {#if event.description}
       <div class="event-section">
         <div class="section-label">About</div>
-        <div class="event-description">{event.description}</div>
+        <MarkdownContent content={event.description} />
       </div>
     {/if}
   {/snippet}
@@ -547,13 +548,6 @@
     font-size: 0.875rem;
   }
 
-  .event-description {
-    font-size: 0.875rem;
-    color: var(--color-font-primary);
-    line-height: 1.65;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
 
   /* Today / Tomorrow label — larger than the regular date value */
   .date-relative {

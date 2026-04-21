@@ -18,6 +18,7 @@
 <script lang="ts">
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import MarkdownContent from '../MarkdownContent.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -248,7 +249,9 @@
 
     <!-- Description -->
     {#if stay.description}
-      <div class="description-section"><p>{stay.description}</p></div>
+      <div class="description-section">
+        <MarkdownContent content={stay.description} />
+      </div>
     {/if}
 
     <!-- Amenities -->
@@ -403,13 +406,15 @@
     padding: var(--spacing-6);
     background: var(--color-grey-10, rgba(0, 0, 0, 0.03));
     border-radius: var(--radius-4);
-  }
-  .description-section p {
     font-size: var(--font-size-xs);
     color: var(--color-font-secondary);
     line-height: 1.5;
-    margin: 0;
-    word-break: break-word;
+  }
+  /* Override MarkdownContent defaults to match description-section visual style */
+  .description-section :global(.markdown-content) {
+    font-size: var(--font-size-xs);
+    color: var(--color-font-secondary);
+    line-height: 1.5;
   }
 
   .amenities-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }

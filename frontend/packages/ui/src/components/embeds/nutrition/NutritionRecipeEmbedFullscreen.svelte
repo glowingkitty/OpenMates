@@ -11,6 +11,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
   import { proxyImage } from '../../../utils/imageProxy';
 
@@ -139,7 +140,9 @@
         <h2 class="title">{title}</h2>
 
         {#if recipe.description}
-          <p class="description">{recipe.description}</p>
+          <div class="description">
+            <MarkdownContent content={recipe.description} />
+          </div>
         {/if}
 
         <!-- Meta row: time, difficulty, servings, rating -->
@@ -294,6 +297,8 @@
 
   .description {
     margin: 0;
+  }
+  .description :global(.markdown-content) {
     font-size: var(--font-size-small);
     color: var(--color-font-secondary);
     line-height: 1.5;
