@@ -44,7 +44,14 @@ jobs:
       - name: Bump prerelease version (dev only)
         if: github.ref == 'refs/heads/dev'
         working-directory: frontend/packages/openmates-cli
-        run: npm version prerelease --preid alpha --no-git-tag-version
+        run: |
+          # Base the bump on the highest published alpha, not package.json,
+          # so re-runs after an uncommitted version bump don't collide.
+          PUBLISHED=$(npm view openmates@alpha version 2>/dev/null || echo "")
+          if [ -n "$PUBLISHED" ]; then
+            npm version "$PUBLISHED" --no-git-tag-version --allow-same-version
+          fi
+          npm version prerelease --preid alpha --no-git-tag-version
 
       - name: Publish to npm (stable)
         if: github.ref == 'refs/heads/main'
