@@ -43,9 +43,8 @@ export interface ReportIssueFormDraft {
   shareChatEnabled: boolean;
   chatOrEmbedUrl: string;
   contactEmail: string;
-  includeEmailToggle: boolean;
   /** Admin-only: what agent action to trigger on submit ('none' | 'research' | 'fix'). */
-  agentAction?: 'none' | 'research' | 'fix';
+  agentAction?: "none" | "research" | "fix";
   /** Admin-only: whether to create a Linear issue for this report. */
   addToLinear?: boolean;
   /** Admin-only: whether to send email notifications for this report. */
