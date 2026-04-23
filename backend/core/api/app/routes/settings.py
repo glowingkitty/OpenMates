@@ -2911,8 +2911,21 @@ async def report_issue(
             timestamp_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
             current_timestamp = datetime.now(timezone.utc)
             
+            # The production DB issues.title column is varchar(255) (schema YAML declares TEXT
+            # but setup_schemas.py does not update existing fields for custom collections).
+            # Truncate here so the Directus write never fails on long titles while the
+            # migration is pending. Apply `ALTER TABLE issues ALTER COLUMN title TYPE TEXT`
+            # on the production DB to remove this limit.
+            _DB_TITLE_MAX = 250
+            db_title = sanitized_title[:_DB_TITLE_MAX] if len(sanitized_title) > _DB_TITLE_MAX else sanitized_title
+            if len(sanitized_title) > _DB_TITLE_MAX:
+                logger.warning(
+                    f"[report_issue] Title truncated from {len(sanitized_title)} to {_DB_TITLE_MAX} chars "
+                    "for Directus storage (varchar(255) constraint not yet migrated to TEXT on prod)"
+                )
+
             issue_data_dict = {
-                "title": sanitized_title,
+                "title": db_title,
                 "description": sanitized_description,
                 "encrypted_chat_or_embed_url": encrypted_chat_or_embed_url,
                 "encrypted_contact_email": encrypted_contact_email,
@@ -3024,6 +3037,7 @@ async def report_issue(
                         "chat_or_embed_url": sanitized_url,
                         "is_from_admin": is_from_admin,
                         "contact_email": sanitized_email if sanitized_email else None,
+                        "reported_by_user_id": reported_by_user_id,
                         "ascii_smuggling_detected": ascii_smuggling_detected,
                     },
                     queue='email'
