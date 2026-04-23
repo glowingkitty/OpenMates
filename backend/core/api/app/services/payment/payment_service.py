@@ -5,9 +5,7 @@ Top-level orchestrator that holds all payment providers simultaneously
 and selects the correct one based on user region and any explicit override.
 
 Routing logic:
-  - EU/EEA/CH/GB users → Stripe (default)
-  - All other countries → Polar (handles global tax compliance as MoR)
-  - Either provider can be overridden explicitly via the `provider_override` param
+  - All card payments → Stripe (Polar deactivated — account rejected by Polar on 2026-04-23)
   - SEPA bank transfers → Revolut Business (separate flow, not region-based)
 
 All providers are always initialized at startup so provider switching
@@ -37,16 +35,17 @@ class PaymentService:
     def __init__(self, secrets_manager: SecretsManager) -> None:
         self.secrets_manager = secrets_manager
 
-        # Multi-provider mode: Stripe (EU) + Polar (non-EU) + Revolut Business (SEPA transfers)
+        # Polar deactivated 2026-04-23 — account rejected by Polar (risk metrics out of bounds).
+        # All card payments now route through Stripe for all regions.
         self._stripe_provider: Optional[StripeService] = StripeService(secrets_manager)
-        self._polar_provider: Optional[PolarService] = PolarService(secrets_manager)
+        self._polar_provider: Optional[PolarService] = None
         self._revolut_business: Optional[RevolutBusinessService] = RevolutBusinessService(secrets_manager)
         # Default provider_name for legacy callers (e.g. /payments/config without override)
         self.provider_name = "stripe"
         # Legacy .provider points to Stripe for backwards compatibility
         # (StripeProductSync accesses payment_service.provider directly)
         self.provider = self._stripe_provider
-        logger.info("PaymentService: running in multi-provider mode (Stripe EU + Polar non-EU + Revolut Business SEPA)")
+        logger.info("PaymentService: running in Stripe-only mode (Polar deactivated) + Revolut Business SEPA")
 
     async def initialize(self, is_production: bool) -> None:
         """
