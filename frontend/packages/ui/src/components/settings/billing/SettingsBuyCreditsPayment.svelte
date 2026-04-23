@@ -215,6 +215,17 @@ Supports both saved payment methods and new payment form
         }
     }
 
+    // POLAR DISABLED 2026-04-23 — re-enable when Polar account is reactivated
+    // async function switchToProvider(newProvider: 'stripe' | 'polar') {
+    //     savedMethodProviderOverride = newProvider;
+    //     showPaymentForm = false;
+    //     hasSavedPaymentMethods = false;
+    //     paymentMethods = [];
+    //     selectedPaymentMethodId = null;
+    //     isLoadingPaymentMethods = true;
+    //     await detectProviderAndLoadMethods();
+    // }
+
     // Handle payment method selection
     function handlePaymentMethodToggle(paymentMethodId: string, checked: boolean) {
         if (checked) {
@@ -437,6 +448,18 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
+        <!-- POLAR DISABLED 2026-04-23 — restore this block (and remove the one below) when Polar account is reactivated:
+        <div class="provider-switch-container">
+            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
+                {$text('signup.switch_to_non_eu_card')}
+            </button>
+            {#if bankTransferAvailable}
+                <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="switch-to-bank-transfer">
+                    {$text('settings.billing.bank_transfer')}
+                </button>
+            {/if}
+        </div>
+        -->
         {#if bankTransferAvailable}
             <div class="provider-switch-container">
                 <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="switch-to-bank-transfer">

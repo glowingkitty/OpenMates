@@ -35,9 +35,10 @@ class PaymentService:
     def __init__(self, secrets_manager: SecretsManager) -> None:
         self.secrets_manager = secrets_manager
 
-        # Polar deactivated 2026-04-23 — account rejected by Polar (risk metrics out of bounds).
-        # All card payments now route through Stripe for all regions.
         self._stripe_provider: Optional[StripeService] = StripeService(secrets_manager)
+        # POLAR DISABLED 2026-04-23 — account rejected by Polar (risk metrics out of bounds).
+        # To re-enable: uncomment the line below and remove the None assignment.
+        # self._polar_provider: Optional[PolarService] = PolarService(secrets_manager)
         self._polar_provider: Optional[PolarService] = None
         self._revolut_business: Optional[RevolutBusinessService] = RevolutBusinessService(secrets_manager)
         # Default provider_name for legacy callers (e.g. /payments/config without override)

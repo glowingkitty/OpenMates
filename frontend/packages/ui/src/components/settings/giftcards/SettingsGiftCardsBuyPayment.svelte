@@ -160,6 +160,18 @@ Supports both saved payment methods and new payment form
         }
     }
 
+    // POLAR DISABLED 2026-04-23 — re-enable when Polar account is reactivated
+    // async function switchToProvider(newProvider: 'stripe' | 'polar') {
+    //     savedMethodProviderOverride = newProvider;
+    //     showPaymentForm = false;
+    //     hasSavedPaymentMethods = false;
+    //     paymentMethods = [];
+    //     selectedPaymentMethodId = null;
+    //     detectedProvider = null;
+    //     isLoadingPaymentMethods = true;
+    //     await detectProviderAndLoadMethods();
+    // }
+
     async function checkPaymentMethods() {
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.listPaymentMethods), {
@@ -446,6 +458,14 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
+        <!-- POLAR DISABLED 2026-04-23 — uncomment when Polar account is reactivated
+        <div class="provider-switch-container">
+            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
+                {$text('signup.switch_to_non_eu_card')}
+            </button>
+        </div>
+        -->
+
     </div>
 
     {#if showAuthModal && authMethods}
@@ -594,5 +614,28 @@ Supports both saved payment methods and new payment form
             padding: 0 5px;
         }
     }
+
+    /* POLAR DISABLED 2026-04-23 — uncomment when Polar account is reactivated
+    .provider-switch-container {
+        display: flex;
+        justify-content: center;
+        margin-top: var(--spacing-6);
+    }
+
+    .provider-switch-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: var(--font-size-xs);
+        color: var(--color-grey-60);
+        cursor: pointer;
+        text-decoration: underline;
+        transition: color var(--duration-fast);
+    }
+
+    .provider-switch-btn:hover {
+        color: var(--color-grey-80);
+    }
+    */
 
 </style>
