@@ -70,6 +70,11 @@ issues:
       nullable: true
       note: "User ID of the authenticated user who reported the issue (NULL for non-authenticated reports)"
 
+    trace_ids:
+      type: json
+      nullable: true
+      note: "OTel trace IDs from the frontend WS span ring buffer (array of strings). Stored so debug.py issue --timeline can merge OTel trace spans into the log timeline."
+
     linear_issue_identifier:
       type: string
       length: 20
