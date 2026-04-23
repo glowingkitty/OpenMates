@@ -45,7 +45,7 @@ async def handle_post_processing_metadata(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("post_processing_metadata", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -71,16 +71,29 @@ async def handle_post_processing_metadata(
                 )
                 return
 
-            # Verify chat ownership
+            # Verify chat ownership.
+            # Same fallback as encrypted_chat_metadata_handler: if the cache is primed but
+            # the chat isn't there yet, the persist_encrypted_chat_metadata Celery task is
+            # still in flight. Check Directus directly before hard-rejecting.
             is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
             if not is_owner:
-                logger.warning(f"User {user_id} attempted to update post-processing metadata for chat {chat_id} they don't own. Rejecting.")
-                await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
-                    user_id,
-                    device_fingerprint_hash
-                )
-                return
+                import hashlib as _hashlib
+                existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                if existing_chat:
+                    chat_owner_hash = existing_chat.get("hashed_user_id", "")
+                    caller_hash = _hashlib.sha256(user_id.encode()).hexdigest()
+                    if chat_owner_hash != caller_hash:
+                        logger.warning(f"User {user_id} attempted to update post-processing metadata for chat {chat_id} they don't own. Rejecting.")
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                            user_id,
+                            device_fingerprint_hash
+                        )
+                        return
+                    logger.info(f"Post-processing ownership confirmed via DB fallback for chat {chat_id} (cache not yet updated by persist task)")
+                else:
+                    # Chat row not written yet — persist_encrypted_chat_metadata task still in flight.
+                    logger.info(f"Chat {chat_id} not in Directus yet (persist task in flight), allowing post_processing_metadata for user {user_id}")
 
             logger.info(f"Processing post-processing metadata for chat {chat_id} from {user_id}")
 
