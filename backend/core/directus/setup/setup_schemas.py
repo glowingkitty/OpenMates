@@ -347,12 +347,38 @@ def create_or_update_field(token, collection_name, field_name, field_config, is_
             # Note: This else block only executes when field exists and it's NOT a system collection
             existing_type, existing_db_type = check_field_type(token, collection_name, field_name)
             desired_db_type = map_type(field_config.get('type'), field_config.get('length'))
+            force_migrate = field_config.get('force_migrate', False)
             if existing_db_type and existing_db_type.lower() != desired_db_type.lower():
-                print(
-                    f"WARNING: {collection_name}.{field_name} type mismatch — "
-                    f"schema wants '{desired_db_type}' but DB has '{existing_db_type}'. "
-                    f"Run ALTER TABLE {collection_name} ALTER COLUMN {field_name} TYPE {desired_db_type}; on the DB to fix."
-                )
+                if force_migrate:
+                    # force_migrate: true in YAML → apply type change via Directus PATCH
+                    print(
+                        f"Force-migrating {collection_name}.{field_name}: "
+                        f"'{existing_db_type}' → '{desired_db_type}'"
+                    )
+                    patch_data = {
+                        "type": field_data["type"],
+                        "meta": field_data["meta"]
+                    }
+                    try:
+                        response = requests.patch(
+                            f"{CMS_URL}/fields/{collection_name}/{field_name}",
+                            json=patch_data,
+                            headers={"Authorization": f"Bearer {token}"}
+                        )
+                        if response.status_code >= 400:
+                            print(f"Failed to force-migrate field: {response.status_code}")
+                            print(f"Response body: {response.text}")
+                        else:
+                            print(f"Successfully force-migrated field {collection_name}.{field_name}")
+                    except Exception as e:
+                        print(f"Exception while force-migrating field {field_name}: {str(e)}")
+                else:
+                    print(
+                        f"WARNING: {collection_name}.{field_name} type mismatch — "
+                        f"schema wants '{desired_db_type}' but DB has '{existing_db_type}'. "
+                        f"Add 'force_migrate: true' to the field in the YAML schema to auto-apply, "
+                        f"or run: ALTER TABLE {collection_name} ALTER COLUMN {field_name} TYPE {desired_db_type};"
+                    )
             else:
                 print(f"Field {collection_name}.{field_name} already exists in custom collection. Skipping update to preserve user changes.")
         
