@@ -467,6 +467,7 @@ def create_linear_issue_for_report(
     chat_or_embed_url: Optional[str] = None,
     is_from_admin: bool = False,
     contact_email: Optional[str] = None,
+    reported_by_user_id: Optional[str] = None,
     ascii_smuggling_detected: bool = False,
 ) -> bool:
     """
@@ -499,6 +500,7 @@ def create_linear_issue_for_report(
                 chat_or_embed_url=chat_or_embed_url,
                 is_from_admin=is_from_admin,
                 contact_email=contact_email,
+                reported_by_user_id=reported_by_user_id,
                 ascii_smuggling_detected=ascii_smuggling_detected,
             )
         )
@@ -521,6 +523,7 @@ async def _async_create_linear_issue_for_report(
     chat_or_embed_url: Optional[str],
     is_from_admin: bool,
     contact_email: Optional[str],
+    reported_by_user_id: Optional[str],
     ascii_smuggling_detected: bool,
 ) -> bool:
     """
@@ -583,6 +586,11 @@ async def _async_create_linear_issue_for_report(
             parts.append("*Reported by: admin*")
         elif contact_email:
             parts.append(f"*Reported by: {contact_email}*")
+        elif reported_by_user_id:
+            # User was authenticated but email wasn't available (E2E-encrypted, decryption race, etc.)
+            parts.append("*Reported by: authenticated user*")
+            parts.append(f"User ID: `{reported_by_user_id}`")
+            parts.append(f"Look up: `docker exec api python /app/backend/scripts/debug.py user {reported_by_user_id}`")
         else:
             parts.append("*Reported by: anonymous user*")
 
