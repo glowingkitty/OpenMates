@@ -160,21 +160,6 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    /**
-     * Switch from the Stripe saved-method view to Polar (non-EU card) or back.
-     * Resets state and re-detects provider with the new override.
-     */
-    async function switchToProvider(newProvider: 'stripe' | 'polar') {
-        savedMethodProviderOverride = newProvider;
-        showPaymentForm = false;
-        hasSavedPaymentMethods = false;
-        paymentMethods = [];
-        selectedPaymentMethodId = null;
-        detectedProvider = null;
-        isLoadingPaymentMethods = true;
-        await detectProviderAndLoadMethods();
-    }
-
     async function checkPaymentMethods() {
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.listPaymentMethods), {
@@ -461,12 +446,6 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
-        <!-- Switch to Polar for non-EU cards — mirrors credits purchase flow -->
-        <div class="provider-switch-container">
-            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
-                {$text('signup.switch_to_non_eu_card')}
-            </button>
-        </div>
     </div>
 
     {#if showAuthModal && authMethods}
@@ -616,25 +595,4 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    /* Provider switch button — shown below saved-method list to switch to Polar */
-    .provider-switch-container {
-        display: flex;
-        justify-content: center;
-        margin-top: var(--spacing-6);
-    }
-
-    .provider-switch-btn {
-        background: none;
-        border: none;
-        padding: 0;
-        font-size: var(--font-size-xs);
-        color: var(--color-grey-60);
-        cursor: pointer;
-        text-decoration: underline;
-        transition: color var(--duration-fast);
-    }
-
-    .provider-switch-btn:hover {
-        color: var(--color-grey-80);
-    }
 </style>

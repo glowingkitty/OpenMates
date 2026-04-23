@@ -215,20 +215,6 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    /**
-     * Switch from the saved-method Stripe view to Polar.
-     * Resets saved-method state and re-fetches config with override.
-     */
-    async function switchToProvider(newProvider: 'stripe' | 'polar') {
-        savedMethodProviderOverride = newProvider;
-        showPaymentForm = false;
-        hasSavedPaymentMethods = false;
-        paymentMethods = [];
-        selectedPaymentMethodId = null;
-        isLoadingPaymentMethods = true;
-        await detectProviderAndLoadMethods();
-    }
-
     // Handle payment method selection
     function handlePaymentMethodToggle(paymentMethodId: string, checked: boolean) {
         if (checked) {
@@ -403,7 +389,7 @@ Supports both saved payment methods and new payment form
             credits_amount={selectedCreditsAmount}
             price={selectedPrice()}
             currency="EUR"
-            emailEncryptionKey=""
+            emailEncryptionKey={cryptoService.getEmailEncryptionKeyForApi()}
             on:paymentStateChange={handlePaymentComplete}
         />
     </div>
@@ -451,17 +437,13 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
-        <!-- Provider switch buttons -->
-        <div class="provider-switch-container">
-            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
-                {$text('signup.switch_to_non_eu_card')}
-            </button>
-            {#if bankTransferAvailable}
+        {#if bankTransferAvailable}
+            <div class="provider-switch-container">
                 <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="switch-to-bank-transfer">
                     {$text('settings.billing.bank_transfer')}
                 </button>
-            {/if}
-        </div>
+            </div>
+        {/if}
     </div>
 
     {#if showAuthModal && authMethods}
