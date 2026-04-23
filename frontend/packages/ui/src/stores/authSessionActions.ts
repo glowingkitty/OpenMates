@@ -954,6 +954,18 @@ export async function checkAuth(
             );
           }
 
+          // Clear any queued AI responses (would belong to the logged-out session)
+          try {
+            const { clearAllPendingAIResponses } =
+              await import("../services/pendingAIResponses");
+            clearAllPendingAIResponses();
+          } catch (clearError) {
+            console.warn(
+              "[AuthSessionActions] Failed to clear pending AI responses:",
+              clearError,
+            );
+          }
+
           // CRITICAL: Reset isLoggingOut flag after logout cleanup completes
           // This ensures the flag is reset even if logout was triggered by session expiration
           // Use a small delay to ensure all logout handlers have finished processing
@@ -1041,6 +1053,18 @@ export async function checkAuth(
           } catch (clearError) {
             console.warn(
               "[AuthSessionActions] Failed to clear pending chat deletions during orphaned cleanup:",
+              clearError,
+            );
+          }
+
+          // Clear any queued AI responses (would belong to the logged-out session)
+          try {
+            const { clearAllPendingAIResponses } =
+              await import("../services/pendingAIResponses");
+            clearAllPendingAIResponses();
+          } catch (clearError) {
+            console.warn(
+              "[AuthSessionActions] Failed to clear pending AI responses during orphaned cleanup:",
               clearError,
             );
           }

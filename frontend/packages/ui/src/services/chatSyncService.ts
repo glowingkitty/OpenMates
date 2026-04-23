@@ -222,6 +222,16 @@ export class ChatSynchronizationService extends EventTarget {
           );
         });
 
+        // Flush AI responses that were dropped when the WS closed mid-stream.
+        // Must run before phased sync so messages_v is incremented before the
+        // sync compares server vs local version counts.
+        this.flushPendingAIResponses().catch((error) => {
+          console.error(
+            "[ChatSyncService] Error flushing pending AI responses:",
+            error,
+          );
+        });
+
         // Flush any offline changes (drafts, etc.) that were queued during disconnect
         sendOfflineChangesImpl().catch((error) => {
           console.error(
@@ -1642,6 +1652,47 @@ export class ChatSynchronizationService extends EventTarget {
         // It will be retried on the next reconnect.
         console.warn(
           `[ChatSyncService] Failed to flush pending deletion for chat ${chatId}, will retry later:`,
+          error,
+        );
+      }
+    }
+  }
+
+  /**
+   * Replay AI responses that were queued when the WebSocket closed mid-stream.
+   * Called automatically on WebSocket reconnect, before phased sync, so the
+   * server's messages_v is incremented before version comparison happens.
+   */
+  public async flushPendingAIResponses(): Promise<void> {
+    const { getPendingAIResponses, removePendingAIResponse } =
+      await import("./pendingAIResponses");
+
+    const pending = getPendingAIResponses();
+    if (pending.length === 0) return;
+
+    console.warn(
+      `[ChatSyncService] Flushing ${pending.length} pending AI response(s) to server...`,
+    );
+
+    for (const { message_id, chat_id } of pending) {
+      try {
+        const message = await chatDB.getMessage(message_id);
+        if (!message) {
+          console.warn(
+            `[ChatSyncService] Pending AI response ${message_id} not found in IndexedDB, skipping.`,
+          );
+          removePendingAIResponse(message_id);
+          continue;
+        }
+        await this.sendCompletedAIResponse(message);
+        removePendingAIResponse(message_id);
+        console.warn(
+          `[ChatSyncService] Successfully flushed pending AI response ${message_id} for chat ${chat_id}`,
+        );
+      } catch (error) {
+        // Leave in queue — will be retried on the next reconnect.
+        console.warn(
+          `[ChatSyncService] Failed to flush pending AI response ${message_id}, will retry later:`,
           error,
         );
       }

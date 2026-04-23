@@ -1142,8 +1142,13 @@ export async function sendCompletedAIResponseImpl(
 	aiMessage: Message
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+		// Queue for replay on reconnect instead of silently dropping — a dropped
+		// ai_response_completed leaves messages_v permanently stale on the server,
+		// making the AI reply invisible even after logout+login (no version gap detected).
+		const { addPendingAIResponse } = await import("./pendingAIResponses");
+		addPendingAIResponse(aiMessage.message_id, aiMessage.chat_id);
 		console.warn(
-			"[ChatSyncService:Senders] WebSocket not connected. AI response not sent to server."
+			`[ChatSyncService:Senders] WebSocket not connected. Queued AI response ${aiMessage.message_id} for reconnect.`
 		);
 		return;
 	}
