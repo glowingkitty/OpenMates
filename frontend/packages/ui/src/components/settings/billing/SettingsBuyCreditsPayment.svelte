@@ -218,22 +218,12 @@ Supports both saved payment methods and new payment form
 
             if (response.ok) {
                 const data = await response.json();
-                const allMethods = data.payment_methods || [];
-
-                // Only EU cards can use the PaymentIntent/saved-method flow.
-                // Non-EU cards must go through Checkout Sessions (Managed Payments)
-                // so Stripe can collect and remit local VAT automatically.
-                paymentMethods = allMethods.filter((pm: { card: { country: string | null } }) =>
-                    isEuCard(pm.card?.country)
-                );
+                // Show all saved cards. Routing (EU PaymentIntent vs non-EU Checkout Session)
+                // happens in handleBuyNow() based on the selected card's country.
+                paymentMethods = data.payment_methods || [];
                 hasSavedPaymentMethods = paymentMethods.length > 0;
 
                 if (!hasSavedPaymentMethods) {
-                    // No EU cards — if the user has non-EU cards, route to Checkout Session.
-                    // If they have no cards at all, show the new-card payment form.
-                    if (allMethods.length > 0) {
-                        savedMethodProviderOverride = 'managed';
-                    }
                     showPaymentForm = true;
                 }
             } else {
