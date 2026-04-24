@@ -89,6 +89,9 @@ Supports both saved payment methods and new payment form
         created: number;
     }> = $state([]);
     let selectedPaymentMethodId: string | null = $state(null);
+    // Set to true when Buy Now was clicked for a non-EU card, so handleAuthSuccess
+    // knows to open Checkout Session instead of calling processPayment().
+    let pendingManagedPayment = $state(false);
     // Start as true so the {:else} branch (Payment.svelte) does not mount and call
     // createOrder() before onMount has had a chance to check for saved methods.
     // This prevents a premature mount that creates a stale PaymentIntent causing
@@ -271,40 +274,40 @@ Supports both saved payment methods and new payment form
             return;
         }
 
-        // Double-check card country at purchase time (guards against null country on mount).
-        // Non-EU cards must use Checkout Sessions — switch to managed flow if needed.
+        // Determine routing BEFORE auth so handleAuthSuccess knows what to do.
+        // Non-EU cards use Checkout Sessions; EU cards use PaymentIntent.
         const selectedMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId);
-        if (selectedMethod && !isEuCard(selectedMethod.card?.country)) {
-            savedMethodProviderOverride = 'managed';
-            showPaymentForm = true;
-            return;
-        }
+        pendingManagedPayment = !!(selectedMethod && !isEuCard(selectedMethod.card?.country));
 
-        // Check authentication methods
+        // Auth check applies to both EU and non-EU flows
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
                 credentials: 'include'
             });
-            
+
             if (response.ok) {
                 authMethods = await response.json();
                 showAuthModal = true;
             } else {
                 console.error('Failed to get auth methods');
-                // Proceed without auth modal (shouldn't happen, but handle gracefully)
-                await processPayment();
+                await handleAuthSuccess();
             }
         } catch (error) {
             console.error('Error getting auth methods:', error);
-            // Proceed without auth modal
-            await processPayment();
+            await handleAuthSuccess();
         }
     }
 
     // Handle authentication success
     async function handleAuthSuccess() {
         showAuthModal = false;
-        await processPayment();
+        if (pendingManagedPayment) {
+            pendingManagedPayment = false;
+            savedMethodProviderOverride = 'managed';
+            showPaymentForm = true;
+        } else {
+            await processPayment();
+        }
     }
 
     // Process payment with saved method
