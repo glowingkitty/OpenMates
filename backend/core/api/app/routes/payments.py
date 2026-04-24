@@ -3669,6 +3669,19 @@ async def process_payment_with_saved_method(
             if payment_method.customer != current_user.stripe_customer_id:
                 logger.warning(f"Payment method {payment_request.payment_method_id} does not belong to user {current_user.id}")
                 raise HTTPException(status_code=403, detail="Payment method does not belong to your account")
+            # Non-EU cards must use Checkout Sessions (Stripe Managed Payments) for
+            # automatic local VAT collection/remittance — reject here so the frontend
+            # can redirect the user to the Checkout Session flow instead.
+            card_country = payment_method.card.country if payment_method.card else None
+            if card_country and not is_eu_vat_country(card_country):
+                logger.info(
+                    f"Rejecting saved-method payment for non-EU card country={card_country} "
+                    f"user={current_user.id} — must use Checkout Session"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="non_eu_card_use_checkout"
+                )
         except stripe_lib.error.StripeError as e:
             logger.error(f"Error verifying payment method: {e.user_message}")
             raise HTTPException(status_code=400, detail="Invalid payment method")
