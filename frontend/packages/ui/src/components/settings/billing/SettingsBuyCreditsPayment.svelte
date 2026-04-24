@@ -62,6 +62,18 @@ Supports both saved payment methods and new payment form
     // SEPA-only tier auto-routes to bank transfer (cards can't process this tier)
     let isSepaOnlyTier = $derived(!!tier.bank_transfer_only);
 
+    // EU27 VAT country codes — must match backend geo_utils.EU_VAT_COUNTRY_CODES.
+    // Non-EU cards (incl. CH, NO, GB, US…) require Checkout Sessions (Managed Payments).
+    const EU_VAT_COUNTRIES = new Set([
+        "AT","BE","BG","CY","CZ","DE","DK","EE","ES","FI",
+        "FR","GR","HR","HU","IE","IT","LT","LU","LV","MT",
+        "NL","PL","PT","RO","SE","SI","SK",
+    ]);
+
+    function isEuCard(country: string | null | undefined): boolean {
+        return !!country && EU_VAT_COUNTRIES.has(country.toUpperCase());
+    }
+
     // Payment method state
     let hasSavedPaymentMethods = $state(false);
     let paymentMethods: Array<{
@@ -72,6 +84,7 @@ Supports both saved payment methods and new payment form
             last4: string;
             exp_month: number;
             exp_year: number;
+            country: string | null;
         };
         created: number;
     }> = $state([]);
@@ -202,14 +215,25 @@ Supports both saved payment methods and new payment form
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.listPaymentMethods), {
                 credentials: 'include'
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
-                paymentMethods = data.payment_methods || [];
+                const allMethods = data.payment_methods || [];
+
+                // Only EU cards can use the PaymentIntent/saved-method flow.
+                // Non-EU cards must go through Checkout Sessions (Managed Payments)
+                // so Stripe can collect and remit local VAT automatically.
+                paymentMethods = allMethods.filter((pm: { card: { country: string | null } }) =>
+                    isEuCard(pm.card?.country)
+                );
                 hasSavedPaymentMethods = paymentMethods.length > 0;
-                
-                // If no saved methods, show payment form
+
                 if (!hasSavedPaymentMethods) {
+                    // No EU cards — if the user has non-EU cards, route to Checkout Session.
+                    // If they have no cards at all, show the new-card payment form.
+                    if (allMethods.length > 0) {
+                        savedMethodProviderOverride = 'managed';
+                    }
                     showPaymentForm = true;
                 }
             } else {
@@ -254,6 +278,15 @@ Supports both saved payment methods and new payment form
     // Handle "Buy now" button
     async function handleBuyNow() {
         if (!selectedPaymentMethodId) {
+            return;
+        }
+
+        // Double-check card country at purchase time (guards against null country on mount).
+        // Non-EU cards must use Checkout Sessions — switch to managed flow if needed.
+        const selectedMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId);
+        if (selectedMethod && !isEuCard(selectedMethod.card?.country)) {
+            savedMethodProviderOverride = 'managed';
+            showPaymentForm = true;
             return;
         }
 
