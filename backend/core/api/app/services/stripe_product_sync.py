@@ -162,18 +162,18 @@ class StripeProductSync:
     async def _sync_one_time_products_optimized(self, pricing_config: Dict[str, Any], existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> Dict[str, int]:
         """
         Synchronize one-time purchase products using pre-fetched data.
-        
+
         Args:
             pricing_config: Loaded pricing configuration
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID
-            
+
         Returns:
             Dictionary with sync statistics
         """
         results = {"created": 0, "updated": 0, "errors": 0}
         pricing_tiers = pricing_config.get("pricingTiers", [])
-        
+
         for tier in pricing_tiers:
             credits = tier.get("credits")
             if not credits:
@@ -191,7 +191,7 @@ class StripeProductSync:
                 if not price:
                     logger.warning(f"No price found for {currency} in tier {credits} credits")
                     continue
-                
+
                 try:
                     result = await self._sync_one_time_product_optimized(credits, currency, price, existing_products, existing_prices)
                     if result == "created":
@@ -203,20 +203,39 @@ class StripeProductSync:
                 except Exception as e:
                     logger.error(f"Error syncing one-time product for {credits} credits in {currency}: {str(e)}")
                     results["errors"] += 1
-        
+
+                # Global products (Managed Payments — Stripe collects + remits local VAT)
+                price_global = tier.get("price_global", {}).get(currency)
+                if price_global:
+                    try:
+                        result = await self._sync_one_time_product_optimized(
+                            credits, currency, price_global, existing_products, existing_prices,
+                            name_suffix=" (global)"
+                        )
+                        if result == "created":
+                            results["created"] += 1
+                        elif result == "updated":
+                            results["updated"] += 1
+                        else:
+                            results["errors"] += 1
+                    except Exception as e:
+                        logger.error(f"Error syncing global one-time product for {credits} credits in {currency}: {str(e)}")
+                        results["errors"] += 1
+
         return results
     
-    async def _sync_one_time_product_optimized(self, credits: int, currency: str, price: float, existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> str:
+    async def _sync_one_time_product_optimized(self, credits: int, currency: str, price: float, existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]], name_suffix: str = "") -> str:
         """
         Create or update a single one-time purchase product using pre-fetched data.
-        
+
         Args:
             credits: Number of credits
             currency: Currency code (eur, usd)
             price: Price in the currency
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID
-            
+            name_suffix: Optional suffix appended to the product name (e.g. " (global)")
+
         Returns:
             "created" if new product was created, "updated" if existing product was updated, "error" if failed
         """
@@ -226,9 +245,9 @@ class StripeProductSync:
                 price_cents = int(price)
             else:
                 price_cents = int(price * 100)
-            
+
             # Create product name with European number format
-            product_name = f"{credits:,}".replace(",", ".") + " credits"
+            product_name = f"{credits:,}".replace(",", ".") + " credits" + name_suffix
             
             # Check if product already exists
             existing_product = existing_products.get(product_name)
