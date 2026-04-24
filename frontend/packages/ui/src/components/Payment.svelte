@@ -378,6 +378,18 @@
             const secret = clientSecret; // capture for the fetchClientSecret closure
             embeddedCheckoutPage = await stripe.createEmbeddedCheckoutPage({
                 fetchClientSecret: async () => secret,
+                appearance: {
+                    theme: darkmode ? 'night' : 'stripe',
+                    variables: {
+                        colorPrimary: '#635BFF',
+                        colorBackground: darkmode ? '#1a1a1a' : '#ffffff',
+                        colorText: darkmode ? '#ffffff' : '#333333',
+                        colorDanger: '#df1b41',
+                        fontFamily: 'Lexend Deca, system-ui, sans-serif',
+                        borderRadius: '12px',
+                        colorTextPlaceholder: darkmode ? '#888888' : '#aaaaaa',
+                    },
+                },
             });
             embeddedCheckoutPage.mount('#checkout');
             console.log('[Payment][ManagedPayments] Embedded Checkout Page mounted');
