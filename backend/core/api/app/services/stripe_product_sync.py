@@ -180,9 +180,8 @@ class StripeProductSync:
                 logger.warning("Skipping tier without credits")
                 continue
             
-            # Create/update product for each currency
-            # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
-            for currency in ["eur", "usd"]:
+            # EUR only: Adaptive Pricing handles other currencies automatically
+            for currency in ["eur"]:
                 price = tier.get("price", {}).get(currency)
                 if not price:
                     # bank_transfer_only tiers are EUR-only (SEPA) — no USD price is expected
@@ -443,21 +442,19 @@ class StripeProductSync:
                     extra_credits = tier.get("monthly_auto_top_up_extra_credits", 0)
                     total_credits = credits + extra_credits
                     
-                    # Create subscription config for each currency
-                    # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
-                    for currency in ["eur", "usd"]:
-                        price = tier.get("price", {}).get(currency)
-                        if price is not None:
-                            subscription_tiers.append({
-                                "credits": total_credits,
-                                "base_credits": credits,
-                                "extra_credits": extra_credits,
-                                "currency": currency,
-                                "price": price
-                            })
-        
+                    # EUR only: Adaptive Pricing handles other currencies automatically
+                    price = tier.get("price", {}).get("eur")
+                    if price is not None:
+                        subscription_tiers.append({
+                            "credits": total_credits,
+                            "base_credits": credits,
+                            "extra_credits": extra_credits,
+                            "currency": "eur",
+                            "price": price
+                        })
+
         logger.info(f"Found {len(subscription_tiers)} subscription tiers to sync")
-        
+
         for tier in subscription_tiers:
             try:
                 result = await self._sync_subscription_product_optimized(
@@ -797,18 +794,16 @@ class StripeProductSync:
                     extra_credits = tier.get("monthly_auto_top_up_extra_credits", 0)
                     total_credits = credits + extra_credits
                     
-                    # Create subscription config for each currency
-                    # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
-                    for currency in ["eur", "usd"]:
-                        price = tier.get("price", {}).get(currency)
-                        if price is not None:
-                            subscription_tiers.append({
-                                "credits": total_credits,
-                                "base_credits": credits,
-                                "extra_credits": extra_credits,
-                                "currency": currency,
-                                "price": price
-                            })
+                    # EUR only: Adaptive Pricing handles other currencies automatically
+                    price = tier.get("price", {}).get("eur")
+                    if price is not None:
+                        subscription_tiers.append({
+                            "credits": total_credits,
+                            "base_credits": credits,
+                            "extra_credits": extra_credits,
+                            "currency": "eur",
+                            "price": price
+                        })
         
         logger.info(f"Found {len(subscription_tiers)} subscription tiers to sync")
         
@@ -1263,15 +1258,14 @@ class StripeProductSync:
         # Supporter payments always go through Stripe for all users.
         # JPY removed: non-EU users pay via Polar (not Stripe), so JPY is no longer needed.
         supporter_tiers = [5, 10, 20, 50, 100, 200]
-        currencies = ["eur", "usd"]
+        currencies = ["eur"]
 
-        # Currency conversion rates (approximate)
+        # EUR only: Adaptive Pricing handles other currencies automatically
         eur_to_other = {
             "eur": 1.0,
-            "usd": 1.1,
         }
 
-        logger.info(f"Synchronizing supporter products with {len(supporter_tiers)} tiers across {len(currencies)} currencies")
+        logger.info(f"Synchronizing supporter products with {len(supporter_tiers)} tiers (EUR only, Adaptive Pricing enabled)")
 
         try:
             # Sync one-time supporter product (with all tiers and currencies as prices)
@@ -1318,7 +1312,7 @@ class StripeProductSync:
             product_description: Description of the product
             is_recurring: True for monthly subscriptions, False for one-time
             supporter_tiers: List of EUR amounts [5, 10, 20, 50, 100, 200]
-            currencies: List of currency codes ["eur", "usd"]
+            currencies: List of currency codes (EUR only; Adaptive Pricing handles the rest)
             eur_to_other: Currency conversion rates
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID
