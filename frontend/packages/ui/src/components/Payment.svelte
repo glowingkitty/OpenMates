@@ -79,24 +79,19 @@
     // State for Payment Element completeness
     let isPaymentElementComplete: boolean = $state(false);
     
-    // Dual-provider state
-    // activeProvider is set after fetching /config — either 'stripe' or 'polar'
+    // Payment mode state
+    // activeProvider: 'stripe' (always — Polar deactivated)
     let activeProvider: 'stripe' | 'polar' | null = $state(null);
-    // providerOverride is set when the user explicitly switches providers via the switch button
-    let providerOverride: 'stripe' | 'polar' | null = $state(null);
-    // Bank transfer state
+    // useManagedPayments: true = non-EU Stripe Embedded Checkout; false = EU Stripe Elements
+    let useManagedPayments = $state(false);
+    // modeOverride: 'stripe' = force EU Elements; 'managed' = force Managed Payments
+    let modeOverride: 'stripe' | 'managed' | null = $state(null);
+    // embeddedCheckoutPage: Stripe Embedded Checkout Page instance (non-EU mode)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let embeddedCheckoutPage: any = $state(null);
+    // Bank transfer state (EU only)
     let bankTransferAvailable = $state(false);
     let showBankTransfer = $state(false);
-    // isPolarLoading is true while Polar create-order is in flight before showing inline iframe
-    let isPolarLoading = $state(false);
-    // polarCheckoutUrl: when set, renders the Polar checkout as an inline iframe inside the
-    // payment panel instead of a full-screen overlay. The SDK's PolarEmbedCheckout.create()
-    // always appends a fixed-position overlay to document.body — we bypass it entirely and
-    // manage our own iframe + postMessage listener so the checkout fits inside the settings menu.
-    let polarCheckoutUrl: string | null = $state(null);
-    // polarMessageListener: reference kept so we can remove it on cleanup
-    let polarMessageListener: ((e: MessageEvent) => void) | null = $state(null);
-    
     let darkmode = $state(false);
     let userProfileUnsubscribe = userProfile.subscribe(profile => {
         darkmode = !!profile.darkmode;
@@ -125,37 +120,23 @@
         isLoading = true;
         errorMessage = null;
         try {
-            // Build config URL — append provider_override query param if the user has switched
+            // Build config URL — append mode override so the backend knows which flow the user selected
             let configUrl = getApiEndpoint(apiEndpoints.payments.config);
-            if (providerOverride) {
-                configUrl += `?provider_override=${providerOverride}`;
+            if (modeOverride) {
+                configUrl += `?provider_override=${modeOverride}`;
             }
 
-            const response = await fetch(configUrl, {
-                credentials: 'include'
-            });
+            const response = await fetch(configUrl, { credentials: 'include' });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const config = await response.json();
 
-            activeProvider = config.provider as 'stripe' | 'polar';
-            bankTransferAvailable = config.bank_transfer_available || false;
+            activeProvider = 'stripe';
+            useManagedPayments = config.use_managed_payments ?? false;
+            bankTransferAvailable = (config.bank_transfer_available || false) && !useManagedPayments;
 
-            if (config.provider === 'stripe') {
-                if (!config.public_key) throw new Error('Stripe Public Key not found in config response.');
-                stripe = await loadStripe(config.public_key);
-                await createOrder();
-            } else if (config.provider === 'polar') {
-                // Polar: auto-trigger checkout immediately on provider detection.
-                // No button click needed — the checkout iframe loads as soon as the
-                // payment panel mounts with Polar as the active provider.
-                isLoading = false;
-                isInitializing = false;
-                handlePolarCheckout();
-                return;
-            } else {
-                // Handle other providers if needed
-                errorMessage = 'Unsupported payment provider.';
-            }
+            if (!config.public_key) throw new Error('Stripe Public Key not found in config response.');
+            stripe = await loadStripe(config.public_key);
+            await createOrder();
         } catch (error) {
             errorMessage = `Failed to load payment configuration. ${error instanceof Error ? error.message : String(error)}`;
         } finally {
@@ -165,18 +146,12 @@
     }
 
     /**
-     * Switch to a different payment provider.
-     * Resets all provider-specific state and re-fetches config for the new provider.
+     * Switch between EU (regular Stripe Elements) and non-EU (Managed Payments Checkout) modes.
+     * Resets all payment state and re-fetches config for the new mode.
      */
-    async function switchProvider(newProvider: 'stripe' | 'polar') {
-        // Clean up any existing Stripe elements
-        if (paymentElement) {
-            paymentElement.destroy();
-            paymentElement = null;
-        }
-        // Clean up any active Polar inline checkout
-        teardownPolarInlineCheckout();
-        // Reset provider-specific state
+    async function switchPaymentMode(newMode: 'stripe' | 'managed') {
+        if (paymentElement) { paymentElement.destroy(); paymentElement = null; }
+        if (embeddedCheckoutPage) { embeddedCheckoutPage.destroy(); embeddedCheckoutPage = null; }
         stripe = null;
         elements = null;
         clientSecret = null;
@@ -187,144 +162,8 @@
         validationErrors = null;
         isPaymentElementComplete = false;
         isInitializing = false;
-
-        providerOverride = newProvider;
+        modeOverride = newMode;
         await fetchConfigAndInitialize();
-    }
-
-    /**
-     * Create a Polar checkout session and open the embedded checkout overlay.
-     * Called when the user clicks the "Pay with Polar" button.
-     */
-    /**
-     * Remove the Polar postMessage listener and reset inline iframe state.
-     * Called when checkout is dismissed or completed.
-     */
-    function teardownPolarInlineCheckout() {
-        if (polarMessageListener) {
-            window.removeEventListener('message', polarMessageListener);
-            polarMessageListener = null;
-        }
-        polarCheckoutUrl = null;
-    }
-
-    async function handlePolarCheckout() {
-        if (supportContribution) {
-            // Supporter contributions always use Stripe
-            return;
-        }
-        isPolarLoading = true;
-        errorMessage = null;
-        try {
-            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
-
-            let endpoint: string;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let requestBody: Record<string, any>;
-
-            if (isGiftCard) {
-                endpoint = apiEndpoints.payments.buyGiftCard;
-                requestBody = {
-                    credits_amount: credits_amount,
-                    currency: currency,
-                    email_encryption_key: emailEncryptionKey,
-                    provider: 'polar'
-                };
-            } else {
-                endpoint = apiEndpoints.payments.createOrder;
-                requestBody = {
-                    credits_amount: credits_amount,
-                    currency: currency,
-                    email_encryption_key: emailEncryptionKey,
-                    provider: 'polar'
-                };
-            }
-
-            const response = await fetch(getApiEndpoint(endpoint), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                const errorDetail = errorData.detail || '';
-                throw new Error(errorDetail || `Failed to create Polar order: ${response.status}`);
-            }
-
-            const order = await response.json();
-            lastOrderId = order.order_id;
-
-            if (!order.checkout_url) {
-                throw new Error('No checkout URL returned from Polar order.');
-            }
-
-            // Build the inline iframe URL: append embed=true + theme so Polar renders
-            // in embed mode (no redirect, postMessage events enabled).
-            // We do NOT use PolarEmbedCheckout.create() because it always appends a
-            // fixed-position full-screen overlay to document.body — which is wrong for
-            // the settings panel context. Instead we render our own <iframe> in the
-            // template and wire up the postMessage protocol manually.
-            const theme = darkmode ? 'dark' : 'light';
-            const iframeUrl = new URL(order.checkout_url);
-            iframeUrl.searchParams.set('embed', 'true');
-            iframeUrl.searchParams.set('theme', theme);
-
-            // Register postMessage listener BEFORE setting polarCheckoutUrl (before iframe mounts)
-            const POLAR_ORIGINS = ['https://polar.sh', 'https://sandbox.polar.sh'];
-            const listener = (ev: MessageEvent) => {
-                if (!POLAR_ORIGINS.includes(ev.origin)) return;
-                const data = ev.data;
-                if (!data || data.type !== 'POLAR_CHECKOUT') return;
-
-                const event = data.event as string;
-                console.log('[Payment][Polar] postMessage event:', event);
-
-                if (event === 'success') {
-                    teardownPolarInlineCheckout();
-                    // Transition to processing state — WebSocket will confirm completion
-                    paymentState = 'processing';
-                    isWaitingForConfirmation = true;
-                    dispatch('paymentStateChange', { state: paymentState, provider: 'polar' });
-
-                    // 30-second fallback timeout in case WebSocket confirmation is delayed
-                    paymentConfirmationTimeoutId = setTimeout(() => {
-                        if (isWaitingForConfirmation) {
-                            console.log('[Payment][Polar] Confirmation timeout after 30s — showing delayed message');
-                            showDelayedMessage = true;
-                            setTimeout(() => {
-                                if (isWaitingForConfirmation) {
-                                    paymentState = 'success';
-                                    isWaitingForConfirmation = false;
-                                    dispatch('paymentStateChange', {
-                                        state: paymentState,
-                                        payment_intent_id: lastOrderId,
-                                        provider: 'polar',
-                                        isDelayed: true
-                                    });
-                                }
-                            }, 2000);
-                        }
-                    }, 30000);
-                } else if (event === 'close') {
-                    // User closed the checkout without completing — go back to button
-                    teardownPolarInlineCheckout();
-                }
-            };
-            polarMessageListener = listener;
-            window.addEventListener('message', listener);
-
-            // Setting polarCheckoutUrl causes the template to replace the button with the iframe
-            polarCheckoutUrl = iframeUrl.toString();
-            console.log('[Payment][Polar] Inline iframe URL set:', polarCheckoutUrl);
-
-        } catch (error) {
-            errorMessage = `Failed to start Polar checkout. ${error instanceof Error ? error.message : String(error)}`;
-            console.error('[Payment][Polar] Error starting checkout:', error);
-        } finally {
-            isPolarLoading = false;
-        }
     }
 
     async function createOrder() {
@@ -368,15 +207,24 @@
                 };
             } else {
                 // Regular credit purchase
+                // Build return_url so Stripe can redirect back after Embedded Checkout
+                const returnUrl = new URL(window.location.href);
+                returnUrl.searchParams.delete('payment_intent');
+                returnUrl.searchParams.delete('payment_intent_client_secret');
+                returnUrl.searchParams.delete('redirect_status');
+                returnUrl.searchParams.delete('redirect_pm_type');
+                returnUrl.searchParams.delete('session_id');
+
                 endpoint = apiEndpoints.payments.createOrder;
                 requestBody = {
                     credits_amount: credits_amount,
                     currency: currency,
-                    email_encryption_key: emailEncryptionKey
+                    email_encryption_key: emailEncryptionKey,
+                    return_url: returnUrl.toString(),
                 };
-                // Include provider override if the user explicitly switched
-                if (providerOverride) {
-                    requestBody.provider = providerOverride;
+                // Pass mode override so backend routes EU vs non-EU correctly
+                if (modeOverride) {
+                    requestBody.provider = modeOverride;
                 }
             }
 
@@ -398,23 +246,26 @@
                 }
             }
             const order = await response.json();
-            if (order.provider === 'stripe') {
-                if (order.hosted_invoice_url) hostedInvoiceUrl = order.hosted_invoice_url;
+            lastOrderId = order.order_id;
+            if (order.hosted_invoice_url) hostedInvoiceUrl = order.hosted_invoice_url;
 
-                if (!order.client_secret) {
-                    if (supportContribution && isRecurring && hostedInvoiceUrl) {
-                        errorMessage =
-                            'We could not initialize the embedded payment form. Continue on Stripe to complete your monthly support payment.';
-                        // No Stripe Elements initialization without a client_secret.
-                        lastOrderId = order.order_id;
-                        return;
-                    }
-                    throw new Error('Order created, but client_secret is missing.');
+            if (!order.client_secret) {
+                if (supportContribution && isRecurring && hostedInvoiceUrl) {
+                    errorMessage =
+                        'We could not initialize the embedded payment form. Continue on Stripe to complete your monthly support payment.';
+                    return;
                 }
-                clientSecret = order.client_secret;
+                throw new Error('Order created, but client_secret is missing.');
+            }
+            clientSecret = order.client_secret;
+
+            if (order.use_checkout) {
+                // Non-EU: Stripe Managed Payments — mount Embedded Checkout Page
+                await mountEmbeddedCheckout();
+            } else {
+                // EU: regular Stripe Elements (PaymentIntent flow)
                 initializePaymentElement();
             }
-            lastOrderId = order.order_id;
         } catch (error) {
             errorMessage = `Failed to create payment order. ${error instanceof Error ? error.message : String(error)}`;
         } finally {
@@ -513,6 +364,30 @@
     }
 
     /**
+     * Mount Stripe Embedded Checkout Page (Managed Payments, non-EU flow).
+     * Uses stripe.createEmbeddedCheckoutPage() which requires a client_secret
+     * from a Checkout Session created with ui_mode: "embedded_page".
+     * After the user completes checkout, Stripe redirects to return_url with
+     * ?session_id=cs_xxx appended — handlePaymentRedirectReturn() picks that up.
+     */
+    async function mountEmbeddedCheckout() {
+        if (!stripe || !clientSecret) return;
+        if (embeddedCheckoutPage) { embeddedCheckoutPage.destroy(); embeddedCheckoutPage = null; }
+
+        try {
+            const secret = clientSecret; // capture for the fetchClientSecret closure
+            embeddedCheckoutPage = await stripe.createEmbeddedCheckoutPage({
+                fetchClientSecret: async () => secret,
+            });
+            embeddedCheckoutPage.mount('#checkout');
+            console.log('[Payment][ManagedPayments] Embedded Checkout Page mounted');
+        } catch (err) {
+            errorMessage = `Failed to load payment form. ${err instanceof Error ? err.message : String(err)}`;
+            console.error('[Payment][ManagedPayments] Failed to mount Embedded Checkout:', err);
+        }
+    }
+
+    /**
      * Save payment method to backend after successful payment.
      * This ensures the payment method is attached to the Stripe customer
      * and available for future purchases and subscriptions.
@@ -570,6 +445,38 @@
         const redirectPaymentIntent = urlParams.get('payment_intent');
         const redirectClientSecret = urlParams.get('payment_intent_client_secret');
         const redirectStatus = urlParams.get('redirect_status');
+        const checkoutSessionId = urlParams.get('session_id'); // non-EU Managed Payments redirect
+
+        // Non-EU: Stripe Embedded Checkout redirects back with ?session_id=cs_xxx
+        if (checkoutSessionId && checkoutSessionId.startsWith('cs_')) {
+            console.log(`[Payment][ManagedPayments] Detected Checkout Session redirect return: ${checkoutSessionId.slice(0, 8)}***`);
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('session_id');
+            window.history.replaceState({}, '', cleanUrl.toString());
+            // Transition to processing — the webhook will grant credits and fire payment_completed
+            paymentState = 'processing';
+            isWaitingForConfirmation = true;
+            dispatch('paymentStateChange', { state: 'processing', provider: 'stripe' });
+            // 60-second fallback in case WebSocket confirmation is delayed
+            paymentConfirmationTimeoutId = setTimeout(() => {
+                if (isWaitingForConfirmation) {
+                    showDelayedMessage = true;
+                    setTimeout(() => {
+                        if (isWaitingForConfirmation) {
+                            paymentState = 'success';
+                            isWaitingForConfirmation = false;
+                            dispatch('paymentStateChange', {
+                                state: 'success',
+                                payment_intent_id: checkoutSessionId,
+                                provider: 'stripe',
+                                isDelayed: true,
+                            });
+                        }
+                    }, 2000);
+                }
+            }, 60000);
+            return true;
+        }
 
         if (!redirectPaymentIntent || !redirectClientSecret) {
             return false; // Not a redirect return
@@ -1019,7 +926,7 @@
             // Normal initialization (no redirect return detected)
             if (initialState === 'idle') {
                 if (initialProviderOverride) {
-                    providerOverride = initialProviderOverride;
+                    modeOverride = initialProviderOverride;
                 }
                 fetchConfigAndInitialize();
             }
@@ -1047,10 +954,8 @@
             if (userProfileUnsubscribe) {
                 userProfileUnsubscribe();
             }
-            // Clean up Stripe elements on component destroy
             if (paymentElement) paymentElement.destroy();
-            // Clean up Polar inline iframe postMessage listener if active
-            teardownPolarInlineCheckout();
+            if (embeddedCheckoutPage) embeddedCheckoutPage.destroy();
             // Clean up timeout
             if (paymentConfirmationTimeoutId) {
                 clearTimeout(paymentConfirmationTimeoutId);
@@ -1093,59 +998,31 @@
                 on:paymentStateChange={(e) => dispatch('paymentStateChange', e.detail)}
             />
         </div>
-    {:else if activeProvider === 'polar' && !supportContribution}
-        <!-- Polar embedded checkout (inline iframe, no full-screen overlay).
-             We bypass PolarEmbedCheckout.create() entirely because it always appends a
-             fixed-position overlay to document.body. Instead we render our own <iframe>
-             directly in the settings panel. The checkout is auto-triggered on mount —
-             no button click required. States:
-             1. isPolarLoading → loading spinner while create-order is in flight
-             2. polarCheckoutUrl is set → inline iframe fills the panel
-             3. errorMessage (URL null, not loading) → retry button shown -->
-        <div class="polar-checkout-wrapper">
-            <!-- Switch to EU / Stripe — always visible above the Polar form -->
+    {:else if useManagedPayments && !supportContribution}
+        <!-- Non-EU: Stripe Managed Payments via Embedded Checkout Page.
+             Stripe renders the full checkout form (card, saved methods, tax) inside
+             an iframe. After completion, Stripe redirects to return_url with ?session_id=.
+             Switch button lets the user assert they have an EU card instead. -->
+        <div class="managed-checkout-wrapper">
             <div class="provider-switch-container">
                 <button
                     class="provider-switch-btn"
                     data-testid="switch-to-stripe"
-                    onclick={() => switchProvider('stripe')}
+                    onclick={() => switchPaymentMode('stripe')}
                 >
                     {$text('signup.switch_to_eu_card')}
                 </button>
             </div>
-            {#if polarCheckoutUrl}
-                <!-- Inline Polar checkout iframe — full width, no border, tall enough
-                     to show all fields without internal scroll. Settings menu scrolls. -->
-                <div class="polar-inline-checkout-container">
-                    <iframe
-                        class="polar-inline-checkout-iframe"
-                        src={polarCheckoutUrl}
-                        title="Polar Checkout"
-                        allow="payment 'self' https://polar.sh https://sandbox.polar.sh; publickey-credentials-get 'self' https://polar.sh https://sandbox.polar.sh"
-                    ></iframe>
-                </div>
-            {:else if isPolarLoading || isLoading}
-                <!-- Loading state while create-order is in flight -->
+            {#if isLoading}
                 <div class="polar-loading-state">
                     <div class="polar-loading-spinner"></div>
                     <span>{$text('common.loading')}</span>
                 </div>
-            {:else}
-                <!-- Error / retry state — shown if auto-trigger failed -->
-                {#if errorMessage}
-                    <div class="polar-error-message" role="alert">{errorMessage}</div>
-                {/if}
-
-                <button
-                    class="buy-button polar-pay-button"
-                    data-testid="polar-pay-button"
-                    onclick={handlePolarCheckout}
-                >
-                    {$text('signup.buy_for')
-                        .replace('{currency}', currency)
-                        .replace('{amount}', (purchasePrice / 100).toString())}
-                </button>
+            {:else if errorMessage}
+                <div class="polar-error-message" role="alert">{errorMessage}</div>
             {/if}
+            <!-- Stripe mounts the Embedded Checkout Page into this div -->
+            <div id="checkout"></div>
             {#if requireConsent && !hasConsentedToLimitedRefund}
                 <div class="consent-overlay" transition:fade>
                     <LimitedRefundConsent
@@ -1161,12 +1038,12 @@
     {:else}
         {#if hostedInvoiceUrl}
             <div class="payment-form-overlay-wrapper">
-                <!-- Switch to Polar (non-EU card) — shown at top so it's visible on mobile without scrolling -->
+                <!-- Switch to Managed Payments (non-EU card) — shown at top so it's visible on mobile without scrolling -->
                 {#if !supportContribution}
                     <div class="provider-switch-container">
                         <button
                             class="provider-switch-btn"
-                            onclick={() => switchProvider('polar')}
+                            onclick={() => switchPaymentMode('managed')}
                             disabled={isLoading}
                         >
                             {$text('signup.switch_to_non_eu_card')}
@@ -1217,12 +1094,12 @@
             </div>
         {:else}
         <div class="payment-form-overlay-wrapper">
-            <!-- Switch to Polar (non-EU card) or Bank Transfer — shown at top so it's visible on mobile without scrolling -->
+            <!-- Switch to Managed Payments (non-EU card) or Bank Transfer — shown at top so it's visible on mobile without scrolling -->
             {#if !supportContribution}
                 <div class="provider-switch-container">
                     <button
                         class="provider-switch-btn"
-                        onclick={() => switchProvider('polar')}
+                        onclick={() => switchPaymentMode('managed')}
                         disabled={isLoading}
                     >
                         {$text('signup.switch_to_non_eu_card')}
@@ -1342,69 +1219,4 @@
         cursor: not-allowed;
     }
 
-    /* Polar checkout wrapper — full width, no extra padding */
-    .polar-checkout-wrapper {
-        position: relative;
-        width: 100%;
-    }
-
-    /* Polar pay button — shown only as retry fallback when auto-trigger fails */
-    .polar-pay-button {
-        width: 100%;
-        margin-top: var(--spacing-10);
-    }
-
-    /* Polar loading state — centered spinner shown while create-order is in flight */
-    .polar-loading-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--spacing-6);
-        padding: 40px 0;
-        color: var(--color-grey-60);
-        font-size: var(--font-size-small);
-    }
-
-    .polar-loading-spinner {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        border: 2px solid var(--color-grey-20);
-        border-top-color: var(--color-primary);
-        animation: polar-spin 0.8s linear infinite;
-    }
-
-    @keyframes polar-spin {
-        to { transform: rotate(360deg); }
-    }
-
-    /* Inline Polar checkout iframe container — no border/radius, flush with panel.
-       The settings menu scrolls; the iframe itself should not scroll internally.
-        Height 1800px to fit all Polar form fields without internal scroll. */
-    .polar-inline-checkout-container {
-        width: 100%;
-    }
-
-    .polar-inline-checkout-iframe {
-        width: 100%;
-        /* 1800px to cover all Polar form fields (email, card type, card
-           number, expiry, CVC, cardholder name, billing address, submit button)
-           without internal scrollbar. Settings menu panel handles page scrolling. */
-        height: 1800px;
-        border: none;
-        display: block;
-        background: transparent;
-    }
-
-    /* Error message for Polar checkout failures */
-    .polar-error-message {
-        background-color: var(--color-error-bg, #fee);
-        color: var(--color-error-text, #c00);
-        padding: var(--spacing-6) var(--spacing-8);
-        border-radius: var(--radius-3);
-        margin-bottom: var(--spacing-8);
-        font-size: var(--font-size-small);
-        line-height: 1.5;
-        border: 1px solid var(--color-error-border, #fcc);
-    }
 </style>

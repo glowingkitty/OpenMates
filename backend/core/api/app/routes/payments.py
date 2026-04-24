@@ -26,7 +26,7 @@ from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.utils.device_fingerprint import _extract_client_ip, get_geo_data_from_ip
-from backend.core.api.app.utils.geo_utils import is_eu_stripe_country
+from backend.core.api.app.utils.geo_utils import is_eu_stripe_country, is_eu_vat_country
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_compliance_service
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
@@ -79,6 +79,16 @@ class PaymentConfigResponse(BaseModel):
     public_key: str
     environment: str
     bank_transfer_available: bool = False
+    # True = user is in EU27 → regular Stripe (PaymentIntents, no VAT)
+    # False = non-EU → Stripe Managed Payments (Checkout Session, VAT included)
+    is_eu: bool = True
+    use_managed_payments: bool = False
+
+# EU VAT OSS safety threshold — block EU payments once crossed to avoid
+# accidental VAT liability. 9,900 EUR triggers the block (10k is the hard limit).
+EU_REVENUE_THRESHOLD_EUR_CENTS = 990_000
+EU_REVENUE_CACHE_KEY = "stripe_eu_revenue_eur_cents_ytd"
+EU_REVENUE_CACHE_TTL = 3600  # refresh from Stripe every hour
 
 class CreateOrderRequest(BaseModel):
     currency: str
@@ -86,6 +96,8 @@ class CreateOrderRequest(BaseModel):
     email_encryption_key: Optional[str] = None
     # Optional explicit provider override ("stripe" or "polar")
     provider: Optional[str] = None
+    # Required for Stripe Embedded Checkout — the page Stripe redirects to after payment
+    return_url: Optional[str] = None
 
 class CreateSupportOrderRequest(BaseModel):
     currency: str
@@ -96,12 +108,15 @@ class CreateSupportOrderRequest(BaseModel):
 
 class CreateOrderResponse(BaseModel):
     provider: str
-    client_secret: Optional[str] = None  # For Stripe / Polar embedded checkout
+    client_secret: Optional[str] = None  # For Stripe embedded checkout / Polar
     order_id: str
     checkout_url: Optional[str] = None  # For Polar embedded checkout iframe URL
     customer_portal_url: Optional[str] = None  # For Stripe supporter subscriptions
     hosted_invoice_url: Optional[str] = None  # For Stripe supporter subscriptions fallback
     invoice_pdf: Optional[str] = None  # For Stripe supporter subscriptions fallback
+    # True = non-EU order — frontend should mount Stripe Embedded Checkout (Managed Payments)
+    # False = EU order — frontend should use existing Stripe Elements (PaymentIntent)
+    use_checkout: bool = False
 
 class OrderStatusRequest(BaseModel):
     order_id: str
@@ -118,12 +133,17 @@ class CreateSubscriptionRequest(BaseModel):
     credits_amount: int
     currency: str
     billing_day_preference: Optional[str] = 'anniversary'  # 'anniversary' or 'first_of_month'
+    # Required for Stripe Embedded Checkout — the page Stripe redirects to after checkout
+    return_url: Optional[str] = None
 
 class CreateSubscriptionResponse(BaseModel):
-    subscription_id: str
-    status: str
-    next_billing_date: str
-    client_secret: Optional[str] = None  # Required when status is 'incomplete' for payment confirmation
+    # Checkout Session fields (Managed Payments flow)
+    order_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    # Legacy fields kept for any older clients still reading them
+    subscription_id: Optional[str] = None
+    status: Optional[str] = None
+    next_billing_date: Optional[str] = None
 
 class RedeemGiftCardRequest(BaseModel):
     code: str
@@ -358,47 +378,59 @@ async def get_payment_config(
     Provides the public payment configuration for the frontend payment widget.
 
     Provider selection:
-    - Detects user region from IP. EU/EEA/CH/GB → Stripe, all others → Polar.
-    - provider_override query param lets the frontend switch providers explicitly (for the switch button).
+    - EU27 users → regular Stripe (PaymentIntents + Elements, no VAT collected).
+    - Non-EU users (incl. CH, NO, GB, US…) → Stripe Managed Payments
+      (Checkout Sessions, Stripe collects + remits local VAT automatically).
+    - provider_override query param lets the frontend switch modes explicitly
+      (for the "Pay with EU/non-EU card" switch buttons).
     """
     try:
         environment = "production" if is_production() else "sandbox"
 
-        # --- Detect region from IP ---
+        # Detect region from IP using strict EU27 check
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-        is_eu = True  # Default to EU (Stripe) for safety if detection fails
+        is_eu = True  # Default to EU for safety (development / unknown IPs)
+        country_code = ""
         try:
             geo_data = get_geo_data_from_ip(client_ip)
             country_code = geo_data.get("country_code", "")
-            is_eu = is_eu_stripe_country(country_code)
+            is_eu = is_eu_vat_country(country_code)
             logger.debug(f"Payment config: IP={client_ip}, country={country_code}, is_eu={is_eu}")
         except Exception as geo_err:
-            logger.warning(f"Failed to detect region for payment config (IP={client_ip}): {geo_err}. Defaulting to EU (Stripe).")
+            logger.warning(
+                f"Failed to detect region for payment config (IP={client_ip}): {geo_err}. "
+                "Defaulting to EU (regular Stripe)."
+            )
 
-        # Select provider (override takes precedence over region detection)
-        provider_name, _ = payment_service.get_provider(is_eu=is_eu, provider_override=provider_override)
+        # provider_override="stripe" forces EU mode; "managed" forces global mode
+        if provider_override == "managed":
+            is_eu = False
+        elif provider_override == "stripe":
+            is_eu = True
 
-        public_key = ""
-        if provider_name == "stripe":
-            secret_key_name = f"{environment}_public_key"
-            secret_path = "kv/data/providers/stripe"
-            public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
-            if not public_key:
-                logger.error(f"Stripe public key '{secret_key_name}' not found in Vault.")
-                raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
-        elif provider_name == "polar":
-            # Polar does not require a client-side public key (embedded checkout uses a URL/client_secret)
-            public_key = ""
-        else:
-            raise HTTPException(status_code=503, detail="Payment provider not configured.")
+        use_managed_payments = not is_eu
 
-        bank_transfer_available = payment_service.is_bank_transfer_available
-        logger.info(f"Payment config: provider={provider_name}, environment={environment}, is_eu={is_eu}, bank_transfer={bank_transfer_available}")
+        # Stripe public key is required for both modes (same Stripe account)
+        secret_key_name = f"{environment}_public_key"
+        secret_path = "kv/data/providers/stripe"
+        public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
+        if not public_key:
+            logger.error(f"Stripe public key '{secret_key_name}' not found in Vault.")
+            raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
+
+        bank_transfer_available = payment_service.is_bank_transfer_available and is_eu
+        logger.info(
+            f"Payment config: country={country_code}, is_eu={is_eu}, "
+            f"use_managed_payments={use_managed_payments}, environment={environment}, "
+            f"bank_transfer={bank_transfer_available}"
+        )
         return PaymentConfigResponse(
-            provider=provider_name,
+            provider="stripe",
             public_key=public_key,
             environment=environment,
             bank_transfer_available=bank_transfer_available,
+            is_eu=is_eu,
+            use_managed_payments=use_managed_payments,
         )
 
     except HTTPException:
@@ -617,20 +649,53 @@ async def create_payment_order(
     directus_service: DirectusService = Depends(get_directus_service),
     tier_service: PaymentTierService = Depends(get_payment_tier_service)
 ):
-    # Detect user region for provider selection
+    # Detect user region — EU27 → regular Stripe; non-EU → Managed Payments
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-    is_eu = True  # Default to EU (Stripe) if detection fails
+    is_eu = True  # Default to EU for safety (dev / unknown IPs)
     try:
         geo_data = get_geo_data_from_ip(client_ip)
         country_code = geo_data.get("country_code", "")
-        is_eu = is_eu_stripe_country(country_code)
+        is_eu = is_eu_vat_country(country_code)
     except Exception as geo_err:
-        logger.warning(f"Failed to detect region for order creation (IP={client_ip}): {geo_err}. Defaulting to EU (Stripe).")
+        logger.warning(f"Failed to detect region for order creation (IP={client_ip}): {geo_err}. Defaulting to EU.")
 
-    # Resolve the active provider (override from request body takes highest priority)
-    provider_name, _ = payment_service.get_provider(is_eu=is_eu, provider_override=order_data.provider)
+    # provider_override="stripe" forces EU mode; "managed" forces global mode
+    if order_data.provider == "managed":
+        is_eu = False
+    elif order_data.provider == "stripe":
+        is_eu = True
 
-    logger.info(f"Received request to create payment order for user {current_user.id} - Provider: {provider_name}, Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
+    use_managed_payments = not is_eu
+    provider_name = "stripe"  # Always Stripe; mode differs by is_eu flag
+
+    # EU threshold guard: block EU payments if YTD EUR revenue >= 9,900 EUR
+    if is_eu:
+        try:
+            cached_revenue = await cache_service.get(EU_REVENUE_CACHE_KEY)
+            if cached_revenue is None:
+                cached_revenue = await payment_service.provider.get_total_stripe_revenue_eur_cents()
+                await cache_service.set(EU_REVENUE_CACHE_KEY, cached_revenue, ttl=EU_REVENUE_CACHE_TTL)
+            if cached_revenue >= EU_REVENUE_THRESHOLD_EUR_CENTS:
+                logger.warning(
+                    f"EU payment blocked for user {current_user.id}: "
+                    f"YTD revenue EUR {cached_revenue / 100:.2f} >= threshold "
+                    f"EUR {EU_REVENUE_THRESHOLD_EUR_CENTS / 100:.2f}"
+                )
+                raise HTTPException(
+                    status_code=402,
+                    detail="eu_payment_threshold_exceeded",
+                )
+        except HTTPException:
+            raise
+        except Exception as threshold_err:
+            logger.error(f"Error checking EU revenue threshold: {threshold_err}", exc_info=True)
+            # Non-fatal: proceed rather than block payments on a monitoring error
+
+    logger.info(
+        f"Creating payment order for user {current_user.id} — "
+        f"is_eu={is_eu}, use_managed_payments={use_managed_payments}, "
+        f"currency={order_data.currency}, credits={order_data.credits_amount}"
+    )
 
     calculated_amount = get_price_for_credits(order_data.credits_amount, order_data.currency)
     if calculated_amount is None:
@@ -700,10 +765,11 @@ async def create_payment_order(
             currency=order_data.currency,
             email=decrypted_email,
             credits_amount=order_data.credits_amount,
-            customer_id=stripe_customer_id,  # Pass existing customer ID if available
-            provider_override=order_data.provider,
+            customer_id=stripe_customer_id,
             is_eu=is_eu,
             embed_origin=embed_origin,
+            return_url=order_data.return_url,
+            use_global_pricing=use_managed_payments,
         )
         
         # CRITICAL: Always save the customer_id if user doesn't have one in their profile
@@ -744,17 +810,16 @@ async def create_payment_order(
             logger.error(f"Order response from {payment_service.provider_name} missing 'id' for user {current_user.id}.")
             raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
 
-        # Cache the order - CRITICAL: Check if cache write succeeded
-        # If cache write fails, webhook processing will fail because order won't be found
+        # Cache the order — CRITICAL: webhook processing depends on finding this
         cache_success = await cache_service.set_order(
             order_id=order_id,
             user_id=current_user.id,
             credits_amount=order_data.credits_amount,
             status="created",
-            ttl=3600,  # 1 hour TTL (increased from 5 minutes to handle webhook delays/retries)
-            email_encryption_key=order_data.email_encryption_key,  # Store the email encryption key
-            currency=order_data.currency,  # Store currency for tier system updates
-            provider=provider_name,  # Store the resolved provider for invoice task routing
+            ttl=86400 if use_managed_payments else 3600,
+            email_encryption_key=order_data.email_encryption_key,
+            currency=order_data.currency,
+            provider=provider_name,
         )
         
         if not cache_success:
@@ -765,8 +830,9 @@ async def create_payment_order(
         response_data = {
             "provider": provider_name,
             "order_id": order_id,
-            "client_secret": order_response.get("client_secret"),  # For Stripe / Polar embedded checkout
-            "checkout_url": order_response.get("checkout_url"),  # For Polar embedded checkout iframe
+            "client_secret": order_response.get("client_secret"),
+            "checkout_url": order_response.get("checkout_url"),
+            "use_checkout": use_managed_payments,
         }
 
         return CreateOrderResponse(**response_data)
@@ -1347,12 +1413,9 @@ async def payment_webhook(
             # For Stripe, the PaymentIntent ID is in event.data.object.id
             if event_type.startswith("payment_intent."):
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("id")
-            elif event_type == "checkout.session.completed":
-                # If using Checkout Sessions, the PaymentIntent ID is linked
-                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
-            elif event_type == "checkout.session.async_payment_failed":
-                # For async payment failures, get PaymentIntent ID from checkout session
-                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
+            elif event_type in ("checkout.session.completed", "checkout.session.async_payment_failed"):
+                # Checkout Sessions are cached by session.id (cs_xxx), not by payment_intent
+                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("id")
             elif event_type == "charge.refunded":
                 # charge.refunded: data.object is a Charge, payment_intent is our order_id
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
@@ -1418,9 +1481,23 @@ async def payment_webhook(
             and event_type == "checkout.updated"
             and (event_payload.get("data") or {}).get("status") == "succeeded"
         )
+        _checkout_session_obj = (event_payload.get("data", {}) or {}).get("object", {}) or {}
+        # Checkout Session completed with a paid one-time payment (Managed Payments credit purchase)
+        is_stripe_checkout_payment_success = (
+            provider_name == "stripe"
+            and event_type == "checkout.session.completed"
+            and _checkout_session_obj.get("mode") == "payment"
+            and _checkout_session_obj.get("payment_status") == "paid"
+        )
+        # Checkout Session completed for a subscription setup — save sub details, credits via invoice event
+        is_stripe_checkout_subscription = (
+            provider_name == "stripe"
+            and event_type == "checkout.session.completed"
+            and _checkout_session_obj.get("mode") == "subscription"
+        )
 
         if (provider_name == "stripe" and event_type == "payment_intent.succeeded") or \
-           is_polar_success:
+           is_polar_success or is_stripe_checkout_payment_success:
 
             # Supporter contributions (one-time or first subscription payment)
             # are handled separately from credit purchases and DO trigger email/receipt generation.
@@ -2033,6 +2110,100 @@ async def payment_webhook(
                     except Exception as cache_err:
                         logger.warning(f"Failed to invalidate require_invite_code cache: {cache_err}")
                         # Non-critical - cache will refresh on next check or expire after 48 hours
+
+        elif is_stripe_checkout_subscription:
+            # Checkout Session completed for a subscription — save subscription metadata to Directus.
+            # Credits are NOT granted here; invoice.payment_succeeded handles that for first + renewal payments.
+            session_id = _checkout_session_obj.get("id")
+            subscription_id = _checkout_session_obj.get("subscription")
+            session_metadata = _checkout_session_obj.get("metadata") or {}
+            session_customer_id = _checkout_session_obj.get("customer")
+
+            if not subscription_id:
+                logger.warning(f"checkout.session.completed subscription mode but no subscription_id in session {session_id[:8]}***" if session_id else "checkout.session.completed subscription mode but no subscription_id (no session_id)")
+                return {"status": "no_subscription_id"}
+
+            # Resolve user from cache (set during create-subscription route) or metadata
+            cached_sub_order = await cache_service.get_order(session_id) if session_id else None
+            sub_user_id = (cached_sub_order or {}).get("user_id") or session_metadata.get("user_id")
+            sub_credits = int((cached_sub_order or {}).get("credits_amount") or session_metadata.get("credits_amount") or 0)
+            sub_bonus = int((cached_sub_order or {}).get("bonus_credits") or session_metadata.get("bonus_credits") or 0)
+            sub_currency = ((cached_sub_order or {}).get("currency") or session_metadata.get("currency") or "eur").lower()
+            sub_billing_pref = (cached_sub_order or {}).get("billing_day_preference") or session_metadata.get("billing_day_preference") or "anniversary"
+
+            if not sub_user_id:
+                logger.error(f"Cannot save subscription {subscription_id}: no user_id in cache or metadata for session {session_id[:8]}***" if session_id else f"Cannot save subscription {subscription_id}: no user_id (no session_id)")
+                return {"status": "user_not_found"}
+
+            # Estimate next billing date from the Stripe subscription's current_period_end
+            next_billing_date_str = None
+            try:
+                import stripe as _stripe_mod
+                stripe_sub = _stripe_mod.Subscription.retrieve(subscription_id)
+                current_period_end = stripe_sub.get("current_period_end")
+                if current_period_end:
+                    next_billing_date_str = datetime.fromtimestamp(current_period_end, tz=timezone.utc).isoformat()
+            except Exception as sub_fetch_err:
+                logger.warning(f"Could not fetch subscription period end for {subscription_id}: {sub_fetch_err}")
+
+            # Save subscription details to Directus
+            sub_update_payload = {
+                "stripe_subscription_id": subscription_id,
+                "subscription_status": "active",
+                "subscription_credits": sub_credits,
+                "subscription_currency": sub_currency,
+                "subscription_billing_day_preference": sub_billing_pref,
+            }
+            if next_billing_date_str:
+                sub_update_payload["next_billing_date"] = next_billing_date_str
+            if session_customer_id:
+                sub_update_payload["stripe_customer_id"] = session_customer_id
+
+            sub_directus_ok = await directus_service.update_user(sub_user_id, sub_update_payload)
+            if sub_directus_ok:
+                logger.info(f"Saved subscription {subscription_id} for user {sub_user_id} ({sub_credits} credits, {sub_currency})")
+            else:
+                logger.error(f"Failed to save subscription {subscription_id} to Directus for user {sub_user_id}")
+
+            # Update cache
+            sub_user_cache = await cache_service.get_user_by_id(sub_user_id)
+            if sub_user_cache:
+                sub_user_cache["stripe_subscription_id"] = subscription_id
+                sub_user_cache["subscription_status"] = "active"
+                sub_user_cache["subscription_credits"] = sub_credits
+                sub_user_cache["subscription_currency"] = sub_currency
+                await cache_service.set_user(sub_user_cache, user_id=sub_user_id)
+
+            # Mark order as completed in cache
+            if session_id:
+                await cache_service.update_order_status(session_id, "completed")
+
+            # Notify the frontend so the UI can update without a page reload
+            try:
+                sub_payload = {
+                    "subscription_id": subscription_id,
+                    "credits_amount": sub_credits,
+                    "bonus_credits": sub_bonus,
+                    "currency": sub_currency,
+                    "next_billing_date": next_billing_date_str,
+                    "billing_day_preference": sub_billing_pref,
+                }
+                await cache_service.publish_event(
+                    channel=f"user_updates::{sub_user_id}",
+                    event_data={
+                        "event_for_client": "subscription_created",
+                        "user_id_uuid": sub_user_id,
+                        "payload": sub_payload,
+                    }
+                )
+                await manager.broadcast_to_user_specific_event(
+                    user_id=sub_user_id,
+                    event_name="subscription_created",
+                    payload=sub_payload,
+                )
+                logger.info(f"Published subscription_created event for user {sub_user_id}")
+            except Exception as pub_exc:
+                logger.error(f"Failed to publish subscription_created event for user {sub_user_id}: {pub_exc}", exc_info=True)
 
         elif (provider_name == "stripe" and event_type == "payment_intent.payment_failed") or \
              (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed") or \
@@ -3151,194 +3322,94 @@ async def create_subscription(
     cache_service: CacheService = Depends(get_cache_service)
 ):
     """
-    Create a monthly subscription for auto top-up.
-    Requires the user to have a saved payment method from a previous successful payment.
+    Create a monthly subscription for auto top-up via Stripe Embedded Checkout (Managed Payments).
+    Returns a Checkout Session client_secret — the frontend mounts the embedded form.
+    Stripe creates the subscription automatically when checkout completes.
+    The webhook (checkout.session.completed + invoice.payment_succeeded) handles saving
+    subscription details and granting credits respectively.
     """
-    logger.info(f"Creating subscription for user {current_user.id}: {subscription_data.credits_amount} credits in {subscription_data.currency}")
-    
+    logger.info(f"Creating subscription checkout for user {current_user.id}: {subscription_data.credits_amount} credits in {subscription_data.currency}")
+
+    if not subscription_data.return_url:
+        raise HTTPException(status_code=400, detail="return_url is required for embedded subscription checkout")
+
     try:
-        # Validate tier exists and has subscription bonus
+        # Validate tier and subscription eligibility
         tier_info = get_tier_info(subscription_data.credits_amount, subscription_data.currency)
         if not tier_info:
             raise HTTPException(status_code=400, detail="Invalid credit amount or currency")
-        
         if tier_info['bonus_credits'] == 0:
             raise HTTPException(status_code=400, detail="This tier does not support subscriptions")
-        
-        # Check if Stripe provider
         if payment_service.provider_name != "stripe":
             raise HTTPException(status_code=400, detail="Subscriptions only supported with Stripe")
-        
-        # Get encrypted payment method
-        if not current_user.encrypted_payment_method_id:
-            raise HTTPException(status_code=400, detail="No saved payment method found")
-        
-        # Decrypt payment method ID
-        vault_key_id = current_user.vault_key_id
-        if not vault_key_id:
-            raise HTTPException(status_code=500, detail="User vault key not found")
-        
-        payment_method_id = await encryption_service.decrypt_with_user_key(
-            current_user.encrypted_payment_method_id,
-            vault_key_id
-        )
-        
-        if not payment_method_id:
-            raise HTTPException(status_code=500, detail="Failed to decrypt payment method")
-        
-        # Check if we already have a customer ID from when the payment method was saved
+
+        # Get or create Stripe customer so saved cards surface in Checkout
         customer_id = current_user.stripe_customer_id
-        
         if not customer_id:
-            # No existing customer - this shouldn't happen if save_payment_method was called
-            # But we'll try to create one as a fallback
-            logger.warning(f"No existing customer ID for user {current_user.id}, attempting to create one")
-            
-            # Get user email for customer creation
             user_cache_data = await cache_service.get_user_by_id(current_user.id)
-            email = None
-            
-            if user_cache_data and user_cache_data.get('email'):
-                email = user_cache_data.get('email')
-            else:
-                # Email not in cache - use placeholder
-                logger.warning(f"Email not found in cache for user {current_user.id}, using placeholder")
-                email = f"user-{current_user.id}@openmates.local"
-            
-            # Try to create customer and attach payment method
-            customer_result = await payment_service.provider.create_customer(
-                email=email,
-                payment_method_id=payment_method_id
-            )
-            
-            if not customer_result:
-                raise HTTPException(
-                    status_code=500, 
-                    detail="Failed to create Stripe customer. Payment method may have been previously used and cannot be reused. Please use a different payment method for subscriptions."
-                )
-            
-            customer_id = customer_result['customer_id']
-            
-            # Save the customer ID for future use
-            await directus_service.update_user(
-                current_user.id,
-                {"stripe_customer_id": customer_id}
-            )
-            logger.info(f"Created and saved Stripe customer {customer_id} for user {current_user.id}")
-        else:
-            logger.info(f"Using existing Stripe customer {customer_id} for user {current_user.id}")
-        
-        # Find the Stripe price ID for this tier
-        # CRITICAL: Must use recurring=True to get recurring prices for subscriptions
-        # One-time prices will cause Stripe to reject the subscription creation
-        # CRITICAL: Subscription products are named with total credits (base + bonus) and "(monthly auto top-up)" suffix
-        # This matches the naming convention used in stripe_product_sync.py
-        # stripe_product_sync creates products with name: "{total_credits} credits (monthly auto top-up)"
+            email_for_customer = (user_cache_data or {}).get('email') or f"user-{current_user.id}@openmates.local"
+            customer_id = await payment_service.provider.get_or_create_customer(email_for_customer)
+            if customer_id:
+                await directus_service.update_user(current_user.id, {"stripe_customer_id": customer_id})
+                logger.info(f"Created Stripe customer {customer_id} for user {current_user.id}")
+
+        # Find the recurring Stripe price for this tier
         total_credits = subscription_data.credits_amount + tier_info['bonus_credits']
         product_name = f"{total_credits:,}".replace(",", ".") + " credits (monthly auto top-up)"
         price_id = await payment_service.provider._find_price_for_product(
-            product_name,
-            subscription_data.currency,
-            recurring=True  # Subscriptions require recurring prices
+            product_name, subscription_data.currency, recurring=True
         )
-        
         if not price_id:
-            logger.error(
-                f"No Stripe recurring price found for subscription product '{product_name}' "
-                f"(base: {subscription_data.credits_amount}, total: {total_credits} credits) in {subscription_data.currency}. "
-                f"Make sure subscription products are synced to Stripe using the stripe_product_sync service."
-            )
             raise HTTPException(
-                status_code=500, 
+                status_code=500,
                 detail=f"Subscription product not configured for {subscription_data.credits_amount} credits in {subscription_data.currency}. Please contact support."
             )
-        
-        # Get billing day preference from request, fallback to user's saved preference or default
-        billing_day_preference = subscription_data.billing_day_preference or current_user.subscription_billing_day_preference or 'anniversary'
 
-        # Validate billing preference
-        if billing_day_preference not in ['anniversary', 'first_of_month']:
+        billing_day_preference = subscription_data.billing_day_preference or getattr(current_user, 'subscription_billing_day_preference', None) or 'anniversary'
+        if billing_day_preference not in ('anniversary', 'first_of_month'):
             raise HTTPException(status_code=400, detail="Invalid billing day preference. Must be 'anniversary' or 'first_of_month'")
 
-        # Create subscription
-        # CRITICAL: Pass the payment method ID explicitly to ensure Stripe uses it for the first invoice.
-        # Without this, the subscription may be created with status 'incomplete' without a client_secret.
-        subscription_result = await payment_service.provider.create_subscription(
-            customer_id=customer_id,
+        # For first_of_month billing: anchor the cycle to the 1st of next month
+        billing_cycle_anchor = None
+        if billing_day_preference == 'first_of_month':
+            from datetime import datetime, timezone as _tz
+            now = datetime.now(_tz.utc)
+            month = now.month + 1 if now.month < 12 else 1
+            year = now.year if now.month < 12 else now.year + 1
+            billing_cycle_anchor = int(datetime(year, month, 1, tzinfo=_tz.utc).timestamp())
+
+        # Create Checkout Session in subscription mode
+        session_result = await payment_service.provider.create_checkout_session(
             price_id=price_id,
+            mode="subscription",
+            return_url=subscription_data.return_url,
+            customer_id=customer_id,
             metadata={
                 "user_id": current_user.id,
                 "credits_amount": str(subscription_data.credits_amount),
-                "bonus_credits": str(tier_info['bonus_credits'])
+                "bonus_credits": str(tier_info['bonus_credits']),
+                "billing_day_preference": billing_day_preference,
             },
-            default_payment_method=payment_method_id,  # CRITICAL: Explicitly pass payment method
-            billing_day_preference=billing_day_preference
+            billing_cycle_anchor=billing_cycle_anchor,
         )
-        
-        if not subscription_result:
-            raise HTTPException(status_code=500, detail="Failed to create subscription")
-        
-        # Save subscription details to Directus
-        from datetime import datetime, timedelta
-        
-        # CRITICAL: Handle case where current_period_end might not be available immediately
-        # (e.g., for incomplete subscriptions requiring payment confirmation)
-        current_period_end = subscription_result.get('current_period_end')
-        if current_period_end:
-            next_billing_date = datetime.fromtimestamp(current_period_end).isoformat()
-        else:
-            # Fallback: Calculate next billing date as 1 month from now
-            # This is a safe default for monthly subscriptions
-            logger.warning(
-                f"current_period_end not available for subscription {subscription_result.get('subscription_id')}, "
-                f"using calculated date (1 month from now) as fallback"
-            )
-            next_billing_date = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
-        
-        update_payload = {
-            "stripe_subscription_id": subscription_result['subscription_id'],
-            "subscription_status": subscription_result['status'],
-            "subscription_credits": subscription_data.credits_amount,
-            "subscription_currency": subscription_data.currency.lower(),
-            "next_billing_date": next_billing_date,
-            "subscription_billing_day_preference": billing_day_preference  # Save the billing preference
-        }
-        
-        update_success = await directus_service.update_user(current_user.id, update_payload)
-        
-        if not update_success:
-            # Subscription created but failed to save - log error but don't fail
-            logger.error(f"Subscription {subscription_result['subscription_id']} created but failed to save to Directus for user {current_user.id}")
-        
-        # CRITICAL: After updating user cache via directus_service, also update cache_service's user cache
-        # This ensures get_current_user -> get_user_by_id returns the updated subscription data
-        # The cache_service.update_user method updates the user_id-based cache
-        try:
-            await cache_service.update_user(current_user.id, update_payload)
-            logger.debug(f"Updated cache_service user cache for user {current_user.id} with subscription data")
-        except Exception as cache_update_error:
-            logger.warning(f"Failed to update cache_service user cache for user {current_user.id}: {cache_update_error}")
-            # Don't fail the request - directus_service.update_user already updated its cache
-        
-        # CRITICAL: Log subscription status and whether payment confirmation is required
-        subscription_status = subscription_result['status']
-        client_secret = subscription_result.get('client_secret')
-        
-        if subscription_status == 'incomplete' and client_secret:
-            logger.info(
-                f"Subscription {subscription_result['subscription_id']} created with status 'incomplete' for user {current_user.id}. "
-                f"Payment confirmation required using client_secret."
-            )
-        elif subscription_status == 'incomplete' and not client_secret:
-            logger.warning(
-                f"Subscription {subscription_result['subscription_id']} created with status 'incomplete' but no client_secret found "
-                f"for user {current_user.id}. Payment confirmation may fail."
-            )
-        else:
-            logger.info(
-                f"Successfully created subscription {subscription_result['subscription_id']} with status '{subscription_status}' "
-                f"for user {current_user.id}"
-            )
+        if not session_result:
+            raise HTTPException(status_code=500, detail="Failed to create subscription checkout session")
+
+        # Cache the session so the webhook can resolve user + tier when checkout completes
+        await cache_service.set_order(
+            order_id=session_result['id'],
+            user_id=current_user.id,
+            credits_amount=subscription_data.credits_amount,
+            status="created",
+            ttl=3600,
+            currency=subscription_data.currency.lower(),
+            provider="stripe",
+            subscription_setup=True,
+            bonus_credits=tier_info['bonus_credits'],
+            billing_day_preference=billing_day_preference,
+        )
+
+        logger.info(f"Subscription Checkout Session {session_result['id']} created for user {current_user.id}")
 
         # Track subscription creation for financial analytics
         try:
@@ -3347,10 +3418,8 @@ async def create_subscription(
             logger.warning(f"Failed to increment subscription_creations stat: {_sub_err}")
 
         return CreateSubscriptionResponse(
-            subscription_id=subscription_result['subscription_id'],
-            status=subscription_result['status'],
-            next_billing_date=next_billing_date,
-            client_secret=client_secret  # Required for payment confirmation when status is 'incomplete'
+            order_id=session_result['id'],
+            client_secret=session_result['client_secret'],
         )
         
     except HTTPException as e:

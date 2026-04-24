@@ -142,20 +142,26 @@ class PaymentService:
         is_eu: bool = True,
         success_url: Optional[str] = None,
         embed_origin: Optional[str] = None,
+        return_url: Optional[str] = None,
+        use_global_pricing: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Create a payment order through the appropriate provider.
 
         Args:
-            amount: Amount in smallest currency unit (cents for USD/EUR)
+            amount: Amount in smallest currency unit (cents for EUR)
             currency: ISO currency code
             email: Customer email
             credits_amount: Number of credits being purchased
             customer_id: Optional existing customer ID (provider-specific)
             provider_override: Optional explicit provider ("stripe" or "polar")
-            is_eu: Whether the user is in the EU/EEA region
+            is_eu: Whether the user is in the EU VAT territory (EU27 only)
             success_url: URL for Polar to redirect after successful checkout
             embed_origin: Embedding page origin for Polar iframe security
+            return_url: URL Stripe redirects to after Embedded Checkout
+            use_global_pricing: Non-EU path — use global product prices with
+                Stripe Managed Payments (Checkout Session). EU path uses
+                PaymentIntents at standard EU prices.
 
         Returns:
             Provider-specific order dict, or None on error
@@ -172,9 +178,17 @@ class PaymentService:
                 success_url=success_url,
                 embed_origin=embed_origin,
             )
+        elif use_global_pricing:
+            # Non-EU: Stripe Managed Payments via Checkout Session, global prices
+            return await provider.create_order(
+                amount, currency, email, credits_amount, customer_id,
+                return_url=return_url, use_global_pricing=True,
+            )
         else:
-            # Stripe
-            return await provider.create_order(amount, currency, email, credits_amount, customer_id)
+            # EU27: regular Stripe PaymentIntent, standard EU prices, no VAT
+            return await provider.create_order_eu(
+                amount, currency, email, credits_amount, customer_id,
+            )
 
     async def create_support_order(
         self,
