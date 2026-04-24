@@ -128,9 +128,13 @@ class StripeService:
             }
             if customer_id:
                 params["customer"] = customer_id
-            # Offer to save card for reuse on one-time purchases; subscriptions save automatically.
+            # For one-time payments: show ALL existing saved cards (any allow_redisplay value)
+            # and offer to save the card used for this purchase.
             if mode == "payment":
-                params["saved_payment_method_options"] = {"payment_method_save": "enabled"}
+                params["saved_payment_method_options"] = {
+                    "payment_method_save": "enabled",
+                    "allow_redisplay_filters": ["always", "limited", "unspecified"],
+                }
             if mode == "subscription" and billing_cycle_anchor:
                 params["subscription_data"] = {"billing_cycle_anchor": billing_cycle_anchor}
 
