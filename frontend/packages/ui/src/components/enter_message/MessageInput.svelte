@@ -1312,25 +1312,6 @@
             : 'max-height: 250px;'
     );
 
-    // Returns true when multi-line clipboard text looks like code rather than natural-language prose.
-    // Prevents email bodies, quoted text, and plain paragraphs from being silently swallowed into
-    // code embeds — which would prevent them from ever reaching the editor as readable text.
-    function looksLikeCode(text: string): boolean {
-        // 1. If content-based language detection finds a known language, it's code.
-        if (detectLanguageFromContent(text)) return true;
-        // 2. Indentation patterns common in code (2+ leading spaces or any leading tab on a non-blank line)
-        if (/^[ ]{2,}\S/m.test(text) || /^\t\S/m.test(text)) return true;
-        // 3. Structural characters strongly associated with code
-        if (/[{}[\]();]/.test(text)) return true;
-        // 4. Common code keywords across major languages
-        if (/\b(function|class|import|export|const|let|var|def|return|if\s*\(|for\s*\(|while\s*\()\b/.test(text)) return true;
-        // 5. Operators and arrow syntax not found in prose
-        if (/=>|->|\|\||&&|::|===|!==/.test(text)) return true;
-        // 6. Comment syntax
-        if (/\/\/|\/\*|\*\//.test(text) || /^#\s/m.test(text)) return true;
-        return false;
-    }
-
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     // Handles embedUpdated events from chatSyncService for in-editor (draft) embeds
@@ -1500,13 +1481,11 @@
                         
                         // Check for multi-line text - create a proper code embed for readability
                         // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
-                        // and stored in EmbedStore (encrypted, synced to server).
-                        // looksLikeCode() guards against email bodies, prose, and other natural-language
-                        // text that happen to contain newlines — those should paste as plain text.
+                        // and stored in EmbedStore (encrypted, synced to server)
                         const isMultiLine = normalizedPasteText.includes('\n');
                         const isAlreadyCodeBlock = normalizedPasteText.trim().startsWith('```');
 
-                        if (isMultiLine && !isAlreadyCodeBlock && looksLikeCode(normalizedPasteText)) {
+                        if (isMultiLine && !isAlreadyCodeBlock) {
                             event.preventDefault();
                             event.stopPropagation();
                             
