@@ -1166,6 +1166,20 @@
         height: 100%;
     }
 
+    /* Managed Payments (non-EU): wrapper for Stripe Embedded Checkout Page iframe.
+       Matches the padding/width of .payment-form-overlay-wrapper so the layout
+       is consistent with the regular Stripe Elements form. */
+    .managed-checkout-wrapper {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+
+    .managed-checkout-wrapper #checkout {
+        width: 100%;
+        min-height: 400px;
+    }
+
     .consent-overlay {
         position: absolute;
         top: -10px;
