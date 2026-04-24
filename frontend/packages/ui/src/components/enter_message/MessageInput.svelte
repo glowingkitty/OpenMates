@@ -1312,6 +1312,25 @@
             : 'max-height: 250px;'
     );
 
+    // Returns true when multi-line clipboard text looks like code rather than natural-language prose.
+    // Prevents email bodies, quoted text, and plain paragraphs from being silently swallowed into
+    // code embeds — which would prevent them from ever reaching the editor as readable text.
+    function looksLikeCode(text: string): boolean {
+        // 1. If content-based language detection finds a known language, it's code.
+        if (detectLanguageFromContent(text)) return true;
+        // 2. Indentation patterns common in code (2+ leading spaces or any leading tab on a non-blank line)
+        if (/^[ ]{2,}\S/m.test(text) || /^\t\S/m.test(text)) return true;
+        // 3. Structural characters strongly associated with code
+        if (/[{}[\]();]/.test(text)) return true;
+        // 4. Common code keywords across major languages
+        if (/\b(function|class|import|export|const|let|var|def|return|if\s*\(|for\s*\(|while\s*\()\b/.test(text)) return true;
+        // 5. Operators and arrow syntax not found in prose
+        if (/=>|->|\|\||&&|::|===|!==/.test(text)) return true;
+        // 6. Comment syntax
+        if (/\/\/|\/\*|\*\//.test(text) || /^#\s/m.test(text)) return true;
+        return false;
+    }
+
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     // Handles embedUpdated events from chatSyncService for in-editor (draft) embeds
@@ -1481,11 +1500,13 @@
                         
                         // Check for multi-line text - create a proper code embed for readability
                         // This ensures pasted logs, errors, code snippets, etc. are formatted as code blocks
-                        // and stored in EmbedStore (encrypted, synced to server)
+                        // and stored in EmbedStore (encrypted, synced to server).
+                        // looksLikeCode() guards against email bodies, prose, and other natural-language
+                        // text that happen to contain newlines — those should paste as plain text.
                         const isMultiLine = normalizedPasteText.includes('\n');
                         const isAlreadyCodeBlock = normalizedPasteText.trim().startsWith('```');
-                        
-                        if (isMultiLine && !isAlreadyCodeBlock) {
+
+                        if (isMultiLine && !isAlreadyCodeBlock && looksLikeCode(normalizedPasteText)) {
                             event.preventDefault();
                             event.stopPropagation();
                             
@@ -1583,9 +1604,29 @@
                                     originalMarkdownLength: originalMarkdown.length
                                 });
                             }).catch((error) => {
-                                console.error('[MessageInput] Failed to create code embed:', error);
-                                // Fallback: insert as plain text if embed creation fails
-                                editor.commands.insertContent(normalizedPasteText);
+                                console.error('[MessageInput] Failed to create code embed, falling back to inline embed:', error);
+                                // EmbedStore write failed (e.g. encryption keys not ready).
+                                // Fall back to the demo-mode inline embed so the user still sees
+                                // their code in a preview instead of getting an empty field.
+                                const vsCodeLangFallback = detectLanguageFromVSCode(vsCodeEditorData);
+                                const languageFallback = vsCodeLangFallback || detectLanguageFromContent(normalizedPasteText) || 'text';
+                                const embedIdFallback = generateUUID();
+                                const lineCountFallback = normalizedPasteText.split('\n').length;
+                                editor.commands.insertContent({
+                                    type: 'embed',
+                                    attrs: {
+                                        id: embedIdFallback,
+                                        type: 'code-code',
+                                        status: 'finished',
+                                        contentRef: `preview:code:${embedIdFallback}`,
+                                        code: normalizedPasteText,
+                                        language: languageFallback,
+                                        lineCount: lineCountFallback,
+                                    }
+                                });
+                                editor.commands.insertContent(' ');
+                                editor.commands.focus('end');
+                                hasContent = !isContentEmptyExceptMention(editor);
                             }).finally(() => {
                                 pendingPasteEmbedCount = Math.max(0, pendingPasteEmbedCount - 1);
                                 // If the user pressed Enter while the embed was being created,
