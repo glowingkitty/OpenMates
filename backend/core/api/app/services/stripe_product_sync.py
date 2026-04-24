@@ -179,16 +179,17 @@ class StripeProductSync:
             if not credits:
                 logger.warning("Skipping tier without credits")
                 continue
-            
+
+            # bank_transfer_only tiers are SEPA-only — never create a Stripe card product for them
+            if tier.get("bank_transfer_only"):
+                logger.debug(f"Skipping bank-transfer-only tier ({credits} credits) — no Stripe product needed")
+                continue
+
             # EUR only: Adaptive Pricing handles other currencies automatically
             for currency in ["eur"]:
                 price = tier.get("price", {}).get(currency)
                 if not price:
-                    # bank_transfer_only tiers are EUR-only (SEPA) — no USD price is expected
-                    if tier.get("bank_transfer_only"):
-                        logger.debug(f"Skipping {currency} for bank-transfer-only tier {credits} credits (SEPA/EUR only)")
-                    else:
-                        logger.warning(f"No price found for {currency} in tier {credits} credits")
+                    logger.warning(f"No price found for {currency} in tier {credits} credits")
                     continue
                 
                 try:
