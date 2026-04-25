@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 // @privacy-promise: payment-data-minimization
 export {};
@@ -49,11 +48,9 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	fillStripeCardDetails,
 	getTestAccount,
-	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -262,6 +259,192 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	await expect(page.getByText(/purchase successful/i).first()).toBeVisible({ timeout: 120000 });
 	await screenshot(page, 'purchase-success');
 	log('Purchase confirmed successful.');
+
+	await assertNoMissingTranslations(page);
+	log('Test complete.');
+});
+
+// ---------------------------------------------------------------------------
+// Test: Settings → Buy Credits → Stripe Managed Payments (Checkout Session)
+// ---------------------------------------------------------------------------
+// Runs from a US IP → backend returns use_managed_payments=true → Stripe
+// Embedded Checkout (initEmbeddedCheckout, ui_mode="embedded") loads inside
+// #checkout div. After payment, onComplete fires in-page — NO page redirect.
+// ---------------------------------------------------------------------------
+
+test('settings buy credits: completes Stripe Managed Payments (Checkout Session) flow without page reload', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+	page.on('request', (req: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
+	);
+	page.on('response', (res: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
+	);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('SETTINGS_BUY_CREDITS_MANAGED');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'settings-managed' });
+	await archiveExistingScreenshots(log);
+
+	// ─── Login ────────────────────────────────────────────────────────────────────
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(4000);
+
+	// ─── Open Settings ───────────────────────────────────────────────────────────
+	const profileContainer = page.getByTestId('profile-container');
+	await expect(profileContainer).toBeVisible({ timeout: 10000 });
+	await profileContainer.click();
+
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
+	await expect(page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')).toBeVisible({ timeout: 15000 });
+
+	// ─── Navigate: Settings → Billing → Buy Credits ───────────────────────────────
+	const billingItem = page
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
+		.filter({ hasText: /billing/i });
+	await billingItem.click();
+
+	const buyCreditsItem = page
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
+		.filter({ hasText: /buy credits/i });
+	await buyCreditsItem.click();
+	log('Navigated to Buy Credits.');
+
+	await expect(async () => {
+		const tierItems = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]');
+		expect(await tierItems.count()).toBeGreaterThanOrEqual(3);
+	}).toPass({ timeout: 15000 });
+
+	// ─── Select first pricing tier ────────────────────────────────────────────────
+	const firstTier = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first();
+	await firstTier.click();
+	log('Selected first pricing tier.');
+	await screenshot(page, 'tier-selected');
+
+	// ─── Wait for Stripe Embedded Checkout to load ───────────────────────────────
+	// From US geo the backend returns use_managed_payments=true → Payment.svelte
+	// calls stripe.initEmbeddedCheckout() and mounts into #checkout.
+	// The checkout renders as an iframe inside #checkout.
+	// If there are no saved EU cards, Payment.svelte shows the checkout directly.
+	// If the "Add payment method" button is visible first, click it.
+	const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
+	const hasAddBtn = await addPaymentMethodBtn.isVisible({ timeout: 8000 }).catch(() => false);
+	if (hasAddBtn) {
+		await addPaymentMethodBtn.click();
+		log('Clicked Add Payment Method to open checkout.');
+	}
+
+	// If the "switch to non-EU card" button is present (user has EU saved cards),
+	// click it to force the managed payments Checkout Session.
+	const switchToNonEuBtn = page.getByTestId('switch-to-non-eu');
+	const hasSwitchBtn = await switchToNonEuBtn.isVisible({ timeout: 5000 }).catch(() => false);
+	if (hasSwitchBtn) {
+		await switchToNonEuBtn.click();
+		log('Clicked "switch to non-EU card" to force managed payments.');
+	}
+
+	await screenshot(page, 'payment-screen');
+
+	// Wait for the Stripe Checkout iframe to appear inside #checkout div.
+	await page.waitForSelector('#checkout iframe', { state: 'attached', timeout: 30000 });
+	log('Stripe Embedded Checkout iframe loaded.');
+	await page.waitForTimeout(3000); // allow Checkout UI to fully render
+	await screenshot(page, 'checkout-iframe-loaded');
+
+	// ─── Fill test card in Stripe Checkout iframe ─────────────────────────────────
+	// Stripe Checkout (embedded) renders the card form inside the #checkout iframe.
+	// Use a generic US Visa test card (4242424242424242) — non-EU, passes Managed Payments.
+	const checkoutFrame = page.frameLocator('#checkout iframe');
+
+	// Stripe Checkout may show "Link" or "Card" tabs — click Card if needed.
+	const cardTabOption = checkoutFrame.getByRole('radio', { name: /card/i });
+	const hasCardTab = await cardTabOption.isVisible({ timeout: 5000 }).catch(() => false);
+	if (hasCardTab) {
+		await cardTabOption.click();
+		log('Selected Card payment method in Checkout.');
+		await page.waitForTimeout(1000);
+	}
+
+	// Card number — Stripe Checkout uses a single iframe for card inputs
+	// with the field structure below. We try the unified Payment Element
+	// approach first (same as fillStripeCardDetails helper), then fall back.
+	try {
+		const cardInput = checkoutFrame.locator(
+			'input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]'
+		).first();
+		await cardInput.waitFor({ state: 'visible', timeout: 20000 });
+		await cardInput.click();
+		await cardInput.pressSequentially('4242424242424242', { delay: 30 });
+
+		const expiryInput = checkoutFrame.locator(
+			'input[name="expiry"], input[name="cardExpiry"], input[autocomplete="cc-exp"]'
+		).first();
+		await expiryInput.click();
+		await expiryInput.pressSequentially('1234', { delay: 30 });
+
+		const cvcInput = checkoutFrame.locator(
+			'input[name="cvc"], input[name="cardCvc"], input[autocomplete="cc-csc"]'
+		).first();
+		await cvcInput.click();
+		await cvcInput.pressSequentially('123', { delay: 30 });
+
+		// Postal code if shown (US geo)
+		const postalInput = checkoutFrame.locator(
+			'input[name="postalCode"], input[name="postal_code"], input[autocomplete="postal-code"]'
+		).first();
+		if (await postalInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await postalInput.click();
+			await postalInput.pressSequentially('12345', { delay: 30 });
+		}
+	} catch (e) {
+		// Stripe Checkout may render card fields in nested iframes
+		log(`Card input fallback triggered: ${e}`);
+		const cardFrame = checkoutFrame.frameLocator('iframe[title*="card number"]');
+		const cardInput = cardFrame.locator('input').first();
+		await cardInput.waitFor({ state: 'visible', timeout: 15000 });
+		await cardInput.pressSequentially('4242424242424242', { delay: 30 });
+	}
+
+	await screenshot(page, 'checkout-card-filled');
+	log('Test card filled in Stripe Checkout.');
+
+	// ─── Submit payment ───────────────────────────────────────────────────────────
+	const payBtn = checkoutFrame
+		.locator('button[type="submit"], button:has-text("Pay"), button:has-text("Subscribe")')
+		.first();
+	await expect(payBtn).toBeVisible({ timeout: 10000 });
+	await expect(payBtn).toBeEnabled({ timeout: 10000 });
+	await payBtn.click();
+	log('Clicked Pay in Stripe Checkout — waiting for onComplete and confirmation.');
+
+	// ─── Verify purchase success WITHOUT page reload ──────────────────────────────
+	// onComplete fires in Payment.svelte → dispatches paymentStateChange('processing')
+	// → SettingsBuyCreditsPayment.svelte waits for payment_completed WebSocket event
+	// → navigates to confirmation screen. No page reload should occur.
+	//
+	// Assert that the URL stays on the same page (no navigation to a different route).
+	const urlBefore = page.url();
+	await expect(page.getByText(/purchase successful/i).first()).toBeVisible({ timeout: 120000 });
+	const urlAfter = page.url();
+
+	// Strip query params when comparing — the URL should not have changed to a
+	// redirect target (e.g. ?session_id=cs_xxx would indicate a page reload).
+	expect(new URL(urlAfter).pathname).toBe(new URL(urlBefore).pathname);
+	expect(urlAfter).not.toContain('session_id=');
+
+	await screenshot(page, 'purchase-success');
+	log('Managed Payments purchase confirmed — no page reload detected.');
 
 	await assertNoMissingTranslations(page);
 	log('Test complete.');
