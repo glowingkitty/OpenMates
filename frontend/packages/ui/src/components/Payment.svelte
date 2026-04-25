@@ -220,6 +220,8 @@
                     credits_amount: credits_amount,
                     currency: currency,
                     email_encryption_key: emailEncryptionKey,
+                    // return_url not needed: Checkout Session uses ui_mode="embedded"
+                    // which fires onComplete in-page instead of redirecting.
                     return_url: returnUrl.toString(),
                 };
                 // Pass mode override so backend routes EU vs non-EU correctly
@@ -364,23 +366,46 @@
     }
 
     /**
-     * Mount Stripe Embedded Checkout Page (Managed Payments, non-EU flow).
-     * Uses stripe.createEmbeddedCheckoutPage() which requires a client_secret
-     * from a Checkout Session created with ui_mode: "embedded_page".
-     * After the user completes checkout, Stripe redirects to return_url with
-     * ?session_id=cs_xxx appended — handlePaymentRedirectReturn() picks that up.
+     * Mount Stripe Embedded Checkout (Managed Payments, non-EU flow).
+     * Uses stripe.initEmbeddedCheckout() with ui_mode="embedded" — renders
+     * inline inside #checkout div, fires onComplete when done. No redirect.
      */
     async function mountEmbeddedCheckout() {
         if (!stripe || !clientSecret) return;
         if (embeddedCheckoutPage) { embeddedCheckoutPage.destroy(); embeddedCheckoutPage = null; }
 
         try {
-            const secret = clientSecret; // capture for the fetchClientSecret closure
-            embeddedCheckoutPage = await stripe.createEmbeddedCheckoutPage({
+            const secret = clientSecret;
+            embeddedCheckoutPage = await stripe.initEmbeddedCheckout({
                 fetchClientSecret: async () => secret,
+                onComplete: () => {
+                    console.log('[Payment][ManagedPayments] Checkout completed — waiting for webhook confirmation');
+                    embeddedCheckoutPage?.unmount();
+                    // Transition to processing — webhook grants credits and fires payment_completed WS event.
+                    paymentState = 'processing';
+                    isWaitingForConfirmation = true;
+                    dispatch('paymentStateChange', { state: 'processing', provider: 'stripe' });
+                    // 60-second fallback if WebSocket confirmation is delayed.
+                    paymentConfirmationTimeoutId = setTimeout(() => {
+                        if (isWaitingForConfirmation) {
+                            showDelayedMessage = true;
+                            setTimeout(() => {
+                                if (isWaitingForConfirmation) {
+                                    paymentState = 'success';
+                                    isWaitingForConfirmation = false;
+                                    dispatch('paymentStateChange', {
+                                        state: 'success',
+                                        provider: 'stripe',
+                                        isDelayed: true,
+                                    });
+                                }
+                            }, 2000);
+                        }
+                    }, 60000);
+                },
             });
             embeddedCheckoutPage.mount('#checkout');
-            console.log('[Payment][ManagedPayments] Embedded Checkout Page mounted');
+            console.log('[Payment][ManagedPayments] Embedded Checkout mounted');
         } catch (err) {
             errorMessage = `Failed to load payment form. ${err instanceof Error ? err.message : String(err)}`;
             console.error('[Payment][ManagedPayments] Failed to mount Embedded Checkout:', err);

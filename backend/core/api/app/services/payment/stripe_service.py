@@ -95,7 +95,7 @@ class StripeService:
         self,
         price_id: str,
         mode: str,
-        return_url: str,
+        return_url: Optional[str] = None,
         customer_id: Optional[str] = None,
         metadata: Optional[Dict[str, str]] = None,
         billing_cycle_anchor: Optional[int] = None,
@@ -103,10 +103,13 @@ class StripeService:
         """
         Create a Stripe Checkout Session with Managed Payments enabled.
 
+        Uses ui_mode="embedded" so the checkout renders inside the page via
+        stripe.initEmbeddedCheckout() and fires onComplete when done — no redirect.
+
         Args:
             price_id: Stripe Price ID for the line item.
             mode: 'payment' for one-time or 'subscription' for recurring.
-            return_url: URL Stripe redirects to after checkout (session_id appended automatically).
+            return_url: Unused for embedded mode; kept for signature compatibility.
             customer_id: Existing Stripe customer ID. Stripe shows saved cards automatically.
             metadata: Key/value pairs stored on the session and passed through to webhooks.
             billing_cycle_anchor: Unix timestamp for subscription billing anchor (first_of_month).
@@ -119,10 +122,9 @@ class StripeService:
             return None
         try:
             params: Dict[str, Any] = {
-                "ui_mode": "embedded_page",
+                "ui_mode": "embedded",
                 "line_items": [{"price": price_id, "quantity": 1}],
                 "mode": mode,
-                "return_url": return_url,
                 "managed_payments": {"enabled": True},
                 "metadata": metadata or {},
             }
