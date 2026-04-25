@@ -689,11 +689,11 @@ export class ChatKeyManager {
           console.error(
             `[ChatKeyManager] ⚠️ KEY CONFLICT in receiveKeyFromServer for chat ${chatId}! ` +
               `Local key fp=${existingFp} differs from server key fp=${serverFp}. ` +
-              `Server key wins as source of truth — locally encrypted data may need re-encryption.`,
+              `Keeping local key — server key rejected to prevent data loss.`,
           );
-          // Server is the source of truth — accept the server key
-          this.setKeyWithProvenance(chatId, serverKey, "server_sync");
-          return serverKey;
+          // The server may hold a stale key from a previous race/sync corruption.
+          // Reject it — the local key was loaded from IDB and is the known-good one.
+          return existing;
         }
       } catch {
         // Decryption of server key failed — keep existing

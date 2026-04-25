@@ -126,10 +126,15 @@ export async function encryptChatForStorage(
 
   // Step 2: server-provided encrypted_chat_key on the incoming chat object
   if (!chatKey && chat.encrypted_chat_key) {
-    chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-    if (chatKey) {
-      chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
-      encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
+    const candidateKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+    if (candidateKey) {
+      const accepted = chatKeyManager.injectKey(chat.chat_id, candidateKey, "master_key");
+      if (accepted) {
+        chatKey = candidateKey;
+        encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
+      }
+      // If rejected: the server has a conflicting key. Leave chatKey null so step 3
+      // can recover the correct encrypted_chat_key from IDB without overwriting it.
     } else {
       console.error(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`,
