@@ -466,37 +466,6 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await payBtn.click();
 	log('Clicked Pay in Stripe Checkout — waiting for onComplete and confirmation.');
 
-	// ─── Handle Stripe Link verification flow (test account may be a Link user) ───
-	// When the test email is associated with a Stripe Link account, Stripe Checkout
-	// intercepts the card payment and shows a Link verification form (State + Phone).
-	// In test mode any 6-digit OTP completes Link verification.
-	await page.waitForTimeout(2500);
-	const linkStateEl = checkoutFrame.locator('select').first();
-	const isLinkVerifyFlow = await linkStateEl.isVisible({ timeout: 3000 }).catch(() => false);
-	if (isLinkVerifyFlow) {
-		log('Stripe Link verification form appeared — handling Link flow.');
-		// Fill US state if required
-		const stateSelect = checkoutFrame.locator('select[autocomplete="address-level1"], select[name="state"], select').first();
-		if (await stateSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await stateSelect.selectOption({ index: 1 }); // pick first non-empty state
-		}
-		// Click Link's "Pay" button to proceed to OTP
-		const linkPayBtn = checkoutFrame.getByRole('button', { name: /^pay/i }).first();
-		if (await linkPayBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await linkPayBtn.click();
-			log('Submitted Link form — waiting for OTP field.');
-		}
-		// Enter test OTP — any 6-digit code works in Stripe test mode
-		const otpInput = checkoutFrame.locator(
-			'input[inputmode="numeric"], input[type="tel"], input[maxlength="6"]'
-		).first();
-		if (await otpInput.isVisible({ timeout: 10000 }).catch(() => false)) {
-			await otpInput.fill('123456');
-			await otpInput.press('Enter');
-			log('Entered Link test OTP 123456 — payment should complete.');
-		}
-	}
-
 	// ─── Verify purchase success WITHOUT page reload ──────────────────────────────
 	// onComplete fires in Payment.svelte → dispatches paymentStateChange('processing')
 	// → SettingsBuyCreditsPayment.svelte waits for payment_completed WebSocket event
