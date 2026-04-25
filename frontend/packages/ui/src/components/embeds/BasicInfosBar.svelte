@@ -14,6 +14,7 @@
 -->
 
 <script lang="ts">
+  import { tick } from 'svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../utils/imageProxy';
@@ -84,23 +85,80 @@
     faviconUrl ? proxyImage(faviconUrl, MAX_WIDTH_FAVICON) : undefined
   );
 
-  // Status text from translations or custom text
-  let statusText = $derived(() => {
-    // Use custom status text if provided
-    if (customStatusText) {
-      return customStatusText;
+  // Hint animation phases for the 'finished' state:
+  //   'hint'       → showing "Click/Tap to show details" (2s)
+  //   'fading'     → hint text fading out (0.35s CSS transition)
+  //   'settled'    → final state: custom text fades in, or status line collapses
+  type HintPhase = 'hint' | 'fading' | 'settled';
+  let hintPhase = $state<HintPhase>('settled');
+  // true during the brief window between hint fade-out and custom-text fade-in
+  let hintFadingIn = $state(false);
+
+  // Set to true the first time this mounted component observes status='processing'.
+  // History-loaded embeds mount with status='finished' and never set this, so
+  // they skip the hint entirely — it only fires during live streaming.
+  let hasBeenProcessing = $state(false);
+
+  $effect(() => {
+    if (status === 'processing') hasBeenProcessing = true;
+  });
+
+  $effect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
+
+    if (status === 'finished' && hasBeenProcessing) {
+      hintPhase = 'hint';
+
+      timers.push(setTimeout(() => {
+        if (cancelled) return;
+        hintPhase = 'fading';
+
+        timers.push(setTimeout(async () => {
+          if (cancelled) return;
+          if (customStatusText) {
+            // Cross-fade: keep opacity at 0 while swapping text, then fade in
+            hintFadingIn = true;
+            hintPhase = 'settled';
+            await tick();
+            if (!cancelled) hintFadingIn = false;
+          } else {
+            hintPhase = 'settled';
+          }
+        }, 350));
+      }, 2000));
+    } else if (status !== 'finished') {
+      hintPhase = 'settled';
+      hintFadingIn = false;
     }
-    
-    // Otherwise use default status text based on current status
-    if (status === 'processing') {
-      return $text('common.processing');
-    } else if (status === 'finished') {
-      return $text('embeds.completed');
-    } else if (status === 'cancelled') {
-      return $text('embeds.cancelled');
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  });
+
+  // Text shown in the status-value line. During hint phases shows the interaction prompt;
+  // at settled it shows the custom text (or nothing, since the line collapses).
+  let displayedStatusText = $derived(() => {
+    if (status === 'finished' && hintPhase !== 'settled') {
+      return isMobile ? $text('embeds.tap_to_show_details') : $text('embeds.click_to_show_details');
     }
+    if (customStatusText) return customStatusText;
+    if (status === 'processing') return $text('common.processing');
+    if (status === 'cancelled') return $text('embeds.cancelled');
     return $text('embeds.error');
   });
+
+  // Wrapper collapses (height → 0) when finished and no custom text to show
+  let statusValueCollapsed = $derived(
+    status === 'finished' && hintPhase === 'settled' && !customStatusText
+  );
+
+  // Span fades out during hint → settled transition, and stays transparent during cross-fade
+  let statusValueFading = $derived(
+    (status === 'finished' && hintPhase === 'fading') || hintFadingIn
+  );
   
   // Compute app gradient style using CSS variables from theme.css
   let appGradientStyle = $derived(`background: var(--color-app-${appId});`);
@@ -139,7 +197,14 @@
     <div class="status-text-container" class:single-line={!showStatus}>
       <span class="status-label">{skillName}</span>
       {#if showStatus}
-        <span class="status-value" data-testid="embed-status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
+        <div class="status-value-wrapper" class:collapsed={statusValueCollapsed}>
+          <span
+            class="status-value"
+            data-testid="embed-status-value"
+            class:processing-shimmer={status === 'processing'}
+            class:fading={statusValueFading}
+          >{displayedStatusText()}</span>
+        </div>
       {/if}
     </div>
     
@@ -176,19 +241,26 @@
         {:else if safeFaviconUrl}
           <img
             src={safeFaviconUrl}
-            alt="" 
-            class="title-favicon" 
+            alt=""
+            class="title-favicon"
             class:circular={faviconIsCircular}
             crossorigin="anonymous"
             onerror={(e) => {
               handleImageError(e.currentTarget as HTMLImageElement);
-            }} 
+            }}
           />
         {/if}
-        <span class="title-text" class:two-lines={!customStatusText}>{skillName}</span>
+        <span class="title-text" class:two-lines={!customStatusText && !statusValueCollapsed}>{skillName}</span>
       </span>
       {#if showStatus}
-        <span class="status-value" data-testid="embed-status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
+        <div class="status-value-wrapper" class:collapsed={statusValueCollapsed}>
+          <span
+            class="status-value"
+            data-testid="embed-status-value"
+            class:processing-shimmer={status === 'processing'}
+            class:fading={statusValueFading}
+          >{displayedStatusText()}</span>
+        </div>
       {/if}
     </div>
     
@@ -400,7 +472,7 @@
     justify-content: center;
     flex: 1;
     min-width: 0;
-    gap: var(--spacing-1);
+    /* gap handled by margin-top on .status-value-wrapper for smooth collapse animation */
   }
   
   .basic-infos-bar.desktop .status-label {
@@ -449,13 +521,35 @@
     line-clamp: 2;
   }
   
+  /* Collapsible wrapper for the status-value line — animates height and spacing to zero */
+  .basic-infos-bar.desktop .status-value-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    margin-top: var(--spacing-1);
+    transition: grid-template-rows 0.35s ease, margin-top 0.35s ease;
+  }
+
+  .basic-infos-bar.desktop .status-value-wrapper.collapsed {
+    grid-template-rows: 0fr;
+    margin-top: 0;
+  }
+
   .basic-infos-bar.desktop .status-value {
     font-size: var(--font-size-p);
     font-weight: 500;
     color: var(--color-grey-70);
     line-height: 1.2;
+    /* Required for grid height-collapse trick */
+    overflow: hidden;
+    min-height: 0;
+    transition: opacity 0.35s ease;
   }
-  
+
+  .basic-infos-bar.desktop .status-value.fading,
+  .basic-infos-bar.desktop .status-value-wrapper.collapsed .status-value {
+    opacity: 0;
+  }
+
   /* Processing shimmer animation for status text */
   .basic-infos-bar.desktop .status-value.processing-shimmer {
     background: linear-gradient(
@@ -635,7 +729,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    gap: var(--spacing-1);
+    /* gap handled by margin-top on .status-value-wrapper for smooth collapse animation */
     flex-shrink: 0;
   }
   
@@ -646,13 +740,34 @@
     line-height: 1.2;
   }
   
+  /* Collapsible wrapper for the status-value line (mobile) */
+  .basic-infos-bar.mobile .status-text-container .status-value-wrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    margin-top: var(--spacing-1);
+    transition: grid-template-rows 0.35s ease, margin-top 0.35s ease;
+  }
+
+  .basic-infos-bar.mobile .status-text-container .status-value-wrapper.collapsed {
+    grid-template-rows: 0fr;
+    margin-top: 0;
+  }
+
   .basic-infos-bar.mobile .status-text-container .status-value {
     font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-grey-70);
     line-height: 1.2;
+    overflow: hidden;
+    min-height: 0;
+    transition: opacity 0.35s ease;
   }
-  
+
+  .basic-infos-bar.mobile .status-text-container .status-value.fading,
+  .basic-infos-bar.mobile .status-text-container .status-value-wrapper.collapsed .status-value {
+    opacity: 0;
+  }
+
   /* Processing shimmer animation for status text (mobile) */
   .basic-infos-bar.mobile .status-text-container .status-value.processing-shimmer {
     background: linear-gradient(

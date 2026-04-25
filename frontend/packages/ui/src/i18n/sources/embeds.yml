@@ -94,6 +94,54 @@ completed:
   sv: Slutförd
   he: הושלם
   verified_by_human: []
+click_to_show_details:
+  context: Hint shown briefly on desktop when an embed finishes, prompting the user to click it to open the details/fullscreen view
+  en: Click to show details
+  de: Klicken, um Details anzuzeigen
+  zh: 点击查看详情
+  es: Haz clic para ver los detalles
+  fr: Cliquez pour afficher les détails
+  pt: Clique para ver os detalhes
+  ru: Нажмите, чтобы открыть детали
+  ja: クリックして詳細を表示
+  ko: 클릭하여 세부 정보 보기
+  it: Clicca per mostrare i dettagli
+  tr: Ayrıntıları görmek için tıklayın
+  vi: Nhấp để xem chi tiết
+  id: Klik untuk menampilkan detail
+  pl: Kliknij, aby wyświetlić szczegóły
+  nl: Klik om details te tonen
+  ar: انقر لعرض التفاصيل
+  hi: विवरण देखने के लिए क्लिक करें
+  th: คลิกเพื่อดูรายละเอียด
+  cs: Kliknutím zobrazíte podrobnosti
+  sv: Klicka för att visa detaljer
+  he: לחץ כדי להציג פרטים
+  verified_by_human: []
+tap_to_show_details:
+  context: Hint shown briefly on mobile when an embed finishes, prompting the user to tap it to open the details/fullscreen view
+  en: Tap to show details
+  de: Tippen, um Details anzuzeigen
+  zh: 点击查看详情
+  es: Toca para ver los detalles
+  fr: Appuyez pour afficher les détails
+  pt: Toque para ver os detalhes
+  ru: Нажмите, чтобы открыть детали
+  ja: タップして詳細を表示
+  ko: 탭하여 세부 정보 보기
+  it: Tocca per mostrare i dettagli
+  tr: Ayrıntıları görmek için dokunun
+  vi: Nhấn để xem chi tiết
+  id: Ketuk untuk menampilkan detail
+  pl: Dotknij, aby wyświetlić szczegóły
+  nl: Tik om details te tonen
+  ar: انقر للمس لعرض التفاصيل
+  hi: विवरण देखने के लिए टैप करें
+  th: แตะเพื่อดูรายละเอียด
+  cs: Klepnutím zobrazíte podrobnosti
+  sv: Tryck för att visa detaljer
+  he: הקש כדי להציג פרטים
+  verified_by_human: []
 via:
   context: Used in 'query via Brave Search'
   en: via
