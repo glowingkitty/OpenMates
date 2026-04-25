@@ -367,6 +367,29 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	// Use a generic US Visa test card (4242424242424242) — non-EU, passes Managed Payments.
 	const checkoutFrame = page.frameLocator('#checkout iframe');
 
+	// Stripe Checkout may show Link as default — dismiss it and switch to Card.
+	// Link shows a phone number field; clicking "Pay with card instead" or a Card
+	// tab switches to the card form.
+	const linkPhoneField = checkoutFrame.getByPlaceholder(/phone/i);
+	const isLinkShown = await linkPhoneField.isVisible({ timeout: 5000 }).catch(() => false);
+	if (isLinkShown) {
+		// Try "Pay with card instead" button first
+		const payWithCardBtn = checkoutFrame.getByRole('button', { name: /pay with card/i });
+		const hasPayWithCard = await payWithCardBtn.isVisible({ timeout: 3000 }).catch(() => false);
+		if (hasPayWithCard) {
+			await payWithCardBtn.click();
+			log('Dismissed Link — clicked "Pay with card instead".');
+		} else {
+			// Try clicking a Card radio/tab
+			const cardOpt = checkoutFrame.getByRole('radio', { name: /card/i });
+			if (await cardOpt.isVisible({ timeout: 3000 }).catch(() => false)) {
+				await cardOpt.click();
+				log('Dismissed Link — clicked Card radio tab.');
+			}
+		}
+		await page.waitForTimeout(1500);
+	}
+
 	// Stripe Checkout may show "Link" or "Card" tabs — click Card if needed.
 	const cardTabOption = checkoutFrame.getByRole('radio', { name: /card/i });
 	const hasCardTab = await cardTabOption.isVisible({ timeout: 5000 }).catch(() => false);
@@ -376,42 +399,37 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		await page.waitForTimeout(1000);
 	}
 
-	// Card number — Stripe Checkout uses a single iframe for card inputs
-	// with the field structure below. We try the unified Payment Element
-	// approach first (same as fillStripeCardDetails helper), then fall back.
+	// Card number — Stripe Checkout uses a single iframe for card inputs.
+	// Use getByPlaceholder/getByLabel for robustness (autocomplete attrs vary by Stripe version).
 	try {
 		const cardInput = checkoutFrame.locator(
-			'input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]'
+			'input[autocomplete="cc-number"], input[name="number"], input[name="cardNumber"]'
 		).first();
 		await cardInput.waitFor({ state: 'visible', timeout: 20000 });
 		await cardInput.click();
 		await cardInput.pressSequentially('4242424242424242', { delay: 30 });
 
 		const expiryInput = checkoutFrame.locator(
-			'input[name="expiry"], input[name="cardExpiry"], input[autocomplete="cc-exp"]'
+			'input[autocomplete="cc-exp"], input[name="expiry"], input[name="cardExpiry"]'
 		).first();
 		await expiryInput.click();
 		await expiryInput.pressSequentially('1234', { delay: 30 });
 
 		const cvcInput = checkoutFrame.locator(
-			'input[name="cvc"], input[name="cardCvc"], input[autocomplete="cc-csc"]'
+			'input[autocomplete="cc-csc"], input[name="cvc"], input[name="cardCvc"]'
 		).first();
 		await cvcInput.click();
 		await cvcInput.pressSequentially('123', { delay: 30 });
 
-		// Cardholder name — required in Stripe Checkout (embedded mode)
-		const cardholderInput = checkoutFrame.locator(
-			'input[autocomplete="cc-name"], input[name="billingName"], input[name="name"][autocomplete="name"]'
-		).first();
+		// Cardholder name — required. Match by placeholder shown in the UI ("Full name on card").
+		const cardholderInput = checkoutFrame.getByPlaceholder(/full name on card/i);
 		if (await cardholderInput.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await cardholderInput.click();
 			await cardholderInput.pressSequentially('Test User', { delay: 30 });
 		}
 
-		// Billing address line 1 — required for US billing
-		const addressInput = checkoutFrame.locator(
-			'input[autocomplete="address-line1"], input[name="address"], input[placeholder*="Address"]'
-		).first();
+		// Billing address — match by placeholder shown in the UI.
+		const addressInput = checkoutFrame.getByPlaceholder(/^address$/i);
 		if (await addressInput.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await addressInput.click();
 			await addressInput.pressSequentially('123 Test St', { delay: 30 });
@@ -419,7 +437,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 
 		// Postal code if shown (US geo)
 		const postalInput = checkoutFrame.locator(
-			'input[name="postalCode"], input[name="postal_code"], input[autocomplete="postal-code"]'
+			'input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]'
 		).first();
 		if (await postalInput.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await postalInput.click();
