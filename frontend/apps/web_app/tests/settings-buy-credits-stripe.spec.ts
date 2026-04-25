@@ -399,6 +399,24 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		await cvcInput.click();
 		await cvcInput.pressSequentially('123', { delay: 30 });
 
+		// Cardholder name — required in Stripe Checkout (embedded mode)
+		const cardholderInput = checkoutFrame.locator(
+			'input[autocomplete="cc-name"], input[name="billingName"], input[name="name"][autocomplete="name"]'
+		).first();
+		if (await cardholderInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await cardholderInput.click();
+			await cardholderInput.pressSequentially('Test User', { delay: 30 });
+		}
+
+		// Billing address line 1 — required for US billing
+		const addressInput = checkoutFrame.locator(
+			'input[autocomplete="address-line1"], input[name="address"], input[placeholder*="Address"]'
+		).first();
+		if (await addressInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await addressInput.click();
+			await addressInput.pressSequentially('123 Test St', { delay: 30 });
+		}
+
 		// Postal code if shown (US geo)
 		const postalInput = checkoutFrame.locator(
 			'input[name="postalCode"], input[name="postal_code"], input[autocomplete="postal-code"]'
