@@ -94,40 +94,47 @@
   // true during the brief window between hint fade-out and custom-text fade-in
   let hintFadingIn = $state(false);
 
-  // Set to true the first time this mounted component observes status='processing'.
-  // History-loaded embeds mount with status='finished' and never set this, so
-  // they skip the hint entirely — it only fires during live streaming.
-  let hasBeenProcessing = $state(false);
-
-  $effect(() => {
-    if (status === 'processing') hasBeenProcessing = true;
-  });
+  // Timestamp (ms) when status first entered 'processing' in this mount.
+  // Plain variable so $effect doesn't track reads — only status triggers re-runs.
+  // History-loaded embeds briefly flicker through 'processing' during store
+  // resolution (~<50ms); real streaming takes seconds. A 500ms threshold
+  // reliably separates the two without any API changes.
+  let processingStartTime: number | null = null;
+  const MIN_STREAMING_DURATION_MS = 500;
 
   $effect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     let cancelled = false;
 
-    if (status === 'finished' && hasBeenProcessing) {
-      hintPhase = 'hint';
+    if (status === 'processing') {
+      if (processingStartTime === null) processingStartTime = Date.now();
+    } else if (status === 'finished') {
+      const duration = processingStartTime !== null ? Date.now() - processingStartTime : 0;
+      processingStartTime = null;
+      if (duration >= MIN_STREAMING_DURATION_MS) {
+        hintPhase = 'hint';
 
-      timers.push(setTimeout(() => {
-        if (cancelled) return;
-        hintPhase = 'fading';
-
-        timers.push(setTimeout(async () => {
+        timers.push(setTimeout(() => {
           if (cancelled) return;
-          if (customStatusText) {
-            // Cross-fade: keep opacity at 0 while swapping text, then fade in
-            hintFadingIn = true;
-            hintPhase = 'settled';
-            await tick();
-            if (!cancelled) hintFadingIn = false;
-          } else {
-            hintPhase = 'settled';
-          }
-        }, 350));
-      }, 2000));
-    } else if (status !== 'finished') {
+          hintPhase = 'fading';
+
+          timers.push(setTimeout(async () => {
+            if (cancelled) return;
+            if (customStatusText) {
+              // Cross-fade: keep opacity at 0 while swapping text, then fade in
+              hintFadingIn = true;
+              hintPhase = 'settled';
+              await tick();
+              if (!cancelled) hintFadingIn = false;
+            } else {
+              hintPhase = 'settled';
+            }
+          }, 350));
+        }, 2000));
+      }
+    } else {
+      // cancelled / error — reset any in-progress hint
+      processingStartTime = null;
       hintPhase = 'settled';
       hintFadingIn = false;
     }
@@ -250,7 +257,7 @@
             }}
           />
         {/if}
-        <span class="title-text" class:two-lines={!customStatusText && !statusValueCollapsed}>{skillName}</span>
+        <span class="title-text" class:two-lines={!customStatusText}>{skillName}</span>
       </span>
       {#if showStatus}
         <div class="status-value-wrapper" class:collapsed={statusValueCollapsed}>
