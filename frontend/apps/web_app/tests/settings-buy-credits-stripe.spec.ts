@@ -184,15 +184,17 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	// We always use the new-card path (no saved method) to avoid saved-method Buy Now
 	// triggering a Polar order via geo detection.
 
-	// Click "Add Payment Method" to open the payment form.
-	// From a US IP (geo=non-EU), this opens the Polar Checkout instead of Stripe.
-	// The Polar Checkout renders over the right panel and exposes a "Pay with an EU
-	// card instead" button in the main DOM (but visually covered by the Polar iframe).
-	// We force-click that button to switch the backend order to Stripe.
+	// If there are saved payment methods, the component shows the saved methods list
+	// with an "Add Payment Method" button. If there are none, the payment form shows
+	// directly. Either path is valid — click the button when present, otherwise skip.
 	const addPaymentMethodBtn = page.getByRole('button', { name: /add payment method/i });
-	await expect(addPaymentMethodBtn).toBeVisible({ timeout: 15000 });
-	await addPaymentMethodBtn.click();
-	log('Clicked Add Payment Method button.');
+	const hasAddBtn = await addPaymentMethodBtn.isVisible({ timeout: 15000 }).catch(() => false);
+	if (hasAddBtn) {
+		await addPaymentMethodBtn.click();
+		log('Clicked Add Payment Method button.');
+	} else {
+		log('No saved cards — payment form shown directly.');
+	}
 	await screenshot(page, 'payment-screen');
 
 	// Wait for either Stripe or Polar to initialise (either way an iframe appears).
@@ -463,6 +465,37 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await expect(payBtn).toBeEnabled({ timeout: 10000 });
 	await payBtn.click();
 	log('Clicked Pay in Stripe Checkout — waiting for onComplete and confirmation.');
+
+	// ─── Handle Stripe Link verification flow (test account may be a Link user) ───
+	// When the test email is associated with a Stripe Link account, Stripe Checkout
+	// intercepts the card payment and shows a Link verification form (State + Phone).
+	// In test mode any 6-digit OTP completes Link verification.
+	await page.waitForTimeout(2500);
+	const linkStateEl = checkoutFrame.locator('select').first();
+	const isLinkVerifyFlow = await linkStateEl.isVisible({ timeout: 3000 }).catch(() => false);
+	if (isLinkVerifyFlow) {
+		log('Stripe Link verification form appeared — handling Link flow.');
+		// Fill US state if required
+		const stateSelect = checkoutFrame.locator('select[autocomplete="address-level1"], select[name="state"], select').first();
+		if (await stateSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await stateSelect.selectOption({ index: 1 }); // pick first non-empty state
+		}
+		// Click Link's "Pay" button to proceed to OTP
+		const linkPayBtn = checkoutFrame.getByRole('button', { name: /^pay/i }).first();
+		if (await linkPayBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await linkPayBtn.click();
+			log('Submitted Link form — waiting for OTP field.');
+		}
+		// Enter test OTP — any 6-digit code works in Stripe test mode
+		const otpInput = checkoutFrame.locator(
+			'input[inputmode="numeric"], input[type="tel"], input[maxlength="6"]'
+		).first();
+		if (await otpInput.isVisible({ timeout: 10000 }).catch(() => false)) {
+			await otpInput.fill('123456');
+			await otpInput.press('Enter');
+			log('Entered Link test OTP 123456 — payment should complete.');
+		}
+	}
 
 	// ─── Verify purchase success WITHOUT page reload ──────────────────────────────
 	// onComplete fires in Payment.svelte → dispatches paymentStateChange('processing')
