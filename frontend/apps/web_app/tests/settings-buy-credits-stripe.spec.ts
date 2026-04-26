@@ -478,8 +478,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		await screenshot(page, 'link-interstitial-before-fill');
 
 		// Uncheck "Save my payment information" — when unchecked Stripe skips address
-		// collection and processes the payment directly. This avoids needing to fill
-		// City/ZIP/State fields (which vary by Stripe version).
+		// collection and processes the payment directly.
 		const saveInfoCheckbox = checkoutFrame.locator('input[type="checkbox"]').first();
 		const isChecked = await saveInfoCheckbox.isChecked({ timeout: 2000 }).catch(() => false);
 		if (isChecked) {
@@ -488,8 +487,9 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 			await page.waitForTimeout(1000);
 		}
 
-		// If address fields are still visible after unchecking, fill them.
-		// ZIP: use placeholder-based selector (same approach as City which works reliably).
+		// Fill City and ZIP if visible. Use placeholder-based selectors — consistent with
+		// how City was located in earlier passes (getByPlaceholder is the most robust selector
+		// for Stripe's input fields whose name/autocomplete attrs vary by version).
 		const interstitialCity = checkoutFrame.getByPlaceholder(/^city$/i);
 		if (await interstitialCity.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await interstitialCity.fill('New York');
@@ -500,20 +500,24 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 			await interstitialZip.fill('10001');
 			log('Filled ZIP field in interstitial.');
 		}
-		// State: find the first visible <select> in the checkout frame (only one in the interstitial).
-		const interstitialState = checkoutFrame.locator('select').first();
-		if (await interstitialState.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await interstitialState.selectOption('NY');
-			log('Selected State NY in interstitial.');
-		}
+
+		// Wait for Stripe to validate the address and auto-populate State (ZIP 10001 = NY).
+		// Skipping manual State selectOption — it triggers an iframe re-render that causes
+		// subsequent frameLocator operations to hang indefinitely in Playwright.
+		await page.waitForTimeout(5000);
 
 		await screenshot(page, 'link-interstitial-after-fill');
 
+		// Click Pay — skip toBeEnabled check (can hang on reloading frames).
+		// Fall back to force click if the normal click is blocked.
 		const interstitialPay = checkoutFrame
 			.locator('button[type="submit"], button:has-text("Pay")')
 			.first();
-		await expect(interstitialPay).toBeEnabled({ timeout: 5000 });
-		await interstitialPay.click();
+		try {
+			await interstitialPay.click({ timeout: 8000 });
+		} catch {
+			await interstitialPay.click({ force: true, timeout: 5000 });
+		}
 		log('Clicked through Stripe Link save-payment interstitial Pay button.');
 	}
 
