@@ -124,6 +124,7 @@ class StripeService:
         try:
             params: Dict[str, Any] = {
                 "ui_mode": "embedded_page",
+                "redirect_on_completion": "never",
                 "line_items": [{"price": price_id, "quantity": 1}],
                 "mode": mode,
                 "managed_payments": {"enabled": True},
