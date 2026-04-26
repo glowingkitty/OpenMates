@@ -466,6 +466,18 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await payBtn.click();
 	log('Clicked Pay in Stripe Checkout — waiting for onComplete and confirmation.');
 
+	// Stripe Link may show a "save your payment info" interstitial after clicking Pay.
+	// It has an optional phone field and a second Pay button — click through it.
+	await page.waitForTimeout(3000);
+	const linkInterstitialPay = checkoutFrame
+		.locator('button[type="submit"], button:has-text("Pay")')
+		.first();
+	const isLinkInterstitial = await linkInterstitialPay.isVisible({ timeout: 5000 }).catch(() => false);
+	if (isLinkInterstitial) {
+		await linkInterstitialPay.click();
+		log('Clicked through Stripe Link save-payment interstitial Pay button.');
+	}
+
 	// ─── Verify purchase success WITHOUT page reload ──────────────────────────────
 	// onComplete fires in Payment.svelte → dispatches paymentStateChange('processing')
 	// → SettingsBuyCreditsPayment.svelte waits for payment_completed WebSocket event
