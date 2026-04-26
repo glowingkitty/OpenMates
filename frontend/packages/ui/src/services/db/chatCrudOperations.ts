@@ -37,9 +37,39 @@ interface ChatDatabaseInstance {
 // Store name constant for messages (needed for deleteChat)
 const MESSAGES_STORE_NAME = "messages";
 
+// Maximum candidate keys stored per chat — prevents unbounded IDB growth
+const MAX_CANDIDATE_KEYS = 5;
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+/**
+ * Append a rejected encrypted_chat_key blob to a chat's candidate_encrypted_keys array in IDB.
+ * Deduplicates by value and enforces MAX_CANDIDATE_KEYS (oldest entry dropped when full).
+ * Called whenever injectKey() rejects a conflicting key so the blob isn't lost forever.
+ */
+export async function addCandidateKey(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  encryptedKeyBlob: string,
+): Promise<void> {
+  try {
+    const chat = await dbInstance.getChat(chatId);
+    if (!chat) return;
+
+    const existing = chat.candidate_encrypted_keys ?? [];
+    if (existing.includes(encryptedKeyBlob)) return; // already stored
+
+    const updated = [...existing, encryptedKeyBlob].slice(-MAX_CANDIDATE_KEYS);
+    // Use a minimal update object — only touch the candidate_encrypted_keys field
+    const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+    store.put({ ...chat, candidate_encrypted_keys: updated });
+  } catch (err) {
+    console.warn(`[ChatDatabase] Failed to persist candidate key for chat ${chatId}:`, err);
+  }
+}
 
 /**
  * Extract title from TipTap JSON content (first line of text)
@@ -133,8 +163,11 @@ export async function encryptChatForStorage(
         chatKey = candidateKey;
         encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
       }
-      // If rejected: the server has a conflicting key. Leave chatKey null so step 3
-      // can recover the correct encrypted_chat_key from IDB without overwriting it.
+      // If rejected: save the conflicting blob as a candidate so tryDecryptWithCandidates
+      // can recover it later if the local key turns out to be the wrong one.
+      if (!accepted && chat.encrypted_chat_key) {
+        addCandidateKey(dbInstance, chat.chat_id, chat.encrypted_chat_key).catch(() => {});
+      }
     } else {
       console.error(
         `[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`,

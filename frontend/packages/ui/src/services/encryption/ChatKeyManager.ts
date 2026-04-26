@@ -203,6 +203,16 @@ export class ChatKeyManager {
     | ((chatId: string) => Promise<string | null>)
     | null = null;
 
+  /** Callback to fetch candidate_encrypted_keys array from IDB for a given chatId */
+  private fetchCandidateKeysFn:
+    | ((chatId: string) => Promise<string[]>)
+    | null = null;
+
+  /** Callback to persist a new candidate key blob to IDB (appended to array, max 5) */
+  private persistCandidateKeyFn:
+    | ((chatId: string, encryptedKeyBlob: string) => Promise<void>)
+    | null = null;
+
   /** Hidden chat key decryptor (combined secret) — set by hiddenChatService */
   private hiddenChatKeyDecryptor:
     | ((encryptedKey: string, chatId?: string) => Promise<Uint8Array | null>)
@@ -320,6 +330,90 @@ export class ChatKeyManager {
       });
   }
 
+  /**
+   * Try to decrypt a chat key using stored candidate blobs.
+   * Called when both master key and hidden chat decryptor fail.
+   * On success: promotes the winning candidate to primary in both memory and IDB,
+   * broadcasts to other tabs, and notifies the server to correct its stored key.
+   */
+  private async tryDecryptWithCandidates(chatId: string): Promise<Uint8Array | null> {
+    if (!this.fetchCandidateKeysFn) return null;
+
+    let candidates: string[];
+    try {
+      candidates = await this.fetchCandidateKeysFn(chatId);
+    } catch {
+      return null;
+    }
+    if (!candidates.length) return null;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const blob = candidates[i];
+      try {
+        const key = await decryptChatKeyWithMasterKey(blob);
+        if (!key) continue;
+
+        const candidateFp = computeKeyFingerprint(key);
+        const existingFp = this.provenances.get(chatId)?.keyFingerprint ?? "none";
+        console.warn(
+          `[ChatKeyManager] ✅ CANDIDATE KEY PROMOTED for chat ${chatId}: ` +
+            `candidate[${i}] fp=${candidateFp} succeeded where primary fp=${existingFp} failed. ` +
+            `Promoting and syncing to server.`,
+        );
+
+        // Force-replace the corrupt primary key with the working candidate
+        this.injectKey(chatId, key, "master_key", true);
+        this.flushPendingOps(chatId, key);
+
+        // Persist the corrected blob as the new primary encrypted_chat_key in IDB
+        if (this.persistEncryptedChatKeyFn) {
+          this.persistEncryptedChatKeyFn(chatId, blob).catch((err) =>
+            console.warn(`[ChatKeyManager] Failed to persist promoted candidate for ${chatId}:`, err),
+          );
+        }
+
+        // Broadcast the corrected key to other tabs
+        this.broadcastKeyLoaded(chatId, blob);
+
+        // Notify server to overwrite its stale encrypted_chat_key so other devices heal
+        this.sendCandidatePromotionToServer(chatId, blob, candidateFp);
+
+        return key;
+      } catch {
+        // This candidate also failed — try next
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Notify the server that a candidate key was promoted, triggering a key update
+   * in Directus so other devices receive the corrected encrypted_chat_key on next sync.
+   * Fire-and-forget — promotion success is not gated on server acknowledgment.
+   */
+  private sendCandidatePromotionToServer(
+    chatId: string,
+    encryptedChatKey: string,
+    candidateFp: string,
+  ): void {
+    import("../websocketService")
+      .then(({ webSocketService }) => {
+        webSocketService
+          .sendMessage("encrypted_chat_metadata", {
+            chat_id: chatId,
+            encrypted_chat_key: encryptedChatKey,
+            allow_chat_key_rotation: true,
+            chat_key_rotation_reason: `candidate_key_promoted fp=${candidateFp}`,
+          })
+          .catch((err: unknown) =>
+            console.warn(`[ChatKeyManager] Failed to sync promoted candidate key for ${chatId}:`, err),
+          );
+      })
+      .catch((err: unknown) =>
+        console.warn(`[ChatKeyManager] Failed to import websocketService for candidate sync:`, err),
+      );
+  }
+
   // ---- Initialization ----
 
   /**
@@ -353,6 +447,26 @@ export class ChatKeyManager {
     persister: (chatId: string, encryptedChatKey: string) => Promise<void>,
   ): void {
     this.persistEncryptedChatKeyFn = persister;
+  }
+
+  /**
+   * Register the function that fetches candidate_encrypted_keys from IDB.
+   * Called once during ChatDatabase initialization.
+   */
+  setCandidateKeyFetcher(
+    fetcher: (chatId: string) => Promise<string[]>,
+  ): void {
+    this.fetchCandidateKeysFn = fetcher;
+  }
+
+  /**
+   * Register the function that appends a candidate key blob to IDB.
+   * Called once during ChatDatabase initialization.
+   */
+  setCandidateKeyPersister(
+    persister: (chatId: string, encryptedKeyBlob: string) => Promise<void>,
+  ): void {
+    this.persistCandidateKeyFn = persister;
   }
 
   // ---- Core Key Access ----
@@ -614,10 +728,15 @@ export class ChatKeyManager {
           }
         }
 
-        // Both failed
+        // Both primary methods failed — try candidate keys (multi-tab race survivors)
+        const candidateKey = await this.tryDecryptWithCandidates(chatId);
+        if (candidateKey) {
+          return candidateKey;
+        }
+
         console.warn(
           `[ChatKeyManager] Failed to decrypt chat key for ${chatId} — ` +
-            `master key and hidden chat decryptors both returned null`,
+            `master key, hidden chat decryptors, and all ${await this.fetchCandidateKeysFn?.(chatId).then(c => c.length).catch(() => 0)} candidate(s) failed`,
         );
         this.states.set(chatId, "failed");
         return null;
@@ -689,10 +808,15 @@ export class ChatKeyManager {
           console.error(
             `[ChatKeyManager] ⚠️ KEY CONFLICT in receiveKeyFromServer for chat ${chatId}! ` +
               `Local key fp=${existingFp} differs from server key fp=${serverFp}. ` +
-              `Keeping local key — server key rejected to prevent data loss.`,
+              `Keeping local key — saving server key as candidate for fallback recovery.`,
           );
-          // The server may hold a stale key from a previous race/sync corruption.
-          // Reject it — the local key was loaded from IDB and is the known-good one.
+          // Save the conflicting server key as a candidate. If the local key is wrong
+          // (e.g. corrupted by a prior race), tryDecryptWithCandidates will recover it.
+          if (this.persistCandidateKeyFn) {
+            this.persistCandidateKeyFn(chatId, encryptedChatKey).catch((err) =>
+              console.warn(`[ChatKeyManager] Failed to persist candidate key for ${chatId}:`, err),
+            );
+          }
           return existing;
         }
       } catch {

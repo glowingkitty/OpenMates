@@ -495,6 +495,18 @@ class ChatDatabase {
           },
         );
 
+        // Wire candidate key fetcher/persister for fallback key recovery.
+        chatKeyManager.setCandidateKeyFetcher(async (chatId: string) => {
+          const chat = await this.getChat(chatId);
+          return chat?.candidate_encrypted_keys ?? [];
+        });
+
+        chatKeyManager.setCandidateKeyPersister(
+          async (chatId: string, encryptedKeyBlob: string) => {
+            await chatCrudOps.addCandidateKey(this, chatId, encryptedKeyBlob);
+          },
+        );
+
         // Load chat keys from database into cache
         try {
           await this.loadChatKeysFromDatabase();

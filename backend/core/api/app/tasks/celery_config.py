@@ -1372,5 +1372,13 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour='*/6', minute=30),  # Every 6 hours at :30
         'options': {'queue': 'persistence'},
     },
+    # Weekly error digest — aggregates dev + prod ERROR/CRITICAL events from the past 7 days
+    # and emails a summary to SERVER_OWNER_EMAIL. Also surfaces candidate_key_promoted events
+    # from the encryption fallback system. Monday 08:00 UTC so it's waiting at start of week.
+    'error-digest-weekly': {
+        'task': 'app.tasks.email_tasks.error_digest_task.send_weekly_error_digest',
+        'schedule': crontab(hour=8, minute=0, day_of_week=1),  # Monday 08:00 UTC
+        'options': {'queue': 'email'},
+    },
 }
 app.conf.timezone = 'UTC'
