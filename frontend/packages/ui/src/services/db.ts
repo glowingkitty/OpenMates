@@ -1610,8 +1610,8 @@ class ChatDatabase {
     chatId: string,
     chatKey: Uint8Array,
     source?: import("./encryption/ChatKeyManager").KeySource,
-  ): void {
-    chatKeyManagementOps.setChatKey(this, chatId, chatKey, source);
+  ): boolean {
+    return chatKeyManagementOps.setChatKey(this, chatId, chatKey, source);
   }
 
   public async loadChatKeysFromDatabase(): Promise<void> {

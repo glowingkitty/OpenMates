@@ -27,6 +27,7 @@ import {
 } from "./encryption/MetadataEncryptor";
 import { getTracer } from './tracing/setup';
 import { injectTraceparent } from './tracing/wsSpans';
+import { addCandidateKey } from "./db/chatCrudOperations";
 import type { Chat, Message } from "../types/chat";
 
 export async function sendNewMessageImpl(
@@ -1380,8 +1381,12 @@ export async function sendEncryptedStoragePackage(
 
 			if (decryptedKey) {
 				chatKey = decryptedKey;
-				// Update the cache with the correct key
-				chatDB.setChatKey(chat_id, chatKey);
+				const accepted = chatDB.setChatKey(chat_id, chatKey);
+				if (!accepted) {
+					// A different key is already in memory (race with another tab or server push).
+					// Save the IDB blob as a candidate so tryDecryptWithCandidates can recover it.
+					addCandidateKey(chatDB, chat_id, encryptedChatKey).catch(() => {});
+				}
 				console.log(
 					`[ChatSyncService:Senders] ✅ Decrypted and cached chat key for ${chat_id}, length: ${chatKey.length}`
 				);
@@ -1400,7 +1405,10 @@ export async function sendEncryptedStoragePackage(
 						await hiddenChatService.tryDecryptChatKey(encryptedChatKey);
 					if (hiddenResult.chatKey) {
 						chatKey = hiddenResult.chatKey;
-						chatDB.setChatKey(chat_id, chatKey);
+						const accepted = chatDB.setChatKey(chat_id, chatKey);
+						if (!accepted) {
+							addCandidateKey(chatDB, chat_id, encryptedChatKey).catch(() => {});
+						}
 						console.info(
 							`[ChatSyncService:Senders] ✅ Decrypted chat key via hidden chat path for ${chat_id}`
 						);
@@ -1443,7 +1451,10 @@ export async function sendEncryptedStoragePackage(
 				if (!chatKey) {
 					chatKey = await decryptChatKeyWithMasterKey(freshEncKey);
 					if (chatKey) {
-						chatDB.setChatKey(chat_id, chatKey);
+						const accepted = chatDB.setChatKey(chat_id, chatKey);
+						if (!accepted) {
+							addCandidateKey(chatDB, chat_id, freshEncKey).catch(() => {});
+						}
 					}
 				}
 			}

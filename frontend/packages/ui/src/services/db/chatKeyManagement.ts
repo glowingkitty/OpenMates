@@ -87,13 +87,17 @@ export function getChatKey(
  * @param chatKey - The chat key to cache
  * @param source - Where this key came from (for provenance tracking)
  */
+/**
+ * Returns true if the key was accepted, false if a different key already exists.
+ * Callers that received an encrypted blob should save it as a candidate on false.
+ */
 export function setChatKey(
   _dbInstance: ChatDatabaseInstance,
   chatId: string,
   chatKey: Uint8Array,
   source?: import("../encryption/ChatKeyManager").KeySource,
-): void {
-  chatKeyManager.injectKey(chatId, chatKey, source);
+): boolean {
+  return chatKeyManager.injectKey(chatId, chatKey, source);
 }
 
 /**
@@ -805,16 +809,20 @@ export async function decryptMessageFields(
         const isOperationError =
           errorMessage.includes("OperationError") ||
           errorMessage.includes("database");
-        const logLevel = isOperationError ? "debug" : "error"; // Reduce noise for expected logout-related errors
-
-        console[logLevel](
+        const logMsg =
           `[CLIENT_DECRYPT] ${isOperationError ? "⚠️" : "❌ CRITICAL:"} Error decrypting content for message ${message.message_id} ` +
-            `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
-            `${errorMessage}. ` +
-            `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
-            `Has plaintext fallback: ${!!message.content}. ` +
-            `${isOperationError ? "This may be due to database operations during logout." : "This may indicate vault-encrypted content was sent instead of client-encrypted!"}`,
-        );
+          `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
+          `${errorMessage}. ` +
+          `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
+          `Has plaintext fallback: ${!!message.content}. ` +
+          `${isOperationError ? "This may be due to database operations during logout." : "This may indicate vault-encrypted content was sent instead of client-encrypted!"}`;
+
+        // Use explicit branches — dynamic console[key] triggers the no-console lint rule
+        if (isOperationError) {
+          console.debug(logMsg);
+        } else {
+          console.error(logMsg);
+        }
         // If message already has plaintext content, use it (common for status='sending')
         if (message.content) {
           console.warn(
