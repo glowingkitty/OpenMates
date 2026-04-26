@@ -475,26 +475,44 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	const linkSaveCheckbox = checkoutFrame.getByText(/save my payment information/i);
 	const isLinkInterstitial = await linkSaveCheckbox.isVisible({ timeout: 3000 }).catch(() => false);
 	if (isLinkInterstitial) {
-		// The interstitial may also have City/ZIP fields — fill them if present
+		await screenshot(page, 'link-interstitial-before-fill');
+
+		// Uncheck "Save my payment information" — when unchecked Stripe skips address
+		// collection and processes the payment directly. This avoids needing to fill
+		// City/ZIP/State fields (which vary by Stripe version).
+		const saveInfoCheckbox = checkoutFrame.locator('input[type="checkbox"]').first();
+		const isChecked = await saveInfoCheckbox.isChecked({ timeout: 2000 }).catch(() => false);
+		if (isChecked) {
+			await saveInfoCheckbox.uncheck();
+			log('Unchecked "Save my payment information" checkbox.');
+			await page.waitForTimeout(1000);
+		}
+
+		// If address fields are still visible after unchecking, fill them.
+		// ZIP: use placeholder-based selector (same approach as City which works reliably).
 		const interstitialCity = checkoutFrame.getByPlaceholder(/^city$/i);
-		if (await interstitialCity.isVisible({ timeout: 1000 }).catch(() => false)) {
+		if (await interstitialCity.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await interstitialCity.fill('New York');
+			log('Filled City field in interstitial.');
 		}
-		const interstitialZip = checkoutFrame.locator(
-			'input[autocomplete="postal-code"], input[name="postalCode"]'
-		).first();
-		if (await interstitialZip.isVisible({ timeout: 1000 }).catch(() => false)) {
+		const interstitialZip = checkoutFrame.getByPlaceholder(/^zip$/i);
+		if (await interstitialZip.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await interstitialZip.fill('10001');
+			log('Filled ZIP field in interstitial.');
 		}
-		const interstitialState = checkoutFrame.locator(
-			'select[autocomplete="address-level1"], select[name="state"]'
-		).first();
-		if (await interstitialState.isVisible({ timeout: 1000 }).catch(() => false)) {
+		// State: find the first visible <select> in the checkout frame (only one in the interstitial).
+		const interstitialState = checkoutFrame.locator('select').first();
+		if (await interstitialState.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await interstitialState.selectOption('NY');
+			log('Selected State NY in interstitial.');
 		}
+
+		await screenshot(page, 'link-interstitial-after-fill');
+
 		const interstitialPay = checkoutFrame
 			.locator('button[type="submit"], button:has-text("Pay")')
 			.first();
+		await expect(interstitialPay).toBeEnabled({ timeout: 5000 });
 		await interstitialPay.click();
 		log('Clicked through Stripe Link save-payment interstitial Pay button.');
 	}
