@@ -360,6 +360,7 @@
                     >
                         <button
                             class="login-signup-button"
+                            data-testid="header-login-signup-btn"
                             onclick={(e) => {
                                 e.preventDefault();
                                 // Dispatch event to open signup interface (shows signup tab by default)

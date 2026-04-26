@@ -28,7 +28,6 @@ Required env vars:
 - PROD_SMOKE_GIFT_CARD_CODE        — the reusable card seeded once via the
                                      admin generate-gift-cards endpoint
 */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 const { test, expect } = require('../helpers/cookie-audit');
@@ -137,9 +136,7 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginSignupButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginSignupButton).toBeVisible({ timeout: 15000 });
 	await headerLoginSignupButton.click();
 
@@ -288,7 +285,7 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	// This is the single most valuable assertion on prod: it proves that the
 	// login pipeline works AND that the user's E2EE keys can be restored from
 	// IndexedDB so their prior chat decrypts below.
-	const loginSignupButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(loginSignupButton).toBeVisible({ timeout: 15000 });
 	await loginSignupButton.click();
 

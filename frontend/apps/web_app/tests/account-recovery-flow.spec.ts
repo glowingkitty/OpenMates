@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -132,9 +131,7 @@ test('completes full account recovery flow with same password', async ({
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginSignupButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginSignupButton).toBeVisible();
 	await headerLoginSignupButton.click();
 	await takeStepScreenshot(page, 'login-dialog');

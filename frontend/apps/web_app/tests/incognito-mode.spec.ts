@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -109,7 +108,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	});
 	await takeStepScreenshot(page, '01-home');
 
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
@@ -332,7 +331,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await page.waitForTimeout(4000);
 
 	// Re-login if session was lost
-	const loginButtonAfterReload = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginButtonAfterReload = page.getByTestId('header-login-signup-btn');
 	if (await loginButtonAfterReload.isVisible({ timeout: 5000 }).catch(() => false)) {
 		logCheckpoint('Session lost — re-logging in.');
 		await loginButtonAfterReload.click();

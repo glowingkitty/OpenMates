@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Modal/dialog ARIA verification tests.
@@ -122,7 +121,7 @@ test.describe('Modal ARIA — unauthenticated', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const loginButton = page.getByTestId('header-login-signup-btn');
 		await expect(loginButton).toBeVisible({ timeout: 15000 });
 		await loginButton.click();
 		await page.waitForTimeout(1000);
@@ -172,7 +171,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('networkidle');
 
-		const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const headerLoginButton = page.getByTestId('header-login-signup-btn');
 		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 		await headerLoginButton.click();
 

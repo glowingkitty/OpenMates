@@ -50,7 +50,6 @@ test.beforeEach(async () => {
 // eslint-disable-next-line no-empty-pattern
 test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
-		// eslint-disable-next-line no-console
 		console.log(
 			'\n--- CLI MEMORIES DEBUG ---\n' + consoleLogs.slice(-50).join('\n') + '\n--- END DEBUG ---\n'
 		);
@@ -181,7 +180,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 
 	// Log in to web app
 	await page.goto('/');
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 
@@ -689,7 +688,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		let types: any[];
 		try {
 			types = JSON.parse(typesResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(
 				`Expected JSON from memories types --json, got:\n${typesResult.stdout}\nstderr:\n${typesResult.stderr}`
 			);

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -88,7 +87,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await screenshot(page, 'home');
 
 	// ── 2. Open login dialog ─────────────────────────────────────────────────
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 	await screenshot(page, 'login-dialog');

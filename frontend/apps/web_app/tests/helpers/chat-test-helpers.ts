@@ -60,10 +60,8 @@ async function loginToTestAccount(
 	await takeStepScreenshot(page, 'home');
 
 	// Header button now opens the signup interface (not login directly).
-	// Click it, then switch to the Login tab before entering credentials.
-	const headerSignupButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	// Use data-testid to avoid matching the banner signup button that also exists on the page.
+	const headerSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerSignupButton).toBeVisible({ timeout: 15000 });
 	await headerSignupButton.click();
 	await takeStepScreenshot(page, 'signup-interface-opened');
@@ -118,7 +116,7 @@ async function loginToTestAccount(
 
 		// Reload the page to reset the EmailLookup component state
 		await page.goto(getE2EDebugUrl('/'));
-		const retrySignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const retrySignupBtn = page.getByTestId('header-login-signup-btn');
 		await expect(retrySignupBtn).toBeVisible({ timeout: 15000 });
 		await retrySignupBtn.click();
 		const retryLoginTab = page.getByTestId('tab-login');

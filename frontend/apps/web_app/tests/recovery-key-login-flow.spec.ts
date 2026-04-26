@@ -112,9 +112,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
@@ -304,9 +302,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// ========================================================================
 
 	// Open login dialog
-	const loginButtonAfterLogout = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
 

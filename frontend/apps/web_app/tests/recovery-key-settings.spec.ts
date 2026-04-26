@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -117,9 +116,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
@@ -332,9 +329,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// ========================================================================
 
 	// Open login dialog again
-	const loginButtonAfterLogout = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
 

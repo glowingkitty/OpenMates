@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -195,9 +194,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginSignupButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginSignupButton).toBeVisible();
 	await headerLoginSignupButton.click();
 	await takeStepScreenshot(page, 'login-dialog');
@@ -618,7 +615,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 	// The payment itself already succeeded (credits visible), so email validation
 	// is a nice-to-have, not a test-critical assertion.
 	logSignupCheckpoint('Waiting for Polar purchase confirmation email (non-blocking).');
-	let purchaseEmailValidated = false;
+	let _purchaseEmailValidated = false;
 	try {
 		const purchaseEmail = await waitForMailosaurMessage({
 			sentTo: signupEmail,
@@ -644,7 +641,7 @@ test('completes full Polar signup flow with email + 2FA + non-EU payment', async
 				textSnippet: purchaseText.slice(0, 300)
 			});
 		}
-		purchaseEmailValidated = true;
+		_purchaseEmailValidated = true;
 	} catch (emailError: any) {
 		logSignupCheckpoint(`Purchase confirmation email not received within 60s — skipping email validation. Error: ${emailError.message?.slice(0, 100)}`);
 	}

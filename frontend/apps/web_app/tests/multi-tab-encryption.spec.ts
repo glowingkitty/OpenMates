@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Multi-Tab Encryption Test (Same Browser, Shared Storage)
@@ -111,9 +110,7 @@ function attachListeners(page: any, label: string, logs: SessionLogs) {
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'));
 
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 

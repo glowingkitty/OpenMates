@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Keyboard navigation accessibility tests.
@@ -107,7 +106,7 @@ test.describe('Keyboard navigation — unauthenticated', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open login dialog
-		const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const loginButton = page.getByTestId('header-login-signup-btn');
 		await expect(loginButton).toBeVisible({ timeout: 15000 });
 		await loginButton.click();
 		await page.waitForTimeout(1000);
@@ -150,7 +149,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('networkidle');
 
-		const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const headerLoginButton = page.getByTestId('header-login-signup-btn');
 		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 		await headerLoginButton.click();
 
@@ -233,7 +232,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 
 		if (dialogVisible) {
 			// Record the first focused element inside the dialog
-			const firstFocused = await page.evaluate(() => {
+			await page.evaluate(() => {
 				return document.activeElement?.tagName?.toLowerCase() || 'none';
 			});
 

@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Accessibility page scan tests — WCAG 2.1 AA compliance via axe-core.
@@ -51,7 +50,7 @@ test.describe('Accessibility — unauthenticated pages', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open the login dialog
-		const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const loginButton = page.getByTestId('header-login-signup-btn');
 		await expect(loginButton).toBeVisible({ timeout: 15000 });
 		await loginButton.click();
 		await page.waitForTimeout(1000);

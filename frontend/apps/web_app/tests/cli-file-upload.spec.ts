@@ -46,7 +46,6 @@ const fs = require('fs');
 const os = require('os');
 const {
 	createSignupLogger,
-	createStepScreenshotter,
 	generateTotp,
 	getTestAccount
 } = require('./signup-flow-helpers');
@@ -65,9 +64,9 @@ test.beforeEach(async () => {
 	consoleLogs.length = 0;
 });
 
+// eslint-disable-next-line no-empty-pattern
 test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
-		// eslint-disable-next-line no-console
 		console.log(
 			'\n--- CLI FILE UPLOAD DEBUG ---\n' +
 				consoleLogs.slice(-80).join('\n') +
@@ -191,10 +190,10 @@ async function runCli(
 }
 
 async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: string) => void) {
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
+	const _baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 
 	await page.goto('/');
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 

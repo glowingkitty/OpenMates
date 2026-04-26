@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Create a persistent test account via the real signup flow.
@@ -94,7 +93,7 @@ test.describe('Create persistent test account', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await takeScreenshot(page, 'home');
 
-		const headerButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const headerButton = page.getByTestId('header-login-signup-btn');
 		await expect(headerButton).toBeVisible();
 		await headerButton.click();
 		logCheckpoint('Opened login dialog.');

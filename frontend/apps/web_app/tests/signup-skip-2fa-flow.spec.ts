@@ -5,7 +5,6 @@ Architecture: Covers the signup route state machine and auth login flow from the
 Architecture Doc: See docs/architecture/app-skills.md for async auth-related flow context.
 Tests: N/A (this file is the Playwright E2E test entrypoint)
 */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 const { test, expect } = require('./helpers/cookie-audit');
@@ -119,9 +118,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginSignupButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginSignupButton).toBeVisible();
 	await headerLoginSignupButton.click();
 
@@ -282,9 +279,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	}
 
 	// Login with password only (no OTP expected)
-	const loginButtonAfterLogout = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 10000 });
 	await loginButtonAfterLogout.click();
 

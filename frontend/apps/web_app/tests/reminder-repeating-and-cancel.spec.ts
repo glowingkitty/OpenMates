@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -49,7 +48,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 		localStorage.removeItem('emailLookupRateLimit');
 	});
 
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 

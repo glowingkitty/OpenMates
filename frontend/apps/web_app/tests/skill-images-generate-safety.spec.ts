@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * E2E safety spec for the images-generate skill.
@@ -44,7 +43,6 @@ test.beforeEach(async () => {
 // eslint-disable-next-line no-empty-pattern
 test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
-		// eslint-disable-next-line no-console
 		console.log(
 			'\n--- IMAGES SAFETY DEBUG ---\n' +
 				consoleLogs.slice(-80).join('\n') +
@@ -167,7 +165,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 
 	await page.goto('/');
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 

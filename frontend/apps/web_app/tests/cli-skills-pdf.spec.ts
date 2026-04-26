@@ -68,7 +68,6 @@ test.beforeEach(async () => {
 // eslint-disable-next-line no-empty-pattern
 test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
-		// eslint-disable-next-line no-console
 		console.log(
 			'\n--- CLI PDF DEBUG ---\n' + consoleLogs.slice(-60).join('\n') + '\n--- END DEBUG ---\n'
 		);
@@ -237,7 +236,7 @@ test.describe('CLI PDF Skills', () => {
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 1: Logging in to web app...');
 		await page.goto('/');
-		const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const loginBtn = page.getByTestId('header-login-signup-btn');
 		await expect(loginBtn).toBeVisible({ timeout: 15000 });
 		await loginBtn.click();
 
@@ -402,7 +401,7 @@ test.describe('CLI PDF Skills', () => {
 		let showData: any;
 		try {
 			showData = JSON.parse(showResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(`Expected JSON from chats show, got:\n${showResult.stdout}`);
 		}
 

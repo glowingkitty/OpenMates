@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -180,9 +179,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Initialized passkey signup identity.', { signupEmail });
 
 		// Open the login/signup dialog from the header.
-		const headerLoginSignupButton = page.getByRole('button', {
-			name: /login.*sign up|sign up/i
-		});
+		const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
 		await expect(headerLoginSignupButton).toBeVisible();
 		await headerLoginSignupButton.click();
 		await takeStepScreenshot(page, 'login-dialog');

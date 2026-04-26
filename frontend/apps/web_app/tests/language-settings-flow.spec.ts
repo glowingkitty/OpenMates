@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -198,7 +197,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 		.catch(() => log('WARNING: networkidle timeout — continuing anyway.'));
 	await takeScreenshot(page, '01-home');
 
-	const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginButton = page.getByTestId('header-login-signup-btn');
 	await expect(loginButton).toBeVisible({ timeout: 15000 });
 	await loginButton.click();
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 // @privacy-promise: no-third-party-tracking
 export {};
@@ -138,9 +137,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	await takeStepScreenshot(page, 'home');
 
 	// Open the login/signup dialog from the header.
-	const headerLoginSignupButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginSignupButton).toBeVisible();
 	await headerLoginSignupButton.click();
 	await takeStepScreenshot(page, 'login-dialog');

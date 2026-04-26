@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -68,7 +67,6 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
@@ -846,7 +844,7 @@ test('finance image: upload, AI views image, embeds persist through reload and r
 	log('Clicked Logout.');
 
 	await page.waitForTimeout(3000);
-	const loginSignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginSignupBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginSignupBtn).toBeVisible({ timeout: 15000 });
 	log('Logout confirmed — "Login / Sign up" button visible.');
 	await screenshot(page, '10-logged-out');

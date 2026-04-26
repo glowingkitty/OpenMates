@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 // @privacy-promise: client-side-chat-encryption
 /**
@@ -372,7 +371,7 @@ async function performLogin(
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, `${screenshotPrefix}-home`);
 
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	// Extended timeout: 404s from stale demo-chat IDs on the welcome screen can
 	// delay DOM rendering beyond the 5 s Playwright default.
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
@@ -900,7 +899,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// After logout: the app stays on the same SPA page but shows the "Login / Sign up" button
 	// URL hash changes to demo-for-everyone
 	await page.waitForTimeout(3000);
-	const loginSignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginSignupBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginSignupBtn).toBeVisible({ timeout: 15000 });
 	logChatCheckpoint('Logout confirmed — "Login / Sign up" button visible.');
 	await takeStepScreenshot(page, '07-logged-out');

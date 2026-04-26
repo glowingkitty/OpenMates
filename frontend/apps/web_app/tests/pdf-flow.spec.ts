@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -82,9 +81,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
@@ -678,7 +675,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	log('Clicked Logout.');
 
 	await page.waitForTimeout(3000);
-	const loginSignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginSignupBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginSignupBtn).toBeVisible({ timeout: 15000 });
 	log('Logout confirmed — "Login / Sign up" button visible.');
 	await screenshot(page, '14-logged-out');

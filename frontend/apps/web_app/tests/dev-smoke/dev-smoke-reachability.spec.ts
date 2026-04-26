@@ -12,7 +12,6 @@ no CSS classes — per .claude/rules/testing.md. Any single failure here means
 something is so broken on dev that running the other hourly specs would just
 produce noise.
 */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 const { test, expect } = require('../helpers/cookie-audit');
@@ -33,13 +32,13 @@ test('dev reachability: root page loads with login/signup header button', async 
 
 	// Top-right header always shows the login/signup button when logged out;
 	// its presence doubles as proof the SvelteKit shell hydrated.
-	const loginSignupButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginSignupButton = page.getByTestId('header-login-signup-btn');
 	await expect(loginSignupButton).toBeVisible({ timeout: 15000 });
 });
 
 test('dev reachability: signup entry renders the login/signup tabs', async ({ page }: { page: any }) => {
 	await page.goto('/');
-	const headerButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerButton).toBeVisible({ timeout: 15000 });
 	await headerButton.click();
 
@@ -54,7 +53,7 @@ test('dev reachability: signup entry renders the login/signup tabs', async ({ pa
 
 test('dev reachability: login tab shows email input', async ({ page }: { page: any }) => {
 	await page.goto('/');
-	const headerButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerButton).toBeVisible({ timeout: 15000 });
 	await headerButton.click();
 

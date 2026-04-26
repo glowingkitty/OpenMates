@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Example chat clone-on-send test: verifies that when an authenticated user
@@ -48,7 +47,7 @@ test.describe('Example chat clone-on-send', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('networkidle');
 
-		const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const headerLoginButton = page.getByTestId('header-login-signup-btn');
 		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 		await headerLoginButton.click();
 

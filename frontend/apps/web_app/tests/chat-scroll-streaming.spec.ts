@@ -91,7 +91,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 

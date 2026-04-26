@@ -63,7 +63,6 @@ test.beforeEach(async () => {
 // eslint-disable-next-line no-empty-pattern
 test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
-		// eslint-disable-next-line no-console
 		console.log(
 			'\n--- CLI IMAGES DEBUG ---\n' + consoleLogs.slice(-60).join('\n') + '\n--- END DEBUG ---\n'
 		);
@@ -188,7 +187,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 
 	await page.goto('/');
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 
@@ -300,7 +299,7 @@ test.describe('CLI Images', () => {
 		let chatData: any;
 		try {
 			chatData = JSON.parse(chatResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(
 				`Expected JSON from chats new --json, got:\n${chatResult.stdout}\nstderr:\n${chatResult.stderr}`
 			);
@@ -326,7 +325,7 @@ test.describe('CLI Images', () => {
 		let showData: any;
 		try {
 			showData = JSON.parse(showResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(`Expected JSON from chats show --json, got:\n${showResult.stdout}`);
 		}
 
@@ -372,7 +371,7 @@ test.describe('CLI Images', () => {
 		let embedData: any;
 		try {
 			embedData = JSON.parse(embedResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(
 				`Expected JSON from embeds show --json, got:\n${embedResult.stdout}\nstderr:\n${embedResult.stderr}`
 			);
@@ -385,7 +384,7 @@ test.describe('CLI Images', () => {
 		expect(resolvedId.length).toBeGreaterThan(0);
 
 		// The decrypted content should contain the generation prompt
-		const embedContent = embedData.content || embedData.data || {};
+		const _embedContent = embedData.content || embedData.data || {};
 		logCheckpoint(`Embed type: ${embedData.embed_type || embedData.type}`);
 
 		// verify it's an image embed type
