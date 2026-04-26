@@ -430,20 +430,38 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 			await cardholderInput.pressSequentially('Test User', { delay: 30 });
 		}
 
-		// Billing address — match by placeholder shown in the UI.
+		// Billing address line 1
 		const addressInput = checkoutFrame.getByPlaceholder(/^address$/i);
 		if (await addressInput.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await addressInput.click();
 			await addressInput.pressSequentially('123 Test St', { delay: 30 });
+			// Dismiss Google autocomplete so it doesn't interfere with subsequent fields
+			await page.keyboard.press('Escape');
+			await page.waitForTimeout(500);
 		}
 
-		// Postal code if shown (US geo)
+		// City
+		const cityInput = checkoutFrame.getByPlaceholder(/^city$/i);
+		if (await cityInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await cityInput.click();
+			await cityInput.pressSequentially('New York', { delay: 30 });
+		}
+
+		// State (select dropdown)
+		const stateSelect = checkoutFrame.locator(
+			'select[autocomplete="address-level1"], select[name="state"], select[name="region"]'
+		).first();
+		if (await stateSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await stateSelect.selectOption('NY');
+		}
+
+		// ZIP / Postal code
 		const postalInput = checkoutFrame.locator(
 			'input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]'
 		).first();
 		if (await postalInput.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await postalInput.click();
-			await postalInput.pressSequentially('12345', { delay: 30 });
+			await postalInput.pressSequentially('10001', { delay: 30 });
 		}
 	} catch (e) {
 		// Stripe Checkout may render card fields in nested iframes
@@ -467,14 +485,32 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	log('Clicked Pay in Stripe Checkout — waiting for onComplete and confirmation.');
 
 	// Stripe Link may show a "save your payment info" interstitial after clicking Pay.
-	// It has an optional phone field and a second Pay button — click through it.
+	// Detect it by the "Save my payment information" checkbox (unique to the Link interstitial).
 	await page.waitForTimeout(3000);
-	const linkInterstitialPay = checkoutFrame
-		.locator('button[type="submit"], button:has-text("Pay")')
-		.first();
-	const isLinkInterstitial = await linkInterstitialPay.isVisible({ timeout: 5000 }).catch(() => false);
+	const linkSaveCheckbox = checkoutFrame.getByText(/save my payment information/i);
+	const isLinkInterstitial = await linkSaveCheckbox.isVisible({ timeout: 3000 }).catch(() => false);
 	if (isLinkInterstitial) {
-		await linkInterstitialPay.click();
+		// The interstitial may also have City/ZIP fields — fill them if present
+		const interstitialCity = checkoutFrame.getByPlaceholder(/^city$/i);
+		if (await interstitialCity.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await interstitialCity.fill('New York');
+		}
+		const interstitialZip = checkoutFrame.locator(
+			'input[autocomplete="postal-code"], input[name="postalCode"]'
+		).first();
+		if (await interstitialZip.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await interstitialZip.fill('10001');
+		}
+		const interstitialState = checkoutFrame.locator(
+			'select[autocomplete="address-level1"], select[name="state"]'
+		).first();
+		if (await interstitialState.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await interstitialState.selectOption('NY');
+		}
+		const interstitialPay = checkoutFrame
+			.locator('button[type="submit"], button:has-text("Pay")')
+			.first();
+		await interstitialPay.click();
 		log('Clicked through Stripe Link save-payment interstitial Pay button.');
 	}
 
