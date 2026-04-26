@@ -28,8 +28,8 @@ class PaymentService:
     Manages all payment providers and routes transactions to the correct one.
 
     Provider selection priority (highest to lowest):
-      1. Explicit provider_override in the request ("stripe" or "polar")
-      2. Region-based detection: EU → Stripe, non-EU → Polar
+      1. Explicit provider_override in the request
+      2. Region-based detection: EU → Stripe PaymentIntent, non-EU → Stripe Managed Payments
     """
 
     def __init__(self, secrets_manager: SecretsManager) -> None:
@@ -97,7 +97,7 @@ class PaymentService:
 
         Args:
             is_eu: True if the user's IP resolves to an EU/EEA/CH/GB country
-            provider_override: Optional explicit provider name ("stripe" or "polar")
+            provider_override: Optional explicit provider name ("stripe", "managed", or legacy "polar")
 
         Returns:
             Tuple of (provider_name, provider_instance)
@@ -116,6 +116,8 @@ class PaymentService:
                     return ("stripe", self._stripe_provider)
             elif normalized == "stripe":
                 return ("stripe", self._stripe_provider)
+            elif normalized == "managed":
+                return ("stripe_managed", self._stripe_provider)
             else:
                 logger.warning(
                     f"PaymentService: unknown provider_override '{provider_override}', "
@@ -124,12 +126,9 @@ class PaymentService:
 
         # Region-based selection
         if is_eu or not self._polar_provider:
-            # EU users → Stripe
-            # Also use Stripe if Polar isn't available (credentials not yet configured)
             return ("stripe", self._stripe_provider)
         else:
-            # Non-EU users → Polar
-            return ("polar", self._polar_provider)
+            return ("stripe_managed", self._stripe_provider)
 
     async def create_order(
         self,
@@ -178,7 +177,7 @@ class PaymentService:
                 success_url=success_url,
                 embed_origin=embed_origin,
             )
-        elif use_global_pricing:
+        elif provider_name == "stripe_managed" or use_global_pricing:
             # Non-EU: Stripe Managed Payments via Checkout Session, global prices
             return await provider.create_order(
                 amount, currency, email, credits_amount, customer_id,
@@ -214,8 +213,8 @@ class PaymentService:
         """
         Retrieve an order by ID.
 
-        For Polar orders the order_id is a Polar checkout session ID (UUID).
-        For Stripe orders it's a PaymentIntent ID (pi_...).
+        For managed Stripe orders the order_id is a Checkout Session ID (cs_...).
+        For direct Stripe orders it's a PaymentIntent ID (pi_...).
         The correct provider is determined by the ID prefix.
 
         Args:
@@ -224,8 +223,11 @@ class PaymentService:
         Returns:
             Normalized order dict, or None on error
         """
-        # Route by ID format: Polar uses UUID-style IDs, Stripe uses "pi_" prefix
-        if self._polar_provider and not order_id.startswith("pi_"):
+        # Route by ID format. Stripe supports both pi_ and cs_ IDs here.
+        if order_id.startswith(("pi_", "cs_")):
+            return await self._stripe_provider.get_order(order_id)
+
+        if self._polar_provider:
             # Try Polar first for non-Stripe IDs
             result = await self._polar_provider.get_order(order_id)
             if result:
@@ -353,7 +355,7 @@ class PaymentService:
                                For Stripe: PaymentIntent ID ('pi_...').
                                For Polar: the Polar Order UUID (from invoices.provider_order_id).
             amount: Refund amount in smallest currency unit (cents). If None, full refund (Stripe only).
-            provider: Explicit provider name ('stripe' or 'polar') to bypass auto-detection.
+            provider: Explicit provider name ('stripe', 'stripe_managed', or legacy 'polar') to bypass auto-detection.
             reason: Refund reason (used by Polar). Default: 'customer_request'.
 
         Returns:
@@ -362,7 +364,7 @@ class PaymentService:
         # Explicit provider override
         if provider == "polar" and self._polar_provider:
             return await self._polar_provider.refund_payment(payment_intent_id, amount, reason=reason)
-        if provider == "stripe" and self._stripe_provider:
+        if provider in ("stripe", "stripe_managed") and self._stripe_provider:
             return await self._stripe_provider.refund_payment(payment_intent_id, amount)
 
         # Auto-detection fallback (for backwards compatibility)

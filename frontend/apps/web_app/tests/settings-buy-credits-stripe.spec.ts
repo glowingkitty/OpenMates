@@ -539,6 +539,57 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await screenshot(page, 'purchase-success');
 	log('Managed Payments purchase confirmed — no page reload detected.');
 
+	// ─── Verify managed payment document + refund flow ────────────────────────────
+	// Managed Payments must create an OpenMates payment confirmation row (not an
+	// invoice row) and still allow unused-credit refunds from Settings → Invoices.
+	const doneButton = page.getByRole('button', { name: /^done$/i });
+	await expect(doneButton).toBeVisible({ timeout: 10000 });
+	await doneButton.click();
+	log('Returned to Billing after purchase confirmation.');
+	// The invoice task is asynchronous. Give it time to create the persisted row before
+	// opening Invoices, because payment_completed may have fired before this page mounts.
+	await page.waitForTimeout(30000);
+
+	const invoicesItem = page
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
+		.filter({ hasText: /invoices/i });
+	await expect(invoicesItem).toBeVisible({ timeout: 10000 });
+	await invoicesItem.click();
+	log('Opened Invoices after managed payment.');
+
+	await expect
+		.poll(
+			async () => {
+				const labels = await page.locator('[data-testid="settings-menu"].visible').innerText();
+				return /payment confirmation/i.test(labels);
+			},
+			{ timeout: 120000, intervals: [3000, 5000, 10000] }
+		)
+		.toBe(true);
+	await screenshot(page, 'managed-payment-confirmation-row');
+	log('Managed payment confirmation row is visible.');
+
+	const latestManagedInvoice = page.locator('[data-testid="invoice-item"]').filter({ hasText: /payment confirmation/i }).first();
+	await expect(latestManagedInvoice).toBeVisible({ timeout: 10000 });
+
+	const refundButton = latestManagedInvoice.getByRole('button', { name: /refund/i });
+	await expect(refundButton).toBeVisible({ timeout: 10000 });
+	await expect(refundButton).toBeEnabled({ timeout: 10000 });
+	await refundButton.click();
+	log('Requested refund for managed payment row.');
+
+	await expect
+		.poll(
+			async () => {
+				const labels = await page.locator('[data-testid="settings-menu"].visible').innerText();
+				return /refund confirmation|generating/i.test(labels);
+			},
+			{ timeout: 120000, intervals: [3000, 5000, 10000] }
+		)
+		.toBe(true);
+	await screenshot(page, 'managed-refund-confirmation-row');
+	log('Managed refund flow updated the invoice row.');
+
 	await assertNoMissingTranslations(page);
 	log('Test complete.');
 });

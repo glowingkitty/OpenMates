@@ -168,6 +168,7 @@ class InvoiceResponse(BaseModel):
     refunded_at: Optional[str] = None  # ISO timestamp when refund was processed (null if not refunded)
     refund_status: Optional[str] = None  # Status of refund: 'none', 'pending', 'completed', 'failed'
     currency: Optional[str] = None  # ISO currency code lowercase (e.g. "usd", "eur"). Null for legacy invoices.
+    provider: Optional[str] = None  # Payment provider/mode, e.g. stripe or stripe_managed.
 
 class InvoicesListResponse(BaseModel):
     invoices: List[InvoiceResponse]
@@ -666,7 +667,7 @@ async def create_payment_order(
         is_eu = True
 
     use_managed_payments = not is_eu
-    provider_name = "stripe"  # Always Stripe; mode differs by is_eu flag
+    order_provider_name = "stripe_managed" if use_managed_payments else "stripe"
 
     # EU threshold guard: block EU payments if YTD EUR revenue >= 9,900 EUR
     if is_eu:
@@ -819,7 +820,7 @@ async def create_payment_order(
             ttl=86400 if use_managed_payments else 3600,
             email_encryption_key=order_data.email_encryption_key,
             currency=order_data.currency,
-            provider=provider_name,
+            provider=order_provider_name,
         )
         
         if not cache_success:
@@ -828,7 +829,7 @@ async def create_payment_order(
             # But log the error so we can investigate cache issues
 
         response_data = {
-            "provider": provider_name,
+            "provider": order_provider_name,
             "order_id": order_id,
             "client_secret": order_response.get("client_secret"),
             "checkout_url": order_response.get("checkout_url"),
@@ -1633,6 +1634,21 @@ async def payment_webhook(
 
             user_id = cached_order_data.get("user_id")
             credits_purchased = cached_order_data.get("credits_amount")
+            effective_order_provider = cached_order_data.get("provider") or provider_name
+            managed_payment_intent_id = None
+            if is_stripe_checkout_payment_success:
+                managed_payment_intent_id = _checkout_session_obj.get("payment_intent")
+                if managed_payment_intent_id:
+                    await cache_service.update_order(
+                        webhook_order_id,
+                        {"provider": "stripe_managed", "provider_order_id": managed_payment_intent_id},
+                    )
+                    effective_order_provider = "stripe_managed"
+                else:
+                    logger.warning(
+                        f"Managed Stripe checkout {webhook_order_id} completed without payment_intent. "
+                        "Refunds and document payment details may be unavailable."
+                    )
             # Extract is_gift_card flag from cached order data
             is_gift_card = cached_order_data.get("is_gift_card", False)
 
@@ -1823,7 +1839,7 @@ async def payment_webhook(
                             # 5. Financial analytics counters
                             # purchase_count and provider breakdown
                             await server_stats_service.increment_stat("purchase_count")
-                            await server_stats_service.increment_json_stat("purchases_by_provider", provider_name)
+                            await server_stats_service.increment_json_stat("purchases_by_provider", effective_order_provider)
 
                             # EU vs non-EU breakdown for signup funnel analysis
                             # Country is not stored in order cache, so we use a best-effort
@@ -1891,7 +1907,7 @@ async def payment_webhook(
                         transaction_type = "gift_card_purchase" if is_gift_card else "credit_purchase"
                         tx_details = {
                             "order_id": webhook_order_id,
-                            "provider": provider_name,
+                            "provider": effective_order_provider,
                         }
                         if is_gift_card:
                             tx_details["gift_card_code"] = gift_card_code
@@ -1992,6 +2008,31 @@ async def payment_webhook(
                         except Exception as pub_exc:
                             logger.error(f"Failed to publish 'user_credits_updated' event for user {user_id}: {pub_exc}", exc_info=True)
 
+                        # Let the checkout UI finish as soon as credits are granted. PDF/email
+                        # generation is asynchronous and should not keep the payment modal stuck.
+                        try:
+                            payment_completed_payload = {
+                                "order_id": webhook_order_id,
+                                "credits_purchased": credits_purchased,
+                                "current_credits": new_total_credits_calculated,
+                            }
+                            await cache_service.publish_event(
+                                channel=f"user_updates::{user_id}",
+                                event_data={
+                                    "event_for_client": "payment_completed",
+                                    "user_id_uuid": user_id,
+                                    "payload": payment_completed_payload,
+                                },
+                            )
+                            await manager.broadcast_to_user_specific_event(
+                                user_id=user_id,
+                                event_name="payment_completed",
+                                payload=payment_completed_payload,
+                            )
+                            logger.info(f"Published and broadcasted 'payment_completed' event for user {user_id}.")
+                        except Exception as pub_exc:
+                            logger.error(f"Failed to publish 'payment_completed' event for user {user_id}: {pub_exc}", exc_info=True)
+
                     # Dispatch invoice task for both regular purchases and gift cards
                     # Fetch sender details for invoice via SecretsManager
                     invoice_sender_path = "kv/data/providers/invoice_sender"
@@ -2013,17 +2054,6 @@ async def payment_webhook(
                     elif is_auto_topup:
                         logger.info(f"Auto top-up order {webhook_order_id} - will use server-side email decryption for invoice")
                     
-                    # For Polar, the Order UUID (needed for refunds via POST /v1/refunds) is NOT
-                    # available in the checkout.updated event. It arrives later via the order.paid
-                    # webhook, which updates the invoice's provider_order_id field in Directus.
-                    # We set it to None here; the order.paid handler fills it in asynchronously.
-                    polar_order_uuid = None
-                    if provider_name == "polar":
-                        logger.info(
-                            f"Polar checkout {webhook_order_id} succeeded. "
-                            f"Order UUID will be set when order.paid webhook arrives."
-                        )
-
                     task_payload = {
                         "order_id": webhook_order_id,
                         "user_id": user_id,
@@ -2037,8 +2067,8 @@ async def payment_webhook(
                         "email_encryption_key": email_encryption_key,  # Pass the email encryption key to the task (None for auto top-up)
                         "is_gift_card": is_gift_card,  # Pass gift card flag to invoice task
                         "is_auto_topup": is_auto_topup,  # Pass auto top-up flag to invoice task
-                        "provider": provider_name,  # Pass provider so task knows document type (invoice vs payment_confirmation)
-                        "provider_order_id": polar_order_uuid,  # Polar Order UUID for refund support (None for Stripe)
+                        "provider": effective_order_provider,  # Controls document type and refund routing
+                        "provider_order_id": managed_payment_intent_id,
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
@@ -2723,7 +2753,7 @@ async def payment_webhook(
                             f"Polar {event_type} event missing order UUID. Skipping."
                         )
                         return {"status": "received_missing_order_id"}
-                    # Look up invoice by provider_order_id (Polar Order UUID)
+                    # Look up invoice by provider_order_id (legacy provider order UUID)
                     invoice_lookup_field = "provider_order_id"
                     invoice_lookup_value = polar_order_uuid
 
@@ -2734,12 +2764,19 @@ async def payment_webhook(
                 )
 
                 if not invoices_found or len(invoices_found) == 0:
-                    logger.warning(
-                        f"Dashboard refund: no invoice found for {invoice_lookup_field}={invoice_lookup_value} "
-                        f"(event: {event_type}, provider: {provider_name}). "
-                        f"This may be a refund for an order not tracked in our system."
-                    )
-                    return {"status": "received_no_matching_invoice"}
+                    if provider_name == "stripe" and invoice_lookup_field == "order_id":
+                        invoices_found = await directus_service.get_items(
+                            "invoices",
+                            params={"filter": {"provider_order_id": {"_eq": invoice_lookup_value}}}
+                        )
+
+                    if not invoices_found or len(invoices_found) == 0:
+                        logger.warning(
+                            f"Dashboard refund: no invoice found for {invoice_lookup_field}={invoice_lookup_value} "
+                            f"(event: {event_type}, provider: {provider_name}). "
+                            f"This may be a refund for an order not tracked in our system."
+                        )
+                        return {"status": "received_no_matching_invoice"}
 
                 refund_invoice = invoices_found[0]
                 refund_invoice_id = refund_invoice.get("id")
@@ -2926,14 +2963,15 @@ async def payment_webhook(
                     "encrypted_refund_amount": encrypted_refund_amount,
                 })
 
+                refund_invoice_provider = refund_invoice.get("provider") or provider_name
+
                 # Record in Invoice Ninja (accounting) — no email, no PDF, just the accounting entry.
-                # Skip for Polar: Polar is the Merchant of Record and handles all
-                # tax/accounting documents. We only record in Invoice Ninja for
-                # Stripe where OpenMates is the seller of record.
-                if provider_name == "polar":
+                # Skip managed payments because Stripe/Link is the Merchant of Record.
+                # We only record direct Stripe transactions where OpenMates is the seller of record.
+                if refund_invoice_provider == "stripe_managed":
                     logger.info(
-                        f"Dashboard refund: skipping Invoice Ninja for Polar refund "
-                        f"(invoice {refund_invoice_id}). Polar is MoR."
+                        f"Dashboard refund: skipping Invoice Ninja for managed Stripe refund "
+                        f"(invoice {refund_invoice_id}). Stripe/Link is MoR."
                     )
                 else:
                     try:
@@ -2952,7 +2990,7 @@ async def payment_webhook(
                             refund_amount_value=refund_amount_from_webhook / 100.0,
                             currency_code=refund_currency_from_webhook.upper(),
                             refund_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                            payment_processor=provider_name,
+                            payment_processor=refund_invoice_provider,
                             custom_credit_note_number=f"CN-DASHBOARD-{refund_invoice_id[:8]}",
                         )
                         logger.info(f"Dashboard refund: recorded in Invoice Ninja for invoice {refund_invoice_id}")
@@ -3001,9 +3039,15 @@ async def payment_webhook(
                     logger.error("refund.failed event missing payment_intent. Cannot reverse credit deduction.")
                     return {"status": "refund_failed_no_payment_intent"}
 
-                # Find the invoice by order_id (= payment_intent ID)
+                # Find the invoice by PaymentIntent ID. Managed Checkout stores the
+                # session in order_id and the PaymentIntent in provider_order_id.
                 failed_invoices = await directus_service.get_items("invoices", {
-                    "filter": {"order_id": {"_eq": failed_payment_intent}},
+                    "filter": {
+                        "_or": [
+                            {"order_id": {"_eq": failed_payment_intent}},
+                            {"provider_order_id": {"_eq": failed_payment_intent}},
+                        ]
+                    },
                     "limit": 1
                 })
 
@@ -4692,6 +4736,7 @@ async def get_invoices(
                     refunded_at=refunded_at,
                     refund_status=refund_status,
                     currency=currency_code,
+                    provider=invoice.get("provider"),
                 ))
 
             except Exception as e:
@@ -5182,8 +5227,8 @@ async def request_refund(
         # Extract provider info for routing refund to the correct payment provider.
         # 'provider' and 'provider_order_id' are set on invoices created after this feature
         # was deployed. For legacy invoices these will be None (auto-detection fallback).
-        invoice_provider = invoice.get("provider")  # "stripe", "polar", or None
-        invoice_provider_order_id = invoice.get("provider_order_id")  # Polar Order UUID, or None
+        invoice_provider = invoice.get("provider")  # "stripe", "stripe_managed", legacy "polar", or None
+        invoice_provider_order_id = invoice.get("provider_order_id")  # PaymentIntent/legacy provider order ID, or None
 
         # Decrypt invoice data
         order_id = invoice.get("order_id")
@@ -5400,11 +5445,33 @@ async def request_refund(
         )
         
         # Process refund via payment provider.
-        # For Polar: use provider_order_id (the Polar Order UUID, needed by POST /v1/refunds).
-        # For Stripe: use order_id (the PaymentIntent ID, 'pi_...').
+        # For Stripe Managed Payments: order_id is the Checkout Session (cs_...),
+        # so use provider_order_id, the underlying PaymentIntent (pi_...).
+        # For direct Stripe: order_id is already the PaymentIntent ID.
         # For legacy invoices without provider info: auto-detection in PaymentService.
         refund_order_id = order_id
-        if invoice_provider == "polar" and invoice_provider_order_id:
+        if invoice_provider == "stripe_managed":
+            if not invoice_provider_order_id:
+                logger.error(
+                    f"Managed Stripe invoice {invoice_id} is missing provider_order_id. "
+                    f"Cannot refund Checkout Session {order_id} without PaymentIntent ID."
+                )
+                ComplianceService.log_refund_request(
+                    user_id=user_id,
+                    ip_address=client_ip,
+                    invoice_id=invoice_id,
+                    order_id=order_id,
+                    refund_amount=refund_amount_cents,
+                    currency=currency,
+                    status="failed",
+                    reason="Missing Stripe PaymentIntent ID for managed refund"
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Cannot process managed Stripe refund: missing provider payment ID. Please contact support."
+                )
+            refund_order_id = invoice_provider_order_id
+        elif invoice_provider == "polar" and invoice_provider_order_id:
             refund_order_id = invoice_provider_order_id
         elif invoice_provider == "polar" and not invoice_provider_order_id:
             # Fallback: the order.paid webhook may have arrived before the invoice was

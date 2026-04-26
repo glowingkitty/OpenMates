@@ -50,10 +50,9 @@ def process_credit_note_and_send_email(
     """
     Celery task to generate credit note / refund confirmation PDF, upload to S3, save to Directus, and send email.
 
-    For Polar refunds: generates a "Refund Confirmation" (not a credit note) because Polar as
-    Merchant of Record issues the official credit note. Our document just confirms we deducted
-    the credits on our side.
-    For Stripe refunds: generates a standard "Credit Note".
+    For Stripe Managed Payments: generates a "Refund Confirmation" (not a credit note) because
+    Stripe/Link as Merchant of Record issues the official credit note. Our document just confirms
+    we deducted the credits on our side. Direct Stripe refunds generate a standard "Credit Note".
     """
     logger.info(f"Starting credit note processing task for Invoice ID: {invoice_id}, User ID: {user_id}, Provider: {provider}")
     try:
@@ -216,9 +215,9 @@ async def _async_process_credit_note_and_send_email(
         logger.info("Prepared credit note data dictionary")
 
         # 7. Generate Credit Note / Refund Confirmation PDF(s)
-        # For Polar: "Refund Confirmation" (Polar is MoR, issues official credit note)
-        # For Stripe: "Credit Note" (OpenMates is seller of record)
-        pdf_document_type = "refund_confirmation" if provider == "polar" else "credit_note"
+        # For managed payments: "Refund Confirmation" (Stripe/Link is MoR, issues official credit note)
+        # For direct Stripe: "Credit Note" (OpenMates is seller of record)
+        pdf_document_type = "refund_confirmation" if provider == "stripe_managed" else "credit_note"
         logger.info(f"Generating English {pdf_document_type} PDF")
         pdf_buffer_en = task.credit_note_template_service.generate_credit_note(
             credit_note_data, lang='en', currency=currency.lower(), document_type=pdf_document_type
@@ -226,9 +225,9 @@ async def _async_process_credit_note_and_send_email(
         pdf_bytes_en = pdf_buffer_en.getvalue()
         pdf_buffer_en.close()
         # Filename reflects the document type:
-        # Polar: openmates_refund_confirmation_{date}_{CN-invoice_number}.pdf
-        # Stripe: openmates_credit_note_{date}_{CN-invoice_number}.pdf
-        en_filename_prefix = "refund_confirmation" if provider == "polar" else "credit_note"
+        # Managed payments: openmates_refund_confirmation_{date}_{CN-invoice_number}.pdf
+        # Direct Stripe: openmates_credit_note_{date}_{CN-invoice_number}.pdf
+        en_filename_prefix = "refund_confirmation" if provider == "stripe_managed" else "credit_note"
         credit_note_filename_en = f"openmates_{en_filename_prefix}_{date_str_filename}_{credit_note_number}.pdf"
         logger.info(f"Generated English PDF: {credit_note_filename_en}")
 
@@ -240,7 +239,7 @@ async def _async_process_credit_note_and_send_email(
             try:
                 # Fetch translation for the document type title
                 translations = task.translation_service.get_translations(user_language, ["invoices_and_credit_notes"])
-                if provider == "polar":
+                if provider == "stripe_managed":
                     doc_type_translation = translations.get("invoices_and_credit_notes", {}).get(
                         "refund_confirmation_title", {}
                     ).get("text", "refund confirmation")
@@ -427,13 +426,13 @@ async def _async_process_credit_note_and_send_email(
         logger.info("Successfully sent refund confirmation email with credit note attached.")
 
         # 13. Process Refund Transaction in Invoice Ninja
-        # Skip for Polar: Polar is the Merchant of Record and handles all tax/accounting
-        # documents including credit notes. We only need Invoice Ninja for Stripe
-        # where OpenMates is the seller of record.
-        if provider == "polar":
+        # Skip for managed payments: Stripe/Link is the Merchant of Record and handles
+        # all tax/accounting documents including credit notes. We only need Invoice Ninja
+        # for direct Stripe where OpenMates is the seller of record.
+        if provider == "stripe_managed":
             logger.info(
-                f"Skipping Invoice Ninja refund recording for Polar refund (invoice {invoice_id}): "
-                f"Polar is MoR, individual refund transactions are not recorded in our accounting."
+                f"Skipping Invoice Ninja refund recording for managed Stripe refund (invoice {invoice_id}): "
+                f"Stripe/Link is MoR, individual refund transactions are not recorded in our accounting."
             )
         else:
             logger.info(f"Processing refund transaction in Invoice Ninja for Invoice ID: {invoice_id}")
@@ -493,4 +492,3 @@ async def _async_process_credit_note_and_send_email(
             logger.debug("Task services cleaned up successfully for credit note task")
         except Exception as cleanup_error:
             logger.warning(f"Error during task cleanup: {str(cleanup_error)}")
-

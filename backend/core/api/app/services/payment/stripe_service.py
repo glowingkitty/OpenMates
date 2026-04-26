@@ -562,10 +562,10 @@ class StripeService:
 
     async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieves a Stripe PaymentIntent by its ID.
+        Retrieves a Stripe PaymentIntent or Checkout Session by its ID.
 
         Args:
-            order_id: The ID of the PaymentIntent.
+            order_id: The ID of the PaymentIntent (pi_...) or Checkout Session (cs_...).
 
         Returns:
             A dictionary containing the PaymentIntent details, or None if not found or an error occurred.
@@ -575,13 +575,32 @@ class StripeService:
             return None
 
         try:
-            payment_intent = stripe.PaymentIntent.retrieve(order_id)
-            logger.info(f"Stripe PaymentIntent retrieved. ID: {payment_intent.id}, Status: {payment_intent.status}")
+            session = None
+            if order_id.startswith("cs_"):
+                session = stripe.checkout.Session.retrieve(
+                    order_id,
+                    expand=["payment_intent", "payment_intent.latest_charge"],
+                    stripe_version="2026-03-25.dahlia",
+                )
+                payment_intent = session.payment_intent
+                if not payment_intent:
+                    logger.warning(f"Stripe Checkout Session {order_id} has no PaymentIntent yet.")
+                    return None
+                logger.info(
+                    f"Stripe Checkout Session retrieved. ID: {session.id}, "
+                    f"PaymentIntent: {payment_intent.id}, Status: {payment_intent.status}"
+                )
+            else:
+                payment_intent = stripe.PaymentIntent.retrieve(order_id)
+                logger.info(f"Stripe PaymentIntent retrieved. ID: {payment_intent.id}, Status: {payment_intent.status}")
 
             charge_data = None
             if payment_intent.latest_charge:
                 try:
-                    charge = stripe.Charge.retrieve(payment_intent.latest_charge)
+                    if isinstance(payment_intent.latest_charge, str):
+                        charge = stripe.Charge.retrieve(payment_intent.latest_charge)
+                    else:
+                        charge = payment_intent.latest_charge
                     charge_data = charge
                     logger.info(f"Retrieved associated Stripe Charge: {charge.id}")
                 except stripe.error.StripeError as e:
@@ -607,6 +626,7 @@ class StripeService:
 
             return {
                 "id": payment_intent.id,
+                "checkout_session_id": session.id if session else None,
                 "status": payment_intent.status,
                 "client_secret": payment_intent.client_secret,
                 "metadata": payment_intent.metadata,
