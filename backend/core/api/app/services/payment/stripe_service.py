@@ -139,10 +139,6 @@ class StripeService:
                 }
             if mode == "subscription" and billing_cycle_anchor:
                 params["subscription_data"] = {"billing_cycle_anchor": billing_cycle_anchor}
-            # Disable Stripe Link wallet so the card form processes directly without
-            # prompting users to create a Link account mid-checkout.
-            params["payment_method_options"] = {"link": {"enabled": False}}
-
             session = stripe.checkout.Session.create(**params, stripe_version="2026-03-25.dahlia")
             logger.info(f"Created Checkout Session {session.id} (mode={mode}, customer={customer_id})")
             return {
