@@ -430,36 +430,21 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 			await cardholderInput.pressSequentially('Test User', { delay: 30 });
 		}
 
-		// Billing address line 1
+		// Billing address line 1 (City/ZIP/State appear in the Link interstitial AFTER Pay, not here)
 		const addressInput = checkoutFrame.getByPlaceholder(/^address$/i);
 		if (await addressInput.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await addressInput.click();
 			await addressInput.pressSequentially('123 Test St', { delay: 30 });
-			// Dismiss Google autocomplete so it doesn't interfere with subsequent fields
+			// Dismiss Google autocomplete
 			await page.keyboard.press('Escape');
 			await page.waitForTimeout(500);
 		}
 
-		// City
-		const cityInput = checkoutFrame.getByPlaceholder(/^city$/i);
-		if (await cityInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await cityInput.click();
-			await cityInput.pressSequentially('New York', { delay: 30 });
-		}
-
-		// State (select dropdown)
-		const stateSelect = checkoutFrame.locator(
-			'select[autocomplete="address-level1"], select[name="state"], select[name="region"]'
-		).first();
-		if (await stateSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-			await stateSelect.selectOption('NY');
-		}
-
-		// ZIP / Postal code
+		// Postal code — may be present in initial form (US geo without Link)
 		const postalInput = checkoutFrame.locator(
 			'input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]'
 		).first();
-		if (await postalInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+		if (await postalInput.isVisible({ timeout: 1000 }).catch(() => false)) {
 			await postalInput.click();
 			await postalInput.pressSequentially('10001', { delay: 30 });
 		}
