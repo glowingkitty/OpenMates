@@ -103,8 +103,9 @@ class StripeService:
         """
         Create a Stripe Checkout Session with Managed Payments enabled.
 
-        Uses ui_mode="embedded" so the checkout renders inside the page via
+        Uses ui_mode="embedded_page" so the checkout renders inside the page via
         stripe.initEmbeddedCheckout() and fires onComplete when done — no redirect.
+        Note: "embedded" was renamed to "embedded_page" in the 2026-03-25.dahlia API.
 
         Args:
             price_id: Stripe Price ID for the line item.
@@ -122,7 +123,7 @@ class StripeService:
             return None
         try:
             params: Dict[str, Any] = {
-                "ui_mode": "embedded",
+                "ui_mode": "embedded_page",
                 "line_items": [{"price": price_id, "quantity": 1}],
                 "mode": mode,
                 "managed_payments": {"enabled": True},
