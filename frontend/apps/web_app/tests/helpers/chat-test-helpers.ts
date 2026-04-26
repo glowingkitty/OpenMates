@@ -49,8 +49,8 @@ async function loginToTestAccount(
 	page.on('response', on429);
 
 	await page.goto(getE2EDebugUrl('/'));
-	// Wait for the SvelteKit app to hydrate before interacting with any UI elements.
-	await page.waitForLoadState('networkidle');
+	// Wait for all resources (scripts + hydration) to load before checking buttons.
+	await page.waitForLoadState('load');
 
 	// Clear any rate-limit flags from previous test runs that would hide the login form
 	await page.evaluate(() => {
@@ -124,7 +124,7 @@ async function loginToTestAccount(
 
 		// Reload the page to reset the EmailLookup component state
 		await page.goto(getE2EDebugUrl('/'));
-		await page.waitForLoadState('networkidle');
+		await page.waitForLoadState('load');
 		const retryBannerBtn = page.getByTestId('banner-signup-button');
 		const retrySignupBtn = page.getByTestId('header-login-signup-btn');
 		const retryBannerVisible = await retryBannerBtn.isVisible({ timeout: 8000 }).catch(() => false);

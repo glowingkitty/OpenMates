@@ -93,7 +93,7 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 }) => {
 	test.slow();
 	// Allow extra time for Stripe payment processing + polling loop.
-	test.setTimeout(300000);
+	test.setTimeout(420000);
 
 	page.on('console', (msg: any) =>
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
@@ -280,7 +280,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	page: any;
 }) => {
 	test.slow();
-	test.setTimeout(300000);
+	test.setTimeout(420000);
 
 	page.on('console', (msg: any) =>
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
