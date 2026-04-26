@@ -59,11 +59,17 @@ async function loginToTestAccount(
 
 	await takeStepScreenshot(page, 'home');
 
-	// Header button now opens the signup interface (not login directly).
-	// Use data-testid to avoid matching the banner signup button that also exists on the page.
+	// The intro banner on the home page hides the header login button and shows its own.
+	// Try the banner button first; fall back to the header button once the banner is scrolled past.
+	const bannerSignupButton = page.getByTestId('banner-signup-button');
 	const headerSignupButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerSignupButton).toBeVisible({ timeout: 15000 });
-	await headerSignupButton.click();
+	const bannerVisible = await bannerSignupButton.isVisible({ timeout: 5000 }).catch(() => false);
+	if (bannerVisible) {
+		await bannerSignupButton.click();
+	} else {
+		await expect(headerSignupButton).toBeVisible({ timeout: 15000 });
+		await headerSignupButton.click();
+	}
 	await takeStepScreenshot(page, 'signup-interface-opened');
 
 	// Click the "Login" tab in the login/signup tab bar to switch to the login form
@@ -116,9 +122,15 @@ async function loginToTestAccount(
 
 		// Reload the page to reset the EmailLookup component state
 		await page.goto(getE2EDebugUrl('/'));
+		const retryBannerBtn = page.getByTestId('banner-signup-button');
 		const retrySignupBtn = page.getByTestId('header-login-signup-btn');
-		await expect(retrySignupBtn).toBeVisible({ timeout: 15000 });
-		await retrySignupBtn.click();
+		const retryBannerVisible = await retryBannerBtn.isVisible({ timeout: 5000 }).catch(() => false);
+		if (retryBannerVisible) {
+			await retryBannerBtn.click();
+		} else {
+			await expect(retrySignupBtn).toBeVisible({ timeout: 15000 });
+			await retrySignupBtn.click();
+		}
 		const retryLoginTab = page.getByTestId('tab-login');
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();
