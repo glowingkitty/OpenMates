@@ -1113,12 +1113,12 @@ function createGmailClient({
 
 /**
  * Unified email client factory — picks Gmail or Mailosaur based on available env vars.
- * Gmail is preferred when GMAIL_REFRESH_TOKEN is set. Falls back to Mailosaur.
+ * Gmail is preferred unless a recipient address clearly belongs to Mailosaur.
  *
  * Returns the same interface regardless of backend:
  *   { deleteAllMessages, waitForMailosaurMessage, extractSixDigitCode, extractMessageLinks, extractRefundLink, getPdfAttachments }
  */
-function createEmailClient(): {
+function createEmailClient(recipientEmail?: string): {
 	provider: 'gmail' | 'mailosaur';
 	deleteAllMessages: () => Promise<void>;
 	waitForMailosaurMessage: (opts: {
@@ -1136,8 +1136,10 @@ function createEmailClient(): {
 	const gmailClientId = process.env.GMAIL_CLIENT_ID;
 	const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
 	const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
+	const recipientDomain = recipientEmail?.split('@')[1]?.toLowerCase() ?? '';
+	const shouldUseMailosaur = recipientDomain.endsWith('.mailosaur.net');
 
-	if (gmailClientId && gmailClientSecret && gmailRefreshToken) {
+	if (!shouldUseMailosaur && gmailClientId && gmailClientSecret && gmailRefreshToken) {
 		const client = createGmailClient({
 			clientId: gmailClientId,
 			clientSecret: gmailClientSecret,
@@ -1148,7 +1150,8 @@ function createEmailClient(): {
 
 	const mailosaurApiKey = process.env.MAILOSAUR_API_KEY;
 	const mailosaurServerId = process.env.MAILOSAUR_SERVER_ID;
-	const signupDomain = getSignupTestDomain(process.env.SIGNUP_TEST_EMAIL_DOMAINS ?? '');
+	const signupDomain =
+		recipientDomain || getSignupTestDomain(process.env.SIGNUP_TEST_EMAIL_DOMAINS ?? '');
 	const derivedServerId = signupDomain
 		? getMailosaurServerId(signupDomain, mailosaurServerId ?? undefined)
 		: mailosaurServerId;
@@ -1168,9 +1171,14 @@ function createEmailClient(): {
  * Check email provider quota. For Gmail this is a no-op (effectively unlimited).
  * For Mailosaur, checks the daily limit.
  */
-async function checkEmailQuota(): Promise<{ available: boolean; current: number; limit: number }> {
+
+async function checkEmailQuota(
+	recipientEmail?: string
+): Promise<{ available: boolean; current: number; limit: number }> {
+	const recipientDomain = recipientEmail?.split('@')[1]?.toLowerCase() ?? '';
+	const shouldUseMailosaur = recipientDomain.endsWith('.mailosaur.net');
 	const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
-	if (gmailRefreshToken) {
+	if (gmailRefreshToken && !shouldUseMailosaur) {
 		console.log('[Gmail] No quota limits — skipping quota check.');
 		return { available: true, current: 0, limit: 999999 };
 	}

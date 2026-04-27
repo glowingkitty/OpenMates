@@ -325,10 +325,10 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	const emailClient = createEmailClient();
+	const emailClient = createEmailClient(TEST_EMAIL);
 	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
 
-	const quota = await checkEmailQuota();
+	const quota = await checkEmailQuota(TEST_EMAIL);
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
 	const log = createSignupLogger('SETTINGS_BUY_CREDITS_MANAGED');
