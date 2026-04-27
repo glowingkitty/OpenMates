@@ -59,12 +59,20 @@ async function login(page: any, email: string, log: any): Promise<void> {
 	await passwordInput.fill(TEST_PASSWORD);
 
 	const submitButton = page.locator('#login-submit-button');
-	await submitButton.click();
-
 	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(generateTotp(TEST_OTP_KEY));
-	await submitButton.click();
+	let loginSucceeded = false;
+	for (let attempt = 1; attempt <= 3 && !loginSucceeded; attempt += 1) {
+		await otpInput.fill(generateTotp(TEST_OTP_KEY));
+		await submitButton.click();
+		try {
+			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
+			loginSucceeded = true;
+		} catch {
+			if (attempt < 3) await page.waitForTimeout(31000);
+		}
+	}
+	expect(loginSucceeded, 'Expected login 2FA form to close after submitting a valid TOTP.').toBe(true);
 
 	await page.waitForURL(/chat/, { timeout: 30000 });
 	await page.waitForTimeout(5000);
