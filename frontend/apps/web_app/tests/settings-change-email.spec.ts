@@ -71,12 +71,46 @@ async function login(page: any, email: string, log: any): Promise<void> {
 	log('Logged in.', { email });
 }
 
-async function logout(page: any, log: any): Promise<void> {
-	const profileContainer = page.getByTestId('profile-container');
-	await expect(profileContainer).toBeVisible({ timeout: 10000 });
-	await profileContainer.click();
+async function openSettingsMenuAtMain(page: any): Promise<any> {
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	const closeButton = page.getByTestId('icon-button-close');
 
-	const logoutItem = page.getByRole('menuitem', { name: /logout|log out|abmelden/i });
+	if ((await settingsMenu.count()) > 0) {
+		const activeView = await settingsMenu.first().getAttribute('data-active-view');
+		if (activeView !== 'main') {
+			await closeButton.click({ timeout: 10000 });
+			await expect(settingsMenu).toBeHidden({ timeout: 10000 });
+		}
+	}
+
+	if ((await settingsMenu.count()) === 0) {
+		const profileContainer = page.getByTestId('profile-container');
+		await expect(profileContainer).toBeVisible({ timeout: 10000 });
+		await profileContainer.click();
+	}
+
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	return settingsMenu;
+}
+
+async function loginWithMigrationFallback(page: any, migrationEmail: string | null, log: any): Promise<string> {
+	try {
+		await login(page, TEST_EMAIL, log);
+		return TEST_EMAIL;
+	} catch (error) {
+		if (!TEST_EMAIL?.endsWith('.mailosaur.net') || !migrationEmail) throw error;
+
+		log('Mailosaur login failed; trying migrated Gmail alias.', { migrationEmail });
+		await page.goto(getE2EDebugUrl('/'));
+		await login(page, migrationEmail, log);
+		return migrationEmail;
+	}
+}
+
+async function logout(page: any, log: any): Promise<void> {
+	const settingsMenu = await openSettingsMenuAtMain(page);
+
+	const logoutItem = settingsMenu.getByRole('menuitem', { name: /logout|log out|abmelden/i });
 	await expect(logoutItem).toBeVisible({ timeout: 10000 });
 	await logoutItem.click();
 	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 20000 });
@@ -84,12 +118,7 @@ async function logout(page: any, log: any): Promise<void> {
 }
 
 async function openEmailSettings(page: any, log: any): Promise<void> {
-	const profileContainer = page.getByTestId('profile-container');
-	await expect(profileContainer).toBeVisible({ timeout: 10000 });
-	await profileContainer.click();
-
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	const settingsMenu = await openSettingsMenuAtMain(page);
 
 	const accountItem = settingsMenu.getByRole('menuitem', { name: /^account$/i }).first();
 	await expect(accountItem).toBeVisible({ timeout: 10000 });
@@ -164,11 +193,11 @@ test('changes account email and verifies login with the new address', async ({ p
 	await archiveExistingScreenshots(log);
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-	await login(page, TEST_EMAIL, log);
+	const currentEmail = await loginWithMigrationFallback(page, migrationEmail, log);
 	await openEmailSettings(page, log);
 	await screenshot(page, 'email-settings-open');
 
-	if (isCurrentMailosaur) {
+	if (isCurrentMailosaur && currentEmail !== migrationEmail) {
 		await changeEmail(page, migrationEmail!, log);
 		await screenshot(page, 'mailosaur-migrated-to-gmail');
 		await logout(page, log);
@@ -179,9 +208,9 @@ test('changes account email and verifies login with the new address', async ({ p
 
 	await changeEmail(page, temporaryEmail!, log);
 	await screenshot(page, 'changed-to-temporary-gmail');
-	await changeEmail(page, TEST_EMAIL, log);
+	await changeEmail(page, currentEmail, log);
 	await screenshot(page, 'changed-back-to-original-gmail');
 	await logout(page, log);
-	await login(page, TEST_EMAIL, log);
-	log('Roundtrip login with original Gmail alias succeeded.', { email: TEST_EMAIL });
+	await login(page, currentEmail, log);
+	log('Roundtrip login with original Gmail alias succeeded.', { email: currentEmail });
 });
