@@ -19,6 +19,7 @@ const PREVIOUS_RUN_DIRNAME = 'previous_run';
 const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
 const GMAIL_API_BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const GMAIL_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GMAIL_RECEIVED_AFTER_TOLERANCE_MS = 10000;
 
 // ─── Step log — shared state for checkpoint + screenshot interleaving ────────
 // Both createSignupLogger and createStepScreenshotter write to this log so the
@@ -968,7 +969,7 @@ function createGmailClient({
 		pollIntervalMs?: number;
 	}): Promise<GmailMessage> {
 		const deadline = Date.now() + timeoutMs;
-		const receivedAfterMs = new Date(receivedAfter).getTime();
+		const receivedAfterMs = new Date(receivedAfter).getTime() - GMAIL_RECEIVED_AFTER_TOLERANCE_MS;
 		const normalizedSentTo = sentTo.toLowerCase();
 
 		while (Date.now() < deadline) {
