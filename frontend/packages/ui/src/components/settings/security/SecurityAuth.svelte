@@ -67,6 +67,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     let showPasswordInput = $state(false);
     let password = $state('');
     let isPasswordLoading = $state(false);
+    let passwordVerifiedFor2FA = $state(false);
     
     // 2FA state
     let show2FAInput = $state(false);
@@ -345,6 +346,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 // Show 2FA input
                 showPasswordInput = false;
                 show2FAInput = true;
+                passwordVerifiedFor2FA = true;
                 isPasswordLoading = false;
                 isAuthenticating = false;
                 return;
@@ -381,6 +383,12 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         errorMessage = null;
 
         try {
+            if (passwordVerifiedFor2FA) {
+                console.log('[SecurityAuth] Password + 2FA authentication collected');
+                onSuccess({ method: '2fa', tfaCode });
+                return;
+            }
+
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.verifyDevice2FA), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -852,4 +860,3 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         }
     }
 </style>
-
