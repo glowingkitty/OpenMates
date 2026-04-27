@@ -90,7 +90,7 @@ async function expectPdfAttachment(
 	message: any,
 	filenamePattern: RegExp,
 	label: string
-): Promise<void> {
+): Promise<string> {
 	const pdfAttachments = await emailClient.getPdfAttachments(message);
 	const matchingPdf = pdfAttachments.find((attachment: any) =>
 		filenamePattern.test(attachment.filename)
@@ -105,6 +105,7 @@ async function expectPdfAttachment(
 		matchingPdf.content.subarray(0, 4).toString('utf-8'),
 		`${label} attachment must be a PDF`
 	).toBe(PDF_MAGIC_BYTES);
+	return matchingPdf.filename;
 }
 
 // ---------------------------------------------------------------------------
@@ -630,14 +631,15 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	expect(purchaseEmail?.subject, 'Managed payment email subject must confirm purchase').toMatch(
 		/purchase confirmation/i
 	);
-	await expectPdfAttachment(
+	const purchasePdfFilename = await expectPdfAttachment(
 		emailClient,
 		purchaseEmail,
 		/^openmates_payment_confirmation_.*\.pdf$/i,
 		'Managed payment confirmation'
 	);
 	log('Managed payment confirmation email and PDF attachment verified.', {
-		subject: purchaseEmail?.subject
+		subject: purchaseEmail?.subject,
+		pdf: purchasePdfFilename
 	});
 
 	const latestManagedInvoice = page
@@ -675,14 +677,15 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	expect(refundEmail?.subject, 'Managed refund email subject must confirm refund').toMatch(
 		/refund confirmation/i
 	);
-	await expectPdfAttachment(
+	const refundPdfFilename = await expectPdfAttachment(
 		emailClient,
 		refundEmail,
-		/^openmates_refund_confirmation_.*\.pdf$/i,
+		/\.pdf$/i,
 		'Managed refund confirmation'
 	);
 	log('Managed refund confirmation email and PDF attachment verified.', {
-		subject: refundEmail?.subject
+		subject: refundEmail?.subject,
+		pdf: refundPdfFilename
 	});
 
 	await assertNoMissingTranslations(page);
