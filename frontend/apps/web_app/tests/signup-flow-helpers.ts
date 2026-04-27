@@ -865,6 +865,8 @@ function createGmailClient({
 		id?: string;
 		_id?: string;
 		subject?: string;
+		received?: string;
+		recipients?: string[];
 		text?: { body?: string };
 		html?: { body?: string };
 		attachments?: Array<{
@@ -881,7 +883,15 @@ function createGmailClient({
 	 */
 	function parseGmailMessage(raw: any): GmailMessage {
 		const headers: any[] = raw.payload?.headers || [];
-		const subject = headers.find((h: any) => h.name.toLowerCase() === 'subject')?.value || '';
+		const getHeader = (name: string): string =>
+			headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+		const subject = getHeader('subject');
+		const received = raw.internalDate
+			? new Date(Number(raw.internalDate)).toISOString()
+			: getHeader('date');
+		const recipients = ['to', 'delivered-to', 'x-original-to', 'envelope-to', 'x-forwarded-to']
+			.map(getHeader)
+			.filter(Boolean);
 
 		let textBody = '';
 		let htmlBody = '';
@@ -920,6 +930,8 @@ function createGmailClient({
 		return {
 			id: raw.id,
 			subject,
+			received,
+			recipients,
 			text: { body: textBody },
 			html: { body: htmlBody },
 			attachments
@@ -928,8 +940,8 @@ function createGmailClient({
 
 	/**
 	 * No-op for Gmail — we use gmail.readonly scope so can't delete.
-	 * Stale messages are filtered out by the `after:<epoch>` query parameter
-	 * in waitForMailosaurMessage, so inbox cleanup is not needed.
+	 * Stale messages are filtered out by received time in waitForMailosaurMessage,
+	 * so inbox cleanup is not needed.
 	 */
 	async function deleteAllMessages(): Promise<void> {
 		console.log('[Gmail] deleteAllMessages is a no-op (using after: filter instead).');
@@ -937,7 +949,8 @@ function createGmailClient({
 
 	/**
 	 * Poll Gmail for a message matching a recipient and optional subject.
-	 * Uses the Gmail search query syntax: `to:<email> subject:<text> after:<epoch>`.
+	 * Gmail search does not reliably match plus aliases across provider-specific
+	 * delivery headers, so list recent messages and filter full headers locally.
 	 *
 	 * Drop-in replacement for waitForMailosaurMessage — same parameters and behavior.
 	 */
@@ -955,28 +968,46 @@ function createGmailClient({
 		pollIntervalMs?: number;
 	}): Promise<GmailMessage> {
 		const deadline = Date.now() + timeoutMs;
-		const afterEpoch = Math.floor(new Date(receivedAfter).getTime() / 1000);
-
-		// Gmail plus aliases may appear in the Delivered-To header rather than the
-		// visible To header depending on the email provider. Search both fields.
-		let query = `{to:${sentTo} deliveredto:${sentTo}} after:${afterEpoch}`;
-		if (subjectContains) {
-			query += ` subject:${subjectContains}`;
-		}
+		const receivedAfterMs = new Date(receivedAfter).getTime();
+		const normalizedSentTo = sentTo.toLowerCase();
 
 		while (Date.now() < deadline) {
 			const elapsed = Math.round((Date.now() - (deadline - timeoutMs)) / 1000);
 			try {
+				const query = subjectContains ? `subject:${subjectContains}` : '';
 				const encodedQuery = encodeURIComponent(query);
-				const listData = await gmailFetch(`/messages?q=${encodedQuery}&maxResults=5`);
+				const queryParam = encodedQuery ? `q=${encodedQuery}&` : '';
+				const listData = await gmailFetch(`/messages?${queryParam}maxResults=20`);
 				const messages: any[] = listData.messages || [];
 
-				console.log(`[Gmail] ${elapsed}s: query="${query}" returned ${messages.length} result(s)`);
+				console.log(`[Gmail] ${elapsed}s: listed ${messages.length} recent message(s)`);
 
-				if (messages.length > 0) {
-					// Fetch full message content
-					const fullMessage = await gmailFetch(`/messages/${messages[0].id}?format=full`);
+				for (const message of messages) {
+					const fullMessage = await gmailFetch(`/messages/${message.id}?format=full`);
 					const parsed = parseGmailMessage(fullMessage);
+					const receivedMs = parsed.received ? new Date(parsed.received).getTime() : 0;
+					const recipientMatch = (parsed.recipients || []).some((recipient) =>
+						recipient.toLowerCase().includes(normalizedSentTo)
+					);
+
+					if (!recipientMatch) {
+						console.log(`[Gmail] Skipping — recipient mismatch: ${JSON.stringify(parsed.recipients)}`);
+						continue;
+					}
+
+					if (receivedAfterMs && receivedMs < receivedAfterMs) {
+						console.log(`[Gmail] Skipping — too old: ${parsed.received} < ${receivedAfter}`);
+						continue;
+					}
+
+					if (
+						subjectContains &&
+						!(parsed.subject || '').toLowerCase().includes(subjectContains.toLowerCase())
+					) {
+						console.log(`[Gmail] Skipping — subject mismatch: "${parsed.subject}"`);
+						continue;
+					}
+
 					console.log(`[Gmail] Found matching message: "${parsed.subject}"`);
 					return parsed;
 				}
