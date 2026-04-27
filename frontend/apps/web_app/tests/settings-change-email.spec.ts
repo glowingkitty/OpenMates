@@ -59,6 +59,8 @@ async function login(page: any, email: string, log: any): Promise<void> {
 	await passwordInput.fill(TEST_PASSWORD);
 
 	const submitButton = page.locator('#login-submit-button');
+	await submitButton.click();
+
 	const otpInput = page.locator('#login-otp-input');
 	await expect(otpInput).toBeVisible({ timeout: 15000 });
 	let loginSucceeded = false;
