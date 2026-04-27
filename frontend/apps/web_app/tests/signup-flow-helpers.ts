@@ -382,7 +382,9 @@ function buildSignupEmail(domain: string): string {
  * Check Mailosaur daily email quota via /api/usage/limits.
  * Returns { available: boolean, current, limit } so callers can skip tests cleanly.
  */
-async function checkMailosaurQuota(apiKey: string): Promise<{ available: boolean; current: number; limit: number }> {
+async function checkMailosaurQuota(
+	apiKey: string
+): Promise<{ available: boolean; current: number; limit: number }> {
 	const token = Buffer.from(`${apiKey}:`).toString('base64');
 	try {
 		const res = await fetch(`${MAILOSAUR_BASE_URL}/usage/limits`, {
@@ -398,7 +400,9 @@ async function checkMailosaurQuota(apiKey: string): Promise<{ available: boolean
 		const limit = email.limit ?? 0;
 		const available = current < limit;
 		if (!available) {
-			console.log(`[Mailosaur] Daily email quota reached (${current}/${limit}). Tests requiring email will be skipped.`);
+			console.log(
+				`[Mailosaur] Daily email quota reached (${current}/${limit}). Tests requiring email will be skipped.`
+			);
 		} else {
 			console.log(`[Mailosaur] Email quota: ${current}/${limit} used.`);
 		}
@@ -477,6 +481,13 @@ function createMailosaurClient({
 		subject?: string;
 		text?: { body?: string };
 		html?: { body?: string };
+		attachments?: Array<{
+			id?: string;
+			fileName?: string;
+			filename?: string;
+			contentType?: string;
+			content?: string;
+		}>;
 	}
 
 	/**
@@ -712,13 +723,56 @@ function createMailosaurClient({
 		return invoiceLink || null;
 	}
 
+	async function getAttachmentContent(attachment: {
+		id?: string;
+		content?: string;
+	}): Promise<Buffer> {
+		if (attachment.content) {
+			return Buffer.from(attachment.content, 'base64');
+		}
+		if (!attachment.id) {
+			return Buffer.alloc(0);
+		}
+
+		const response = await fetch(`${baseUrl}/files/attachments/${attachment.id}`, {
+			headers: { Authorization: buildMailosaurAuthHeader() }
+		});
+		if (!response.ok) {
+			const errorBody = await response.text();
+			throw new Error(`Mailosaur attachment download error (${response.status}): ${errorBody}`);
+		}
+
+		return Buffer.from(await response.arrayBuffer());
+	}
+
+	async function getPdfAttachments(
+		message: MailosaurMessage
+	): Promise<Array<{ filename: string; content: Buffer }>> {
+		const attachments = message.attachments || [];
+		const pdfAttachments = attachments.filter((attachment) => {
+			const filename = attachment.fileName || attachment.filename || '';
+			return /\.pdf$/i.test(filename) || attachment.contentType === 'application/pdf';
+		});
+
+		const results: Array<{ filename: string; content: Buffer }> = [];
+		for (const attachment of pdfAttachments) {
+			results.push({
+				filename: attachment.fileName || attachment.filename || 'attachment.pdf',
+				content: await getAttachmentContent(attachment)
+			});
+		}
+
+		return results;
+	}
+
 	return {
 		mailosaurFetch,
 		deleteAllMessages,
 		waitForMailosaurMessage,
 		extractSixDigitCode,
 		extractMessageLinks,
-		extractRefundLink
+		extractRefundLink,
+		getPdfAttachments
 	};
 }
 
@@ -740,7 +794,9 @@ function createGmailClient({
 	refreshToken: string;
 }) {
 	if (!clientId || !clientSecret || !refreshToken) {
-		throw new Error('Gmail client requires GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.');
+		throw new Error(
+			'Gmail client requires GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.'
+		);
 	}
 
 	let cachedAccessToken: string | null = null;
@@ -811,6 +867,12 @@ function createGmailClient({
 		subject?: string;
 		text?: { body?: string };
 		html?: { body?: string };
+		attachments?: Array<{
+			filename: string;
+			mimeType: string;
+			attachmentId?: string;
+			data?: string;
+		}>;
 	}
 
 	/**
@@ -823,13 +885,24 @@ function createGmailClient({
 
 		let textBody = '';
 		let htmlBody = '';
+		const attachments: GmailMessage['attachments'] = [];
 
 		function extractParts(part: any): void {
 			if (!part) return;
 			const mimeType = part.mimeType || '';
 			const bodyData = part.body?.data;
+			const filename = part.filename || '';
 
-			if (bodyData) {
+			if (filename) {
+				attachments.push({
+					filename,
+					mimeType,
+					attachmentId: part.body?.attachmentId,
+					data: bodyData
+				});
+			}
+
+			if (bodyData && !filename) {
 				const decoded = Buffer.from(bodyData, 'base64url').toString('utf-8');
 				if (mimeType === 'text/plain') textBody = decoded;
 				if (mimeType === 'text/html') htmlBody = decoded;
@@ -848,7 +921,8 @@ function createGmailClient({
 			id: raw.id,
 			subject,
 			text: { body: textBody },
-			html: { body: htmlBody }
+			html: { body: htmlBody },
+			attachments
 		};
 	}
 
@@ -996,13 +1070,44 @@ function createGmailClient({
 		return invoiceLink || null;
 	}
 
+	async function getPdfAttachments(
+		message: GmailMessage
+	): Promise<Array<{ filename: string; content: Buffer }>> {
+		if (!message.id) return [];
+
+		const pdfAttachments = (message.attachments || []).filter(
+			(attachment) =>
+				/\.pdf$/i.test(attachment.filename) || attachment.mimeType === 'application/pdf'
+		);
+
+		const results: Array<{ filename: string; content: Buffer }> = [];
+		for (const attachment of pdfAttachments) {
+			let data = attachment.data;
+			if (!data && attachment.attachmentId) {
+				const attachmentData = await gmailFetch(
+					`/messages/${message.id}/attachments/${attachment.attachmentId}`
+				);
+				data = attachmentData.data;
+			}
+			if (data) {
+				results.push({
+					filename: attachment.filename,
+					content: Buffer.from(data, 'base64url')
+				});
+			}
+		}
+
+		return results;
+	}
+
 	return {
 		gmailFetch,
 		deleteAllMessages,
 		waitForMailosaurMessage,
 		extractSixDigitCode,
 		extractMessageLinks,
-		extractRefundLink
+		extractRefundLink,
+		getPdfAttachments
 	};
 }
 
@@ -1011,7 +1116,7 @@ function createGmailClient({
  * Gmail is preferred when GMAIL_REFRESH_TOKEN is set. Falls back to Mailosaur.
  *
  * Returns the same interface regardless of backend:
- *   { deleteAllMessages, waitForMailosaurMessage, extractSixDigitCode, extractMessageLinks, extractRefundLink }
+ *   { deleteAllMessages, waitForMailosaurMessage, extractSixDigitCode, extractMessageLinks, extractRefundLink, getPdfAttachments }
  */
 function createEmailClient(): {
 	provider: 'gmail' | 'mailosaur';
@@ -1026,6 +1131,7 @@ function createEmailClient(): {
 	extractSixDigitCode: (message: any) => string | null;
 	extractMessageLinks: (message: any) => string[];
 	extractRefundLink: (message: any) => string | null;
+	getPdfAttachments: (message: any) => Promise<Array<{ filename: string; content: Buffer }>>;
 } | null {
 	const gmailClientId = process.env.GMAIL_CLIENT_ID;
 	const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
@@ -1377,5 +1483,5 @@ module.exports = {
 	withMockMarker,
 	withRecordMarker,
 	withLiveMockMarker,
-	withLiveRecordMarker,
+	withLiveRecordMarker
 };

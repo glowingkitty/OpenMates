@@ -49,8 +49,10 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	assertNoMissingTranslations,
+	checkEmailQuota,
+	createEmailClient,
 	fillStripeCardDetails,
-	getTestAccount,
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -81,6 +83,29 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // Stripe test card: Finland (FI) EU card — required because Radar blocks non-EU cards.
 // See: https://docs.stripe.com/testing#international-cards
 const STRIPE_TEST_CARD = '4000002460000001';
+const PDF_MAGIC_BYTES = '%PDF';
+
+async function expectPdfAttachment(
+	emailClient: any,
+	message: any,
+	filenamePattern: RegExp,
+	label: string
+): Promise<void> {
+	const pdfAttachments = await emailClient.getPdfAttachments(message);
+	const matchingPdf = pdfAttachments.find((attachment: any) =>
+		filenamePattern.test(attachment.filename)
+	);
+
+	expect(matchingPdf, `${label} email must include a matching PDF attachment`).toBeTruthy();
+	if (!matchingPdf) {
+		throw new Error(`${label} email did not include a matching PDF attachment.`);
+	}
+	expect(matchingPdf.content.length, `${label} PDF must not be empty`).toBeGreaterThan(1000);
+	expect(
+		matchingPdf.content.subarray(0, 4).toString('utf-8'),
+		`${label} attachment must be a PDF`
+	).toBe(PDF_MAGIC_BYTES);
+}
 
 // ---------------------------------------------------------------------------
 // Test: Settings → Buy Credits → Stripe (EU card) full checkout
@@ -130,7 +155,9 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
 
 	// Wait for credits balance — confirms authenticated state fully loaded.
-	await expect(page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')).toBeVisible({
+	await expect(
+		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
+	).toBeVisible({
 		timeout: 15000
 	});
 	await screenshot(page, 'settings-menu-open');
@@ -155,7 +182,9 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 
 	// Verify pricing tiers are rendered
 	await expect(async () => {
-		const tierItems = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]');
+		const tierItems = page.locator(
+			'[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]'
+		);
 		const count = await tierItems.count();
 		expect(count).toBeGreaterThanOrEqual(3);
 	}).toPass({ timeout: 15000 });
@@ -164,7 +193,9 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 
 	// ─── Select first pricing tier ────────────────────────────────────────────────
 
-	const firstTier = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first();
+	const firstTier = page
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
+		.first();
 	await expect(firstTier).toBeVisible({ timeout: 5000 });
 	await firstTier.click();
 	log('Selected first pricing tier.');
@@ -280,7 +311,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	page: any;
 }) => {
 	test.slow();
-	test.setTimeout(420000);
+	test.setTimeout(720000);
 
 	page.on('console', (msg: any) =>
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
@@ -294,9 +325,17 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	const emailClient = createEmailClient();
+	test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');
+
+	const quota = await checkEmailQuota();
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
+
 	const log = createSignupLogger('SETTINGS_BUY_CREDITS_MANAGED');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'settings-managed' });
 	await archiveExistingScreenshots(log);
+
+	const { deleteAllMessages, waitForMailosaurMessage } = emailClient!;
 
 	// ─── Login ────────────────────────────────────────────────────────────────────
 	await loginToTestAccount(page, log, screenshot);
@@ -309,7 +348,9 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')).toBeVisible({ timeout: 15000 });
+	await expect(
+		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
+	).toBeVisible({ timeout: 15000 });
 
 	// ─── Navigate: Settings → Billing → Buy Credits ───────────────────────────────
 	const billingItem = page
@@ -324,12 +365,19 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	log('Navigated to Buy Credits.');
 
 	await expect(async () => {
-		const tierItems = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]');
+		const tierItems = page.locator(
+			'[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]'
+		);
 		expect(await tierItems.count()).toBeGreaterThanOrEqual(3);
 	}).toPass({ timeout: 15000 });
 
+	await deleteAllMessages();
+	log('Email inbox prepared for managed payment messages.');
+
 	// ─── Select first pricing tier ────────────────────────────────────────────────
-	const firstTier = page.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]').first();
+	const firstTier = page
+		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
+		.first();
 	await firstTier.click();
 	log('Selected first pricing tier.');
 	await screenshot(page, 'tier-selected');
@@ -404,22 +452,22 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	// Card number — Stripe Checkout uses a single iframe for card inputs.
 	// Use getByPlaceholder/getByLabel for robustness (autocomplete attrs vary by Stripe version).
 	try {
-		const cardInput = checkoutFrame.locator(
-			'input[autocomplete="cc-number"], input[name="number"], input[name="cardNumber"]'
-		).first();
+		const cardInput = checkoutFrame
+			.locator('input[autocomplete="cc-number"], input[name="number"], input[name="cardNumber"]')
+			.first();
 		await cardInput.waitFor({ state: 'visible', timeout: 20000 });
 		await cardInput.click();
 		await cardInput.pressSequentially('4242424242424242', { delay: 30 });
 
-		const expiryInput = checkoutFrame.locator(
-			'input[autocomplete="cc-exp"], input[name="expiry"], input[name="cardExpiry"]'
-		).first();
+		const expiryInput = checkoutFrame
+			.locator('input[autocomplete="cc-exp"], input[name="expiry"], input[name="cardExpiry"]')
+			.first();
 		await expiryInput.click();
 		await expiryInput.pressSequentially('1234', { delay: 30 });
 
-		const cvcInput = checkoutFrame.locator(
-			'input[autocomplete="cc-csc"], input[name="cvc"], input[name="cardCvc"]'
-		).first();
+		const cvcInput = checkoutFrame
+			.locator('input[autocomplete="cc-csc"], input[name="cvc"], input[name="cardCvc"]')
+			.first();
 		await cvcInput.click();
 		await cvcInput.pressSequentially('123', { delay: 30 });
 
@@ -441,9 +489,11 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		}
 
 		// Postal code — may be present in initial form (US geo without Link)
-		const postalInput = checkoutFrame.locator(
-			'input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]'
-		).first();
+		const postalInput = checkoutFrame
+			.locator(
+				'input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]'
+			)
+			.first();
 		if (await postalInput.isVisible({ timeout: 1000 }).catch(() => false)) {
 			await postalInput.click();
 			await postalInput.pressSequentially('10001', { delay: 30 });
@@ -466,6 +516,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		.first();
 	await expect(payBtn).toBeVisible({ timeout: 10000 });
 	await expect(payBtn).toBeEnabled({ timeout: 10000 });
+	const purchaseEmailAfter = new Date().toISOString();
 	await payBtn.click();
 	log('Clicked Pay in Stripe Checkout — waiting for onComplete and confirmation.');
 
@@ -569,12 +620,36 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	await screenshot(page, 'managed-payment-confirmation-row');
 	log('Managed payment confirmation row is visible.');
 
-	const latestManagedInvoice = page.locator('[data-testid="invoice-item"]').filter({ hasText: /payment confirmation/i }).first();
+	const purchaseEmail = await waitForMailosaurMessage({
+		sentTo: TEST_EMAIL,
+		subjectContains: 'Purchase confirmation',
+		receivedAfter: purchaseEmailAfter,
+		timeoutMs: 240000,
+		pollIntervalMs: 10000
+	});
+	expect(purchaseEmail?.subject, 'Managed payment email subject must confirm purchase').toMatch(
+		/purchase confirmation/i
+	);
+	await expectPdfAttachment(
+		emailClient,
+		purchaseEmail,
+		/^openmates_payment_confirmation_.*\.pdf$/i,
+		'Managed payment confirmation'
+	);
+	log('Managed payment confirmation email and PDF attachment verified.', {
+		subject: purchaseEmail?.subject
+	});
+
+	const latestManagedInvoice = page
+		.locator('[data-testid="invoice-item"]')
+		.filter({ hasText: /payment confirmation/i })
+		.first();
 	await expect(latestManagedInvoice).toBeVisible({ timeout: 10000 });
 
 	const refundButton = latestManagedInvoice.getByRole('button', { name: /refund/i });
 	await expect(refundButton).toBeVisible({ timeout: 10000 });
 	await expect(refundButton).toBeEnabled({ timeout: 10000 });
+	const refundEmailAfter = new Date().toISOString();
 	await refundButton.click();
 	log('Requested refund for managed payment row.');
 
@@ -589,6 +664,26 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		.toBe(true);
 	await screenshot(page, 'managed-refund-confirmation-row');
 	log('Managed refund flow updated the invoice row.');
+
+	const refundEmail = await waitForMailosaurMessage({
+		sentTo: TEST_EMAIL,
+		subjectContains: 'Refund confirmation',
+		receivedAfter: refundEmailAfter,
+		timeoutMs: 240000,
+		pollIntervalMs: 10000
+	});
+	expect(refundEmail?.subject, 'Managed refund email subject must confirm refund').toMatch(
+		/refund confirmation/i
+	);
+	await expectPdfAttachment(
+		emailClient,
+		refundEmail,
+		/^openmates_refund_confirmation_.*\.pdf$/i,
+		'Managed refund confirmation'
+	);
+	log('Managed refund confirmation email and PDF attachment verified.', {
+		subject: refundEmail?.subject
+	});
 
 	await assertNoMissingTranslations(page);
 	log('Test complete.');
