@@ -16,6 +16,21 @@ const {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+async function openLoginDialog(page: any): Promise<void> {
+	const headerButton = page.getByTestId('header-login-signup-btn');
+	try {
+		await expect(headerButton).toBeVisible({ timeout: 5000 });
+		await headerButton.click({ timeout: 5000 });
+	} catch {
+		await page
+			.getByRole('button', { name: /sign up\s*\/\s*login|login\s*\/\s*sign up/i })
+			.first()
+			.click({ timeout: 15000 });
+	}
+
+	await expect(page.getByTestId('login-tabs')).toBeVisible({ timeout: 10000 });
+}
+
 function getGmailAlias(label: string): string | null {
 	const base = process.env.GMAIL_TEST_ADDRESS;
 	if (!base || !base.includes('@')) return null;
@@ -28,9 +43,7 @@ async function login(page: any, email: string, log: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'));
 	await page.evaluate(() => localStorage.removeItem('emailLookupRateLimit'));
 
-	const loginButton = page.getByTestId('header-login-signup-btn');
-	await expect(loginButton).toBeVisible({ timeout: 15000 });
-	await loginButton.click();
+	await openLoginDialog(page);
 
 	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
