@@ -234,7 +234,6 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.payments.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.payments.stripe", privacyPolicyLinks.stripe);
-  renderProvider("legal.privacy.providers.payments.polar", privacyPolicyLinks.polar);
   renderProvider("legal.privacy.providers.payments.revolut_business", privacyPolicyLinks.revolutBusiness);
 
   // Group C — AI models

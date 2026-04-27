@@ -66,11 +66,10 @@ class PaymentTierService:
         Convert an amount from any currency to EUR.
         Uses approximate exchange rates (updated periodically).
 
-        Stripe (EU users) only charges in EUR or USD.
-        Polar (non-EU users) charges in the buyer's local currency, but for tier limit
-        enforcement we receive the amount already converted to display units — the
-        conversion below covers EUR/USD; other currencies fall back to an identity
-        conversion with a warning so tier enforcement is never silently skipped.
+        Stripe charges in EUR or USD. For Stripe Managed Payments (non-EU) the
+        amount is already converted to display units — the conversion below covers
+        EUR/USD; other currencies fall back to an identity conversion with a warning
+        so tier enforcement is never silently skipped.
 
         Args:
             amount: Amount in the source currency (display units, not cents)
@@ -87,7 +86,7 @@ class PaymentTierService:
             # Approximate: 1 USD ≈ 0.92 EUR (as of 2024)
             return amount * 0.92
         else:
-            # For Polar buyers in other currencies (CAD, AUD, KRW, etc.) we don't have
+            # For Managed Payments buyers in other currencies (CAD, AUD, KRW, etc.) we don't have
             # live exchange rates. Log a warning and treat the amount as-is (conservative
             # approach — avoids blocking purchases due to missing conversion).
             logger.warning(f"Unknown currency '{currency}' in convert_to_eur, treating as EUR")

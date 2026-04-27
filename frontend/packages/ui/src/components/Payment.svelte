@@ -30,7 +30,7 @@
         supportContribution = false, // When true, this is a supporter contribution
         supportEmail = null, // Email for supporter contributions (non-authenticated users)
         isRecurring = false, // When true, this is a recurring monthly subscription
-        initialProviderOverride = null, // When set, forces a specific provider on first load (e.g. 'polar' when user clicked non-EU card)
+        initialProviderOverride = null, // When set, forces a specific provider on first load (e.g. 'managed' when user clicked non-EU card)
         isSignupFlow = false // When true: signup context → show "Continue to app" button and send reminder email
     }: {
         purchasePrice?: number;
@@ -45,7 +45,7 @@
         supportContribution?: boolean;
         supportEmail?: string | null;
         isRecurring?: boolean;
-        initialProviderOverride?: 'stripe' | 'polar' | null;
+        initialProviderOverride?: 'stripe' | null;
         isSignupFlow?: boolean;
     } = $props();
 
@@ -80,8 +80,8 @@
     let isPaymentElementComplete: boolean = $state(false);
     
     // Payment mode state
-    // activeProvider: 'stripe' (always — Polar deactivated)
-    let activeProvider: 'stripe' | 'polar' | null = $state(null);
+    // activeProvider: always 'stripe'
+    let activeProvider: 'stripe' | null = $state(null);
     // useManagedPayments: true = non-EU Stripe Embedded Checkout; false = EU Stripe Elements
     let useManagedPayments = $state(false);
     // modeOverride: 'stripe' = force EU Elements; 'managed' = force Managed Payments
@@ -1039,12 +1039,12 @@
                 </button>
             </div>
             {#if isLoading}
-                <div class="polar-loading-state">
-                    <div class="polar-loading-spinner"></div>
+                <div class="checkout-loading-state">
+                    <div class="checkout-loading-spinner"></div>
                     <span>{$text('common.loading')}</span>
                 </div>
             {:else if errorMessage}
-                <div class="polar-error-message" role="alert">{errorMessage}</div>
+                <div class="checkout-error-message" role="alert">{errorMessage}</div>
             {/if}
             <!-- Stripe mounts the Embedded Checkout Page into this div -->
             <div id="checkout"></div>

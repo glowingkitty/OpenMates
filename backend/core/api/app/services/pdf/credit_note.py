@@ -27,8 +27,8 @@ class CreditNoteTemplateService(BasePDFTemplateService):
             credit_note_data: Dictionary with credit note data (amounts, numbers, etc.)
             lang: Language code for translations
             currency: Currency code (e.g. 'eur', 'usd')
-            document_type: 'credit_note' for Stripe (OpenMates is seller),
-                          'refund_confirmation' for Polar (Polar is MoR, we only confirm).
+            document_type: 'credit_note' for direct Stripe (OpenMates is seller),
+                          'refund_confirmation' for Stripe Managed Payments (Stripe/Link is MoR).
         """
         # Create a buffer for the PDF
         buffer = io.BytesIO()
@@ -87,8 +87,8 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         elements.append(Spacer(1, 5))  # Reduced from 20 to 5
         
         # Create header with Credit Note / Refund Confirmation and OpenMates side by side
-        # For Polar refunds: use "Refund Confirmation" because Polar is MoR and issues the
-        # official credit note. For Stripe: use "Credit Note" (we are the seller).
+        # For Stripe Managed Payments refunds: use "Refund Confirmation" because Stripe/Link
+        # is MoR and issues the official credit note. For direct Stripe: use "Credit Note".
         if document_type == "refund_confirmation":
             title_key = "refund_confirmation_title"
         else:
@@ -150,9 +150,9 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         sender_email_val = credit_note_data.get('sender_email', self.sender_email)
         sender_vat_val = credit_note_data.get('sender_vat', self.sender_vat)
         # Build sender details string.
-        # For Polar (refund_confirmation): omit our VAT number because Polar as MoR is the
-        # seller — our VAT number is irrelevant and would be misleading on this document.
-        # For Stripe (credit_note): include VAT number as we are the direct seller.
+        # For Stripe Managed Payments (refund_confirmation): omit our VAT number because
+        # Stripe/Link as MoR is the seller — our VAT number is irrelevant on this document.
+        # For direct Stripe (credit_note): include VAT number as we are the direct seller.
         sender_details_str = (
             f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}"
             f"<br/>{translated_sender_country}<br/>{sender_email_val}"
@@ -298,7 +298,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         
         # Map of currency codes to their display symbols.
         # For currencies not in this map, the ISO code is used as the symbol (e.g. "CAD ").
-        # Polar acts as Merchant of Record and may charge buyers in their local currency
+        # Stripe Managed Payments may charge buyers in their local currency
         # (CAD, AUD, KRW, SGD, etc.), so we must handle arbitrary currencies gracefully.
         currency_symbols = {
             'eur': '€',
@@ -388,15 +388,15 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         left_space = total_start_position - self.left_indent
         
         # Create data for totals table.
-        # For Polar (refund_confirmation): show actual tax amount from Polar as MoR.
+        # For Stripe Managed Payments (refund_confirmation): show actual tax amount from Stripe as MoR.
         #   - If tax > 0: derive tax rate, show "Tax ({rate}%)" with actual tax amount.
-        #   - If tax == 0: show "Tax (0%)" without asterisk (§19 UStG does not apply when Polar is MoR).
-        # For Stripe (credit_note): keep "VAT (0%) *" with asterisk referencing §19 UStG.
+        #   - If tax == 0: show "Tax (0%)" without asterisk (§19 UStG does not apply when Stripe is MoR).
+        # For direct Stripe (credit_note): keep "VAT (0%) *" with asterisk referencing §19 UStG.
         actual_tax_amount = credit_note_data.get('actual_tax_amount')
         actual_net_amount = credit_note_data.get('actual_net_amount')
 
         if document_type == "refund_confirmation" and actual_tax_amount is not None:
-            # Polar: use actual tax data from Polar as MoR
+            # Stripe Managed Payments: use actual tax data from Stripe as MoR
             tax_display_amount = actual_tax_amount
             total_refund_amount = credit_note_data['refund_amount']
 
@@ -466,22 +466,12 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         elements.append(Spacer(1, 24))  # Increased from 10 to 24
         
         # Add refund details with translation.
-        # For Polar (refund_confirmation): Polar as MoR does not expose card details —
-        # use "Refunded via {provider}" instead of "Refunded to {card_provider} card ending in ****".
-        # For Stripe (credit_note): show full card-based refund text.
+        # For Stripe Managed Payments (refund_confirmation): Stripe as MoR does not expose
+        # card details — use "Refunded via {provider}" instead of card-specific text.
+        # For direct Stripe (credit_note): show full card-based refund text.
         if document_type == "refund_confirmation":
-            # Polar: use polar_refunded_via i18n key, fall back to a hardcoded string
-            polar_refunded_via = (
-                self.t.get("invoices_and_credit_notes", {})
-                .get("polar_refunded_via", {})
-                .get("text")
-            )
-            provider_name = credit_note_data.get("card_name") or "Polar"
-            if polar_refunded_via:
-                refunded_to_text = polar_refunded_via.replace("{provider}", provider_name)
-            else:
-                refunded_to_text = f"Refunded via {provider_name}"
-            refunded_to_text = sanitize_html_for_reportlab(refunded_to_text)
+            provider_name = credit_note_data.get("card_name") or "Stripe"
+            refunded_to_text = sanitize_html_for_reportlab(f"Refunded via {provider_name}")
             refunded_to_paragraph = Paragraph(refunded_to_text, self.styles['Normal'])
             payment_table = Table([[Spacer(self.left_indent, 0), refunded_to_paragraph]],
                                   colWidths=[self.left_indent, doc.width - self.left_indent])
@@ -536,10 +526,10 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         ]))
         elements.append(footer_table)
         
-        # Add VAT disclaimer — only for Stripe credit notes where OpenMates is the
+        # Add VAT disclaimer — only for direct Stripe credit notes where OpenMates is the
         # direct seller and the §19 UStG Kleinunternehmer rule applies.
-        # For Polar (refund_confirmation): Polar is the MoR and handles tax, so the
-        # §19 UStG disclaimer does not apply and would be legally incorrect.
+        # For Stripe Managed Payments (refund_confirmation): Stripe/Link is the MoR and
+        # handles tax, so the §19 UStG disclaimer does not apply and would be legally incorrect.
         if document_type != "refund_confirmation":
             elements.append(Spacer(1, 10))
             vat_disclaimer = sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
@@ -551,26 +541,6 @@ class CreditNoteTemplateService(BasePDFTemplateService):
                 ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ]))
             elements.append(vat_disclaimer_table)
-
-        # For Polar: add Merchant of Record note explaining that Polar issued the official
-        # credit note. This is legally required because Polar (not OpenMates) issued the
-        # buyer's official credit note / VAT credit document.
-        if document_type == "refund_confirmation":
-            polar_mor_note = (
-                self.t.get("invoices_and_credit_notes", {})
-                .get("polar_mor_note_refund", {})
-                .get("text",
-                     "Your official credit note was issued by Polar (polar.sh) as Merchant of Record.")
-            )
-            polar_mor_note_sanitized = sanitize_html_for_reportlab(polar_mor_note)
-            polar_mor_table = Table([[Spacer(self.left_indent, 0),
-                                      Paragraph(polar_mor_note_sanitized, self.styles['Normal'])]],
-                                    colWidths=[self.left_indent, doc.width - self.left_indent])
-            polar_mor_table.setStyle(TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            elements.append(polar_mor_table)
 
         # Add larger spacer before questions helper
         elements.append(Spacer(1, 40))

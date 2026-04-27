@@ -976,18 +976,7 @@
                 });
             }
 
-            // Polar does not support saved payment methods — they act as Merchant of Record
-            // and own the payment relationship. Auto top-up requires a stored card, so skip
-            // the auto top-up step entirely for Polar users and go straight to completion.
-            if (paymentProvider === 'polar') {
-                console.debug("[Signup] Polar payment — skipping save-payment-method and auto top-up step");
-                setTimeout(() => {
-                    goToStep(STEP_COMPLETION);
-                }, 500);
-                return;
-            }
-            
-            // Stripe flow: save payment method then show auto top-up step
+            // Save payment method then show auto top-up step
             // Save payment_intent_id for later subscription creation
             paymentIntentId = event.detail.payment_intent_id;
             

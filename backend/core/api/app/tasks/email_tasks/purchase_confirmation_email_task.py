@@ -49,8 +49,8 @@ def process_invoice_and_send_email(
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
 
     For Stripe Managed Payments the PDF title is "Payment Confirmation" (not "Invoice") because
-    Stripe/Link as Merchant of Record issues the real tax invoice. A footer note informs the buyer.
-    For Stripe orders the PDF title remains "Invoice".
+    Stripe/Link as Merchant of Record issues the real tax invoice.
+    For direct Stripe orders the PDF title remains "Invoice".
     """
     logger.info(f"Starting invoice processing task for Order ID: {order_id}, User ID: {user_id}, Provider: {provider}")
     try:
@@ -118,7 +118,7 @@ async def _async_process_invoice_and_send_email(
         logger.info(f"User profile details extracted for {user_id}")
 
         # 3. Fetch Full Order Details from PaymentService
-        # Bank transfer orders (provider="bank_transfer") are not stored in Stripe/Polar.
+        # Bank transfer orders (provider="bank_transfer") are not stored in Stripe.
         # Supply synthetic order details directly instead of calling payment_service.get_order().
         if provider == "bank_transfer":
             payment_order_details = {
@@ -204,7 +204,6 @@ async def _async_process_invoice_and_send_email(
         logger.info(f"Invoice task for order {order_id}: provider={effective_provider}, document_type={document_type}")
 
         # Create customer portal link for subscription management — Stripe only.
-        # Polar does not have a customer portal concept in Phase 1.
         customer_portal_url = None
         if effective_provider == "stripe" and stripe_customer_id and is_auto_topup:
             try:
@@ -434,7 +433,6 @@ async def _async_process_invoice_and_send_email(
 
         # 7. Generate Invoice/Payment Confirmation PDF(s)
         # Always generate English version first.
-        # For Polar orders the PDF title is "Payment Confirmation"; for all others it's "Invoice".
         logger.info(f"Generating English PDF ({document_type})")
         pdf_buffer_en = task.invoice_template_service.generate_invoice(
             invoice_data, lang='en', currency=currency_paid.lower(), document_type=document_type
@@ -599,46 +597,6 @@ async def _async_process_invoice_and_send_email(
             logger.warning(f"Could not extract invoice UUID from created_item for invoice {invoice_number}. Deep link will not be generated.")
         else:
             logger.info(f"Extracted invoice UUID: {invoice_uuid} for invoice {invoice_number}")
-
-        # 10a. Reconcile legacy Polar order UUID if the order.paid webhook arrived before
-        # this invoice was created. The order.paid handler caches the checkout_id →
-        # order_uuid mapping under "polar_order_pending:{checkout_id}" in Redis.
-        if provider == "polar" and not provider_order_id and invoice_uuid:
-            try:
-                pending_key = f"polar_order_pending:{order_id}"
-                pending_data = await cache_service.get(pending_key)
-                if pending_data and isinstance(pending_data, dict):
-                    cached_order_uuid = pending_data.get("order_uuid")
-                    if cached_order_uuid:
-                        update_ok = await task.directus_service.update_item(
-                            "invoices", invoice_uuid,
-                            {"provider_order_id": cached_order_uuid}
-                        )
-                        if update_ok:
-                            logger.info(
-                                f"Reconciled Polar order UUID: updated invoice "
-                                f"{invoice_uuid} provider_order_id={cached_order_uuid} "
-                                f"from cached order.paid event."
-                            )
-                            # Clean up the pending cache key
-                            await cache_service.delete(pending_key)
-                        else:
-                            logger.error(
-                                f"Failed to update invoice {invoice_uuid} with "
-                                f"cached Polar order UUID {cached_order_uuid}."
-                            )
-                else:
-                    logger.debug(
-                        f"No cached Polar order UUID found for "
-                        f"checkout {order_id} (key={pending_key}). "
-                        f"The order.paid webhook may not have arrived yet."
-                    )
-            except Exception as reconcile_exc:
-                # Non-blocking — the refund endpoint has its own Polar API fallback
-                logger.warning(
-                    f"Error reconciling Polar order UUID for invoice "
-                    f"{invoice_uuid}: {reconcile_exc}"
-                )
 
         # 10b. Update the invoice counter in Directus and Cache
         try:

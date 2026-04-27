@@ -2011,8 +2011,6 @@ EXTERNAL_HTTP_SERVICES: list[Dict[str, Any]] = [
     {"service_id": "travelpayouts", "url": "https://api.travelpayouts.com", "display_name": "Travelpayouts"},
     {"service_id": "transitous", "url": "https://api.transitous.org", "display_name": "Transitous"},
     {"service_id": "flightradar24", "url": "https://fr24api.flightradar24.com", "display_name": "FlightRadar24"},
-    # Payment
-    {"service_id": "polar", "url": "https://api.polar.sh", "display_name": "Polar"},
 ]
 
 

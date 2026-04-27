@@ -273,10 +273,10 @@ class EmailTemplateService:
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "purchase-confirmation":
-                    # Use Polar-specific subject key for payment confirmations (non-EU / Polar as MoR).
-                    # These are not invoices, so we say "Confirmation" instead of "Invoice".
+                    # Managed Payments (non-EU Stripe Checkout) send a "Confirmation" email,
+                    # not an "Invoice" — use the managed subject key for that document type.
                     is_payment_confirmation = context.get("document_type") == "payment_confirmation"
-                    subject_key = "email.purchase_confirmation_polar" if is_payment_confirmation else "email.purchase_confirmation"
+                    subject_key = "email.purchase_confirmation_managed" if is_payment_confirmation else "email.purchase_confirmation"
                     if "invoice_id" in context:
                         # Get the translation template
                         subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})

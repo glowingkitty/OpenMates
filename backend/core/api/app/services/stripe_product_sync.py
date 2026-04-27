@@ -1276,7 +1276,7 @@ class StripeProductSync:
 
         # Define supporter contribution tiers (€5, €10, €20, €50, €100, €200)
         # Supporter payments always go through Stripe for all users.
-        # JPY removed: non-EU users pay via Polar (not Stripe), so JPY is no longer needed.
+        # JPY removed: Stripe Managed Payments (non-EU) uses adaptive pricing; JPY not needed here.
         supporter_tiers = [5, 10, 20, 50, 100, 200]
         currencies = ["eur"]
 

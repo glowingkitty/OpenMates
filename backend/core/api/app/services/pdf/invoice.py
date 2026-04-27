@@ -67,8 +67,9 @@ class InvoiceTemplateService(BasePDFTemplateService):
             invoice_data: Dictionary of invoice fields (invoice_number, dates, credits, etc.)
             lang: Language code for translations (e.g. "en", "de")
             currency: ISO currency code lowercase (e.g. "eur", "usd")
-            document_type: "invoice" (default, for Stripe) or "payment_confirmation"
-                           (for Polar — Polar as MoR issues the official tax invoice separately)
+            document_type: "invoice" (default, for direct Stripe) or "payment_confirmation"
+                           (for Stripe Managed Payments — Stripe/Link as MoR issues the
+                           official tax invoice separately)
         """
         # Create a buffer for the PDF
         buffer = io.BytesIO()
@@ -86,11 +87,11 @@ class InvoiceTemplateService(BasePDFTemplateService):
         formatted_credits = format_credits(credits)
         
         # Determine the unit price to display on the PDF.
-        # For Polar orders, `actual_amount_paid` contains the exact amount charged by Polar
+        # For Stripe Managed Payments, `actual_amount_paid` contains the exact amount charged
         # (already converted to display units, e.g. 15.00 for $15 USD or 1800 for ¥1800 JPY).
-        # This is necessary because Polar may charge in CAD, AUD, KRW, etc. — currencies
-        # that are not in our pricing.yml. For Stripe orders we fall back to the
-        # pricing.yml lookup.
+        # This is necessary because Stripe Managed Payments may charge in CAD, AUD, KRW, etc.
+        # — currencies that are not in our pricing.yml. For direct Stripe orders we fall
+        # back to the pricing.yml lookup.
         actual_amount_paid = invoice_data.get('actual_amount_paid')
         if actual_amount_paid is not None:
             unit_price = float(actual_amount_paid)
@@ -125,8 +126,8 @@ class InvoiceTemplateService(BasePDFTemplateService):
         elements.append(Spacer(1, 5))  # Reduced from 20 to 5
         
         # Create header with document title and OpenMates side by side.
-        # For Polar orders: "Payment Confirmation" (Polar as MoR issues the real tax invoice).
-        # For all others: "Invoice".
+        # For Stripe Managed Payments: "Payment Confirmation" (Stripe/Link as MoR issues the real tax invoice).
+        # For direct Stripe: "Invoice".
         if document_type == "payment_confirmation":
             heading_text = self.t.get("invoices_and_credit_notes", {}).get("payment_confirmation", {}).get("text", "Payment Confirmation")
         else:
@@ -150,7 +151,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
         
         # Fix invoice details alignment to match other elements
         # Calculate dynamic width based on text length
-        # For Polar payment confirmations use "Confirmation number" — Polar is the MoR and
+        # For Stripe Managed Payments: use "Confirmation number" — Stripe/Link is the MoR and
         # issues the actual tax invoice; our document is just a payment confirmation, not an invoice.
         if document_type == "payment_confirmation":
             invoice_number_text = self.t.get("invoices_and_credit_notes", {}).get("confirmation_number", {}).get("text", "Confirmation number") + ":"
@@ -194,9 +195,9 @@ class InvoiceTemplateService(BasePDFTemplateService):
         sender_email_val = invoice_data.get('sender_email', self.sender_email)
         sender_vat_val = invoice_data.get('sender_vat', self.sender_vat)
         # Build sender details string.
-        # For Polar (payment_confirmation): omit our VAT number because Polar as MoR is the
-        # seller — our VAT number is irrelevant and would be misleading on this document.
-        # For Stripe (invoice): include VAT number as we are the direct seller.
+        # For Stripe Managed Payments (payment_confirmation): omit our VAT number because
+        # Stripe/Link as MoR is the seller — our VAT number is irrelevant on this document.
+        # For direct Stripe (invoice): include VAT number as we are the direct seller.
         sender_details_str = (
             f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}"
             f"<br/>{translated_sender_country}<br/>{sender_email_val}"
@@ -339,7 +340,7 @@ class InvoiceTemplateService(BasePDFTemplateService):
         
         # Map of currency codes to their display symbols.
         # For currencies not in this map, the ISO code is used as the symbol (e.g. "CAD ").
-        # Polar acts as Merchant of Record and may charge buyers in their local currency
+        # Stripe Managed Payments may charge buyers in their local currency
         # (CAD, AUD, KRW, SGD, etc.), so we must handle arbitrary currencies gracefully.
         currency_symbols = {
             'eur': '€',
@@ -429,15 +430,15 @@ class InvoiceTemplateService(BasePDFTemplateService):
         left_space = total_start_position - self.left_indent
         
         # Create data for totals table.
-        # For Polar (payment_confirmation): show actual tax amount from Polar as MoR.
+        # For Stripe Managed Payments (payment_confirmation): show actual tax amount from Stripe as MoR.
         #   - If tax > 0: derive tax rate, show "Tax ({rate}%)" with actual tax amount.
         #   - If tax == 0: show "Tax (0%)" without asterisk (no §19 UStG applies).
-        # For Stripe (invoice): keep "VAT (0%) *" with asterisk referencing §19 UStG.
+        # For direct Stripe (invoice): keep "VAT (0%) *" with asterisk referencing §19 UStG.
         actual_tax_amount = invoice_data.get('actual_tax_amount')
         actual_net_amount = invoice_data.get('actual_net_amount')
 
         if document_type == "payment_confirmation" and actual_tax_amount is not None:
-            # Polar: use actual tax data from Polar as MoR
+            # Stripe Managed Payments: use actual tax data from Stripe as MoR
             tax_display_amount = actual_tax_amount
             total_paid_amount = invoice_data['total_price']  # total_price is already total incl. tax
 
@@ -509,10 +510,6 @@ class InvoiceTemplateService(BasePDFTemplateService):
         
         # Add payment details with translation - fix <br> tags
         # Special handling for the paid_with text that might contain unclosed br tags.
-        #
-        # For Polar (payment_confirmation): card_last4 is None because Polar doesn't
-        # expose raw card details via its API. In this case we show "Paid via Polar"
-        # instead of the standard "Paid with: {card_provider} card ending in {last4}".
         card_last4 = invoice_data.get("card_last4")
         card_name = invoice_data.get("card_name", "")
 
@@ -528,17 +525,8 @@ class InvoiceTemplateService(BasePDFTemplateService):
             paid_with_text = paid_with_text.replace("{card_provider}", card_name)
             paid_with_text = paid_with_text.replace("{last_four_digits}", card_last4)
         else:
-            # Polar or other provider without card details — use a simple "Paid via {provider}" line.
-            # Falls back to the polar_paid_via i18n key if available, otherwise a hardcoded string.
-            polar_paid_via = (
-                self.t.get("invoices_and_credit_notes", {})
-                .get("polar_paid_via", {})
-                .get("text")
-            )
-            if polar_paid_via:
-                paid_with_text = polar_paid_via.replace("{provider}", card_name or "Polar")
-            else:
-                paid_with_text = f"Paid via {card_name or 'Polar'}"
+            # Provider without card details exposed — use a simple "Paid via {provider}" line.
+            paid_with_text = f"Paid via {card_name or 'Stripe'}"
 
         # Sanitize the HTML for ReportLab
         paid_with_text = sanitize_html_for_reportlab(paid_with_text)
@@ -546,16 +534,16 @@ class InvoiceTemplateService(BasePDFTemplateService):
         try:
             # Create paragraph with error catching
             paid_with_paragraph = Paragraph(paid_with_text, self.styles['Normal'])
-            payment_table = Table([[Spacer(self.left_indent, 0), paid_with_paragraph]], 
+            payment_table = Table([[Spacer(self.left_indent, 0), paid_with_paragraph]],
                                  colWidths=[self.left_indent, doc.width-self.left_indent])
         except Exception:
             # Fallback to plain text if HTML parsing fails
             if card_last4:
                 fallback_text = f"Paid with: {card_name} card ending in {card_last4}"
             else:
-                fallback_text = f"Paid via {card_name or 'Polar'}"
-            payment_table = Table([[Spacer(self.left_indent, 0), 
-                                  Paragraph(fallback_text, self.styles['Normal'])]], 
+                fallback_text = f"Paid via {card_name or 'Stripe'}"
+            payment_table = Table([[Spacer(self.left_indent, 0),
+                                  Paragraph(fallback_text, self.styles['Normal'])]],
                                   colWidths=[self.left_indent, doc.width-self.left_indent])
         
         payment_table.setStyle(TableStyle([
@@ -581,10 +569,10 @@ class InvoiceTemplateService(BasePDFTemplateService):
         ]))
         elements.append(footer_table)
         
-        # Add VAT disclaimer — only for Stripe invoices where OpenMates is the
+        # Add VAT disclaimer — only for direct Stripe invoices where OpenMates is the
         # direct seller and the §19 UStG Kleinunternehmer rule applies.
-        # For Polar (payment_confirmation): Polar is the MoR and handles tax, so the
-        # §19 UStG disclaimer does not apply and would be legally incorrect.
+        # For Stripe Managed Payments (payment_confirmation): Stripe/Link is the MoR and
+        # handles tax, so the §19 UStG disclaimer does not apply and would be legally incorrect.
         if document_type != "payment_confirmation":
             elements.append(Spacer(1, 10))
             vat_disclaimer = sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['vat_disclaimer']['text'])
@@ -596,24 +584,6 @@ class InvoiceTemplateService(BasePDFTemplateService):
                 ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ]))
             elements.append(vat_disclaimer_table)
-
-        # For Polar: add Merchant of Record note explaining that Polar issued the official tax invoice.
-        # This is legally required because Polar (not OpenMates) issued the buyer's VAT/tax invoice.
-        if document_type == "payment_confirmation":
-            polar_mor_note = self.t.get("invoices_and_credit_notes", {}).get("polar_mor_note", {}).get(
-                "text",
-                "Your official tax invoice was issued by Polar (polar.sh) as Merchant of Record."
-            )
-            polar_mor_note_sanitized = sanitize_html_for_reportlab(polar_mor_note)
-            polar_mor_table = Table([[Spacer(self.left_indent, 0),
-                                     Paragraph(polar_mor_note_sanitized, self.styles['Normal'])]],
-                                    colWidths=[self.left_indent, doc.width - self.left_indent])
-            polar_mor_table.setStyle(TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            elements.append(Spacer(1, 10))
-            elements.append(polar_mor_table)
 
         # Add withdrawal waiver notice (required for EU/German consumer law compliance)
         # This comes BEFORE the refund link

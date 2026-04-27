@@ -2903,8 +2903,8 @@ purchase_confirmation:
   sv: Köpbekräftelse (Faktura {invoice_id})
   he: "אישור רכישה (חשבונית {invoice_id})"
   verified_by_human: []
-purchase_confirmation_polar:
-  context: Email subject for Polar (non-EU) payment confirmations — uses "Confirmation" instead of "Invoice" since Polar is the MoR and issues the actual invoice
+purchase_confirmation_managed:
+  context: Email subject for Stripe Managed Payments (non-EU) confirmations — uses "Confirmation" instead of "Invoice" since Stripe is the MoR and issues the tax invoice
   en: Purchase confirmation (Confirmation {invoice_id})
   de: Kaufbestätigung (Bestätigung {invoice_id})
   zh: 购买确认（确认编号 {invoice_id}）

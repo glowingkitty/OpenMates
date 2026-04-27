@@ -242,17 +242,6 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    // POLAR DISABLED 2026-04-23 — re-enable when Polar account is reactivated
-    // async function switchToProvider(newProvider: 'stripe' | 'polar') {
-    //     savedMethodProviderOverride = newProvider;
-    //     showPaymentForm = false;
-    //     hasSavedPaymentMethods = false;
-    //     paymentMethods = [];
-    //     selectedPaymentMethodId = null;
-    //     isLoadingPaymentMethods = true;
-    //     await detectProviderAndLoadMethods();
-    // }
-
     // Handle payment method selection
     function handlePaymentMethodToggle(paymentMethodId: string, checked: boolean) {
         if (checked) {
@@ -506,10 +495,10 @@ Supports both saved payment methods and new payment form
         />
     {/if}
 {:else}
-    <!-- Show payment form for new payment method or Polar provider.
+    <!-- Show payment form for new payment method.
          Pass savedMethodProviderOverride as initialProviderOverride so the Payment component
-         immediately requests the correct provider (e.g. 'polar' when user clicked non-EU card),
-         instead of re-detecting from geo which could fall back to stripe. -->
+         immediately requests the correct mode (e.g. 'managed' when user clicked non-EU card),
+         instead of re-detecting from geo. -->
     <div class="payment-container">
         <Payment
             purchasePrice={selectedPrice()}
@@ -647,8 +636,7 @@ Supports both saved payment methods and new payment form
     }
 
     .payment-container {
-        /* Full width — Polar iframe needs to fill the entire panel.
-           The Payment component handles its own internal layout. */
+        /* Full width — the Payment component handles its own internal layout. */
         width: 100%;
         padding: 0;
     }
@@ -659,7 +647,7 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    /* Provider switch button — shown below saved-method list to switch to Polar */
+    /* Provider switch button — shown below saved-method list */
     .provider-switch-container {
         display: flex;
         justify-content: center;

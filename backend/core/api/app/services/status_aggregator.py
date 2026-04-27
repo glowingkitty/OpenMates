@@ -33,7 +33,7 @@ GROUP_DISPLAY_NAMES = {
     "apps": "Applications",
 }
 
-_PAYMENT_IDS = {"stripe", "polar", "invoiceninja"}
+_PAYMENT_IDS = {"stripe", "invoiceninja"}
 _EMAIL_IDS = {"brevo"}
 _MODERATION_IDS = {"sightengine"}
 _SEARCH_IDS = {"brave_search", "brave"}

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -52,7 +51,6 @@ const {
 	assertNoMissingTranslations,
 	getTestAccount,
 	fillStripeCardDetails,
-	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -190,7 +188,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 		log('No saved payment methods found — doing a fresh Stripe payment to seed the saved method.');
 		await screenshot(page, 'no-saved-methods-fresh-form');
 
-		// Wait for any iframe (Polar or Stripe) to confirm the payment component loaded.
+		// Wait for any iframe (Stripe EU or Stripe Managed Payments) to confirm the payment component loaded.
 		await page.waitForSelector('iframe', { state: 'visible', timeout: 20000 });
 
 		// If an "Add payment method" button is visible (saved methods exist on Stripe),
@@ -202,8 +200,8 @@ test('purchases credits with saved payment method, then verifies invoice is down
 			await page.waitForTimeout(2000);
 		}
 
-		// The default provider may be Polar (non-EU). Switch to Stripe (EU card) to
-		// seed a saved payment method — Polar does not support saved methods.
+		// From a non-EU IP, Stripe Managed Payments is the default. Switch to Stripe EU card to
+		// seed a saved payment method — Managed Payments does not produce a saved card on the customer.
 		const switchToEuCardBtn = page.getByRole('button', { name: /EU card|with an EU card/i });
 		if (await switchToEuCardBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await switchToEuCardBtn.click();

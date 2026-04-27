@@ -321,12 +321,12 @@ test('completes passkey signup flow with email + purchase', async ({
 		await setToggleChecked(consentToggle, true);
 		logSignupCheckpoint('Payment consent accepted.');
 
-		// GHA runners are in the US, so Polar is auto-selected (non-EU IP).
-		// Switch to Stripe for this test — it specifically tests the Stripe payment flow.
+		// GHA runners are in the US, so Stripe Managed Payments is auto-selected (non-EU IP).
+		// Switch to Stripe EU card mode for this test — it specifically tests the Stripe payment flow.
 		const switchToStripeBtn = page.getByTestId('switch-to-stripe');
 		if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await switchToStripeBtn.click();
-			logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+			logSignupCheckpoint('Switched from Managed Payments to Stripe EU card payment.');
 		}
 
 		// Wait for Stripe Payment Element iframe to load after provider switch.

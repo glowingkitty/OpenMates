@@ -359,17 +359,17 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	await setToggleChecked(consentToggle, true);
 	logSignupCheckpoint('Payment consent accepted.');
 
-	// GHA runners are in the US, so Polar is auto-selected (non-EU IP).
-	// Switch to Stripe for this test — it specifically tests the Stripe payment flow.
+	// GHA runners are in the US, so Stripe Managed Payments is auto-selected (non-EU IP).
+	// Switch to EU Stripe for this test — it specifically tests the EU card payment flow.
 	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
 	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await switchToStripeBtn.click();
-		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+		logSignupCheckpoint('Switched from Managed Payments to EU Stripe payment provider.');
 	}
 
 	// Wait for Stripe Payment Element iframe to load after provider switch.
-	// switchProvider() tears down Polar, fetches config, loads Stripe.js, creates
-	// a PaymentIntent, and mounts the Payment Element — all async. The iframe
+	// switchPaymentMode() destroys any existing checkout, fetches config, loads Stripe.js,
+	// creates a PaymentIntent, and mounts the Payment Element — all async. The iframe
 	// won't exist until that chain completes.
 	const stripeIframe = page.frameLocator('iframe[title="Secure payment input frame"]');
 	const cardInput = stripeIframe

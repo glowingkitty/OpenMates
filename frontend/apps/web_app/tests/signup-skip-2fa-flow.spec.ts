@@ -218,17 +218,18 @@ test('completes signup with skipped 2FA, login with password, and delete account
 		logSignupCheckpoint('No consent toggle — Stripe loaded directly (hosted invoice path).');
 	}
 
-	// GHA runners are in the US, so Polar is auto-selected. Switch to Stripe for this test.
+	// GHA runners are in the US, so Stripe Managed Payments (Checkout Session) is auto-selected.
+	// Switch to Stripe EU card mode for this test.
 	// Now that consent overlay is dismissed, the switch button is clickable.
 	const switchToStripeBtn = page.getByTestId('switch-to-stripe');
 	if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await switchToStripeBtn.click();
-		logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+		logSignupCheckpoint('Switched from Managed Payments to Stripe EU card payment.');
 	}
 
 	// Wait for Stripe Payment Element card input to be visible inside the iframe.
-	// switchProvider() tears down Polar, fetches config, loads Stripe.js, creates
-	// a PaymentIntent, and mounts the Payment Element — all async.
+	// switchPaymentMode() tears down the Managed Payments checkout, fetches config,
+	// loads Stripe.js, creates a PaymentIntent, and mounts the Payment Element — all async.
 	const stripeFrameLocator = page.frameLocator('iframe[title="Secure payment input frame"]');
 	const cardInputWait = stripeFrameLocator
 		.locator('input[name="number"], input[name="cardNumber"], input[autocomplete="cc-number"]')

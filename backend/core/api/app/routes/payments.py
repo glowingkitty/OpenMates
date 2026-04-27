@@ -94,7 +94,7 @@ class CreateOrderRequest(BaseModel):
     currency: str
     credits_amount: int
     email_encryption_key: Optional[str] = None
-    # Optional explicit provider override ("stripe" or "polar")
+    # Optional explicit provider override ("stripe" or "managed")
     provider: Optional[str] = None
     # Required for Stripe Embedded Checkout — the page Stripe redirects to after payment
     return_url: Optional[str] = None
@@ -108,9 +108,9 @@ class CreateSupportOrderRequest(BaseModel):
 
 class CreateOrderResponse(BaseModel):
     provider: str
-    client_secret: Optional[str] = None  # For Stripe embedded checkout / Polar
+    client_secret: Optional[str] = None  # For Stripe embedded checkout
     order_id: str
-    checkout_url: Optional[str] = None  # For Polar embedded checkout iframe URL
+    checkout_url: Optional[str] = None  # Unused; kept for backwards-compatibility
     customer_portal_url: Optional[str] = None  # For Stripe supporter subscriptions
     hosted_invoice_url: Optional[str] = None  # For Stripe supporter subscriptions fallback
     invoice_pdf: Optional[str] = None  # For Stripe supporter subscriptions fallback
@@ -207,14 +207,14 @@ class BuyGiftCardRequest(BaseModel):
     currency: str
     email_encryption_key: Optional[str] = None
     payment_method_id: Optional[str] = None  # Optional saved payment method ID
-    # Optional explicit provider override ("stripe" or "polar") — mirrors CreateOrderRequest
+    # Optional explicit provider override ("stripe" or "managed") — mirrors CreateOrderRequest
     provider: Optional[str] = None
 
 class BuyGiftCardResponse(BaseModel):
     provider: str
     client_secret: Optional[str] = None  # For Stripe
     order_id: str
-    checkout_url: Optional[str] = None  # For Polar embedded checkout iframe URL
+    checkout_url: Optional[str] = None  # Unused; kept for backwards-compatibility
 
 class RedeemedGiftCardResponse(BaseModel):
     gift_card_code: str
@@ -305,8 +305,8 @@ def get_price_for_credits(credits_amount: int, currency: str) -> Optional[int]:
     """
     Get the price for a credit amount in the smallest currency unit (cents).
 
-    Only EUR and USD are supported for Stripe (EU users). Non-EU users pay via Polar
-    which handles local currency conversion automatically as Merchant of Record.
+    Only EUR and USD are supported for Stripe (EU users). Non-EU users pay via
+    Stripe Managed Payments which handles local currency conversion as Merchant of Record.
 
     Args:
         credits_amount: Number of credits
@@ -373,7 +373,7 @@ async def get_payment_config(
     request: Request,
     secrets_manager: SecretsManager = Depends(get_secrets_manager),
     payment_service: PaymentService = Depends(get_payment_service),
-    provider_override: Optional[str] = None,  # ?provider_override=stripe or ?provider_override=polar
+    provider_override: Optional[str] = None,  # ?provider_override=stripe or ?provider_override=managed
 ):
     """
     Provides the public payment configuration for the frontend payment widget.
@@ -757,8 +757,6 @@ async def create_payment_order(
         # Check if user already has a Stripe customer ID
         stripe_customer_id = current_user.stripe_customer_id if hasattr(current_user, 'stripe_customer_id') else None
 
-        # Determine embed origin for Polar checkout iframe security policy
-        # Use the request's Origin header so Polar allows embedding from the correct domain
         embed_origin = request.headers.get("Origin") or request.headers.get("Referer")
 
         order_response = await payment_service.create_order(
@@ -1330,7 +1328,7 @@ async def get_pending_bank_transfers(
 
 
 @router.post("/webhook", status_code=200)
-# Note: Webhook endpoint is called by payment providers (Stripe/Polar/Revolut Business)
+# Note: Webhook endpoint is called by payment providers (Stripe/Revolut Business)
 # Rate limiting is handled by signature verification - providers have their own rate limits
 # We don't apply strict rate limits here to avoid blocking legitimate webhook deliveries
 # Security is ensured through signature verification in verify_and_parse_webhook
@@ -1357,12 +1355,6 @@ async def payment_webhook(
         #   Revolut-Request-Timestamp, Revolut-Signature
         provider_name = "revolut_business"
         sig_header = request.headers.get("Revolut-Signature")
-    elif "webhook-signature" in request.headers:
-        # Polar uses Standard Webhooks (standardwebhooks.com) — headers are:
-        #   webhook-id, webhook-timestamp, webhook-signature
-        # All three are passed to PolarService.verify_polar_webhook as a dict.
-        provider_name = "polar"
-        sig_header = request.headers.get("webhook-signature")
     else:
         logger.warning("Webhook received without a recognizable signature header.")
         raise HTTPException(status_code=400, detail="Missing or unsupported signature header")
@@ -1385,12 +1377,6 @@ async def payment_webhook(
             event_payload = await payment_service.verify_revolut_business_webhook(
                 payload_bytes, timestamp_header, sig_header
             )
-        elif provider_name == "polar":
-            # Polar uses Standard Webhooks — pass the full headers dict so
-            # PolarService can extract webhook-id, webhook-timestamp, webhook-signature.
-            event_payload = await payment_service.verify_polar_webhook(
-                payload_bytes, dict(request.headers)
-            )
         else:
             event_payload = None
 
@@ -1398,9 +1384,6 @@ async def payment_webhook(
             raise HTTPException(status_code=400, detail="Invalid signature or unparseable payload")
 
         if provider_name == "stripe":
-            event_type = event_payload.get("type")
-        elif provider_name == "polar":
-            # Polar event structure: {"type": "checkout.updated", "data": {...}}
             event_type = event_payload.get("type")
         elif provider_name == "revolut_business":
             # Revolut Business event structure: {"event": "TransactionCreated", "data": {...}}
@@ -1426,30 +1409,11 @@ async def payment_webhook(
         elif provider_name == "revolut_business":
             # Revolut Business events use a completely different matching flow:
             # - TransactionCreated/TransactionStateChanged: match by reference in the transfer
-            # - The handler is invoked as an early-return branch below, before Stripe/Polar processing
+            # - The handler is invoked as an early-return branch below, before Stripe processing
             webhook_order_id = f"revolut_biz_{(event_payload.get('data') or {}).get('id', 'unknown')}"
-        elif provider_name == "polar":
-            # Polar events use different ID fields depending on the event type:
-            #   - checkout.updated: data.id = checkout session ID (our order_id)
-            #   - order.paid / order.created: data.id = Order UUID, data.checkout_id = our order_id
-            #   - order.refunded: data.id = Order UUID, data.checkout_id = our order_id
-            #   - refund.updated: data.order_id = Order UUID (handled separately in refund branch)
-            polar_data = event_payload.get("data") or {}
-            if event_type and event_type.startswith("order."):
-                # Order events: use checkout_id to map back to our invoice's order_id
-                webhook_order_id = polar_data.get("checkout_id")
-            else:
-                # Checkout events: data.id is the checkout session ID
-                webhook_order_id = polar_data.get("id")
 
         if not webhook_order_id:
-            # For Polar refund.updated events, the webhook_order_id might legitimately be None
-            # because refund events don't always reference a checkout. Let the refund handler
-            # extract its own order lookup field instead.
-            if provider_name == "polar" and event_type and event_type.startswith("refund."):
-                logger.info(f"Polar {event_type} event — will use refund-specific order lookup.")
-                webhook_order_id = f"polar_refund_{(event_payload.get('data') or {}).get('id', 'unknown')}"
-            elif provider_name == "stripe" and event_type in ("refund.failed", "charge.refunded"):
+            if provider_name == "stripe" and event_type in ("refund.failed", "charge.refunded"):
                 # Stripe refund events: the handler does its own invoice lookup by payment_intent,
                 # so we can use a synthetic order_id to pass the null check.
                 refund_pi = (event_payload.get("data", {}) or {}).get("object", {}).get("payment_intent")
@@ -1476,12 +1440,6 @@ async def payment_webhook(
                 tier_service=tier_service,
             )
 
-        # Determine if this is a successful payment event across all providers
-        is_polar_success = (
-            provider_name == "polar"
-            and event_type == "checkout.updated"
-            and (event_payload.get("data") or {}).get("status") == "succeeded"
-        )
         _checkout_session_obj = (event_payload.get("data", {}) or {}).get("object", {}) or {}
         # Checkout Session completed with a paid one-time payment (Managed Payments credit purchase)
         is_stripe_checkout_payment_success = (
@@ -1498,7 +1456,7 @@ async def payment_webhook(
         )
 
         if (provider_name == "stripe" and event_type == "payment_intent.succeeded") or \
-           is_polar_success or is_stripe_checkout_payment_success:
+           is_stripe_checkout_payment_success:
 
             # Supporter contributions (one-time or first subscription payment)
             # are handled separately from credit purchases and DO trigger email/receipt generation.
@@ -1777,7 +1735,6 @@ async def payment_webhook(
                     if calculated_amount_cents is not None:
                         # Convert from cents to decimal amount.
                         # For Stripe (EUR/USD) amounts are always in cents.
-                        # For Polar, amount_paid is already stored in display units (handled by the task).
                         calculated_amount_decimal = float(calculated_amount_cents) / 100.0
                         
                         # Update monthly spending counter
@@ -2236,9 +2193,7 @@ async def payment_webhook(
                 logger.error(f"Failed to publish subscription_created event for user {sub_user_id}: {pub_exc}", exc_info=True)
 
         elif (provider_name == "stripe" and event_type == "payment_intent.payment_failed") or \
-             (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed") or \
-             (provider_name == "polar" and event_type == "checkout.updated"
-              and (event_payload.get("data") or {}).get("status") in ("failed", "expired")):
+             (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed"):
 
             # Extract detailed failure info for Stripe PaymentIntent failures.
             # last_payment_error contains the decline code, error type, and message
@@ -2593,169 +2548,29 @@ async def payment_webhook(
                     exc_info=True
                 )
         
-        # ===== Polar order.paid Handler =====
-        # When Polar processes a checkout, it creates an Order object with a separate UUID.
-        # The checkout.updated webhook (handled above) only has the checkout session ID.
-        # The order.paid event arrives shortly after and contains:
-        #   data.id         = Polar Order UUID (needed for POST /v1/refunds)
-        #   data.checkout_id = checkout session ID (our invoice's order_id)
-        # We use this to update the invoice's provider_order_id field so refunds work.
-        elif provider_name == "polar" and event_type == "order.paid":
-            polar_data = event_payload.get("data") or {}
-            polar_order_uuid = polar_data.get("id")
-            polar_checkout_id = polar_data.get("checkout_id")
-
-            if not polar_order_uuid or not polar_checkout_id:
-                logger.warning(
-                    f"Polar order.paid event missing id or checkout_id. "
-                    f"order_uuid={polar_order_uuid}, checkout_id={polar_checkout_id}"
-                )
-                return {"status": "received_incomplete_order_paid"}
-
-            logger.info(
-                f"Polar order.paid: Order UUID={polar_order_uuid}, "
-                f"checkout_id={polar_checkout_id}. Updating invoice provider_order_id."
-            )
-
-            try:
-                # Look up the invoice by order_id (= checkout session ID)
-                invoices_found = await directus_service.get_items(
-                    "invoices",
-                    params={"filter": {"order_id": {"_eq": polar_checkout_id}}}
-                )
-
-                if invoices_found and len(invoices_found) > 0:
-                    invoice_record = invoices_found[0]
-                    invoice_id = invoice_record.get("id")
-                    existing_provider_order_id = invoice_record.get("provider_order_id")
-
-                    if existing_provider_order_id:
-                        logger.info(
-                            f"Polar order.paid: invoice {invoice_id} already has "
-                            f"provider_order_id={existing_provider_order_id}. Skipping update."
-                        )
-                    else:
-                        update_success = await directus_service.update_item(
-                            "invoices", invoice_id,
-                            {"provider_order_id": polar_order_uuid}
-                        )
-                        if update_success:
-                            logger.info(
-                                f"Polar order.paid: updated invoice {invoice_id} "
-                                f"provider_order_id={polar_order_uuid}. Refunds now possible."
-                            )
-                        else:
-                            logger.error(
-                                f"Polar order.paid: failed to update invoice {invoice_id} "
-                                f"with provider_order_id={polar_order_uuid}."
-                            )
-                else:
-                    # Invoice may not exist yet if the purchase_confirmation task hasn't run.
-                    # This is a timing race — the order.paid event can arrive before the
-                    # Celery task creates the Directus invoice record.
-                    # Cache the checkout_id → order_uuid mapping in Redis so the invoice
-                    # task can pick it up when it creates the invoice record.
-                    logger.warning(
-                        f"Polar order.paid: no invoice found for checkout_id={polar_checkout_id}. "
-                        f"Order UUID={polar_order_uuid} cannot be stored yet. "
-                        f"Caching mapping for later reconciliation."
-                    )
-                    try:
-                        cache_key = f"polar_order_pending:{polar_checkout_id}"
-                        await cache_service.set(
-                            cache_key,
-                            {"order_uuid": polar_order_uuid, "checkout_id": polar_checkout_id},
-                            ttl=3600,  # 1 hour — plenty of time for the invoice task to run
-                        )
-                        logger.info(
-                            f"Polar order.paid: cached pending order UUID "
-                            f"{polar_order_uuid} for checkout {polar_checkout_id} "
-                            f"(key={cache_key}, ttl=3600s)."
-                        )
-                    except Exception as cache_exc:
-                        logger.error(
-                            f"Polar order.paid: failed to cache pending order UUID "
-                            f"for checkout {polar_checkout_id}: {cache_exc}",
-                            exc_info=True,
-                        )
-            except Exception as order_paid_exc:
-                logger.error(
-                    f"Error processing Polar order.paid for checkout {polar_checkout_id}: "
-                    f"{order_paid_exc}",
-                    exc_info=True,
-                )
-
         # ===== Dashboard-Initiated Refund Handlers =====
-        # These handle refunds issued from the Stripe Dashboard or Polar Dashboard.
+        # These handle refunds issued from the Stripe Dashboard.
         # The money has already been returned to the customer by the provider.
         # We need to: (1) deduct credits, (2) record in Invoice Ninja, (3) mark invoice as refunded.
         # No refund email is sent here because we don't have the email_encryption_key
         # (zero-knowledge: it's only available when the user is present in the browser).
-        #
-        # Polar refund events:
-        #   - refund.updated (status=succeeded): data.order_id = Polar Order UUID
-        #   - order.refunded: data.id = Polar Order UUID, data.refunded_amount = cumulative refund
 
-        elif (
-            (provider_name == "stripe" and event_type == "charge.refunded")
-            or (
-                provider_name == "polar"
-                and event_type == "refund.updated"
-                and (event_payload.get("data") or {}).get("status") == "succeeded"
-            )
-            or (
-                provider_name == "polar"
-                and event_type == "order.refunded"
-            )
-        ):
+        elif provider_name == "stripe" and event_type == "charge.refunded":
             logger.info(f"Processing dashboard-initiated refund webhook: {event_type} from {provider_name}")
             try:
                 # Extract the refund amount and the order ID used in our invoices table.
-                # Stripe: charge.refunded → data.object.payment_intent is our order_id
-                # Polar: refund.updated → data.order_id is the Polar Order UUID (matches invoices.provider_order_id)
-                refund_amount_from_webhook = 0
-                refund_currency_from_webhook = "usd"
-                invoice_lookup_field = None
-                invoice_lookup_value = None
-
-                if provider_name == "stripe":
-                    charge_obj = (event_payload.get("data") or {}).get("object") or {}
-                    # amount_refunded is cumulative; to get the latest refund, check refunds list
-                    refund_amount_from_webhook = charge_obj.get("amount_refunded", 0)
-                    refund_currency_from_webhook = charge_obj.get("currency", "usd")
-                    stripe_pi_id = charge_obj.get("payment_intent")
-                    if not stripe_pi_id:
-                        logger.warning("Stripe charge.refunded event missing payment_intent. Skipping.")
-                        return {"status": "received_missing_payment_intent"}
-                    # Look up invoice by order_id (which is the PaymentIntent ID for Stripe)
-                    invoice_lookup_field = "order_id"
-                    invoice_lookup_value = stripe_pi_id
-
-                elif provider_name == "polar":
-                    refund_data = event_payload.get("data") or {}
-                    refund_currency_from_webhook = refund_data.get("currency", "usd")
-
-                    if event_type == "order.refunded":
-                        # order.refunded: data.id = Polar Order UUID, data.refunded_amount = cumulative
-                        polar_order_uuid = refund_data.get("id")
-                        refund_amount_from_webhook = refund_data.get("refunded_amount", 0)
-                        logger.info(
-                            f"Polar order.refunded: Order UUID={polar_order_uuid}, "
-                            f"refunded_amount={refund_amount_from_webhook} {refund_currency_from_webhook}"
-                        )
-                    else:
-                        # refund.updated: data.order_id = Polar Order UUID, data.amount = refund amount
-                        polar_order_uuid = refund_data.get("order_id")
-                        refund_amount_from_webhook = refund_data.get("amount", 0)
-
-                    if not polar_order_uuid:
-                        logger.warning(
-                            f"Polar {event_type} event missing order UUID. Skipping."
-                        )
-                        return {"status": "received_missing_order_id"}
-                    # Look up invoice by provider_order_id (legacy provider order UUID)
-                    invoice_lookup_field = "provider_order_id"
-                    invoice_lookup_value = polar_order_uuid
+                # charge.refunded → data.object.payment_intent is our order_id
+                charge_obj = (event_payload.get("data") or {}).get("object") or {}
+                # amount_refunded is cumulative; to get the latest refund, check refunds list
+                refund_amount_from_webhook = charge_obj.get("amount_refunded", 0)
+                refund_currency_from_webhook = charge_obj.get("currency", "usd")
+                stripe_pi_id = charge_obj.get("payment_intent")
+                if not stripe_pi_id:
+                    logger.warning("Stripe charge.refunded event missing payment_intent. Skipping.")
+                    return {"status": "received_missing_payment_intent"}
+                # Look up invoice by order_id (which is the PaymentIntent ID for Stripe)
+                invoice_lookup_field = "order_id"
+                invoice_lookup_value = stripe_pi_id
 
                 # Look up the invoice in Directus
                 invoices_found = await directus_service.get_items(
@@ -3210,18 +3025,14 @@ async def get_order_status(
         final_state = order_state
 
         # Normalize status for frontend display
-        if order_state.upper() == "SUCCEEDED": # Stripe status
+        if order_state.upper() in ("SUCCEEDED", "COMPLETED"):
             final_state = "COMPLETED"
-        elif order_state.upper() == "COMPLETED": # Polar status
-            final_state = "COMPLETED"
-        elif order_state.upper() == "REQUIRES_PAYMENT_METHOD" or \
-             order_state.upper() == "REQUIRES_CONFIRMATION" or \
-             order_state.upper() == "REQUIRES_ACTION": # Stripe statuses
+        elif order_state.upper() in (
+            "REQUIRES_PAYMENT_METHOD", "REQUIRES_CONFIRMATION",
+            "REQUIRES_ACTION", "PENDING"
+        ):
             final_state = "PENDING"
-        elif order_state.upper() == "PENDING": # Polar status
-            final_state = "PENDING"
-        elif order_state.upper() == "CANCELED" or \
-             order_state.upper() == "FAILED": # Stripe/Polar statuses
+        elif order_state.upper() in ("CANCELED", "FAILED"):
             final_state = "FAILED"
 
         if final_state == "COMPLETED":
@@ -3593,9 +3404,7 @@ async def list_payment_methods(
         
         # Saved payment methods are always Stripe-specific (Stripe customer + PaymentMethod objects).
         # We must use the Stripe provider directly, regardless of the currently active geo-detected
-        # provider — a Polar-region user may still have Stripe payment methods saved from a prior EU
-        # session, or from a Stripe-provider override. The active provider does NOT determine whether
-        # the user has saved Stripe methods.
+        # The active provider does NOT determine whether the user has saved Stripe methods.
         stripe_provider = payment_service._stripe_provider
         if stripe_provider is None:
             logger.info(f"No Stripe provider available -- returning empty payment methods list for user {current_user.id}")
@@ -4318,7 +4127,7 @@ async def buy_gift_card(
     Purchase a gift card for the specified credit amount.
     Creates a payment order, and upon successful payment, creates a gift card with a unique code.
 
-    Supports both Stripe (EU/EEA/CH/GB users) and Polar (non-EU users), mirroring the
+    Supports Stripe (EU users) and Stripe Managed Payments (non-EU users), mirroring the
     credits purchase flow. Provider is selected via geo-detection or explicit `provider` override.
     """
     user_id = current_user.id
@@ -4401,7 +4210,7 @@ async def buy_gift_card(
             )
         else:
             # Create regular payment order — pass is_eu and provider_override so
-            # non-EU users are routed to Polar (same as /create-order does).
+            # non-EU users are routed to Stripe Managed Payments (same as /create-order does).
             embed_origin = request.headers.get("Origin") or request.headers.get("Referer")
             order_response = await payment_service.create_order(
                 amount=calculated_amount,
@@ -4424,7 +4233,7 @@ async def buy_gift_card(
         
         # Cache the order with a flag indicating it's a gift card purchase.
         # `provider` is stored so the email task knows to send "Payment Confirmation"
-        # (not "Invoice") for Polar orders — Polar as MoR issues its own tax invoice.
+        # (not "Invoice") for Stripe Managed Payments — Stripe/Link as MoR issues its own tax invoice.
         cache_success = await cache_service.set_order(
             order_id=order_id,
             user_id=user_id,
@@ -4448,12 +4257,11 @@ async def buy_gift_card(
         
         # Return order info in the same format as create-order endpoint.
         # The gift card code will be provided via WebSocket after payment confirmation.
-        # checkout_url is populated for Polar (embedded iframe); client_secret for Stripe.
         response_data = {
             "provider": provider_name,
             "order_id": order_id,
             "client_secret": order_response.get("client_secret"),  # For Stripe
-            "checkout_url": order_response.get("checkout_url"),  # For Polar embedded checkout
+            "checkout_url": order_response.get("checkout_url"),  # Unused; kept for backwards-compatibility
         }
         
         return BuyGiftCardResponse(**response_data)
@@ -5227,7 +5035,7 @@ async def request_refund(
         # Extract provider info for routing refund to the correct payment provider.
         # 'provider' and 'provider_order_id' are set on invoices created after this feature
         # was deployed. For legacy invoices these will be None (auto-detection fallback).
-        invoice_provider = invoice.get("provider")  # "stripe", "stripe_managed", legacy "polar", or None
+        invoice_provider = invoice.get("provider")  # "stripe", "stripe_managed", or None
         invoice_provider_order_id = invoice.get("provider_order_id")  # PaymentIntent/legacy provider order ID, or None
 
         # Decrypt invoice data
@@ -5471,56 +5279,6 @@ async def request_refund(
                     detail="Cannot process managed Stripe refund: missing provider payment ID. Please contact support."
                 )
             refund_order_id = invoice_provider_order_id
-        elif invoice_provider == "polar" and invoice_provider_order_id:
-            refund_order_id = invoice_provider_order_id
-        elif invoice_provider == "polar" and not invoice_provider_order_id:
-            # Fallback: the order.paid webhook may have arrived before the invoice was
-            # created (race condition). Try to resolve the Order UUID via the Polar API
-            # using the checkout session ID (our order_id).
-            logger.warning(
-                f"Polar invoice {invoice_id} is missing provider_order_id. "
-                f"Attempting Polar API lookup by checkout_id={order_id}."
-            )
-            resolved_order_uuid = await payment_service.get_polar_order_uuid_by_checkout_id(order_id)
-            if resolved_order_uuid:
-                # Save it to the invoice so future refund attempts won't need the lookup
-                try:
-                    await directus_service.update_item(
-                        "invoices", invoice_id,
-                        {"provider_order_id": resolved_order_uuid}
-                    )
-                    logger.info(
-                        f"Resolved and stored Polar order UUID {resolved_order_uuid} "
-                        f"for invoice {invoice_id} (was missing due to webhook race)."
-                    )
-                except Exception as update_exc:
-                    # Non-blocking — we have the UUID, proceed with refund anyway
-                    logger.warning(
-                        f"Failed to persist resolved Polar order UUID "
-                        f"for invoice {invoice_id}: {update_exc}"
-                    )
-                refund_order_id = resolved_order_uuid
-            else:
-                logger.error(
-                    f"Polar invoice {invoice_id} is missing provider_order_id "
-                    f"and Polar API lookup by checkout_id={order_id} returned nothing. "
-                    f"Cannot issue refund."
-                )
-                ComplianceService.log_refund_request(
-                    user_id=user_id,
-                    ip_address=client_ip,
-                    invoice_id=invoice_id,
-                    order_id=order_id,
-                    refund_amount=refund_amount_cents,
-                    currency=currency,
-                    status="failed",
-                    reason="Missing Polar Order UUID for refund (API lookup also failed)"
-                )
-                raise HTTPException(
-                    status_code=500,
-                    detail="Cannot process Polar refund: missing provider order ID. "
-                           "Please contact support."
-                )
 
         refund_result = await payment_service.refund_payment(
             refund_order_id, refund_amount_cents, provider=invoice_provider

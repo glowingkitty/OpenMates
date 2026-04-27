@@ -151,7 +151,6 @@ export const privacyPolicyLinks = {
 
   // Group B — Payments
   stripe: "https://stripe.com/privacy",
-  polar: "https://polar.sh/legal/privacy-policy",
   revolutBusiness: "https://www.revolut.com/en-LT/legal/privacy/", // Revolut Bank UAB (Lithuania) — verified 2026-04-14
 
   // Group C — AI models
