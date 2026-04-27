@@ -957,8 +957,9 @@ function createGmailClient({
 		const deadline = Date.now() + timeoutMs;
 		const afterEpoch = Math.floor(new Date(receivedAfter).getTime() / 1000);
 
-		// Build Gmail search query
-		let query = `to:${sentTo} after:${afterEpoch}`;
+		// Gmail plus aliases may appear in the Delivered-To header rather than the
+		// visible To header depending on the email provider. Search both fields.
+		let query = `{to:${sentTo} deliveredto:${sentTo}} after:${afterEpoch}`;
 		if (subjectContains) {
 			query += ` subject:${subjectContains}`;
 		}
