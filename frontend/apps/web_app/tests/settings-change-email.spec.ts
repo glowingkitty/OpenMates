@@ -117,14 +117,12 @@ async function loginWithMigrationFallback(page: any, migrationEmail: string | nu
 	}
 }
 
-async function logout(page: any, log: any): Promise<void> {
-	const settingsMenu = await openSettingsMenuAtMain(page);
-
-	const logoutItem = settingsMenu.getByRole('menuitem', { name: /logout|log out|abmelden/i });
-	await expect(logoutItem).toBeVisible({ timeout: 10000 });
-	await logoutItem.click();
-	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 20000 });
-	log('Logged out.');
+async function resetBrowserAuth(page: any, context: any): Promise<void> {
+	await context.clearCookies();
+	await page.evaluate(() => {
+		localStorage.clear();
+		sessionStorage.clear();
+	});
 }
 
 async function openEmailSettings(page: any, log: any): Promise<void> {
@@ -210,7 +208,7 @@ test('changes account email and verifies login with the new address', async ({ p
 	if (isCurrentMailosaur && currentEmail !== migrationEmail) {
 		await changeEmail(page, migrationEmail!, log);
 		await screenshot(page, 'mailosaur-migrated-to-gmail');
-		await logout(page, log);
+		await resetBrowserAuth(page, context);
 		await login(page, migrationEmail!, log);
 		log('Migration login with Gmail alias succeeded.', { migrationEmail });
 		return;
@@ -218,9 +216,12 @@ test('changes account email and verifies login with the new address', async ({ p
 
 	await changeEmail(page, temporaryEmail!, log);
 	await screenshot(page, 'changed-to-temporary-gmail');
+	await resetBrowserAuth(page, context);
+	await login(page, temporaryEmail!, log);
+	await openEmailSettings(page, log);
 	await changeEmail(page, currentEmail, log);
 	await screenshot(page, 'changed-back-to-original-gmail');
-	await logout(page, log);
+	await resetBrowserAuth(page, context);
 	await login(page, currentEmail, log);
 	log('Roundtrip login with original Gmail alias succeeded.', { email: currentEmail });
 });
