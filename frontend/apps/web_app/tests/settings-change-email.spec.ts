@@ -76,7 +76,7 @@ async function login(page: any, email: string, log: any): Promise<void> {
 	}
 	expect(loginSucceeded, 'Expected login 2FA form to close after submitting a valid TOTP.').toBe(true);
 
-	await page.waitForURL(/chat/, { timeout: 30000 });
+	await page.waitForURL(/chat|demo/, { timeout: 30000 });
 	await page.waitForTimeout(5000);
 	log('Logged in.', { email });
 }
