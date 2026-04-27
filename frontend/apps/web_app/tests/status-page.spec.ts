@@ -148,12 +148,19 @@ const MOCK_STATUS_RESPONSE = {
 			},
 			{
 				name: 'Signup',
-				total: 2,
-				passed: 2,
+				total: 3,
+				passed: 3,
 				failed: 0,
 				specs: [
 					{
-						name: 'signup-flow',
+						name: 'signup-flow-stripe-eu',
+						status: 'passed' as const,
+						error: null,
+						duration_s: 20,
+						timeline_30d: []
+					},
+					{
+						name: 'signup-flow-stripe-managed',
 						status: 'passed' as const,
 						error: null,
 						duration_s: 20,

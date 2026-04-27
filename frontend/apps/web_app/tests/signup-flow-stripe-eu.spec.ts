@@ -61,9 +61,10 @@ const {
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
+// Netherlands EU card — required to pass the Radar "block non-EU cards" rule on the EU Stripe path.
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
 
-test('completes full signup flow with email + 2FA + purchase', async ({
+test('completes full signup flow: email + 2FA + EU card (Stripe Payment Element)', async ({
 	page,
 	context
 }: {
@@ -103,7 +104,7 @@ test('completes full signup flow with email + 2FA + purchase', async ({
 	// refund link validation, and account deletion with 2FA auth. 600s needed for retries.
 	test.setTimeout(600000);
 
-	const logSignupCheckpoint = createSignupLogger('SIGNUP_FLOW');
+	const logSignupCheckpoint = createSignupLogger('SIGNUP_FLOW_STRIPE_EU');
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint);
 
 	await archiveExistingScreenshots(logSignupCheckpoint);
