@@ -15,6 +15,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip-1777327279784'];
 
 async function openLoginDialog(page: any): Promise<void> {
 	const headerButton = page.getByTestId('header-login-signup-btn');
@@ -104,16 +105,30 @@ async function openSettingsMenuAtMain(page: any): Promise<any> {
 }
 
 async function loginWithMigrationFallback(page: any, migrationEmail: string | null, log: any): Promise<string> {
+	const fallbackEmails = [
+		migrationEmail,
+		...RECOVERY_GMAIL_ALIAS_LABELS.map((label) => getGmailAlias(label))
+	].filter(Boolean) as string[];
+
 	try {
 		await login(page, TEST_EMAIL, log);
 		return TEST_EMAIL;
 	} catch (error) {
-		if (!TEST_EMAIL?.endsWith('.mailosaur.net') || !migrationEmail) throw error;
+		if (!TEST_EMAIL?.endsWith('.mailosaur.net') || fallbackEmails.length === 0) throw error;
 
-		log('Mailosaur login failed; trying migrated Gmail alias.', { migrationEmail });
-		await page.goto(getE2EDebugUrl('/'));
-		await login(page, migrationEmail, log);
-		return migrationEmail;
+		let lastError = error;
+		for (const fallbackEmail of fallbackEmails) {
+			try {
+				log('Mailosaur login failed; trying Gmail fallback alias.', { fallbackEmail });
+				await page.goto(getE2EDebugUrl('/'));
+				await login(page, fallbackEmail, log);
+				return fallbackEmail;
+			} catch (fallbackError) {
+				lastError = fallbackError;
+			}
+		}
+
+		throw lastError;
 	}
 }
 
@@ -190,7 +205,7 @@ test('changes account email and verifies login with the new address', async ({ p
 
 	const isCurrentMailosaur = TEST_EMAIL?.endsWith('.mailosaur.net');
 	const migrationEmail = getGmailAlias('testacct');
-	const temporaryEmail = getGmailAlias(`roundtrip-${Date.now()}`);
+	const temporaryEmail = getGmailAlias('roundtrip');
 	test.skip(!migrationEmail || !temporaryEmail, 'Could not build Gmail test aliases.');
 
 	const quota = await checkEmailQuota(isCurrentMailosaur ? migrationEmail! : temporaryEmail!);
@@ -206,22 +221,25 @@ test('changes account email and verifies login with the new address', async ({ p
 	await screenshot(page, 'email-settings-open');
 
 	if (isCurrentMailosaur && currentEmail !== migrationEmail) {
-		await changeEmail(page, migrationEmail!, log);
-		await screenshot(page, 'mailosaur-migrated-to-gmail');
-		await resetBrowserAuth(page, context);
-		await login(page, migrationEmail!, log);
-		log('Migration login with Gmail alias succeeded.', { migrationEmail });
-		return;
+		if (currentEmail === TEST_EMAIL) {
+			await changeEmail(page, migrationEmail!, log);
+			await screenshot(page, 'mailosaur-migrated-to-gmail');
+			await resetBrowserAuth(page, context);
+			await login(page, migrationEmail!, log);
+			log('Migration login with Gmail alias succeeded.', { migrationEmail });
+			return;
+		}
 	}
 
+	const finalEmail = isCurrentMailosaur ? migrationEmail! : currentEmail;
 	await changeEmail(page, temporaryEmail!, log);
 	await screenshot(page, 'changed-to-temporary-gmail');
 	await resetBrowserAuth(page, context);
 	await login(page, temporaryEmail!, log);
 	await openEmailSettings(page, log);
-	await changeEmail(page, currentEmail, log);
+	await changeEmail(page, finalEmail, log);
 	await screenshot(page, 'changed-back-to-original-gmail');
 	await resetBrowserAuth(page, context);
-	await login(page, currentEmail, log);
-	log('Roundtrip login with original Gmail alias succeeded.', { email: currentEmail });
+	await login(page, finalEmail, log);
+	log('Roundtrip login with original Gmail alias succeeded.', { email: finalEmail });
 });
