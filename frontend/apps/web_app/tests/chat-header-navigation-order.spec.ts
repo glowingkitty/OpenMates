@@ -13,6 +13,12 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
+const INTRO_CHAT_TITLES = new Set([
+	'OpenMates | For everyone',
+	'OpenMates | For developers',
+	'Who develops OpenMates?'
+]);
+
 async function ensureSidebarOpen(page: any): Promise<void> {
 	const activityHistory = page.getByTestId('activity-history-wrapper');
 	if (await activityHistory.isVisible().catch(() => false)) return;
@@ -62,13 +68,22 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		const orderedTitles = await chatItems
 			.locator('[data-testid="chat-title"]')
 			.evaluateAll((nodes: Element[]) =>
-				nodes.map((node) => (node.textContent || '').trim()).filter(Boolean).slice(0, 3)
+				nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)
 			);
 
-		expect(orderedTitles.length).toBeGreaterThanOrEqual(3);
-		const [previousTitle, selectedTitle, nextTitle] = orderedTitles;
+		const selectedIndex = orderedTitles.findIndex((title, index, titles) => {
+			if (index === 0 || index === titles.length - 1) return false;
+			return [titles[index - 1], title, titles[index + 1]].every(
+				(candidate) => !INTRO_CHAT_TITLES.has(candidate)
+			);
+		});
 
-		await chatItems.nth(1).click();
+		expect(selectedIndex).toBeGreaterThan(0);
+		const previousTitle = orderedTitles[selectedIndex - 1];
+		const selectedTitle = orderedTitles[selectedIndex];
+		const nextTitle = orderedTitles[selectedIndex + 1];
+
+		await chatItems.nth(selectedIndex).click();
 		await expectHeaderTitle(page, selectedTitle);
 
 		await page.getByTestId('chat-header-previous').click();
