@@ -200,8 +200,10 @@ skills:
         # main_processing_complex_name: Gemini 3.1 Pro
         main_processing_complex: alibaba/qwen3-235b-a22b-2507
         main_processing_complex_name: Qwen3
-        content_sanitization_model: openai/gpt-oss-safeguard-20b
-        # Chat import uses OpenRouter (not Groq) to avoid the shared 200k token/day Groq daily cap
+        # Use OpenRouter (not Groq) — Groq returns 400 "Tool call validation failed" for this model
+        # because gpt-oss-safeguard-20b doesn't support function calling on Groq's routing layer.
+        content_sanitization_model: openai/gpt-oss-safeguard-20b-openrouter
+        # Chat import also uses OpenRouter to avoid the shared 200k token/day Groq daily cap
         chat_import_sanitization_model: openai/gpt-oss-safeguard-20b-openrouter
       preprocessing_thresholds:
         harmful_content_score: 7
