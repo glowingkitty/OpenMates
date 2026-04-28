@@ -37,6 +37,7 @@ vi.mock("../../encryption/ChatKeyManager", () => ({
     getKeySync: (...args: unknown[]) => mockGetKeySync(...args),
     injectKey: (...args: unknown[]) => mockInjectKey(...args),
     createKeyForNewChat: (...args: unknown[]) => mockCreateKeyForNewChat(...args),
+    onKeyReady: vi.fn(() => () => {}),
   },
   computeKeyFingerprint: (...args: unknown[]) =>
     mockComputeKeyFingerprint(...args),
@@ -51,6 +52,23 @@ vi.mock("../../../stores/signupState", () => ({
 // Mock svelte/store get()
 vi.mock("svelte/store", () => ({
   get: () => false,
+  writable: (initial: unknown) => ({
+    subscribe: vi.fn((cb: (v: unknown) => void) => {
+      cb(initial);
+      return () => {};
+    }),
+    set: vi.fn(),
+    update: vi.fn(),
+  }),
+  derived: () => ({
+    subscribe: vi.fn(() => () => {}),
+  }),
+  readable: (initial: unknown) => ({
+    subscribe: vi.fn((cb: (v: unknown) => void) => {
+      cb(initial);
+      return () => {};
+    }),
+  }),
 }));
 
 import { encryptChatForStorage } from "../chatCrudOperations";
@@ -210,6 +228,28 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     // IDB key must win — server's wrong key must NOT appear here
     expect(result.encrypted_chat_key).toBe("idb-correct-key");
     expect(result.encrypted_chat_key).not.toBe("server-encrypted-key-wrong");
+  });
+
+  it("does NOT store a conflicting server key when a different key is already cached", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({ encrypted_chat_key: "server-encrypted-key-wrong" });
+    const incomingWrongKey = new Uint8Array(32).fill(99);
+
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockDecryptChatKeyWithMasterKey.mockResolvedValue(incomingWrongKey);
+    db.getChat.mockResolvedValue({
+      chat_id: "test-chat-123",
+      encrypted_chat_key: "idb-correct-key",
+    });
+
+    const result = await encryptChatForStorage(db as any, chat, {
+      isFromSync: true,
+    });
+
+    expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
+    expect(result.encrypted_chat_key).toBe("idb-correct-key");
+    expect(result.encrypted_chat_key).not.toBe("server-encrypted-key-wrong");
+    expect(result.key_fingerprint).toBe("abcd1234");
   });
 
   it("falls back to IDB key during sync (Step 3)", async () => {

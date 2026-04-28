@@ -28,7 +28,23 @@ import {
 import { getTracer } from './tracing/setup';
 import { injectTraceparent } from './tracing/wsSpans';
 import { addCandidateKey } from "./db/chatCrudOperations";
+import { encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
 import type { Chat, Message } from "../types/chat";
+
+async function abortUnsafeKeyMismatch(
+	chatId: string,
+	encryptedChatKey: string,
+	reason: string
+): Promise<void> {
+	addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
+	console.error(
+		`[ChatSyncService:Senders] ❌ UNSAFE KEY MISMATCH for ${chatId}: ${reason}. ` +
+			`Aborting send instead of uploading content encrypted with one key and encrypted_chat_key from another.`
+	);
+	notificationStore.error(
+		"We could not safely send this message because this chat has conflicting encryption keys. Please reload and try again."
+	);
+}
 
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
@@ -1371,6 +1387,22 @@ export async function sendEncryptedStoragePackage(
 		// Prefer any cached chat key first (covers hidden chats already unlocked).
 		let chatKey: Uint8Array | null = await chatKeyManager.getKey(chat_id);
 
+		if (chatKey && encryptedChatKey) {
+			const keyMatches = await encryptedChatKeyMatchesRawKey(
+				encryptedChatKey,
+				chatKey,
+				decryptChatKeyWithMasterKey
+			);
+			if (keyMatches === false) {
+				await abortUnsafeKeyMismatch(
+					chat_id,
+					encryptedChatKey,
+					"cached raw key differs from persisted encrypted_chat_key"
+				);
+				return;
+			}
+		}
+
 		if (!chatKey && encryptedChatKey) {
 			// CASE 1: encrypted_chat_key exists - MUST decrypt it to get the original key
 			// This ensures we use the SAME key that was stored when the chat was created
@@ -1380,13 +1412,16 @@ export async function sendEncryptedStoragePackage(
 			const decryptedKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
 
 			if (decryptedKey) {
-				chatKey = decryptedKey;
-				const accepted = chatDB.setChatKey(chat_id, chatKey);
+				const accepted = chatDB.setChatKey(chat_id, decryptedKey);
 				if (!accepted) {
-					// A different key is already in memory (race with another tab or server push).
-					// Save the IDB blob as a candidate so tryDecryptWithCandidates can recover it.
-					addCandidateKey(chatDB, chat_id, encryptedChatKey).catch(() => {});
+					await abortUnsafeKeyMismatch(
+						chat_id,
+						encryptedChatKey,
+						"decrypted persisted key was rejected by ChatKeyManager"
+					);
+					return;
 				}
+				chatKey = decryptedKey;
 				console.log(
 					`[ChatSyncService:Senders] ✅ Decrypted and cached chat key for ${chat_id}, length: ${chatKey.length}`
 				);
@@ -1404,11 +1439,16 @@ export async function sendEncryptedStoragePackage(
 					const hiddenResult =
 						await hiddenChatService.tryDecryptChatKey(encryptedChatKey);
 					if (hiddenResult.chatKey) {
-						chatKey = hiddenResult.chatKey;
-						const accepted = chatDB.setChatKey(chat_id, chatKey);
+						const accepted = chatDB.setChatKey(chat_id, hiddenResult.chatKey);
 						if (!accepted) {
-							addCandidateKey(chatDB, chat_id, encryptedChatKey).catch(() => {});
+							await abortUnsafeKeyMismatch(
+								chat_id,
+								encryptedChatKey,
+								"hidden-chat decrypted key was rejected by ChatKeyManager"
+							);
+							return;
 						}
+						chatKey = hiddenResult.chatKey;
 						console.info(
 							`[ChatSyncService:Senders] ✅ Decrypted chat key via hidden chat path for ${chat_id}`
 						);
@@ -1453,7 +1493,12 @@ export async function sendEncryptedStoragePackage(
 					if (chatKey) {
 						const accepted = chatDB.setChatKey(chat_id, chatKey);
 						if (!accepted) {
-							addCandidateKey(chatDB, chat_id, freshEncKey).catch(() => {});
+							await abortUnsafeKeyMismatch(
+								chat_id,
+								freshEncKey,
+								"freshly re-read encrypted_chat_key was rejected by ChatKeyManager"
+							);
+							return;
 						}
 					}
 				}

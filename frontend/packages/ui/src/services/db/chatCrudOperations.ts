@@ -14,6 +14,7 @@ import {
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
 import { chatKeyManager, computeKeyFingerprint } from "../encryption/ChatKeyManager";
+import { chatKeysEqual } from "../chatKeyConsistency";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 import { isPublicChat } from "../../demo_chats/convertToChat";
@@ -153,6 +154,26 @@ export async function encryptChatForStorage(
 
   // Step 1: check ChatKeyManager (single source of truth)
   let chatKey = chatKeyManager.getKeySync(chat.chat_id);
+
+  // If sync provides a key while a different key is already cached, do not
+  // store the incoming key beside locally encrypted fields. The caller must
+  // explicitly clear/reload ChatKeyManager before accepting a server key change.
+  if (chatKey && chat.encrypted_chat_key) {
+    const incomingKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+    if (incomingKey) {
+      if (!chatKeysEqual(chatKey, incomingKey)) {
+        addCandidateKey(dbInstance, chat.chat_id, chat.encrypted_chat_key).catch(() => {});
+        const existingChat = await dbInstance.getChat(chat.chat_id);
+        encryptedChat.encrypted_chat_key =
+          existingChat?.encrypted_chat_key ??
+          (await encryptChatKeyWithMasterKey(chatKey));
+        console.warn(
+          `[ChatDatabase] Refusing to persist conflicting encrypted_chat_key for chat ${chat.chat_id}; ` +
+            `cached key remains authoritative until sync explicitly reloads the server key`,
+        );
+      }
+    }
+  }
 
   // Step 2: server-provided encrypted_chat_key on the incoming chat object
   if (!chatKey && chat.encrypted_chat_key) {
