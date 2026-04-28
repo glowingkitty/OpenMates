@@ -39,10 +39,10 @@ async function swipeHeader(page: any, startX: number, endX: number): Promise<voi
 	const header = page.locator('.chat-header-banner');
 	await expect(header).toBeVisible({ timeout: 10000 });
 	await header.dispatchEvent('touchstart', {
-		touches: [{ clientX: startX, clientY: 80 }]
+		touches: [{ identifier: 1, clientX: startX, clientY: 80 }]
 	});
 	await header.dispatchEvent('touchmove', {
-		touches: [{ clientX: endX, clientY: 84 }]
+		touches: [{ identifier: 1, clientX: endX, clientY: 84 }]
 	});
 	await header.dispatchEvent('touchend', { touches: [] });
 }
