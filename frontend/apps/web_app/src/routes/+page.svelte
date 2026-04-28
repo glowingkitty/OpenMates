@@ -62,6 +62,7 @@
 		cryptoReady
 	} from '@repo/ui';
 	import { pushNotificationService } from '@repo/ui';
+	import { settingsMenuVisible } from '@repo/ui/components/Settings.svelte';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { locale, waitLocale } from 'svelte-i18n';
@@ -116,6 +117,11 @@
 		edgeSwipeStartX = 0;
 		edgeSwipeStartY = 0;
 		edgeSwipeHandled = false;
+	}
+
+	function closeSettingsMenu(): void {
+		settingsMenuVisible.set(false);
+		panelState.closeSettings();
 	}
 
 	function handleEdgeSwipeStart(event: TouchEvent): void {
@@ -196,7 +202,7 @@
 			panelState.closeChats();
 			panelState.openSettings();
 		} else {
-			panelState.closeSettings();
+			closeSettingsMenu();
 		}
 	}
 
