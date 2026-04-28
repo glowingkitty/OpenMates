@@ -236,7 +236,7 @@ test.describe('Create persistent test account', () => {
 		logCheckpoint('Purchase completed successfully.');
 
 		// Finish setup → redirect to chat
-		await page.locator('#signup-finish-setup').click();
+		await page.getByTestId('signup-finish-setup').first().click();
 		await page.waitForURL(/chat/);
 		logCheckpoint('Arrived in chat after signup.');
 

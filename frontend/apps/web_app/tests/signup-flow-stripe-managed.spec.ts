@@ -451,7 +451,7 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	logSignupCheckpoint('Purchase completed successfully.');
 
 	// Auto top-up step: finish setup and confirm redirect into the app.
-	await page.locator('#signup-finish-setup').click();
+	await page.getByTestId('signup-finish-setup').first().click();
 	await page.waitForURL(/chat/);
 	await takeStepScreenshot(page, 'chat');
 	logSignupCheckpoint('Arrived in chat after signup.');

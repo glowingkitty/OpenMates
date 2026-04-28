@@ -445,6 +445,7 @@ Matches the design from the signup flow screenshot.
 <!-- Finish Button -->
 <button
     id="signup-finish-setup"
+    data-testid="signup-finish-setup"
     onclick={handleFinish}
     disabled={isProcessing}
 >

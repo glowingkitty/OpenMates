@@ -251,7 +251,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	logSignupCheckpoint('Stripe payment completed successfully.');
 
-	await page.locator('#signup-finish-setup').click();
+	await page.getByTestId('signup-finish-setup').first().click();
 	await page.waitForURL(/chat/);
 	await takeStepScreenshot(page, 'chat-after-signup');
 
