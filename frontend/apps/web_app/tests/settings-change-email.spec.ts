@@ -15,7 +15,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip-1777327279784'];
+const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
 
 async function openLoginDialog(page: any): Promise<void> {
 	const headerButton = page.getByTestId('header-login-signup-btn');
@@ -36,7 +36,7 @@ function getGmailAlias(label: string): string | null {
 	const base = process.env.GMAIL_TEST_ADDRESS;
 	if (!base || !base.includes('@')) return null;
 	const [localPart, domain] = base.split('@');
-	const slot = process.env.PLAYWRIGHT_WORKER_SLOT || '1';
+	const slot = process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT || process.env.PLAYWRIGHT_WORKER_SLOT || '1';
 	return `${localPart}+${label}-slot${slot}@${domain}`;
 }
 

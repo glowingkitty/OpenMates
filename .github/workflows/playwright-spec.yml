@@ -73,6 +73,7 @@ jobs:
           OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', github.event.inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', github.event.inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', github.event.inputs.account)] }}
+          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ github.event.inputs.account }}
           PLAYWRIGHT_WORKER_SLOT: "1"
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
