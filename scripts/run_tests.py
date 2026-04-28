@@ -120,6 +120,9 @@ class SpecResult:
     playwright_errors: list[dict] = field(default_factory=list)
     steps: list[dict] = field(default_factory=list)
     screenshot_paths: list[str] = field(default_factory=list)
+    video_paths: list[str] = field(default_factory=list)
+    video_artifact_name: Optional[str] = None
+    github_run_url: Optional[str] = None
 
 
 @dataclass
@@ -810,6 +813,7 @@ class BatchRunner:
             pw_errors: list[dict] = []
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
+            video_paths: list[str] = []
 
             art_name = f"playwright-{spec.replace('/', '-')}"
             art_path = self.client.download_artifact(rid, art_name, artifact_dir)
@@ -827,6 +831,7 @@ class BatchRunner:
 
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
+                video_paths = self._collect_video_paths(art_path)
 
                 # Collect screenshot paths relative to test-results/
                 spec_name = spec.replace(".spec.ts", "")
@@ -853,6 +858,9 @@ class BatchRunner:
                 playwright_errors=pw_errors,
                 steps=pw_steps,
                 screenshot_paths=screenshot_paths,
+                video_paths=video_paths,
+                video_artifact_name=art_name if video_paths else None,
+                github_run_url=f"https://github.com/{GH_REPO}/actions/runs/{rid}" if rid else None,
             ))
 
         # Cleanup artifact dir
@@ -993,6 +1001,26 @@ class BatchRunner:
             _log(f"    Saved {audit_copied} storage-audit snapshot(s) to test-results/storage-audits/")
 
     @staticmethod
+    def _collect_video_paths(art_path: Path) -> list[str]:
+        """Return video paths inside a downloaded GitHub Actions artifact.
+
+        Videos can become large quickly, so we intentionally do not persist them
+        into `test-results/` or Obsidian. The artifact path is stored only as
+        metadata so a human can find the recording in the GitHub artifact.
+        """
+        video_paths: list[str] = []
+        for root, _dirs, files in os.walk(art_path):
+            for fname in files:
+                if not fname.lower().endswith((".webm", ".mp4")):
+                    continue
+                src = Path(root) / fname
+                try:
+                    video_paths.append(src.relative_to(art_path).as_posix())
+                except ValueError:
+                    video_paths.append(src.name)
+        return sorted(video_paths)
+
+    @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
         """Convert SpecResult to the dict format used in last-run.json."""
         d: dict = {
@@ -1016,6 +1044,12 @@ class BatchRunner:
             d["steps"] = r.steps
         if r.screenshot_paths:
             d["screenshot_paths"] = r.screenshot_paths
+        if r.video_paths:
+            d["video_paths"] = r.video_paths
+        if r.video_artifact_name:
+            d["video_artifact_name"] = r.video_artifact_name
+        if r.github_run_url:
+            d["github_run_url"] = r.github_run_url
         return d
 
 
@@ -3650,6 +3684,7 @@ class TestOrchestrator:
             ResultAggregator.save(result)
             # Always generate MD reports (useful for single-spec debugging too)
             ReportGenerator().generate(result)
+            self._sync_obsidian_test_results()
 
         # Print summary
         self._print_summary(result)
@@ -3659,6 +3694,28 @@ class TestOrchestrator:
             self._daily_post_run(result)
 
         return 1 if result.summary["failed"] > 0 else 0
+
+    def _sync_obsidian_test_results(self) -> None:
+        """Best-effort sync of latest test status into the local Obsidian vault."""
+        script = PROJECT_ROOT / "scripts" / "sync_obsidian_test_results.py"
+        if not script.is_file():
+            return
+
+        rc = subprocess.run(
+            [sys.executable, str(script)],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if rc.returncode == 0:
+            if rc.stdout.strip():
+                _log(rc.stdout.strip())
+            return
+
+        _log(
+            f"Obsidian test-result sync skipped/failed: {(rc.stderr or rc.stdout).strip()[:300]}",
+            "WARN",
+        )
 
     def _run_unit_suite_via_gha(self, workflow_file: str, artifact_name: str) -> SuiteResult:
         """Dispatch a unit test workflow to GitHub Actions, wait, download results.
