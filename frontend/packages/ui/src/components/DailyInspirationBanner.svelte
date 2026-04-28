@@ -932,4 +932,45 @@
 
   /* Note: embed visibility at narrow widths is handled in JS via the containerWidth prop
      (hasVideo derived value), so no CSS media query is needed here. */
+
+  /* ── Large-display embed upgrade (≥1400px) ───────────────────────────────
+     On very wide screens the 220px embed card looks undersized. We widen
+     .banner-inner to give each flex column ≈403px (just over the 400px
+     container-query threshold), then declare the embed wrapper as a CSS
+     container so UnifiedEmbedPreview's @container rule activates the same
+     full-width×400px "large" layout used in AI chat responses. The wrapper's
+     max-width: 440px acts as the user-requested cap. */
+  @media (min-width: 1400px) {
+    /* Taller floor so the 400px card fits with room to spare */
+    .daily-inspiration-banner {
+      min-height: 420px;
+    }
+
+    /* Wider inner content area: each column gets ~403px → triggers container query */
+    .banner-inner {
+      max-width: 900px;
+    }
+
+    /* Establish the CSS container context that activates UnifiedEmbedPreview's
+       @container embed-preview (min-width: 401px) large-layout rules */
+    .banner-embed-wrapper {
+      container-type: inline-size;
+      container-name: embed-preview;
+      max-width: 440px; /* cap so it never dominates the layout on ultra-wides */
+    }
+
+    /* Lift the 220px/252px caps; the container query now controls dimensions */
+    .banner-embed-wrapper :global(.embed-preview-container) {
+      max-width: 440px;
+      height: 400px;
+    }
+
+    /* Suppress the margins added by the container query — the banner uses
+       overflow:hidden and a fixed height, so external margins would be lost
+       anyway, and margin-top would shift the card down undesirably */
+    .banner-embed-wrapper :global(.unified-embed-preview) {
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+    }
+  }
 </style>
