@@ -21,7 +21,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /** Default options applied to all page scans — excludes third-party iframes. */
 const DEFAULT_SCAN_OPTIONS = {
@@ -50,9 +50,7 @@ test.describe('Accessibility — unauthenticated pages', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open the login dialog
-		const loginButton = page.getByTestId('header-login-signup-btn');
-		await expect(loginButton).toBeVisible({ timeout: 15000 });
-		await loginButton.click();
+		await openSignupInterface(page);
 		await page.waitForTimeout(1000);
 
 		// Scan the dialog specifically

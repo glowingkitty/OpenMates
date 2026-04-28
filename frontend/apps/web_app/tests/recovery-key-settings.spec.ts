@@ -39,6 +39,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Recovery key SETTINGS test — validates the "Regenerate Recovery Key" feature
@@ -116,9 +117,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
-	const headerLoginButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
+	await openSignupInterface(page);
 	await takeStepScreenshot(page, 'login-dialog');
 
 	// Click Login tab to switch from signup to login view
@@ -329,9 +328,7 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// ========================================================================
 
 	// Open login dialog again
-	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
-	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
-	await loginButtonAfterLogout.click();
+	await openSignupInterface(page);
 
 	// Click Login tab to switch from signup to login view
 	const loginTabRelogin = page.getByTestId('tab-login');

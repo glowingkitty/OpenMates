@@ -37,6 +37,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 // ---------------------------------------------------------------------------
 // Environment variables
@@ -197,9 +198,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 		.catch(() => log('WARNING: networkidle timeout — continuing anyway.'));
 	await takeScreenshot(page, '01-home');
 
-	const loginButton = page.getByTestId('header-login-signup-btn');
-	await expect(loginButton).toBeVisible({ timeout: 15000 });
-	await loginButton.click();
+	await openSignupInterface(page);
 
 	// Click Login tab to switch from signup to login view
 	const loginTab = page.getByTestId('tab-login');

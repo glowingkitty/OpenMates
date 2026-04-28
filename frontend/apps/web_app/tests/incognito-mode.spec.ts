@@ -17,6 +17,7 @@ const {
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
+const { openSignupInterface, isSignupInterfaceVisible } = require('./helpers/chat-test-helpers');
 
 /**
  * Incognito mode E2E test — single test, one login, all scenarios in sequence.
@@ -108,9 +109,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	});
 	await takeStepScreenshot(page, '01-home');
 
-	const headerLoginButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
+	await openSignupInterface(page);
 
 	// Click Login tab to switch from signup to login view
 	const loginTab = page.getByTestId('tab-login');
@@ -331,10 +330,9 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await page.waitForTimeout(4000);
 
 	// Re-login if session was lost
-	const loginButtonAfterReload = page.getByTestId('header-login-signup-btn');
-	if (await loginButtonAfterReload.isVisible({ timeout: 5000 }).catch(() => false)) {
+	if (await isSignupInterfaceVisible(page, 5000)) {
 		logCheckpoint('Session lost — re-logging in.');
-		await loginButtonAfterReload.click();
+		await openSignupInterface(page);
 
 		// Click Login tab to switch from signup to login view
 		const loginTabRelogin = page.getByTestId('tab-login');

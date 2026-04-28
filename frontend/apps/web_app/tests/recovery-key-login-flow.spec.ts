@@ -39,6 +39,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Recovery key setup and login flow test against a deployed web app.
@@ -112,9 +113,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
-	const headerLoginButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
+	await openSignupInterface(page);
 	await takeStepScreenshot(page, 'login-dialog');
 
 	// Click Login tab to switch from signup to login view
@@ -302,9 +301,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// ========================================================================
 
 	// Open login dialog
-	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
-	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
-	await loginButtonAfterLogout.click();
+	await openSignupInterface(page);
 
 	// Click Login tab to switch from signup to login view
 	const loginTabRelogin = page.getByTestId('tab-login');

@@ -62,16 +62,7 @@ async function loginToTestAccount(
 	await takeStepScreenshot(page, 'home');
 
 	// The intro banner on the home page hides the header login button and shows its own.
-	// Try the banner button first; fall back to the header button once the banner is scrolled past.
-	const bannerSignupButton = page.getByTestId('banner-signup-button');
-	const headerSignupButton = page.getByTestId('header-login-signup-btn');
-	const bannerVisible = await bannerSignupButton.isVisible({ timeout: 8000 }).catch(() => false);
-	if (bannerVisible) {
-		await bannerSignupButton.click();
-	} else {
-		await expect(headerSignupButton).toBeVisible({ timeout: 30000 });
-		await headerSignupButton.click();
-	}
+	await openSignupInterface(page, 30000);
 	await takeStepScreenshot(page, 'signup-interface-opened');
 
 	// Click the "Login" tab in the login/signup tab bar to switch to the login form
@@ -125,15 +116,7 @@ async function loginToTestAccount(
 		// Reload the page to reset the EmailLookup component state
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('load');
-		const retryBannerBtn = page.getByTestId('banner-signup-button');
-		const retrySignupBtn = page.getByTestId('header-login-signup-btn');
-		const retryBannerVisible = await retryBannerBtn.isVisible({ timeout: 8000 }).catch(() => false);
-		if (retryBannerVisible) {
-			await retryBannerBtn.click();
-		} else {
-			await expect(retrySignupBtn).toBeVisible({ timeout: 30000 });
-			await retrySignupBtn.click();
-		}
+		await openSignupInterface(page, 30000);
 		const retryLoginTab = page.getByTestId('tab-login');
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();
@@ -564,8 +547,45 @@ async function waitForAssistantMessage(
 	return target;
 }
 
+/**
+ * Returns true if the login/signup interface can be opened (either the banner button
+ * or the header button is visible). Use instead of checking `header-login-signup-btn`
+ * directly — that button is intentionally hidden while the intro banner is visible.
+ */
+async function isSignupInterfaceVisible(page: any, timeout = 5000): Promise<boolean> {
+	const bannerBtn = page.getByTestId('banner-signup-button');
+	const headerBtn = page.getByTestId('header-login-signup-btn');
+	const bannerVisible = await bannerBtn.isVisible({ timeout }).catch(() => false);
+	if (bannerVisible) return true;
+	return headerBtn.isVisible({ timeout: 1000 }).catch(() => false);
+}
+
+/**
+ * Open the login/signup dialog.
+ *
+ * When the intro banner is in the viewport (the app hides the header button to avoid
+ * a duplicate CTA), clicks the banner's own signup button instead. Falls back to the
+ * header button once the banner has scrolled out of view.
+ *
+ * Use this instead of `page.getByTestId('header-login-signup-btn')` + `toBeVisible()`
+ * directly — the header button is intentionally hidden while the banner is visible.
+ */
+async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
+	const bannerBtn = page.getByTestId('banner-signup-button');
+	const headerBtn = page.getByTestId('header-login-signup-btn');
+	const bannerVisible = await bannerBtn.isVisible({ timeout: 8000 }).catch(() => false);
+	if (bannerVisible) {
+		await bannerBtn.click();
+	} else {
+		await expect(headerBtn).toBeVisible({ timeout });
+		await headerBtn.click();
+	}
+}
+
 module.exports = {
 	loginToTestAccount,
+	openSignupInterface,
+	isSignupInterfaceVisible,
 	startNewChat,
 	sendMessage,
 	deleteActiveChat,

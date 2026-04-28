@@ -17,6 +17,7 @@ const {
 	generateTotp,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 // ─── Unauthenticated keyboard tests ────────────────────────────────────────
 
@@ -106,9 +107,7 @@ test.describe('Keyboard navigation — unauthenticated', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open login dialog
-		const loginButton = page.getByTestId('header-login-signup-btn');
-		await expect(loginButton).toBeVisible({ timeout: 15000 });
-		await loginButton.click();
+		await openSignupInterface(page);
 		await page.waitForTimeout(1000);
 
 		// Check dialog is open
@@ -149,9 +148,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('networkidle');
 
-		const headerLoginButton = page.getByTestId('header-login-signup-btn');
-		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-		await headerLoginButton.click();
+		await openSignupInterface(page);
 
 		// Click Login tab to switch from signup to login view
 		const loginTab = page.getByTestId('tab-login');

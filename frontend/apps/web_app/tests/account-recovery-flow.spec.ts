@@ -40,6 +40,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Account recovery flow test against a deployed web app.
@@ -131,9 +132,7 @@ test('completes full account recovery flow with same password', async ({
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginSignupButton).toBeVisible();
-	await headerLoginSignupButton.click();
+	await openSignupInterface(page);
 	await takeStepScreenshot(page, 'login-dialog');
 
 	// Click Login tab to switch from signup to login view

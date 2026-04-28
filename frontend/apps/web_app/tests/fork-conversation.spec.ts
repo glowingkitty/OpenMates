@@ -36,7 +36,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { waitForAssistantMessage, openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Fork Conversation test: login, send two messages, fork after the first,
@@ -87,9 +87,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await screenshot(page, 'home');
 
 	// ── 2. Open login dialog ─────────────────────────────────────────────────
-	const headerLoginButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
+	await openSignupInterface(page);
 	await screenshot(page, 'login-dialog');
 
 	// Click Login tab to switch from signup to login view

@@ -39,6 +39,7 @@ const {
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Passkey signup flow test (email verification + passkey registration + purchase).
@@ -179,9 +180,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Initialized passkey signup identity.', { signupEmail });
 
 		// Open the login/signup dialog from the header.
-		const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
-		await expect(headerLoginSignupButton).toBeVisible();
-		await headerLoginSignupButton.click();
+		await openSignupInterface(page);
 		await takeStepScreenshot(page, 'login-dialog');
 		logSignupCheckpoint('Opened login dialog.');
 

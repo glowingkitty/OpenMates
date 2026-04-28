@@ -18,6 +18,7 @@ const {
 	generateTotp,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Verify ARIA attributes on a dialog element.
@@ -121,9 +122,7 @@ test.describe('Modal ARIA — unauthenticated', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		const loginButton = page.getByTestId('header-login-signup-btn');
-		await expect(loginButton).toBeVisible({ timeout: 15000 });
-		await loginButton.click();
+		await openSignupInterface(page);
 		await page.waitForTimeout(1000);
 
 		const dialog = page.locator('[role="dialog"]');
@@ -171,9 +170,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('networkidle');
 
-		const headerLoginButton = page.getByTestId('header-login-signup-btn');
-		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-		await headerLoginButton.click();
+		await openSignupInterface(page);
 
 		// Click Login tab to switch from signup to login view
 		const loginTab = page.getByTestId('tab-login');

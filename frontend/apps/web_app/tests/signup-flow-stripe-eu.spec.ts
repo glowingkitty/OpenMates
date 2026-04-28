@@ -42,6 +42,7 @@ const {
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Full signup flow test (password + 2FA + purchase) against a deployed web app.
@@ -138,9 +139,7 @@ test('completes full signup flow: email + 2FA + EU card (Stripe Payment Element)
 	await takeStepScreenshot(page, 'home');
 
 	// Open the login/signup dialog from the header.
-	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginSignupButton).toBeVisible();
-	await headerLoginSignupButton.click();
+	await openSignupInterface(page);
 	await takeStepScreenshot(page, 'login-dialog');
 	logSignupCheckpoint('Opened login dialog.');
 

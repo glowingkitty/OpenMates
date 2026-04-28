@@ -42,6 +42,7 @@ const {
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
@@ -118,9 +119,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginSignupButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginSignupButton).toBeVisible();
-	await headerLoginSignupButton.click();
+	await openSignupInterface(page);
 
 	const loginTabs = page.getByTestId('login-tabs');
 	await expect(loginTabs).toBeVisible();
@@ -280,9 +279,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	}
 
 	// Login with password only (no OTP expected)
-	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
-	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 10000 });
-	await loginButtonAfterLogout.click();
+	await openSignupInterface(page);
 
 	// Switch to Login tab (dialog may default to Sign up tab after a fresh signup)
 	const loginTab = page.getByTestId('tab-login');
