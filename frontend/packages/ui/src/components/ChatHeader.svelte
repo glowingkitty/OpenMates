@@ -502,7 +502,7 @@
       <div class="incognito-header-icon"></div>
 
       <!-- "Incognito Mode" title -->
-      <span class="loaded-title">{$text('settings.incognito_mode_active')}</span>
+      <span class="loaded-title" data-testid="chat-header-title">{$text('settings.incognito_mode_active')}</span>
     </div>
   {/if}
 
