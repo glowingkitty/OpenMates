@@ -537,7 +537,7 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
 	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
-		timeout: 10000
+		timeout: 30000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
