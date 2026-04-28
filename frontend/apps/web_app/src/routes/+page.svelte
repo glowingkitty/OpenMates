@@ -41,6 +41,9 @@
 		getKeyFromStorage,
 		text,
 		LANGUAGE_CODES,
+		getDetectedBrowserLanguage,
+		getLanguageByCode,
+		isRtlLanguage,
 		forcedLogoutInProgress,
 		setForcedLogoutInProgress,
 		resetForcedLogoutInProgress,
@@ -1537,6 +1540,41 @@
 				const newUrl = new URL(window.location.href);
 				newUrl.searchParams.delete('lang');
 				replaceState(newUrl.toString(), {});
+			}
+		}
+
+		// One-time language suggestion: if the visitor's browser language differs from English
+		// and they have no stored preference, show a persistent notification in English letting
+		// them switch. Marked shown immediately so a page refresh doesn't re-show it.
+		if (browser) {
+			const hasPreference = !!localStorage.getItem("preferredLanguage");
+			const alreadyShown = !!localStorage.getItem("language_suggestion_shown");
+
+			if (!hasPreference && !alreadyShown) {
+				const browserLang = getDetectedBrowserLanguage();
+				if (browserLang !== "en" && LANGUAGE_CODES.includes(browserLang)) {
+					const language = getLanguageByCode(browserLang);
+					if (language) {
+						localStorage.setItem("language_suggestion_shown", "1");
+						notificationStore.addNotificationWithOptions("info", {
+							title: "Language Detected",
+							message: `Your browser language is ${language.nativeName}.`,
+							duration: 0,
+							dismissible: true,
+							actionLabel: `Switch to ${language.nativeName}`,
+							onAction: async () => {
+								locale.set(browserLang);
+								await waitLocale();
+								localStorage.setItem("preferredLanguage", browserLang);
+								document.documentElement.setAttribute("lang", browserLang);
+								document.documentElement.setAttribute(
+									"dir",
+									isRtlLanguage(browserLang) ? "rtl" : "ltr"
+								);
+							}
+						});
+					}
+				}
 			}
 		}
 

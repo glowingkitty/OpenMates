@@ -175,6 +175,7 @@
         <span class="notification-title">{notification.title || ''}</span>
         <button
             class="notification-dismiss"
+            data-testid="notification-dismiss"
             onclick={handleDismiss}
             aria-label="Dismiss notification"
         >
@@ -195,6 +196,7 @@
             {#if notification.onAction && notification.actionLabel}
                 <button
                     class="notification-action-btn notification-action-btn-primary"
+                    data-testid="notification-action"
                     onclick={(e: MouseEvent) => {
                         e.stopPropagation();
                         notification.onAction?.();

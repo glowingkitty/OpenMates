@@ -11,13 +11,16 @@ import { waitForTranslations } from "../stores/i18n";
  */
 const allLocaleFiles = import.meta.glob("./locales/*.json");
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildLocaleImportMap(): Record<string, () => Promise<any>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const map: Record<string, () => Promise<any>> = {};
 
   // Build import map only for languages defined in languages.json
   for (const langCode of LANGUAGE_CODES) {
     const localePath = `./locales/${langCode}.json`;
     if (allLocaleFiles[localePath]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map[langCode] = allLocaleFiles[localePath] as () => Promise<any>;
     } else {
       console.warn(
@@ -85,7 +88,9 @@ function normalizeLocale(locale: string): string {
   return "en"; // fallback to English if no match
 }
 
-// Function to get the current language - simplified to prioritize browser language
+// Function to get the current language - defaults to English unless user set a preference.
+// Browser language is offered via a one-time notification in +page.svelte instead of
+// being auto-applied, so first-time visitors always land on a consistent English UI.
 export function getCurrentLanguage(): string {
   if (browser) {
     // Only use preferredLanguage if explicitly set by user AND it's a valid locale
@@ -97,10 +102,21 @@ export function getCurrentLanguage(): string {
     if (userPreference) {
       localStorage.removeItem("preferredLanguage");
     }
-    const browserLang = normalizeLocale(getLocaleFromNavigator() || "en");
-    return browserLang;
+    // Default to English — browser language suggestion is shown as a notification
+    return "en";
   }
   return "en"; // Fallback for server-side rendering
+}
+
+/**
+ * Returns the normalised browser language code (e.g. "de" for "de-DE"), or "en"
+ * if undetectable. Used by the language-suggestion notification in +page.svelte.
+ */
+export function getDetectedBrowserLanguage(): string {
+  if (browser) {
+    return normalizeLocale(getLocaleFromNavigator() || "en");
+  }
+  return "en";
 }
 
 // Register all supported locales from languages.json immediately when module loads
