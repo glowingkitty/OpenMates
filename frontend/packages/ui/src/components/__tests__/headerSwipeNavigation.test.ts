@@ -9,21 +9,10 @@ import { describe, expect, it } from "vitest";
 import { resolveHeaderSwipeNavigation } from "../headerSwipeNavigation";
 
 describe("resolveHeaderSwipeNavigation", () => {
-  it("returns previous for an available left swipe", () => {
+  it("returns next for an available right-to-left swipe", () => {
     expect(
       resolveHeaderSwipeNavigation({
         deltaX: -80,
-        deltaY: 4,
-        hasPrevious: true,
-        hasNext: true,
-      }),
-    ).toBe("previous");
-  });
-
-  it("returns next for an available right swipe", () => {
-    expect(
-      resolveHeaderSwipeNavigation({
-        deltaX: 80,
         deltaY: 4,
         hasPrevious: true,
         hasNext: true,
@@ -31,13 +20,24 @@ describe("resolveHeaderSwipeNavigation", () => {
     ).toBe("next");
   });
 
+  it("returns previous for an available left-to-right swipe", () => {
+    expect(
+      resolveHeaderSwipeNavigation({
+        deltaX: 80,
+        deltaY: 4,
+        hasPrevious: true,
+        hasNext: true,
+      }),
+    ).toBe("previous");
+  });
+
   it("ignores unavailable directions", () => {
     expect(
       resolveHeaderSwipeNavigation({
         deltaX: -80,
         deltaY: 4,
-        hasPrevious: false,
-        hasNext: true,
+        hasPrevious: true,
+        hasNext: false,
       }),
     ).toBeNull();
 
@@ -45,8 +45,8 @@ describe("resolveHeaderSwipeNavigation", () => {
       resolveHeaderSwipeNavigation({
         deltaX: 80,
         deltaY: 4,
-        hasPrevious: true,
-        hasNext: false,
+        hasPrevious: false,
+        hasNext: true,
       }),
     ).toBeNull();
   });
