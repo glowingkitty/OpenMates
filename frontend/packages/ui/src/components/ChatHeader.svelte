@@ -50,6 +50,7 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import { resolveHeaderSwipeNavigation } from './headerSwipeNavigation';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,9 @@
 
   let videoEl = $state<HTMLVideoElement | null>(null);
   let isVideoActive = $state(false);
+  let touchStartX = $state(0);
+  let touchStartY = $state(0);
+  let touchSwipeHandled = $state(false);
 
   function handlePlayClick(e: MouseEvent) {
     e.stopPropagation();
@@ -244,6 +248,48 @@
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
     navigateNext();
+  }
+
+  function handleHeaderTouchStart(e: TouchEvent) {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchSwipeHandled = false;
+  }
+
+  function handleHeaderTouchMove(e: TouchEvent) {
+    if (touchSwipeHandled || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const navigation = resolveHeaderSwipeNavigation({
+      deltaX,
+      deltaY,
+      hasPrevious: navState.hasPrev,
+      hasNext: navState.hasNext,
+    });
+
+    if (navigation === 'previous') {
+      e.preventDefault();
+      touchSwipeHandled = true;
+      navigatePrev();
+      return;
+    }
+
+    if (navigation === 'next') {
+      e.preventDefault();
+      touchSwipeHandled = true;
+      navigateNext();
+    }
+  }
+
+  function handleHeaderTouchEnd() {
+    touchStartX = 0;
+    touchStartY = 0;
+    touchSwipeHandled = false;
   }
 
   // ─── Derived state ─────────────────────────────────────────────────────────
@@ -403,6 +449,11 @@
   class="chat-header-banner"
   class:is-loaded={isLoaded}
   style={bannerStyle}
+  role="presentation"
+  ontouchstart={handleHeaderTouchStart}
+  ontouchmove={handleHeaderTouchMove}
+  ontouchend={handleHeaderTouchEnd}
+  ontouchcancel={handleHeaderTouchEnd}
 >
   <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
        Three soft radial-gradient blobs that slowly morph shape and drift
@@ -645,8 +696,7 @@
     isolation: isolate;
     transition: background 0.5s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
-    /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
-    pointer-events: none;
+    pointer-events: auto;
     user-select: none;
   }
 

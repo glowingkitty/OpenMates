@@ -20,6 +20,8 @@
 -->
 
 <script lang="ts">
+  import { resolveHeaderSwipeNavigation } from '../headerSwipeNavigation';
+
   interface Props {
     /** App identifier — used for the gradient background variable and icon class. */
     appId: string;
@@ -69,6 +71,10 @@
     onHeaderIconClick,
   }: Props = $props();
 
+  let touchStartX = $state(0);
+  let touchStartY = $state(0);
+  let touchSwipeHandled = $state(false);
+
   /**
    * Use skill icon in center header when skillIconName is provided.
    * Always prefer the skill icon (flat white mask, no circle/gradient) over the
@@ -104,6 +110,48 @@
   function hideFavicon(e: Event) {
     handleImageError(e.target as HTMLImageElement);
   }
+
+  function handleHeaderTouchStart(e: TouchEvent) {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchSwipeHandled = false;
+  }
+
+  function handleHeaderTouchMove(e: TouchEvent) {
+    if (touchSwipeHandled || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const navigation = resolveHeaderSwipeNavigation({
+      deltaX,
+      deltaY,
+      hasPrevious: hasPreviousEmbed,
+      hasNext: hasNextEmbed,
+    });
+
+    if (navigation === 'previous' && onNavigatePrevious) {
+      e.preventDefault();
+      touchSwipeHandled = true;
+      onNavigatePrevious();
+      return;
+    }
+
+    if (navigation === 'next' && onNavigateNext) {
+      e.preventDefault();
+      touchSwipeHandled = true;
+      onNavigateNext();
+    }
+  }
+
+  function handleHeaderTouchEnd() {
+    touchStartX = 0;
+    touchStartY = 0;
+    touchSwipeHandled = false;
+  }
 </script>
 
 <!--
@@ -120,6 +168,11 @@
 <div
   class="embed-header"
   class:has-cta={hasCta}
+  role="presentation"
+  ontouchstart={handleHeaderTouchStart}
+  ontouchmove={handleHeaderTouchMove}
+  ontouchend={handleHeaderTouchEnd}
+  ontouchcancel={handleHeaderTouchEnd}
 >
   <!-- Inner banner: gradient + orbs + decorative icons + center content + nav arrows.
        overflow: hidden clips the large decorative icons and orb blobs at the edges. -->
@@ -254,7 +307,7 @@
     flex-shrink: 0;
     /* overflow: visible so the CTA area can extend beyond the bottom edge */
     overflow: visible;
-    pointer-events: none;
+    pointer-events: auto;
     user-select: none;
   }
 
