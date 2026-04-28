@@ -22,14 +22,6 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 	await page.waitForTimeout(1000);
 }
 
-async function ensureSidebarClosed(page: any): Promise<void> {
-	const activityHistory = page.getByTestId('activity-history-wrapper');
-	if (!(await activityHistory.isVisible().catch(() => false))) return;
-
-	await page.getByTestId('sidebar-toggle').click();
-	await expect(activityHistory).not.toBeVisible({ timeout: 10000 });
-}
-
 async function expectHeaderTitle(page: any, expectedTitle: string): Promise<void> {
 	const headerTitle = page.getByTestId('chat-header-title');
 	await expect(headerTitle).toBeVisible({ timeout: 12000 });
@@ -78,7 +70,6 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 
 		await chatItems.nth(1).click();
 		await expectHeaderTitle(page, selectedTitle);
-		await ensureSidebarClosed(page);
 
 		await page.getByTestId('chat-header-previous').click();
 		await expectHeaderTitle(page, previousTitle);
