@@ -91,7 +91,7 @@
 	const EDGE_SWIPE_OPEN_DISTANCE_PX = 64;
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 
-	type EdgeSwipeTarget = 'chats' | 'settings';
+	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
 	let edgeSwipeTarget: EdgeSwipeTarget | null = null;
 	let edgeSwipeStartX = 0;
@@ -131,7 +131,7 @@
 		edgeSwipeHandled = false;
 
 		if (edgeSwipeStartX <= EDGE_SWIPE_START_WIDTH_PX && !$panelState.isActivityHistoryOpen) {
-			edgeSwipeTarget = 'chats';
+			edgeSwipeTarget = 'open-chats';
 			return;
 		}
 
@@ -139,7 +139,17 @@
 			edgeSwipeStartX >= viewportWidth - EDGE_SWIPE_START_WIDTH_PX &&
 			!$panelState.isSettingsOpen
 		) {
-			edgeSwipeTarget = 'settings';
+			edgeSwipeTarget = 'open-settings';
+			return;
+		}
+
+		if ($panelState.isSettingsOpen) {
+			edgeSwipeTarget = 'close-settings';
+			return;
+		}
+
+		if ($panelState.isActivityHistoryOpen) {
+			edgeSwipeTarget = 'close-chats';
 			return;
 		}
 
@@ -162,11 +172,15 @@
 			return;
 		}
 
-		const shouldOpenChats = edgeSwipeTarget === 'chats' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
+		const shouldOpenChats = edgeSwipeTarget === 'open-chats' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
+		const shouldCloseChats =
+			edgeSwipeTarget === 'close-chats' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
 		const shouldOpenSettings =
-			edgeSwipeTarget === 'settings' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
+			edgeSwipeTarget === 'open-settings' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
+		const shouldCloseSettings =
+			edgeSwipeTarget === 'close-settings' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
 
-		if (!shouldOpenChats && !shouldOpenSettings) {
+		if (!shouldOpenChats && !shouldCloseChats && !shouldOpenSettings && !shouldCloseSettings) {
 			return;
 		}
 
@@ -176,9 +190,13 @@
 		if (shouldOpenChats) {
 			panelState.closeSettings();
 			panelState.openChats();
-		} else {
+		} else if (shouldCloseChats) {
+			panelState.closeChats();
+		} else if (shouldOpenSettings) {
 			panelState.closeChats();
 			panelState.openSettings();
+		} else {
+			panelState.closeSettings();
 		}
 	}
 
