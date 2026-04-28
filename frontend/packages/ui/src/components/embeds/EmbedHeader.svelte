@@ -254,21 +254,21 @@
     </div>
 
     <!-- Navigation arrows (prev/next embed) — inside inner so they clip correctly -->
-    {#if hasPreviousEmbed && onNavigatePrevious}
+    {#if hasNextEmbed && onNavigateNext}
       <button
         class="nav-arrow nav-arrow-left"
-        onclick={onNavigatePrevious}
-        aria-label="Previous embed"
+        onclick={onNavigateNext}
+        aria-label="Next embed"
         type="button"
       >
         <span class="nav-chevron nav-chevron-left"></span>
       </button>
     {/if}
-    {#if hasNextEmbed && onNavigateNext}
+    {#if hasPreviousEmbed && onNavigatePrevious}
       <button
         class="nav-arrow nav-arrow-right"
-        onclick={onNavigateNext}
-        aria-label="Next embed"
+        onclick={onNavigatePrevious}
+        aria-label="Previous embed"
         type="button"
       >
         <span class="nav-chevron nav-chevron-right"></span>

@@ -28,12 +28,12 @@ export function resolveHeaderSwipeNavigation({
     return null;
   }
 
-  if (deltaX <= -HEADER_SWIPE_DISTANCE_PX && hasNext) {
-    return "next";
+  if (deltaX <= -HEADER_SWIPE_DISTANCE_PX && hasPrevious) {
+    return "previous";
   }
 
-  if (deltaX >= HEADER_SWIPE_DISTANCE_PX && hasPrevious) {
-    return "previous";
+  if (deltaX >= HEADER_SWIPE_DISTANCE_PX && hasNext) {
+    return "next";
   }
 
   return null;

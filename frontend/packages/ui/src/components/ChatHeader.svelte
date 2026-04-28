@@ -235,8 +235,8 @@
    * Calls the store's navigate method directly — works even when the sidebar
    * (Chats.svelte) is closed/unmounted because the store holds the chat list.
    */
-  function handlePrevious(e: MouseEvent) {
-    e.stopPropagation();
+  function handlePrevious(e?: MouseEvent) {
+    e?.stopPropagation();
     navigatePrev();
   }
 
@@ -245,8 +245,8 @@
    * Calls the store's navigate method directly — works even when the sidebar
    * (Chats.svelte) is closed/unmounted because the store holds the chat list.
    */
-  function handleNext(e: MouseEvent) {
-    e.stopPropagation();
+  function handleNext(e?: MouseEvent) {
+    e?.stopPropagation();
     navigateNext();
   }
 
@@ -647,21 +647,23 @@
        Visible in all banner states (loading, credits error, loaded) — once the user has
        sent a message they should be able to switch chats at any time without restriction.
        Use pointer-events:auto to override the banner's pointer-events:none. -->
-  {#if navState.hasPrev}
+  {#if navState.hasNext}
     <button
       class="nav-arrow nav-arrow-left"
-      onclick={handlePrevious}
-      aria-label={$text('chat.header.previous_chat')}
+      onclick={handleNext}
+      data-testid="chat-header-next"
+      aria-label={$text('chat.header.next_chat')}
       type="button"
     >
       <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
     </button>
   {/if}
-  {#if navState.hasNext}
+  {#if navState.hasPrev}
     <button
       class="nav-arrow nav-arrow-right"
-      onclick={handleNext}
-      aria-label={$text('chat.header.next_chat')}
+      onclick={handlePrevious}
+      data-testid="chat-header-previous"
+      aria-label={$text('chat.header.previous_chat')}
       type="button"
     >
       <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
