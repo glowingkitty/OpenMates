@@ -89,9 +89,13 @@ promises:
         marker: no-third-party-tracking
         assertion: "Scans frontend package.json files; asserts no analytics SDK dependencies"
       - kind: e2e
-        path: frontend/apps/web_app/tests/signup-flow.spec.ts
+        path: frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
         marker: no-third-party-tracking
-        assertion: "End of signup/purchase/deletion flow calls assertNoThirdPartyCookies()"
+        assertion: "End of EU signup/purchase flow calls assertNoThirdPartyCookies()"
+      - kind: e2e
+        path: frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+        marker: no-third-party-tracking
+        assertion: "End of managed-payments signup/purchase flow calls assertNoThirdPartyCookies()"
     architecture_doc: docs/architecture/privacy/pii-protection.md
     surfaced_in_policy: true
 
@@ -175,16 +179,18 @@ promises:
     enforcement:
       - file: backend/core/api/app/services/payment/stripe_service.py
         what: Only Stripe tokens/customer IDs stored; raw card data never touches our servers
-      - file: backend/core/api/app/services/payment/polar_service.py
-        what: Only Polar tokens stored; no PAN/CVV ever persisted
     tests:
       - kind: unit
         path: backend/tests/test_payment_provider_routing.py
         marker: payment-data-minimization
       - kind: e2e
-        path: frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+        path: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
         marker: payment-data-minimization
-        assertion: "Full Stripe EU-card purchase flow; Stripe iframe handles the card number so it never touches our origin"
+        assertion: "Full Stripe Managed Payments purchase flow; Stripe iframe handles card data so it never touches our origin"
+      - kind: e2e
+        path: frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+        marker: payment-data-minimization
+        assertion: "Full Stripe EU-card purchase flow; Stripe Elements iframe handles the card number so it never touches our origin"
     architecture_doc: docs/architecture/core/security.md
     surfaced_in_policy: true
 

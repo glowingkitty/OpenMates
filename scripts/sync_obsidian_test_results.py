@@ -162,9 +162,13 @@ def update_history(
 
 
 def reset_current_assets(vault: Path, results_dir: Path) -> None:
+    """Copy screenshots into the vault, replacing only specs that have new screenshots.
+
+    Specs not present in the current run keep their previous screenshots so that
+    the vault always has at least one screenshot per test, not just those from the
+    most recent batch.
+    """
     dest_root = vault / ASSETS_CURRENT_DIR
-    if dest_root.exists():
-        shutil.rmtree(dest_root)
     dest_root.mkdir(parents=True, exist_ok=True)
 
     source_root = results_dir / "screenshots/current"
@@ -174,11 +178,18 @@ def reset_current_assets(vault: Path, results_dir: Path) -> None:
     for spec_dir in source_root.iterdir():
         if not spec_dir.is_dir():
             continue
+        new_images = [
+            item for item in spec_dir.iterdir()
+            if item.suffix.lower() in {".png", ".webp"}
+        ]
+        if not new_images:
+            continue
         dest_dir = dest_root / spec_dir.name
+        # Only wipe existing screenshots for this spec once fresh ones are available.
+        if dest_dir.exists():
+            shutil.rmtree(dest_dir)
         dest_dir.mkdir(parents=True, exist_ok=True)
-        for item in spec_dir.iterdir():
-            if item.suffix.lower() not in {".png", ".webp"}:
-                continue
+        for item in new_images:
             shutil.copy2(item, dest_dir / item.name)
 
 
@@ -235,17 +246,19 @@ def write_spec_note(
         "",
     ])
 
-    if github_run_url:
-        lines.append(f"GitHub run: {github_run_url}")
-    if artifact_name:
-        lines.append(f"Artifact: `{artifact_name}`")
-    if video_paths:
+    if github_run_url or artifact_name or video_paths:
         lines.append("")
-        lines.append("## Video")
+        lines.append("## Video / GitHub Run")
         lines.append("")
-        lines.append("Video files are kept in the GitHub Actions artifact, not in Obsidian.")
-        for video_path in video_paths:
-            lines.append(f"- `{video_path}`")
+        if github_run_url:
+            lines.append(f"[View on GitHub Actions]({github_run_url})")
+        if artifact_name:
+            lines.append(f"Artifact: `{artifact_name}` — download from the GitHub run link above.")
+        if video_paths:
+            lines.append("")
+            lines.append("Video paths inside the artifact:")
+            for video_path in video_paths:
+                lines.append(f"- `{video_path}`")
     if screenshot_paths:
         lines.append("")
         lines.append("## Current Screenshots")
