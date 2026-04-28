@@ -3468,14 +3468,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    let recentChatTiltStates = $derived(
-        recentChats.map(() => new RecentChatTiltState())
-    );
+    // Use $state + $effect instead of $derived so that RecentChatTiltState instances
+    // (which hold their own $state properties) are not created inside a derived context.
+    // Creating $state-bearing objects inside $derived is a Svelte 5 edge case that can
+    // produce a reactive cascade when the source array is rapidly cleared and repopulated,
+    // potentially causing all UI effects to stall without throwing an error.
+    let recentChatTiltStates = $state<RecentChatTiltState[]>([]);
+    $effect(() => {
+        const len = recentChats.length;
+        if (recentChatTiltStates.length !== len) {
+            recentChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+        }
+    });
 
     // Separate tilt state array for non-authenticated users' intro+example chats carousel
-    let nonAuthChatTiltStates = $derived(
-        nonAuthRecentChats.map(() => new RecentChatTiltState())
-    );
+    let nonAuthChatTiltStates = $state<RecentChatTiltState[]>([]);
+    $effect(() => {
+        const len = nonAuthRecentChats.length;
+        if (nonAuthChatTiltStates.length !== len) {
+            nonAuthChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+        }
+    });
 
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
