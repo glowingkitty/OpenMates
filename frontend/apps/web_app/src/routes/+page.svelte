@@ -87,11 +87,99 @@
 	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
 	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';
 	const SHORTCUT_TOGGLE_SETTINGS_KEY = '.';
+	const EDGE_SWIPE_START_WIDTH_PX = 28;
+	const EDGE_SWIPE_OPEN_DISTANCE_PX = 64;
+	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
+
+	type EdgeSwipeTarget = 'chats' | 'settings';
+
+	let edgeSwipeTarget: EdgeSwipeTarget | null = null;
+	let edgeSwipeStartX = 0;
+	let edgeSwipeStartY = 0;
+	let edgeSwipeHandled = false;
+	let edgeSwipeTouchStartHandler: ((event: TouchEvent) => void) | null = null;
+	let edgeSwipeTouchMoveHandler: ((event: TouchEvent) => void) | null = null;
+	let edgeSwipeTouchEndHandler: (() => void) | null = null;
 
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
 		settingsDeepLink.set('billing/gift-cards/redeem');
 		setTimeout(() => panelState.openSettings(), 100);
+	}
+
+	function isTouchDevice(): boolean {
+		return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+	}
+
+	function resetEdgeSwipe(): void {
+		edgeSwipeTarget = null;
+		edgeSwipeStartX = 0;
+		edgeSwipeStartY = 0;
+		edgeSwipeHandled = false;
+	}
+
+	function handleEdgeSwipeStart(event: TouchEvent): void {
+		if (!isTouchDevice() || event.touches.length !== 1) {
+			resetEdgeSwipe();
+			return;
+		}
+
+		const touch = event.touches[0];
+		const viewportWidth = window.innerWidth;
+		edgeSwipeStartX = touch.clientX;
+		edgeSwipeStartY = touch.clientY;
+		edgeSwipeHandled = false;
+
+		if (edgeSwipeStartX <= EDGE_SWIPE_START_WIDTH_PX && !$panelState.isActivityHistoryOpen) {
+			edgeSwipeTarget = 'chats';
+			return;
+		}
+
+		if (
+			edgeSwipeStartX >= viewportWidth - EDGE_SWIPE_START_WIDTH_PX &&
+			!$panelState.isSettingsOpen
+		) {
+			edgeSwipeTarget = 'settings';
+			return;
+		}
+
+		resetEdgeSwipe();
+	}
+
+	function handleEdgeSwipeMove(event: TouchEvent): void {
+		if (!edgeSwipeTarget || edgeSwipeHandled || event.touches.length !== 1) {
+			return;
+		}
+
+		const touch = event.touches[0];
+		const deltaX = touch.clientX - edgeSwipeStartX;
+		const deltaY = touch.clientY - edgeSwipeStartY;
+		const absDeltaY = Math.abs(deltaY);
+		const isMostlyHorizontal = Math.abs(deltaX) > absDeltaY * 1.2;
+
+		if (absDeltaY > EDGE_SWIPE_VERTICAL_CANCEL_PX && !isMostlyHorizontal) {
+			resetEdgeSwipe();
+			return;
+		}
+
+		const shouldOpenChats = edgeSwipeTarget === 'chats' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
+		const shouldOpenSettings =
+			edgeSwipeTarget === 'settings' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
+
+		if (!shouldOpenChats && !shouldOpenSettings) {
+			return;
+		}
+
+		event.preventDefault();
+		edgeSwipeHandled = true;
+
+		if (shouldOpenChats) {
+			panelState.closeSettings();
+			panelState.openChats();
+		} else {
+			panelState.closeChats();
+			panelState.openSettings();
+		}
 	}
 
 	$effect(() => {
@@ -925,6 +1013,14 @@
 		};
 		globalOpenSearchShortcutHandler = handleGlobalOpenSearchShortcut;
 		window.addEventListener('keydown', handleGlobalOpenSearchShortcut, true);
+
+		edgeSwipeTouchStartHandler = handleEdgeSwipeStart;
+		edgeSwipeTouchMoveHandler = handleEdgeSwipeMove;
+		edgeSwipeTouchEndHandler = resetEdgeSwipe;
+		window.addEventListener('touchstart', edgeSwipeTouchStartHandler, { passive: true });
+		window.addEventListener('touchmove', edgeSwipeTouchMoveHandler, { passive: false });
+		window.addEventListener('touchend', edgeSwipeTouchEndHandler, { passive: true });
+		window.addEventListener('touchcancel', edgeSwipeTouchEndHandler, { passive: true });
 
 		// --- Pair session rehydration ---
 		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
@@ -2228,6 +2324,16 @@
 		}
 		if (globalOpenSearchShortcutHandler) {
 			window.removeEventListener('keydown', globalOpenSearchShortcutHandler, true);
+		}
+		if (edgeSwipeTouchStartHandler) {
+			window.removeEventListener('touchstart', edgeSwipeTouchStartHandler);
+		}
+		if (edgeSwipeTouchMoveHandler) {
+			window.removeEventListener('touchmove', edgeSwipeTouchMoveHandler);
+		}
+		if (edgeSwipeTouchEndHandler) {
+			window.removeEventListener('touchend', edgeSwipeTouchEndHandler);
+			window.removeEventListener('touchcancel', edgeSwipeTouchEndHandler);
 		}
 		// Note: hashchange, visibilitychange, and beforeunload handlers are cleaned up automatically on page unload
 	});
