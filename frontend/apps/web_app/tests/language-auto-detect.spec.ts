@@ -461,16 +461,15 @@ test.describe('language selection — English-first with browser suggestion', ()
 		await takeScreenshot(page, '01-after-lang-param');
 
 		// The for-everyone chat is auto-loaded as the default active chat for non-auth users.
-		// Its description in German is "OpenMates | Für alle". Without the early-locale fix,
-		// this renders in English ("OpenMates | For everyone") until a reload.
-		log('Checking that the active chat area shows German content...');
-		const germanChatTitle = page.getByText('OpenMates | Für alle');
-		await expect(germanChatTitle).toBeVisible({ timeout: 8000 });
+		// Its H1 message heading in German is "Digitale Team-Mates für alle".
+		// Without the early-locale fix it renders as "Digital team mates for everyone" (English).
+		log('Checking that the active chat message body is in German...');
+		const germanHeading = page.getByText('Digitale Team-Mates', { exact: false });
+		await expect(germanHeading).toBeVisible({ timeout: 10000 });
 		await takeScreenshot(page, '02-german-active-chat');
 
-		// Confirm the English title is NOT visible
-		const englishChatTitle = page.getByText('OpenMates | For everyone');
-		await expect(englishChatTitle).not.toBeVisible();
+		// Confirm the English heading is NOT visible
+		await expect(page.getByText('Digital team mates for everyone', { exact: false })).not.toBeVisible();
 
 		// Also open the sidebar and verify the intro chat list title is in German
 		log('Opening sidebar to verify intro chat list title...');
