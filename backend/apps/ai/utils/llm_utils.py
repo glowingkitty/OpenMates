@@ -1145,6 +1145,13 @@ async def call_preprocessing_llm(
         auth_indicators = ["401", "unauthorized"]
         if any(indicator in error_lower for indicator in auth_indicators):
             return True
+        # Groq-specific quirk: gpt-oss-safeguard-20b responds to function-calling requests
+        # with a tool named "json" (its internal JSON-mode format) instead of the actual
+        # requested tool name. Groq then returns 400 "attempted to call tool 'json' which
+        # was not in request.tools". This is a provider-side model behaviour — a different
+        # provider (OpenRouter) will handle it correctly, so treat it as retryable.
+        if "attempted to call tool 'json' which was not in request.tools" in error_lower:
+            return True
         # Non-retryable errors: 400 (bad request) — the request itself is malformed,
         # sending the same request to another provider won't help.
         non_retryable_indicators = ["bad request", "400"]
