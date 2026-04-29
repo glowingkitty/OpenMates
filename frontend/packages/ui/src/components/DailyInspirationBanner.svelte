@@ -957,11 +957,15 @@
       height: auto;
     }
 
-    /* Let the inner embed card fill the aspect-ratio container; override the
-       fixed 200px desktop height, min-height and max-height from UnifiedEmbedPreview */
-    .banner-embed-wrapper :global(.unified-embed-preview) {
+    /* Target .unified-embed-preview.desktop specifically — it has 3-class
+       specificity in the component, so a plain .unified-embed-preview selector
+       (2-class) loses. Override the fixed 300px width and 200px height so the
+       card fills the aspect-ratio container instead of being square. */
+    .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
+      width: 100% !important;
+      min-width: unset !important;
+      max-width: unset !important;
       height: 100% !important;
-      min-height: unset !important;
       max-height: unset !important;
     }
   }
