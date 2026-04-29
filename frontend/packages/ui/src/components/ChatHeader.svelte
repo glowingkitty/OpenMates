@@ -133,7 +133,12 @@
   const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
-  const introTeaserCopyLines = ['AI team mates.', 'For everyday tasks & learning.', 'With privacy & safety by design.'];
+  // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
+  const introTeaserCopyLines = $derived([
+    $text('demo_chats.for_everyone.teaser_line1'),
+    $text('demo_chats.for_everyone.teaser_line2'),
+    $text('demo_chats.for_everyone.teaser_line3'),
+  ]);
   const isIntroTeaserChat = $derived(currentChatId === 'demo-for-everyone');
   const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [title]);
 

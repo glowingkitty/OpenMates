@@ -461,7 +461,8 @@ test.describe('language selection — English-first with browser suggestion', ()
 		await takeScreenshot(page, '01-after-lang-param');
 
 		// The for-everyone chat is auto-loaded as the default active chat for non-auth users.
-		// Its H1 message heading in German is "Digitale Team-Mates für alle".
+		// The ChatHeader teaser line 1 in German is "KI Team-Mates." (was hardcoded English before this fix).
+		// The chat message H1 in German is "Digitale Team-Mates für alle".
 		// Without the early-locale fix it renders as "Digital team mates for everyone" (English).
 		log('Checking that the active chat message body is in German...');
 		const germanHeading = page.getByText('Digitale Team-Mates', { exact: false });
@@ -502,14 +503,56 @@ test.describe('language selection — English-first with browser suggestion', ()
 		await takeScreenshot(page, '01-after-lang-param');
 
 		// Spanish for-everyone H1: "Compañeros de equipo digitales para todos"
+		// Spanish ChatHeader teaser line 1: "Compañeros de equipo IA."
 		log('Checking that the active chat message body is in Spanish...');
 		await expect(page.getByText('Compañeros de equipo digitales', { exact: false }))
 			.toBeVisible({ timeout: 10000 });
 		await takeScreenshot(page, '02-spanish-active-chat');
 
 		await expect(page.getByText('Digital team mates for everyone', { exact: false })).not.toBeVisible();
+		// ChatHeader teaser must not be hardcoded English
+		await expect(page.getByText('AI team mates.', { exact: false })).not.toBeVisible();
 
 		log('✓ Active chat renders in Spanish on first load.');
+		await context.close();
+	});
+
+	// ── 12 ─────────────────────────────────────────────────────────────────
+	test('?lang=de overrides stored preferredLanguage from a previous visit', async ({
+		browser
+	}) => {
+		test.setTimeout(90000);
+
+		const log = createSignupLogger('LANG_URL_OVERRIDE_STORED');
+		const takeScreenshot = createStepScreenshotter(log);
+		await archiveExistingScreenshots(log);
+
+		// Simulate a returning user who previously chose French.
+		const { page, context } = await createLocalizedPage(browser, 'en-US', {
+			preferredLanguage: 'fr'
+		});
+		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+
+		log('Navigating with ?lang=de and stored preferredLanguage=fr...');
+		await page.goto(getE2EDebugUrl('/?lang=de'));
+		await waitForLocaleInit(page);
+		await takeScreenshot(page, '01-after-lang-param');
+
+		// html[lang] must be "de" despite preferredLanguage=fr in localStorage
+		const htmlLang = await page.evaluate(() => document.documentElement.getAttribute('lang'));
+		expect(htmlLang).toBe('de');
+
+		// For-everyone chat message body must be German
+		log('Checking that active chat is in German despite stored French preference...');
+		await expect(page.getByText('Digitale Team-Mates', { exact: false }))
+			.toBeVisible({ timeout: 10000 });
+		await takeScreenshot(page, '02-german-overrides-french');
+
+		// Stored preference must now be updated to German
+		const savedPref = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
+		expect(savedPref).toBe('de');
+
+		log('✓ ?lang=de correctly overrides stored preferredLanguage=fr.');
 		await context.close();
 	});
 });

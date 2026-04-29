@@ -823,17 +823,6 @@
 		const ogMediaParams = browser ? new URLSearchParams(window.location.search) : null;
 		const isOgMode = ogMediaParams?.get('og') === '1' || ogMediaParams?.get('media') === '1';
 
-		// Apply ?lang= locale BEFORE loading the default chat so translateDemoChat uses the
-		// correct language from the first render. The full handler (localStorage, events, URL
-		// cleanup) still runs later at its normal position in onMount.
-		if (browser) {
-			const earlyLangParam = new URLSearchParams(window.location.search).get('lang');
-			if (earlyLangParam && LANGUAGE_CODES.includes(earlyLangParam)) {
-				locale.set(earlyLangParam);
-				await waitLocale();
-			}
-		}
-
 		if (!$activeChatStore && activeChat) {
 			if (!$authStore.isAuthenticated && !isOgMode) {
 				// Non-auth: load demo-for-everyone
@@ -972,6 +961,18 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+
+		// ?lang= has absolute priority over stored preferredLanguage.
+		// Apply it here — at the very top of onMount, before any chat loading
+		// (Priority 1/2/3), so translateDemoChat always uses the URL-specified
+		// language regardless of whether this is a first visit or a return visit.
+		if (browser) {
+			const langParamEarly = new URLSearchParams(window.location.search).get('lang');
+			if (langParamEarly && LANGUAGE_CODES.includes(langParamEarly)) {
+				locale.set(langParamEarly);
+				await waitLocale();
+			}
+		}
 
 		// Persistent Cmd/Ctrl+F interceptor at page level.
 		// Chats.svelte is conditionally mounted, so its KeyboardShortcuts instance can be
