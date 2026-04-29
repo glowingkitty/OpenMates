@@ -476,37 +476,11 @@
        ensure the three orbs never synchronise, keeping the motion organic and
        non-repeating within any reasonable viewing window.
        z-index:0 keeps them behind all content (z-index:1+ for content). -->
-  {#if useTeaser}
-    <div class="banner-teaser-background" aria-hidden="true">
-      {#if videoTeaserUrl || videoTeaserMp4Url}
-        <video
-          class="banner-teaser-media"
-          poster={videoTeaserWebpUrl ?? undefined}
-          autoplay
-          muted
-          loop
-          playsinline
-          preload="metadata"
-        >
-          {#if videoTeaserUrl}
-            <source src={videoTeaserUrl} type="video/webm" />
-          {/if}
-          {#if videoTeaserMp4Url}
-            <source src={videoTeaserMp4Url} type="video/mp4" />
-          {/if}
-        </video>
-      {:else if videoTeaserWebpUrl}
-        <img class="banner-teaser-media" src={videoTeaserWebpUrl} alt="" loading="eager" decoding="async" />
-      {/if}
-    </div>
-    <div class="banner-teaser-overlay" aria-hidden="true"></div>
-  {:else}
-    <div class="banner-orbs" aria-hidden="true">
-      <div class="orb orb-1"></div>
-      <div class="orb orb-2"></div>
-      <div class="orb orb-3"></div>
-    </div>
-  {/if}
+  <div class="banner-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
 
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
   {#if isLoading && !isCreditsError && !isIncognito}
@@ -546,51 +520,176 @@
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
-    <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
-    {#if IconComponent && !useTeaser}
-      <div class="deco-icon deco-icon-left">
-        <IconComponent size={126} color="white" />
-      </div>
-      <div class="deco-icon deco-icon-right">
-        <IconComponent size={126} color="white" />
-      </div>
-    {/if}
+    {#if useTeaser}
+      <!-- ── Teaser split layout: text left + video right ──
+           Mirrors the DailyInspirationBanner split: orbs provide the gradient
+           backdrop, text on the left, teaser video in a rounded contained box
+           on the right. The full MP4 is still mounted only after play click. -->
+      <div class="teaser-split-layout">
 
-    <!-- Header media: compact teaser videos render full-bleed behind the banner,
-         while static slideshows keep the contained 16:9 frame. The full MP4 is
-         still mounted only after the user clicks play. -->
-    {#if hasHeaderMedia}
-      <div class="media-center-group" class:full-bleed-media-controls={useTeaser}>
-        <!-- Title rendered above the media frame -->
-        {#if !showSignupCta && !useTeaser}
-          <div class="loaded-content">
-            <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-                 never render as HTML to prevent stored XSS via prompt injection. -->
-            <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+        <!-- Left column: icon + title + summary + time -->
+        <div class="teaser-split-left">
+          {#if IconComponent}
+            <div class="loaded-icon" data-testid="chat-header-icon">
+              <IconComponent size={38} color="white" />
+            </div>
+          {/if}
 
-            {#if isExampleChat}
-              <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+               never render as HTML to prevent stored XSS via prompt injection. -->
+          <span class="loaded-title teaser-title" data-testid="chat-header-title">{title}</span>
+
+          {#if isExampleChat}
+            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {/if}
+
+          {#if showSummary}
+            <p class="loaded-summary teaser-summary" data-testid="chat-header-summary">{summary}</p>
+          {/if}
+
+          {#if showTime}
+            <span class="loaded-time teaser-time">{formattedTime}</span>
+          {/if}
+
+          {#if showSignupCta}
+            <button
+              class="banner-signup-button"
+              data-testid="banner-signup-button"
+              onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
+            >
+              {$text('signup.sign_up')} / {$text('login.login')}
+            </button>
+          {/if}
+        </div>
+
+        <!-- Right column: teaser video in a rounded, contained box -->
+        <div class="teaser-split-right">
+          <div class="teaser-video-box">
+            {#if videoTeaserUrl || videoTeaserMp4Url}
+              <video
+                class="teaser-video-preview"
+                poster={videoTeaserWebpUrl ?? undefined}
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+              >
+                {#if videoTeaserUrl}
+                  <source src={videoTeaserUrl} type="video/webm" />
+                {/if}
+                {#if videoTeaserMp4Url}
+                  <source src={videoTeaserMp4Url} type="video/mp4" />
+                {/if}
+              </video>
+            {:else if videoTeaserWebpUrl}
+              <img class="teaser-video-preview" src={videoTeaserWebpUrl} alt="" loading="eager" decoding="async" />
+            {/if}
+
+            {#if videoMp4Url && !isVideoActive}
+              <button
+                class="video-play-btn"
+                onclick={handlePlayClick}
+                type="button"
+                aria-label="Play video"
+                data-testid="chat-header-play-btn"
+              >
+                <div class="video-play-icon" aria-hidden="true"></div>
+              </button>
+            {/if}
+
+            {#if isVideoActive && videoMp4Url}
+              <video
+                bind:this={videoEl}
+                class="media-video"
+                data-testid="chat-header-video"
+                src={videoMp4Url}
+                autoplay
+                controls
+                playsinline
+                preload="auto"
+              >
+                <track kind="captions" />
+              </video>
             {/if}
           </div>
-        {/if}
+        </div>
+      </div>
+    {:else}
+      <!-- ── Standard layout: decorative icons + media frame or icon/title/summary ── -->
 
-        {#if useSlideshow}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
-            <div class="header-slideshow" aria-hidden="true">
-              {#each backgroundFrames as frameUrl, i (frameUrl)}
-                <img
-                  class="header-slide"
-                  src={frameUrl}
-                  alt=""
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
-                />
-              {/each}
+      <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
+      {#if IconComponent}
+        <div class="deco-icon deco-icon-left">
+          <IconComponent size={126} color="white" />
+        </div>
+        <div class="deco-icon deco-icon-right">
+          <IconComponent size={126} color="white" />
+        </div>
+      {/if}
+
+      {#if hasHeaderMedia}
+        <div class="media-center-group">
+          <!-- Title rendered above the media frame -->
+          {#if !showSignupCta}
+            <div class="loaded-content">
+              <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+                   never render as HTML to prevent stored XSS via prompt injection. -->
+              <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+
+              {#if isExampleChat}
+                <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+              {/if}
             </div>
+          {/if}
 
+          {#if useSlideshow}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
+              <div class="header-slideshow" aria-hidden="true">
+                {#each backgroundFrames as frameUrl, i (frameUrl)}
+                  <img
+                    class="header-slide"
+                    src={frameUrl}
+                    alt=""
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
+                  />
+                {/each}
+              </div>
+
+              {#if videoMp4Url && !isVideoActive}
+                <button
+                  class="video-play-btn"
+                  onclick={handlePlayClick}
+                  type="button"
+                  aria-label="Play video"
+                  data-testid="chat-header-play-btn"
+                >
+                  <div class="video-play-icon" aria-hidden="true"></div>
+                </button>
+              {/if}
+
+              {#if isVideoActive && videoMp4Url}
+                <!-- Mounted only after user clicks play. requestFullscreen is called
+                     via $effect once the element is bound. Unmounted when fullscreen exits. -->
+                <video
+                  bind:this={videoEl}
+                  class="media-video"
+                  data-testid="chat-header-video"
+                  src={videoMp4Url}
+                  autoplay
+                  controls
+                  playsinline
+                  preload="auto"
+                >
+                  <track kind="captions" />
+                </video>
+              {/if}
+            </div>
+          {:else}
             {#if videoMp4Url && !isVideoActive}
               <button
                 class="video-play-btn"
@@ -619,90 +718,61 @@
                 <track kind="captions" />
               </video>
             {/if}
-          </div>
-        {:else}
-          {#if videoMp4Url && !isVideoActive}
+          {/if}
+
+          <!-- Signup CTA rendered below the preview/play affordance for non-auth intro chats. -->
+          {#if showSignupCta}
             <button
-              class="video-play-btn"
-              onclick={handlePlayClick}
-              type="button"
-              aria-label="Play video"
-              data-testid="chat-header-play-btn"
+              class="banner-signup-button"
+              data-testid="banner-signup-button"
+              onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
             >
-              <div class="video-play-icon" aria-hidden="true"></div>
+              {$text('signup.sign_up')} / {$text('login.login')}
             </button>
           {/if}
-
-          {#if isVideoActive && videoMp4Url}
-            <!-- Mounted only after user clicks play. requestFullscreen is called
-                 via $effect once the element is bound. Unmounted when fullscreen exits. -->
-            <video
-              bind:this={videoEl}
-              class="media-video"
-              data-testid="chat-header-video"
-              src={videoMp4Url}
-              autoplay
-              controls
-              playsinline
-              preload="auto"
-            >
-              <track kind="captions" />
-            </video>
+        </div>
+      {:else}
+        <div class="loaded-content">
+          <!-- Category icon: only shown when no header media (video or slideshow) -->
+          {#if IconComponent}
+            <div class="loaded-icon" data-testid="chat-header-icon">
+              <IconComponent size={38} color="white" />
+            </div>
           {/if}
-        {/if}
 
-        <!-- Signup CTA rendered below the preview/play affordance for non-auth intro chats. -->
-        {#if showSignupCta && !useTeaser}
-          <button
-            class="banner-signup-button"
-            data-testid="banner-signup-button"
-            onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
-          >
-            {$text('signup.sign_up')} / {$text('login.login')}
-          </button>
-        {/if}
-      </div>
-    {:else}
-      <div class="loaded-content">
-        <!-- Category icon: only shown when no header media (video or slideshow) -->
-        {#if IconComponent}
-          <div class="loaded-icon" data-testid="chat-header-icon">
-            <IconComponent size={38} color="white" />
-          </div>
-        {/if}
+          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+               never render as HTML to prevent stored XSS via prompt injection. -->
+          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
-        <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-             never render as HTML to prevent stored XSS via prompt injection. -->
-        <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+          {#if isExampleChat}
+            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {/if}
 
-        {#if isExampleChat}
-          <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-        {/if}
+          <!-- Summary: fades in with max-height expand when available -->
+          {#if showSummary}
+            <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
+          {/if}
 
-        <!-- Summary: fades in with max-height expand when available -->
-        {#if showSummary}
-          <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
-        {/if}
+          <!-- Highlights pill: yellow annotation-layer count. Clickable when an
+               onHighlightJump handler is wired; falls back to a static badge
+               otherwise so the count is still visible in read-only contexts
+               (e.g. shared-chat preview rendered without the nav overlay). -->
+          {#if showHighlightPill}
+            <button
+              class="highlight-count-pill"
+              type="button"
+              data-testid="chat-header-highlight-count"
+              onclick={handleHighlightPillClick}
+              disabled={!onHighlightJump}
+            >{highlightPillLabel}</button>
+          {/if}
 
-        <!-- Highlights pill: yellow annotation-layer count. Clickable when an
-             onHighlightJump handler is wired; falls back to a static badge
-             otherwise so the count is still visible in read-only contexts
-             (e.g. shared-chat preview rendered without the nav overlay). -->
-        {#if showHighlightPill}
-          <button
-            class="highlight-count-pill"
-            type="button"
-            data-testid="chat-header-highlight-count"
-            onclick={handleHighlightPillClick}
-            disabled={!onHighlightJump}
-          >{highlightPillLabel}</button>
-        {/if}
-
-        <!-- Creation time -->
-        {#if showTime}
-          <span class="loaded-time">{formattedTime}</span>
-        {/if}
-      </div>
+          <!-- Creation time -->
+          {#if showTime}
+            <span class="loaded-time">{formattedTime}</span>
+          {/if}
+        </div>
+      {/if}
     {/if}
   {/if}
 
@@ -1208,33 +1278,6 @@
     overflow: hidden;
   }
 
-  .banner-teaser-background {
-    position: absolute;
-    inset: 0;
-    z-index: var(--z-index-base);
-    pointer-events: none;
-    overflow: hidden;
-    background: #1a1a1a;
-  }
-
-  .banner-teaser-media {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    display: block;
-  }
-
-  .banner-teaser-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: var(--z-index-base);
-    pointer-events: none;
-    background:
-      radial-gradient(circle at 50% 45%, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.28) 62%),
-      linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.34));
-  }
-
   .orb {
     position: absolute;
     /* Large orbs — each covers roughly half the banner so the color fills
@@ -1381,6 +1424,89 @@
       border-bottom: 10px solid transparent;
       border-left: 17px solid rgba(255, 255, 255, 0.95);
       margin-left: 3px;
+    }
+  }
+
+  /* ─── Teaser split layout (text left + video right) ────────────────────────
+     Mirrors DailyInspirationBanner's split: orbs are the gradient backdrop,
+     text column on the left, teaser video in a rounded contained box on the right.
+     Below 520px the video box is hidden so the text gets the full width. */
+
+  .teaser-split-layout {
+    position: relative;
+    z-index: var(--z-index-raised-2);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    max-width: 700px;
+    padding: 14px 40px 12px;
+    height: 100%;
+    box-sizing: border-box;
+    transform: translateZ(0);
+    contain: layout paint;
+  }
+
+  .teaser-split-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--spacing-2);
+  }
+
+  /* Left-align and uncap text lines in the split layout */
+  .teaser-title {
+    text-align: left !important;
+    -webkit-line-clamp: 4 !important;
+    line-clamp: 4 !important;
+  }
+
+  .teaser-summary {
+    text-align: left !important;
+    -webkit-line-clamp: 4 !important;
+    line-clamp: 4 !important;
+  }
+
+  .teaser-time {
+    text-align: left !important;
+  }
+
+  .teaser-split-right {
+    flex-shrink: 0;
+    width: 220px;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    /* Pull flush with the banner's vertical edges (matches banner-inner padding offsets) */
+    margin-top: -15px;
+    margin-bottom: -12px;
+  }
+
+  .teaser-video-box {
+    position: relative;
+    width: 100%;
+    height: min(calc(100% + 15px + 12px), 252px);
+    border-radius: var(--radius-4);
+    overflow: hidden;
+    background: #1a1a1a;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .teaser-video-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  @media (max-width: 520px) {
+    .teaser-split-right {
+      display: none;
     }
   }
 
@@ -1652,11 +1778,6 @@
     width: 100%;
     height: 100%;
     box-sizing: border-box;
-  }
-
-  .media-center-group.full-bleed-media-controls {
-    padding: 0;
-    gap: 0;
   }
 
   /* 16:9 rounded container that hosts the slideshow + play button. Height is
