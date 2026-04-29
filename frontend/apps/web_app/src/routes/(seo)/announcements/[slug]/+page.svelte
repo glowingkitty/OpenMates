@@ -208,8 +208,8 @@
 	.summary { font-size: 16px; color: #555; margin: 0 0 24px; line-height: 1.6; }
 	.announcement-hero {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-		gap: 28px;
+		grid-template-columns: minmax(0, 1fr) minmax(420px, 640px);
+		gap: 36px;
 		align-items: center;
 		margin-bottom: 24px;
 	}
@@ -296,24 +296,22 @@
 			flex-direction: column;
 			justify-content: center;
 		}
-		.hero-text { animation: mobileAnnouncementTextCycle 8s infinite ease-in-out; }
+		.hero-text { animation: mobileAnnouncementTextCycle 7s 1 ease-in-out forwards; }
 		.video-wrapper {
 			align-self: center;
 			height: auto;
 			opacity: 0;
-			animation: mobileAnnouncementVideoCycle 8s infinite ease-in-out;
+			animation: mobileAnnouncementVideoCycle 7s 1 ease-in-out forwards;
 		}
 		.video-wrapper.hovering { transform: none !important; }
 	}
 	@keyframes mobileAnnouncementTextCycle {
 		0%, 45% { opacity: 1; transform: translateY(0); }
-		55%, 90% { opacity: 0; transform: translateY(-8px); }
-		100% { opacity: 1; transform: translateY(0); }
+		55%, 100% { opacity: 0; transform: translateY(-8px); }
 	}
 	@keyframes mobileAnnouncementVideoCycle {
 		0%, 45% { opacity: 0; transform: translateY(8px); }
-		55%, 90% { opacity: 1; transform: translateY(0); }
-		100% { opacity: 0; transform: translateY(8px); }
+		55%, 100% { opacity: 1; transform: translateY(0); }
 	}
 	@media (max-width: 620px) and (prefers-reduced-motion: reduce) {
 		.announcement-hero {
