@@ -10,6 +10,7 @@ export interface OpenMatesVideo {
   mp4_url: string;
   thumbnail_url: string;
   teaser_url?: string;
+  teaser_mp4_url?: string;
   teaser_webp_url?: string;
   start_time?: number;
   background_frames?: string[];
@@ -30,6 +31,7 @@ export const OPENMATES_VIDEOS: Record<string, OpenMatesVideo> = {
     thumbnail_url:
       "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/thumbnail.jpg",
     teaser_url: "/intro-teasers/openmates-intro-teaser.webm",
+    teaser_mp4_url: "/intro-teasers/openmates-intro-teaser.mp4",
     teaser_webp_url: "/intro-teasers/openmates-intro-teaser.webp",
     start_time: 17,
     background_frames: INTRO_BACKGROUND_FRAMES,
@@ -43,6 +45,7 @@ export const OPENMATES_VIDEOS: Record<string, OpenMatesVideo> = {
     thumbnail_url:
       "https://vod.api.video/vod/vi1LdNC1NrHlKyANrOUDsfX6/thumbnail.jpg",
     teaser_url: "/intro-teasers/openmates-intro-teaser.webm",
+    teaser_mp4_url: "/intro-teasers/openmates-intro-teaser.mp4",
     teaser_webp_url: "/intro-teasers/openmates-intro-teaser.webp",
     start_time: 17,
     background_frames: INTRO_BACKGROUND_FRAMES,

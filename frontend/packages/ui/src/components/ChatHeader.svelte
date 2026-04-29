@@ -73,6 +73,8 @@
     videoMp4Url = null,
     /** Tiny silent preview video that can autoplay safely before the full video is clicked. */
     videoTeaserUrl = null,
+    /** MP4 fallback for browsers that cannot play the WebM teaser. */
+    videoTeaserMp4Url = null,
     /** WebP poster/fallback for the silent teaser. */
     videoTeaserWebpUrl = null,
     /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
@@ -108,6 +110,8 @@
     videoMp4Url?: string | null;
     /** Tiny silent preview video that can autoplay safely before the full video is clicked. */
     videoTeaserUrl?: string | null;
+    /** MP4 fallback for browsers that cannot play the WebM teaser. */
+    videoTeaserMp4Url?: string | null;
     /** WebP poster/fallback for the silent teaser. */
     videoTeaserWebpUrl?: string | null;
     /** Image URLs for the crossfading Ken-Burns slideshow inside the media frame. */
@@ -123,7 +127,7 @@
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
-  const useTeaser = $derived(!!videoTeaserUrl || !!videoTeaserWebpUrl);
+  const useTeaser = $derived(!!videoTeaserUrl || !!videoTeaserMp4Url || !!videoTeaserWebpUrl);
   const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
@@ -472,11 +476,37 @@
        ensure the three orbs never synchronise, keeping the motion organic and
        non-repeating within any reasonable viewing window.
        z-index:0 keeps them behind all content (z-index:1+ for content). -->
-  <div class="banner-orbs" aria-hidden="true">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-  </div>
+  {#if useTeaser}
+    <div class="banner-teaser-background" aria-hidden="true">
+      {#if videoTeaserUrl || videoTeaserMp4Url}
+        <video
+          class="banner-teaser-media"
+          poster={videoTeaserWebpUrl ?? undefined}
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+        >
+          {#if videoTeaserUrl}
+            <source src={videoTeaserUrl} type="video/webm" />
+          {/if}
+          {#if videoTeaserMp4Url}
+            <source src={videoTeaserMp4Url} type="video/mp4" />
+          {/if}
+        </video>
+      {:else if videoTeaserWebpUrl}
+        <img class="banner-teaser-media" src={videoTeaserWebpUrl} alt="" loading="eager" decoding="async" />
+      {/if}
+    </div>
+    <div class="banner-teaser-overlay" aria-hidden="true"></div>
+  {:else}
+    <div class="banner-orbs" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+  {/if}
 
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
   {#if isLoading && !isCreditsError && !isIncognito}
@@ -517,7 +547,7 @@
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
     <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
-    {#if IconComponent}
+    {#if IconComponent && !useTeaser}
       <div class="deco-icon deco-icon-left">
         <IconComponent size={126} color="white" />
       </div>
@@ -526,16 +556,13 @@
       </div>
     {/if}
 
-    <!-- When the header has media: render a 16:9 rounded frame containing the
-         crossfading Ken-Burns slideshow with the play button centered over it,
-         and the chat title below the frame.
-
-         The header never loads a <video> element — clicking play opens the
-         DirectVideoEmbedFullscreen, which is the only place the MP4 is fetched. -->
+    <!-- Header media: compact teaser videos render full-bleed behind the banner,
+         while static slideshows keep the contained 16:9 frame. The full MP4 is
+         still mounted only after the user clicks play. -->
     {#if hasHeaderMedia}
-      <div class="media-center-group">
+      <div class="media-center-group" class:full-bleed-media-controls={useTeaser}>
         <!-- Title rendered above the media frame -->
-        {#if !showSignupCta}
+        {#if !showSignupCta && !useTeaser}
           <div class="loaded-content">
             <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
                  never render as HTML to prevent stored XSS via prompt injection. -->
@@ -547,10 +574,10 @@
           </div>
         {/if}
 
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
-          {#if useSlideshow}
+        {#if useSlideshow}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
             <div class="header-slideshow" aria-hidden="true">
               {#each backgroundFrames as frameUrl, i (frameUrl)}
                 <img
@@ -563,33 +590,37 @@
                 />
               {/each}
             </div>
-          {/if}
 
-          {#if useTeaser}
-            {#if videoTeaserUrl}
-              <video
-                class="header-teaser-video"
-                src={videoTeaserUrl}
-                poster={videoTeaserWebpUrl ?? undefined}
-                autoplay
-                muted
-                loop
-                playsinline
-                preload="metadata"
-                aria-hidden="true"
-              ></video>
-            {:else if videoTeaserWebpUrl}
-              <img
-                class="header-teaser-image"
-                src={videoTeaserWebpUrl}
-                alt=""
-                loading="eager"
-                decoding="async"
-                aria-hidden="true"
-              />
+            {#if videoMp4Url && !isVideoActive}
+              <button
+                class="video-play-btn"
+                onclick={handlePlayClick}
+                type="button"
+                aria-label="Play video"
+                data-testid="chat-header-play-btn"
+              >
+                <div class="video-play-icon" aria-hidden="true"></div>
+              </button>
             {/if}
-          {/if}
 
+            {#if isVideoActive && videoMp4Url}
+              <!-- Mounted only after user clicks play. requestFullscreen is called
+                   via $effect once the element is bound. Unmounted when fullscreen exits. -->
+              <video
+                bind:this={videoEl}
+                class="media-video"
+                data-testid="chat-header-video"
+                src={videoMp4Url}
+                autoplay
+                controls
+                playsinline
+                preload="auto"
+              >
+                <track kind="captions" />
+              </video>
+            {/if}
+          </div>
+        {:else}
           {#if videoMp4Url && !isVideoActive}
             <button
               class="video-play-btn"
@@ -618,10 +649,10 @@
               <track kind="captions" />
             </video>
           {/if}
-        </div>
+        {/if}
 
-        <!-- Signup CTA rendered BELOW the media frame -->
-        {#if showSignupCta}
+        <!-- Signup CTA rendered below the preview/play affordance for non-auth intro chats. -->
+        {#if showSignupCta && !useTeaser}
           <button
             class="banner-signup-button"
             data-testid="banner-signup-button"
@@ -1177,6 +1208,33 @@
     overflow: hidden;
   }
 
+  .banner-teaser-background {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-index-base);
+    pointer-events: none;
+    overflow: hidden;
+    background: #1a1a1a;
+  }
+
+  .banner-teaser-media {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  .banner-teaser-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-index-base);
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 45%, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.28) 62%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.34));
+  }
+
   .orb {
     position: absolute;
     /* Large orbs — each covers roughly half the banner so the color fills
@@ -1366,17 +1424,6 @@
                headerSlideKB1 calc(var(--slide-count) * 8s) infinite ease-in-out;
     animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
     will-change: opacity, transform;
-  }
-
-  .header-teaser-video,
-  .header-teaser-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 0;
-    background: #1a1a1a;
   }
 
   /* Timing based on 13 frames (slot = 7.692% of cycle, fade-in window = 1.8%).
@@ -1605,6 +1652,11 @@
     width: 100%;
     height: 100%;
     box-sizing: border-box;
+  }
+
+  .media-center-group.full-bleed-media-controls {
+    padding: 0;
+    gap: 0;
   }
 
   /* 16:9 rounded container that hosts the slideshow + play button. Height is

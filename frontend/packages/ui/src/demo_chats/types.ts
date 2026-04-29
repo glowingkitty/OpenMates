@@ -35,6 +35,8 @@ export interface DemoChat {
 		video_thumbnail_url?: string;
 		/** Tiny silent autoplay teaser served by OpenMates before the full video is clicked. */
 		video_teaser_url?: string;
+		/** MP4 fallback for browsers that cannot play the WebM teaser. */
+		video_teaser_mp4_url?: string;
 		/** WebP poster/fallback for the silent autoplay teaser. */
 		video_teaser_webp_url?: string;
 		/** Timestamp in seconds where the background video should start playing. */

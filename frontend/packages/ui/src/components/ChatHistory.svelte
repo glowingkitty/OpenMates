@@ -20,7 +20,7 @@
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, isPublicChat, isDemoChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -56,7 +56,6 @@
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
-  import { authStore } from '../stores/authStore';
   import { introBannerVisible } from '../stores/uiStateStore';
 
   type AppCardData = {
@@ -474,10 +473,9 @@
   // Bound to the chat-header-wrapper div; used by the IntersectionObserver below.
   let headerWrapperEl = $state<HTMLElement | null>(null);
 
-  // True only for non-auth users on intro chats — shows CTA inside the banner.
-  const showSignupCta = $derived(
-    !$authStore.isAuthenticated && !!currentChatId && isDemoChat(currentChatId)
-  );
+  // The intro video now uses the full banner as a media hero. Keep auth CTAs in
+  // the app header so the banner can stay focused on playback.
+  const showSignupCta = $derived(false);
 
   // Keep introBannerVisible in sync with whether the banner is visible in the viewport.
   // When it is visible, Header hides its own signup button so there's no duplicate CTA.
@@ -520,6 +518,7 @@
     isExampleChat = false,
     videoMp4Url = null,
     videoTeaserUrl = null,
+    videoTeaserMp4Url = null,
     videoTeaserWebpUrl = null,
     backgroundFrames = null,
     autoplayVideo = false,
@@ -571,6 +570,8 @@
     videoMp4Url?: string | null;
     /** Tiny silent autoplay teaser rendered before the user clicks the full video. */
     videoTeaserUrl?: string | null;
+    /** MP4 fallback for browsers that cannot play the WebM teaser. */
+    videoTeaserMp4Url?: string | null;
     /** WebP poster/fallback for the silent autoplay teaser. */
     videoTeaserWebpUrl?: string | null;
     /** Background frame image URLs rendered inside the chat header's 16:9 media
@@ -1665,6 +1666,7 @@
                 {isExampleChat}
                 {videoMp4Url}
                 {videoTeaserUrl}
+                {videoTeaserMp4Url}
                 {videoTeaserWebpUrl}
                 {backgroundFrames}
                 {highlightStats}
