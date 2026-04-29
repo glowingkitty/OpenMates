@@ -461,12 +461,19 @@ test.describe('language selection — English-first with browser suggestion', ()
 		await page.waitForTimeout(2000);
 		await takeScreenshot(page, '01-after-lang-param');
 
+		// Open the chats sidebar — Chats component is only mounted when the sidebar is open.
+		log('Opening chats sidebar...');
+		await page.getByTestId('sidebar-toggle').click();
+		// Give Chats component time to mount and translate intro chat titles
+		await page.waitForTimeout(1500);
+		await takeScreenshot(page, '02-sidebar-open');
+
 		// The for-everyone intro chat title in German is "OpenMates | Für alle".
 		// If the race condition exists it will be "OpenMates | For everyone" (English).
 		log('Checking intro chat title in German...');
 		const germanTitle = page.getByText('OpenMates | Für alle');
 		await expect(germanTitle).toBeVisible({ timeout: 5000 });
-		await takeScreenshot(page, '02-german-intro-chat');
+		await takeScreenshot(page, '03-german-intro-chat');
 
 		// Confirm English title is NOT present
 		const englishTitle = page.getByText('OpenMates | For everyone');
