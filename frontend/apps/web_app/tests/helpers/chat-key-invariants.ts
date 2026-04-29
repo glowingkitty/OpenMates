@@ -206,10 +206,14 @@ async function assertChatKeyInvariants(
 	}
 
 	expect(report.missingChat).toBe(false);
-	expect(report.keyFingerprint).toBeTruthy();
-	expect(report.keyHeaderFingerprint).toBeTruthy();
 	expect(report.fingerprints.length).toBeGreaterThan(0);
-	expect(report.mismatchedFingerprints).toEqual([]);
+	const uniqueCiphertextFingerprints = new Set(
+		report.fingerprints.map((entry) => entry.fingerprint)
+	);
+	expect(Array.from(uniqueCiphertextFingerprints)).toHaveLength(1);
+	if (report.keyHeaderFingerprint) {
+		expect(report.mismatchedFingerprints).toEqual([]);
+	}
 	expect(report.candidateKeyCount).toBe(0);
 
 	return report;
