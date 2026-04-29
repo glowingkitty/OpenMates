@@ -74,6 +74,7 @@ const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./hel
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -372,11 +373,7 @@ async function performLogin(
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, `${screenshotPrefix}-home`);
 
-	const headerLoginButton = page.getByTestId('header-login-signup-btn');
-	// Extended timeout: 404s from stale demo-chat IDs on the welcome screen can
-	// delay DOM rendering beyond the 5 s Playwright default.
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
+	await openSignupInterface(page);
 	await takeStepScreenshot(page, `${screenshotPrefix}-login-dialog`);
 
 	// Click Login tab to switch from signup to login view
