@@ -144,7 +144,9 @@ test.describe('language selection — English-first with browser suggestion', ()
 
 		expect(notifVisible).toBe(true);
 		await expect(page.getByText('Language Detected')).toBeVisible();
-		await expect(page.getByText('Deutsch', { exact: false })).toBeVisible();
+		// Use the action button (unique element) to confirm the correct language is shown.
+		// getByText('Deutsch') would match both the message text and the button — strict mode violation.
+		await expect(page.getByTestId('notification-action')).toHaveText('Switch to Deutsch');
 
 		log('✓ German browser → English default + notification confirmed.');
 		await context.close();
@@ -174,8 +176,8 @@ test.describe('language selection — English-first with browser suggestion', ()
 		await takeScreenshot(page, '02-notification');
 
 		expect(notifVisible).toBe(true);
-		// nativeName for Czech is "Čeština"
-		await expect(page.getByText('Čeština', { exact: false })).toBeVisible();
+		// nativeName for Czech is "Čeština" — use the action button (unique) to avoid strict mode violation.
+		await expect(page.getByTestId('notification-action')).toHaveText('Switch to Čeština');
 
 		log('✓ Czech browser → English default + Čeština notification confirmed.');
 		await context.close();
