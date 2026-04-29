@@ -1498,11 +1498,11 @@ back_to_intro.title:
 explore_openmates.title:
   context: Subtitle above the scrollable intro+example chats carousel on the welcome screen for non-authenticated users
   en: "Explore OpenMates:"
-  de: "OpenMates entdecken:"
+  de: "Entdecke OpenMates:"
   zh: "探索 OpenMates："
   es: "Explora OpenMates:"
   fr: "Découvrez OpenMates :"
-  pt: "Explorar OpenMates:"
+  pt: "Explore OpenMates:"
   ru: "Исследуйте OpenMates:"
   ja: "OpenMates を探索："
   ko: "OpenMates 탐색:"
