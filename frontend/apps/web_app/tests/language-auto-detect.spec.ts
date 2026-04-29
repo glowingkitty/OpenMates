@@ -440,7 +440,7 @@ test.describe('language selection — English-first with browser suggestion', ()
 	});
 
 	// ── 10 ─────────────────────────────────────────────────────────────────
-	test('?lang=de intro chat title renders in German without reload (race condition guard)', async ({
+	test('?lang=de active chat content renders in German on first load (race condition guard)', async ({
 		browser
 	}) => {
 		test.setTimeout(90000);
@@ -449,37 +449,37 @@ test.describe('language selection — English-first with browser suggestion', ()
 		const takeScreenshot = createStepScreenshotter(log);
 		await archiveExistingScreenshots(log);
 
-		// English-browser context so the page would default to English
+		// English-browser context (no locale preference set) so the page defaults to English.
+		// The ?lang=de URL param must set German BEFORE the default chat is loaded.
 		const context = await browser.newContext();
 		const page = await context.newPage();
 		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
 
-		log('Navigating with ?lang=de, checking intro chat sidebar title...');
+		log('Navigating with ?lang=de — checking for-everyone active chat renders in German...');
 		await page.goto(getE2EDebugUrl('/?lang=de'));
 		await waitForLocaleInit(page);
-		// Extra buffer for language-changed-complete propagation to Chats.svelte
-		await page.waitForTimeout(2000);
 		await takeScreenshot(page, '01-after-lang-param');
 
-		// Open the chats sidebar — Chats component is only mounted when the sidebar is open.
-		log('Opening chats sidebar...');
+		// The for-everyone chat is auto-loaded as the default active chat for non-auth users.
+		// Its description in German is "OpenMates | Für alle". Without the early-locale fix,
+		// this renders in English ("OpenMates | For everyone") until a reload.
+		log('Checking that the active chat area shows German content...');
+		const germanChatTitle = page.getByText('OpenMates | Für alle');
+		await expect(germanChatTitle).toBeVisible({ timeout: 8000 });
+		await takeScreenshot(page, '02-german-active-chat');
+
+		// Confirm the English title is NOT visible
+		const englishChatTitle = page.getByText('OpenMates | For everyone');
+		await expect(englishChatTitle).not.toBeVisible();
+
+		// Also open the sidebar and verify the intro chat list title is in German
+		log('Opening sidebar to verify intro chat list title...');
 		await page.getByTestId('sidebar-toggle').click();
-		// Give Chats component time to mount and translate intro chat titles
-		await page.waitForTimeout(1500);
-		await takeScreenshot(page, '02-sidebar-open');
+		await page.waitForTimeout(1000);
+		await takeScreenshot(page, '03-sidebar-german-title');
+		await expect(page.getByText('OpenMates | Für alle').first()).toBeVisible({ timeout: 5000 });
 
-		// The for-everyone intro chat title in German is "OpenMates | Für alle".
-		// If the race condition exists it will be "OpenMates | For everyone" (English).
-		log('Checking intro chat title in German...');
-		const germanTitle = page.getByText('OpenMates | Für alle');
-		await expect(germanTitle).toBeVisible({ timeout: 5000 });
-		await takeScreenshot(page, '03-german-intro-chat');
-
-		// Confirm English title is NOT present
-		const englishTitle = page.getByText('OpenMates | For everyone');
-		await expect(englishTitle).not.toBeVisible();
-
-		log('✓ Intro chat title renders in German without reload confirmed.');
+		log('✓ Both active chat and sidebar title render in German on first load.');
 		await context.close();
 	});
 });

@@ -822,6 +822,18 @@
 		// (with daily inspiration + for-everyone card) stays visible — used by /dev/og-image iframes.
 		const ogMediaParams = browser ? new URLSearchParams(window.location.search) : null;
 		const isOgMode = ogMediaParams?.get('og') === '1' || ogMediaParams?.get('media') === '1';
+
+		// Apply ?lang= locale BEFORE loading the default chat so translateDemoChat uses the
+		// correct language from the first render. The full handler (localStorage, events, URL
+		// cleanup) still runs later at its normal position in onMount.
+		if (browser) {
+			const earlyLangParam = new URLSearchParams(window.location.search).get('lang');
+			if (earlyLangParam && LANGUAGE_CODES.includes(earlyLangParam)) {
+				locale.set(earlyLangParam);
+				await waitLocale();
+			}
+		}
+
 		if (!$activeChatStore && activeChat) {
 			if (!$authStore.isAuthenticated && !isOgMode) {
 				// Non-auth: load demo-for-everyone
