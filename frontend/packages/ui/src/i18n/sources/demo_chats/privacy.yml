@@ -1,0 +1,71 @@
+title:
+  context: Title of privacy intro chat explaining OpenMates product privacy protections
+  en: OpenMates | Privacy
+  verified_by_human: []
+description:
+  context: Description of privacy intro chat for SEO
+  en: How OpenMates protects your chats, memories, drafts, and personal data before it reaches our servers or AI providers
+  verified_by_human: []
+message:
+  context: Main privacy intro message content explaining product privacy protections in plain English
+  en: |
+    # Privacy built into the product
+
+    OpenMates is designed so your private data is protected before it is stored, synced, or sent to an AI model.
+
+    The short version: your chats, memories, app settings, personal privacy settings, and signed-in drafts are encrypted before they are synced. Before a message is sent, your browser can also replace detected personal data with placeholders so OpenMates servers and AI providers receive the safer placeholder version instead of the detected original values.
+
+    This page explains the product protections in plain English. The full legal details, provider list, retention rules, and your legal rights stay in the [Privacy Policy](/legal/privacy).
+
+    ## Personal data replacement before a message leaves your browser
+
+    When you send a message, OpenMates scans it on your device for personal or sensitive data. Detected values are replaced with placeholders before the message is sent to OpenMates.
+
+    Examples include emails, phone numbers, API keys, private keys, credit card numbers, IP addresses, bank account numbers, tax IDs, passport numbers, and similar patterns.
+
+    You can also teach OpenMates what matters to you. In Privacy settings you can add names, addresses, birthdays, and custom private values that should be detected more reliably on your device. These custom entries are encrypted before they sync, just like other private settings.
+
+    The mapping from placeholder back to the original value is encrypted with your key. That lets your browser restore the original value for you while keeping the raw value away from OpenMates servers and AI providers.
+
+    Limit: no detector is perfect. If you type a value in an unusual format, include someone else's personal information, or write something sensitive that is not formally identifiable data, OpenMates may not detect it. Treat every message as something that may be processed by an AI provider unless you see it replaced before sending.
+
+    ## Encrypted chats, memories, and signed-in drafts
+
+    Your chat content is encrypted in your browser before it is synced. Your memories, sensitive app settings, privacy settings, and signed-in drafts are also encrypted before storage or sync.
+
+    For signed-in users, draft text and draft previews are encrypted before being saved for cross-device sync. PII replacement happens when you send a message; an unsent draft may still contain the original values, but the synced draft itself is encrypted before it leaves your browser.
+
+    Logged-out drafts are different: they stay only in your browser's local session storage and are not synced to OpenMates.
+
+    ## Honest encryption model
+
+    OpenMates is not end-to-end encrypted. Our servers must briefly decrypt some content in memory to do the job you asked for, such as generating an AI response, rendering an invoice, or delivering a reminder.
+
+    The important difference is that plaintext is not written to disk, logs, traces, or backups. Stored chat content is ciphertext. If someone only gets access to the database or backups, they should not be able to read your past chats without your key.
+
+    ## No tracking business model
+
+    OpenMates is not funded by ads or selling user data. We do not use Google Analytics, PostHog, Plausible, Segment, or similar third-party analytics SDKs in the app.
+
+    Operational logging exists so the service can work, detect abuse, and debug failures, but it is designed to avoid storing chat content and to minimize user identifiers.
+
+    ## Account deletion
+
+    When you delete your account, OpenMates deletes the account data we control: chats, messages, embeds, drafts, memories, app settings, usage rows, device/session data, API keys, passkeys, and related sync data.
+
+    We also delete the encryption key. That means any leftover encrypted backup or stale cache copy becomes unreadable ciphertext.
+
+    Some limited records can remain for legal, security, or provider-side reasons, such as invoice records, security audit logs, short-lived AI provider request logs, redacted observability traces, or encrypted backups until their lifecycle expires. The exact list belongs in the [Privacy Policy](/legal/privacy), not on this intro page.
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion for privacy intro chat
+  en: How does PII replacement work?
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion for privacy intro chat
+  en: What exactly is encrypted?
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion for privacy intro chat
+  en: What remains after account deletion?
+  verified_by_human: []

@@ -1,0 +1,83 @@
+title:
+  context: Title of safety intro chat explaining OpenMates AI safety measures
+  en: OpenMates | Safety
+  verified_by_human: []
+description:
+  context: Description of safety intro chat for SEO
+  en: How OpenMates reduces harmful instructions, hallucinations, unsafe advice, and prompt injection risks
+  verified_by_human: []
+message:
+  context: Main safety intro message content explaining product safety protections in plain English
+  en: |
+    # Safer AI by design
+
+    AI chatbots can be useful, but they can also be wrong, overconfident, manipulated, or unsafe. OpenMates does not treat the model as a trusted authority. We add safety checks around the model so risky requests, external content, tool use, and sensitive topics get extra handling.
+
+    These systems reduce risk. They do not make AI perfect, and they do not replace professional help, careful verification, or common sense.
+
+    ## Harmful instructions and misuse
+
+    Before the main AI response runs, OpenMates analyzes the request for harmful or illegal intent and for misuse risk.
+
+    Harmful or illegal requests can be refused before they reach the normal answer path. Misuse risk is handled separately, so requests that could enable scams, hacking, or abuse get extra scrutiny even if they are phrased indirectly.
+
+    The safety check also tries to preserve legitimate use. For example, harm-reduction or defensive cybersecurity questions are different from instructions to harm someone or break into systems.
+
+    ## Mental health and crisis situations
+
+    Self-harm and crisis messages are not treated as bad user behavior to punish or block. OpenMates routes them toward the psychology and life-coaching area so the response can be more careful and supportive.
+
+    For mental-health, medical, legal, and financial topics, OpenMates adds disclaimers through product logic instead of hoping the AI remembers. The AI should not be treated as a therapist, doctor, lawyer, financial adviser, or source of truth about reality.
+
+    This matters for AI psychosis risk too. OpenMates should avoid reinforcing delusions, dependency, or claims of special hidden meaning. The product can reduce that risk with routing, disclaimers, and careful instructions, but it cannot guarantee that every AI response is safe for every mental state.
+
+    ## Hallucinations and wrong sources
+
+    AI models sometimes invent facts, links, tool results, or source names. OpenMates reduces this in several ways:
+
+    - It narrows available tools before the main model responds.
+    - It validates tool names instead of allowing arbitrary invented tools.
+    - It checks provider names against known provider lists.
+    - It validates markdown links and can replace broken links with search links.
+
+    You should still verify important facts, medical/legal/financial advice, and anything that could affect real-world decisions.
+
+    ## Prompt injection from external content
+
+    Websites, PDFs, videos, code, metadata, and search results can contain hidden or visible instructions that try to manipulate the AI. This is called prompt injection.
+
+    OpenMates uses multiple defenses:
+
+    - Hidden Unicode and ASCII-smuggling characters are stripped.
+    - External text can be scanned by a safety model for prompt-injection attempts.
+    - Suspicious injection text can be removed or replaced before it reaches the main model.
+    - The web interface keeps prompt-injection scanning enforced.
+
+    This is especially important because OpenMates apps can read external content for you. The AI should use that content as data, not blindly obey instructions found inside it.
+
+    ## Prompt injection by the user
+
+    Users can also try to manipulate internal routing by asking the preprocessing step to call tools, ignore rules, or reveal hidden data.
+
+    OpenMates limits this by isolating preprocessing. The preprocessing model is given one analysis function, not the app tools. If a user tells it to call `web-search`, `images-generate`, or another tool at that stage, those tools are not available there.
+
+    After preprocessing, OpenMates only exposes the main model to tools that were selected as relevant for the request. This reduces the chance of arbitrary or invented tool use.
+
+    ## Image and file safety
+
+    Uploaded files and generated images need their own safety rules. OpenMates scans uploaded media and has a stricter image-generation safety policy for dangerous edits, identity abuse, sexual content involving minors, non-consensual intimate imagery, and other high-risk cases.
+
+    Image safety is a separate system because images create different risks than text chat.
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion for safety intro chat
+  en: How does prompt injection protection work?
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion for safety intro chat
+  en: Can OpenMates still hallucinate?
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion for safety intro chat
+  en: What happens with crisis or mental-health topics?
+  verified_by_human: []

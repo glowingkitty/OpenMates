@@ -969,20 +969,12 @@ export const saveDraftDebounced = debounce(
       return;
     }
 
-    // Debug logging for draft updates
-    console.log("💾 [DraftService] Saving draft as encrypted markdown:", {
+    console.debug("[DraftService] Saving encrypted draft:", {
       chatId: currentChatIdForOperation,
-      cleartext: contentMarkdown,
-      cleartextLength: contentMarkdown.length,
-      encrypted: encryptedMarkdown.substring(0, 100) + "...",
+      markdownLength: contentMarkdown.length,
       encryptedLength: encryptedMarkdown.length,
-      previewText: previewText,
       previewLength: previewText?.length || 0,
-      encryptedPreview: encryptedPreview
-        ? encryptedPreview.substring(0, 50) + "..."
-        : null,
       encryptedPreviewLength: encryptedPreview?.length || 0,
-      tiptapJSON: contentJSON,
     });
 
     // If content is empty, treat as clearing/deleting the draft
@@ -1354,62 +1346,4 @@ export function flushSaveDraft() {
   if (!editor) return;
   console.info("[DraftService] Flushing draft operation.");
   saveDraftDebounced.flush();
-}
-
-/**
- * Deletes the current chat.
- * This is a more explicit delete action than just clearing a draft.
- */
-async function deleteCurrentChat() {
-  const currentState = get(draftEditorUIState); // Use renamed store
-  const chatIdToDelete = currentState.currentChatId;
-
-  if (!chatIdToDelete) {
-    console.warn("[DraftService] No current chat selected to delete.");
-    return;
-  }
-
-  console.info(`[DraftService] Attempting to delete chat: ${chatIdToDelete}`);
-
-  try {
-    // Optimistically clear editor and reset UI state FIRST, so user sees immediate effect.
-    // clearEditorAndResetDraftState will set currentChatId to null.
-    clearEditorAndResetDraftState(false);
-
-    // Delete from IndexedDB first (also cleans up associated embeds)
-    console.debug(
-      `[DraftService] Deleting chat from IndexedDB: ${chatIdToDelete}`,
-    );
-    const { deletedEmbedIds } = await chatDB.deleteChat(chatIdToDelete);
-    console.debug(
-      `[DraftService] Chat deleted from IndexedDB: ${chatIdToDelete}, cleaned up ${deletedEmbedIds.length} embeds`,
-    );
-
-    // Dispatch chatDeleted event AFTER deletion to update UI components
-    console.debug(
-      `[DraftService] Dispatching chatDeleted event for UI update: ${chatIdToDelete}`,
-    );
-    chatSyncService.dispatchEvent(
-      new CustomEvent("chatDeleted", { detail: { chat_id: chatIdToDelete } }),
-    );
-    console.debug(
-      `[DraftService] chatDeleted event dispatched for chat: ${chatIdToDelete}`,
-    );
-
-    // Send delete request to server (includes embed IDs to delete)
-    await chatSyncService.sendDeleteChat(chatIdToDelete, deletedEmbedIds);
-    console.info(
-      `[DraftService] Sent delete_chat request for ${chatIdToDelete} with ${deletedEmbedIds.length} embed deletions.`,
-    );
-    // UI list update is handled by chatDeleted event dispatched above
-  } catch (error) {
-    console.error(
-      `[DraftService] Error deleting chat ${chatIdToDelete}:`,
-      error,
-    );
-    // Handle error, maybe revert UI state if needed, though optimistic clear already happened.
-    // If server fails, sync on reconnect should resolve.
-    // For now, we assume the optimistic local clear is acceptable UX.
-    // To be more robust, one might re-fetch chat list or show error.
-  }
 }

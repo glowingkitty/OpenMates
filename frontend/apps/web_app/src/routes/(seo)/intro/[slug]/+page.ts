@@ -3,9 +3,9 @@
 // Prerender configuration for intro chat SEO pages at /intro/[slug].
 //
 // ARCHITECTURE:
-//   The 3 intro chats (for-everyone, for-developers, who-develops-openmates) are
-//   bundled statically with the frontend — no backend API call needed. We prerender
-//   all 3 slugs at build time, producing zero-cost static HTML files.
+//   Intro chats are bundled statically with the frontend — no backend API call
+//   needed. We prerender all known slugs at build time, producing zero-cost
+//   static HTML files.
 //
 //   Unlike the community demo chat pages (prerender='auto' with SSR fallback),
 //   these are fully static: the set of slugs is fixed in code, so prerender=true
@@ -16,7 +16,7 @@
 
 import type { EntryGenerator } from './$types';
 
-// Fully static — all 3 slugs are known at build time, no SSR fallback needed
+// Fully static — all slugs are known at build time, no SSR fallback needed
 export const prerender = true;
 
 // SSR must be true for server-side rendering (required for prerender)
@@ -26,10 +26,16 @@ export const ssr = true;
 export const csr = true;
 
 /**
- * The 3 intro chats bundled with the frontend.
+ * The intro chats bundled with the frontend.
  * These slugs must match the `slug` field on each DemoChat in:
  *   frontend/packages/ui/src/demo_chats/data/
  */
 export const entries: EntryGenerator = () => {
-	return [{ slug: 'for-everyone' }, { slug: 'for-developers' }, { slug: 'who-develops-openmates' }];
+	return [
+		{ slug: 'for-everyone' },
+		{ slug: 'privacy' },
+		{ slug: 'safety' },
+		{ slug: 'for-developers' },
+		{ slug: 'who-develops-openmates' }
+	];
 };

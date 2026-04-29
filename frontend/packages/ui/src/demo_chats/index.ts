@@ -1,5 +1,7 @@
 import type { DemoChat } from "./types";
 import { forEveryoneChat } from "./data/for_everyone";
+import { privacyChat } from "./data/privacy";
+import { safetyChat } from "./data/safety";
 import { forDevelopersChat } from "./data/for_developers";
 import { whoDevelopsOpenmatesChat } from "./data/who_develops_openmates";
 import { LEGAL_CHATS } from "../legal";
@@ -72,9 +74,11 @@ export { loadDefaultInspirations } from "./loadDefaultInspirations";
  */
 export const INTRO_CHATS: DemoChat[] = [
   forEveryoneChat,
+  privacyChat,
+  safetyChat,
   forDevelopersChat,
   whoDevelopsOpenmatesChat,
-  // Privacy, Terms, Imprint are NOT intro chats - they're accessed via /privacy, /terms, /imprint routes
+  // Legal Privacy, Terms, and Imprint are not intro chats; they are accessed via /legal/* routes.
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Legacy alias for backwards compatibility - prefer using INTRO_CHATS
