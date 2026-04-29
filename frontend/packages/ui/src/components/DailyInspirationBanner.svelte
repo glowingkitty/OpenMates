@@ -43,6 +43,8 @@
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
 
+  const MOBILE_EMBED_ROTATION_INTERVAL_MS = 5000;
+
   // ─── Component props ────────────────────────────────────────────────────────
 
   interface Props {
@@ -81,6 +83,10 @@
   // Whether the banner wrapper is currently intersecting the viewport.
   // Set by the IntersectionObserver mounted in onMount.
   let isBannerVisible = $state(false);
+
+  // On mobile, alternate between the assistant message and video preview instead
+  // of squeezing both into the narrow banner width.
+  let showMobileEmbed = $state(false);
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -187,6 +193,24 @@
     sendViewedEvent(id);
   });
 
+  // Mobile video loop: start on the assistant message, then alternate message ↔ embed.
+  $effect(() => {
+    if (!shouldCycleMobileEmbed) {
+      showMobileEmbed = false;
+      return;
+    }
+
+    void currentIndex;
+    void embedPreviewId;
+    showMobileEmbed = false;
+
+    const interval = window.setInterval(() => {
+      showMobileEmbed = !showMobileEmbed;
+    }, MOBILE_EMBED_ROTATION_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  });
+
   // ─── Derived values ─────────────────────────────────────────────────────────
 
   /** Currently displayed inspiration. */
@@ -225,7 +249,15 @@
    * When containerWidth is 0 (unknown) we default to hiding the embed to avoid
    * a layout flash.
    */
-  let hasVideo = $derived(!!current?.video?.youtube_id && containerWidth >= 520);
+  let hasAttachedVideo = $derived(!!current?.video?.youtube_id);
+
+  /** Whether the banner is rendered in the narrow mobile layout. */
+  let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
+
+  /** Whether mobile should alternate between the assistant message and embed. */
+  let shouldCycleMobileEmbed = $derived(hasAttachedVideo && isMobileBannerLayout);
+
+  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileEmbed));
 
   /**
    * The embed_id to use for VideoEmbedPreview.
@@ -410,7 +442,11 @@
         </div>
 
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
-        <div class="banner-content">
+        <div
+          class="banner-content"
+          class:mobile-embed-loop={shouldCycleMobileEmbed}
+          class:show-mobile-embed={shouldCycleMobileEmbed && showMobileEmbed}
+        >
 
           <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
           <div class="banner-left">
@@ -921,8 +957,63 @@
       line-clamp: 4;
     }
 
+    .banner-content.mobile-embed-loop {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .banner-content.mobile-embed-loop .banner-left,
+    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      transition:
+        opacity 420ms ease,
+        transform 420ms ease;
+    }
+
+    .banner-content.mobile-embed-loop .banner-left {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .banner-content.mobile-embed-loop.show-mobile-embed .banner-left {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+    }
+
     .banner-embed-wrapper {
       width: 140px;
+    }
+
+    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+      margin: 0;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      justify-content: center;
+    }
+
+    .banner-content.mobile-embed-loop.show-mobile-embed .banner-embed-wrapper {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.embed-preview-container) {
+      width: min(100%, 220px);
+      height: 100%;
+      max-width: 220px;
+      margin: 0 auto;
+    }
+
+    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
+      width: 100% !important;
+      min-width: unset !important;
+      max-width: unset !important;
+      height: 100% !important;
+      max-height: unset !important;
     }
 
     .banner-mate-profile {
