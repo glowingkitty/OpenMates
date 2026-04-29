@@ -196,7 +196,7 @@
 
 <style>
 	main {
-		max-width: 820px;
+		max-width: 1050px;
 		margin: 0 auto;
 		padding: 24px;
 		font-family:
@@ -208,8 +208,8 @@
 	.summary { font-size: 16px; color: #555; margin: 0 0 24px; line-height: 1.6; }
 	.announcement-hero {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(220px, 360px);
-		gap: 24px;
+		grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+		gap: 28px;
 		align-items: center;
 		margin-bottom: 24px;
 	}

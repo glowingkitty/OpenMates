@@ -1510,9 +1510,9 @@
     z-index: var(--z-index-raised-2);
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 28px;
     width: 100%;
-    max-width: 700px;
+    max-width: 1050px;
     padding: 14px 40px 12px;
     height: 100%;
     box-sizing: border-box;
@@ -1555,7 +1555,7 @@
 
   .teaser-split-right {
     flex-shrink: 0;
-    width: min(220px, 42%);
+    width: min(420px, 48%);
     align-self: center;
     display: flex;
     align-items: center;
