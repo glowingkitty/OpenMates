@@ -436,4 +436,41 @@ test.describe('language selection — English-first with browser suggestion', ()
 		log('✓ ?lang=de applies German directly, no notification shown.');
 		await context.close();
 	});
+
+	// ── 10 ─────────────────────────────────────────────────────────────────
+	test('?lang=de intro chat title renders in German without reload (race condition guard)', async ({
+		browser
+	}) => {
+		test.setTimeout(90000);
+
+		const log = createSignupLogger('LANG_URL_INTRO_CHAT');
+		const takeScreenshot = createStepScreenshotter(log);
+		await archiveExistingScreenshots(log);
+
+		// English-browser context so the page would default to English
+		const context = await browser.newContext();
+		const page = await context.newPage();
+		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+
+		log('Navigating with ?lang=de, checking intro chat sidebar title...');
+		await page.goto(getE2EDebugUrl('/?lang=de'));
+		await waitForLocaleInit(page);
+		// Extra buffer for language-changed-complete propagation to Chats.svelte
+		await page.waitForTimeout(2000);
+		await takeScreenshot(page, '01-after-lang-param');
+
+		// The for-everyone intro chat title in German is "OpenMates | Für alle".
+		// If the race condition exists it will be "OpenMates | For everyone" (English).
+		log('Checking intro chat title in German...');
+		const germanTitle = page.getByText('OpenMates | Für alle');
+		await expect(germanTitle).toBeVisible({ timeout: 5000 });
+		await takeScreenshot(page, '02-german-intro-chat');
+
+		// Confirm English title is NOT present
+		const englishTitle = page.getByText('OpenMates | For everyone');
+		await expect(englishTitle).not.toBeVisible();
+
+		log('✓ Intro chat title renders in German without reload confirmed.');
+		await context.close();
+	});
 });
