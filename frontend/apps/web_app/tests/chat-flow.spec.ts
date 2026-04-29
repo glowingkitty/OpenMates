@@ -74,7 +74,7 @@ const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./hel
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const { openSignupInterface } = require('./helpers/chat-test-helpers');
+const { isSignupInterfaceVisible, openSignupInterface } = require('./helpers/chat-test-helpers');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -899,9 +899,10 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// After logout: the app stays on the same SPA page but shows the "Login / Sign up" button
 	// URL hash changes to demo-for-everyone
 	await page.waitForTimeout(3000);
-	const loginSignupBtn = page.getByTestId('header-login-signup-btn');
-	await expect(loginSignupBtn).toBeVisible({ timeout: 15000 });
-	logChatCheckpoint('Logout confirmed — "Login / Sign up" button visible.');
+	await expect(async () => {
+		expect(await isSignupInterfaceVisible(page, 1000)).toBe(true);
+	}).toPass({ timeout: 15000 });
+	logChatCheckpoint('Logout confirmed — login/signup interface visible.');
 	await takeStepScreenshot(page, '07-logged-out');
 
 	// =========================================================================
