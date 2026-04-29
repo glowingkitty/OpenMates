@@ -71,9 +71,12 @@
      *  is mounted inside the media frame and native browser fullscreen is requested.
      *  No video is loaded before the user clicks play. */
     videoMp4Url = null,
+    /** Tiny silent preview video that can autoplay safely before the full video is clicked. */
+    videoTeaserUrl = null,
+    /** WebP poster/fallback for the silent teaser. */
+    videoTeaserWebpUrl = null,
     /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
-     *  16:9 media frame. These are the only media assets the header ever loads —
-     *  the video is loaded on demand when the user clicks the play button. */
+     *  16:9 media frame. Used when no compact teaser video is configured. */
     backgroundFrames = null,
     /** Aggregated highlight counts across all messages in this chat. When
      *  `highlights > 0`, a yellow pill is rendered below the summary. Clicking
@@ -103,6 +106,10 @@
     /** MP4 URL — gates the play button in the media frame. The video is only
      *  loaded by the fullscreen embed after the user clicks play. */
     videoMp4Url?: string | null;
+    /** Tiny silent preview video that can autoplay safely before the full video is clicked. */
+    videoTeaserUrl?: string | null;
+    /** WebP poster/fallback for the silent teaser. */
+    videoTeaserWebpUrl?: string | null;
     /** Image URLs for the crossfading Ken-Burns slideshow inside the media frame. */
     backgroundFrames?: string[] | null;
     /** Aggregated highlight counts across all messages in this chat. */
@@ -116,9 +123,10 @@
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
-  const useSlideshow = $derived(Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
+  const useTeaser = $derived(!!videoTeaserUrl || !!videoTeaserWebpUrl);
+  const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
-  const hasHeaderMedia = $derived(useSlideshow || !!videoMp4Url);
+  const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
 
   // ─── In-place video player ────────────────────────────────────────────────
   //
@@ -555,6 +563,31 @@
                 />
               {/each}
             </div>
+          {/if}
+
+          {#if useTeaser}
+            {#if videoTeaserUrl}
+              <video
+                class="header-teaser-video"
+                src={videoTeaserUrl}
+                poster={videoTeaserWebpUrl ?? undefined}
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+                aria-hidden="true"
+              ></video>
+            {:else if videoTeaserWebpUrl}
+              <img
+                class="header-teaser-image"
+                src={videoTeaserWebpUrl}
+                alt=""
+                loading="eager"
+                decoding="async"
+                aria-hidden="true"
+              />
+            {/if}
           {/if}
 
           {#if videoMp4Url && !isVideoActive}
@@ -1333,6 +1366,17 @@
                headerSlideKB1 calc(var(--slide-count) * 8s) infinite ease-in-out;
     animation-delay: calc(var(--slide-index) * -8s), calc(var(--slide-index) * -8s);
     will-change: opacity, transform;
+  }
+
+  .header-teaser-video,
+  .header-teaser-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    background: #1a1a1a;
   }
 
   /* Timing based on 13 frames (slot = 7.692% of cycle, fade-in window = 1.8%).

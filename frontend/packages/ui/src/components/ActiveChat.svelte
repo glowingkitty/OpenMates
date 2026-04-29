@@ -10034,10 +10034,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isNewChatCreditsError}
                          {isCreditsRestored}
                          isIncognito={!!currentChat?.is_incognito}
-                         isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
-                         canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
-                         videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
-                         backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
+                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
+                          canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                          videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
+                          videoTeaserUrl={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_teaser_url ?? null; })()}
+                          videoTeaserWebpUrl={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_teaser_webp_url ?? null; })()}
+                          backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                          autoplayVideo={pendingAutoplayVideo}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}

@@ -519,6 +519,8 @@
     isIncognito = false,
     isExampleChat = false,
     videoMp4Url = null,
+    videoTeaserUrl = null,
+    videoTeaserWebpUrl = null,
     backgroundFrames = null,
     autoplayVideo = false,
     followUpSuggestions = [],
@@ -565,9 +567,12 @@
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
-     *  no video is ever loaded by the header itself; the fullscreen embed loads
-     *  the MP4 on demand when the user clicks play. */
+     *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
+    /** Tiny silent autoplay teaser rendered before the user clicks the full video. */
+    videoTeaserUrl?: string | null;
+    /** WebP poster/fallback for the silent autoplay teaser. */
+    videoTeaserWebpUrl?: string | null;
     /** Background frame image URLs rendered inside the chat header's 16:9 media
      *  frame as a crossfading Ken-Burns slideshow. */
     backgroundFrames?: string[] | null;
@@ -1659,6 +1664,8 @@
                 {isIncognito}
                 {isExampleChat}
                 {videoMp4Url}
+                {videoTeaserUrl}
+                {videoTeaserWebpUrl}
                 {backgroundFrames}
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}

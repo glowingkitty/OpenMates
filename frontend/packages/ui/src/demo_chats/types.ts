@@ -33,6 +33,10 @@ export interface DemoChat {
 		video_mp4_url?: string;
 		/** Thumbnail image URL for the video (shown in the fullscreen embed before play). */
 		video_thumbnail_url?: string;
+		/** Tiny silent autoplay teaser served by OpenMates before the full video is clicked. */
+		video_teaser_url?: string;
+		/** WebP poster/fallback for the silent autoplay teaser. */
+		video_teaser_webp_url?: string;
 		/** Timestamp in seconds where the background video should start playing. */
 		video_start_time?: number;
 		/** Optional list of static image URLs used as a crossfading Ken-Burns slideshow in the
