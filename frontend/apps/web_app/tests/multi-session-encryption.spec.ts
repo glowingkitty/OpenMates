@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Multi-Session Encryption Test
@@ -33,11 +32,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -433,6 +432,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 				logsA,
 				logA
 			);
+			await assertChatKeyInvariants(pageA, chatId, `SESSION-A-chat${chatNum}`, logA);
 
 			// ── Session B: Wait for the chat to appear in sidebar ─────────
 			// The chat should arrive via real-time WebSocket sync.
@@ -449,6 +449,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 				logsB,
 				logB
 			);
+			await assertChatKeyInvariants(pageB, chatId, `SESSION-B-chat${chatNum}`, logB);
 
 			await screenshotB(pageB, `chat${chatNum}-verified-b`);
 			logA(`Chat ${chatNum} verified on both sessions — no decryption errors.`);

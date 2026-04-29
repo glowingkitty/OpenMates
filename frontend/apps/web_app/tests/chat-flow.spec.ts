@@ -71,6 +71,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
+const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -708,6 +709,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	} else {
 		logChatCheckpoint('window.inspectChat not available — skipping client-side data check.');
 	}
+	await assertChatKeyInvariants(page, chatId, 'initial', logChatCheckpoint);
 
 	// =========================================================================
 	// PHASE 4: Sidebar + message health check (initial state)
@@ -861,6 +863,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 			logChatCheckpoint('✅ Key fingerprint matches initial phase after reload.');
 		}
 	}
+	await assertChatKeyInvariants(page, chatId, 'after_reload', logChatCheckpoint);
 
 	// Assert no encryption errors during the reload phase (only logs from Phase 5 onward)
 	assertNoEncryptionErrors(consoleLogs.slice(phase5LogStart), chatId, logChatCheckpoint, 'after_reload');
@@ -977,6 +980,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 			);
 		}
 	}
+	await assertChatKeyInvariants(page, chatId, 'after_relogin', logChatCheckpoint);
 
 	// CRITICAL: Assert no encryption errors after re-login (only logs from Phase 7 onward).
 	// This catches the exact bug where encryptChatForStorage created new keys

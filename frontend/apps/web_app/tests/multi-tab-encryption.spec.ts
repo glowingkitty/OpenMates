@@ -43,6 +43,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -442,6 +443,8 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 			logsB,
 			logB
 		);
+		await assertChatKeyInvariants(tabA, chatId, 'TAB-A', logA);
+		await assertChatKeyInvariants(tabB, chatId, 'TAB-B', logB);
 
 		logA('TEST-01 PASSED: Both tabs decrypted the same chat correctly.');
 	} catch (error) {
@@ -547,6 +550,7 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 			logsB,
 			logB
 		);
+		await assertChatKeyInvariants(tabB, chatId, 'TAB-B-cross-tab', logB);
 
 		// Verify: zero decryption errors in tab B
 		if (logsB.decryptionErrors.length > 0) {
@@ -671,6 +675,7 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 			logsFresh,
 			logFresh
 		);
+		await assertChatKeyInvariants(freshTab, chatId, 'FRESH-TAB', logFresh);
 
 		// Verify: zero decryption errors
 		if (logsFresh.decryptionErrors.length > 0) {
