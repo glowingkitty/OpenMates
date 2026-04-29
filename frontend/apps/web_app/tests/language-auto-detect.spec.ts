@@ -481,4 +481,35 @@ test.describe('language selection — English-first with browser suggestion', ()
 		log('✓ Both active chat and sidebar title render in German on first load.');
 		await context.close();
 	});
+
+	// ── 11 ─────────────────────────────────────────────────────────────────
+	test('?lang=es active chat content renders in Spanish on first load (parity with German)', async ({
+		browser
+	}) => {
+		test.setTimeout(90000);
+
+		const log = createSignupLogger('LANG_URL_ES_INTRO_CHAT');
+		const takeScreenshot = createStepScreenshotter(log);
+		await archiveExistingScreenshots(log);
+
+		const context = await browser.newContext();
+		const page = await context.newPage();
+		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+
+		log('Navigating with ?lang=es...');
+		await page.goto(getE2EDebugUrl('/?lang=es'));
+		await waitForLocaleInit(page);
+		await takeScreenshot(page, '01-after-lang-param');
+
+		// Spanish for-everyone H1: "Compañeros de equipo digitales para todos"
+		log('Checking that the active chat message body is in Spanish...');
+		await expect(page.getByText('Compañeros de equipo digitales', { exact: false }))
+			.toBeVisible({ timeout: 10000 });
+		await takeScreenshot(page, '02-spanish-active-chat');
+
+		await expect(page.getByText('Digital team mates for everyone', { exact: false })).not.toBeVisible();
+
+		log('✓ Active chat renders in Spanish on first load.');
+		await context.close();
+	});
 });
