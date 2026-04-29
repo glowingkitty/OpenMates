@@ -1526,15 +1526,30 @@
 			if (langParam && supportedLocales.includes(langParam)) {
 				console.debug(`[+page.svelte] Setting locale from URL parameter: ${langParam}`);
 
-				// Set the locale
+				// Set the locale and wait for translations to fully load
 				locale.set(langParam);
 				await waitLocale();
 
 				// Save to localStorage (sole source of truth for language preference)
 				localStorage.setItem('preferredLanguage', langParam);
 
-				// Update HTML lang attribute
+				// Update HTML lang + dir attributes (RTL languages need dir="rtl")
 				document.documentElement.setAttribute('lang', langParam);
+				document.documentElement.setAttribute(
+					'dir',
+					isRtlLanguage(langParam) ? 'rtl' : 'ltr'
+				);
+
+				// Notify all components that depend on language-changed events.
+				// This matches the event flow in SettingsLanguage.svelte and ensures
+				// components like Chats.svelte (intro chat titles), DailyInspirationBanner,
+				// and ActiveChat re-render with the correct locale after ?lang= param.
+				setTimeout(() => {
+					window.dispatchEvent(new CustomEvent('language-changed'));
+					setTimeout(() => {
+						window.dispatchEvent(new CustomEvent('language-changed-complete'));
+					}, 50);
+				}, 0);
 
 				// Remove the lang parameter from URL (cleaner URL after setting preference)
 				const newUrl = new URL(window.location.href);

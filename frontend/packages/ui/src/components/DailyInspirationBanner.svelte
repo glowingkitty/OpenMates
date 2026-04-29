@@ -935,42 +935,34 @@
 
   /* ── Large-display embed upgrade (≥1400px) ───────────────────────────────
      On very wide screens the 220px embed card looks undersized. We widen
-     .banner-inner to give each flex column ≈403px (just over the 400px
-     container-query threshold), then declare the embed wrapper as a CSS
-     container so UnifiedEmbedPreview's @container rule activates the same
-     full-width×400px "large" layout used in AI chat responses. The wrapper's
-     max-width: 440px acts as the user-requested cap. */
+     .banner-inner to give each flex column ≈403px, then size the embed at
+     16:9 (width-driven height) so it looks like a proper video thumbnail
+     rather than the square that a fixed 400px height would produce. */
   @media (min-width: 1400px) {
-    /* Taller floor so the 400px card fits with room to spare */
-    .daily-inspiration-banner {
-      min-height: 420px;
-    }
-
-    /* Wider inner content area: each column gets ~403px → triggers container query */
+    /* Wider inner content area: gives both text and embed more horizontal room */
     .banner-inner {
       max-width: 900px;
     }
 
-    /* Establish the CSS container context that activates UnifiedEmbedPreview's
-       @container embed-preview (min-width: 401px) large-layout rules */
+    /* Widen the embed slot; max-width: 440px is the user-requested cap */
     .banner-embed-wrapper {
-      container-type: inline-size;
-      container-name: embed-preview;
-      max-width: 440px; /* cap so it never dominates the layout on ultra-wides */
+      max-width: 440px;
     }
 
-    /* Lift the 220px/252px caps; the container query now controls dimensions */
+    /* 16:9 aspect ratio — height derives from the actual rendered width so the
+       card always looks like a video thumbnail, never a square */
     .banner-embed-wrapper :global(.embed-preview-container) {
       max-width: 440px;
-      height: 400px;
+      aspect-ratio: 16 / 9;
+      height: auto;
     }
 
-    /* Suppress the margins added by the container query — the banner uses
-       overflow:hidden and a fixed height, so external margins would be lost
-       anyway, and margin-top would shift the card down undesirably */
+    /* Let the inner embed card fill the aspect-ratio container; override the
+       fixed 200px desktop height, min-height and max-height from UnifiedEmbedPreview */
     .banner-embed-wrapper :global(.unified-embed-preview) {
-      margin-top: 0 !important;
-      margin-bottom: 0 !important;
+      height: 100% !important;
+      min-height: unset !important;
+      max-height: unset !important;
     }
   }
 </style>
