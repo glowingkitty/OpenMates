@@ -280,21 +280,23 @@
     const navigation = resolveHeaderSwipeNavigation({
       deltaX,
       deltaY,
-      hasPrevious: navState.hasPrev,
-      hasNext: navState.hasNext,
+      // Chat lists are newest-first. A right-to-left gesture should move to the
+      // previous recent chat, which is the store's "next" item in sorted order.
+      hasPrevious: navState.hasNext,
+      hasNext: navState.hasPrev,
     });
 
     if (navigation === 'previous') {
       e.preventDefault();
       touchSwipeHandled = true;
-      navigatePrev();
+      navigateNext();
       return;
     }
 
     if (navigation === 'next') {
       e.preventDefault();
       touchSwipeHandled = true;
-      navigateNext();
+      navigatePrev();
     }
   }
 
@@ -781,10 +783,10 @@
        Visible in all banner states (loading, credits error, loaded) — once the user has
        sent a message they should be able to switch chats at any time without restriction.
        Use pointer-events:auto to override the banner's pointer-events:none. -->
-  {#if navState.hasNext}
+  {#if navState.hasPrev}
     <button
       class="nav-arrow nav-arrow-left"
-      onclick={handleNext}
+      onclick={handlePrevious}
       data-testid="chat-header-next"
       aria-label={$text('chat.header.next_chat')}
       type="button"
@@ -792,10 +794,10 @@
       <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
     </button>
   {/if}
-  {#if navState.hasPrev}
+  {#if navState.hasNext}
     <button
       class="nav-arrow nav-arrow-right"
-      onclick={handlePrevious}
+      onclick={handleNext}
       data-testid="chat-header-previous"
       aria-label={$text('chat.header.previous_chat')}
       type="button"

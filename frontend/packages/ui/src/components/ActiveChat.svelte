@@ -1664,6 +1664,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             history.replaceState(null, '', `#chat-id=${currentChat.chat_id}`);
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
+
+        void remountChatHeaderAfterFullscreenClose();
     }
     
     // ===========================================
@@ -3053,6 +3055,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeChatDecryptedIcon = $state<string | null>(null);
     // Decrypted chat summary shown in the header below the title (available after post-processing).
     let activeChatDecryptedSummary = $state<string | null>(null);
+    // Bumped after closing embed fullscreen so ChatHeader remounts after layout classes settle.
+    let chatHeaderRenderKey = $state(0);
     // Mate name captured from the mate_selected preprocessing step, used for the
     // "{Mate} is typing..." spinner text after model_selected arrives.
     let selectedPreprocessingMateName = $state<string | null>(null);
@@ -3095,6 +3099,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         activeChatDecryptedCategory = null;
         activeChatDecryptedIcon = null;
         activeChatDecryptedSummary = null;
+    }
+
+    async function remountChatHeaderAfterFullscreenClose() {
+        await tick();
+        chatHeaderRenderKey += 1;
     }
 
     // ─── Credits restoration detection ─────────────────────────────────────────
@@ -10029,6 +10038,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatCategory={activeChatDecryptedCategory}
                          chatIcon={activeChatDecryptedIcon}
                          chatSummary={activeChatDecryptedSummary}
+                         {chatHeaderRenderKey}
                          chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
                          {isNewChatGeneratingTitle}
                          {isNewChatCreditsError}

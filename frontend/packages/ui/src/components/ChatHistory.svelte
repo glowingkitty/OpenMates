@@ -509,6 +509,7 @@
     chatCategory = null,
     chatIcon = null,
     chatSummary = null,
+    chatHeaderRenderKey = 0,
     chatCreatedAt = null,
     isNewChatGeneratingTitle = false,
     isNewChatCreditsError = false,
@@ -540,6 +541,8 @@
     chatIcon?: string | null;
     /** Decrypted chat summary — shown as 14px text below the title if available. */
     chatSummary?: string | null;
+    /** Incremented by ActiveChat when fullscreen layout changes require a clean header repaint. */
+    chatHeaderRenderKey?: number;
     /** Unix timestamp in seconds of when the chat was created. Used for the "Started ..." time in the header banner. */
     chatCreatedAt?: number | null;
     /** True while the server is still generating the title/category/icon for a new chat.
@@ -1654,6 +1657,7 @@
          Scrolls naturally with the content because it lives in the scroll container. -->
     {#if showChatHeader}
         <div class="chat-header-wrapper" bind:this={headerWrapperEl}>
+            {#key `${currentChatId ?? 'new'}:${chatHeaderRenderKey}`}
             <ChatHeader
                 title={chatTitle}
                 category={chatCategory}
@@ -1674,6 +1678,7 @@
                 {autoplayVideo}
                 {showSignupCta}
             />
+            {/key}
         </div>
     {/if}
 

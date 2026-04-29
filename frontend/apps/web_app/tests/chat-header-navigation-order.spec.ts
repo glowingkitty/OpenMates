@@ -4,10 +4,10 @@ export {};
 /**
  * Regression guard for ChatHeader navigation order.
  *
- * The header controls must navigate through chats in the exact order rendered
- * by Chats.svelte. The right-side control and a right-to-left swipe both move
- * to the previous item in that sidebar order; the left-side control and reverse
- * swipe move to the next item.
+ * The header controls navigate through the newest-first chat order rendered by
+ * Chats.svelte. The right-side control and a right-to-left swipe move to the
+ * previous recent chat (older item); the left-side control and reverse swipe
+ * move back toward newer items.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -71,7 +71,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 				nodes.map((node) => (node.textContent || '').trim()).filter(Boolean)
 			);
 
-		const selectedIndex = orderedTitles.findIndex((title, index, titles) => {
+		const selectedIndex = orderedTitles.findIndex((title: string, index: number, titles: string[]) => {
 			if (index === 0 || index === titles.length - 1) return false;
 			return [titles[index - 1], title, titles[index + 1]].every(
 				(candidate) => !INTRO_CHAT_TITLES.has(candidate)
@@ -79,26 +79,26 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		});
 
 		expect(selectedIndex).toBeGreaterThan(0);
-		const previousTitle = orderedTitles[selectedIndex - 1];
+		const newerTitle = orderedTitles[selectedIndex - 1];
 		const selectedTitle = orderedTitles[selectedIndex];
-		const nextTitle = orderedTitles[selectedIndex + 1];
+		const olderTitle = orderedTitles[selectedIndex + 1];
 
 		await chatItems.nth(selectedIndex).click();
 		await expectHeaderTitle(page, selectedTitle);
 
 		await page.getByTestId('chat-header-previous').click();
-		await expectHeaderTitle(page, previousTitle);
+		await expectHeaderTitle(page, olderTitle);
 
 		await page.getByTestId('chat-header-next').click();
 		await expectHeaderTitle(page, selectedTitle);
 
 		await swipeHeader(page, 360, 240);
-		await expectHeaderTitle(page, previousTitle);
+		await expectHeaderTitle(page, olderTitle);
 
 		await swipeHeader(page, 240, 360);
 		await expectHeaderTitle(page, selectedTitle);
 
 		await page.getByTestId('chat-header-next').click();
-		await expectHeaderTitle(page, nextTitle);
+		await expectHeaderTitle(page, newerTitle);
 	});
 });
