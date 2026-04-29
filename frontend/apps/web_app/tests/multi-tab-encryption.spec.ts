@@ -43,7 +43,7 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -358,11 +358,10 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 		await screenshotA(tabA, 'logged-in');
 
 		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
-		// Authenticated users auto-redirect to /chat.
-		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
+		logB('Tab B navigating to / (shared session)...');
 		await tabB.goto(getE2EDebugUrl('/'));
-		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
-		logB('Tab B reached /chat -- authenticated via shared cookies.');
+		await waitForChatReady(tabB, logB, TAB_NAVIGATION_TIMEOUT_MS);
+		logB('Tab B authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
 
 		// Wait for initial sync to complete on both tabs
@@ -475,10 +474,10 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 		await screenshotA(tabA, 'logged-in');
 
 		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
-		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
+		logB('Tab B navigating to / (shared session)...');
 		await tabB.goto(getE2EDebugUrl('/'));
-		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
-		logB('Tab B reached /chat.');
+		await waitForChatReady(tabB, logB, TAB_NAVIGATION_TIMEOUT_MS);
+		logB('Tab B authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
 
 		// Wait for initial sync
@@ -618,9 +617,8 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 
 		logFresh('Fresh tab navigating to / (already authenticated via shared cookies)...');
 		await freshTab.goto(getE2EDebugUrl('/'));
-		// Wait for redirect to /chat (authenticated users are auto-redirected)
-		await freshTab.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
-		logFresh('Fresh tab reached /chat.');
+		await waitForChatReady(freshTab, logFresh, TAB_NAVIGATION_TIMEOUT_MS);
+		logFresh('Fresh tab authenticated via shared cookies.');
 		await screenshotFresh(freshTab, 'loaded');
 
 		// Step 6: Find and open the test chat in sidebar
