@@ -59,7 +59,10 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 		video: {
 			mp4_url: chat.metadata.video_mp4_url ?? null,
 			hls_url: chat.metadata.video_hls_url ?? null,
-			thumbnail_url: chat.metadata.video_thumbnail_url ?? null
+			thumbnail_url: chat.metadata.video_thumbnail_url ?? null,
+			teaser_url: chat.metadata.video_teaser_url ?? null,
+			teaser_mp4_url: chat.metadata.video_teaser_mp4_url ?? null,
+			teaser_webp_url: chat.metadata.video_teaser_webp_url ?? null
 		},
 		canonicalUrl,
 		jsonLd: JSON.stringify(jsonLd),

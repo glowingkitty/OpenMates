@@ -56,6 +56,7 @@
 
   let {
     title = '',
+    currentChatId = null,
     category = null,
     icon = null,
     summary = null,
@@ -93,6 +94,7 @@
     showSignupCta = false,
   }: {
     title?: string;
+    currentChatId?: string | null;
     category?: string | null;
     icon?: string | null;
     summary?: string | null;
@@ -131,6 +133,9 @@
   const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
+  const introTeaserCopyLines = ['AI team mates.', 'For everyday tasks & learning.', 'With privacy & safety by design.'];
+  const isIntroTeaserChat = $derived(currentChatId === 'demo-for-everyone');
+  const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [title]);
 
   // ─── In-place video player ────────────────────────────────────────────────
   //
@@ -143,10 +148,62 @@
   let touchStartX = $state(0);
   let touchStartY = $state(0);
   let touchSwipeHandled = $state(false);
+  let teaserVideoBoxEl = $state<HTMLElement | null>(null);
+  let isTeaserVideoHovering = $state(false);
+  let teaserMouseX = $state(0);
+  let teaserMouseY = $state(0);
+
+  const TEASER_TILT_MAX_ANGLE = 3;
+  const TEASER_TILT_PERSPECTIVE = 800;
+  const TEASER_TILT_SCALE = 0.985;
+
+  let teaserTiltTransform = $derived.by(() => {
+    if (!isTeaserVideoHovering) return '';
+    const rotateY = teaserMouseX * TEASER_TILT_MAX_ANGLE;
+    const rotateX = -teaserMouseY * TEASER_TILT_MAX_ANGLE;
+    return `perspective(${TEASER_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TEASER_TILT_SCALE})`;
+  });
 
   function handlePlayClick(e: MouseEvent) {
     e.stopPropagation();
     isVideoActive = true;
+  }
+
+  function handleTeaserPreviewClick(e: MouseEvent) {
+    e.stopPropagation();
+    if (!videoMp4Url) return;
+    isVideoActive = true;
+  }
+
+  function handleTeaserPreviewKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!videoMp4Url) return;
+    isVideoActive = true;
+  }
+
+  function handleTeaserMouseEnter(e: MouseEvent) {
+    isTeaserVideoHovering = true;
+    updateTeaserMousePosition(e);
+  }
+
+  function handleTeaserMouseMove(e: MouseEvent) {
+    if (!isTeaserVideoHovering || !teaserVideoBoxEl) return;
+    updateTeaserMousePosition(e);
+  }
+
+  function handleTeaserMouseLeave() {
+    isTeaserVideoHovering = false;
+    teaserMouseX = 0;
+    teaserMouseY = 0;
+  }
+
+  function updateTeaserMousePosition(e: MouseEvent) {
+    if (!teaserVideoBoxEl) return;
+    const rect = teaserVideoBoxEl.getBoundingClientRect();
+    teaserMouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    teaserMouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
   }
 
   // Once the video element is bound after isVideoActive flips, autoplay and
@@ -529,7 +586,7 @@
            on the right. The full MP4 is still mounted only after play click. -->
       <div class="teaser-split-layout">
 
-        <!-- Left column: icon + title + summary + time -->
+        <!-- Left column: fixed intro teaser copy -->
         <div class="teaser-split-left">
           {#if IconComponent}
             <div class="loaded-icon" data-testid="chat-header-icon">
@@ -537,20 +594,21 @@
             </div>
           {/if}
 
-          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-               never render as HTML to prevent stored XSS via prompt injection. -->
-          <span class="loaded-title teaser-title" data-testid="chat-header-title">{title}</span>
+          <div class="teaser-copy" aria-label={teaserCopyLines.join(' ')}>
+            {#each teaserCopyLines as line, index}
+              <span
+                class="loaded-title teaser-title teaser-copy-line"
+                data-testid={index === 0 ? 'chat-header-title' : undefined}
+              >{line}</span>
+            {/each}
+          </div>
 
           {#if isExampleChat}
             <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {/if}
 
-          {#if showSummary}
+          {#if !isIntroTeaserChat && showSummary}
             <p class="loaded-summary teaser-summary" data-testid="chat-header-summary">{summary}</p>
-          {/if}
-
-          {#if showTime}
-            <span class="loaded-time teaser-time">{formattedTime}</span>
           {/if}
 
           {#if showSignupCta}
@@ -566,7 +624,22 @@
 
         <!-- Right column: teaser video in a rounded, contained box -->
         <div class="teaser-split-right">
-          <div class="teaser-video-box">
+          <div
+            bind:this={teaserVideoBoxEl}
+            class="teaser-video-box"
+            class:hovering={isTeaserVideoHovering}
+            class:clickable={!!videoMp4Url}
+            role="button"
+            tabindex="0"
+            aria-label={videoMp4Url ? 'Play video' : undefined}
+            data-testid="chat-header-teaser-video-box"
+            style={teaserTiltTransform ? `transform: ${teaserTiltTransform};` : ''}
+            onclick={handleTeaserPreviewClick}
+            onkeydown={handleTeaserPreviewKeydown}
+            onmouseenter={handleTeaserMouseEnter}
+            onmousemove={handleTeaserMouseMove}
+            onmouseleave={handleTeaserMouseLeave}
+          >
             {#if videoTeaserUrl || videoTeaserMp4Url}
               <video
                 class="teaser-video-preview"
@@ -589,15 +662,13 @@
             {/if}
 
             {#if videoMp4Url && !isVideoActive}
-              <button
-                class="video-play-btn"
-                onclick={handlePlayClick}
-                type="button"
-                aria-label="Play video"
+              <div
+                class="video-play-btn teaser-video-play-affordance"
                 data-testid="chat-header-play-btn"
+                aria-hidden="true"
               >
                 <div class="video-play-icon" aria-hidden="true"></div>
-              </button>
+              </div>
             {/if}
 
             {#if isVideoActive && videoMp4Url}
@@ -1431,8 +1502,8 @@
 
   /* ─── Teaser split layout (text left + video right) ────────────────────────
      Mirrors DailyInspirationBanner's split: orbs are the gradient backdrop,
-     text column on the left, teaser video in a rounded contained box on the right.
-     Below 520px the video box is hidden so the text gets the full width. */
+     text column on the left, teaser video in a rounded 16:9 box on the right.
+     On narrow mobile, text and video alternate because both cannot fit at once. */
 
   .teaser-split-layout {
     position: relative;
@@ -1459,43 +1530,69 @@
     gap: var(--spacing-2);
   }
 
+  .teaser-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .teaser-copy-line {
+    display: block;
+  }
+
   /* Left-align and uncap text lines in the split layout */
   .teaser-title {
     text-align: left !important;
-    -webkit-line-clamp: 4 !important;
-    line-clamp: 4 !important;
+    -webkit-line-clamp: 1 !important;
+    line-clamp: 1 !important;
   }
 
   .teaser-summary {
     text-align: left !important;
-    -webkit-line-clamp: 4 !important;
-    line-clamp: 4 !important;
-  }
-
-  .teaser-time {
-    text-align: left !important;
+    -webkit-line-clamp: 3 !important;
+    line-clamp: 3 !important;
   }
 
   .teaser-split-right {
     flex-shrink: 0;
-    width: 220px;
-    align-self: stretch;
+    width: min(220px, 42%);
+    align-self: center;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    /* Pull flush with the banner's vertical edges (matches banner-inner padding offsets) */
-    margin-top: -15px;
-    margin-bottom: -12px;
   }
 
   .teaser-video-box {
     position: relative;
     width: 100%;
-    height: min(calc(100% + 15px + 12px), 252px);
+    aspect-ratio: 16 / 9;
     border-radius: var(--radius-4);
     overflow: hidden;
     background: #1a1a1a;
     box-shadow: var(--shadow-lg);
+    transition: transform var(--duration-fast) var(--easing-default),
+                box-shadow var(--duration-fast) var(--easing-default);
+    transform-style: preserve-3d;
+  }
+
+  .teaser-video-box.clickable {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .teaser-video-box.hovering {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.12),
+      0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .teaser-video-box.clickable:active {
+    transform: scale(0.96) !important;
+    transition: transform 0.05s ease-out;
+  }
+
+  .teaser-video-play-affordance {
+    pointer-events: none;
   }
 
   .teaser-video-preview {
@@ -1507,8 +1604,76 @@
   }
 
   @media (max-width: 520px) {
+    .teaser-split-layout {
+      display: block;
+      max-width: 100%;
+      padding: 16px 48px;
+    }
+
+    .teaser-split-left,
     .teaser-split-right {
-      display: none;
+      position: absolute;
+      inset: 16px 48px;
+      width: auto;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .teaser-split-left {
+      animation: mobileTeaserTextCycle 8s infinite ease-in-out;
+    }
+
+    .teaser-split-right {
+      opacity: 0;
+      animation: mobileTeaserVideoCycle 8s infinite ease-in-out;
+    }
+
+    .teaser-copy {
+      align-items: flex-start;
+      max-width: 280px;
+    }
+
+    .teaser-title {
+      font-size: var(--font-size-lg);
+    }
+
+    .teaser-video-box {
+      width: min(100%, 280px);
+    }
+
+    .teaser-video-box.hovering {
+      transform: none !important;
+    }
+  }
+
+  @keyframes mobileTeaserTextCycle {
+    0%, 45% { opacity: 1; transform: translateY(0); }
+    55%, 90% { opacity: 0; transform: translateY(-8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes mobileTeaserVideoCycle {
+    0%, 45% { opacity: 0; transform: translateY(8px); }
+    55%, 90% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(8px); }
+  }
+
+  @media (max-width: 520px) and (prefers-reduced-motion: reduce) {
+    .teaser-split-layout {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: var(--spacing-4);
+    }
+
+    .teaser-split-left,
+    .teaser-split-right {
+      position: static;
+      inset: auto;
+      animation: none !important;
+      opacity: 1;
     }
   }
 

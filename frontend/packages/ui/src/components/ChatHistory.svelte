@@ -1660,6 +1660,7 @@
             {#key `${currentChatId ?? 'new'}:${chatHeaderRenderKey}`}
             <ChatHeader
                 title={chatTitle}
+                {currentChatId}
                 category={chatCategory}
                 icon={chatIcon}
                 summary={chatSummary}
