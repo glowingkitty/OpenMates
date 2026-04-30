@@ -12063,6 +12063,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .center-content.welcome-hiding,
     .top-buttons.welcome-hiding {
         opacity: 0;
+        pointer-events: none;
         visibility: hidden;
         transition: opacity 200ms ease, visibility 0s 200ms;
     }
