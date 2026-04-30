@@ -26,11 +26,32 @@ Three-step workflow on dev (mandatory order):
        One email via Brevo to a single address (no subscriber list,
        no sent_at write).
 
-    3. --send
-       Broadcast to every confirmed subscriber whose
-       ``categories[<this issue's category>]`` is true. Prompts for a
-       typed ``SEND`` confirmation, refuses piped stdin, and writes
-       ``sent_at`` to the manifest so the next accidental re-run aborts.
+       Domain selection for links inside the email:
+         --test-to  → links point to app.dev.openmates.org (dev webapp)
+         --send     → links point to openmates.org (prod webapp)
+       Override with --base-url if you need prod links in a test send
+       (e.g. --base-url https://openmates.org).
+
+    3. --send --admin-email <email>
+       Sends preview emails (EN + DE) to the admin, waits for the admin to
+       type "received and checked", then broadcasts to all eligible subscribers.
+
+       Before sending to each subscriber, checks the ``newsletter_deliveries``
+       Directus collection and skips anyone already recorded as ``sent`` for
+       this slug — so the script is safe to re-run or resume after a failure.
+
+       Broadcasts to every confirmed subscriber whose
+       ``categories[<this issue's category>]`` is true. Prompts for a typed
+       ``SEND`` confirmation, refuses piped stdin, and writes ``sent_at`` to
+       the manifest so the next accidental re-run aborts.
+
+       --resume  Skip the admin preview and "received and checked" prompt when
+                 resuming a partially completed broadcast. Already-sent
+                 subscribers are skipped via Directus delivery records.
+
+       --simulate  Dry-run the full broadcast loop (Directus checks, status
+                   bar, summary) without actually sending any emails. Use this
+                   to verify the progress bar and delivery-check logic.
 
 Usage:
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
@@ -39,8 +60,30 @@ Usage:
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
         --slug <slug> --test-to testing@openmates.org --lang en
 
+    # Test send with prod links (to verify final URLs before broadcast):
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
-        --slug <slug> --send
+        --slug <slug> --test-to admin@openmates.org --lang en \\
+        --base-url https://openmates.org
+
+    # Normal broadcast:
+    docker exec -it api python /app/backend/scripts/send_newsletter.py \\
+        --slug <slug> --send --admin-email admin@openmates.org
+
+    # Simulate broadcast (no emails sent, exercises status bar):
+    docker exec -it api python /app/backend/scripts/send_newsletter.py \\
+        --slug <slug> --send --admin-email admin@openmates.org --simulate
+
+    # Resume after connection failure:
+    docker exec -it api python /app/backend/scripts/send_newsletter.py \\
+        --slug <slug> --send --admin-email admin@openmates.org --resume
+
+Directus prerequisite:
+    The ``newsletter_deliveries`` collection must exist with fields:
+        slug (string), subscriber_id (string), status (string),
+        lang (string), sent_at (datetime).
+    Create it via the Directus admin UI or a migration before first use.
+    Without it the script logs a warning and proceeds without duplicate-send
+    protection — delivery records will not be written.
 """
 
 from __future__ import annotations
@@ -54,9 +97,10 @@ import logging
 import os
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import aiohttp
 import yaml
@@ -112,6 +156,67 @@ INTRO_THUMBNAIL_PATH_TEMPLATE = (
     "frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-{lang}.jpg"
 )
 
+
+# ── Status bar ──────────────────────────────────────────────────────────────
+
+class StatusBar:
+    """In-place terminal progress bar for the broadcast loop.
+
+    Writes a single line to stdout using ``\\r`` so it overwrites itself on
+    each update. All INFO-level log output is suppressed on the root logger
+    while the bar is active so vault/service chatter doesn't break the line.
+    Call ``finish()`` to emit a final newline and restore log levels.
+    """
+
+    def __init__(self, total: int, simulate: bool = False) -> None:
+        self.total = total
+        self.simulate = simulate
+        self.sent = 0
+        self.failed = 0
+        self.skipped = 0
+        self._start = time.monotonic()
+        self._root_logger = logging.getLogger()
+        self._saved_level = self._root_logger.level
+        self._root_logger.setLevel(logging.WARNING)
+
+    def update(self, sent: int, failed: int, skipped: int) -> None:
+        self.sent = sent
+        self.failed = failed
+        self.skipped = skipped
+        self._render()
+
+    def _eta(self, done: int) -> str:
+        if done == 0:
+            return "?"
+        elapsed = time.monotonic() - self._start
+        remaining = (elapsed / done) * (self.total - done)
+        if remaining < 60:
+            return f"{int(remaining)}s"
+        return f"{int(remaining // 60)}m {int(remaining % 60)}s"
+
+    def _render(self) -> None:
+        done = self.sent + self.failed + self.skipped
+        pct = int(done / self.total * 100) if self.total else 0
+        bar_width = 24
+        filled = int(bar_width * done / self.total) if self.total else 0
+        bar = "█" * filled + "░" * (bar_width - filled)
+        w = len(str(self.total))
+        sim = "  [SIMULATE]" if self.simulate else ""
+        line = (
+            f"\r  {bar} {pct:3d}%  {done:{w}}/{self.total}"
+            f"  sent:{self.sent}  failed:{self.failed}"
+            f"  skipped:{self.skipped}  eta:{self._eta(done)}{sim}   "
+        )
+        sys.stdout.write(line)
+        sys.stdout.flush()
+
+    def finish(self) -> None:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        self._root_logger.setLevel(self._saved_level)
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _mask_email(email: str) -> str:
     if not email or "@" not in email:
@@ -299,13 +404,68 @@ async def fetch_subscribers(directus: DirectusService) -> List[Dict[str, Any]]:
     return resp.json().get("data", [])
 
 
+async def fetch_delivered_subscriber_ids(slug: str, directus: DirectusService) -> Set[str]:
+    """Return subscriber IDs that already have a ``sent`` delivery record for this slug.
+
+    Used to skip already-sent subscribers on every run — not just --resume.
+    Returns an empty set (with a warning) if the collection doesn't exist yet.
+    """
+    url = f"{directus.base_url}/items/newsletter_deliveries"
+    params = {
+        "fields": "subscriber_id",
+        "filter[slug][_eq]": slug,
+        "filter[status][_eq]": "sent",
+        "limit": "-1",
+    }
+    resp = await directus._make_api_request("GET", url, params=params)
+    if resp.status_code in (403, 404):
+        logger.warning(
+            "newsletter_deliveries collection not found or inaccessible. "
+            "Create it in Directus — see script docstring for required fields. "
+            "Proceeding without duplicate-send protection."
+        )
+        return set()
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Failed to fetch delivery records: {resp.status_code} {resp.text[:200]}"
+        )
+    return {row["subscriber_id"] for row in resp.json().get("data", [])}
+
+
+async def record_delivery(
+    slug: str,
+    subscriber_id: str,
+    status: str,
+    lang: str,
+    directus: DirectusService,
+) -> None:
+    """Write a delivery record to newsletter_deliveries in Directus.
+
+    Silently skips (with a warning) if the collection doesn't exist.
+    """
+    url = f"{directus.base_url}/items/newsletter_deliveries"
+    payload = {
+        "slug": slug,
+        "subscriber_id": subscriber_id,
+        "status": status,
+        "lang": lang,
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+    }
+    resp = await directus._make_api_request("POST", url, json=payload)
+    if resp.status_code not in (200, 201):
+        logger.warning(f"Failed to record delivery for subscriber {subscriber_id}: {resp.status_code}")
+
+
 def build_unsubscribe_url(token: Optional[str], base_url: str) -> Optional[str]:
     if not token:
         return None
     return f"{base_url}/#settings/newsletter/unsubscribe/{token}"
 
 
-def prompt_confirmation(eligible_count: int, manifest: Dict[str, Any]) -> bool:
+def prompt_confirmation(eligible_count: int, manifest: Dict[str, Any], simulate: bool = False) -> bool:
+    if simulate:
+        print(f"\n[SIMULATE] Auto-confirming broadcast to {eligible_count} subscribers.")
+        return True
     if not sys.stdin.isatty():
         logger.error(
             "Refusing to broadcast: stdin is not a TTY. "
@@ -431,6 +591,48 @@ async def send_one(
     )
 
 
+def _print_summary(
+    slug: str,
+    stats: Dict[str, int],
+    lang_breakdown: Dict[str, int],
+    failed_ids: List[str],
+    simulate: bool,
+    audit_path: Path,
+) -> None:
+    """Print and persist the post-broadcast summary."""
+    sim_note = "  [SIMULATE — no emails were actually sent]\n" if simulate else ""
+    lines = [
+        "",
+        "=" * 60,
+        f"  Newsletter: {slug}",
+        f"  Finished:   {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}",
+        sim_note.rstrip() or "",
+        "-" * 60,
+        f"  Sent:                    {stats['sent']}",
+        f"  Failed:                  {stats['failed']}",
+        f"  Skipped (already sent):  {stats['skipped_already_sent']}",
+        f"  Skipped (opted out):     {stats['skipped_category_off']}",
+        f"  Skipped (ignored):       {stats['skipped_ignored']}",
+        f"  Skipped (decrypt error): {stats['skipped_decrypt_failed']}",
+        "-" * 60,
+        "  Language breakdown:",
+    ]
+    for lang_code, count in sorted(lang_breakdown.items(), key=lambda kv: -kv[1]):
+        lines.append(f"    {lang_code}: {count}")
+    if failed_ids:
+        lines += ["-" * 60, "  Failed subscriber IDs (check audit log for details):"]
+        for fid in failed_ids:
+            lines.append(f"    {fid}")
+    lines += ["-" * 60, f"  Audit log: {audit_path}", "=" * 60, ""]
+
+    output = "\n".join(lines)
+    print(output)
+
+    summary_path = AUDIT_LOG_DIR / f"{slug}-summary.txt"
+    summary_path.write_text(output, encoding="utf-8")
+    print(f"  Summary written to: {summary_path}\n")
+
+
 async def run(args: argparse.Namespace) -> int:
     # ── Load manifest ────────────────────────────────────────────────────
     if not args.slug:
@@ -452,8 +654,12 @@ async def run(args: argparse.Namespace) -> int:
         override=args.base_url,
         for_test_send=bool(args.test_to) and not args.send,
     )
+    logger.info(
+        f"Base URL: {base_url}  "
+        f"({'dev' if base_url == DEV_WEBAPP_BASE else 'prod'} webapp — "
+        f"use --base-url to override)"
+    )
     landing_url = build_landing_url(manifest, base_url)
-    logger.info(f"Base URL: {base_url}")
     logger.info(f"Landing URL: {landing_url}")
 
     # Thumbnails are rendered per-recipient in ``send_one`` so EN and DE users
@@ -515,13 +721,64 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 2
 
-    # Double-send guard: if the manifest already has sent_at, demand an explicit override.
-    if manifest.get("sent_at") and not args.resend_confirm:
+    if not args.admin_email:
         logger.error(
-            f"Issue {manifest['slug']} was already sent at {manifest['sent_at']}. "
-            "Pass --resend-confirm to re-broadcast intentionally."
+            "--admin-email is required with --send. "
+            "The script sends you preview emails (EN + DE) before broadcasting "
+            "so you can verify they look correct. "
+            "Example: --admin-email you@openmates.org"
         )
         return 2
+
+    # Double-send guard: if the manifest already has sent_at, demand an explicit override
+    # (unless --resume, which implies the send was partial and we're continuing).
+    if manifest.get("sent_at") and not args.resend_confirm and not args.resume:
+        logger.error(
+            f"Issue {manifest['slug']} was already sent at {manifest['sent_at']}. "
+            "Pass --resume to continue a partial send, or --resend-confirm to re-broadcast."
+        )
+        return 2
+
+    if not args.simulate and not sys.stdin.isatty():
+        logger.error(
+            "Refusing to broadcast: stdin is not a TTY. "
+            "Use `docker exec -it api python ...` so the prompt is interactive."
+        )
+        return 2
+
+    # ── Admin preview emails (skipped on --resume and --simulate) ────────
+    if not args.resume and not args.simulate:
+        logger.info(
+            f"Sending preview emails (EN + DE) to {_mask_email(args.admin_email)} "
+            f"with links pointing to {base_url} ..."
+        )
+        for preview_lang in SUPPORTED_LANGS:
+            ok = await send_one(
+                email_template_service=email_template_service,
+                manifest=manifest,
+                recipient_email=args.admin_email,
+                recipient_lang=preview_lang,
+                darkmode=False,
+                base_url=base_url,
+                unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/PREVIEW-TOKEN",
+                is_registered=True,
+            )
+            if not ok:
+                logger.error(f"Failed to send {preview_lang.upper()} preview email — aborting.")
+                return 1
+            logger.info(f"Preview {preview_lang.upper()} sent.")
+
+        print("\n" + "=" * 72)
+        print(f"Preview emails (EN + DE) sent to {_mask_email(args.admin_email)}.")
+        print("Open them, check all links, formatting, and subject lines.")
+        print("=" * 72)
+        answer = input('Type "received and checked" to continue (anything else cancels): ').strip()
+        if answer != "received and checked":
+            logger.info("Broadcast cancelled — admin did not confirm preview receipt.")
+            return 0
+        logger.info("Admin confirmed preview receipt. Proceeding to broadcast.")
+    else:
+        logger.info("--resume: skipping admin preview and confirmation prompt.")
 
     # Landing-page live check (skippable only in dev, where the page may
     # not be deployed yet but the admin is iterating).
@@ -548,6 +805,12 @@ async def run(args: argparse.Namespace) -> int:
         s for s in subscribers
         if is_subscriber_allowed_for_category(s.get("categories"), manifest["category"])
     ]
+    opted_out = len(subscribers) - len(eligible)
+
+    # Fetch Directus delivery records — always checked, not just on --resume.
+    delivered_ids = await fetch_delivered_subscriber_ids(manifest["slug"], directus)
+    already_sent_count = sum(1 for s in eligible if s.get("id") in delivered_ids)
+
     lang_breakdown: Dict[str, int] = {}
     registered_count = 0
     non_registered_count = 0
@@ -558,41 +821,62 @@ async def run(args: argparse.Namespace) -> int:
         else:
             non_registered_count += 1
 
+    sim_label = "  [SIMULATE — no emails will be sent]\n" if args.simulate else ""
     print(f"\n{'=' * 52}")
     print(f"  Newsletter: {manifest['slug']}")
     print(f"  Category:   {manifest['category']}")
     print(f"  Total eligible: {len(eligible)}")
+    if already_sent_count:
+        print(f"  Already sent (will skip): {already_sent_count}")
+    print(f"  To send now: {len(eligible) - already_sent_count}")
     print(f"{'=' * 52}")
     print(f"\n  Registered users (manage settings link): {registered_count}")
     print(f"  Non-registered subscribers (unsubscribe link): {non_registered_count}")
     print("\n  Language breakdown:")
     for lang_code, count in sorted(lang_breakdown.items(), key=lambda kv: -kv[1]):
         print(f"    {lang_code}: {count}")
-    opted_out = len(subscribers) - len(eligible)
     if opted_out:
         print(f"\n  Skipping {opted_out} who opted out of '{manifest['category']}'")
+    if sim_label:
+        print(f"\n{sim_label}", end="")
     print()
 
-    if not prompt_confirmation(len(eligible), manifest):
+    if not prompt_confirmation(len(eligible) - already_sent_count, manifest, simulate=args.simulate):
         logger.info("Broadcast cancelled by user.")
         return 0
 
     audit_path = open_audit_log(manifest["slug"])
     logger.info(f"Audit log: {audit_path}")
 
-    stats = {
+    stats: Dict[str, int] = {
         "sent": 0,
         "failed": 0,
+        "skipped_already_sent": already_sent_count,
         "skipped_ignored": 0,
         "skipped_decrypt_failed": 0,
         "skipped_category_off": opted_out,
     }
     total = len(eligible)
+    failed_ids: List[str] = []
 
-    for idx, sub in enumerate(eligible, 1):
+    status_bar = StatusBar(total=total, simulate=args.simulate)
+    # Seed the bar with already-skipped count so it starts at the right position.
+    status_bar.update(0, 0, already_sent_count)
+
+    for sub in eligible:
         sub_id = sub.get("id", "unknown")
         hashed_email = sub.get("hashed_email", "")
         encrypted_email = sub.get("encrypted_email_address", "")
+
+        # Skip already-delivered (checked on every run, not just --resume).
+        if sub_id in delivered_ids:
+            append_audit(
+                audit_path,
+                {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_already_sent"},
+            )
+            # already counted in stats["skipped_already_sent"] above
+            status_bar.update(stats["sent"], stats["failed"], stats["skipped_already_sent"] + stats["skipped_ignored"] + stats["skipped_decrypt_failed"])
+            continue
 
         if hashed_email and await check_ignored_email(hashed_email, directus):
             stats["skipped_ignored"] += 1
@@ -600,17 +884,19 @@ async def run(args: argparse.Namespace) -> int:
                 audit_path,
                 {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_ignored"},
             )
+            status_bar.update(stats["sent"], stats["failed"], stats["skipped_already_sent"] + stats["skipped_ignored"] + stats["skipped_decrypt_failed"])
             continue
 
         try:
             email = await encryption.decrypt_newsletter_email(encrypted_email)
         except Exception as exc:  # noqa: BLE001
-            logger.error(f"[{idx}/{total}] decrypt failed for {sub_id}: {exc}")
+            logger.warning(f"decrypt failed for subscriber {sub_id}: {exc}")
             stats["skipped_decrypt_failed"] += 1
             append_audit(
                 audit_path,
                 {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "status": "skipped_decrypt_failed"},
             )
+            status_bar.update(stats["sent"], stats["failed"], stats["skipped_already_sent"] + stats["skipped_ignored"] + stats["skipped_decrypt_failed"])
             continue
 
         lang = sub.get("language", "en")
@@ -618,45 +904,48 @@ async def run(args: argparse.Namespace) -> int:
         darkmode = bool(sub.get("darkmode", False))
         is_registered = sub.get("user_registration_status") == "signup_complete"
 
-        success = await send_one(
-            email_template_service=email_template_service,
-            manifest=manifest,
-            recipient_email=email,
-            recipient_lang=lang,
-            darkmode=darkmode,
-            base_url=base_url,
-            unsubscribe_url=unsub,
-            is_registered=is_registered,
-        )
+        if args.simulate:
+            await asyncio.sleep(0.05)
+            success = True
+        else:
+            success = await send_one(
+                email_template_service=email_template_service,
+                manifest=manifest,
+                recipient_email=email,
+                recipient_lang=lang,
+                darkmode=darkmode,
+                base_url=base_url,
+                unsubscribe_url=unsub,
+                is_registered=is_registered,
+            )
 
-        record = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "subscriber_id": sub_id,
-            "lang": lang,
-            "status": "sent" if success else "failed",
-        }
-        append_audit(audit_path, record)
+        status = "sent" if success else "failed"
+        append_audit(
+            audit_path,
+            {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "lang": lang, "status": status},
+        )
+        if not args.simulate:
+            await record_delivery(manifest["slug"], sub_id, status, lang, directus)
 
         if success:
             stats["sent"] += 1
-            logger.info(f"[{idx}/{total}] sent to {_mask_email(email)} ({lang})")
         else:
             stats["failed"] += 1
-            logger.error(f"[{idx}/{total}] FAILED send to {_mask_email(email)} ({lang})")
+            failed_ids.append(sub_id)
 
-        if idx < total:
+        status_bar.update(stats["sent"], stats["failed"], stats["skipped_already_sent"] + stats["skipped_ignored"] + stats["skipped_decrypt_failed"])
+
+        if not args.simulate:
             await asyncio.sleep(SEND_DELAY_SECONDS)
 
+    status_bar.finish()
+
     # Persist sent_at so a future accidental broadcast aborts.
-    if stats["sent"] > 0:
+    if stats["sent"] > 0 and not args.simulate:
         sent_at_iso = datetime.now(timezone.utc).isoformat()
         write_sent_at(manifest["slug"], sent_at_iso)
-        logger.info(f"Wrote sent_at={sent_at_iso} to manifest.")
 
-    logger.info("=" * 72)
-    logger.info(f"Broadcast complete: {stats}")
-    logger.info(f"Audit log: {audit_path}")
-    logger.info("=" * 72)
+    _print_summary(manifest["slug"], stats, lang_breakdown, failed_ids, args.simulate, audit_path)
 
     try:
         await directus.close()
@@ -685,6 +974,33 @@ def main() -> int:
     parser.add_argument("--render-to", type=str, default=None)
     parser.add_argument("--test-to", type=str, default=None)
     parser.add_argument("--send", action="store_true")
+    parser.add_argument(
+        "--admin-email",
+        type=str,
+        default=None,
+        help=(
+            "Admin email to receive preview emails (EN + DE) before broadcast. "
+            "Required with --send."
+        ),
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Resume a partially completed broadcast. Skips the admin preview emails "
+            "and 'received and checked' prompt. Already-sent subscribers are always "
+            "skipped via Directus delivery records regardless of this flag."
+        ),
+    )
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help=(
+            "Simulate the full broadcast loop without sending any emails. "
+            "Exercises Directus delivery checks, status bar, and summary output. "
+            "Delivery records are NOT written during simulation."
+        ),
+    )
     parser.add_argument("--resend-confirm", action="store_true", help="Override the sent_at double-send guard.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
@@ -692,9 +1008,8 @@ def main() -> int:
         type=str,
         default=None,
         help=(
-            "Override the webapp origin that appears in the email "
-            "(e.g. https://app.dev.openmates.org). Defaults to the dev webapp "
-            "for --test-to sends and to the prod webapp for --send."
+            "Override the webapp origin that appears in the email. "
+            "Default: app.dev.openmates.org for --test-to, openmates.org for --send."
         ),
     )
     args = parser.parse_args()
