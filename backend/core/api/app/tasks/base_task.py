@@ -22,6 +22,7 @@ from backend.shared.python_utils.celery_dedup import (
     DEDUP_KEY_PREFIX,
     DEFAULT_DEDUP_TTL_SECONDS,
     acquire_celery_task_dedup_lock,
+    release_celery_task_dedup_lock,
 )
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,28 @@ class DedupedTask(Task):
             f"ttl={self.dedup_ttl_seconds}s)"
         )
         return super().__call__(*args, **kwargs)
+
+    def on_retry(self, exc, task_id, args, kwargs, einfo):
+        """
+        Release the dedup lock before Celery schedules the retry.
+
+        Without this, the retry reuses the same task_id and hits the still-alive
+        NX lock, causing it to be silently skipped as a "duplicate". This was the
+        root cause of OPE-482 (PDF embed stuck forever after SightEngine failure).
+        """
+        if self.dedup_enabled and task_id:
+            broker_url = None
+            try:
+                from backend.core.api.app.tasks import celery_config as _cfg
+                broker_url = getattr(_cfg, "broker_url", None)
+            except Exception:
+                pass
+            release_celery_task_dedup_lock(task_id, broker_url=broker_url)
+            logger.info(
+                f"[Task {self.name} ID:{task_id}] DEDUP: Lock released for "
+                f"retry (attempt {getattr(self.request, 'retries', '?')})"
+            )
+        super().on_retry(exc, task_id, args, kwargs, einfo)
 
 
 # --- Base Task Class for Service Initialization ---

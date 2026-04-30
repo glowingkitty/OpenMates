@@ -251,9 +251,21 @@ class SightEngineService:
                 )
 
             if resp.status_code != 200:
+                # Distinguish quota exhaustion from true service outages.
+                # Quota exhaustion (free plan limit) should not block uploads —
+                # log a warning and skip the scan. True outages (5xx, network)
+                # still fail-closed. See OPE-483 for plan upgrade tracking.
+                resp_text = resp.text[:300]
+                if resp.status_code == 400 and "usage limit" in resp_text.lower():
+                    logger.warning(
+                        f"{log_prefix} SightEngine API quota exhausted (HTTP 400: "
+                        f"{resp_text[:100]}). Skipping safety scan — see OPE-483."
+                    )
+                    return ContentSafetyResult(is_safe=True), None
+
                 logger.error(
                     f"{log_prefix} Combined check API returned HTTP {resp.status_code}: "
-                    f"{resp.text[:200]} — failing CLOSED (upload rejected, service down)"
+                    f"{resp_text[:200]} — failing CLOSED (upload rejected, service down)"
                 )
                 return ContentSafetyResult(
                     is_safe=False,
