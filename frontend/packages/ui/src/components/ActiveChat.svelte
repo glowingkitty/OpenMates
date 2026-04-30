@@ -3819,7 +3819,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
 
     let startNewChatPlaceholderMode = $derived(
-        !!currentChat?.chat_id && !$authStore.isAuthenticated && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))
+        !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))
     );
     let showNewChatButtonBesideInput = $derived(
         createButtonVisible &&
