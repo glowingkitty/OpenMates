@@ -3922,7 +3922,15 @@ export async function handleSendEmbedDataImpl(
     // Without this, a transient failure (for example chat-key cache race while
     // wrapping key_type='chat') can permanently skip key-wrapper persistence.
     unmarkEmbedAsProcessed(embedData.embed_id);
-    console.error(
+
+    // Key-not-in-cache is an expected transient race during embed finalization —
+    // the renderer's stale-recovery path re-requests the embed once the chat key
+    // loads, so this is a warning, not an error. Genuine failures stay at error.
+    const isKeyRace =
+      error instanceof Error &&
+      error.message.includes("Chat key not in cache");
+    const logFn = isKeyRace ? console.warn : console.error;
+    logFn(
       `[ChatSyncService:AI] Error handling send_embed_data for embed ${embedData.embed_id}:`,
       error,
     );

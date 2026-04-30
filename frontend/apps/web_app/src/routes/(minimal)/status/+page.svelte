@@ -15,9 +15,18 @@
 	import TestsSection from './components/TestsSection.svelte';
 	import IncidentHistory from './components/IncidentHistory.svelte';
 
+	const PAGE_TITLE = 'OpenMates Status';
+
 	let loading = $state(true);
 	let error = $state('');
 	let data: StatusResponse | null = $state(null);
+
+	// The root layout's MetaTags component mounts after waitLocale() and sets
+	// <title>OpenMates</title>, overriding our <svelte:head> title. Reassert
+	// the correct title reactively so it wins regardless of mount order.
+	$effect(() => {
+		if (browser) document.title = PAGE_TITLE;
+	});
 
 	async function load() {
 		try {
@@ -39,7 +48,7 @@
 	});
 </script>
 
-<svelte:head><title>OpenMates Status</title></svelte:head>
+<svelte:head><title>{PAGE_TITLE}</title></svelte:head>
 
 <main>
 	{#if loading}

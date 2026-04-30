@@ -667,7 +667,7 @@
         </div>
 
         <!-- Right column: teaser video in a rounded, contained box -->
-        <div class="teaser-split-right" style={`--teaser-video-max-width: ${teaserVideoMaxWidth};`}>
+        <div class="teaser-split-right" data-testid="chat-header-media-frame" style={`--teaser-video-max-width: ${teaserVideoMaxWidth};`}>
           <div
             bind:this={teaserVideoBoxEl}
             class="teaser-video-box"
