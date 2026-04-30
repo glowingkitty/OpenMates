@@ -33,6 +33,7 @@
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
+    import { messageInputPlaceholderOverride } from './extensions/Placeholder';
 
     // Components
     import CameraView from './CameraView.svelte';
@@ -178,6 +179,10 @@
         isIncognitoMode?: boolean;
         /** Called when user clicks the toggle on the incognito pill to disable incognito mode. */
         onIncognitoPillDeactivate?: () => void;
+        /** Replaces the normal compose placeholder text when set. */
+        placeholderText?: string;
+        /** Treat the field as a CTA that starts a fresh chat instead of composing a reply. */
+        startNewChatOnClick?: boolean;
     }
     let { 
         currentChatId = undefined,
@@ -193,7 +198,9 @@
         onFocusPillDeepLink = undefined,
         onFocusPillDeactivate = undefined,
         isIncognitoMode = false,
-        onIncognitoPillDeactivate = undefined
+        onIncognitoPillDeactivate = undefined,
+        placeholderText = undefined,
+        startNewChatOnClick = false
     }: Props = $props();
 
     // --- Refs ---
@@ -338,11 +345,13 @@
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
     let shouldShowActionButtons = $derived(
-        isFullscreen ||
-        showActionButtons ||
-        isMessageFieldFocused ||
-        $recordingState.isRecordButtonPressed ||
-        $recordingState.showRecordAudioUI
+        !startNewChatOnClick && (
+            isFullscreen ||
+            showActionButtons ||
+            isMessageFieldFocused ||
+            $recordingState.isRecordButtonPressed ||
+            $recordingState.showRecordAudioUI
+        )
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -1335,6 +1344,7 @@
             element: editorElement,
             extensions: getEditorExtensions(),
             content: getInitialContent(),
+            editable: !startNewChatOnClick,
             onFocus: handleEditorFocus,
             onBlur: handleEditorBlur,
             onUpdate: handleEditorUpdate,
@@ -1828,6 +1838,12 @@
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
+        if (startNewChatOnClick) {
+            editor.commands.blur();
+            dispatch('startNewChat');
+            return;
+        }
+
         // Prevent auto-focus during initial mount phase
         // Only allow focus if it's user-initiated (not during initial mount)
         if (isInitialMount) {
@@ -2479,7 +2495,7 @@
                                         (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
                                 'enter_message.placeholder.touch' :
                                 'enter_message.placeholder.desktop';
-                            const newPlaceholderText = $text(key);
+                            const newPlaceholderText = placeholderText || $text(key);
                             
                             // Update the placeholder data attribute on the editor element
                             // TipTap's placeholder extension uses this attribute for display
@@ -3103,6 +3119,11 @@
      */
     function handleMessageWrapperMouseDown(event: MouseEvent) {
         const target = event.target as HTMLElement;
+
+        if (startNewChatOnClick) {
+            event.preventDefault();
+            return;
+        }
         
         // When MapsView is open, its overlay sits inside .message-field and contains
         // its own interactive elements (search input, buttons, map).
@@ -3146,6 +3167,13 @@
                 editor.commands.focus('end');
             }
         }
+    }
+
+    function handleStartNewChatPlaceholderClick(event: MouseEvent) {
+        if (!startNewChatOnClick) return;
+        event.preventDefault();
+        event.stopPropagation();
+        dispatch('startNewChat');
     }
 
     // --- UI Update Functions ---
@@ -4045,6 +4073,18 @@
             tick().then(updateHeight);
         }
     });
+
+    $effect(() => {
+        messageInputPlaceholderOverride.set(placeholderText ?? null);
+        if (editor && !editor.isDestroyed) {
+            editor.setEditable(!startNewChatOnClick);
+            editor.view.dispatch(editor.state.tr);
+        }
+
+        return () => {
+            messageInputPlaceholderOverride.set(null);
+        };
+    });
     
     // Track when action buttons visibility changes to update height
     $effect(() => {
@@ -4303,7 +4343,14 @@
 </script>
  
 <!-- Template -->
-<div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown} data-action="message-input">
+<div
+    bind:this={messageInputWrapper}
+    class="message-input-wrapper"
+    class:start-new-chat-only={startNewChatOnClick}
+    role="none"
+    onmousedown={handleMessageWrapperMouseDown}
+    data-action="message-input"
+>
     <!-- Edit mode banner — shown when user is editing a previous message -->
     {#if $editMessageStore && $editMessageStore.chatId === currentChatId}
         <div class="edit-banner">
@@ -4346,6 +4393,15 @@
         aria-multiline="true"
         tabindex="0"
     >
+        {#if startNewChatOnClick}
+            <button
+                class="start-new-chat-overlay"
+                type="button"
+                aria-label={placeholderText || 'Click to start a new chat'}
+                onclick={handleStartNewChatPlaceholderClick}
+            ></button>
+        {/if}
+
         <!-- Focus mode pill: shown when a focus mode is active.
              Absolutely positioned at the top of the message-field; the field gets extra
              padding-top (via .has-focus-pill) so text input does not collide with the pill.
@@ -4442,7 +4498,7 @@
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if (isFullscreen || hasContent || isMessageFieldFocused) && !showCamera && !showSketch && !showMaps}
+        {#if !startNewChatOnClick && (isFullscreen || hasContent || isMessageFieldFocused) && !showCamera && !showSketch && !showMaps}
             <button
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}

@@ -4,7 +4,10 @@ import { isContentEmptyExceptMention } from '../utils/editorHelpers';
 import type { Editor } from '@tiptap/core';
 import type { PlaceholderOptions } from '@tiptap/extension-placeholder';
 import { get } from 'svelte/store';
+import { writable } from 'svelte/store';
 import { text } from '@repo/ui'; // Use text store from @repo/ui for reactive translations
+
+export const messageInputPlaceholderOverride = writable<string | null>(null);
 
 // Helper function to detect touch device
 const isTouchDevice = () => {
@@ -21,6 +24,11 @@ export const CustomPlaceholder = Placeholder.extend<PlaceholderOptions>({
             placeholder: ({ editor }: { editor: Editor }) => {
                 // Only show placeholder when empty or just has mention and not focused
                 if ((editor.isEmpty || isContentEmptyExceptMention(editor)) && !editor.isFocused) {
+                    const override = get(messageInputPlaceholderOverride);
+                    if (override) {
+                        return override;
+                    }
+
                     // Get appropriate translation based on device type
                     // Use text store from @repo/ui which is reactive to language changes
                     const key = isTouchDevice() ? 
@@ -33,7 +41,7 @@ export const CustomPlaceholder = Placeholder.extend<PlaceholderOptions>({
                 return '';
             },
             emptyEditorClass: 'is-editor-empty',
-            showOnlyWhenEditable: true,
-        };
+            showOnlyWhenEditable: false,
+        } as PlaceholderOptions;
     },
 });

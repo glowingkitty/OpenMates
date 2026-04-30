@@ -118,6 +118,25 @@
   touch-action: manipulation;
 }
 
+.message-input-wrapper.start-new-chat-only,
+.message-input-wrapper.start-new-chat-only .message-field,
+.message-input-wrapper.start-new-chat-only :global(.ProseMirror) {
+  cursor: pointer;
+}
+
+.start-new-chat-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
 /* Main message field container */
 .message-field {
   width: 100%;
