@@ -150,6 +150,8 @@
 
   let videoEl = $state<HTMLVideoElement | null>(null);
   let isVideoActive = $state(false);
+  let chatHeaderBannerEl = $state<HTMLElement | null>(null);
+  let chatHeaderHeight = $state(240);
   let touchStartX = $state(0);
   let touchStartY = $state(0);
   let touchSwipeHandled = $state(false);
@@ -161,6 +163,14 @@
   const TEASER_TILT_MAX_ANGLE = 3;
   const TEASER_TILT_PERSPECTIVE = 800;
   const TEASER_TILT_SCALE = 0.985;
+  const TEASER_VERTICAL_EDGE_GAP = 10;
+  const TEASER_MAX_WIDTH = 640;
+
+  let teaserVideoMaxWidth = $derived.by(() => {
+    const maxHeight = Math.max(0, chatHeaderHeight - TEASER_VERTICAL_EDGE_GAP * 2);
+    const maxWidthByHeaderHeight = Math.floor(maxHeight * 16 / 9);
+    return `min(${TEASER_MAX_WIDTH}px, 52%, ${maxWidthByHeaderHeight}px)`;
+  });
 
   let teaserTiltTransform = $derived.by(() => {
     if (!isTeaserVideoHovering) return '';
@@ -236,6 +246,19 @@
 
   onDestroy(() => {
     if (browser) document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  });
+
+  $effect(() => {
+    if (!browser || !chatHeaderBannerEl) return;
+
+    const updateHeaderHeight = () => {
+      chatHeaderHeight = chatHeaderBannerEl?.getBoundingClientRect().height ?? 240;
+    };
+    const resizeObserver = new ResizeObserver(updateHeaderHeight);
+    updateHeaderHeight();
+    resizeObserver.observe(chatHeaderBannerEl);
+
+    return () => resizeObserver.disconnect();
   });
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -522,6 +545,7 @@
      Smooth background-color transition from primary → category gradient.
      position:relative is required for the absolutely-positioned arrow buttons. -->
 <div
+  bind:this={chatHeaderBannerEl}
   class="chat-header-banner"
   class:is-loaded={isLoaded}
   style={bannerStyle}
@@ -628,7 +652,7 @@
         </div>
 
         <!-- Right column: teaser video in a rounded, contained box -->
-        <div class="teaser-split-right">
+        <div class="teaser-split-right" style={`--teaser-video-max-width: ${teaserVideoMaxWidth};`}>
           <div
             bind:this={teaserVideoBoxEl}
             class="teaser-video-box"
@@ -1560,7 +1584,8 @@
 
   .teaser-split-right {
     flex-shrink: 0;
-    width: min(640px, 52%);
+    width: var(--teaser-video-max-width);
+    height: calc(100% - 20px);
     align-self: center;
     display: flex;
     align-items: center;
