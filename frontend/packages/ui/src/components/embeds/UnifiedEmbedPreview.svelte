@@ -239,6 +239,19 @@
               decodedContent
             });
           }
+        } else if (onEmbedDataUpdated && embedData.status === 'finished' && !embedData.content) {
+          // TOON plaintext content missing for a finished embed — request from server.
+          // This recovers from relogin scenarios where Phase 1b delivers encrypted
+          // embed metadata but not the plaintext TOON needed for filename/page count.
+          try {
+            const { webSocketService } = await import('../../services/websocketService');
+            console.info(
+              `[UnifiedEmbedPreview] Embed ${id} finished but TOON content missing, requesting from server`
+            );
+            await webSocketService.sendMessage('request_embed', { embed_id: id });
+          } catch (err) {
+            console.debug(`[UnifiedEmbedPreview] TOON recovery request failed for ${id}:`, err);
+          }
         }
       }
     } catch (error) {
