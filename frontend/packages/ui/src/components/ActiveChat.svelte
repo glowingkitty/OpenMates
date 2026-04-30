@@ -1,5 +1,6 @@
 <script lang="ts">
     import MessageInput from './enter_message/MessageInput.svelte';
+    import { messageInputPlaceholderVariant } from './enter_message/extensions/Placeholder';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
@@ -3826,6 +3827,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         !!currentChat?.chat_id &&
         (isExampleChat(currentChat.chat_id) || (!isPublicChat(currentChat.chat_id) && chatOwnershipResolved))
     );
+
+    // Set followup placeholder variant when the new chat button is visible beside the input
+    // (example chats and user-owned chats show the button, indicating a followup context)
+    $effect(() => {
+        messageInputPlaceholderVariant.set(showNewChatButtonBesideInput ? 'followup' : 'default');
+        return () => messageInputPlaceholderVariant.set('default');
+    });
 
     let activePublicChatMetadata = $derived.by(() => {
         const currentChatId = currentChat?.chat_id;
@@ -10208,13 +10216,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <!-- Hide for newsletter/legal chats, except unauthenticated legal chats use the start-new-chat placeholder. -->
                         {#if !(currentChat && isNewsletterChat(currentChat.chat_id)) && (!(currentChat && isLegalChat(currentChat.chat_id)) || startNewChatPlaceholderMode) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
+                            {#if startNewChatPlaceholderMode}
+                                <!-- Intro/legal/demo chats: full-width orange CTA button instead of MessageInput -->
+                                <div class="message-input-action-row">
+                                    <button
+                                        class="new-chat-cta-button new-chat-cta-fullwidth"
+                                        data-action="new-chat"
+                                        data-testid="new-chat-cta-fullwidth"
+                                        onclick={handleNewChatClick}
+                                    >
+                                        <span class="clickable-icon icon_create new-chat-cta-icon"></span>
+                                        <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
+                                    </button>
+                                </div>
+                            {:else}
                             <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput}>
+                                {#if showNewChatButtonBesideInput}
+                                    <div class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper">
+                                        <button
+                                            class="new-chat-cta-button"
+                                            data-action="new-chat"
+                                            data-testid="new-chat-button"
+                                            aria-label={$text('common.new_chat')}
+                                            onclick={handleNewChatClick}
+                                            in:fade={{ duration: 300 }}
+                                            use:tooltip
+                                        >
+                                            <span class="clickable-icon icon_create new-chat-cta-icon"></span>
+                                            <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
+                                        </button>
+                                    </div>
+                                {/if}
                                 <MessageInput
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
-                                    showActionButtons={startNewChatPlaceholderMode ? false : showActionButtons}
-                                    placeholderText={startNewChatPlaceholderMode ? 'Click to start a new chat' : undefined}
-                                    startNewChatOnClick={startNewChatPlaceholderMode}
+                                    showActionButtons={showActionButtons}
+                                    inlineCompact={showNewChatButtonBesideInput}
                                     activeFocusId={!showWelcome ? activeFocusId : null}
                                     activeFocusAppId={!showWelcome ? activeFocusAppId : null}
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
@@ -10242,7 +10279,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}
-                                    on:textchange={(e) => { 
+                                    on:textchange={(e) => {
                                         const t = (e.detail?.text || '');
                                         liveInputText = t;
                                         // NOTE: messageInputHasContent is NOT set here from text alone —
@@ -10255,23 +10292,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     bind:isMapsOpen={messageInputMapsOpen}
                                     {containerRect}
                                 />
-                                {#if showNewChatButtonBesideInput}
-                                    <div class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper">
-                                        <button
-                                            class="new-chat-cta-button"
-                                            data-action="new-chat"
-                                            data-testid="new-chat-button"
-                                            aria-label={$text('common.new_chat')}
-                                            onclick={handleNewChatClick}
-                                            in:fade={{ duration: 300 }}
-                                            use:tooltip
-                                        >
-                                            <span class="clickable-icon icon_create new-chat-cta-icon"></span>
-                                            <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
-                                        </button>
-                                    </div>
-                                {/if}
                             </div>
+                            {/if}
                         {/if}
                     </div>
                 </div>
@@ -11696,6 +11718,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
     }
 
+    /* When new-chat button is beside the input, center-align for equal heights */
+    .message-input-action-row.has-new-chat-button {
+        align-items: flex-end;
+    }
+
     .message-input-action-row :global(.message-input-wrapper) {
         flex: 1;
         min-width: 0;
@@ -11703,7 +11730,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .input-new-chat-wrapper {
         flex: 0 0 auto;
-        margin-bottom: 10px;
     }
 
     .message-input-action-row:not(.has-new-chat-button) .input-new-chat-wrapper {
@@ -12077,7 +12103,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: center;
         gap: var(--spacing-4);
         min-width: 0;
-        height: 41px;
+        height: 48px;
         padding: var(--spacing-4) var(--spacing-8);
         border: none;
         border-radius: var(--radius-full);
@@ -12116,6 +12142,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         mask-repeat: no-repeat;
     }
 
+    /* Full-width CTA for intro/legal/demo chats — replaces MessageInput entirely */
+    .new-chat-cta-fullwidth {
+        width: 100%;
+        height: 48px;
+    }
+
     /* "New chat" label: visible when chat-side is wide enough */
     .new-chat-cta-label {
         white-space: nowrap;
@@ -12127,11 +12159,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             display: none;
         }
 
-        /* Circle shape: match .new-chat-button-wrapper height (41px) */
+        /* Circle shape: match inline compact input height (48px) */
         .new-chat-cta-button {
             min-width: 0;
-            width: 41px;
-            height: 41px;
+            width: 48px;
+            height: 48px;
             padding: var(--spacing-4);
             box-sizing: border-box;
         }
