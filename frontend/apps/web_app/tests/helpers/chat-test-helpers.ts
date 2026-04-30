@@ -138,66 +138,83 @@ async function loginToTestAccount(
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
-	logCheckpoint('Submitted password — waiting for 2FA prompt.');
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	const errorMessage = page
-		.getByTestId('error-message')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
-	// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
-	// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
-	// we cover the current window and both adjacent windows.
-	const MAX_OTP_ATTEMPTS = 5;
-	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+	logCheckpoint('Submitted password — waiting for 2FA prompt or direct login.');
 
 	// Positive auth signal: ActiveChat.svelte sets data-authenticated="true" on the
 	// container div when authStore.isAuthenticated becomes true. This is the most
 	// reliable login success detector because it's driven directly by the canonical
 	// auth state, not by UI visibility heuristics (which can race with animations).
 	const authSignal = page.locator('[data-authenticated="true"]');
+	const otpInput = page.locator('#login-otp-input');
+
+	// Race: either OTP field appears (2FA required) or login succeeds immediately
+	// (2FA not configured for this account). Some test accounts may have lost their
+	// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
+	const otpOrAuth = await Promise.race([
+		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
+		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
+	]);
 
 	let loginSuccess = false;
-	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
-		// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
-		// wait for the next window so the generated code is valid long enough.
-		const nowSec = Math.floor(Date.now() / 1000);
-		const secondsIntoWindow = nowSec % 30;
-		if (secondsIntoWindow >= 25) {
-			const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
-			logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
-			await page.waitForTimeout(waitMs);
-		}
 
-		const windowOffset = WINDOW_OFFSETS[attempt - 1];
-		const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
-		if (attempt === 1) {
-			await takeStepScreenshot(page, 'otp-entered');
-		}
+	if (otpOrAuth === 'auth') {
+		// Login succeeded without 2FA — backend determined tfa_enabled=false
+		loginSuccess = true;
+		logCheckpoint('Login successful without 2FA — data-authenticated="true" detected.');
+	} else {
+		// OTP field appeared — proceed with TOTP entry
+		logCheckpoint('2FA prompt visible — entering OTP.');
 
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
+		const errorMessage = page
+			.getByTestId('error-message')
+			.filter({ hasText: /wrong|invalid|incorrect/i });
 
-		try {
-			// Primary success signal: data-authenticated="true" appears on the DOM.
-			// This is set by ActiveChat.svelte when authStore.isAuthenticated becomes true,
-			// which happens after setAuthenticatedState() runs in the login success chain.
-			await expect(authSignal).toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login successful — data-authenticated="true" detected.');
-		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < MAX_OTP_ATTEMPTS) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
-				// Wait longer between retries to allow time window to advance.
-				await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
-			} else if (attempt === MAX_OTP_ATTEMPTS) {
-				throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+		// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
+		// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
+		// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
+		// we cover the current window and both adjacent windows.
+		const MAX_OTP_ATTEMPTS = 5;
+		const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+		for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
+			// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
+			// wait for the next window so the generated code is valid long enough.
+			const nowSec = Math.floor(Date.now() / 1000);
+			const secondsIntoWindow = nowSec % 30;
+			if (secondsIntoWindow >= 25) {
+				const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
+				logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
+				await page.waitForTimeout(waitMs);
+			}
+
+			const windowOffset = WINDOW_OFFSETS[attempt - 1];
+			const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
+			await otpInput.fill(otpCode);
+			logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
+			if (attempt === 1) {
+				await takeStepScreenshot(page, 'otp-entered');
+			}
+
+			await expect(submitLoginButton).toBeVisible();
+			await submitLoginButton.click();
+			logCheckpoint('Submitted login form.');
+
+			try {
+				// Primary success signal: data-authenticated="true" appears on the DOM.
+				// This is set by ActiveChat.svelte when authStore.isAuthenticated becomes true,
+				// which happens after setAuthenticatedState() runs in the login success chain.
+				await expect(authSignal).toBeVisible({ timeout: 15000 });
+				loginSuccess = true;
+				logCheckpoint('Login successful — data-authenticated="true" detected.');
+			} catch {
+				const hasError = await errorMessage.isVisible().catch(() => false);
+				if (hasError && attempt < MAX_OTP_ATTEMPTS) {
+					logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
+					// Wait longer between retries to allow time window to advance.
+					await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+				} else if (attempt === MAX_OTP_ATTEMPTS) {
+					throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+				}
 			}
 		}
 	}
