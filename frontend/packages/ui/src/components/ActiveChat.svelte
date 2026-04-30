@@ -10232,7 +10232,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {:else}
                             <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput}>
                                 {#if showNewChatButtonBesideInput}
-                                    <div class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper">
+                                    <div class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper" class:icon-only={messageInputFocused || messageInputHasContent}>
                                         <button
                                             class="new-chat-cta-button"
                                             data-action="new-chat"
@@ -11718,11 +11718,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
     }
 
-    /* When new-chat button is beside the input, center-align for equal heights */
-    .message-input-action-row.has-new-chat-button {
-        align-items: flex-end;
-    }
-
     .message-input-action-row :global(.message-input-wrapper) {
         flex: 1;
         min-width: 0;
@@ -12111,7 +12106,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: white;
         font-weight: 500;
         cursor: pointer;
-        transition: background-color var(--duration-fast) var(--easing-in-out), transform var(--duration-fast) var(--easing-in-out);
+        transition:
+            background-color var(--duration-fast) var(--easing-in-out),
+            transform var(--duration-fast) var(--easing-in-out),
+            width 0.25s ease-in-out,
+            padding 0.25s ease-in-out,
+            gap 0.25s ease-in-out;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         margin-right: 0;
     }
@@ -12148,15 +12148,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         height: 48px;
     }
 
-    /* "New chat" label: visible when chat-side is wide enough */
+    /* "New chat" label: visible when chat-side is wide enough.
+       Transitions width/opacity for smooth collapse when input is focused. */
     .new-chat-cta-label {
         white-space: nowrap;
+        overflow: hidden;
+        transition: max-width 0.25s ease-in-out, opacity 0.2s ease-in-out;
+        max-width: 120px;
+        opacity: 1;
     }
 
-    /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport) */
+    /* When input is focused or has content, collapse button to icon-only circle */
+    .input-new-chat-wrapper.icon-only .new-chat-cta-label {
+        max-width: 0;
+        opacity: 0;
+    }
+
+    .input-new-chat-wrapper.icon-only .new-chat-cta-button {
+        width: 48px;
+        padding: var(--spacing-4);
+        gap: 0;
+    }
+
+    /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport).
+       Always hide label and show icon-only circle, regardless of input focus state. */
     @container chat-side (max-width: 550px) {
         .new-chat-cta-label {
-            display: none;
+            display: none !important;
+            max-width: 0 !important;
         }
 
         /* Circle shape: match inline compact input height (48px) */
@@ -12166,6 +12185,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             height: 48px;
             padding: var(--spacing-4);
             box-sizing: border-box;
+            gap: 0;
         }
     }
 

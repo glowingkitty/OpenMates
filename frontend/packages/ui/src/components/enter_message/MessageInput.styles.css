@@ -182,7 +182,8 @@
   max-height: 48px;
   padding: 0 0 0 0;
   border-radius: var(--radius-full, 9999px);
-  overflow: hidden;
+  /* No overflow:hidden — let the transition from pill→rounded happen smoothly.
+     The .message-field already transitions border-radius 0.3s ease-in-out. */
 }
 
 .message-field.inline-compact .scrollable-content {
@@ -193,6 +194,19 @@
   min-height: 48px;
   display: flex;
   align-items: center;
+}
+
+/* In inline-compact mode, the placeholder must use relative positioning
+   so it vertically centers with the flex container instead of being
+   absolutely positioned at top: 0.5rem. */
+.message-field.inline-compact :global(.ProseMirror p.is-editor-empty:first-child::before) {
+  position: relative;
+  top: 0;
+  left: 0;
+  right: auto;
+  float: none;
+  width: auto;
+  text-align: left;
 }
 
 /* Maps overlay open — field expands to show the map edge-to-edge.
