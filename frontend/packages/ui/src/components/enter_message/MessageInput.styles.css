@@ -196,17 +196,11 @@
   align-items: center;
 }
 
-/* In inline-compact mode, the placeholder must use relative positioning
-   so it vertically centers with the flex container instead of being
-   absolutely positioned at top: 0.5rem. */
+/* In inline-compact mode, nudge the placeholder down to true vertical center.
+   Default is top: 0.5rem (8px) which sits a few px too high in the 48px pill. */
 .message-field.inline-compact :global(.ProseMirror p.is-editor-empty:first-child::before) {
-  position: relative;
-  top: 0;
-  left: 0;
-  right: auto;
-  float: none;
-  width: auto;
-  text-align: left;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Maps overlay open — field expands to show the map edge-to-edge.
