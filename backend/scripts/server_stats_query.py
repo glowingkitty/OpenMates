@@ -154,7 +154,10 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
     lr = sections.get("lifetime_revenue", {})
     inv = sections.get("invoices") or {}
     if "error" not in lr and lr:
-        total_eur = lr.get("total_eur", 0)
+        stripe_rev = sections.get("stripe_revenue") or {}
+        stripe_all_time = stripe_rev.get("all_time_eur") if "error" not in stripe_rev else None
+        total_eur = stripe_all_time if isinstance(stripe_all_time, (int, float)) else lr.get("total_eur", 0)
+        tracked_total_eur = lr.get("total_eur", 0)
         total_purchases = lr.get("total_purchases", 0)
         lifetime_buyers = (inv or {}).get("lifetime_unique_buyers", 0)
         total_users = (sections.get("user_growth") or {}).get("total_users")
@@ -163,10 +166,15 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
             pct = f" ({lifetime_buyers * 100 / total_users:.1f}% of users)"
 
         lines.append("**Revenue — Lifetime**")
-        lines.append(f"- Total revenue: EUR {total_eur:,.2f}")
+        source = "Stripe" if isinstance(stripe_all_time, (int, float)) else "tracked server stats"
+        lines.append(f"- Total revenue: EUR {total_eur:,.2f} ({source})")
+        if isinstance(stripe_all_time, (int, float)) and abs(stripe_all_time - tracked_total_eur) >= 0.01:
+            lines.append(f"- App-tracked revenue: EUR {tracked_total_eur:,.2f} (Directus counter; incomplete for lifetime)")
+        if isinstance(stripe_rev.get("ytd_eur"), (int, float)):
+            lines.append(f"- Stripe YTD revenue: EUR {stripe_rev.get('ytd_eur'):,.2f}")
         lines.append(f"- Total purchases: {total_purchases:,}")
         lines.append(f"- Paying customers: {lifetime_buyers}{pct}")
-        if total_purchases > 0:
+        if total_purchases > 0 and not isinstance(stripe_all_time, (int, float)):
             lines.append(f"- Avg per purchase: EUR {total_eur / total_purchases:.2f}")
         if inv and "error" not in inv:
             lines.append(
@@ -183,7 +191,10 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
         monthly = lr.get("monthly_trend") or []
         if monthly:
             lines.append("")
-            lines.append("**Revenue — Monthly Breakdown**")
+            if isinstance(stripe_all_time, (int, float)):
+                lines.append("**App-Tracked Revenue — Monthly Breakdown**")
+            else:
+                lines.append("**Revenue — Monthly Breakdown**")
             lines.append("  Month     | Revenue     | Purchases | New Buyers | Users")
             lines.append("  ----------|-------------|-----------|------------|------")
             income_vals = [m.get("income_eur", 0) for m in monthly]

@@ -1,5 +1,6 @@
 import stripe
 import logging
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -196,6 +197,59 @@ class StripeService:
         except Exception as e:
             logger.error(f"Error fetching Stripe revenue: {str(e)}", exc_info=True)
             return 0
+
+    async def get_stripe_revenue_summary_eur(self) -> Dict[str, Any]:
+        """Return authoritative EUR revenue totals from Stripe balance transactions.
+
+        Groups gross EUR charge balance transactions by calendar month. This is
+        intended for admin reporting; do not call on user-facing request paths.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return {"all_time_eur": 0.0, "ytd_eur": 0.0, "transactions": 0, "monthly": []}
+
+        try:
+            now = datetime.now(timezone.utc)
+            ytd_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+            monthly_cents: Dict[str, int] = {}
+            monthly_transactions: Dict[str, int] = {}
+            all_time_cents = 0
+            ytd_cents = 0
+            transaction_count = 0
+
+            params: Dict[str, Any] = {"type": "charge", "currency": "eur", "limit": 100}
+            for txn in stripe.BalanceTransaction.list(**params).auto_paging_iter():
+                amount = int(txn.amount or 0)
+                created_at = datetime.fromtimestamp(int(txn.created), tz=timezone.utc)
+                month = created_at.strftime("%Y-%m")
+                monthly_cents[month] = monthly_cents.get(month, 0) + amount
+                monthly_transactions[month] = monthly_transactions.get(month, 0) + 1
+                all_time_cents += amount
+                transaction_count += 1
+                if created_at >= ytd_start:
+                    ytd_cents += amount
+
+            monthly = [
+                {
+                    "month": month,
+                    "revenue_eur": monthly_cents[month] / 100.0,
+                    "transactions": monthly_transactions.get(month, 0),
+                }
+                for month in sorted(monthly_cents)
+            ]
+
+            return {
+                "all_time_eur": all_time_cents / 100.0,
+                "ytd_eur": ytd_cents / 100.0,
+                "transactions": transaction_count,
+                "monthly": monthly,
+            }
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error fetching revenue summary: {e.user_message}", exc_info=True)
+            return {"all_time_eur": 0.0, "ytd_eur": 0.0, "transactions": 0, "monthly": []}
+        except Exception as e:
+            logger.error(f"Error fetching Stripe revenue summary: {str(e)}", exc_info=True)
+            return {"all_time_eur": 0.0, "ytd_eur": 0.0, "transactions": 0, "monthly": []}
 
     async def create_order_eu(
         self,
