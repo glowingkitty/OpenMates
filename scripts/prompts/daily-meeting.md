@@ -12,6 +12,12 @@ All data has been gathered automatically. Review each section below — this is 
 
 {{YESTERDAY_PRIORITIES}}
 
+### Today's Obsidian Daily Note
+
+This is the persistent daily dashboard in `/home/superdev/vaults/memory/Daily Notes/{{DATE}}.md`. Use its `## Server Stats` section as the compact server-health summary; use the full gathered production stats below only when deeper diagnosis is needed.
+
+{{OBSIDIAN_DAILY_NOTE}}
+
 ### Git Commits (last 24h)
 
 {{GIT_LOG}}

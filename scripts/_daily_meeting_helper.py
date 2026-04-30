@@ -54,6 +54,7 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 TMP_DIR = SCRIPTS_DIR / ".tmp"
 STATE_FILE = SCRIPTS_DIR / ".daily-meeting-state.json"
 TEST_RESULTS_DIR = PROJECT_ROOT / "test-results"
+OBSIDIAN_DAILY_NOTES_DIR = Path("/home/superdev/vaults/memory/Daily Notes")
 
 # Main meeting prompt template
 PROMPT_MEETING = SCRIPTS_DIR / "prompts" / "daily-meeting.md"
@@ -307,25 +308,29 @@ def gather_openobserve_errors(production: bool = False) -> str:
         return f"[DATA UNAVAILABLE: OpenObserve {env_label} — {e}]"
 
 
-def gather_server_stats() -> str:
+def gather_server_stats(production: bool = False) -> str:
     """Source K: server stats from Directus (users, revenue, engagement, data health)."""
     cmd = [
         "docker", "exec", "api", "python3",
         "/app/backend/scripts/server_stats_query.py",
     ]
+    if production:
+        cmd.append("--prod")
+    env_label = "production" if production else "dev"
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=30,
+            cmd, capture_output=True, text=True, timeout=75 if production else 30,
         )
         output = result.stdout.strip()
         if result.returncode != 0:
             stderr = result.stderr.strip()[:500]
-            return f"[DATA UNAVAILABLE: server stats — exit code {result.returncode}: {stderr}]"
+            return f"[DATA UNAVAILABLE: server stats {env_label} — exit code {result.returncode}: {stderr}]"
         return output if output else "(No server stats available.)"
     except subprocess.TimeoutExpired:
-        return "[DATA UNAVAILABLE: server stats — query timed out after 30s]"
+        timeout = 75 if production else 30
+        return f"[DATA UNAVAILABLE: server stats {env_label} — query timed out after {timeout}s]"
     except Exception as e:
-        return f"[DATA UNAVAILABLE: server stats — {e}]"
+        return f"[DATA UNAVAILABLE: server stats {env_label} — {e}]"
 
 
 def gather_large_files(project_root: str) -> str:
@@ -618,7 +623,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     data = {}
     failures = []
 
-    print(f"{LOG_PREFIX} Gathering data from 14 sources...")
+    print(f"{LOG_PREFIX} Gathering data from 15 sources...")
 
     with ThreadPoolExecutor(max_workers=9) as pool:
         futures = {
@@ -631,6 +636,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
             pool.submit(gather_user_issues, project_root): "user_issues",
             pool.submit(gather_session_quality, yesterday): "session_quality",
             pool.submit(gather_server_stats): "server_stats",
+            pool.submit(gather_server_stats, True): "server_stats_prod",
             pool.submit(gather_ephemeral_error_context): "ephemeral_error_context",
             pool.submit(gather_pii_leak_audit): "pii_leak_audit",
             pool.submit(gather_seo_health): "seo_health",
@@ -705,12 +711,19 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
     # Data failures
     failures = data.get("_failures", [])
     failures_text = ", ".join(failures) if failures else "none"
+    obsidian_daily_note = _safe_read(
+        OBSIDIAN_DAILY_NOTES_DIR / f"{today}.md",
+        "today's Obsidian daily note",
+    )
+    if len(obsidian_daily_note) > 15000:
+        obsidian_daily_note = obsidian_daily_note[:15000] + "\n\n[...truncated for daily meeting...]"
 
     return (
         template
         .replace("{{DATE}}", today)
         .replace("{{YESTERDAY}}", yesterday)
         .replace("{{YESTERDAY_PRIORITIES}}", yesterday_priorities)
+        .replace("{{OBSIDIAN_DAILY_NOTE}}", obsidian_daily_note)
         .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
         .replace("{{NIGHTLY_REPORTS}}", nightly_text)
         .replace("{{SESSION_QUALITY}}", data.get("session_quality", "N/A"))
@@ -726,6 +739,7 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
         .replace("{{PII_LEAK_AUDIT}}", data.get("pii_leak_audit", "N/A"))
         .replace("{{LARGE_FILES}}", data.get("large_files", "N/A"))
         .replace("{{SERVER_STATS}}", data.get("server_stats", "N/A"))
+        .replace("{{SERVER_STATS_PROD}}", data.get("server_stats_prod", "N/A"))
         .replace("{{MILESTONE_STATE}}", data.get("milestone_state", "N/A"))
         .replace("{{SEO_HEALTH}}", data.get("seo_health", "N/A"))
         .replace("{{DATA_FAILURES}}", failures_text)
