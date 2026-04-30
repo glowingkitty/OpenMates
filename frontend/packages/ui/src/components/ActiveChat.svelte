@@ -12189,6 +12189,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    /* Viewport fallback for browsers/contexts where the container query doesn't fire */
+    @media (max-width: 600px) {
+        .new-chat-cta-label {
+            display: none !important;
+            max-width: 0 !important;
+        }
+
+        .new-chat-cta-button {
+            min-width: 0;
+            width: 48px;
+            height: 48px;
+            padding: var(--spacing-4);
+            box-sizing: border-box;
+            gap: 0;
+        }
+    }
+
     .login-wrapper {
         position: absolute; /* Absolute to fill container */
         top: 0;

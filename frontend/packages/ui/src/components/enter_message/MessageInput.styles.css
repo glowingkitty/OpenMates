@@ -196,11 +196,23 @@
   align-items: center;
 }
 
-/* In inline-compact mode, nudge the placeholder down to true vertical center.
-   Default is top: 0.5rem (8px) which sits a few px too high in the 48px pill. */
+/* In inline-compact mode the scrollable-content padding-top (1em) is zeroed,
+   so the placeholder's default top: 0.5rem sits too high. Reset to 0 —
+   the content-wrapper's align-items:center handles vertical centering. */
 .message-field.inline-compact :global(.ProseMirror p.is-editor-empty:first-child::before) {
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+}
+
+/* ProseMirror's own vertical padding also shifts the placeholder;
+   zero it in compact mode so flex centering works cleanly. */
+.message-field.inline-compact :global(.ProseMirror) {
+  padding: 0;
+  min-height: auto;
+}
+
+.message-field.inline-compact :global(.ProseMirror p) {
+  min-height: auto;
+  margin: 0;
 }
 
 /* Maps overlay open — field expands to show the map edge-to-edge.
