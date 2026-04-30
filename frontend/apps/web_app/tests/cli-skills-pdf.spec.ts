@@ -43,6 +43,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
@@ -314,13 +315,19 @@ test.describe('CLI PDF Skills', () => {
 		// Step 3: Open a new chat and attach the test PDF
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 3: Opening new chat and attaching PDF...');
-		// Navigate back to main chat view
+		// Navigate back to main chat view and verify session survived pair-auth.
+		// OPE-362: pair-auth occasionally drops the web session. If the session
+		// was lost, re-login using the robust loginToTestAccount helper.
 		await page.goto('/');
-		// Tolerate either the authenticated chat view OR the demo "for everyone" landing
-		// page — pair-auth occasionally drops the session and lands the test on the demo
-		// page; the new-chat-btn below still works from there.
-		await page.waitForURL(/chat/, { timeout: 15000 });
 		await page.waitForTimeout(2000);
+		const isAuthenticated = await page
+			.locator('[data-authenticated="true"]')
+			.isVisible({ timeout: 5000 })
+			.catch(() => false);
+		if (!isAuthenticated) {
+			logCheckpoint('Session dropped after pair-auth (OPE-362) — re-logging in...');
+			await loginToTestAccount(page, logCheckpoint, takeScreenshot);
+		}
 
 		// Open a new chat
 		const newChatBtn = page
