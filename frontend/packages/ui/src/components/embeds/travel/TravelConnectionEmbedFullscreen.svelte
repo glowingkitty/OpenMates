@@ -1373,13 +1373,13 @@
       </div>
     {/if}
     {#if bookingState === 'loaded' && resolvedBookingUrl}
-      <EmbedHeaderCtaButton label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
+      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
     {:else if bookingState === 'loading'}
-      <EmbedHeaderCtaButton label="" variant="loading" />
+      <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
     {:else if bookingState === 'error'}
-      <EmbedHeaderCtaButton label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
+      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
     {:else if connection.booking_token && bookingState === 'idle'}
-      <EmbedHeaderCtaButton label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
+      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
     {/if}
   {/snippet}
 
