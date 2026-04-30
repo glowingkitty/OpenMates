@@ -64,16 +64,10 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	await expect(passwordInput).toBeVisible({ timeout: 10000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	// OTP is time-sensitive — generate immediately before entering
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 10000 });
-	await otpInput.fill(otpCode);
-	logFn(`OTP entered: ${otpCode}`);
-
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible({ timeout: 10000 });
-	await submitBtn.click();
+	// Submit password first, then handle OTP if required.
+	// OTP field only appears after backend confirms 2FA is needed (anti-enumeration).
+	const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logFn);
 	logFn('Login submitted, waiting for redirect to /chat…');
 
 	await page.waitForURL(/chat/, { timeout: 30000 });

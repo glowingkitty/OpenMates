@@ -201,21 +201,11 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
+	// Submit password first, then handle OTP if required.
+	// OTP field only appears after backend confirms 2FA is needed (anti-enumeration).
+	const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, (msg: string) => logCheckpoint(msg));
 
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		await otpInput.fill(generateTotp(TEST_OTP_KEY));
-		await submitBtn.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			if (attempt < 3) await page.waitForTimeout(31000);
-		}
-	}
 	await page.waitForURL(/chat/, { timeout: 20000 });
 	logCheckpoint('Web app logged in.');
 

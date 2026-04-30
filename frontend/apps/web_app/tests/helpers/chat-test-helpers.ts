@@ -239,6 +239,74 @@ async function loginToTestAccount(
 }
 
 /**
+ * Submit password and handle OTP if required. For use by specs with inline login code.
+ *
+ * After filling the password input and calling this function, it will:
+ * 1. Click the submit button
+ * 2. Race: wait for either OTP field or data-authenticated="true"
+ * 3. If OTP field appears: fill OTP with TOTP retry logic and submit
+ * 4. If auth signal appears: login succeeded without 2FA
+ *
+ * @param page      - Playwright Page
+ * @param otpKey    - TOTP secret key for generating OTP codes
+ * @param log       - Optional log function
+ */
+async function submitPasswordAndHandleOtp(
+	page: any,
+	otpKey: string,
+	log: (msg: string) => void = () => {}
+): Promise<void> {
+	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(submitBtn).toBeVisible();
+	await submitBtn.click();
+	log('Submitted password — waiting for 2FA prompt or direct login.');
+
+	const authSignal = page.locator('[data-authenticated="true"]');
+	const otpInput = page.locator('#login-otp-input');
+
+	const otpOrAuth = await Promise.race([
+		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
+		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
+	]);
+
+	if (otpOrAuth === 'auth') {
+		log('Login successful without 2FA.');
+		return;
+	}
+
+	log('2FA prompt visible — entering OTP.');
+	const MAX_OTP_ATTEMPTS = 5;
+	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS; attempt++) {
+		const nowSec = Math.floor(Date.now() / 1000);
+		const secondsIntoWindow = nowSec % 30;
+		if (secondsIntoWindow >= 25) {
+			await page.waitForTimeout((30 - secondsIntoWindow) * 1000 + 2000);
+		}
+
+		const otpCode = generateTotp(otpKey, WINDOW_OFFSETS[attempt - 1]);
+		await otpInput.fill(otpCode);
+		log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
+
+		await expect(submitBtn).toBeVisible();
+		await submitBtn.click();
+
+		try {
+			await expect(authSignal).toBeVisible({ timeout: 15000 });
+			log('Login successful — data-authenticated="true" detected.');
+			return;
+		} catch {
+			if (attempt === MAX_OTP_ATTEMPTS) {
+				throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+			}
+			log(`OTP attempt ${attempt} failed, retrying...`);
+			await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+		}
+	}
+}
+
+/**
  * Start a new chat session by clicking the new chat button.
  * Uses data-testid and data-action for stable selectors.
  */
@@ -601,6 +669,7 @@ async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
 
 module.exports = {
 	loginToTestAccount,
+	submitPasswordAndHandleOtp,
 	openSignupInterface,
 	isSignupInterfaceVisible,
 	startNewChat,
