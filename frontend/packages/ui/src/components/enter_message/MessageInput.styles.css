@@ -175,6 +175,26 @@
   padding: 0 0 10px 0;
 }
 
+/* Inline compact mode: single-line height matching the new-chat CTA button (~48px).
+   Active when the input sits beside the new-chat button and is not focused/has no content. */
+.message-field.inline-compact {
+  min-height: 48px;
+  max-height: 48px;
+  padding: 0 0 0 0;
+  border-radius: var(--radius-full, 9999px);
+  overflow: hidden;
+}
+
+.message-field.inline-compact .scrollable-content {
+  padding-top: 0;
+}
+
+.message-field.inline-compact .content-wrapper {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
 /* Maps overlay open — field expands to show the map edge-to-edge.
    The MapsView sits as an absolutely-positioned child that fills inset:0,
    so padding is cleared and height is driven by containerStyle. */

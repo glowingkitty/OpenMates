@@ -183,6 +183,8 @@
         placeholderText?: string;
         /** Treat the field as a CTA that starts a fresh chat instead of composing a reply. */
         startNewChatOnClick?: boolean;
+        /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
+        inlineCompact?: boolean;
     }
     let { 
         currentChatId = undefined,
@@ -200,7 +202,8 @@
         isIncognitoMode = false,
         onIncognitoPillDeactivate = undefined,
         placeholderText = undefined,
-        startNewChatOnClick = false
+        startNewChatOnClick = false,
+        inlineCompact = false
     }: Props = $props();
 
     // --- Refs ---
@@ -4385,6 +4388,7 @@
         data-testid="message-field"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill}
+        class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
