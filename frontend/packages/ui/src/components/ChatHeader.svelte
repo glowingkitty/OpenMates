@@ -1540,8 +1540,8 @@
     display: flex;
     align-items: center;
     gap: 36px;
-    width: 100%;
-    max-width: 1300px;
+    width: min(calc(100% - 80px), clamp(960px, 72vw, 1080px));
+    max-width: none;
     padding: 8px 40px;
     height: 100%;
     box-sizing: border-box;
@@ -1636,6 +1636,7 @@
   @media (max-width: 520px) {
     .teaser-split-layout {
       display: block;
+      width: 100%;
       max-width: 100%;
       padding: 16px 48px;
     }
