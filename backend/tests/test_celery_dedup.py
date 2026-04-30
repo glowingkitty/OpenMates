@@ -175,8 +175,6 @@ class TestDedupedTaskOnRetry:
 
         task = DedupedTask()
         task.name = "test.task"
-        task.request = MagicMock()
-        task.request.retries = 1
 
         with patch(
             "backend.core.api.app.tasks.base_task.release_celery_task_dedup_lock"
@@ -199,8 +197,6 @@ class TestDedupedTaskOnRetry:
         task = DedupedTask()
         task.name = "test.task"
         task.dedup_enabled = False
-        task.request = MagicMock()
-        task.request.retries = 0
 
         with patch(
             "backend.core.api.app.tasks.base_task.release_celery_task_dedup_lock"
@@ -220,8 +216,6 @@ class TestDedupedTaskOnRetry:
 
         task = DedupedTask()
         task.name = "test.task"
-        task.request = MagicMock()
-        task.request.retries = 0
 
         with patch(
             "backend.core.api.app.tasks.base_task.release_celery_task_dedup_lock"
