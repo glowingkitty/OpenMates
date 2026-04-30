@@ -3,7 +3,7 @@
 Synchronizes the latest OpenMates test results into the local Obsidian vault.
 
 The vault stores durable markdown summaries and only the latest screenshots.
-Videos remain in GitHub Actions artifacts to avoid unbounded local storage use.
+Failed-run videos are copied into the vault so they can be played directly.
 The script is idempotent: rerunning it for the same test-results/last-run.json
 does not increment history counters twice.
 """
@@ -86,11 +86,18 @@ def spec_slug(spec: str) -> str:
     return spec.replace(".spec.ts", "").replace(".test.ts", "").replace("/", "-")
 
 
-def obsidian_link(rel_path_without_suffix: Path, label: str | None = None) -> str:
-    target = rel_path_without_suffix.as_posix()
-    if label:
-        return f"[[{target}|{label}]]"
-    return f"[[{target}]]"
+def markdown_note_link(slug: str, label: str) -> str:
+    return f"[{label}](Specs/{slug}.md)"
+
+
+def vault_video_names(vault: Path, slug: str) -> list[str]:
+    video_dir = vault / ASSETS_CURRENT_DIR / slug
+    if not video_dir.is_dir():
+        return []
+    return sorted(
+        item.name for item in video_dir.iterdir()
+        if item.suffix.lower() in {".webm", ".mp4"}
+    )
 
 
 def collect_playwright_tests(last_run: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -145,6 +152,9 @@ def update_history(
         state["last_status"] = status
         state["last_run"] = run_time
         state["last_counted_run_id"] = run_id
+        for key in ("github_run_url", "video_artifact_name", "video_paths", "local_video_paths"):
+            if test.get(key):
+                state[key] = test[key]
 
         if already_counted:
             continue
@@ -193,6 +203,33 @@ def reset_current_assets(vault: Path, results_dir: Path) -> None:
             shutil.copy2(item, dest_dir / item.name)
 
 
+def copy_current_videos(vault: Path, results_dir: Path) -> None:
+    """Copy locally persisted failed-run videos into the vault.
+
+    Only videos from failed runs are persisted by run_tests.py. Successful-run
+    videos stay in GitHub Actions artifacts to avoid unbounded vault growth.
+    """
+    source_root = results_dir / "videos/current"
+    if not source_root.is_dir():
+        return
+
+    dest_root = vault / ASSETS_CURRENT_DIR
+    dest_root.mkdir(parents=True, exist_ok=True)
+    for spec_dir in source_root.iterdir():
+        if not spec_dir.is_dir():
+            continue
+        videos = [item for item in spec_dir.iterdir() if item.suffix.lower() in {".webm", ".mp4"}]
+        if not videos:
+            continue
+        dest_dir = dest_root / spec_dir.name
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for old_video in dest_dir.iterdir():
+            if old_video.suffix.lower() in {".webm", ".mp4"}:
+                old_video.unlink()
+        for video in videos:
+            shutil.copy2(video, dest_dir / video.name)
+
+
 def load_report(results_dir: Path, spec: str, status: str) -> str:
     slug = spec_slug(spec)
     report_dir = "failed" if is_failure(status) else "success"
@@ -217,6 +254,10 @@ def write_spec_note(
     github_run_url = (test or {}).get("github_run_url")
     artifact_name = (test or {}).get("video_artifact_name")
     video_paths = (test or {}).get("video_paths") or []
+    local_video_paths = (test or {}).get("local_video_paths") or []
+    local_video_names = [Path(path).name for path in local_video_paths]
+    if not local_video_names and is_failure(status):
+        local_video_names = vault_video_names(vault, slug)
     screenshot_paths = (test or {}).get("screenshot_paths") or []
 
     props = {
@@ -228,7 +269,8 @@ def write_spec_note(
         "last_synced_run_id": run_id,
         "github_run_url": github_run_url,
         "artifact_name": artifact_name,
-        "video_available": bool(video_paths),
+        "video_available": bool(video_paths or local_video_names),
+        "local_video_available": bool(local_video_names),
         "total_runs": int(state.get("total_runs", 0)),
         "total_failures": int(state.get("total_failures", 0)),
         "consecutive_failures": int(state.get("consecutive_failures", 0)),
@@ -246,10 +288,17 @@ def write_spec_note(
         "",
     ])
 
-    if github_run_url or artifact_name or video_paths:
+    if github_run_url or artifact_name or video_paths or local_video_names:
         lines.append("")
         lines.append("## Video / GitHub Run")
         lines.append("")
+        if local_video_names:
+            lines.append("Failed-run videos copied into this vault:")
+            for video_name in local_video_names:
+                rel_video_path = f"../assets/current/{slug}/{video_name}"
+                lines.append(f"- [Open video]({rel_video_path})")
+                lines.append(f"<video controls src=\"{rel_video_path}\"></video>")
+            lines.append("")
         if github_run_url:
             lines.append(f"[View on GitHub Actions]({github_run_url})")
         if artifact_name:
@@ -309,7 +358,7 @@ def write_overview(
     }
 
     lines = [frontmatter(props), "", "# OpenMates Test Runs", ""]
-    lines.append("> Generated from `test-results/last-run.json`. Videos remain in GitHub Actions artifacts; Obsidian keeps only the latest screenshots.")
+    lines.append("> Generated from `test-results/last-run.json`. Obsidian keeps latest screenshots plus failed-run videos; successful-run videos stay in GitHub Actions artifacts.")
     lines.append("")
     lines.append("## Latest Summary")
     lines.append("")
@@ -321,17 +370,6 @@ def write_overview(
     lines.append("")
 
     specs_state = history.get("specs", {})
-    failed_now = [spec for spec in all_specs if is_failure(str((tests_by_spec.get(spec) or {}).get("status") or specs_state.get(spec, {}).get("last_status", "not_run")))]
-    if failed_now:
-        lines.append("## Failed Now")
-        lines.append("")
-        for spec in failed_now:
-            slug = spec_slug(spec)
-            note = obsidian_link(SPECS_DIR / slug, spec)
-            state = specs_state.get(spec, {})
-            lines.append(f"- {note} — `{state.get('consecutive_failures', 0)}` consecutive failure(s)")
-        lines.append("")
-
     lines.append("## All Specs")
     lines.append("")
     lines.append("| Status | Spec | Last run | Failures | Consecutive | GitHub run | Video |")
@@ -342,10 +380,19 @@ def write_overview(
         state = specs_state.get(spec, {})
         status = str(test.get("status") or state.get("last_status") or "not_run")
         slug = spec_slug(spec)
-        note = obsidian_link(SPECS_DIR / slug, spec)
-        github_run_url = test.get("github_run_url")
+        note = markdown_note_link(slug, spec)
+        github_run_url = test.get("github_run_url") or state.get("github_run_url")
         run_link = f"[run]({github_run_url})" if github_run_url else ""
-        video_text = "artifact" if test.get("video_paths") else ""
+        local_video_names = [Path(path).name for path in test.get("local_video_paths") or state.get("local_video_paths") or []]
+        if not local_video_names and is_failure(status):
+            local_video_names = vault_video_names(vault, slug)
+        if local_video_names:
+            video_links = []
+            for index, video_name in enumerate(local_video_names, start=1):
+                video_links.append(f"[video {index}](assets/current/{slug}/{video_name})")
+            video_text = ", ".join(video_links)
+        else:
+            video_text = "artifact" if test.get("video_paths") or state.get("video_paths") else ""
         lines.append(
             f"| {status_icon(status)} `{status}` | {note} | {state.get('last_run') or ''} | "
             f"{state.get('total_failures', 0)} | {state.get('consecutive_failures', 0)} | {run_link} | {video_text} |"
@@ -383,6 +430,7 @@ def main() -> int:
         return 0
 
     reset_current_assets(vault, results_dir)
+    copy_current_videos(vault, results_dir)
     for spec in all_specs:
         write_spec_note(
             vault,

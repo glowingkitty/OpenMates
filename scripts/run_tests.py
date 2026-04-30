@@ -121,6 +121,7 @@ class SpecResult:
     steps: list[dict] = field(default_factory=list)
     screenshot_paths: list[str] = field(default_factory=list)
     video_paths: list[str] = field(default_factory=list)
+    local_video_paths: list[str] = field(default_factory=list)
     video_artifact_name: Optional[str] = None
     github_run_url: Optional[str] = None
 
@@ -814,6 +815,7 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
+            local_video_paths: list[str] = []
 
             art_name = f"playwright-{spec.replace('/', '-')}"
             art_path = self.client.download_artifact(rid, art_name, artifact_dir)
@@ -832,6 +834,8 @@ class BatchRunner:
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
+                if status in {"failed", "timeout"}:
+                    local_video_paths = self._persist_failed_videos(spec, art_path)
 
                 # Collect screenshot paths relative to test-results/
                 spec_name = spec.replace(".spec.ts", "")
@@ -859,6 +863,7 @@ class BatchRunner:
                 steps=pw_steps,
                 screenshot_paths=screenshot_paths,
                 video_paths=video_paths,
+                local_video_paths=local_video_paths,
                 video_artifact_name=art_name if video_paths else None,
                 github_run_url=f"https://github.com/{GH_REPO}/actions/runs/{rid}" if rid else None,
             ))
@@ -1021,6 +1026,31 @@ class BatchRunner:
         return sorted(video_paths)
 
     @staticmethod
+    def _persist_failed_videos(spec: str, art_path: Path) -> list[str]:
+        """Copy failed-run videos into test-results so Obsidian can embed them."""
+        spec_name = spec.replace(".spec.ts", "")
+        dest = RESULTS_DIR / "videos" / "current" / spec_name
+        if dest.exists():
+            shutil.rmtree(dest)
+        dest.mkdir(parents=True, exist_ok=True)
+
+        copied_paths: list[str] = []
+        for root, _dirs, files in os.walk(art_path):
+            for fname in files:
+                if not fname.lower().endswith((".webm", ".mp4")):
+                    continue
+                src = Path(root) / fname
+                parent_slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", src.parent.name).strip("-")
+                dest_name = f"{parent_slug}-{fname}" if parent_slug else fname
+                target = dest / dest_name
+                shutil.copy2(src, target)
+                copied_paths.append(str(target.relative_to(RESULTS_DIR)))
+
+        if copied_paths:
+            _log(f"    Saved {len(copied_paths)} failed video(s) to test-results/videos/current/{spec_name}/")
+        return sorted(copied_paths)
+
+    @staticmethod
     def _spec_result_to_dict(r: SpecResult) -> dict:
         """Convert SpecResult to the dict format used in last-run.json."""
         d: dict = {
@@ -1046,6 +1076,8 @@ class BatchRunner:
             d["screenshot_paths"] = r.screenshot_paths
         if r.video_paths:
             d["video_paths"] = r.video_paths
+        if r.local_video_paths:
+            d["local_video_paths"] = r.local_video_paths
         if r.video_artifact_name:
             d["video_artifact_name"] = r.video_artifact_name
         if r.github_run_url:
