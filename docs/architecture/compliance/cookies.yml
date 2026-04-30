@@ -46,11 +46,12 @@ cookies:
   same_site: None
   value_length: 170
   first_observed: '2026-04-14'
-  last_observed: '2026-04-18'
+  last_observed: '2026-04-30'
   seen_in_specs:
   - signup-flow.spec.ts
   - settings-support-stripe.spec.ts
   - signup-flow-polar.spec.ts
+  - signup-skip-2fa-flow.spec.ts
   purpose: 'Cloudflare Bot Management cookie set by Cloudflare on hCaptcha''s own infrastructure (hcaptcha.com
     is protected by Cloudflare). Distinguishes automated bots from human users during requests to hcaptcha.com.
     Contains only encrypted bot-score data — no user ID, no personal data. Expires after 30 minutes of
@@ -66,6 +67,21 @@ cookies:
     Cloudflare directly — this cookie appears because hcaptcha.com runs behind Cloudflare Bot Management.
     Disclose under the hCaptcha subprocessor entry in the privacy policy, noting Cloudflare as hCaptcha''s
     infrastructure provider. '
+- name: __cflb
+  domain: api2.hcaptcha.com
+  path: /
+  http_only: true
+  secure: true
+  same_site: None
+  value_length: 43
+  first_observed: '2026-04-29'
+  last_observed: '2026-04-30'
+  seen_in_specs:
+  - settings-buy-credits-stripe-managed.spec.ts
+  purpose: null
+  consent_exempt: null
+  exemption_basis: null
+  notes: null
 - name: __stripe_mid
   domain: .app.dev.openmates.org
   path: /
@@ -74,10 +90,11 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-18'
+  last_observed: '2026-04-30'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
+  - unauthenticated-chat-navigation.spec.ts
   purpose: 'Stripe.js fraud-prevention identifier. Set by Stripe checkout/elements when
 
     the user explicitly initiates a payment (credits purchase). Used by Stripe
@@ -112,10 +129,11 @@ cookies:
   same_site: Strict
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-18'
+  last_observed: '2026-04-30'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
+  - unauthenticated-chat-navigation.spec.ts
   purpose: 'Stripe.js short-lived session identifier paired with __stripe_mid. Same
 
     fraud-prevention purpose, bounded to a single checkout session.
@@ -140,10 +158,12 @@ cookies:
   same_site: Lax
   value_length: 64
   first_observed: '2026-04-08'
-  last_observed: '2026-04-18'
+  last_observed: '2026-04-30'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - skill-images-generate-safety.spec.ts
+  - settings-support-stripe.spec.ts
+  - skill-images-generate-safety-upload.spec.ts
   purpose: 'Server-issued session refresh token. The sole mechanism that keeps an
 
     authenticated user logged in across page reloads and tab restores. Without
@@ -176,6 +196,37 @@ cookies:
     backend/core/api/app/routes/auth_routes/auth_session.py:115,354.
 
     '
+- name: hmt_id
+  domain: api.hcaptcha.com
+  path: /
+  http_only: false
+  secure: true
+  same_site: None
+  value_length: 36
+  first_observed: '2026-04-27'
+  last_observed: '2026-04-30'
+  seen_in_specs:
+  - settings-buy-credits-stripe.spec.ts
+  - signup-skip-2fa-flow.spec.ts
+  purpose: null
+  consent_exempt: null
+  exemption_basis: null
+  notes: null
+- name: hmt_id
+  domain: api2.hcaptcha.com
+  path: /
+  http_only: false
+  secure: true
+  same_site: None
+  value_length: 36
+  first_observed: '2026-04-29'
+  last_observed: '2026-04-30'
+  seen_in_specs:
+  - settings-buy-credits-stripe-managed.spec.ts
+  purpose: null
+  consent_exempt: null
+  exemption_basis: null
+  notes: null
 - name: m
   domain: m.stripe.com
   path: /
@@ -184,10 +235,11 @@ cookies:
   same_site: None
   value_length: 42
   first_observed: '2026-04-08'
-  last_observed: '2026-04-18'
+  last_observed: '2026-04-30'
   seen_in_specs:
   - settings-buy-credits-stripe.spec.ts
   - unauthenticated-app-load.spec.ts
+  - unauthenticated-chat-navigation.spec.ts
   purpose: 'Stripe device identifier used across Stripe domains for fraud detection
 
     (payment anti-fraud). Set by m.stripe.com when Stripe.js is loaded for a
@@ -206,18 +258,3 @@ cookies:
     m.stripe.com. Disclosed in the privacy policy under Stripe.
 
     '
-- name: preferredLanguage
-  domain: app.dev.openmates.org
-  path: /
-  http_only: false
-  secure: false
-  same_site: Lax
-  value_length: 2
-  first_observed: '2026-04-14'
-  last_observed: '2026-04-18'
-  seen_in_specs:
-  - language-settings-flow.spec.ts
-  purpose: null
-  consent_exempt: null
-  exemption_basis: null
-  notes: null
