@@ -371,6 +371,9 @@ test.describe('CLI PDF Skills', () => {
 		await sendBtn.click();
 		logCheckpoint('Message sent. Waiting for AI response...');
 
+		// Wait for chat URL to contain the chat ID (assigned after first message send)
+		await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+
 		// Wait for AI response with pdf/read skill embed
 		const aiPdfEmbed = page.getByTestId('message-assistant').locator('[data-testid="embed-preview"][data-app-id="pdf"]');
 		await expect(aiPdfEmbed.first()).toBeVisible({ timeout: 120_000 });
@@ -382,9 +385,11 @@ test.describe('CLI PDF Skills', () => {
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 5: Verifying chat via CLI --json...');
 
-		// Get the current chat URL to extract chat ID
+		// Extract chat ID from hash URL (#chat-id={uuid})
 		const currentUrl = page.url();
-		const chatIdMatch = currentUrl.match(/\/chat\/([a-f0-9-]+)/);
+		const chatIdMatch =
+			currentUrl.match(/chat-id=([a-f0-9-]+)/) ||
+			currentUrl.match(/\/chat\/([a-f0-9-]+)/);
 
 		let chatId: string | null = chatIdMatch ? chatIdMatch[1] : null;
 
