@@ -6,8 +6,8 @@
   horizontally scrollable gradient cards — same visual style as NewChatSuggestions.
   The container is hidden entirely when there are no results.
 
-  Authenticated users: searches all personal chats (demo/legal/example excluded).
-  Unauthenticated users: searches intro and example chats (public static content only),
+  Authenticated users: searches personal chats plus public static chats.
+  Unauthenticated users: searches intro, example, and legal chats (public static content only),
     using cleartext category/icon fields instead of the encrypted metadata cache.
 
   Architecture: reuses searchService for full-text search, chatMetadataCache
@@ -22,8 +22,7 @@
   import { text } from '@repo/ui';
   import { get } from 'svelte/store';
   import {
-    isDemoChat, isLegalChat, isExampleChat,
-    INTRO_CHATS, translateDemoChats, getAllExampleChats,
+    INTRO_CHATS, LEGAL_CHATS, translateDemoChats, getAllExampleChats,
     convertDemoChatToChat,
   } from '../demo_chats';
   import type { Chat } from '../types/chat';
@@ -52,6 +51,20 @@
 
   let chatSearchResults = $state<ChatResultCard[]>([]);
   let searchGeneration = 0;
+
+  function getPublicSearchChats(): Chat[] {
+    const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
+    return [...translatedPublicChats, ...getAllExampleChats()];
+  }
+
+  function uniqueChatsById(chats: Chat[]): Chat[] {
+    const seen = new Set<string>();
+    return chats.filter((chat) => {
+      if (seen.has(chat.chat_id)) return false;
+      seen.add(chat.chat_id);
+      return true;
+    });
+  }
 
   // Debounced filter query — updated 400ms after user pauses typing
   let filterQuery = $state('');
@@ -91,8 +104,8 @@
 
   /**
    * Search existing chats when filterQuery changes.
-   * - Authenticated users: searches all personal chats (demo/legal/example excluded).
-   * - Unauthenticated users: searches intro and example chats (public static content only).
+   * - Authenticated users: searches personal chats plus public static chats.
+   * - Unauthenticated users: searches intro, example, and legal chats (public static content only).
    */
   $effect(() => {
     const query = filterQuery;
@@ -109,35 +122,34 @@
       try {
         let chatsToSearch: Chat[];
 
+        const publicChats = getPublicSearchChats();
+
         if (isAuthenticated) {
           await chatDB.init();
-          chatsToSearch = await chatDB.getAllChats();
+          const dbChats = await chatDB.getAllChats();
+          chatsToSearch = uniqueChatsById([...publicChats, ...dbChats]);
         } else {
-          // Unauthenticated: search only public static chats (intro + example)
-          const translatedIntroChats = translateDemoChats(INTRO_CHATS).map(convertDemoChatToChat);
-          chatsToSearch = [...translatedIntroChats, ...getAllExampleChats()];
+          chatsToSearch = publicChats;
         }
 
         const results = await performSearch(query, chatsToSearch, textFn);
         // Stale guard — a newer search was triggered while this one ran
         if (gen !== searchGeneration) return;
 
-        // Authenticated: exclude demo/legal/example chats and the current chat
-        // Unauthenticated: only exclude the currently open chat (all results are public)
+        // Exclude only the currently open chat. Public/static chats are intentionally searchable
+        // for both authenticated and unauthenticated users so the input search can switch to them.
         const filteredResults = results.chats.filter((r) => {
           if (r.chat.chat_id === currentChatId) return false;
-          if (isAuthenticated) {
-            return !isDemoChat(r.chat.chat_id) && !isLegalChat(r.chat.chat_id) && !isExampleChat(r.chat.chat_id);
-          }
           return true;
         });
 
         // Resolve metadata (icon, category) for each result.
         // For authenticated user chats: use chatMetadataCache (encrypted metadata).
-        // For public chats (intro/example): use the cleartext fields on the Chat object directly.
+        // For public chats (intro/example/legal): use the cleartext fields on the Chat object directly.
         const processed = await Promise.all(
           filteredResults.slice(0, MAX_CHAT_RESULTS).map(async (result) => {
-            const metadata = isAuthenticated
+            const isPublicResult = publicChats.some((chat) => chat.chat_id === result.chat.chat_id);
+            const metadata = isAuthenticated && !isPublicResult
               ? await chatMetadataCache.getDecryptedMetadata(result.chat)
               : null;
             const category = metadata?.category || result.chat.category || 'general_knowledge';

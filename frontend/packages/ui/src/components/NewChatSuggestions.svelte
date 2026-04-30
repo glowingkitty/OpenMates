@@ -18,7 +18,7 @@
   import { decryptWithMasterKey } from '../services/cryptoService';
   import { setClickedSuggestion } from '../stores/suggestionTracker';
   import { text } from '@repo/ui';
-  import type { NewChatSuggestion } from '../types/chat';
+  import type { Chat, NewChatSuggestion } from '../types/chat';
   import { authStore } from '../stores/authStore';
   import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
   import { get } from 'svelte/store';
@@ -29,7 +29,7 @@
   import { search as performSearch } from '../services/searchService';
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
-  import { isDemoChat, isLegalChat } from '../demo_chats';
+  import { INTRO_CHATS, LEGAL_CHATS, getAllExampleChats, translateDemoChats, convertDemoChatToChat } from '../demo_chats';
 
   /** Number of suggestion cards to show in the scrollable row */
   const VISIBLE_COUNT = 10;
@@ -270,6 +270,20 @@
   let chatSearchResults = $state<ChatResultCard[]>([]);
   let searchGeneration = 0;
 
+  function getPublicSearchChats(): Chat[] {
+    const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
+    return [...translatedPublicChats, ...getAllExampleChats()];
+  }
+
+  function uniqueChatsById(chats: Chat[]): Chat[] {
+    const seen = new Set<string>();
+    return chats.filter((chat) => {
+      if (seen.has(chat.chat_id)) return false;
+      seen.add(chat.chat_id);
+      return true;
+    });
+  }
+
   /**
    * Format a timestamp into a short relative/absolute date label.
    * e.g., "Today", "Yesterday", "Mar 15", "Dec 2025"
@@ -292,12 +306,12 @@
   }
 
   /**
-   * Search existing chats when filterQuery changes.
-   * Uses the existing searchService for full-text search across titles + messages.
+   * Search chats when filterQuery changes.
+   * Authenticated users search personal chats plus public static chats; guests search public chats.
    */
   $effect(() => {
     const query = filterQuery;
-    if (!query || !$authStore.isAuthenticated) {
+    if (!query) {
       chatSearchResults = [];
       return;
     }
@@ -307,30 +321,34 @@
 
     (async () => {
       try {
-        await chatDB.init();
-        const allChats = await chatDB.getAllChats();
+        const publicChats = getPublicSearchChats();
+        let allChats = publicChats;
+        if ($authStore.isAuthenticated) {
+          await chatDB.init();
+          allChats = uniqueChatsById([...publicChats, ...(await chatDB.getAllChats())]);
+        }
         const results = await performSearch(query, allChats, textFn);
         // Stale guard — a newer search was triggered while this one ran
         if (gen !== searchGeneration) return;
 
-        // Filter out demo/legal chats, limit to MAX_CHAT_RESULTS
-        const userChatResults = results.chats.filter(
-          r => !isDemoChat(r.chat.chat_id) && !isLegalChat(r.chat.chat_id)
-        );
+        const userChatResults = results.chats;
 
         // Resolve metadata (icon, category) for each result
         const processed = await Promise.all(
           userChatResults.slice(0, MAX_CHAT_RESULTS).map(async (result) => {
-            const metadata = await chatMetadataCache.getDecryptedMetadata(result.chat);
-            const category = metadata?.category || 'general_knowledge';
-            const icon = metadata?.icon || getFallbackIconForCategory(category);
+            const isPublicResult = publicChats.some((chat) => chat.chat_id === result.chat.chat_id);
+            const metadata = $authStore.isAuthenticated && !isPublicResult
+              ? await chatMetadataCache.getDecryptedMetadata(result.chat)
+              : null;
+            const category = metadata?.category || result.chat.category || 'general_knowledge';
+            const icon = metadata?.icon || result.chat.icon || getFallbackIconForCategory(category);
             const validIcon = getValidIconName(icon, category);
             const gradient = getCategoryGradientColors(category) || { start: '#DE1E66', end: '#FF763B' };
             const timestamp = result.chat.last_edited_overall_timestamp || result.chat.created_at || 0;
 
             return {
               chatId: result.chat.chat_id,
-              title: result.decryptedTitle || metadata?.title || 'Untitled',
+              title: result.decryptedTitle || metadata?.title || result.chat.title || 'Untitled',
               iconName: validIcon,
               gradientStart: gradient.start,
               gradientEnd: gradient.end,
