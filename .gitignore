@@ -281,6 +281,7 @@ frontend/apps/web_app/test-results*
 # Personal/local data
 personaldata/
 rankings.json
+local/
 
 # Local debug and cache artifacts
 debug_output*.yml
