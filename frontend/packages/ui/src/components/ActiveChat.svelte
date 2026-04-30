@@ -113,7 +113,7 @@
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
-    import { chatMetadataCache } from '../services/chatMetadataCache'; // For decrypting recent chat titles
+    import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import type {
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -8248,6 +8248,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for local chat list changes (dispatched when drafts are saved)
         window.addEventListener('localChatListChanged', handleDraftSaveSync);
 
+        // Refresh carousel when a chat key loads after initial render (Safari cold-boot race).
+        // On iPad/Safari the phased sync can complete and keys can become ready before this
+        // component mounts, so the window event fires into the void. To handle both late
+        // key-ready events AND keys that became ready before mount, we also run an initial
+        // carousel load via the $effect above (triggered by phasedSyncState.initialSyncCompleted).
+        const handleChatKeyReady = () => {
+            if (showWelcome && !currentChat) {
+                carouselInvalidationCounter++;
+            }
+        };
+        window.addEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
+
         // ─── Preprocessing step: refresh currentChat from DB ──────────────────────────
         // When a preprocessing step (title_generated, mate_selected) arrives, we fire
         // localChatListChanged with reason="preprocessing_step". Here we reload the active
@@ -9479,6 +9491,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener
             window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListenerCallback);
+            // Remove chat key-ready carousel refresh listener
+            window.removeEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
             // Remove preprocessing step chat refresh listener
             window.removeEventListener('localChatListChanged', handlePreprocessingChatRefresh as EventListenerCallback);
             if (handleLogoutEvent) {

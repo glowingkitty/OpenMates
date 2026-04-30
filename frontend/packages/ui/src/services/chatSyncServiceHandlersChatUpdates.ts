@@ -141,6 +141,11 @@ export async function handleChatTitleUpdatedImpl(
       // Use a separate transaction for updateChat (it will create its own internally)
       await chatDB.updateChat(chat);
 
+      // Invalidate metadata cache so the next getDecryptedMetadata() call
+      // re-decrypts from the freshly updated IDB record instead of serving
+      // a stale (possibly null) cached title for up to 5 minutes.
+      chatMetadataCache.invalidateChat(payload.chat_id);
+
       // DB operation completed successfully - dispatch event
       serviceInstance.dispatchEvent(
         new CustomEvent("chatUpdated", {
