@@ -570,7 +570,7 @@
     min-height: 240px;
     cursor: pointer;
     overflow: hidden;
-    transition: filter 0.15s ease, transform 0.1s ease;
+    transition: filter 0.15s ease, transform 0.1s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
     /* Reset browser button defaults */
     font: inherit;
@@ -1039,40 +1039,4 @@
   /* Note: embed visibility at narrow widths is handled in JS via the containerWidth prop
      (hasVideo derived value), so no CSS media query is needed here. */
 
-  /* ── Large-display embed upgrade (≥1400px) ───────────────────────────────
-     On very wide screens the 220px embed card looks undersized. We widen
-     .banner-inner to give each flex column ≈403px, then size the embed at
-     16:9 (width-driven height) so it looks like a proper video thumbnail
-     rather than the square that a fixed 400px height would produce. */
-  @media (min-width: 1400px) {
-    /* Wider inner content area: gives both text and embed more horizontal room */
-    .banner-inner {
-      max-width: 900px;
-    }
-
-    /* Widen the embed slot; max-width: 440px is the user-requested cap */
-    .banner-embed-wrapper {
-      max-width: 440px;
-    }
-
-    /* 16:9 aspect ratio — height derives from the actual rendered width so the
-       card always looks like a video thumbnail, never a square */
-    .banner-embed-wrapper :global(.embed-preview-container) {
-      max-width: 440px;
-      aspect-ratio: 16 / 9;
-      height: auto;
-    }
-
-    /* Target .unified-embed-preview.desktop specifically — it has 3-class
-       specificity in the component, so a plain .unified-embed-preview selector
-       (2-class) loses. Override the fixed 300px width and 200px height so the
-       card fills the aspect-ratio container instead of being square. */
-    .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
-      width: 100% !important;
-      min-width: unset !important;
-      max-width: unset !important;
-      height: 100% !important;
-      max-height: unset !important;
-    }
-  }
 </style>
