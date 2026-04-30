@@ -73,6 +73,31 @@ cancel:
   he: ביטול
   verified_by_human: []
 
+save_draft:
+  context: Button text to save a draft and dismiss the message input
+  en: Save draft
+  de: Entwurf speichern
+  zh: 保存草稿
+  es: Guardar borrador
+  fr: Enregistrer le brouillon
+  pt: Salvar rascunho
+  ru: Сохранить черновик
+  ja: 下書き保存
+  ko: 임시 저장
+  it: Salva bozza
+  tr: Taslağı kaydet
+  vi: Lưu bản nháp
+  id: Simpan draf
+  pl: Zapisz szkic
+  nl: Concept opslaan
+  ar: حفظ المسودة
+  hi: ड्राफ्ट सहेजें
+  th: บันทึกฉบับร่าง
+  cs: Uložit koncept
+  sv: Spara utkast
+  he: שמור טיוטה
+  verified_by_human: []
+
 continue:
   context: Generic continue/proceed button text
   en: Continue

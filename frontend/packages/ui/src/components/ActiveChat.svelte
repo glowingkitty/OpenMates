@@ -10232,7 +10232,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {:else}
                             <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput}>
                                 {#if showNewChatButtonBesideInput}
-                                    <div class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper" class:icon-only={messageInputFocused || messageInputHasContent}>
+                                    <!-- Cancel / Save draft button: shown above the input when focused/has content -->
+                                    {#if messageInputFocused || messageInputHasContent}
+                                        <button
+                                            class="input-dismiss-button"
+                                            data-testid="input-dismiss-button"
+                                            onclick={() => {
+                                                // Blur the active element (editor) to dismiss keyboard and deactivate input
+                                                const active = document.activeElement;
+                                                if (active instanceof HTMLElement) active.blur();
+                                            }}
+                                            in:fade={{ duration: 150 }}
+                                        >
+                                            {messageInputHasContent ? $text('common.save_draft') : $text('common.cancel')}
+                                        </button>
+                                    {/if}
+                                    <div
+                                        class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper"
+                                        class:hidden-for-input={messageInputFocused || messageInputHasContent}
+                                    >
                                         <button
                                             class="new-chat-cta-button"
                                             data-action="new-chat"
@@ -10251,7 +10269,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
                                     showActionButtons={showActionButtons}
-                                    inlineCompact={showNewChatButtonBesideInput}
+                                    inlineCompact={showNewChatButtonBesideInput && !messageInputFocused && !messageInputHasContent}
                                     activeFocusId={!showWelcome ? activeFocusId : null}
                                     activeFocusAppId={!showWelcome ? activeFocusAppId : null}
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
@@ -11716,6 +11734,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-items: flex-end;
         gap: var(--spacing-3);
         width: 100%;
+        position: relative;
     }
 
     .message-input-action-row :global(.message-input-wrapper) {
@@ -12148,26 +12167,63 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         height: 48px;
     }
 
-    /* "New chat" label: visible when chat-side is wide enough.
-       Transitions width/opacity for smooth collapse when input is focused. */
+    /* "New chat" label: visible when chat-side is wide enough. */
     .new-chat-cta-label {
         white-space: nowrap;
         overflow: hidden;
-        transition: max-width 0.25s ease-in-out, opacity 0.2s ease-in-out;
-        max-width: 120px;
-        opacity: 1;
     }
 
-    /* When input is focused or has content, collapse button to icon-only circle */
-    .input-new-chat-wrapper.icon-only .new-chat-cta-label {
-        max-width: 0;
+    /* When input is focused or has content, completely hide the new-chat button
+       so the MessageInput can expand to full width. */
+    .input-new-chat-wrapper.hidden-for-input {
+        width: 0;
+        overflow: hidden;
         opacity: 0;
+        pointer-events: none;
+        transition: width 0.25s ease-in-out, opacity 0.15s ease-in-out;
     }
 
-    .input-new-chat-wrapper.icon-only .new-chat-cta-button {
-        width: 48px;
-        padding: var(--spacing-4);
-        gap: 0;
+    /* Default visible state needs explicit transition for smooth return */
+    .input-new-chat-wrapper {
+        transition: width 0.25s ease-in-out, opacity 0.2s ease-in-out;
+    }
+
+    /* Cancel / Save draft button: small text link above the message input row.
+       Positioned absolutely so it doesn't shift the input row layout. */
+    .input-dismiss-button {
+        position: absolute;
+        top: -28px;
+        right: 0;
+        background: none;
+        border: none;
+        padding: 4px 8px;
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        color: var(--color-font-secondary);
+        cursor: pointer;
+        white-space: nowrap;
+        z-index: 10;
+        /* Override global button styles */
+        min-width: unset;
+        height: auto;
+        border-radius: var(--radius-2);
+        box-shadow: none;
+        filter: none;
+        margin: 0;
+    }
+
+    .input-dismiss-button:hover {
+        color: var(--color-font-primary);
+        background-color: var(--color-grey-10);
+        transform: none;
+        scale: none;
+    }
+
+    .input-dismiss-button:active {
+        color: var(--color-font-primary);
+        transform: none;
+        scale: none;
+        filter: none;
     }
 
     /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport).

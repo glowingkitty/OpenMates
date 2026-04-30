@@ -47,4 +47,26 @@ export const CustomPlaceholder = Placeholder.extend<PlaceholderOptions>({
             showOnlyWhenEditable: false,
         } as PlaceholderOptions;
     },
+
+    // Subscribe to variant + override stores so the placeholder text updates
+    // reactively even when the editor state hasn't changed (e.g., switching
+    // from an example chat to the welcome screen without re-mounting the editor).
+    onCreate() {
+        const editor = this.editor;
+        const forceUpdate = () => {
+            if (!editor.isDestroyed) {
+                editor.view.dispatch(editor.state.tr);
+            }
+        };
+        const unsub1 = messageInputPlaceholderVariant.subscribe(forceUpdate);
+        const unsub2 = messageInputPlaceholderOverride.subscribe(forceUpdate);
+        // Store unsubscribe functions for cleanup
+        (editor as Editor & { _placeholderUnsubs?: (() => void)[] })._placeholderUnsubs = [unsub1, unsub2];
+    },
+
+    onDestroy() {
+        const editor = this.editor as Editor & { _placeholderUnsubs?: (() => void)[] };
+        editor._placeholderUnsubs?.forEach(fn => fn());
+        delete editor._placeholderUnsubs;
+    },
 });
