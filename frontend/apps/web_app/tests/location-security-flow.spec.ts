@@ -46,11 +46,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -125,32 +125,8 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('[data-testid="error-message"], [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		await submitLoginButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				await page.waitForTimeout(31000);
-				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
-			}
-		}
-	}
 	// Wait for the authenticated DOM signal instead of a URL pattern —
 	// post-login URLs no longer reliably contain `/chat/`. (OPE-354)
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
@@ -299,32 +275,8 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.locator('[data-testid="error-message"], [class*="error"]')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		await submitLoginButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			const hasError = await errorMessage.isVisible();
-			if (hasError && attempt < 3) {
-				await page.waitForTimeout(31000);
-				await otpInput.fill('');
-			} else if (!hasError) {
-				loginSuccess = true;
-			}
-		}
-	}
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 	log('Initial login done.');
 	await screenshot(page, 'initial-login-done');

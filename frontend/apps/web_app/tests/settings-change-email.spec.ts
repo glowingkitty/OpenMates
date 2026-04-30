@@ -13,6 +13,7 @@ const {
 	getE2EDebugUrl,
 	getTestAccount
 } = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
@@ -59,23 +60,7 @@ async function login(page: any, email: string, log: any): Promise<void> {
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const submitButton = page.locator('#login-submit-button');
-	await submitButton.click();
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	let loginSucceeded = false;
-	for (let attempt = 1; attempt <= 3 && !loginSucceeded; attempt += 1) {
-		await otpInput.fill(generateTotp(TEST_OTP_KEY));
-		await submitButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSucceeded = true;
-		} catch {
-			if (attempt < 3) await page.waitForTimeout(31000);
-		}
-	}
-	expect(loginSucceeded, 'Expected login 2FA form to close after submitting a valid TOTP.').toBe(true);
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
 	await expect(page.getByTestId('profile-picture')).toBeVisible({ timeout: 30000 });
 	await page.waitForTimeout(5000);

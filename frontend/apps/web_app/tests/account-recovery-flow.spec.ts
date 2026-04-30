@@ -40,7 +40,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { openSignupInterface } = require('./helpers/chat-test-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Account recovery flow test against a deployed web app.
@@ -372,35 +372,9 @@ test('completes full account recovery flow with same password', async ({
 	await loginPasswordInput.first().fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logRecoveryCheckpoint('Entered password for login.');
 
-	// If 2FA is required, handle it
-	// First submit the form to see if 2FA appears
-	const loginButton = page.getByRole('button', { name: /login/i }).last();
-	await loginButton.click();
-	logRecoveryCheckpoint('Clicked login button.');
-
-	// Wait for either 2FA input to appear or successful login (redirect to chat)
-	await page.waitForTimeout(3000);
-	await takeStepScreenshot(page, 'after-login-click');
-
-	// Check if 2FA input appeared
-	const tfaInput = page.locator('#login-otp-input');
-	const tfaVisible = await tfaInput
-		.first()
-		.isVisible()
-		.catch(() => false);
-
-	if (tfaVisible && activeTfaSecret) {
-		logRecoveryCheckpoint('2FA required for login, entering OTP.');
-		// Use activeTfaSecret (may be the freshly generated secret from the 2FA
-		// setup step above) rather than the potentially stale env var.
-		const loginOtp = generateTotp(activeTfaSecret);
-		await tfaInput.first().fill(loginOtp);
-		await takeStepScreenshot(page, 'login-2fa-entered');
-
-		// Submit login with 2FA
-		await loginButton.click();
-		logRecoveryCheckpoint('Submitted login with 2FA.');
-	}
+	// Submit password and handle OTP if required (activeTfaSecret may be the
+	// freshly generated secret from the 2FA setup step above).
+	await submitPasswordAndHandleOtp(page, activeTfaSecret, (msg: string) => logRecoveryCheckpoint(msg));
 
 	// Wait for successful login - should redirect to chat
 	await page.waitForURL(/chat|demo/, { timeout: 60000 });

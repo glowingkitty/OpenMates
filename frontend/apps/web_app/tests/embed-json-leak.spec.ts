@@ -29,12 +29,12 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Embed JSON leak regression test: verify that raw JSON embed references like
@@ -128,38 +128,7 @@ test('code embeds render without raw JSON embed references leaking', async ({
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, 'password-entered');
 
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	const errorMessage = page
-		.getByTestId('error-message')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}).`);
-
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
-
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login dialog closed, login successful.');
-		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying...`);
-				await page.waitForTimeout(2000);
-			} else if (attempt === 3) {
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
 	logCheckpoint('Waiting for chat interface to load...');
 	await page.waitForTimeout(3000);

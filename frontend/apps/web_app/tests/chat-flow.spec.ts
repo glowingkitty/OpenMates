@@ -63,7 +63,6 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl,
@@ -74,7 +73,7 @@ const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./hel
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const { isSignupInterfaceVisible, openSignupInterface } = require('./helpers/chat-test-helpers');
+const { isSignupInterfaceVisible, openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -413,23 +412,7 @@ async function performLogin(
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, `${screenshotPrefix}-password-entered`);
 
-	// Submit password first — OTP field only appears after backend confirms 2FA is required
-	// (anti-enumeration: OTP is never shown upfront, only after first login attempt).
-	const submitLoginButton = page.locator('#login-submit-button');
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted password — waiting for 2FA prompt.');
-
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	logCheckpoint('Generated and entered OTP.');
-	await takeStepScreenshot(page, `${screenshotPrefix}-otp-entered`);
-
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-	logCheckpoint('Submitted login form with OTP.');
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
 	await page.waitForURL(/chat/);
 	logCheckpoint('Redirected to chat page.');

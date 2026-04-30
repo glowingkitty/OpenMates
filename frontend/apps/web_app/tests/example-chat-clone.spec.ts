@@ -25,9 +25,9 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const {
 	getTestAccount,
-	getE2EDebugUrl,
-	generateTotp,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -63,13 +63,8 @@ test.describe('Example chat clone-on-send', () => {
 		const passwordInput = page.locator('#login-password-input');
 		await expect(passwordInput).toBeVisible({ timeout: 15000 });
 		await passwordInput.fill(TEST_PASSWORD);
-		await page.locator('#login-submit-button').click();
 
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		const otpInput = page.locator('#login-otp-input');
-		await expect(otpInput).toBeVisible({ timeout: 15000 });
-		await otpInput.fill(otpCode);
-		await page.locator('#login-submit-button').click();
+		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY);
 
 		await page.waitForURL(/chat/);
 		console.log('[clone-test] Logged in successfully');

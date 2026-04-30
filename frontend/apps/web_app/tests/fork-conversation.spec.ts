@@ -29,14 +29,13 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { waitForAssistantMessage, openSignupInterface } = require('./helpers/chat-test-helpers');
+const { waitForAssistantMessage, openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Fork Conversation test: login, send two messages, fork after the first,
@@ -108,22 +107,8 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	await passwordInput.fill(TEST_PASSWORD);
 	await screenshot(page, 'password-entered');
 
-	// Submit password first — OTP field appears after backend confirms 2FA required
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-
-	// ── 5. Handle 2FA OTP ────────────────────────────────────────────────────
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	log('Generated and entered OTP.');
-	await screenshot(page, 'otp-entered');
-
-	// ── 6. Submit login ──────────────────────────────────────────────────────
-	await submitLoginButton.click();
-	log('Submitted login form.');
+	// ── 5-6. Submit password and handle 2FA OTP ─────────────────────────────
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
 	// ── 7. Wait for redirect and open a fresh chat ───────────────────────────
 	await page.waitForURL(/chat/);

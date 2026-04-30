@@ -39,7 +39,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { openSignupInterface } = require('./helpers/chat-test-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Recovery key SETTINGS test — validates the "Regenerate Recovery Key" feature
@@ -142,42 +142,12 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	// logged-in state. The .profile-container exists on the demo page too.
 	const authIndicator = page.locator('[data-authenticated="true"]');
 
-	// Submit password first — OTP field appears after backend confirms 2FA required
 	await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
 
-	const tfaInput = page.locator('#login-otp-input');
-	await expect(tfaInput).toBeVisible({ timeout: 15000 });
+	await submitPasswordAndHandleOtp(page, OPENMATES_TEST_ACCOUNT_OTP_KEY, (msg: string) => logCheckpoint(msg));
 
-	// Retry login up to 3 times to handle OTP timing boundary failures
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		logCheckpoint(`Login attempt ${attempt}/3.`);
-
-		// Generate a fresh OTP for each attempt
-		const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await tfaInput.fill(otpCode);
-		logCheckpoint(`Filled OTP (attempt ${attempt}).`);
-
-		// Submit
-		await submitLoginButton.click();
-
-		// Check if login succeeded by waiting for authenticated container
-		try {
-			await expect(authIndicator).toBeVisible({ timeout: 10000 });
-			loginSuccess = true;
-			logCheckpoint('Login successful.');
-		} catch {
-			logCheckpoint(`Login attempt ${attempt} failed (likely OTP timing). Retrying...`);
-			// Wait a moment before retrying to ensure we're in a new TOTP window
-			if (attempt < 3) {
-				await page.waitForTimeout(2000);
-			}
-		}
-	}
-
-	expect(loginSuccess, 'Login should succeed within 3 attempts.').toBe(true);
+	await expect(authIndicator).toBeVisible({ timeout: 10000 });
+	logCheckpoint('Login successful.');
 	await takeStepScreenshot(page, 'logged-in');
 
 	// ========================================================================
