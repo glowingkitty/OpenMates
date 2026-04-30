@@ -609,6 +609,19 @@
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
     {#if useTeaser}
+      <!-- Large decorative icons at left and right edges for teaser layout -->
+      {#if isIntroTeaserChat}
+        <div class="deco-icon deco-icon-left ai-deco-icon"></div>
+        <div class="deco-icon deco-icon-right ai-deco-icon"></div>
+      {:else if IconComponent}
+        <div class="deco-icon deco-icon-left">
+          <IconComponent size={126} color="white" />
+        </div>
+        <div class="deco-icon deco-icon-right">
+          <IconComponent size={126} color="white" />
+        </div>
+      {/if}
+
       <!-- ── Teaser split layout: text left + video right ──
            Mirrors the DailyInspirationBanner split: orbs provide the gradient
            backdrop, text on the left, teaser video in a rounded contained box
@@ -617,7 +630,9 @@
 
         <!-- Left column: fixed intro teaser copy -->
         <div class="teaser-split-left">
-          {#if IconComponent}
+          {#if isIntroTeaserChat}
+            <div class="ai-header-icon" data-testid="chat-header-icon"></div>
+          {:else if IconComponent}
             <div class="loaded-icon" data-testid="chat-header-icon">
               <IconComponent size={38} color="white" />
             </div>
@@ -721,7 +736,10 @@
       <!-- ── Standard layout: decorative icons + media frame or icon/title/summary ── -->
 
       <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
-      {#if IconComponent}
+      {#if isIntroTeaserChat}
+        <div class="deco-icon deco-icon-left ai-deco-icon"></div>
+        <div class="deco-icon deco-icon-right ai-deco-icon"></div>
+      {:else if IconComponent}
         <div class="deco-icon deco-icon-left">
           <IconComponent size={126} color="white" />
         </div>
@@ -836,7 +854,9 @@
       {:else}
         <div class="loaded-content">
           <!-- Category icon: only shown when no header media (video or slideshow) -->
-          {#if IconComponent}
+          {#if isIntroTeaserChat}
+            <div class="ai-header-icon" data-testid="chat-header-icon"></div>
+          {:else if IconComponent}
             <div class="loaded-icon" data-testid="chat-header-icon">
               <IconComponent size={38} color="white" />
             </div>
@@ -1245,6 +1265,47 @@
     }
   }
 
+  /* ─── AI icon for the for-everyone intro chat ──────────────────────── */
+
+  .ai-header-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+
+  .ai-deco-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.15);
+    --deco-target-opacity: 1;
+    --float-rx: 10px;
+    --float-ry: 12px;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-deco-icon {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
+    }
+  }
+
   /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */
 
   .deco-icon {
@@ -1484,6 +1545,11 @@
     .loaded-icon :global(svg) {
       width: 32px !important;
       height: 32px !important;
+    }
+
+    .ai-header-icon {
+      width: 32px;
+      height: 32px;
     }
 
     .loaded-title {
