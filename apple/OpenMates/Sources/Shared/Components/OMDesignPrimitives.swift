@@ -1,0 +1,643 @@
+// OpenMates custom design primitives — replacements for native iOS controls.
+// These match the web app's Svelte components and CSS custom properties exactly.
+// Never use Form, List, Toggle, Picker, NavigationStack, etc. in product UI — use these instead.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsSectionHeading.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsConsentToggle.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsDropdown.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsConfirmBlock.svelte
+//          frontend/packages/ui/src/components/settings/elements/SettingsPageContainer.svelte
+//          frontend/packages/ui/src/components/Toggle.svelte
+// CSS:     Toggle: 52x32 track, 24px thumb, grey-30 off / primary on
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
+import SwiftUI
+
+// MARK: - OMToggle
+// Web source: Toggle.svelte — 52x32 pill track, 24px white circle thumb
+// OFF = grey-30 track, ON = buttonPrimary track, 0.2s animation
+
+struct OMToggle: View {
+    @Binding var isOn: Bool
+    var disabled = false
+
+    private let trackWidth: CGFloat = 52
+    private let trackHeight: CGFloat = 32
+    private let thumbSize: CGFloat = 24
+    private let thumbPadding: CGFloat = 4
+
+    var body: some View {
+        Button {
+            guard !disabled else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isOn.toggle()
+            }
+        } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                RoundedRectangle(cornerRadius: trackHeight / 2)
+                    .fill(isOn ? Color.buttonPrimary : Color.grey30)
+                    .frame(width: trackWidth, height: trackHeight)
+                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
+
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: thumbSize, height: thumbSize)
+                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
+                    .padding(thumbPadding)
+            }
+        }
+        .buttonStyle(.plain)
+        .opacity(disabled ? 0.5 : 1)
+        .allowsHitTesting(!disabled)
+        .accessibilityAddTraits(.isToggle)
+        .accessibilityValue(isOn ? "On" : "Off")
+    }
+}
+
+// MARK: - OMSettingsToggleRow
+// Convenience: OMSettingsRow + OMToggle combined in a single row
+
+struct OMSettingsToggleRow: View {
+    let title: String
+    var subtitle: String?
+    var icon: String?
+    @Binding var isOn: Bool
+    var disabled = false
+
+    var body: some View {
+        HStack(spacing: .spacing4) {
+            if let icon {
+                Icon(icon, size: 18)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(width: 28, height: 28)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            }
+
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(title)
+                    .font(.omP)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: .spacing4)
+
+            OMToggle(isOn: $isOn, disabled: disabled)
+        }
+        .padding(.horizontal, .spacing6)
+        .padding(.vertical, .spacing5)
+        .contentShape(Rectangle())
+        .accessibilityLabel(title)
+    }
+}
+
+// MARK: - OMDropdown
+// Web source: SettingsDropdown.svelte — grey-0 bg, 24px radius, shadow, chevron
+// Opens a custom overlay list instead of native Picker wheel
+
+struct OMDropdownOption: Identifiable, Equatable {
+    let id: String
+    let label: String
+
+    init(_ id: String, label: String) {
+        self.id = id
+        self.label = label
+    }
+}
+
+struct OMDropdown: View {
+    let title: String
+    let options: [OMDropdownOption]
+    @Binding var selection: String
+    var disabled = false
+
+    @State private var isExpanded = false
+
+    private var selectedLabel: String {
+        options.first(where: { $0.id == selection })?.label ?? title
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Closed row — shows current selection
+            Button {
+                guard !disabled else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: .spacing4) {
+                    Text(selectedLabel)
+                        .font(.omP)
+                        .fontWeight(.medium)
+                        .foregroundStyle(selection.isEmpty ? Color.fontTertiary : Color.fontPrimary)
+
+                    Spacer(minLength: .spacing4)
+
+                    Icon("chevron-down", size: 16)
+                        .foregroundStyle(Color.fontTertiary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(.horizontal, .spacing6)
+                .padding(.vertical, .spacing5)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
+            }
+            .buttonStyle(.plain)
+            .opacity(disabled ? 0.5 : 1)
+
+            // Expanded dropdown list
+            if isExpanded {
+                VStack(spacing: 0) {
+                    ForEach(options) { option in
+                        Button {
+                            selection = option.id
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isExpanded = false
+                            }
+                        } label: {
+                            HStack(spacing: .spacing4) {
+                                Text(option.label)
+                                    .font(.omP)
+                                    .foregroundStyle(Color.fontPrimary)
+
+                                Spacer(minLength: .spacing4)
+
+                                if option.id == selection {
+                                    Icon("check", size: 16)
+                                        .foregroundStyle(Color.buttonPrimary)
+                                }
+                            }
+                            .padding(.horizontal, .spacing6)
+                            .padding(.vertical, .spacing4)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius7)
+                        .stroke(Color.grey20, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
+                .padding(.top, .spacing2)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .accessibilityLabel(title)
+    }
+}
+
+// MARK: - OMSettingsPickerRow
+// Convenience: OMSettingsRow label + OMDropdown combined
+
+struct OMSettingsPickerRow: View {
+    let title: String
+    var subtitle: String?
+    var icon: String?
+    let options: [OMDropdownOption]
+    @Binding var selection: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            HStack(spacing: .spacing4) {
+                if let icon {
+                    Icon(icon, size: 18)
+                        .foregroundStyle(Color.fontSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.grey0)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                }
+
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(title)
+                        .font(.omP)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontPrimary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(2)
+                    }
+                }
+            }
+
+            OMDropdown(title: title, options: options, selection: $selection)
+        }
+        .padding(.horizontal, .spacing6)
+        .padding(.vertical, .spacing5)
+        .accessibilityLabel(title)
+    }
+}
+
+// MARK: - OMConfirmDialog
+// Web source: SettingsConfirmBlock.svelte — overlay card with warning + action buttons
+// ZStack overlay, dimming, card with title/message/buttons
+
+struct OMConfirmDialog: View {
+    let title: String
+    let message: String
+    var confirmTitle: String = "Confirm"
+    var isDestructive: Bool = false
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture { onCancel() }
+
+            VStack(spacing: .spacing6) {
+                VStack(spacing: .spacing3) {
+                    Text(title)
+                        .font(.omH3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .multilineTextAlignment(.center)
+
+                    Text(message)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                HStack(spacing: .spacing4) {
+                    Button(action: onCancel) {
+                        Text(AppStrings.cancel)
+                            .font(.omP)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontPrimary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, .spacing4)
+                            .background(Color.grey10)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: .radius8)
+                                    .stroke(Color.grey20, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: onConfirm) {
+                        Text(confirmTitle)
+                            .font(.omP)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontButton)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, .spacing4)
+                            .background(isDestructive ? Color.error : Color.buttonPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.spacing8)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
+            .padding(.horizontal, .spacing12)
+        }
+    }
+}
+
+// MARK: - OMSheet
+// Custom bottom sheet — slides up with spring, grey-0 bg, drag handle, close button
+// Replaces native .sheet() which renders detent/drag handle chrome
+
+struct OMSheet<Content: View>: View {
+    @Binding var isPresented: Bool
+    var title: String?
+    @ViewBuilder let content: Content
+
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        if isPresented {
+            ZStack(alignment: .bottom) {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                    .onTapGesture { dismiss() }
+
+                VStack(spacing: 0) {
+                    // Drag handle
+                    Capsule()
+                        .fill(Color.grey30)
+                        .frame(width: 36, height: 5)
+                        .padding(.top, .spacing4)
+                        .padding(.bottom, .spacing3)
+
+                    // Header with optional title and close button
+                    if title != nil {
+                        HStack {
+                            if let title {
+                                Text(title)
+                                    .font(.omH3)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.fontPrimary)
+                            }
+
+                            Spacer()
+
+                            OMIconButton(icon: "x", label: "Close") {
+                                dismiss()
+                            }
+                        }
+                        .padding(.horizontal, .spacing8)
+                        .padding(.bottom, .spacing4)
+                    }
+
+                    // Content
+                    content
+                        .padding(.horizontal, .spacing8)
+                        .padding(.bottom, .spacing8)
+                }
+                .background(Color.grey0)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: .radius8,
+                        topTrailingRadius: .radius8
+                    )
+                )
+                .offset(y: dragOffset)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            if value.translation.height > 0 {
+                                dragOffset = value.translation.height
+                            }
+                        }
+                        .onEnded { value in
+                            if value.translation.height > 100 {
+                                dismiss()
+                            } else {
+                                withAnimation(.spring(response: 0.3)) {
+                                    dragOffset = 0
+                                }
+                            }
+                        }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPresented)
+        }
+    }
+
+    private func dismiss() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            isPresented = false
+            dragOffset = 0
+        }
+    }
+}
+
+// MARK: - Original Primitives
+
+struct OMIconButton: View {
+    let icon: String
+    var label: String
+    var size: CGFloat = 36
+    var iconSize: CGFloat = 18
+    var isProminent = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Icon(icon, size: iconSize)
+                .foregroundStyle(isProminent ? Color.fontButton : Color.fontPrimary)
+                .frame(width: size, height: size)
+                .background(isProminent ? Color.buttonPrimary : Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius7)
+                        .stroke(isProminent ? Color.clear : Color.grey20, lineWidth: 1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: .radius7))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+
+struct OMSettingsPage<Content: View>: View {
+    let title: String
+    var subtitle: String?
+    var trailing: AnyView?
+    @ViewBuilder let content: Content
+
+    init(
+        title: String,
+        subtitle: String? = nil,
+        trailing: AnyView? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.trailing = trailing
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: .spacing4) {
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(title)
+                        .font(.omH2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                Spacer(minLength: .spacing4)
+                if let trailing {
+                    trailing
+                }
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.top, .spacing8)
+            .padding(.bottom, .spacing6)
+            .background(Color.grey0)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: .spacing8) {
+                    content
+                }
+                .padding(.horizontal, .spacing8)
+                .padding(.bottom, .spacing16)
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color.grey0)
+        }
+        .background(Color.grey0)
+    }
+}
+
+struct OMSettingsSection<Content: View>: View {
+    let title: String?
+    @ViewBuilder let content: Content
+
+    init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            if let title {
+                Text(title)
+                    .font(.omXs)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontTertiary)
+                    .textCase(.uppercase)
+                    .padding(.horizontal, .spacing2)
+            }
+
+            VStack(spacing: 0) {
+                content
+            }
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius8)
+                    .stroke(Color.grey20, lineWidth: 1)
+            )
+        }
+    }
+}
+
+struct OMSettingsRow: View {
+    let title: String
+    var subtitle: String?
+    var icon: String?
+    var value: String?
+    var isDestructive = false
+    var showsChevron = true
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing4) {
+                if let icon {
+                    Icon(icon, size: 18)
+                        .foregroundStyle(isDestructive ? Color.error : Color.fontSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.grey0)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                }
+
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(title)
+                        .font(.omP)
+                        .fontWeight(.medium)
+                        .foregroundStyle(isDestructive ? Color.error : Color.fontPrimary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(2)
+                    }
+                }
+
+                Spacer(minLength: .spacing4)
+
+                if let value {
+                    Text(value)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+
+                if showsChevron {
+                    Icon("chevron-right", size: 16)
+                        .foregroundStyle(Color.fontTertiary)
+                }
+            }
+            .padding(.horizontal, .spacing6)
+            .padding(.vertical, .spacing5)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+}
+
+struct OMSettingsStaticRow: View {
+    let title: String
+    let value: String
+    var icon: String?
+
+    var body: some View {
+        HStack(spacing: .spacing4) {
+            if let icon {
+                Icon(icon, size: 18)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(width: 28, height: 28)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            }
+            Text(title)
+                .font(.omP)
+                .foregroundStyle(Color.fontPrimary)
+            Spacer()
+            Text(value)
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+        }
+        .padding(.horizontal, .spacing6)
+        .padding(.vertical, .spacing5)
+    }
+}
+
+struct OMSegmentedControl<Option: Hashable>: View {
+    struct Item: Identifiable {
+        let id: Option
+        let title: String
+    }
+
+    let items: [Item]
+    @Binding var selection: Option
+
+    var body: some View {
+        HStack(spacing: .spacing2) {
+            ForEach(items) { item in
+                Button {
+                    selection = item.id
+                } label: {
+                    Text(item.title)
+                        .font(.omSmall)
+                        .fontWeight(selection == item.id ? .semibold : .regular)
+                        .foregroundStyle(selection == item.id ? Color.fontButton : Color.fontPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, .spacing4)
+                        .background(selection == item.id ? Color.buttonPrimary : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.spacing2)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius7))
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius7)
+                .stroke(Color.grey20, lineWidth: 1)
+        )
+    }
+}
