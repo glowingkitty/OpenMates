@@ -158,11 +158,59 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 
 ---
 
+## Forbidden Native Controls
+
+These controls inject native iOS visual chrome that conflicts with the web design system.
+
+| Forbidden | Replacement | Why |
+|---|---|---|
+| `Form { }` | `ScrollView` + `VStack` + `OMSettingsSection` | Renders iOS gray grouped background, inset separators, rounded section chrome |
+| `List { }` (product UI) | `ScrollView` + `LazyVStack` + `OMSettingsSection`/`OMSettingsRow` | Renders default row separators, system background, disclosure indicators |
+| `Toggle(_, isOn:)` | `OMToggle` (custom primitive) | Renders blue iOS switch; web uses custom SVG toggle |
+| `Picker(_, selection:)` | `OMDropdown` (custom primitive) | Renders iOS picker wheel/sheet; web uses `<select>` dropdown |
+| `.navigationTitle(_)` | Custom header in `OMSettingsPage` or inline `Text` + `OMIconButton` | Renders native iOS nav bar chrome |
+| `.toolbar { ToolbarItem }` | Inline `HStack` with `OMIconButton` | Renders system nav bar items |
+| `NavigationStack { }` | State-driven view switching (see `SettingsView.swift` `SettingsDestination` pattern) | Renders iOS back gesture chrome and system nav bar |
+| `NavigationLink { }` | `OMSettingsRow(showsChevron: true)` with action, or `Button` | Renders native disclosure indicator |
+| `.sheet(isPresented:)` | `OMSheet` (custom primitive) or `ZStack` overlay | Renders native detent/drag handle/dimming |
+| `.alert(_, isPresented:)` | `OMConfirmDialog` (custom primitive) | Renders system alert dialog |
+| `.confirmationDialog()` | `OMConfirmDialog` | Renders system action sheet |
+| `.contextMenu { }` | Custom popover overlay | Renders system context menu with blur/haptic |
+| `Menu { }` | `OMDropdown` or custom popover | Renders system cascading menu |
+| `TabView { }` | `OMSegmentedControl` or custom tab bar | Renders system tab bar |
+| `.font(.caption/.body/.title/etc)` | `.font(.omXs)`, `.font(.omP)`, `.font(.omH3)` etc | System fonts don't match Lexend Deca |
+
+---
+
+## Acceptable Native Controls
+
+These invoke OS-owned system dialogs and are correct to use natively:
+- `PhotosPicker` — system photo library
+- `UIDocumentPickerViewController` / `.fileImporter` — system file picker
+- Camera views — system camera
+- `UIActivityViewController` / share sheet — system sharing
+- `ASAuthorizationController` — passkey / Sign in with Apple
+- `DatePicker` — web also uses native date inputs
+- `ProgressView` — system spinner (no visual chrome leak)
+- System permission dialogs (notifications, location, etc.)
+
+---
+
+## Color.black/white Policy
+
+Acceptable:
+- `Color.black.opacity(N)` for overlay dimming and drop shadows only
+- `Color.white` on gradient backgrounds (verified matches web `color: white` on gradient)
+- `Color.white` for QR code backgrounds (needs pure white for scanning)
+
+Everything else: use `Color.grey0` (backgrounds), `Color.grey100` (text on dark), or semantic tokens.
+
+---
+
 ## What NOT to change
 - Business logic, networking, WebSocket, encryption (`Core/` directory).
 - Navigation flow or sheets.
 - Generated token files (`*.generated.swift`).
 - Siri Intents, Spotlight, Handoff, widget code.
-- Settings screen (separate task).
 - Accessibility labels and identifiers — preserve or update when view hierarchy changes.
 - `.task {}`, `.onReceive {}`, `.onChange {}`, `.sheet {}` modifiers in `MainAppView`.
