@@ -9,6 +9,9 @@ import { text } from '@repo/ui'; // Use text store from @repo/ui for reactive tr
 
 export const messageInputPlaceholderOverride = writable<string | null>(null);
 
+/** When set to 'followup', uses the followup_desktop/followup_touch i18n keys instead of the default placeholder. */
+export const messageInputPlaceholderVariant = writable<'default' | 'followup'>('default');
+
 // Helper function to detect touch device
 const isTouchDevice = () => {
     return (('ontouchstart' in window) ||
@@ -29,11 +32,11 @@ export const CustomPlaceholder = Placeholder.extend<PlaceholderOptions>({
                         return override;
                     }
 
-                    // Get appropriate translation based on device type
-                    // Use text store from @repo/ui which is reactive to language changes
-                    const key = isTouchDevice() ? 
-                        'enter_message.placeholder.touch' : 
-                        'enter_message.placeholder.desktop';
+                    // Get appropriate translation based on device type and variant
+                    const variant = get(messageInputPlaceholderVariant);
+                    const suffix = variant === 'followup' ? 'followup_' : '';
+                    const deviceType = isTouchDevice() ? 'touch' : 'desktop';
+                    const key = `enter_message.placeholder.${suffix}${deviceType}`;
                     // Get the current value from the text store (reactive to language changes)
                     const translateFn = get(text);
                     return translateFn(key);
