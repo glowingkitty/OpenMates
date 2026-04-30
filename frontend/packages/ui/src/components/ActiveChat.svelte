@@ -1,5 +1,6 @@
 <script lang="ts">
     import MessageInput from './enter_message/MessageInput.svelte';
+    import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
@@ -78,7 +79,8 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
@@ -161,7 +163,7 @@
     };
 
     type MessageInputFieldRef = {
-        setDraftContent: (chatId: string | undefined, content: TiptapJSON | string | null, version: number, isRemote: boolean) => void;
+        setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
@@ -2037,6 +2039,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // from accumulating when the user searches and clicks an existing chat instead of sending.
             await clearCurrentDraft();
 
+            if (isPublicChat(chatId)) {
+                const publicChat = getPublicChatForNavigation(chatId);
+                if (!publicChat) {
+                    console.warn('[ActiveChat] Public chat not found:', chatId);
+                    return;
+                }
+                phasedSyncState.markInitialChatLoaded();
+                activeChatStore.setActiveChat(publicChat.chat_id);
+                await loadChat(publicChat);
+                window.dispatchEvent(new CustomEvent('globalChatSelected', {
+                    bubbles: true, composed: true, detail: { chatId: publicChat.chat_id }
+                }));
+                return;
+            }
+
             await chatDB.init();
             const chat = await chatDB.getChat(chatId);
             if (!chat) {
@@ -2051,6 +2068,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         } catch (error) {
             console.error('[ActiveChat] Failed to navigate to chat:', chatId, error);
         }
+    }
+
+    function getPublicChatForNavigation(chatId: string): Chat | null {
+        const demoChat = DEMO_CHATS.find((chat) => chat.chat_id === chatId);
+        if (demoChat) return convertDemoChatToChat(translateDemoChat(demoChat));
+
+        const legalChat = LEGAL_CHATS.find((chat) => chat.chat_id === chatId);
+        if (legalChat) return convertDemoChatToChat(translateDemoChat(legalChat));
+
+        return getAllExampleChats().find((chat) => chat.chat_id === chatId) ?? null;
     }
 
     // Handler for the dislike/report-bad-answer retry prompt.
@@ -3789,6 +3816,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+
+    let startNewChatPlaceholderMode = $derived(
+        !!currentChat?.chat_id && !$authStore.isAuthenticated && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))
+    );
+    let showNewChatButtonBesideInput = $derived(
+        createButtonVisible &&
+        !showWelcome &&
+        !!currentChat?.chat_id &&
+        (isExampleChat(currentChat.chat_id) || (!isPublicChat(currentChat.chat_id) && chatOwnershipResolved))
+    );
+
+    let activePublicChatMetadata = $derived.by(() => {
+        const currentChatId = currentChat?.chat_id;
+        if (!currentChatId) return null;
+        const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS];
+        return allChats.find((chat) => chat.chat_id === currentChatId)?.metadata ?? null;
+    });
+
+    let activeLocaleVideo = $derived.by(() => {
+        const videoKey = activePublicChatMetadata?.video_key;
+        if (!videoKey) return null;
+        return getVideoForLocale(videoKey, $locale ?? 'en');
+    });
 
     // Generation counter to prevent stale loadChat() completions from overwriting currentMessages.
     // Each loadChat() call increments this; if the counter has moved on by the time async work
@@ -9561,23 +9611,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <div class="top-buttons" class:top-buttons-flow={showWelcome} class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}>
                         <!-- Left side buttons -->
                         <div class="left-buttons">
-                            {#if createButtonVisible}
-                                <!-- New chat CTA button: same color as Send, pill shape, white icon; label visible on larger screens only -->
-                                <div class="new-chat-button-wrapper new-chat-cta-wrapper">
-                                    <button
-                                        class="new-chat-cta-button"
-                                        data-action="new-chat"
-                                        data-testid="new-chat-button"
-                                        aria-label={$text('common.new_chat')}
-                                        onclick={handleNewChatClick}
-                                        in:fade={{ duration: 300 }}
-                                        use:tooltip
-                                    >
-                                        <span class="clickable-icon icon_create new-chat-cta-icon"></span>
-                                        <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
-                                    </button>
-                                </div>
-                            {/if}
                             {#if !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                                 <!-- Share button - opens settings menu with share submenu -->
                                 <!-- Hidden for intro, example, and legal chats (public/static chats the user doesn't own) -->
@@ -10046,11 +10079,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           isIncognito={!!currentChat?.is_incognito}
                           isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
                           canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
-                          videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
-                          videoTeaserUrl={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_teaser_url ?? null; })()}
-                          videoTeaserMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_teaser_mp4_url ?? null; })()}
-                          videoTeaserWebpUrl={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_teaser_webp_url ?? null; })()}
-                          backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
+                           videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
+                           videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}
+                           videoTeaserMp4Url={activeLocaleVideo?.teaser_mp4_url ?? activePublicChatMetadata?.video_teaser_mp4_url ?? null}
+                           videoTeaserWebpUrl={activeLocaleVideo?.teaser_webp_url ?? activePublicChatMetadata?.video_teaser_webp_url ?? null}
+                           backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                          autoplayVideo={pendingAutoplayVideo}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
@@ -10173,51 +10206,72 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
 
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
-                        <!-- Hide for newsletter/legal chats (read-only); show for demo/example/intro/regular chats -->
-                        {#if !(currentChat && (isNewsletterChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
-                            <MessageInput
-                                bind:this={messageInputFieldRef}
-                                currentChatId={currentChat?.chat_id || temporaryChatId}
-                                showActionButtons={showActionButtons}
-                                activeFocusId={!showWelcome ? activeFocusId : null}
-                                activeFocusAppId={!showWelcome ? activeFocusAppId : null}
-                                activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
-                                onFocusPillDeepLink={() => {
-                                    if (activeFocusAppId && activeFocusModeKey) {
-                                        settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
-                                        panelState.openSettings();
-                                    }
-                                }}
-                                onFocusPillDeactivate={() => {
-                                    if (activeFocusId) {
-                                        handleFocusModeDeactivation(activeFocusId);
-                                        activeFocusId = null;
-                                    }
-                                }}
-                                isIncognitoMode={!!(currentChat?.is_incognito || (showWelcome && $incognitoMode))}
-                                onIncognitoPillDeactivate={() => {
-                                    incognitoMode.set(false);
-                                }}
-                                on:codefullscreen={handleCodeFullscreen}
-                                on:imagefullscreen={handleImageFullscreen}
-                                on:pdffullscreen={handlePdfFullscreen}
-                                on:recordingfullscreen={handleRecordingFullscreen}
-                                on:sendMessage={handleSendMessage}
-                                on:heightchange={handleInputHeightChange}
-                                on:draftSaved={handleDraftSaved}
-                                on:textchange={(e) => { 
-                                    const t = (e.detail?.text || '');
-                                    liveInputText = t;
-                                    // NOTE: messageInputHasContent is NOT set here from text alone —
-                                    // bind:hasContent below is the authoritative source and correctly
-                                    // accounts for embeds (images, files) even when there is no text.
-                                }}
-                                 bind:isFullscreen
-                                 bind:hasContent={messageInputHasContent}
-                                 bind:isFocused={messageInputFocused}
-                                 bind:isMapsOpen={messageInputMapsOpen}
-                                 {containerRect}
-                             />
+                        <!-- Hide for newsletter/legal chats, except unauthenticated legal chats use the start-new-chat placeholder. -->
+                        {#if !(currentChat && isNewsletterChat(currentChat.chat_id)) && (!(currentChat && isLegalChat(currentChat.chat_id)) || startNewChatPlaceholderMode) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
+                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput}>
+                                <MessageInput
+                                    bind:this={messageInputFieldRef}
+                                    currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
+                                    showActionButtons={startNewChatPlaceholderMode ? false : showActionButtons}
+                                    placeholderText={startNewChatPlaceholderMode ? 'Click to start a new chat' : undefined}
+                                    startNewChatOnClick={startNewChatPlaceholderMode}
+                                    activeFocusId={!showWelcome ? activeFocusId : null}
+                                    activeFocusAppId={!showWelcome ? activeFocusAppId : null}
+                                    activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
+                                    onFocusPillDeepLink={() => {
+                                        if (activeFocusAppId && activeFocusModeKey) {
+                                            settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                            panelState.openSettings();
+                                        }
+                                    }}
+                                    onFocusPillDeactivate={() => {
+                                        if (activeFocusId) {
+                                            handleFocusModeDeactivation(activeFocusId);
+                                            activeFocusId = null;
+                                        }
+                                    }}
+                                    isIncognitoMode={!!(currentChat?.is_incognito || (showWelcome && $incognitoMode))}
+                                    onIncognitoPillDeactivate={() => {
+                                        incognitoMode.set(false);
+                                    }}
+                                    on:codefullscreen={handleCodeFullscreen}
+                                    on:imagefullscreen={handleImageFullscreen}
+                                    on:pdffullscreen={handlePdfFullscreen}
+                                    on:recordingfullscreen={handleRecordingFullscreen}
+                                    on:sendMessage={handleSendMessage}
+                                    on:startNewChat={handleNewChatClick}
+                                    on:heightchange={handleInputHeightChange}
+                                    on:draftSaved={handleDraftSaved}
+                                    on:textchange={(e) => { 
+                                        const t = (e.detail?.text || '');
+                                        liveInputText = t;
+                                        // NOTE: messageInputHasContent is NOT set here from text alone —
+                                        // bind:hasContent below is the authoritative source and correctly
+                                        // accounts for embeds (images, files) even when there is no text.
+                                    }}
+                                    bind:isFullscreen
+                                    bind:hasContent={messageInputHasContent}
+                                    bind:isFocused={messageInputFocused}
+                                    bind:isMapsOpen={messageInputMapsOpen}
+                                    {containerRect}
+                                />
+                                {#if showNewChatButtonBesideInput}
+                                    <div class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper">
+                                        <button
+                                            class="new-chat-cta-button"
+                                            data-action="new-chat"
+                                            data-testid="new-chat-button"
+                                            aria-label={$text('common.new_chat')}
+                                            onclick={handleNewChatClick}
+                                            in:fade={{ duration: 300 }}
+                                            use:tooltip
+                                        >
+                                            <span class="clickable-icon icon_create new-chat-cta-icon"></span>
+                                            <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
+                                        </button>
+                                    </div>
+                                {/if}
+                            </div>
                         {/if}
                     </div>
                 </div>
@@ -11633,6 +11687,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-direction: column;
         align-items: center;
         padding: 15px;
+    }
+
+    .message-input-action-row {
+        display: flex;
+        align-items: flex-end;
+        gap: var(--spacing-3);
+        width: 100%;
+    }
+
+    .message-input-action-row :global(.message-input-wrapper) {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .input-new-chat-wrapper {
+        flex: 0 0 auto;
+        margin-bottom: 10px;
+    }
+
+    .message-input-action-row:not(.has-new-chat-button) .input-new-chat-wrapper {
+        display: none;
+    }
+
+    .active-chat-container.narrow .message-input-action-row {
+        gap: var(--spacing-2);
     }
 
     .chat-wrapper:not(.fullscreen) .message-input-wrapper { /* Changed from .message-input-container */
