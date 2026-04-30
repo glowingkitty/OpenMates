@@ -64,8 +64,8 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		for (let cycle = 1; cycle <= CYCLES; cycle++) {
 			console.log(`[chat-nav] === Cycle ${cycle}/${CYCLES} ===`);
 
-			// ── 2a. Click "New Chat" button ──────────────────────────────────
-			const newChatButton = page.getByTestId('new-chat-button');
+			// ── 2a. Click "New Chat" CTA (fullwidth on intro/demo chats) ────
+			const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 			await expect(newChatButton).toBeVisible({ timeout: 8000 });
 			await newChatButton.click();
 			console.log(`[chat-nav] [${cycle}] Clicked New Chat button`);
@@ -104,9 +104,9 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		console.log(`[chat-nav] All ${CYCLES} cycles completed — UI remained reactive throughout`);
 
 		// ─── 3. Navigate back to new chat one final time ──────────────────────
-		const newChatButton = page.getByTestId('new-chat-button');
-		await expect(newChatButton).toBeVisible({ timeout: 8000 });
-		await newChatButton.click();
+		const finalNewChatButton = page.getByTestId('new-chat-cta-fullwidth');
+		await expect(finalNewChatButton).toBeVisible({ timeout: 8000 });
+		await finalNewChatButton.click();
 
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 8000 });

@@ -92,11 +92,11 @@ test.describe('Unauthenticated app load', () => {
 		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
 		console.log('[unauthenticated-load] Active chat container is visible');
 
-		// ─── 3. Click the new-chat button to open the new chat interface ────
-		const newChatButton = page.getByTestId('new-chat-button');
+		// ─── 3. Click the fullwidth new-chat CTA (replaces MessageInput on demo chats) ─
+		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 		await expect(newChatButton).toBeVisible({ timeout: 10000 });
 		await newChatButton.click();
-		console.log('[unauthenticated-load] Clicked new-chat button');
+		console.log('[unauthenticated-load] Clicked new-chat CTA (fullwidth)');
 
 		// Wait for the message editor to appear (indicates new chat view is open)
 		const messageEditor = page.getByTestId('message-editor');
