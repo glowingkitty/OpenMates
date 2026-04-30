@@ -12171,15 +12171,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport).
-       Always hide label and show icon-only circle, regardless of input focus state. */
+       Scoped to .input-new-chat-wrapper so the fullwidth CTA for intro/legal chats is unaffected. */
     @container chat-side (max-width: 550px) {
-        .new-chat-cta-label {
+        .input-new-chat-wrapper .new-chat-cta-label {
             display: none !important;
             max-width: 0 !important;
         }
 
         /* Circle shape: match inline compact input height (48px) */
-        .new-chat-cta-button {
+        .input-new-chat-wrapper .new-chat-cta-button {
             min-width: 0;
             width: 48px;
             height: 48px;
@@ -12189,14 +12189,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    /* Viewport fallback for browsers/contexts where the container query doesn't fire */
+    /* Viewport fallback for browsers/contexts where the container query doesn't fire.
+       Scoped to .input-new-chat-wrapper so the fullwidth CTA is unaffected. */
     @media (max-width: 600px) {
-        .new-chat-cta-label {
+        .input-new-chat-wrapper .new-chat-cta-label {
             display: none !important;
             max-width: 0 !important;
         }
 
-        .new-chat-cta-button {
+        .input-new-chat-wrapper .new-chat-cta-button {
             min-width: 0;
             width: 48px;
             height: 48px;

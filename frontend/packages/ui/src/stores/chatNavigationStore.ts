@@ -402,23 +402,11 @@ async function selectChat(chat: Chat): Promise<void> {
   // Update the persistent activeChatStore (survives component unmount/remount)
   activeChatStore.setActiveChat(chat.chat_id);
 
-  // Persist to IndexedDB + server via chatSyncService (same as Chats.svelte handleChatClick)
-  // Only for non-hidden chats (hidden chats require password after page reload)
-  if (!(chat as Chat & { is_hidden?: boolean }).is_hidden) {
-    try {
-      const { chatSyncService } = await import("../services/chatSyncService");
-      await chatSyncService.sendSetActiveChat(chat.chat_id);
-    } catch (error) {
-      console.error(
-        "[chatNavigationStore] Error persisting active chat:",
-        error,
-      );
-    }
-  }
-
   // Dispatch window event for +page.svelte to call activeChat.loadChat()
-  // The scrollToTop flag tells ActiveChat to scroll to the top of the chat
-  // so the ChatHeader banner is visible after navigation.
+  // IMPORTANT: dispatch BEFORE any async work (chatSyncService) so the UI
+  // navigates immediately. On Safari iOS the async import + await can delay
+  // event dispatch enough to cause a race where the hash-change handler runs
+  // first and the event arrives too late or is ignored.
   window.dispatchEvent(
     new CustomEvent("chatHeaderNavigation", {
       detail: { chat, scrollToTop: true },
@@ -431,4 +419,18 @@ async function selectChat(chat: Chat): Promise<void> {
     hasPrev: newIdx > 0,
     hasNext: newIdx >= 0 && newIdx < chatList.length - 1,
   });
+
+  // Persist to IndexedDB + server via chatSyncService (same as Chats.svelte handleChatClick)
+  // Fire-and-forget after UI has already navigated.
+  if (!(chat as Chat & { is_hidden?: boolean }).is_hidden) {
+    try {
+      const { chatSyncService } = await import("../services/chatSyncService");
+      await chatSyncService.sendSetActiveChat(chat.chat_id);
+    } catch (error) {
+      console.error(
+        "[chatNavigationStore] Error persisting active chat:",
+        error,
+      );
+    }
+  }
 }
