@@ -1411,6 +1411,102 @@ compression.hide_forgotten:
   he: הסתר הודעות קודמות
   verified_by_human: []
 
+pinned:
+  context: Section header in chat list sidebar for pinned chats
+  en: Pinned
+  de: Angepinnt
+  zh: 已固定
+  es: Fijados
+  fr: Épinglés
+  pt: Fixados
+  ru: Закреплённые
+  ja: ピン留め
+  ko: 고정됨
+  it: Fissate
+  tr: Sabitlenmiş
+  vi: Đã ghim
+  id: Disematkan
+  pl: Przypięte
+  nl: Vastgezet
+  ar: المثبتة
+  hi: पिन किए गए
+  th: ปักหมุด
+  cs: Připnuté
+  sv: Fästa
+  he: מוצמדים
+  verified_by_human: []
+recent:
+  context: Section header in chat list sidebar for recent (non-pinned) chats
+  en: Recent
+  de: Neueste
+  zh: 最近
+  es: Recientes
+  fr: Récents
+  pt: Recentes
+  ru: Недавние
+  ja: 最近
+  ko: 최근
+  it: Recenti
+  tr: Son
+  vi: Gần đây
+  id: Terbaru
+  pl: Ostatnie
+  nl: Recent
+  ar: الأخيرة
+  hi: हाल के
+  th: ล่าสุด
+  cs: Nedávné
+  sv: Senaste
+  he: אחרונים
+  verified_by_human: []
+hidden_chats:
+  context: Label for the hidden chats section in chat list sidebar
+  en: Hidden chats
+  de: Versteckte Chats
+  zh: 隐藏的聊天
+  es: Chats ocultos
+  fr: Chats masqués
+  pt: Chats ocultos
+  ru: Скрытые чаты
+  ja: 非表示のチャット
+  ko: 숨겨진 채팅
+  it: Chat nascoste
+  tr: Gizli sohbetler
+  vi: Trò chuyện ẩn
+  id: Obrolan tersembunyi
+  pl: Ukryte czaty
+  nl: Verborgen chats
+  ar: المحادثات المخفية
+  hi: छिपी हुई चैट
+  th: แชทที่ซ่อน
+  cs: Skryté chaty
+  sv: Dolda chattar
+  he: "צ'אטים מוסתרים"
+  verified_by_human: []
+no_hidden_chats:
+  context: Empty state message when there are no hidden chats
+  en: No hidden chats
+  de: Keine versteckten Chats
+  zh: 没有隐藏的聊天
+  es: Sin chats ocultos
+  fr: Aucun chat masqué
+  pt: Sem chats ocultos
+  ru: Нет скрытых чатов
+  ja: 非表示のチャットはありません
+  ko: 숨겨진 채팅 없음
+  it: Nessuna chat nascosta
+  tr: Gizli sohbet yok
+  vi: Không có trò chuyện ẩn
+  id: Tidak ada obrolan tersembunyi
+  pl: Brak ukrytych czatów
+  nl: Geen verborgen chats
+  ar: لا توجد محادثات مخفية
+  hi: कोई छिपी हुई चैट नहीं
+  th: ไม่มีแชทที่ซ่อน
+  cs: Žádné skryté chaty
+  sv: Inga dolda chattar
+  he: "אין צ'אטים מוסתרים"
+  verified_by_human: []
 compression.messages_compressed:
   context: Subtitle text in the compression summary showing how many messages were summarized
   en: "{count} messages summarized"

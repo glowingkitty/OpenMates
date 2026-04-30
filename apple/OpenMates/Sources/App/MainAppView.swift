@@ -19,7 +19,9 @@ import CoreSpotlight
 
 struct MainAppView: View {
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var pushManager: PushNotificationManager
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var chatStore = ChatStore()
     @StateObject private var wsManager = WebSocketManager()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
@@ -27,7 +29,7 @@ struct MainAppView: View {
     @StateObject private var handoffManager = HandoffManager()
     @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
-    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @State private var isChatsPanelOpen = false
     @State private var showSettings = false
     @State private var showNewChatSheet = false
     @State private var showExplore = false
@@ -45,6 +47,7 @@ struct MainAppView: View {
     @State private var renameChatId: String?
     @State private var renameChatTitle = ""
     @State private var showAuthSheet = false
+    @State private var actionChat: Chat?
 
     /// Whether the user is currently authenticated
     private var isAuthenticated: Bool {
@@ -63,78 +66,36 @@ struct MainAppView: View {
         return unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
     }
 
+    private var isCompactShell: Bool {
+        horizontalSizeClass == .compact
+    }
+
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            VStack(spacing: 0) {
-                DailyInspirationBanner(inspiration: dailyInspiration) { text in
-                    showNewChatSheet = true
-                }
-                sidebar
-            }
-        } detail: {
-            if isAuthenticated, let chatId = selectedChatId {
-                ChatView(chatId: chatId)
-            } else if !isAuthenticated, let chatId = selectedChatId {
-                // Unauthenticated: show demo chat with its gradient banner
-                ChatView(
-                    chatId: chatId,
-                    bannerState: demoBannerState(for: chatId),
-                    bannerCreatedAt: nil
-                )
-            } else if !isAuthenticated {
-                WelcomeView(onLogin: { showAuthSheet = true })
-            } else {
-                EmptyStateView()
-            }
+        VStack(spacing: 0) {
+            OpenMatesWebHeader(
+                isAuthenticated: isAuthenticated,
+                isChatsPanelOpen: isChatsPanelOpen,
+                onToggleChats: { withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen.toggle() } },
+                onNewChat: { showNewChatSheet = true },
+                onShareChat: { showShareChat = true },
+                canShareChat: selectedChatId != nil,
+                onOpenSettings: { showSettings = true },
+                onOpenAuth: { showAuthSheet = true }
+            )
+
+            shellContent
         }
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
+        .background(Color.grey0)
+        .overlay {
+            ToastOverlay()
         }
-        .sheet(isPresented: $showExplore) {
-            NavigationStack {
-                PublicChatListView()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(AppStrings.done) { showExplore = false }
-                        }
-                    }
-            }
-        }
-        .sheet(isPresented: $showNewChatSheet) {
-            NewChatView { chatId in
-                selectedChatId = chatId
-                showNewChatSheet = false
-            }
-        }
-        .sheet(isPresented: $showSearch) {
-            ChatSearchView { chatId in
-                selectedChatId = chatId
-            }
-        }
-        .sheet(isPresented: $showShareChat) {
-            if let chatId = selectedChatId {
-                ChatShareView(chatId: chatId)
-            }
-        }
-        .sheet(isPresented: $showHiddenChats) {
-            NavigationStack {
-                if hiddenChatsUnlocked {
-                    HiddenChatsListView(
-                        onSelectChat: { chatId in
-                            selectedChatId = chatId
-                            showHiddenChats = false
-                        },
-                        onUnhideChat: { chatId in
-                            unhideChat(chatId)
-                        }
-                    )
-                } else {
-                    HiddenChatsUnlockView(isUnlocked: $hiddenChatsUnlocked)
-                }
+        .overlay {
+            if let actionChat {
+                chatActionsOverlay(for: actionChat)
             }
         }
         .overlay {
-            ToastOverlay()
+            appOverlays
         }
         .overlay(alignment: .top) {
             VStack(spacing: 0) {
@@ -186,26 +147,6 @@ struct MainAppView: View {
                 deepLinkHandler.pendingInspirationId = nil
             }
         }
-        .sheet(isPresented: $showPairAuthorize) {
-            if let pairToken {
-                CLIPairAuthorizeView(token: pairToken)
-            }
-        }
-        .sheet(isPresented: $showAuthSheet) {
-            NavigationStack {
-                AuthFlowView()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(AppStrings.close) { showAuthSheet = false }
-                        }
-                    }
-            }
-        }
-        .alert(AppStrings.renameChat, isPresented: $showRenameAlert) {
-            TextField(AppStrings.chatTitle, text: $renameChatTitle)
-            Button(AppStrings.rename) { submitRename() }
-            Button(AppStrings.cancel, role: .cancel) {}
-        }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             showNewChatSheet = true
         }
@@ -215,6 +156,9 @@ struct MainAppView: View {
                 incognitoManager.isEnabled ? AppStrings.incognitoModeOn : AppStrings.incognitoModeOff,
                 type: .info
             )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openAuth)) { _ in
+            showAuthSheet = true
         }
         #if os(iOS)
         .onReceive(NotificationCenter.default.publisher(for: .handoffChatReceived)) { notification in
@@ -258,158 +202,432 @@ struct MainAppView: View {
         }
     }
 
-    // MARK: - Sidebar
+    // MARK: - Web-style shell
 
-    private var sidebar: some View {
-        List(selection: $selectedChatId) {
-            if !filteredPinnedChats.isEmpty {
-                Section {
-                    ForEach(filteredPinnedChats) { chat in
-                        chatRow(chat)
-                    }
-                } header: {
-                    Text(AppStrings.pinnedChats.uppercased())
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
+    @ViewBuilder
+    private var appOverlays: some View {
+        if showSettings {
+            appOverlay(title: AppStrings.settings, isPresented: $showSettings, maxWidth: 820, maxHeight: 820, showHeader: false) {
+                SettingsView()
+                    .environmentObject(authManager)
+                    .environmentObject(themeManager)
+            }
+        }
+
+        if showExplore {
+            appOverlay(title: AppStrings.explore, isPresented: $showExplore) {
+                PublicChatListView()
+            }
+        }
+
+        if showNewChatSheet {
+            appOverlay(title: AppStrings.newChat, isPresented: $showNewChatSheet) {
+                NewChatView { chatId in
+                    selectedChatId = chatId
+                    showNewChatSheet = false
                 }
             }
+        }
 
-            Section {
-                ForEach(filteredUnpinnedChats) { chat in
-                    chatRow(chat)
-                }
-            } header: {
-                if !filteredPinnedChats.isEmpty {
-                    Text(AppStrings.recentChats.uppercased())
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
+        if showSearch {
+            appOverlay(title: AppStrings.search, isPresented: $showSearch) {
+                ChatSearchView { chatId in
+                    selectedChatId = chatId
+                    showSearch = false
                 }
             }
+        }
 
-            if isAuthenticated {
-                // Pagination
-                if chatStore.chats.count < totalChatCount {
-                    ShowMoreChatsButton(
-                        totalCount: totalChatCount,
-                        loadedCount: chatStore.chats.count,
-                        isLoading: isLoadingMore,
-                        onLoadMore: { loadMoreChats() }
+        if showShareChat, let chatId = selectedChatId {
+            appOverlay(title: AppStrings.share, isPresented: $showShareChat) {
+                ChatShareView(chatId: chatId)
+            }
+        }
+
+        if showHiddenChats {
+            appOverlay(title: AppStrings.hiddenChats, isPresented: $showHiddenChats) {
+                if hiddenChatsUnlocked {
+                    HiddenChatsListView(
+                        onSelectChat: { chatId in
+                            selectedChatId = chatId
+                            showHiddenChats = false
+                        },
+                        onUnhideChat: { chatId in
+                            unhideChat(chatId)
+                        }
                     )
+                } else {
+                    HiddenChatsUnlockView(isUnlocked: $hiddenChatsUnlocked)
+                }
+            }
+        }
+
+        if showPairAuthorize, let pairToken {
+            appOverlay(title: AppStrings.pairNewDevice, isPresented: $showPairAuthorize) {
+                CLIPairAuthorizeView(token: pairToken)
+            }
+        }
+
+        if showAuthSheet {
+            appOverlay(title: AppStrings.loginSignup, isPresented: $showAuthSheet) {
+                AuthFlowView()
+            }
+        }
+
+        if showRenameAlert {
+            renameOverlay
+        }
+    }
+
+    private func appOverlay<Content: View>(
+        title: String,
+        isPresented: Binding<Bool>,
+        maxWidth: CGFloat = 760,
+        maxHeight: CGFloat = 760,
+        showHeader: Bool = true,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isPresented.wrappedValue = false
                 }
 
-                // Hidden chats section
-                Section {
-                    Button {
-                        showHiddenChats = true
-                    } label: {
-                        Label(AppStrings.hiddenChats, systemImage: "eye.slash")
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                }
-            }
-        }
-        .listStyle(.plain)
-        .listRowSeparator(.hidden)
-        .scrollContentBackground(.hidden)
-        .background(Color.grey0)
-        .searchable(text: $searchText, prompt: AppStrings.search)
-        .navigationTitle(AppStrings.chats)
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.large)
-        #endif
-        .toolbar {
-            if isAuthenticated {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { showNewChatSheet = true } label: {
-                        Icon("create", size: 20)
-                    }
-                    .accessibilityIdentifier("new-chat-button")
-                    .accessibilityLabel(AppStrings.newChat)
-                    .accessibilityHint("Start a new conversation")
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button { showSearch = true } label: {
-                        Label(AppStrings.search, systemImage: "magnifyingglass")
-                    }
-                    .accessibilityIdentifier("search-button")
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button { showExplore = true } label: {
-                        Label(AppStrings.explore, systemImage: "globe")
-                    }
-                }
-            }
-            #if os(iOS)
-            ToolbarItem(placement: .navigationBarLeading) {
-                if isAuthenticated {
-                    Button { showSettings = true } label: {
-                        Icon("settings", size: 20)
-                    }
-                    .accessibilityIdentifier("settings-button")
-                    .accessibilityLabel(AppStrings.settings)
-                } else {
-                    Button { showAuthSheet = true } label: {
-                        Text(AppStrings.login)
-                            .font(.omSmall)
+            VStack(spacing: 0) {
+                if showHeader {
+                    HStack(spacing: .spacing4) {
+                        Text(title)
+                            .font(.omH3)
                             .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontPrimary)
+                        Spacer()
+                        OMIconButton(icon: "close", label: AppStrings.close, size: 34) {
+                            isPresented.wrappedValue = false
+                        }
                     }
-                    .accessibilityIdentifier("login-button")
+                    .padding(.spacing6)
+                    .background(Color.grey0)
                 }
+
+                content()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            #else
-            if !isAuthenticated {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { showAuthSheet = true } label: {
-                        Text(AppStrings.login)
-                            .font(.omSmall)
-                            .fontWeight(.semibold)
-                    }
-                    .accessibilityIdentifier("login-button")
-                }
-            }
-            #endif
+            .frame(maxWidth: maxWidth, maxHeight: maxHeight)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius8)
+                    .stroke(Color.grey20, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 12)
+            .padding(.spacing8)
         }
-        .refreshable {
-            if isAuthenticated {
-                await loadInitialData()
+    }
+
+    private var renameOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    showRenameAlert = false
+                }
+
+            VStack(alignment: .leading, spacing: .spacing5) {
+                HStack {
+                    Text(AppStrings.renameChat)
+                        .font(.omH3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                    Spacer()
+                    OMIconButton(icon: "close", label: AppStrings.cancel, size: 34) {
+                        showRenameAlert = false
+                    }
+                }
+
+                TextField(AppStrings.chatTitle, text: $renameChatTitle)
+                    .textFieldStyle(OMTextFieldStyle())
+
+                HStack(spacing: .spacing3) {
+                    Button(AppStrings.cancel) {
+                        showRenameAlert = false
+                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
+
+                    Button(AppStrings.rename) {
+                        submitRename()
+                    }
+                    .buttonStyle(OMPrimaryButtonStyle())
+                }
+            }
+            .padding(.spacing6)
+            .frame(maxWidth: 420)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius8)
+                    .stroke(Color.grey20, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 12)
+            .padding(.spacing8)
+        }
+    }
+
+    @ViewBuilder
+    private var shellContent: some View {
+        if isCompactShell {
+            ZStack(alignment: .leading) {
+                detailContent
+
+                if isChatsPanelOpen {
+                    Color.black.opacity(0.18)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isChatsPanelOpen = false
+                            }
+                        }
+
+                    chatsPanel
+                        .frame(maxWidth: 340)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        .zIndex(1)
+                }
+            }
+        } else {
+            HStack(spacing: 0) {
+                if isChatsPanelOpen {
+                    chatsPanel
+                        .frame(width: 340)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+
+                    Divider()
+                        .overlay(Color.grey20)
+                }
+
+                detailContent
             }
         }
     }
 
-    // MARK: - Chat row with context menu
+    @ViewBuilder
+    private var detailContent: some View {
+        if isAuthenticated, let chatId = selectedChatId {
+            ChatView(chatId: chatId)
+        } else if !isAuthenticated, let chatId = selectedChatId {
+            ChatView(
+                chatId: chatId,
+                bannerState: demoBannerState(for: chatId),
+                bannerCreatedAt: nil
+            )
+        } else if !isAuthenticated {
+            WelcomeView(onLogin: { showAuthSheet = true })
+        } else {
+            EmptyStateView()
+        }
+    }
+
+    private var chatsPanel: some View {
+        VStack(spacing: 0) {
+            DailyInspirationBanner(inspiration: dailyInspiration) { _ in
+                showNewChatSheet = true
+            }
+
+            HStack(spacing: .spacing3) {
+                Icon("search", size: 14)
+                    .foregroundStyle(Color.fontTertiary)
+
+                TextField(AppStrings.search, text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontPrimary)
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, .spacing5)
+            .padding(.top, .spacing3)
+            .padding(.bottom, .spacing2)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: .spacing2) {
+                    if !filteredPinnedChats.isEmpty {
+                        chatSectionHeader(AppStrings.pinnedChats)
+                        ForEach(filteredPinnedChats) { chat in
+                            chatRow(chat)
+                        }
+                    }
+
+                    if !filteredUnpinnedChats.isEmpty {
+                        chatSectionHeader(filteredPinnedChats.isEmpty ? AppStrings.chats : AppStrings.recentChats)
+                        ForEach(filteredUnpinnedChats) { chat in
+                            chatRow(chat)
+                        }
+                    } else if filteredPinnedChats.isEmpty {
+                        Text(AppStrings.noChats)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontTertiary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, .spacing10)
+                    }
+
+                    if isAuthenticated {
+                        if chatStore.chats.count < totalChatCount {
+                            ShowMoreChatsButton(
+                                totalCount: totalChatCount,
+                                loadedCount: chatStore.chats.count,
+                                isLoading: isLoadingMore,
+                                onLoadMore: { loadMoreChats() }
+                            )
+                            .padding(.horizontal, .spacing5)
+                        }
+
+                        Button {
+                            showHiddenChats = true
+                        } label: {
+                            HStack(spacing: .spacing3) {
+                                Icon("anonym", size: 16)
+                                    .foregroundStyle(Color.fontSecondary)
+                                Text(AppStrings.hiddenChats)
+                                    .font(.omSmall)
+                                    .foregroundStyle(Color.fontSecondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, .spacing3)
+            }
+            .refreshable {
+                if isAuthenticated {
+                    await loadInitialData()
+                }
+            }
+        }
+        .background(Color.grey0)
+        .accessibilityIdentifier("chat-history-panel")
+    }
+
+    private func chatSectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.omXs)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.fontTertiary)
+            .padding(.horizontal, .spacing5)
+            .padding(.top, .spacing4)
+            .padding(.bottom, .spacing1)
+    }
 
     @ViewBuilder
     private func chatRow(_ chat: Chat) -> some View {
-        if isAuthenticated {
-            ChatListRow(chat: chat)
-                .tag(chat.id)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) { deleteChat(chat.id) } label: {
-                        Label(AppStrings.delete, systemImage: "trash")
-                    }
+        let isSelected = selectedChatId == chat.id
+        Button {
+            selectedChatId = chat.id
+            if isCompactShell {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isChatsPanelOpen = false
                 }
-                .contextMenu {
-                    ChatContextMenuActions(
-                        chat: chat,
-                        onPin: { pinChat(chat) },
-                        onHide: { hideChat(chat.id) },
-                        onShare: {
-                            selectedChatId = chat.id
-                            showShareChat = true
-                        },
-                        onArchive: { archiveChat(chat.id) },
-                        onRename: { renameChat(chat) },
-                        onDelete: { deleteChat(chat.id) }
-                    )
-                }
-        } else {
+            }
+        } label: {
             ChatListRow(chat: chat)
-                .tag(chat.id)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                .background(isSelected ? Color.grey10 : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .contentShape(RoundedRectangle(cornerRadius: 8))
         }
+        .buttonStyle(.plain)
+        .padding(.horizontal, .spacing3)
+        .onLongPressGesture {
+            if isAuthenticated {
+                actionChat = chat
+            }
+        }
+    }
+
+    private func chatActionsOverlay(for chat: Chat) -> some View {
+        ZStack {
+            Color.black.opacity(0.28)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    actionChat = nil
+                }
+
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(chat.displayTitle)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.top, .spacing3)
+
+                chatActionRow(icon: "copy", title: chat.isPinned == true ? AppStrings.unpin : AppStrings.pin) {
+                    pinChat(chat)
+                    actionChat = nil
+                }
+
+                chatActionRow(icon: "share", title: AppStrings.share) {
+                    selectedChatId = chat.id
+                    showShareChat = true
+                    actionChat = nil
+                }
+
+                chatActionRow(icon: "copy", title: AppStrings.rename) {
+                    renameChat(chat)
+                    actionChat = nil
+                }
+
+                chatActionRow(icon: "copy", title: AppStrings.archive) {
+                    archiveChat(chat.id)
+                    actionChat = nil
+                }
+
+                chatActionRow(icon: "anonym", title: AppStrings.hide) {
+                    hideChat(chat.id)
+                    actionChat = nil
+                }
+
+                chatActionRow(icon: "delete", title: AppStrings.delete, isDestructive: true) {
+                    deleteChat(chat.id)
+                    actionChat = nil
+                }
+            }
+            .padding(.vertical, .spacing2)
+            .frame(width: 280)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius7))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius7)
+                    .stroke(Color.grey20, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 10)
+        }
+    }
+
+    private func chatActionRow(
+        icon: String,
+        title: String,
+        isDestructive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                Icon(icon, size: 17)
+                    .foregroundStyle(isDestructive ? Color.error : Color.fontSecondary)
+                Text(title)
+                    .font(.omSmall)
+                    .fontWeight(.medium)
+                    .foregroundStyle(isDestructive ? Color.error : Color.fontPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Demo chats for unauthenticated users
@@ -752,6 +970,145 @@ struct MainAppView: View {
     }
 }
 
+// MARK: - Web app header
+
+struct OpenMatesWebHeader: View {
+    let isAuthenticated: Bool
+    let isChatsPanelOpen: Bool
+    let onToggleChats: () -> Void
+    let onNewChat: () -> Void
+    let onShareChat: () -> Void
+    let canShareChat: Bool
+    let onOpenSettings: () -> Void
+    let onOpenAuth: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: .spacing4) {
+            Button(action: onToggleChats) {
+                WebHamburgerIcon(isOpen: isChatsPanelOpen)
+            }
+            .buttonStyle(.plain)
+            .frame(width: 34, height: 34)
+            .contentShape(Rectangle())
+            .accessibilityIdentifier("sidebar-toggle")
+            .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
+
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 3) {
+                    Text("Open")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.grey0)
+                        .padding(.horizontal, 4)
+                        .background(Color.buttonPrimary)
+
+                    Text("Mates")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.grey100)
+                }
+
+                Text(AppStrings.signupVersionTitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.grey60)
+                    .lineLimit(1)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("OpenMates, \(AppStrings.signupVersionTitle)")
+
+            Spacer(minLength: .spacing4)
+
+            HStack(spacing: .spacing2) {
+                Button(action: onNewChat) {
+                    Icon("modify", size: 18)
+                }
+                .buttonStyle(WebHeaderIconButtonStyle())
+                .accessibilityIdentifier("new-chat-button")
+                .accessibilityLabel(AppStrings.newChat)
+
+                Button(action: onShareChat) {
+                    Icon("share", size: 17)
+                }
+                .buttonStyle(WebHeaderIconButtonStyle())
+                .disabled(!canShareChat)
+                .opacity(canShareChat ? 1 : 0.35)
+                .accessibilityIdentifier("share-chat-button")
+                .accessibilityLabel(AppStrings.share)
+
+                Button(action: onOpenSettings) {
+                    WebMenuDotsIcon()
+                }
+                .buttonStyle(WebHeaderIconButtonStyle())
+                .accessibilityIdentifier("settings-button")
+                .accessibilityLabel(AppStrings.settings)
+            }
+
+            if !isAuthenticated {
+                Button(action: onOpenAuth) {
+                    Text(AppStrings.loginSignup)
+                        .font(.omSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontButton)
+                        .lineLimit(1)
+                        .padding(.horizontal, .spacing4)
+                        .padding(.vertical, .spacing3)
+                        .background(Color.buttonPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("login-signup-button")
+                .accessibilityLabel(AppStrings.loginSignup)
+            }
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.top, .spacing5)
+        .padding(.bottom, .spacing3)
+        .background(Color.grey0)
+    }
+}
+
+private struct WebHamburgerIcon: View {
+    let isOpen: Bool
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Capsule()
+                .frame(width: 22, height: 2)
+                .rotationEffect(.degrees(isOpen ? 45 : 0))
+                .offset(y: isOpen ? 7 : 0)
+            Capsule()
+                .frame(width: 22, height: 2)
+                .opacity(isOpen ? 0 : 1)
+            Capsule()
+                .frame(width: 22, height: 2)
+                .rotationEffect(.degrees(isOpen ? -45 : 0))
+                .offset(y: isOpen ? -7 : 0)
+        }
+        .foregroundStyle(Color.fontPrimary)
+        .animation(.easeInOut(duration: 0.18), value: isOpen)
+    }
+}
+
+private struct WebMenuDotsIcon: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Circle().frame(width: 4, height: 4)
+            Circle().frame(width: 4, height: 4)
+            Circle().frame(width: 4, height: 4)
+        }
+        .foregroundStyle(Color.fontPrimary)
+        .frame(width: 22, height: 22)
+    }
+}
+
+private struct WebHeaderIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.fontPrimary)
+            .frame(width: 34, height: 34)
+            .background(configuration.isPressed ? Color.grey10 : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
 // MARK: - Welcome view for unauthenticated users
 
 struct WelcomeView: View {
@@ -817,7 +1174,6 @@ struct EmptyStateView: View {
 
 struct NewChatView: View {
     let onChatCreated: (String) -> Void
-    @Environment(\.dismiss) var dismiss
     @State private var messageText = ""
     @State private var selectedApp: String?
     @FocusState private var isFocused: Bool
@@ -830,85 +1186,75 @@ struct NewChatView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: .spacing6) {
-                Text(AppStrings.whatToHelpWith)
-                    .font(.omH3).fontWeight(.semibold)
-                    .foregroundStyle(Color.fontPrimary)
+        VStack(spacing: .spacing6) {
+            Text(AppStrings.whatToHelpWith)
+                .font(.omH3).fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
 
-                // App selector
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: .spacing4) {
-                    ForEach(popularApps, id: \.0) { appId, name in
-                        Button {
-                            selectedApp = selectedApp == appId ? nil : appId
-                        } label: {
-                            VStack(spacing: .spacing2) {
-                                AppIconView(appId: appId, size: 40)
-                                    .overlay(
-                                        selectedApp == appId ?
-                                        Circle().stroke(Color.buttonPrimary, lineWidth: 2)
-                                            .frame(width: 44, height: 44) : nil
-                                    )
-                                Text(name)
-                                    .font(.omTiny)
-                                    .foregroundStyle(Color.fontSecondary)
-                                    .lineLimit(1)
-                            }
+            // App selector
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: .spacing4) {
+                ForEach(popularApps, id: \.0) { appId, name in
+                    Button {
+                        selectedApp = selectedApp == appId ? nil : appId
+                    } label: {
+                        VStack(spacing: .spacing2) {
+                            AppIconView(appId: appId, size: 40)
+                                .overlay(
+                                    selectedApp == appId ?
+                                    Circle().stroke(Color.buttonPrimary, lineWidth: 2)
+                                        .frame(width: 44, height: 44) : nil
+                                )
+                            Text(name)
+                                .font(.omTiny)
+                                .foregroundStyle(Color.fontSecondary)
+                                .lineLimit(1)
                         }
-                        .buttonStyle(.plain)
                     }
-                }
-                .padding(.horizontal)
-
-                // Message input — pill style matching ChatView.inputBar and fields.css
-                HStack(alignment: .bottom, spacing: .spacing3) {
-                    TextField(AppStrings.startTyping, text: $messageText, axis: .vertical)
-                        .textFieldStyle(.plain)
-                        .font(.omP)
-                        .lineLimit(1...4)
-                        .padding(.horizontal, .spacing8)
-                        .padding(.vertical, .spacing6)
-                        .background(Color.grey0)
-                        .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: .radiusFull)
-                                .stroke(isFocused ? Color.buttonPrimary : Color.grey30, lineWidth: 2)
-                        )
-                        .shadow(
-                            color: isFocused ? Color.buttonPrimary.opacity(0.22) : .clear,
-                            radius: 3, x: 0, y: 0
-                        )
-                        .shadow(
-                            color: isFocused ? .black.opacity(0.08) : .black.opacity(0.05),
-                            radius: isFocused ? 12 : 2, x: 0, y: 4
-                        )
-                        .tint(Color.buttonPrimary)
-                        .focused($isFocused)
-
-                    Button(action: createChat) {
-                        Icon("up", size: 16)
-                            .foregroundStyle(messageText.isEmpty ? Color.fontTertiary : Color.fontButton)
-                            .frame(width: 32, height: 32)
-                            .background(messageText.isEmpty ? Color.grey20 : Color.buttonPrimary)
-                            .clipShape(Circle())
-                    }
-                    .disabled(messageText.isEmpty)
-                }
-                .padding(.horizontal)
-
-                Spacer()
-            }
-            .padding(.top, .spacing8)
-            .navigationTitle(AppStrings.newChat)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(AppStrings.cancel) { dismiss() }
+                    .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal)
+
+            // Message input — pill style matching ChatView.inputBar and fields.css
+            HStack(alignment: .bottom, spacing: .spacing3) {
+                TextField(AppStrings.startTyping, text: $messageText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.omP)
+                    .lineLimit(1...4)
+                    .padding(.horizontal, .spacing8)
+                    .padding(.vertical, .spacing6)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: .radiusFull)
+                            .stroke(isFocused ? Color.buttonPrimary : Color.grey30, lineWidth: 2)
+                    )
+                    .shadow(
+                        color: isFocused ? Color.buttonPrimary.opacity(0.22) : .clear,
+                        radius: 3, x: 0, y: 0
+                    )
+                    .shadow(
+                        color: isFocused ? .black.opacity(0.08) : .black.opacity(0.05),
+                        radius: isFocused ? 12 : 2, x: 0, y: 4
+                    )
+                    .tint(Color.buttonPrimary)
+                    .focused($isFocused)
+
+                Button(action: createChat) {
+                    Icon("up", size: 16)
+                        .foregroundStyle(messageText.isEmpty ? Color.fontTertiary : Color.fontButton)
+                        .frame(width: 32, height: 32)
+                        .background(messageText.isEmpty ? Color.grey20 : Color.buttonPrimary)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(messageText.isEmpty)
+            }
+            .padding(.horizontal)
+
+            Spacer()
         }
+        .padding(.top, .spacing8)
         .onAppear { isFocused = true }
     }
 

@@ -50,7 +50,7 @@ enum AppStrings {
     static var deleteMessage: String { L("context_menu.delete") }
     static var forkConversation: String { L("context_menu.fork") }
     static var chatMessageInput: String { L("chat.message_input") }
-    static var typeMessage: String { L("chat.type_message") }
+    static var typeMessage: String { L("enter_message.placeholder.touch") }
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("chat.ai_responding") }
     static var stopResponse: String { L("chat.stop_response") }
@@ -191,8 +191,10 @@ enum AppStrings {
     static var logs: String { L("settings.logs") }
 
     // MARK: - Auth
-    static var login: String { L("header.login") }
-    static var signup: String { L("header.signup") }
+    static var login: String { L("login.login") }
+    static var signup: String { L("signup.sign_up") }
+    static var loginSignup: String { "\(login) / \(signup)" }
+    static var signupVersionTitle: String { L("signup.version_title") }
     static var logout: String { L("settings.logout") }
     static var logOut: String { L("settings.logout") }
     static var enterPassword: String { L("auth.enter_password") }
@@ -243,6 +245,7 @@ enum AppStrings {
 
     // MARK: - Chat banner (ChatHeader.svelte)
     static var creatingNewChat: String { L("chat.creating_new_chat") }
+    static var exampleChatBadge: String { L("chat.header.example_chat") }
     static var chatHeaderJustNow: String { L("chat.header.just_now") }
     static var incognitoModeActive: String { L("settings.incognito_mode_active") }
 

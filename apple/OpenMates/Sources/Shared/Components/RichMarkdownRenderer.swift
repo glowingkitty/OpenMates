@@ -12,7 +12,7 @@ import SwiftUI
 /// Handles fenced code blocks (```lang), blockquotes (>), headers (#),
 /// horizontal rules (---), and unordered/ordered lists. Everything else
 /// is treated as a paragraph with inline markdown formatting.
-enum MarkdownBlock: Identifiable {
+enum MarkdownBlock {
     case paragraph(String)
     case codeBlock(language: String?, code: String)
     case blockquote(String)
@@ -22,18 +22,6 @@ enum MarkdownBlock: Identifiable {
     case orderedList([String])
     case table(headers: [String], rows: [[String]])
 
-    var id: String {
-        switch self {
-        case .paragraph(let t): return "p-\(t.hashValue)"
-        case .codeBlock(_, let c): return "code-\(c.hashValue)"
-        case .blockquote(let t): return "bq-\(t.hashValue)"
-        case .header(let l, let t): return "h\(l)-\(t.hashValue)"
-        case .horizontalRule: return "hr-\(UUID().uuidString)"
-        case .unorderedList(let items): return "ul-\(items.hashValue)"
-        case .orderedList(let items): return "ol-\(items.hashValue)"
-        case .table(let h, _): return "tbl-\(h.hashValue)"
-        }
-    }
 }
 
 enum MarkdownParser {
@@ -191,14 +179,17 @@ enum MarkdownParser {
 struct RichMarkdownView: View {
     let content: String
     let isUserMessage: Bool
+    private let blocks: [MarkdownBlock]
 
-    private var blocks: [MarkdownBlock] {
-        MarkdownParser.parse(content)
+    init(content: String, isUserMessage: Bool) {
+        self.content = content
+        self.isUserMessage = isUserMessage
+        self.blocks = MarkdownParser.parse(content)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            ForEach(blocks) { block in
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 blockView(for: block)
             }
         }
@@ -240,18 +231,21 @@ struct RichMarkdownView: View {
 struct InlineMarkdownText: View {
     let content: String
     let isUserMessage: Bool
+    private let attributedContent: AttributedString
+
+    init(content: String, isUserMessage: Bool) {
+        self.content = content
+        self.isUserMessage = isUserMessage
+        self.attributedContent = (try? AttributedString(markdown: content, options: .init(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        ))) ?? AttributedString(content)
+    }
 
     var body: some View {
         Text(attributedContent)
             .font(.omP)
             .foregroundStyle(isUserMessage ? Color.fontButton : Color.fontPrimary)
             .textSelection(.enabled)
-    }
-
-    private var attributedContent: AttributedString {
-        (try? AttributedString(markdown: content, options: .init(
-            interpretedSyntax: .inlineOnlyPreservingWhitespace
-        ))) ?? AttributedString(content)
     }
 }
 
@@ -277,8 +271,8 @@ struct CodeBlockView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Icon(copied ? "check" : "copy", size: 11)
-                        Text(copied ? "Copied" : "Copy")
-                            .font(.system(size: 11))
+                        Text(copied ? AppStrings.copied : AppStrings.copy)
+                            .font(.omMicro)
                     }
                     .foregroundStyle(Color.fontSecondary)
                 }
