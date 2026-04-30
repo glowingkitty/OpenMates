@@ -363,11 +363,18 @@ test.describe('CLI PDF Skills', () => {
 		// Step 4: Send a message asking the AI to read the PDF and submit
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 4: Sending message asking AI to read the PDF...');
-		await messageEditor.click();
-		await messageEditor.type('Please read this document and tell me what it contains on page 1.');
+		// Escape any embed selection, position cursor at end, then type.
+		// Matches the proven pattern from pdf-flow.spec.ts.
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(300);
+		await messageEditor.press('End');
+		await page.keyboard.type('Please read this document and tell me what it contains on page 1.');
 
-		const sendBtn = page.locator('[data-testid="send-btn"], button[aria-label*="send" i]').first();
-		await expect(sendBtn).toBeVisible({ timeout: 10000 });
+		const sendBtn = page.locator('[data-action="send-message"]');
+		await expect(sendBtn).toBeVisible({ timeout: 15000 });
+		await expect(sendBtn).toBeEnabled({ timeout: 5000 });
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(200);
 		await sendBtn.click();
 		logCheckpoint('Message sent. Waiting for AI response...');
 
