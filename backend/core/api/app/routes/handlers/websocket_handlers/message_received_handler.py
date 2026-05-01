@@ -679,17 +679,33 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "updated_at": int(datetime.now(timezone.utc).timestamp())
                     }
                     
-                    # Store in cache
-                    # Note: embed_data is already vault-encrypted above
-                    await cache_service.set_embed_in_cache(
-                        embed_id=embed_id,
-                        embed_data=embed_cache_data,
-                        chat_id=chat_id
-                    )
-                    
-                    # Add to chat embed index
+                    # Check if a fuller version already exists in cache (e.g. from a
+                    # previous upload that was deduplicated). The client may send a
+                    # minimal TOON for deduplicated uploads (just filename/metadata,
+                    # no OCR text or screenshot_s3_keys). Overwriting the full cached
+                    # version with this minimal TOON breaks AI PDF reading.
+                    # Only skip overwrite if the existing entry has status="finished"
+                    # (meaning it has the complete OCR-processed content).
+                    existing_cached = await cache_service.get(f"embed:{embed_id}")
+                    if existing_cached and existing_cached.get("status") == "finished":
+                        logger.info(
+                            f"Embed {embed_id} already exists in cache with status=finished — "
+                            f"preserving existing content (client may have sent minimal dedup version)"
+                        )
+                    else:
+                        # Store in cache (new embed or replacing non-finished version)
+                        # Note: embed_data is already vault-encrypted above
+                        await cache_service.set_embed_in_cache(
+                            embed_id=embed_id,
+                            embed_data=embed_cache_data,
+                            chat_id=chat_id
+                        )
+
+                    # Always add to chat embed index — even for deduplicated embeds,
+                    # the embed must be associated with this new chat so the AI task
+                    # can find it when processing this chat's messages.
                     await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
-                    
+
                     logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
                     
                 except Exception as e_embed:

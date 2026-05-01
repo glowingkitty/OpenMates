@@ -686,13 +686,6 @@ async function _performPdfUpload(
         aes_nonce: result.aes_nonce || null,
         vault_wrapped_aes_key: result.vault_wrapped_aes_key || null,
       };
-      // Mark deduplicated embeds so sendersChatMessages skips sending
-      // their content to the server (the server already has the full
-      // version with OCR text — sending our minimal version would
-      // overwrite it and break AI PDF reading).
-      if (result.deduplicated) {
-        embedContent._server_authoritative = true;
-      }
 
       let toonContent: string;
       try {
