@@ -662,86 +662,12 @@ async function _performPdfUpload(
     // background and the WebSocket embed_update event will push 'finished' later.
     const uploadedStatus = result.deduplicated ? "finished" : "processing";
 
-    // Register the PDF embed in EmbedStore immediately after upload.
-    // This is critical for deduplicated PDFs: the server won't re-send
-    // send_embed_data, and the existing EmbedStore entry may be encrypted
-    // with a previous session's key (causing decryption failures that block
-    // message sending). Storing now with the current key ensures loadEmbeds()
-    // in sendersChatMessages.ts can always resolve the embed.
-    // For non-deduplicated PDFs, this creates a "processing" placeholder that
-    // the send_embed_data handler will overwrite with the full OCR content.
+    // PDF dedup is disabled (see internal_api.py check-duplicate endpoint and
+    // upload_route.py). Every PDF upload triggers fresh OCR processing which
+    // delivers the full TOON via send_embed_data. Do NOT register a minimal
+    // TOON in EmbedStore here — it would be sent with the message and overwrite
+    // the full OCR cache on the server (causing "missing ocr_data_s3_key" errors).
     const uploadEmbedId = result.embed_id;
-    try {
-      const embedContent: Record<string, unknown> = {
-        app_id: "pdf",
-        skill_id: "read",
-        type: "pdf",
-        status: uploadedStatus,
-        filename: file.name || null,
-        page_count: result.page_count ?? null,
-        content_hash: result.content_hash || null,
-        s3_base_url: result.s3_base_url || null,
-        files: result.files || null,
-        aes_key: result.aes_key || null,
-        aes_nonce: result.aes_nonce || null,
-        vault_wrapped_aes_key: result.vault_wrapped_aes_key || null,
-      };
-
-      let toonContent: string;
-      try {
-        toonContent = toonEncode(embedContent);
-      } catch {
-        toonContent = JSON.stringify(embedContent);
-      }
-
-      const now = Date.now();
-      await embedStore.put(
-        `embed:${uploadEmbedId}`,
-        {
-          embed_id: uploadEmbedId,
-          type: "pdf-read",
-          status: uploadedStatus,
-          content: toonContent,
-          text_preview: file.name || "PDF",
-          createdAt: now,
-          updatedAt: now,
-        },
-        "pdf-read",
-      );
-      console.debug(
-        "[EmbedHandlers] Registered PDF embed in EmbedStore:",
-        uploadEmbedId,
-      );
-    } catch (storeError) {
-      // Non-fatal: the PDF is still uploaded — send may fail if the old
-      // encrypted version can't be decrypted. Surface for visibility.
-      console.error(
-        "[EmbedHandlers] Failed to register PDF embed in EmbedStore:",
-        storeError,
-      );
-    }
-
-    // For deduplicated PDFs, request the full embed data from the server.
-    // The server has the complete TOON (including screenshot_s3_keys from OCR)
-    // which is needed for preview images and the fullscreen viewer.
-    // The send_embed_data response will overwrite our minimal local version.
-    if (result.deduplicated) {
-      try {
-        const { chatSyncService } = await import("../../services/chatSyncService");
-        const { sendRequestEmbed } = await import("../../services/sendersEmbeds");
-        await sendRequestEmbed(chatSyncService, uploadEmbedId);
-        console.debug(
-          "[EmbedHandlers] Requested full embed data for deduplicated PDF:",
-          uploadEmbedId,
-        );
-      } catch (reqError) {
-        // Non-fatal: the preview image may not appear, but the message can still be sent.
-        console.warn(
-          "[EmbedHandlers] Failed to request embed data for deduplicated PDF:",
-          reqError,
-        );
-      }
-    }
 
     updateEmbedNode({
       status: uploadedStatus,
