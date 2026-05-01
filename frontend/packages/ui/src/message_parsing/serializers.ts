@@ -669,17 +669,22 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // the backend will provide the content once OCR finishes.
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify({ type: "pdf", embed_id }, null, 2);
+        // Include filename and page_count so read-only rendering can display
+        // them immediately without waiting for TOON resolution from EmbedStore.
+        // After reload, the TOON may not be available yet (key derivation, timing).
+        const ref: Record<string, unknown> = { type: "pdf", embed_id };
+        if (attrs.filename) ref.filename = attrs.filename;
+        if (attrs.pageCount) ref.page_count = attrs.pageCount;
+        const embedRef = JSON.stringify(ref, null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       // No contentRef yet (OCR not done). Emit a placeholder reference using the
       // uploadEmbedId so the backend can still reference the PDF in the message.
       if (attrs.uploadEmbedId) {
-        const embedRef = JSON.stringify(
-          { type: "pdf", embed_id: attrs.uploadEmbedId },
-          null,
-          2,
-        );
+        const ref: Record<string, unknown> = { type: "pdf", embed_id: attrs.uploadEmbedId };
+        if (attrs.filename) ref.filename = attrs.filename;
+        if (attrs.pageCount) ref.page_count = attrs.pageCount;
+        const embedRef = JSON.stringify(ref, null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       return "";

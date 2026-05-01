@@ -83,6 +83,10 @@ export interface EmbedNodeAttributes {
   focus_id?: string; // Full focus mode ID (e.g., 'web-research')
   focus_mode_name?: string; // Translated display name of the focus mode
 
+  // PDF-specific metadata — serialized in the embed JSON reference so the filename
+  // and page count survive reload without needing immediate TOON resolution.
+  pageCount?: number | null;
+
   // Temporary field set by embedHandlers.ts on PDF embed nodes when the PDF is uploaded
   // to S3 but OCR is still in progress (status: "processing"). Stores the server-assigned
   // embed_id so serializers.ts can emit a placeholder embed reference in the message,
