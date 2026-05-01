@@ -634,6 +634,52 @@ async def upload_file(
             # bucket URL due to the shared-service bucket bug.
             s3_service_for_dedup = request.app.state.s3
             dedup_s3_base_url = s3_service_for_dedup.get_base_url(target_env=target_env)
+
+            # For deduplicated PDFs, re-trigger OCR processing as a background
+            # task. The vault-encrypted cache entry with OCR text has a 24h TTL
+            # and may have expired since the original upload. Without this, the
+            # AI task receives a minimal TOON (no OCR text) and can't read the PDF.
+            # Credits are NOT re-charged (the original upload already paid).
+            if is_pdf:
+                dedup_embed_id = existing_record["embed_id"]
+                dedup_s3_key = next(
+                    (v.get("s3_key") for v in files_data.values() if v.get("s3_key")),
+                    None,
+                )
+                if dedup_s3_key:
+                    async def _retrigger_pdf_ocr() -> None:
+                        try:
+                            async with httpx.AsyncClient(timeout=10) as _client:
+                                resp = await _client.post(
+                                    f"{core_api_url}/internal/pdf/process",
+                                    json={
+                                        "embed_id": dedup_embed_id,
+                                        "user_id": user_id,
+                                        "vault_key_id": vault_key_id,
+                                        "s3_key": dedup_s3_key,
+                                        "s3_base_url": dedup_s3_base_url,
+                                        "vault_wrapped_aes_key": existing_record["vault_wrapped_aes_key"],
+                                        "aes_nonce": existing_record["aes_nonce"],
+                                        "filename": existing_record.get("original_filename", filename),
+                                        "page_count": existing_record.get("page_count"),
+                                        "credits_charged": 0,
+                                        "user_id_hash": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                                    },
+                                    headers={"X-Internal-Service-Token": internal_token},
+                                )
+                            if resp.status_code not in (200, 201, 202):
+                                logger.warning(
+                                    f"{log_prefix} [Dedup-PDF] OCR re-trigger returned HTTP {resp.status_code}"
+                                )
+                            else:
+                                logger.info(f"{log_prefix} [Dedup-PDF] OCR re-processing triggered for {dedup_embed_id}")
+                        except Exception as exc:
+                            logger.warning(f"{log_prefix} [Dedup-PDF] OCR re-trigger failed (non-fatal): {exc}")
+
+                    import asyncio as _asyncio_dedup
+                    _asyncio_dedup.create_task(_retrigger_pdf_ocr())
+                    logger.info(f"{log_prefix} [Dedup-PDF] Re-triggering OCR for embed {dedup_embed_id}")
+
             return UploadFileResponse(
                 embed_id=existing_record["embed_id"],
                 filename=existing_record.get("original_filename", filename),
