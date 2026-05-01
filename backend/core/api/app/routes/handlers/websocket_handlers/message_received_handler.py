@@ -705,6 +705,42 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                     f"(existing={len(existing_content)}B <= new={len(encrypted_content)}B) — overwriting"
                                 )
 
+                        # Re-trigger OCR processing for deduplicated PDFs so the cache
+                        # gets repopulated with the full TOON (including OCR text).
+                        # The original cache entry may have expired (24h TTL).
+                        try:
+                            from toon_format import decode as toon_decode
+                            toon_data = toon_decode(embed_content)
+                            if isinstance(toon_data, dict) and toon_data.get("app_id") == "pdf":
+                                pdf_files = toon_data.get("files") or {}
+                                pdf_s3_key = next(
+                                    (v.get("s3_key") for v in pdf_files.values() if isinstance(v, dict) and v.get("s3_key")),
+                                    None,
+                                )
+                                if pdf_s3_key and toon_data.get("vault_wrapped_aes_key"):
+                                    from backend.apps.pdf.tasks.process_task import process_pdf_task
+                                    process_pdf_task.delay(arguments={
+                                        "embed_id": embed_id,
+                                        "user_id": user_id,
+                                        "vault_key_id": user_vault_key_id,
+                                        "s3_key": pdf_s3_key,
+                                        "s3_base_url": toon_data.get("s3_base_url", ""),
+                                        "vault_wrapped_aes_key": toon_data["vault_wrapped_aes_key"],
+                                        "aes_nonce": toon_data.get("aes_nonce", ""),
+                                        "filename": toon_data.get("filename", ""),
+                                        "page_count": toon_data.get("page_count"),
+                                        "credits_charged": 0,
+                                        "user_id_hash": hashed_user_id,
+                                    })
+                                    logger.info(
+                                        f"Re-triggered OCR for deduplicated PDF embed {embed_id} "
+                                        f"(s3_key={pdf_s3_key[:30]}...)"
+                                    )
+                        except Exception as ocr_err:
+                            logger.warning(
+                                f"Failed to re-trigger OCR for dedup PDF {embed_id}: {ocr_err}"
+                            )
+
                     if should_cache:
                         # Store in cache (new embed, non-deduplicated, or existing cache is not richer)
                         # Note: embed_data is already vault-encrypted above
