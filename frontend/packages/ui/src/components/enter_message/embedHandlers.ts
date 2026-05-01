@@ -681,6 +681,7 @@ async function _performPdfUpload(
         page_count: result.page_count ?? null,
         content_hash: result.content_hash || null,
         s3_base_url: result.s3_base_url || null,
+        files: result.files || null,
         aes_key: result.aes_key || null,
         aes_nonce: result.aes_nonce || null,
         vault_wrapped_aes_key: result.vault_wrapped_aes_key || null,
@@ -718,6 +719,28 @@ async function _performPdfUpload(
         "[EmbedHandlers] Failed to register PDF embed in EmbedStore:",
         storeError,
       );
+    }
+
+    // For deduplicated PDFs, request the full embed data from the server.
+    // The server has the complete TOON (including screenshot_s3_keys from OCR)
+    // which is needed for preview images and the fullscreen viewer.
+    // The send_embed_data response will overwrite our minimal local version.
+    if (result.deduplicated) {
+      try {
+        const { chatSyncService } = await import("../../services/chatSyncService");
+        const { sendRequestEmbed } = await import("../../services/sendersEmbeds");
+        await sendRequestEmbed(chatSyncService, uploadEmbedId);
+        console.debug(
+          "[EmbedHandlers] Requested full embed data for deduplicated PDF:",
+          uploadEmbedId,
+        );
+      } catch (reqError) {
+        // Non-fatal: the preview image may not appear, but the message can still be sent.
+        console.warn(
+          "[EmbedHandlers] Failed to request embed data for deduplicated PDF:",
+          reqError,
+        );
+      }
     }
 
     updateEmbedNode({

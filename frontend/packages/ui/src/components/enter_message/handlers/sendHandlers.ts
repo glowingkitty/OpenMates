@@ -883,6 +883,7 @@ export async function handleSend(
         page_count: attrs.pageCount ?? null,
         content_hash: attrs.contentHash || null,
         s3_base_url: attrs.s3BaseUrl || null,
+        files: attrs.s3Files || null,
         aes_key: attrs.aesKey || null,
         aes_nonce: attrs.aesNonce || null,
         vault_wrapped_aes_key: attrs.vaultWrappedAesKey || null,
