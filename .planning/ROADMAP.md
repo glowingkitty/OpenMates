@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Audit and regenerate Swift token files, fix DataExtensions gradient drift, verify Lexend Deca font registration
+- [x] 01-01-PLAN.md — Audit and regenerate Swift token files, fix DataExtensions gradient drift, verify Lexend Deca font registration
 - [ ] 01-02-PLAN.md — Fix OM* primitive visual differences (toggle color, dropdown radius, row padding), visual checkpoint
 
 **UI hint**: yes
@@ -79,7 +79,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/2 | Planning complete | - |
+| 1. Foundation | 1/2 | In Progress|  |
 | 2. Chat Display & Content | 0/TBD | Not started | - |
 | 3. New Chat Screen | 0/TBD | Not started | - |
 | 4. Settings & Chat List | 0/TBD | Not started | - |
