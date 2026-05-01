@@ -13,7 +13,9 @@ Provider wrapper: backend/shared/providers/deutsche_bahn.py
 """
 
 import logging
+import re
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 
 from backend.apps.travel.providers.base_provider import (
     BaseTransportProvider,
@@ -48,6 +50,64 @@ _TRAVELLER_TYPES = {
 }
 
 
+def _extract_eva_number(location_id: str) -> str:
+    """Extract EVA number from HAFAS locationId (e.g., 'L=8011160' → '8011160')."""
+    match = re.search(r"L=(\d+)", location_id)
+    return match.group(1) if match else ""
+
+
+def _build_booking_url(
+    from_lid: str,
+    to_lid: str,
+    departure_time: str,
+    klasse: str,
+) -> str:
+    """
+    Build a bahn.de deep link that opens the booking flow pre-filled with
+    the origin, destination, date/time, and class.
+
+    URL format reverse-engineered from BetterBahn and bahn.de SPA routing.
+    See: https://github.com/l2xu/betterbahn/blob/main/utils/createUrl.ts
+    """
+    # Extract station names from locationId ("A=1@O=Berlin Hbf@X=..." → "Berlin Hbf")
+    from_match = re.search(r"O=([^@]+)", from_lid)
+    to_match = re.search(r"O=([^@]+)", to_lid)
+    from_name = from_match.group(1) if from_match else "?"
+    to_name = to_match.group(1) if to_match else "?"
+
+    from_eva = _extract_eva_number(from_lid)
+    to_eva = _extract_eva_number(to_lid)
+
+    # Class: "KLASSE_2" → "2", "KLASSE_1" → "1"
+    kl = "1" if klasse == "KLASSE_1" else "2"
+
+    # Traveller param: "13:16:KLASSENLOS:1" = adult, no discount, 1 person
+    r_param = "13:16:KLASSENLOS:1"
+
+    # Parse departure time → "YYYY-MM-DDTHH:MM:SS"
+    # Input is ISO like "2026-05-15T08:29:00+02:00"
+    hd = departure_time[:19] if len(departure_time) >= 19 else departure_time
+
+    # Build hash fragment
+    params = (
+        f"sts=true"
+        f"&so={quote(from_name)}"
+        f"&zo={quote(to_name)}"
+        f"&kl={kl}"
+        f"&r={r_param}"
+        f"&soid={quote(from_lid)}"
+        f"&zoid={quote(to_lid)}"
+        f"&sot=ST&zot=ST"
+        f"&soei={from_eva}"
+        f"&zoei={to_eva}"
+        f"&hd={quote(hd)}"
+        f"&hza=D&ar=false&s=true&d=false"
+        f"&fm=false&bp=false"
+    )
+
+    return f"https://www.bahn.de/buchung/fahrplan/suche#{params}"
+
+
 def _format_duration(seconds: int) -> str:
     """Convert duration in seconds to 'Xh Ym' format."""
     h, remainder = divmod(seconds, 3600)
@@ -57,7 +117,12 @@ def _format_duration(seconds: int) -> str:
     return f"{m}m"
 
 
-def _parse_connection(conn: Dict[str, Any]) -> Optional[ConnectionResult]:
+def _parse_connection(
+    conn: Dict[str, Any],
+    from_lid: str,
+    to_lid: str,
+    klasse: str,
+) -> Optional[ConnectionResult]:
     """
     Map a single DB API verbindung+angebote dict to a ConnectionResult.
 
@@ -122,10 +187,20 @@ def _parse_connection(conn: Dict[str, Any]) -> Optional[ConnectionResult]:
         segments=segments,
     )
 
+    # Build booking URL for this specific connection's departure time
+    booking_url = _build_booking_url(
+        from_lid=from_lid,
+        to_lid=to_lid,
+        departure_time=first_seg.departure_time,
+        klasse=klasse,
+    )
+
     return ConnectionResult(
         transport_method="train",
         total_price=f"{price_amount:.2f}" if price_amount is not None else None,
         currency=price_currency,
+        booking_url=booking_url,
+        booking_provider="Deutsche Bahn",
         legs=[leg],
     )
 
@@ -139,7 +214,6 @@ class DeutscheBahnProvider(BaseTransportProvider):
 
     Limitations:
     - Germany-focused (some cross-border routes to AT, CH, NL, CZ, etc.)
-    - No booking deeplinks (user sees price but books on bahn.de manually)
     - Unofficial API — DB can change or block at any time
     - One-way per API call (round trips require two calls)
     """
@@ -232,7 +306,7 @@ class DeutscheBahnProvider(BaseTransportProvider):
             # Parse connections
             verbindungen = result.get("verbindungen", [])
             for conn in verbindungen[:max_results]:
-                parsed = _parse_connection(conn)
+                parsed = _parse_connection(conn, from_lid, to_lid, klasse)
                 if parsed:
                     all_connections.append(parsed)
 
