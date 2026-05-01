@@ -597,10 +597,18 @@ async def upload_file(
     logger.info(f"{log_prefix} [4/13] SHA-256 hash: {content_hash[:16]}...{content_hash[-8:]}")
 
     # --- 5. Deduplication check (via core API → Directus) ---
-    logger.info(f"{log_prefix} [5/13] Checking for duplicate (content hash lookup)...")
-    existing_record = await _check_duplicate_via_api(
-        core_api_url, internal_token, user_id, content_hash
-    )
+    # Skip dedup for PDFs: OCR processing is essential for AI reading, and the
+    # vault-encrypted OCR cache has a 24h TTL. Dedup skips OCR, leaving the server
+    # without OCR text after cache expiry. The storage saving (~1-5 MB) is not
+    # worth the AI reading breakage.
+    if is_pdf:
+        logger.info(f"{log_prefix} [5/13] Skipping dedup check for PDF — OCR must always run")
+        existing_record = None
+    else:
+        logger.info(f"{log_prefix} [5/13] Checking for duplicate (content hash lookup)...")
+        existing_record = await _check_duplicate_via_api(
+            core_api_url, internal_token, user_id, content_hash
+        )
     if existing_record:
         # Validate that the referenced S3 objects actually exist before returning
         # the cached record. Records can be stale if a previous upload failed

@@ -685,10 +685,6 @@ async function _performPdfUpload(
         aes_key: result.aes_key || null,
         aes_nonce: result.aes_nonce || null,
         vault_wrapped_aes_key: result.vault_wrapped_aes_key || null,
-        // Flag deduplicated embeds so the server knows to preserve its existing
-        // full cached content (with OCR text) instead of overwriting with our
-        // minimal client-side version.
-        _deduplicated: result.deduplicated || false,
       };
 
       let toonContent: string;

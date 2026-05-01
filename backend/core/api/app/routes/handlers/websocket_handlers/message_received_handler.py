@@ -678,81 +678,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "created_at": int(datetime.now(timezone.utc).timestamp()),
                         "updated_at": int(datetime.now(timezone.utc).timestamp())
                     }
-                    
-                    # Check if the client flagged this embed as deduplicated.
-                    # Deduplicated embeds have a minimal TOON (just filename/metadata,
-                    # no OCR text or screenshot_s3_keys). Overwriting the server's
-                    # full cached version with this minimal TOON breaks AI PDF reading.
-                    is_dedup = isinstance(embed_content, str) and "_deduplicated" in embed_content
-                    should_cache = True
 
-                    if is_dedup:
-                        # Check if a richer version exists in cache (longer content =
-                        # more data like OCR text, screenshot keys). The vault-encrypted
-                        # full TOON is typically 2000+ bytes vs ~500 for a minimal version.
-                        existing_cached = await cache_service.get(f"embed:{embed_id}")
-                        if existing_cached:
-                            existing_content = existing_cached.get("encrypted_content", "")
-                            if len(existing_content) > len(encrypted_content):
-                                logger.info(
-                                    f"Embed {embed_id} is deduplicated — preserving richer cache entry "
-                                    f"(existing={len(existing_content)}B > new={len(encrypted_content)}B)"
-                                )
-                                should_cache = False
-                            else:
-                                logger.info(
-                                    f"Embed {embed_id} is deduplicated but existing cache is not richer "
-                                    f"(existing={len(existing_content)}B <= new={len(encrypted_content)}B) — overwriting"
-                                )
+                    # Store in cache
+                    # Note: embed_data is already vault-encrypted above
+                    await cache_service.set_embed_in_cache(
+                        embed_id=embed_id,
+                        embed_data=embed_cache_data,
+                        chat_id=chat_id
+                    )
 
-                        # Re-trigger OCR processing for deduplicated PDFs so the cache
-                        # gets repopulated with the full TOON (including OCR text).
-                        # The original cache entry may have expired (24h TTL).
-                        try:
-                            from toon_format import decode as toon_decode
-                            toon_data = toon_decode(embed_content)
-                            if isinstance(toon_data, dict) and toon_data.get("app_id") == "pdf":
-                                pdf_files = toon_data.get("files") or {}
-                                pdf_s3_key = next(
-                                    (v.get("s3_key") for v in pdf_files.values() if isinstance(v, dict) and v.get("s3_key")),
-                                    None,
-                                )
-                                if pdf_s3_key and toon_data.get("vault_wrapped_aes_key"):
-                                    from backend.apps.pdf.tasks.process_task import process_pdf_task
-                                    process_pdf_task.delay(arguments={
-                                        "embed_id": embed_id,
-                                        "user_id": user_id,
-                                        "vault_key_id": user_vault_key_id,
-                                        "s3_key": pdf_s3_key,
-                                        "s3_base_url": toon_data.get("s3_base_url", ""),
-                                        "vault_wrapped_aes_key": toon_data["vault_wrapped_aes_key"],
-                                        "aes_nonce": toon_data.get("aes_nonce", ""),
-                                        "filename": toon_data.get("filename", ""),
-                                        "page_count": toon_data.get("page_count"),
-                                        "credits_charged": 0,
-                                        "user_id_hash": hashed_user_id,
-                                    })
-                                    logger.info(
-                                        f"Re-triggered OCR for deduplicated PDF embed {embed_id} "
-                                        f"(s3_key={pdf_s3_key[:30]}...)"
-                                    )
-                        except Exception as ocr_err:
-                            logger.warning(
-                                f"Failed to re-trigger OCR for dedup PDF {embed_id}: {ocr_err}"
-                            )
-
-                    if should_cache:
-                        # Store in cache (new embed, non-deduplicated, or existing cache is not richer)
-                        # Note: embed_data is already vault-encrypted above
-                        await cache_service.set_embed_in_cache(
-                            embed_id=embed_id,
-                            embed_data=embed_cache_data,
-                            chat_id=chat_id
-                        )
-
-                    # Always add to chat embed index — even for deduplicated embeds,
-                    # the embed must be associated with this new chat so the AI task
-                    # can find it when processing this chat's messages.
+                    # Add to chat embed index
                     await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
 
                     logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
