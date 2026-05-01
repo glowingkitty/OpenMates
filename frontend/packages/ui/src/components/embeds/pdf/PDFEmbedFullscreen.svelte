@@ -126,6 +126,10 @@
 
   const MAX_PAGE_RETRIES = 2;
 
+  /** Max pages to load eagerly (without waiting for IntersectionObserver).
+   * Covers the initial viewport — remaining pages load lazily on scroll. */
+  const EAGER_LOAD_COUNT = 3;
+
   /** Initialise empty state for each page when screenshotS3Keys loads */
   $effect(() => {
     if (!hasScreenshots) return;
@@ -135,6 +139,15 @@
       next[pn] = pageImages[pn] ?? { url: undefined, loading: false, error: undefined, retries: 0 };
     }
     pageImages = next;
+
+    // Eagerly mark the first few pages as "in view" so they start loading
+    // immediately without waiting for IntersectionObserver. This prevents a
+    // race where the observer fires too late (or not at all in some overlay
+    // contexts) and pages remain as empty skeletons.
+    const eager = pageNumbers.slice(0, EAGER_LOAD_COUNT);
+    if (eager.length > 0) {
+      inViewPages = new Set([...inViewPages, ...eager]);
+    }
   });
 
   // ---------------------------------------------------------------------------
