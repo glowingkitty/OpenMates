@@ -271,6 +271,9 @@ async function submitPasswordAndHandleOtp(
 
 	if (otpOrAuth === 'auth') {
 		log('Login successful without 2FA.');
+		// Brief settle for post-auth navigation (URL change, WebSocket connect).
+		// Auth signal fires before the router navigates to the chat view.
+		await page.waitForTimeout(2000);
 		return;
 	}
 

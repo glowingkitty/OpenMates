@@ -141,9 +141,13 @@ class DedupedTask(Task):
             except Exception:
                 pass
             release_celery_task_dedup_lock(task_id, broker_url=broker_url)
+            try:
+                retries = getattr(self.request, 'retries', '?')
+            except (AttributeError, RuntimeError):
+                retries = '?'
             logger.info(
                 f"[Task {self.name} ID:{task_id}] DEDUP: Lock released for "
-                f"retry (attempt {getattr(self.request, 'retries', '?')})"
+                f"retry (attempt {retries})"
             )
         super().on_retry(exc, task_id, args, kwargs, einfo)
 

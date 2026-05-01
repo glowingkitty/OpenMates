@@ -33,9 +33,27 @@
 
 	onMount(() => {
 		if (!browser) return;
+
+		// Force page title — the root layout's MetaTags or SvelteKit hydration
+		// can override <svelte:head> on pages with ssr=false. Set it explicitly
+		// and guard with a MutationObserver to catch async overrides.
+		const TITLE = 'OpenMates Status';
+		document.title = TITLE;
+		const titleEl = document.querySelector('title');
+		let observer: MutationObserver | undefined;
+		if (titleEl) {
+			observer = new MutationObserver(() => {
+				if (document.title !== TITLE) document.title = TITLE;
+			});
+			observer.observe(titleEl, { childList: true, characterData: true, subtree: true });
+		}
+
 		load();
 		const t = setInterval(load, 60_000);
-		return () => clearInterval(t);
+		return () => {
+			clearInterval(t);
+			observer?.disconnect();
+		};
 	});
 </script>
 
