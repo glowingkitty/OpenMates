@@ -241,6 +241,8 @@ security-audit/
 
 # Generated translation JSON files (built from YAML sources)
 frontend/packages/ui/src/i18n/locales/*.json
+# iOS app symlink to generated translations (points to web locales above)
+apple/OpenMates/Resources/i18n
 
 # Generated app metadata (built from backend app.yml files)
 frontend/packages/ui/src/data/appsMetadata.ts

@@ -61,4 +61,7 @@ extension LinearGradient {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
+    /// Official OpenMates brand (indigo) — openmates_official category from categoryUtils.ts
+    static let openMatesOfficial = omGradient(start: Color(hex: 0x6366F1), end: Color(hex: 0x4F46E5))
 }

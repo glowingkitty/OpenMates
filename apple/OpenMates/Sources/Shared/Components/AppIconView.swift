@@ -3,16 +3,18 @@
 
 import SwiftUI
 
+// Icon is defined in Icon.swift
+
 struct AppIconView: View {
     let appId: String
     let size: CGFloat
 
     var body: some View {
         Circle()
-            .fill(gradient(for: appId))
+            .fill(Self.gradient(forAppId: appId))
             .frame(width: size, height: size)
             .overlay {
-                Image(iconName(for: appId))
+                Image(Self.iconName(forAppId: appId))
                     .resizable()
                     .renderingMode(.template)
                     .foregroundStyle(.white)
@@ -20,9 +22,10 @@ struct AppIconView: View {
             }
     }
 
-    private func gradient(for appId: String) -> LinearGradient {
+    static func gradient(forAppId appId: String) -> LinearGradient {
         switch appId {
         case "ai": return .appAi
+        case "openmates": return .openMatesOfficial
         case "health": return .appHealth
         case "nutrition": return .appNutrition
         case "finance": return .appFinance
@@ -48,7 +51,7 @@ struct AppIconView: View {
         }
     }
 
-    private func iconName(for appId: String) -> String {
+    static func iconName(forAppId appId: String) -> String {
         // Check aliases first
         switch appId {
         case "health": return IconAlias.health
@@ -63,6 +66,7 @@ struct AppIconView: View {
         case "whiteboards": return IconAlias.whiteboards
         case "messages": return IconAlias.messages
         case "contacts": return IconAlias.contacts
+        case "openmates": return "ai"
         default: return appId
         }
     }

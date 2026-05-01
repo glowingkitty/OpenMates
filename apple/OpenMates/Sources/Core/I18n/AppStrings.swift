@@ -38,7 +38,7 @@ enum AppStrings {
     static var version: String { L("common.version") }
 
     // MARK: - Chat
-    static var newChat: String { L("activity.new_chat") }
+    static var newChat: String { L("chat.new_chat") }
     static var noChats: String { L("activity.no_chats") }
     static var loadingChats: String { L("activity.loading_chats") }
     static var syncing: String { L("activity.syncing") }
@@ -262,9 +262,16 @@ enum AppStrings {
         "\(date), \(time)"
     }
 
+    // MARK: - Sidebar section headers
+    static var introSection: String { L("activity.intro") }
+    static var exampleChatsSection: String { L("activity.examples") }
+
     // MARK: - Demo chats — intro
     static var demoForEveryoneTitle: String { L("demo_chats.for_everyone.title") }
     static var demoForEveryoneDescription: String { L("demo_chats.for_everyone.description") }
+    static var teaserLine1: String { L("demo_chats.for_everyone.teaser_line1") }
+    static var teaserLine2: String { L("demo_chats.for_everyone.teaser_line2") }
+    static var teaserLine3: String { L("demo_chats.for_everyone.teaser_line3") }
     static var demoForDevelopersTitle: String { L("demo_chats.for_developers.title") }
     static var demoForDevelopersDescription: String { L("demo_chats.for_developers.description") }
     static var demoWhoDevTitle: String { L("demo_chats.who_develops_openmates.title") }

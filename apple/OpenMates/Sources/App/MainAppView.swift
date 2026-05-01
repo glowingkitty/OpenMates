@@ -206,13 +206,8 @@ struct MainAppView: View {
 
     @ViewBuilder
     private var appOverlays: some View {
-        if showSettings {
-            appOverlay(title: AppStrings.settings, isPresented: $showSettings, maxWidth: 820, maxHeight: 820, showHeader: false) {
-                SettingsView()
-                    .environmentObject(authManager)
-                    .environmentObject(themeManager)
-            }
-        }
+        // Settings: right-side sliding panel matching web (not a centered modal)
+        settingsSlidePanel
 
         if showExplore {
             appOverlay(title: AppStrings.explore, isPresented: $showExplore) {
@@ -277,6 +272,37 @@ struct MainAppView: View {
         if showRenameAlert {
             renameOverlay
         }
+    }
+
+    // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
+
+    private var settingsSlidePanel: some View {
+        ZStack(alignment: .trailing) {
+            // Dimmed backdrop — web: .active-chat-container.dimmed opacity 0.3
+            if showSettings {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                    .onTapGesture { withAnimation(.easeInOut(duration: 0.3)) { showSettings = false } }
+                    .transition(.opacity)
+            }
+
+            // Settings panel — web: 323px, fixed right, translateX slide
+            if showSettings {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    SettingsView()
+                        .environmentObject(authManager)
+                        .environmentObject(themeManager)
+                        .frame(width: min(UIScreen.main.bounds.width - 40, 323))
+                        .frame(maxHeight: .infinity)
+                        .background(Color.grey0)
+                        .shadow(color: .black.opacity(0.15), radius: 12, x: -4, y: 0)
+                }
+                .transition(.move(edge: .trailing))
+                .ignoresSafeArea(.container, edges: .bottom)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showSettings)
     }
 
     private func appOverlay<Content: View>(
@@ -413,18 +439,46 @@ struct MainAppView: View {
     @ViewBuilder
     private var detailContent: some View {
         if isAuthenticated, let chatId = selectedChatId {
-            ChatView(chatId: chatId)
+            ChatView(
+                chatId: chatId,
+                onPreviousChat: previousChatAction(for: chatId),
+                onNextChat: nextChatAction(for: chatId)
+            )
         } else if !isAuthenticated, let chatId = selectedChatId {
             ChatView(
                 chatId: chatId,
                 bannerState: demoBannerState(for: chatId),
-                bannerCreatedAt: nil
+                bannerCreatedAt: nil,
+                onPreviousChat: previousChatAction(for: chatId),
+                onNextChat: nextChatAction(for: chatId)
             )
         } else if !isAuthenticated {
             WelcomeView(onLogin: { showAuthSheet = true })
         } else {
             EmptyStateView()
         }
+    }
+
+    // MARK: - Chat navigation (prev/next)
+    // Web: chatNavigationStore — navigatePrev/navigateNext switch to adjacent chat in sidebar list.
+
+    /// Ordered chat list matching sidebar display order (pinned first, then by lastMessageAt).
+    private var orderedChatIds: [String] {
+        let pinned = chatStore.chats.filter { $0.isPinned == true }.sorted { ($0.lastMessageAt ?? "") > ($1.lastMessageAt ?? "") }
+        let unpinned = chatStore.chats.filter { $0.isPinned != true && $0.isArchived != true }.sorted { ($0.lastMessageAt ?? "") > ($1.lastMessageAt ?? "") }
+        return (pinned + unpinned).map(\.id)
+    }
+
+    private func previousChatAction(for chatId: String) -> (() -> Void)? {
+        guard let idx = orderedChatIds.firstIndex(of: chatId), idx > 0 else { return nil }
+        let prevId = orderedChatIds[idx - 1]
+        return { selectedChatId = prevId }
+    }
+
+    private func nextChatAction(for chatId: String) -> (() -> Void)? {
+        guard let idx = orderedChatIds.firstIndex(of: chatId), idx < orderedChatIds.count - 1 else { return nil }
+        let nextId = orderedChatIds[idx + 1]
+        return { selectedChatId = nextId }
     }
 
     private var chatsPanel: some View {
@@ -453,14 +507,19 @@ struct MainAppView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: .spacing2) {
                     if !filteredPinnedChats.isEmpty {
-                        chatSectionHeader(AppStrings.pinnedChats)
+                        // Web: unauthenticated sidebar uses "INTRO" header; authenticated uses "PINNED"
+                        chatSectionHeader(isAuthenticated ? AppStrings.pinnedChats : AppStrings.introSection)
                         ForEach(filteredPinnedChats) { chat in
                             chatRow(chat)
                         }
                     }
 
                     if !filteredUnpinnedChats.isEmpty {
-                        chatSectionHeader(filteredPinnedChats.isEmpty ? AppStrings.chats : AppStrings.recentChats)
+                        // Web: unauthenticated uses "EXAMPLE CHATS"; authenticated uses "RECENT"/"CHATS"
+                        let header = isAuthenticated
+                            ? (filteredPinnedChats.isEmpty ? AppStrings.chats : AppStrings.recentChats)
+                            : AppStrings.exampleChatsSection
+                        chatSectionHeader(header)
                         ForEach(filteredUnpinnedChats) { chat in
                             chatRow(chat)
                         }
@@ -534,7 +593,7 @@ struct MainAppView: View {
             }
         } label: {
             ChatListRow(chat: chat)
-                .background(isSelected ? Color.grey10 : Color.clear)
+                .background(isSelected ? Color.buttonPrimary.opacity(0.12) : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .contentShape(RoundedRectangle(cornerRadius: 8))
         }
@@ -707,7 +766,7 @@ struct MainAppView: View {
         switch chatId {
         // INTRO_CHATS
         case "demo-for-everyone":
-            return .loaded(title: AppStrings.demoForEveryoneTitle, appId: "ai",
+            return .loaded(title: AppStrings.demoForEveryoneTitle, appId: "openmates",
                            summary: AppStrings.demoForEveryoneDescription)
         case "demo-for-developers":
             return .loaded(title: AppStrings.demoForDevelopersTitle, appId: "code",
@@ -985,7 +1044,9 @@ struct OpenMatesWebHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: .spacing4) {
             Button(action: onToggleChats) {
-                WebHamburgerIcon(isOpen: isChatsPanelOpen)
+                // Web: uses static/icons/menu.svg, color: var(--color-font-primary) 0.6 opacity
+                Icon(isChatsPanelOpen ? "close" : "menu", size: 22)
+                    .foregroundStyle(Color.fontPrimary.opacity(0.6))
             }
             .buttonStyle(.plain)
             .frame(width: 34, height: 34)
@@ -994,20 +1055,21 @@ struct OpenMatesWebHeader: View {
             .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
 
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 3) {
+                HStack(spacing: 0) {
+                    // Web: "Open" uses var(--color-primary) gradient as text color
                     Text("Open")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(Color.grey0)
-                        .padding(.horizontal, 4)
-                        .background(Color.buttonPrimary)
+                        .font(.omH3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(LinearGradient.primary)
 
                     Text("Mates")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.omH3)
+                        .fontWeight(.bold)
                         .foregroundStyle(Color.grey100)
                 }
 
                 Text(AppStrings.signupVersionTitle)
-                    .font(.system(size: 12))
+                    .font(.omXs)
                     .foregroundStyle(Color.grey60)
                     .lineLimit(1)
             }
@@ -1016,47 +1078,34 @@ struct OpenMatesWebHeader: View {
 
             Spacer(minLength: .spacing4)
 
-            HStack(spacing: .spacing2) {
-                Button(action: onNewChat) {
-                    Icon("modify", size: 18)
-                }
-                .buttonStyle(WebHeaderIconButtonStyle())
-                .accessibilityIdentifier("new-chat-button")
-                .accessibilityLabel(AppStrings.newChat)
-
-                Button(action: onShareChat) {
-                    Icon("share", size: 17)
-                }
-                .buttonStyle(WebHeaderIconButtonStyle())
-                .disabled(!canShareChat)
-                .opacity(canShareChat ? 1 : 0.35)
-                .accessibilityIdentifier("share-chat-button")
-                .accessibilityLabel(AppStrings.share)
-
-                Button(action: onOpenSettings) {
-                    WebMenuDotsIcon()
-                }
-                .buttonStyle(WebHeaderIconButtonStyle())
-                .accessibilityIdentifier("settings-button")
-                .accessibilityLabel(AppStrings.settings)
-            }
-
             if !isAuthenticated {
                 Button(action: onOpenAuth) {
-                    Text(AppStrings.loginSignup)
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
+                    Text(AppStrings.signup)
+                        .font(.omP)
+                        .fontWeight(.bold)
                         .foregroundStyle(Color.fontButton)
                         .lineLimit(1)
-                        .padding(.horizontal, .spacing4)
-                        .padding(.vertical, .spacing3)
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing4)
                         .background(Color.buttonPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("login-signup-button")
-                .accessibilityLabel(AppStrings.loginSignup)
+                .accessibilityLabel(AppStrings.signup)
             }
+
+            Button(action: onOpenSettings) {
+                // Web: 44x44 circle, icon at 0.6 opacity, grey-20 hover bg
+                Icon("settings", size: 22)
+                    .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 38, height: 38)
+                    .background(Color.grey10)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings-button")
+            .accessibilityLabel(AppStrings.settings)
         }
         .padding(.horizontal, .spacing5)
         .padding(.top, .spacing5)

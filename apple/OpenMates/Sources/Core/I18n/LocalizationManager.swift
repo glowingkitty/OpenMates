@@ -100,12 +100,38 @@ final class LocalizationManager: ObservableObject {
     // MARK: - JSON loading
 
     private func loadBundledJSON(locale: String) -> [String: Any]? {
-        guard let url = Bundle.main.url(forResource: locale, withExtension: "json", subdirectory: "i18n"),
-              let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
+        for url in candidateTranslationURLs(locale: locale) {
+            guard let data = try? Data(contentsOf: url),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                continue
+            }
+            return json
         }
-        return json
+        return nil
+    }
+
+    private func candidateTranslationURLs(locale: String) -> [URL] {
+        var urls: [URL] = []
+
+        // 1. Bundle resource (for release builds — copied by Xcode build phase)
+        if let bundled = Bundle.main.url(forResource: locale, withExtension: "json", subdirectory: "i18n") {
+            urls.append(bundled)
+        }
+        if let flatBundled = Bundle.main.url(forResource: locale, withExtension: "json") {
+            urls.append(flatBundled)
+        }
+
+        // 2. Web app generated locales (for dev/simulator — built from YML sources by npm run build:translations)
+        let sourceFile = URL(fileURLWithPath: #filePath)
+        let repoRoot = sourceFile
+            .deletingLastPathComponent() // I18n/
+            .deletingLastPathComponent() // Core/
+            .deletingLastPathComponent() // Sources/
+            .deletingLastPathComponent() // OpenMates/
+            .deletingLastPathComponent() // apple/
+        urls.append(repoRoot.appendingPathComponent("frontend/packages/ui/src/i18n/locales/\(locale).json"))
+
+        return urls
     }
 
     private func fetchTranslations(locale: String) async -> [String: Any]? {

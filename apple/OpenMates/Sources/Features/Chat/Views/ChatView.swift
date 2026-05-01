@@ -31,12 +31,17 @@
 
 import SwiftUI
 
+// ChatBannerView and ChatBannerState are defined in ChatBannerView.swift
+
 struct ChatView: View {
     let chatId: String
     /// Optional gradient banner state. Provide `.loaded` for demo/example chats;
     /// omit (nil) for regular user chats where no banner should appear.
     var bannerState: ChatBannerState? = nil
     var bannerCreatedAt: Date? = nil
+    /// Navigation callbacks for prev/next chat arrows on the banner.
+    var onPreviousChat: (() -> Void)? = nil
+    var onNextChat: (() -> Void)? = nil
 
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
@@ -45,45 +50,62 @@ struct ChatView: View {
     @State private var showEmbedFullscreen = false
     @State private var showReminder = false
     @State private var showPIIPlaceholders = false
+    @State private var showAttachmentMenu = false
+    @State private var actionMessage: Message?
     @StateObject private var focusModeManager = FocusModeManager()
     @FocusState private var isInputFocused: Bool
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
+    /// True for demo/intro/legal chats that show "New chat" CTA instead of input field
+    private var isDemoOrLegalChat: Bool {
+        chatId.hasPrefix("demo-") || chatId.hasPrefix("legal-") || chatId.hasPrefix("announcements-")
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            messageList
+        ZStack {
+            VStack(spacing: 0) {
+                if bannerState == nil {
+                    chatTopBar
+                }
 
-            if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
-                FollowUpSuggestions(suggestions: viewModel.followUpSuggestions) { suggestion in
-                    messageText = suggestion
+                messageList
+
+                // Hide for demo/example chats — they have static content, no streaming state
+                if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming && bannerState == nil {
+                    FollowUpSuggestions(suggestions: viewModel.followUpSuggestions) { suggestion in
+                        messageText = suggestion
+                    }
+                }
+
+                FocusModePill(focusModeManager: focusModeManager)
+
+                if viewModel.isStreaming {
+                    streamingBanner
+                }
+
+                // Web: intro/legal chats show a full-width "New chat" CTA instead of the input field
+                if isDemoOrLegalChat {
+                    newChatCTA
+                } else {
+                    inputBar
+                }
+            }
+            .background(Color.grey0)
+
+            if showReminder {
+                customOverlay(title: AppStrings.setReminder, isPresented: $showReminder) {
+                    ReminderCreationView(chatId: chatId)
                 }
             }
 
-            FocusModePill(focusModeManager: focusModeManager)
-
-            if viewModel.isStreaming {
-                streamingBanner
-            }
-            inputBar
-        }
-        .background(Color.grey0)
-        .navigationTitle(viewModel.chat?.displayTitle ?? AppStrings.chats)
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    if let appId = viewModel.chat?.appId {
-                        Label("App: \(appId)", systemImage: "app")
-                    }
-                    Button { showReminder = true } label: {
-                        Label { Text(AppStrings.setReminder) } icon: { Icon("reminder", size: 16) }
-                    }
-                    PIIToggleButton(showPlaceholders: $showPIIPlaceholders)
-                } label: {
-                    Icon("more", size: 22)
+            if showEmbedFullscreen, let embed = selectedEmbed {
+                customOverlay(title: "", isPresented: $showEmbedFullscreen, showHeader: false) {
+                    embedFullscreenSheet(for: embed)
                 }
+            }
+
+            if let actionMessage {
+                messageActionsOverlay(for: actionMessage)
             }
         }
         .chatKeyboardShortcuts(
@@ -94,10 +116,7 @@ struct ChatView: View {
                 NotificationCenter.default.post(name: .toggleIncognito, object: nil)
             }
         )
-        .sheet(isPresented: $showReminder) {
-            ReminderCreationView(chatId: chatId)
-        }
-        .task {
+        .task(id: chatId) {
             await viewModel.loadChat(id: chatId)
             // Advertise this chat for Handoff to other Apple devices
             handoffManager.advertiseChatViewing(
@@ -120,14 +139,91 @@ struct ChatView: View {
             )
             viewModel.forkedChatId = nil
         }
-        .sheet(isPresented: $showEmbedFullscreen) {
-            if let embed = selectedEmbed {
-                embedFullscreenSheet(for: embed)
-            }
-        }
     }
 
     // MARK: - Embed fullscreen helper
+
+    private var chatTopBar: some View {
+        HStack(spacing: .spacing3) {
+            ChatHeaderView(chat: viewModel.chat, isLoading: viewModel.isLoading)
+
+            Spacer()
+
+            if let appId = viewModel.chat?.appId {
+                Text(appId)
+                    .font(.omTiny)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.horizontal, .spacing3)
+                    .padding(.vertical, .spacing2)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+
+            OMIconButton(icon: "reminder", label: AppStrings.setReminder, size: 34, iconSize: 17) {
+                showReminder = true
+            }
+
+            OMIconButton(
+                icon: showPIIPlaceholders ? "anonym" : "visible",
+                label: AppStrings.hidePersonalData,
+                size: 34,
+                iconSize: 17,
+                isProminent: showPIIPlaceholders
+            ) {
+                showPIIPlaceholders.toggle()
+            }
+        }
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing3)
+        .background(Color.grey0)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.grey20)
+                .frame(height: 1)
+        }
+    }
+
+    private func customOverlay<Content: View>(
+        title: String,
+        isPresented: Binding<Bool>,
+        showHeader: Bool = true,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isPresented.wrappedValue = false
+                }
+
+            VStack(spacing: 0) {
+                if showHeader {
+                    HStack {
+                        Text(title)
+                            .font(.omH3)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontPrimary)
+                        Spacer()
+                        OMIconButton(icon: "close", label: AppStrings.close, size: 34) {
+                            isPresented.wrappedValue = false
+                        }
+                    }
+                    .padding(.spacing6)
+                }
+
+                content()
+            }
+            .frame(maxWidth: 760, maxHeight: 760)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius8)
+                    .stroke(Color.grey20, lineWidth: 1)
+            )
+            .padding(.spacing8)
+        }
+    }
 
     @ViewBuilder
     private func embedFullscreenSheet(for embed: EmbedRecord) -> some View {
@@ -155,9 +251,22 @@ struct ChatView: View {
                 LazyVStack(spacing: .spacing4) {
                     // Gradient banner — shown for demo/example chats (ChatHeader.svelte equivalent)
                     if let banner = bannerState {
-                        ChatBannerView(state: banner, createdAt: bannerCreatedAt)
-                            .padding(.horizontal, .spacing4)
-                            .padding(.top, .spacing4)
+                        ChatBannerView(
+                            state: banner,
+                            createdAt: bannerCreatedAt,
+                            isExampleChat: chatId.hasPrefix("example-"),
+                            isIntroChat: chatId == "demo-for-everyone",
+                            teaserVideoURL: chatId == "demo-for-everyone"
+                                ? Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4")
+                                : nil,
+                            fullVideoURL: chatId == "demo-for-everyone"
+                                ? URL(string: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4")
+                                : nil,
+                            onPrevious: onPreviousChat,
+                            onNext: onNextChat
+                        )
+                            .padding(.horizontal, 0)
+                            .padding(.top, 0)
                             .id("banner")
                     }
 
@@ -192,6 +301,7 @@ struct ChatView: View {
                     ForEach(viewModel.messages) { message in
                         MessageBubble(
                             message: message,
+                            chatId: chatId,
                             appId: viewModel.chat?.appId,
                             embeds: viewModel.embeds(for: message),
                             streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
@@ -201,28 +311,8 @@ struct ChatView: View {
                             }
                         )
                         .id(message.id)
-                        .contextMenu {
-                            MessageContextMenu(
-                                message: message,
-                                onCopy: {
-                                    #if os(iOS)
-                                    UIPasteboard.general.string = message.content ?? ""
-                                    #elseif os(macOS)
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(message.content ?? "", forType: .string)
-                                    #endif
-                                    ToastManager.shared.show(AppStrings.copied, type: .success)
-                                },
-                                onEdit: {
-                                    // Message editing would require inline editor state
-                                },
-                                onDelete: {
-                                    Task { await viewModel.deleteMessage(message.id) }
-                                },
-                                onFork: {
-                                    Task { await viewModel.forkFromMessage(message.id) }
-                                }
-                            )
+                        .onLongPressGesture {
+                            actionMessage = message
                         }
                     }
 
@@ -238,8 +328,13 @@ struct ChatView: View {
                 .frame(maxWidth: .infinity)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
-                withAnimation {
-                    proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
+                // Demo/example chats (with banner) start at the top; real chats scroll to bottom
+                if bannerState != nil {
+                    proxy.scrollTo("banner", anchor: .top)
+                } else {
+                    withAnimation {
+                        proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
+                    }
                 }
             }
             .onChange(of: viewModel.streamingContent) { _, _ in
@@ -251,6 +346,82 @@ struct ChatView: View {
     }
 
     // MARK: - Streaming banner
+
+    private func messageActionsOverlay(for message: Message) -> some View {
+        ZStack {
+            Color.black.opacity(0.28)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    actionMessage = nil
+                }
+
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(message.role == .user ? "You" : "OpenMates")
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.top, .spacing3)
+
+                messageActionRow(icon: "copy", title: AppStrings.copy) {
+                    copyMessage(message)
+                    actionMessage = nil
+                }
+
+                messageActionRow(icon: "copy", title: AppStrings.forkConversation) {
+                    Task { await viewModel.forkFromMessage(message.id) }
+                    actionMessage = nil
+                }
+
+                messageActionRow(icon: "delete", title: AppStrings.delete, isDestructive: true) {
+                    Task { await viewModel.deleteMessage(message.id) }
+                    actionMessage = nil
+                }
+            }
+            .padding(.vertical, .spacing2)
+            .frame(width: 260)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius7))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius7)
+                    .stroke(Color.grey20, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 10)
+        }
+    }
+
+    private func messageActionRow(
+        icon: String,
+        title: String,
+        isDestructive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                Icon(icon, size: 17)
+                    .foregroundStyle(isDestructive ? Color.error : Color.fontSecondary)
+                Text(title)
+                    .font(.omSmall)
+                    .fontWeight(.medium)
+                    .foregroundStyle(isDestructive ? Color.error : Color.fontPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func copyMessage(_ message: Message) {
+        #if os(iOS)
+        UIPasteboard.general.string = message.content ?? ""
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(message.content ?? "", forType: .string)
+        #endif
+        ToastManager.shared.show(AppStrings.copied, type: .success)
+    }
 
     private var streamingBanner: some View {
         HStack(spacing: .spacing3) {
@@ -274,91 +445,146 @@ struct ChatView: View {
         .accessibilityLabel(AppStrings.aiResponding)
     }
 
+    // MARK: - New chat CTA (replaces input for demo/intro/legal chats)
+
+    private var newChatCTA: some View {
+        Button {
+            NotificationCenter.default.post(name: .newChat, object: nil)
+        } label: {
+            HStack(spacing: .spacing3) {
+                Icon("plus", size: 18)
+                    .foregroundStyle(Color.fontButton)
+                Text(AppStrings.newChat)
+                    .font(.omP)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontButton)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, .spacing5)
+            .background(Color.buttonPrimary)
+            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing3)
+        .background(Color.grey0)
+    }
+
     // MARK: - Input bar
 
     private var inputBar: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .bottom, spacing: .spacing3) {
-                AttachmentPicker(
-                    isPresented: .constant(false),
-                    onImageSelected: { data, filename in
-                        Task { await viewModel.uploadAttachment(data: data, filename: filename) }
-                    },
-                    onFileSelected: { url in
-                        Task { await viewModel.uploadFile(url: url) }
-                    }
-                )
-
-                // Pill-shaped input field matching web app's fields.css:
-                // border-radius: 24px, border: 2px, orange focus ring
+            ZStack(alignment: .bottom) {
                 TextField(AppStrings.typeMessage, text: $messageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.omP)
                     .lineLimit(1...6)
-                    .padding(.horizontal, .spacing8)
-                    .padding(.vertical, .spacing6)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: .radiusFull)
-                            .stroke(
-                                isInputFocused ? Color.buttonPrimary : Color.grey30,
-                                lineWidth: 2
-                            )
-                    )
-                    .shadow(
-                        color: isInputFocused
-                            ? Color.buttonPrimary.opacity(0.22)
-                            : .clear,
-                        radius: 3, x: 0, y: 0
-                    )
-                    .shadow(
-                        color: isInputFocused
-                            ? .black.opacity(0.08)
-                            : .black.opacity(0.05),
-                        radius: isInputFocused ? 12 : 2,
-                        x: 0, y: 4
-                    )
                     .tint(Color.buttonPrimary)
                     .focused($isInputFocused)
                     .onSubmit { sendMessage() }
                     .accessibilityLabel(AppStrings.chatMessageInput)
                     .accessibilityHint(AppStrings.typeMessage)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.top, .spacing6)
+                    .padding(.bottom, 62)
+                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
 
-                if messageText.isEmpty && !viewModel.isStreaming {
-                    VoiceRecordingButton { url in
-                        Task {
-                            if let data = try? Data(contentsOf: url) {
-                                await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent)
+                HStack(spacing: .spacing5) {
+                    AttachmentPicker(
+                        isPresented: $showAttachmentMenu,
+                        onImageSelected: { data, filename in
+                            Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                        },
+                        onFileSelected: { url in
+                            Task { await viewModel.uploadFile(url: url) }
+                        }
+                    )
+                    .accessibilityLabel(AppStrings.attachFiles)
+
+                    inputActionButton(icon: "maps", label: AppStrings.shareLocation, gradient: .appMaps) {
+                        ToastManager.shared.show(AppStrings.shareLocation, type: .info)
+                    }
+
+                    inputActionButton(icon: "modify", label: AppStrings.sketchAction, gradient: .appDesign) {
+                        ToastManager.shared.show(AppStrings.sketchAction, type: .info)
+                    }
+
+                    Spacer()
+
+                    #if os(iOS)
+                    inputActionButton(icon: "take_photo", label: AppStrings.takePhoto, gradient: .appPhotos) {
+                        ToastManager.shared.show(AppStrings.takePhoto, type: .info)
+                    }
+                    #endif
+
+                    if messageText.isEmpty && !viewModel.isStreaming {
+                        VoiceRecordingButton { url in
+                            Task {
+                                if let data = try? Data(contentsOf: url) {
+                                    await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent)
+                                }
                             }
                         }
+                    } else {
+                        Button(action: sendMessage) {
+                            Icon("up", size: 16)
+                                .foregroundStyle(
+                                    messageText.isEmpty ? Color.fontTertiary : Color.fontButton
+                                )
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    messageText.isEmpty ? Color.grey20 : Color.buttonPrimary
+                                )
+                                .clipShape(Circle())
+                        }
+                        .disabled(messageText.isEmpty || viewModel.isStreaming)
+                        .accessibilityLabel(AppStrings.sendMessage)
+                        .accessibilityHint(AppStrings.typeMessage)
+                        #if os(macOS)
+                        .keyboardShortcut(.return, modifiers: .command)
+                        #endif
                     }
-                } else {
-                    // Circular send button — orange fill when text present,
-                    // grey when empty (matching web app)
-                    Button(action: sendMessage) {
-                        Icon("up", size: 16)
-                            .foregroundStyle(
-                                messageText.isEmpty ? Color.fontTertiary : Color.fontButton
-                            )
-                            .frame(width: 32, height: 32)
-                            .background(
-                                messageText.isEmpty ? Color.grey20 : Color.buttonPrimary
-                            )
-                            .clipShape(Circle())
-                    }
-                    .disabled(messageText.isEmpty || viewModel.isStreaming)
-                    .accessibilityLabel(AppStrings.sendMessage)
-                    .accessibilityHint(AppStrings.typeMessage)
-                    #if os(macOS)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    #endif
                 }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing4)
             }
+            .background(Color.greyBlue)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(
+                        isInputFocused ? Color.buttonPrimary : Color.grey20,
+                        lineWidth: 2
+                    )
+            )
+            .shadow(
+                color: isInputFocused ? Color.buttonPrimary.opacity(0.22) : .clear,
+                radius: 3,
+                x: 0,
+                y: 0
+            )
+            .shadow(
+                color: isInputFocused ? .black.opacity(0.10) : .black.opacity(0.08),
+                radius: isInputFocused ? 12 : 2,
+                x: 0,
+                y: 4
+            )
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
         }
         .background(Color.grey0)
+    }
+
+    private func inputActionButton(icon: String, label: String, gradient: LinearGradient = .primary, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(icon, size: 22)
+                .foregroundStyle(gradient)
+                .frame(width: 36, height: 36)
+                .background(Color.grey0.opacity(0.72))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private func sendMessage() {
@@ -376,14 +602,18 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: Message
+    let chatId: String
     let appId: String?
     let embeds: [EmbedRecord]
     let streamingContent: String?
     let onEmbedTap: (EmbedRecord) -> Void
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var hasAppeared = false
 
     var isUser: Bool { message.role == .user }
+    /// Web: ≤500px uses stacked layout (avatar above message). Map to compact size class.
+    private var useStackedLayout: Bool { sizeClass == .compact }
 
     var displayContent: String {
         if let streaming = streamingContent { return streaming }
@@ -392,76 +622,109 @@ struct MessageBubble: View {
 
     // MARK: - Assistant avatar with AI badge
 
+    /// True for openmates_official chats — shows OpenMates favicon, hides AI badge
+    private var isOpenMatesOfficial: Bool {
+        chatId == "demo-for-everyone" || chatId == "demo-who-develops-openmates"
+    }
+
+    /// Gradient for the avatar — openmates_official and default "ai" use .primary (blue/purple).
+    private var avatarGradient: LinearGradient {
+        if isOpenMatesOfficial { return .primary }
+        return (appId == nil || appId == "ai") ? .primary : AppIconView.gradient(forAppId: appId!)
+    }
+
     private var assistantAvatar: some View {
-        AppIconView(appId: appId ?? "ai", size: 60)
+        Circle()
+            .fill(avatarGradient)
+            .frame(width: 60, height: 60)
+            .overlay {
+                // Web: openmates_official shows favicon.svg; others show category icon
+                Icon(isOpenMatesOfficial ? "openmates" : AppIconView.iconName(forAppId: appId ?? "ai"), size: 30)
+                    .foregroundStyle(.white)
+            }
             .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
             .overlay(alignment: .bottomTrailing) {
-                // White 24px circle housing a 16px AI gradient icon
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 24, height: 24)
-                    .overlay {
-                        Circle()
-                            .fill(LinearGradient.appAi)
-                            .frame(width: 16, height: 16)
-                            .overlay {
-                                Icon("ai", size: 8)
-                                    .foregroundStyle(.white)
-                            }
-                    }
-                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                // Web: openmates_official hides the AI badge entirely
+                if !isOpenMatesOfficial {
+                    Circle()
+                        .fill(Color.grey0)
+                        .frame(width: 24, height: 24)
+                        .overlay {
+                            Circle()
+                                .fill(LinearGradient.primary)
+                                .frame(width: 16, height: 16)
+                                .overlay {
+                                    Icon("ai", size: 8)
+                                        .foregroundStyle(.white)
+                                }
+                        }
+                        .shadow(color: .black.opacity(0.10), radius: 2, x: 0, y: 1)
+                }
             }
     }
 
+    private var userBubble: some View {
+        VStack(alignment: .trailing, spacing: .spacing3) {
+            if !displayContent.isEmpty {
+                InlineMarkdownText(content: displayContent, isUserMessage: true)
+                    .foregroundStyle(Color.grey100)
+                    .padding(.spacing6)
+                    .background(Color.greyBlue)
+                    .clipShape(RoundedRectangle(cornerRadius: 13))
+                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                    .overlay(alignment: .bottomTrailing) {
+                        SpeechTailView(side: .trailing, color: Color.greyBlue)
+                    }
+            }
+        }
+    }
+
+    private var assistantContent: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            if !displayContent.isEmpty {
+                RichMarkdownView(content: displayContent, isUserMessage: false)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.spacing6)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: 13))
+                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                    .overlay(alignment: .topLeading) {
+                        SpeechTailView(side: .leading, color: Color.grey0)
+                    }
+            }
+            if !embeds.isEmpty {
+                let groups = EmbedGrouper.group(embeds)
+                ForEach(groups) { group in
+                    GroupedEmbedView(group: group) { embed in
+                        onEmbedTap(embed)
+                    }
+                }
+            }
+        }
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: .spacing3) {
+        Group {
             if isUser {
-                Spacer(minLength: 100)
+                // User message: right-aligned, spacer on left
+                HStack(alignment: .top, spacing: .spacing3) {
+                    Spacer(minLength: useStackedLayout ? 20 : 100)
+                    userBubble
+                }
+            } else if useStackedLayout {
+                // Web ≤500px: assistant avatar stacked above message
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    assistantAvatar
+                    assistantContent
+                }
             } else {
-                assistantAvatar
-            }
-
-            VStack(alignment: isUser ? .trailing : .leading, spacing: .spacing3) {
-                // Message text — user messages use inline-only markdown,
-                // assistant messages use full block-level rendering (code blocks, tables, etc.)
-                if !displayContent.isEmpty {
-                    if isUser {
-                        // User bubble: grey-blue bg, speech tail on right, drop shadow
-                        InlineMarkdownText(content: displayContent, isUserMessage: true)
-                            .foregroundStyle(Color.grey100)
-                            .padding(.spacing6)
-                            .background(Color.greyBlue)
-                            .clipShape(RoundedRectangle(cornerRadius: 13))
-                            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-                            .overlay(alignment: .bottomTrailing) {
-                                SpeechTailView(side: .trailing, color: Color.greyBlue)
-                            }
-                    } else {
-                        // Assistant bubble: white/grey0 bg, speech tail on left, drop shadow
-                        RichMarkdownView(content: displayContent, isUserMessage: false)
-                            .foregroundStyle(Color.fontPrimary)
-                            .padding(.spacing6)
-                            .background(Color.grey0)
-                            .clipShape(RoundedRectangle(cornerRadius: 13))
-                            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-                            .overlay(alignment: .topLeading) {
-                                SpeechTailView(side: .leading, color: Color.grey0)
-                            }
-                    }
-                }
-
-                // Inline embed previews (grouped by type)
-                if !embeds.isEmpty {
-                    let groups = EmbedGrouper.group(embeds)
-                    ForEach(groups) { group in
-                        GroupedEmbedView(group: group) { embed in
-                            onEmbedTap(embed)
-                        }
-                    }
+                // Desktop: assistant avatar left of message
+                HStack(alignment: .top, spacing: .spacing3) {
+                    assistantAvatar
+                    assistantContent
+                    Spacer(minLength: 70)
                 }
             }
-
-            if !isUser { Spacer(minLength: 70) }
         }
         // Fade-in animation matching web CSS: opacity 0→1, translateY 10→0, 0.4s easeIn
         .opacity(hasAppeared ? 1 : 0)
