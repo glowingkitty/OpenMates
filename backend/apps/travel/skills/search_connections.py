@@ -1,10 +1,10 @@
 """
 Search Connections skill for the travel app.
 
-Searches for transport connections (flights, and in the future trains/buses/boats)
-between locations. Uses a provider abstraction layer where each transport method
-is handled by a dedicated provider (SerpApiProvider for flights via Google Flights,
-TransitousProvider for trains/buses).
+Searches for transport connections (flights and trains) between locations.
+Uses a provider abstraction layer where each transport method is handled
+by a dedicated provider (SerpApiProvider for flights via Google Flights,
+DeutscheBahnProvider for trains via the DB Navigator API).
 
 The skill follows the standard BaseSkill request/response pattern with the
 'requests' array convention used by all OpenMates skills.
@@ -24,7 +24,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
-from backend.apps.travel.providers.transitous_provider import TransitousProvider
+from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,8 @@ class SearchConnectionsRequestItem(BaseModel):
     )
     transport_methods: List[str] = Field(
         default=["airplane"],
-        description="Transport types to search. Currently supported: ['airplane']. "
-        "Future: 'train', 'bus', 'boat'.",
+        description="Transport types to search. Supported: 'airplane' (worldwide via Google Flights), "
+        "'train' (Germany + select European routes via Deutsche Bahn).",
     )
     passengers: int = Field(default=1, description="Number of adult passengers.")
     children: int = Field(
@@ -153,8 +153,8 @@ def _create_providers(
     Instantiate all available transport providers.
 
     SerpApiProvider handles flights via Google Flights (comprehensive coverage,
-    real-time pricing, booking links). TransitousProvider is a stub for future
-    train/bus support.
+    real-time pricing, booking links). DeutscheBahnProvider handles trains via
+    the DB Navigator API (German + select European routes, real-time pricing).
 
     Args:
         secrets_manager: Optional SecretsManager for providers that need
@@ -162,7 +162,7 @@ def _create_providers(
     """
     return [
         SerpApiProvider(secrets_manager=secrets_manager),
-        TransitousProvider(),
+        DeutscheBahnProvider(),
     ]
 
 
