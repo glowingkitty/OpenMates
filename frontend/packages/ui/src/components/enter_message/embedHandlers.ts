@@ -662,15 +662,76 @@ async function _performPdfUpload(
     // background and the WebSocket embed_update event will push 'finished' later.
     const uploadedStatus = result.deduplicated ? "finished" : "processing";
 
+    // Register the PDF embed in EmbedStore immediately after upload.
+    // This is critical for deduplicated PDFs: the server won't re-send
+    // send_embed_data, and the existing EmbedStore entry may be encrypted
+    // with a previous session's key (causing decryption failures that block
+    // message sending). Storing now with the current key ensures loadEmbeds()
+    // in sendersChatMessages.ts can always resolve the embed.
+    // For non-deduplicated PDFs, this creates a "processing" placeholder that
+    // the send_embed_data handler will overwrite with the full OCR content.
+    const uploadEmbedId = result.embed_id;
+    try {
+      const embedContent = {
+        app_id: "pdf",
+        skill_id: "read",
+        type: "pdf",
+        status: uploadedStatus,
+        filename: file.name || null,
+        page_count: result.page_count ?? null,
+        content_hash: result.content_hash || null,
+        s3_base_url: result.s3_base_url || null,
+        aes_key: result.aes_key || null,
+        aes_nonce: result.aes_nonce || null,
+        vault_wrapped_aes_key: result.vault_wrapped_aes_key || null,
+      };
+
+      let toonContent: string;
+      try {
+        toonContent = toonEncode(embedContent);
+      } catch {
+        toonContent = JSON.stringify(embedContent);
+      }
+
+      const now = Date.now();
+      await embedStore.put(
+        `embed:${uploadEmbedId}`,
+        {
+          embed_id: uploadEmbedId,
+          type: "pdf-read",
+          status: uploadedStatus,
+          content: toonContent,
+          text_preview: file.name || "PDF",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "pdf-read",
+      );
+      console.debug(
+        "[EmbedHandlers] Registered PDF embed in EmbedStore:",
+        uploadEmbedId,
+      );
+    } catch (storeError) {
+      // Non-fatal: the PDF is still uploaded — send may fail if the old
+      // encrypted version can't be decrypted. Surface for visibility.
+      console.error(
+        "[EmbedHandlers] Failed to register PDF embed in EmbedStore:",
+        storeError,
+      );
+    }
+
     updateEmbedNode({
       status: uploadedStatus,
-      uploadEmbedId: result.embed_id,
+      uploadEmbedId: uploadEmbedId,
       // page_count is returned by the upload server for PDFs (see UploadFileResponse)
       pageCount: result.page_count ?? null,
       s3BaseUrl: result.s3_base_url,
       aesNonce: result.aes_nonce,
       vaultWrappedAesKey: result.vault_wrapped_aes_key,
       uploadError: null,
+      // Set contentRef so the serialiser emits a proper embed reference
+      // and handleSend skips re-registering (idempotent, same as images).
+      contentRef: `embed:${uploadEmbedId}`,
     });
 
     console.debug(
@@ -679,7 +740,7 @@ async function _performPdfUpload(
         : "[EmbedHandlers] PDF upload complete — processing in background:",
       {
         filename: file.name,
-        embed_id: result.embed_id,
+        embed_id: uploadEmbedId,
         deduplicated: result.deduplicated,
       },
     );
