@@ -42,7 +42,10 @@ struct ChatListRow: View {
                     .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
 
-                if let date = chat.lastMessageDate {
+                // Hide timestamps for demo/example/legal chats (static content)
+                if let date = chat.lastMessageDate, !chat.id.hasPrefix("demo-"),
+                   !chat.id.hasPrefix("example-"), !chat.id.hasPrefix("legal-"),
+                   !chat.id.hasPrefix("announcements-") {
                     Text(date, style: .relative)
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)

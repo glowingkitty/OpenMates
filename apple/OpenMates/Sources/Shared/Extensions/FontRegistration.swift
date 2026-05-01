@@ -1,6 +1,6 @@
-// Custom font registration for Lexend Deca Variable.
+// Custom font registration for Lexend Deca static weights.
 // Call registerFonts() at app launch to ensure the custom font is available.
-// The font file must be in the app bundle and listed in Info.plist.
+// The font files must be in the app bundle and listed in Info.plist UIAppFonts.
 
 import SwiftUI
 import CoreText
@@ -8,15 +8,21 @@ import CoreText
 enum FontRegistration {
     nonisolated(unsafe) static var isRegistered = false
 
+    private static let fontFiles = [
+        "LexendDeca-Light",
+        "LexendDeca-Regular",
+        "LexendDeca-Medium",
+        "LexendDeca-SemiBold",
+        "LexendDeca-Bold",
+        "LexendDeca-ExtraBold",
+    ]
+
     static func registerFonts() {
         guard !isRegistered else { return }
         isRegistered = true
 
-        let fontNames = ["LexendDeca-VariableFont_wght"]
-
-        for fontName in fontNames {
-            guard let url = Bundle.main.url(forResource: fontName, withExtension: "ttf")
-                    ?? Bundle.main.url(forResource: fontName, withExtension: "otf") else {
+        for fontName in fontFiles {
+            guard let url = Bundle.main.url(forResource: fontName, withExtension: "ttf") else {
                 print("[Font] Font file not found: \(fontName) — using system font fallback")
                 continue
             }
@@ -30,7 +36,8 @@ enum FontRegistration {
         }
     }
 
+    /// The family name used by Font.custom() — matches the font's nameID=1.
     static var fontFamily: String {
-        isRegistered ? "Lexend Deca Variable" : "SF Pro"
+        isRegistered ? "Lexend Deca" : "SF Pro"
     }
 }

@@ -21,6 +21,11 @@ struct Icon: View {
     let name: String
     var size: CGFloat = 20
 
+    init(_ name: String, size: CGFloat = 20) {
+        self.name = name
+        self.size = size
+    }
+
     var body: some View {
         Image(name)
             .renderingMode(.template)

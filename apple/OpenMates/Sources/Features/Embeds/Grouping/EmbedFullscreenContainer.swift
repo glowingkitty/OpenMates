@@ -25,7 +25,7 @@ struct EmbedFullscreenContainer: View {
     }
 
     var body: some View {
-        NavigationStack {
+        ZStack(alignment: .top) {
             if let embed = currentEmbed {
                 ZStack {
                     ScrollView {
@@ -45,32 +45,26 @@ struct EmbedFullscreenContainer: View {
                         navigationArrows
                     }
                 }
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button { dismiss() } label: { Icon("close", size: 20) }
-                    }
-                    ToolbarItem(placement: .principal) {
-                        if embeds.count > 1 {
-                            Text("\(currentIndex + 1) / \(embeds.count)")
-                                .font(.omXs).foregroundStyle(Color.fontTertiary)
+
+                fullscreenControls(embed: embed)
+            }
+
+            if showChildFullscreen, let child = selectedChildEmbed {
+                ZStack {
+                    Color.black.opacity(0.38)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showChildFullscreen = false
                         }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        shareMenu(embed: embed)
-                    }
+
+                    EmbedFullscreenView(embed: child, childEmbeds: [])
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                        .padding(.spacing8)
                 }
             }
         }
         .onAppear {
             currentIndex = embeds.firstIndex(where: { $0.id == initialEmbedId }) ?? 0
-        }
-        .sheet(isPresented: $showChildFullscreen) {
-            if let child = selectedChildEmbed {
-                EmbedFullscreenView(embed: child, childEmbeds: [])
-            }
         }
     }
 
@@ -121,19 +115,39 @@ struct EmbedFullscreenContainer: View {
         .padding(.bottom, .spacing8)
     }
 
-    // MARK: - Share
+    // MARK: - Fullscreen controls
 
-    private func shareMenu(embed: EmbedRecord) -> some View {
-        Menu {
-            Button { shareEmbed(embed) } label: {
-                Label { Text("Share") } icon: { Icon("share", size: 16) }
+    private func fullscreenControls(embed: EmbedRecord) -> some View {
+        HStack(spacing: .spacing3) {
+            OMIconButton(icon: "close", label: "Close", size: 38, iconSize: 18) {
+                dismiss()
             }
-            Button { copyEmbedContent(embed) } label: {
-                Label("Copy", systemImage: "doc.on.doc")
+
+            Spacer()
+
+            if embeds.count > 1 {
+                Text("\(currentIndex + 1) / \(embeds.count)")
+                    .font(.omXs)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing3)
+                    .background(Color.grey0.opacity(0.92))
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
             }
-        } label: {
-            Icon("more", size: 22)
+
+            Spacer()
+
+            OMIconButton(icon: "copy", label: "Copy", size: 38, iconSize: 18) {
+                copyEmbedContent(embed)
+            }
+
+            OMIconButton(icon: "share", label: "Share", size: 38, iconSize: 18, isProminent: true) {
+                shareEmbed(embed)
+            }
         }
+        .padding(.horizontal, .spacing5)
+        .padding(.top, .spacing5)
     }
 
     private func shareEmbed(_ embed: EmbedRecord) {

@@ -526,6 +526,7 @@ struct OMSettingsRow: View {
     let title: String
     var subtitle: String?
     var icon: String?
+    var iconGradient: LinearGradient?
     var value: String?
     var isDestructive = false
     var showsChevron = true
@@ -535,10 +536,10 @@ struct OMSettingsRow: View {
         Button(action: action) {
             HStack(spacing: .spacing4) {
                 if let icon {
-                    Icon(icon, size: 18)
-                        .foregroundStyle(isDestructive ? Color.error : Color.fontSecondary)
+                    Icon(icon, size: 14)
+                        .foregroundStyle(iconGradient != nil ? AnyShapeStyle(.white) : AnyShapeStyle(isDestructive ? Color.error : Color.fontSecondary))
                         .frame(width: 28, height: 28)
-                        .background(Color.grey0)
+                        .background(iconGradient ?? LinearGradient(colors: [Color.grey10], startPoint: .top, endPoint: .bottom))
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                 }
 

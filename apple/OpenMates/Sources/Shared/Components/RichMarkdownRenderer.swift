@@ -445,11 +445,12 @@ struct HeaderView: View {
     }
 
     private var headerFont: Font {
+        // Capped for in-message use: H1→omH2(30pt), H2→omH3(20pt) to avoid
+        // oversized headings in chat bubbles. Web chat CSS caps heading scale similarly.
         switch level {
-        case 1: return .omH1
-        case 2: return .omH2
-        case 3: return .omH3
-        case 4: return .omH4
+        case 1: return .omH2
+        case 2: return .omH3
+        case 3: return .omH4
         default: return .omSmall
         }
     }

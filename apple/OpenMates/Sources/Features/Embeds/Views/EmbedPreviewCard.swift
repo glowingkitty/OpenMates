@@ -8,13 +8,9 @@ struct EmbedPreviewCard: View {
     let embed: EmbedRecord
     let onTap: () -> Void
 
-    @State private var isPressed = false
-
     private var embedType: EmbedType? {
         EmbedType(rawValue: embed.type)
     }
-
-    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     var body: some View {
         Button(action: onTap) {
@@ -29,10 +25,8 @@ struct EmbedPreviewCard: View {
                     .stroke(embed.status == .error ? Color.error : Color.grey20, lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
-            .scaleEffect(isPressed ? 0.97 : 1.0)
-            .animation(reduceMotion ? .none : .easeInOut(duration: 0.15), value: isPressed)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(EmbedPreviewButtonStyle())
         .disabled(embed.status == .processing)
         .accessibilityIdentifier("embed-preview")
         .accessibleEmbed(
@@ -40,11 +34,6 @@ struct EmbedPreviewCard: View {
             title: embedType?.displayName
         )
         .accessibilityValue(embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready")
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
     }
 
     // MARK: - Content area
@@ -131,5 +120,15 @@ struct EmbedPreviewCard: View {
         .padding(.horizontal, .spacing3)
         .frame(height: 44)
         .background(Color.grey10)
+    }
+}
+
+private struct EmbedPreviewButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(reduceMotion ? .none : .easeInOut(duration: 0.14), value: configuration.isPressed)
     }
 }

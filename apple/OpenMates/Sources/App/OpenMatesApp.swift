@@ -130,4 +130,5 @@ extension Notification.Name {
     static let newChat = Notification.Name("openmates.newChat")
     static let toggleIncognito = Notification.Name("openmates.toggleIncognito")
     static let embedRefreshNeeded = Notification.Name("openmates.embedRefreshNeeded")
+    static let openAuth = Notification.Name("openmates.openAuth")
 }

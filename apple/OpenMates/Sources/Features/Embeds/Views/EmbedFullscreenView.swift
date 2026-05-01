@@ -17,7 +17,7 @@ struct EmbedFullscreenView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        ZStack(alignment: .top) {
             ScrollView {
                 VStack(spacing: 0) {
                     headerBanner
@@ -28,37 +28,38 @@ struct EmbedFullscreenView: View {
                 }
             }
             .background(Color.grey0)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { dismiss() } label: {
-                        Icon("close", size: 20)
-                    }
-                    .accessibleButton("Close", hint: "Closes the fullscreen embed view")
+
+            HStack(spacing: .spacing3) {
+                OMIconButton(icon: "close", label: "Close", size: 38, iconSize: 18) {
+                    dismiss()
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button { shareEmbed() } label: {
-                            Label { Text("Share") } icon: { Icon("share", size: 16) }
-                        }
-                        .accessibilityLabel("Share embed")
-                        Button { copyContent() } label: {
-                            Label { Text("Copy") } icon: { Icon("copy", size: 16) }
-                        }
-                        .accessibilityLabel("Copy embed content")
-                    } label: {
-                        Icon("more", size: 22)
-                    }
-                    .accessibilityLabel("More actions")
-                    .accessibilityHint("Share or copy this embed")
+
+                Spacer()
+
+                OMIconButton(icon: "copy", label: "Copy", size: 38, iconSize: 18) {
+                    copyContent()
+                }
+
+                OMIconButton(icon: "share", label: "Share", size: 38, iconSize: 18, isProminent: true) {
+                    shareEmbed()
                 }
             }
-            .sheet(isPresented: $showChildFullscreen) {
-                if let childId = selectedChildId,
-                   let child = childEmbeds.first(where: { $0.id == childId }) {
+            .padding(.horizontal, .spacing5)
+            .padding(.top, .spacing5)
+
+            if showChildFullscreen,
+               let childId = selectedChildId,
+               let child = childEmbeds.first(where: { $0.id == childId }) {
+                ZStack(alignment: .topTrailing) {
+                    Color.black.opacity(0.38)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showChildFullscreen = false
+                        }
+
                     EmbedFullscreenView(embed: child, childEmbeds: [])
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                        .padding(.spacing8)
                 }
             }
         }

@@ -1,6 +1,13 @@
 // Photo and file attachment picker for chat input.
 // Supports camera, photo library, and document picker.
 // Uploads via the upload server endpoint.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+//         frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+// CSS:    frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+// Native counterpart of the custom attachment/action menu area.
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 import PhotosUI
@@ -18,22 +25,49 @@ struct AttachmentPicker: View {
 
     var body: some View {
         #if os(iOS)
-        Menu {
-            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                Label("Photo Library", systemImage: "photo.on.rectangle")
-            }
-
+        ZStack(alignment: .bottomLeading) {
             Button {
-                showDocumentPicker = true
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    isPresented.toggle()
+                }
             } label: {
-                Label("Browse Files", systemImage: "folder")
+                Icon("plus", size: 22)
+                    .foregroundStyle(Color.fontPrimary)
+                    .frame(width: 36, height: 36)
+                    .background(Color.grey0.opacity(0.72))
+                    .clipShape(Circle())
             }
-        } label: {
-            Icon("plus", size: 24)
-                .foregroundStyle(Color.fontTertiary)
+            .buttonStyle(.plain)
+
+            if isPresented {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        AttachmentMenuRow(icon: "image", title: "Photo Library")
+                    }
+
+                    Button {
+                        isPresented = false
+                        showDocumentPicker = true
+                    } label: {
+                        AttachmentMenuRow(icon: "files", title: "Browse Files")
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.spacing2)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius7)
+                        .stroke(Color.grey20, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 6)
+                .offset(y: -44)
+                .zIndex(10)
+            }
         }
         .onChange(of: selectedPhotoItem) { _, newValue in
             if let item = newValue {
+                isPresented = false
                 loadPhoto(item)
             }
         }
@@ -69,6 +103,25 @@ struct AttachmentPicker: View {
         }
     }
     #endif
+}
+
+private struct AttachmentMenuRow: View {
+    let icon: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: .spacing3) {
+            Icon(icon, size: 17)
+                .foregroundStyle(Color.fontSecondary)
+            Text(title)
+                .font(.omSmall)
+                .foregroundStyle(Color.fontPrimary)
+        }
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing3)
+        .frame(minWidth: 164, alignment: .leading)
+        .contentShape(Rectangle())
+    }
 }
 
 #if os(iOS)

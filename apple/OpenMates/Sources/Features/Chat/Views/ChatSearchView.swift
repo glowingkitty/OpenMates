@@ -7,7 +7,6 @@ struct ChatSearchView: View {
     @State private var query = ""
     @State private var results: [ChatSearchResult] = []
     @State private var isSearching = false
-    @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @FocusState private var isFocused: Bool
 
@@ -23,61 +22,66 @@ struct ChatSearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                HStack(spacing: .spacing3) {
-                    Icon("search", size: 18)
+        VStack(spacing: 0) {
+            HStack(spacing: .spacing3) {
+                Icon("search", size: 18)
+                    .foregroundStyle(Color.fontTertiary)
+                    .accessibilityHidden(true)
+                TextField("Search chats and messages...", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.omP)
+                    .focused($isFocused)
+                    .onSubmit { search() }
+                    .onChange(of: query) { _, newValue in
+                        if newValue.count >= 2 { search() }
+                        else { results.removeAll() }
+                    }
+                    .accessibleInput("Search chats and messages", hint: "Type at least 2 characters to search")
+                if !query.isEmpty {
+                    Button { query = ""; results.removeAll() } label: {
+                        Icon("close", size: 18)
+                            .foregroundStyle(Color.fontTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibleButton("Clear search", hint: "Clears the search field and results")
+                }
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+
+            Rectangle()
+                .fill(Color.grey20)
+                .frame(height: 1)
+
+            if isSearching {
+                Text(AppStrings.loading)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.top, .spacing8)
+                    .accessibilityLabel("Searching")
+                Spacer()
+            } else if results.isEmpty && !query.isEmpty {
+                VStack(spacing: .spacing4) {
+                    Icon("search", size: 36)
                         .foregroundStyle(Color.fontTertiary)
                         .accessibilityHidden(true)
-                    TextField("Search chats and messages...", text: $query)
-                        .font(.omP)
-                        .focused($isFocused)
-                        .onSubmit { search() }
-                        .onChange(of: query) { _, newValue in
-                            if newValue.count >= 2 { search() }
-                            else { results.removeAll() }
-                        }
-                        .accessibleInput("Search chats and messages", hint: "Type at least 2 characters to search")
-                    if !query.isEmpty {
-                        Button { query = ""; results.removeAll() } label: {
-                            Icon("close", size: 18)
-                                .foregroundStyle(Color.fontTertiary)
-                        }
-                        .accessibleButton("Clear search", hint: "Clears the search field and results")
-                    }
+                    Text(LocalizationManager.shared.text("chats.search.no_results"))
+                        .font(.omP).foregroundStyle(Color.fontSecondary)
                 }
-                .padding(.horizontal, .spacing4)
-                .padding(.vertical, .spacing3)
-                .background(Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                .padding(.horizontal, .spacing4)
-                .padding(.vertical, .spacing3)
-
-                Divider()
-
-                if isSearching {
-                    ProgressView()
-                        .padding(.top, .spacing8)
-                        .accessibilityLabel("Searching")
-                    Spacer()
-                } else if results.isEmpty && !query.isEmpty {
-                    VStack(spacing: .spacing4) {
-                        Icon("search", size: 36)
-                            .foregroundStyle(Color.fontTertiary)
-                            .accessibilityHidden(true)
-                        Text(LocalizationManager.shared.text("chats.search.no_results"))
-                            .font(.omP).foregroundStyle(Color.fontSecondary)
-                    }
-                    .padding(.top, .spacing16)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("No results found")
-                    Spacer()
-                } else {
-                    List {
+                .padding(.top, .spacing16)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("No results found")
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: .spacing2) {
                         ForEach(results) { result in
                             Button {
                                 onSelectChat(result.chatId)
-                                dismiss()
                             } label: {
                                 VStack(alignment: .leading, spacing: .spacing2) {
                                     Text(result.chatTitle ?? "Chat")
@@ -89,26 +93,24 @@ struct ChatSearchView: View {
                                             .lineLimit(2)
                                     }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, .spacing4)
+                                .padding(.vertical, .spacing3)
+                                .background(Color.grey10)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius5))
                             }
+                            .buttonStyle(.plain)
                             .accessibilityElement(children: .combine)
                             .accessibilityLabel("\(result.chatTitle ?? "Chat")\(result.messagePreview.map { ", \($0)" } ?? "")")
                             .accessibilityHint("Opens this chat")
                             .accessibilityAddTraits(.isButton)
                         }
                     }
-                    .listStyle(.plain)
-                }
-            }
-            .navigationTitle("Search")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    .padding(.spacing4)
                 }
             }
         }
+        .background(Color.grey0)
         .onAppear { isFocused = true }
     }
 

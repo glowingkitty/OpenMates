@@ -6,7 +6,6 @@ import CoreImage.CIFilterBuiltins
 
 struct ChatShareView: View {
     let chatId: String
-    @Environment(\.dismiss) var dismiss
 
     @State private var shareLink: String?
     @State private var password = ""
@@ -22,98 +21,106 @@ struct ChatShareView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            Form {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing8) {
                 if let shareLink {
-                    Section("Share Link") {
+                    OMSettingsSection("Share Link") {
+                        VStack(alignment: .leading, spacing: .spacing5) {
+                            HStack(spacing: .spacing3) {
+                                Text(shareLink)
+                                    .font(.omXs.monospaced())
+                                    .foregroundStyle(Color.fontPrimary)
+                                    .lineLimit(2)
+                                Spacer()
+                                Button {
+                                    copyToClipboard(shareLink)
+                                    copied = true
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                                } label: {
+                                    Icon(copied ? "check" : "copy", size: 18)
+                                        .foregroundStyle(copied ? Color.buttonPrimary : Color.buttonPrimary)
+                                        .frame(width: 34, height: 34)
+                                        .background(Color.grey10)
+                                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            if let qrImage = generateQRCode(from: shareLink) {
+                                HStack {
+                                    Spacer()
+                                    Image(decorative: qrImage, scale: 1.0)
+                                        .interpolation(.none)
+                                        .resizable()
+                                        .frame(width: 200, height: 200)
+                                    Spacer()
+                                }
+                                .padding(.vertical, .spacing4)
+                            }
+                        }
+                        .padding(.spacing6)
+                    }
+
+                    Button {
+                        shareViaSystem(shareLink)
+                    } label: {
                         HStack {
-                            Text(shareLink)
-                                .font(.system(.caption, design: .monospaced))
-                                .lineLimit(2)
-                            Spacer()
-                            Button {
-                                copyToClipboard(shareLink)
-                                copied = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
-                            } label: {
-                                Icon(copied ? "check" : "copy", size: 18)
-                                    .foregroundStyle(copied ? .green : Color.buttonPrimary)
-                            }
+                            Icon("share", size: 16)
+                            Text("Share via...")
                         }
-
-                        if let qrImage = generateQRCode(from: shareLink) {
-                            HStack {
-                                Spacer()
-                                Image(decorative: qrImage, scale: 1.0)
-                                    .interpolation(.none)
-                                    .resizable()
-                                    .frame(width: 200, height: 200)
-                                Spacer()
-                            }
-                            .padding(.vertical, .spacing4)
-                        }
+                        .frame(maxWidth: .infinity)
                     }
-
-                    Section {
-                        Button {
-                            let url = URL(string: shareLink)!
-                            #if os(iOS)
-                            let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                               let rootVC = scene.windows.first?.rootViewController {
-                                rootVC.present(activityVC, animated: true)
-                            }
-                            #endif
-                        } label: {
-                            Label { Text("Share via...") } icon: { Icon("share", size: 16) }
-                        }
-                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
                 } else {
-                    Section("Options") {
-                        Picker("Expires after", selection: $expirationHours) {
-                            ForEach(expirationOptions, id: \.0) { hours, label in
-                                Text(label).tag(hours)
-                            }
-                        }
+                    OMSettingsSection("Options") {
+                        VStack(alignment: .leading, spacing: .spacing5) {
+                            Text("Expires after")
+                                .font(.omSmall)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontSecondary)
 
-                        Toggle("Password protect", isOn: $usePassword)
-                            .tint(Color.buttonPrimary)
+                            OMSegmentedControl(
+                                items: expirationOptions.map { .init(id: $0.0, title: $0.1) },
+                                selection: $expirationHours
+                            )
 
-                        if usePassword {
-                            SecureField("Share password", text: $password)
-                        }
-                    }
-
-                    Section {
-                        Button(action: generateLink) {
-                            Group {
-                                if isGenerating {
-                                    ProgressView().tint(.fontButton)
-                                } else {
-                                    Label("Generate Link", systemImage: "link")
+                            Button {
+                                usePassword.toggle()
+                            } label: {
+                                HStack(spacing: .spacing3) {
+                                    Icon(usePassword ? "check" : "close", size: 16)
+                                        .foregroundStyle(usePassword ? Color.buttonPrimary : Color.fontTertiary)
+                                    Text("Password protect")
+                                        .font(.omSmall)
+                                        .foregroundStyle(Color.fontPrimary)
+                                    Spacer()
                                 }
                             }
-                            .frame(maxWidth: .infinity)
+                            .buttonStyle(.plain)
+
+                            if usePassword {
+                                SecureField("Share password", text: $password)
+                                    .textFieldStyle(OMTextFieldStyle())
+                            }
                         }
-                        .buttonStyle(OMPrimaryButtonStyle())
-                        .disabled(isGenerating || (usePassword && password.isEmpty))
+                        .padding(.spacing6)
                     }
+
+                    Button(action: generateLink) {
+                        Text(isGenerating ? AppStrings.loading : "Generate Link")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .disabled(isGenerating || (usePassword && password.isEmpty))
 
                     if let error {
                         Text(error).font(.omXs).foregroundStyle(Color.error)
                     }
                 }
             }
-            .navigationTitle("Share Chat")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .padding(.spacing8)
         }
+        .background(Color.grey0)
     }
 
     private func generateLink() {
@@ -158,6 +165,17 @@ struct ChatShareView: View {
         #elseif os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+        #endif
+    }
+
+    private func shareViaSystem(_ shareLink: String) {
+        guard let url = URL(string: shareLink) else { return }
+        #if os(iOS)
+        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = scene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
         #endif
     }
 }
