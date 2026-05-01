@@ -10,7 +10,7 @@
 //          frontend/packages/ui/src/components/settings/elements/SettingsConfirmBlock.svelte
 //          frontend/packages/ui/src/components/settings/elements/SettingsPageContainer.svelte
 //          frontend/packages/ui/src/components/Toggle.svelte
-// CSS:     Toggle: 52x32 track, 24px thumb, grey-30 off / primary on
+// CSS:     Toggle: 52x32 track, 24px thumb, grey-30 off / primary gradient on
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
@@ -18,7 +18,9 @@ import SwiftUI
 
 // MARK: - OMToggle
 // Web source: Toggle.svelte — 52x32 pill track, 24px white circle thumb
-// OFF = grey-30 track, ON = buttonPrimary track, 0.2s animation
+// OFF = grey-30 track, ON = primary gradient (#4867cd->#5a85eb), 0.3s animation
+// Track: inset shadow (inset 0 2px 4px rgba(0,0,0,0.2)), simulated via inner stroke overlay
+// Thumb: outer shadow (0 2px 4px rgba(0,0,0,0.2))
 
 struct OMToggle: View {
     @Binding var isOn: Bool
@@ -32,16 +34,34 @@ struct OMToggle: View {
     var body: some View {
         Button {
             guard !disabled else { return }
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.3)) {
                 isOn.toggle()
             }
         } label: {
             ZStack(alignment: isOn ? .trailing : .leading) {
+                // Track — OFF: grey30 solid, ON: primary gradient
                 RoundedRectangle(cornerRadius: trackHeight / 2)
-                    .fill(isOn ? Color.buttonPrimary : Color.grey30)
+                    .fill(Color.grey30)
+                    .overlay(
+                        Group {
+                            if isOn {
+                                RoundedRectangle(cornerRadius: trackHeight / 2)
+                                    .fill(LinearGradient.primary)
+                            }
+                        }
+                    )
                     .frame(width: trackWidth, height: trackHeight)
-                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
+                    // Inset shadow simulation — web CSS: inset 0 2px 4px rgba(0,0,0,0.2)
+                    // SwiftUI has no native inset shadow; approximate with inner stroke + blur
+                    .overlay(
+                        RoundedRectangle(cornerRadius: trackHeight / 2)
+                            .stroke(Color.black.opacity(0.15), lineWidth: 1)
+                            .blur(radius: 2)
+                            .offset(y: 1)
+                            .mask(RoundedRectangle(cornerRadius: trackHeight / 2))
+                    )
 
+                // Thumb — white circle, outer shadow (0 2px 4px rgba(0,0,0,0.2))
                 Circle()
                     .fill(Color.white)
                     .frame(width: thumbSize, height: thumbSize)
@@ -59,6 +79,7 @@ struct OMToggle: View {
 
 // MARK: - OMSettingsToggleRow
 // Convenience: OMSettingsRow + OMToggle combined in a single row
+// Web source: SettingsItem.svelte — padding: 0.75rem 0.625rem = 12pt vert / 10pt horiz, gap: 0.75rem = 12pt
 
 struct OMSettingsToggleRow: View {
     let title: String
@@ -68,7 +89,7 @@ struct OMSettingsToggleRow: View {
     var disabled = false
 
     var body: some View {
-        HStack(spacing: .spacing4) {
+        HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
             if let icon {
                 Icon(icon, size: 18)
                     .foregroundStyle(Color.fontSecondary)
@@ -94,15 +115,17 @@ struct OMSettingsToggleRow: View {
 
             OMToggle(isOn: $isOn, disabled: disabled)
         }
-        .padding(.horizontal, .spacing6)
-        .padding(.vertical, .spacing5)
+        .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
+        .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
         .contentShape(Rectangle())
         .accessibilityLabel(title)
     }
 }
 
 // MARK: - OMDropdown
-// Web source: SettingsDropdown.svelte — grey-0 bg, 24px radius, shadow, chevron
+// Web source: SettingsDropdown.svelte — grey-0 bg, border-radius: 1.5rem=24pt, shadow, chevron
+// Padding: 1.0625rem top/bottom (17pt), 1.4375rem left (23pt), 3rem right (48pt) for chevron
+// Shadow: 0 4px 4px rgba(0,0,0,0.1) — matches web box-shadow
 // Opens a custom overlay list instead of native Picker wheel
 
 struct OMDropdownOption: Identifiable, Equatable {
@@ -148,10 +171,15 @@ struct OMDropdown: View {
                         .foregroundStyle(Color.fontTertiary)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
-                .padding(.horizontal, .spacing6)
-                .padding(.vertical, .spacing5)
+                // Padding from SettingsDropdown.svelte: 1.0625rem top/bottom, 1.4375rem left, 3rem right
+                // No exact tokens: 17pt ≈ spacing8(16pt), 23pt between spacing12(24) and spacing10(20)
+                // Using spacing24=48pt for trailing (exact match for 3rem chevron space)
+                .padding(.leading, .spacing12)  // 1.4375rem=23px — closest: spacing12=24pt
+                .padding(.trailing, .spacing24) // 3rem=48px — exact: spacing24=48pt
+                .padding(.vertical, .spacing8)  // 1.0625rem=17px — closest: spacing8=16pt
                 .background(Color.grey0)
-                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                // border-radius: 1.5rem = 24px — no matching radius token exists (radius7=16, radius8=20)
+                .clipShape(RoundedRectangle(cornerRadius: 24)) // 1.5rem from SettingsDropdown.svelte
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
             }
             .buttonStyle(.plain)
@@ -187,9 +215,10 @@ struct OMDropdown: View {
                     }
                 }
                 .background(Color.grey0)
-                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                // Same 1.5rem = 24pt radius as closed row — matches SettingsDropdown.svelte
+                .clipShape(RoundedRectangle(cornerRadius: 24)) // 1.5rem from SettingsDropdown.svelte
                 .overlay(
-                    RoundedRectangle(cornerRadius: .radius7)
+                    RoundedRectangle(cornerRadius: 24) // 1.5rem from SettingsDropdown.svelte
                         .stroke(Color.grey20, lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
@@ -213,7 +242,7 @@ struct OMSettingsPickerRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            HStack(spacing: .spacing4) {
+            HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
                 if let icon {
                     Icon(icon, size: 18)
                         .foregroundStyle(Color.fontSecondary)
@@ -238,8 +267,8 @@ struct OMSettingsPickerRow: View {
 
             OMDropdown(title: title, options: options, selection: $selection)
         }
-        .padding(.horizontal, .spacing6)
-        .padding(.vertical, .spacing5)
+        .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
+        .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
         .accessibilityLabel(title)
     }
 }
@@ -534,7 +563,7 @@ struct OMSettingsRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: .spacing4) {
+            HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
                 if let icon {
                     Icon(icon, size: 14)
                         .foregroundStyle(iconGradient != nil ? AnyShapeStyle(.white) : AnyShapeStyle(isDestructive ? Color.error : Color.fontSecondary))
@@ -570,8 +599,8 @@ struct OMSettingsRow: View {
                         .foregroundStyle(Color.fontTertiary)
                 }
             }
-            .padding(.horizontal, .spacing6)
-            .padding(.vertical, .spacing5)
+            .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
+            .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -585,7 +614,7 @@ struct OMSettingsStaticRow: View {
     var icon: String?
 
     var body: some View {
-        HStack(spacing: .spacing4) {
+        HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
             if let icon {
                 Icon(icon, size: 18)
                     .foregroundStyle(Color.fontSecondary)
@@ -601,8 +630,8 @@ struct OMSettingsStaticRow: View {
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
         }
-        .padding(.horizontal, .spacing6)
-        .padding(.vertical, .spacing5)
+        .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
+        .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
     }
 }
 

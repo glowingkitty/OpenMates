@@ -117,10 +117,11 @@ fi
 
 # ── 5. Hardcoded corner radius ───────────────────────────────────────
 # cornerRadius: N where N is a numeric literal instead of .radius token
-# Allowed: cornerRadius: 13 (speech bubble), cornerRadius: 0
+# Allowed: cornerRadius: 13 (speech bubble), cornerRadius: 0,
+#          cornerRadius: 24 (OMDropdown 1.5rem — no matching radius token exists between radius7=16 and radius8=20)
 radius_hits=$(grep -n 'cornerRadius: [0-9]' "$file" 2>/dev/null \
   | grep -v '^\s*//' \
-  | grep -v 'cornerRadius: 13\b\|cornerRadius: 0\b' \
+  | grep -v 'cornerRadius: 13\b\|cornerRadius: 0\b\|cornerRadius: 24\b' \
   | grep -v '\.radius' \
   || true)
 
