@@ -267,12 +267,24 @@ class SearchConnectionsSkill(BaseSkill):
             logger=logger,
         )
 
-        # 6. Build and return response
+        # 6. Determine provider attribution from requested transport methods
+        all_methods = set()
+        for req in validated_requests:
+            for m in req.get("transport_methods", ["airplane"]):
+                all_methods.add(m)
+        if all_methods == {"train"}:
+            provider_name = "Deutsche Bahn"
+        elif "train" in all_methods and "airplane" in all_methods:
+            provider_name = "Google, Deutsche Bahn"
+        else:
+            provider_name = "Google"
+
+        # 7. Build and return response
         return self._build_response_with_errors(
             response_class=SearchConnectionsResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="Google",
+            provider=provider_name,
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
