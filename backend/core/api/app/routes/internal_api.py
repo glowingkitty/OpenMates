@@ -1146,6 +1146,19 @@ async def check_upload_duplicate(
 
         record = items[0]
         embed_id = record.get("embed_id")
+
+        # Never deduplicate PDFs: OCR processing is essential for AI reading,
+        # and the vault-encrypted OCR cache has a 24h TTL. After expiry, the
+        # server loses OCR text, causing AI 'missing OCR data' errors.
+        # Always force a fresh upload + OCR run for PDFs.
+        content_type = record.get("content_type", "")
+        if content_type == "application/pdf":
+            logger.info(
+                f"{log_prefix} PDF duplicate found but skipping dedup — OCR must always run. "
+                f"embed_id={embed_id}"
+            )
+            return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
         # page_count IS stored on upload_files records (for PDFs) and returned
         # on dedup hits so the frontend can display the correct page count.
         # Stale detection applies to all uploads with an embed_id regardless of file type.
