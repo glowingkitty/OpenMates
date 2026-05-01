@@ -585,6 +585,20 @@ export async function sendNewMessageImpl(
 
 		// Convert embeds to format expected by server (cleartext, will be encrypted server-side)
 		for (const embed of loadedEmbeds) {
+			// Skip sending content for server-authoritative embeds (e.g. deduplicated
+			// PDF uploads). The server already has the full version with OCR text —
+			// sending our minimal client-side version would overwrite it in the cache
+			// and break AI PDF reading. The embed reference in the message markdown
+			// is enough for the server to resolve the embed from its own storage.
+			const isServerAuthoritative =
+				typeof embed.content === "string" &&
+				embed.content.includes("_server_authoritative");
+			if (isServerAuthoritative) {
+				console.debug(
+					`[ChatSyncService:Senders] Skipping server-authoritative embed ${embed.embed_id} — server already has full content`
+				);
+				continue;
+			}
 			embeds.push({
 				embed_id: embed.embed_id,
 				type: embed.type, // Decrypted type (client-side only)
