@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Roadmap created — ready to plan Phase 1
-last_updated: "2026-05-01T12:50:22.481Z"
+stopped_at: "01-02 Task 1 complete — awaiting human visual verification checkpoint"
+last_updated: "2026-05-01T13:00:00.000Z"
 last_activity: 2026-05-01
 progress:
   total_phases: 4
@@ -63,6 +63,9 @@ Recent decisions affecting current work:
 - Web app as sole design source of truth — no Figma, use Firecrawl + XcodeBuildMCP for visual comparison
 - All three platforms (iPhone, iPad, Mac) must match simultaneously — no platform-first approach
 - Foundation phase first — fix token/primitive layer once so all downstream screens inherit the fix
+- OMToggle inset shadow approximated via RoundedRectangle stroke+blur overlay — SwiftUI has no native inset shadow
+- OMDropdown cornerRadius: 24 hardcoded — no radius token exists between radius7=16pt and radius8=20pt for web 1.5rem
+- lint-swift-design-tokens.sh allows cornerRadius: 24 alongside cornerRadius: 13 (speech bubble exception)
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-01T12:50:22.477Z
-Stopped at: Roadmap created — ready to plan Phase 1
+Last session: 2026-05-01T13:00:00.000Z
+Stopped at: 01-02 Task 1 complete — awaiting human visual verification (checkpoint:human-verify)
 Resume file: None
