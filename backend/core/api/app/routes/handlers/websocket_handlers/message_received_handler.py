@@ -683,16 +683,30 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     # Deduplicated embeds have a minimal TOON (just filename/metadata,
                     # no OCR text or screenshot_s3_keys). Overwriting the server's
                     # full cached version with this minimal TOON breaks AI PDF reading.
-                    # The _deduplicated flag is set inside the TOON content by the client
-                    # when the upload server detects a content-hash match.
                     is_dedup = isinstance(embed_content, str) and "_deduplicated" in embed_content
+                    should_cache = True
+
                     if is_dedup:
-                        logger.info(
-                            f"Embed {embed_id} is deduplicated — skipping cache content overwrite, "
-                            f"preserving existing full version with OCR text"
-                        )
-                    else:
-                        # Store in cache (new embed or non-deduplicated update)
+                        # Check if a richer version exists in cache (longer content =
+                        # more data like OCR text, screenshot keys). The vault-encrypted
+                        # full TOON is typically 2000+ bytes vs ~500 for a minimal version.
+                        existing_cached = await cache_service.get(f"embed:{embed_id}")
+                        if existing_cached:
+                            existing_content = existing_cached.get("encrypted_content", "")
+                            if len(existing_content) > len(encrypted_content):
+                                logger.info(
+                                    f"Embed {embed_id} is deduplicated — preserving richer cache entry "
+                                    f"(existing={len(existing_content)}B > new={len(encrypted_content)}B)"
+                                )
+                                should_cache = False
+                            else:
+                                logger.info(
+                                    f"Embed {embed_id} is deduplicated but existing cache is not richer "
+                                    f"(existing={len(existing_content)}B <= new={len(encrypted_content)}B) — overwriting"
+                                )
+
+                    if should_cache:
+                        # Store in cache (new embed, non-deduplicated, or existing cache is not richer)
                         # Note: embed_data is already vault-encrypted above
                         await cache_service.set_embed_in_cache(
                             embed_id=embed_id,
