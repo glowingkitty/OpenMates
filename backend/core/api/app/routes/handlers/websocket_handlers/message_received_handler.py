@@ -679,21 +679,20 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "updated_at": int(datetime.now(timezone.utc).timestamp())
                     }
                     
-                    # Check if a fuller version already exists in cache (e.g. from a
-                    # previous upload that was deduplicated). The client may send a
-                    # minimal TOON for deduplicated uploads (just filename/metadata,
-                    # no OCR text or screenshot_s3_keys). Overwriting the full cached
-                    # version with this minimal TOON breaks AI PDF reading.
-                    # Only skip overwrite if the existing entry has status="finished"
-                    # (meaning it has the complete OCR-processed content).
-                    existing_cached = await cache_service.get(f"embed:{embed_id}")
-                    if existing_cached and existing_cached.get("status") == "finished":
+                    # Check if the client flagged this embed as deduplicated.
+                    # Deduplicated embeds have a minimal TOON (just filename/metadata,
+                    # no OCR text or screenshot_s3_keys). Overwriting the server's
+                    # full cached version with this minimal TOON breaks AI PDF reading.
+                    # The _deduplicated flag is set inside the TOON content by the client
+                    # when the upload server detects a content-hash match.
+                    is_dedup = isinstance(embed_content, str) and "_deduplicated" in embed_content
+                    if is_dedup:
                         logger.info(
-                            f"Embed {embed_id} already exists in cache with status=finished — "
-                            f"preserving existing content (client may have sent minimal dedup version)"
+                            f"Embed {embed_id} is deduplicated — skipping cache content overwrite, "
+                            f"preserving existing full version with OCR text"
                         )
                     else:
-                        # Store in cache (new embed or replacing non-finished version)
+                        # Store in cache (new embed or non-deduplicated update)
                         # Note: embed_data is already vault-encrypted above
                         await cache_service.set_embed_in_cache(
                             embed_id=embed_id,
