@@ -587,9 +587,11 @@ function generateSwiftTypography() {
     "extension Font {",
   ];
 
-  const family = typography["font-family"].primary;
+  // Use the Swift-specific family name if defined; the CSS variable font name ("Lexend Deca Variable")
+  // must not be used in Font.custom() — iOS registers static weights under "Lexend Deca".
+  const swiftFamily = typography["font-family"].swift || typography["font-family"].primary.replace(/ /g, "-");
   for (const [key, val] of Object.entries(typography["font-size"] || {})) {
-    lines.push(`    static let om${pascalCase(key)} = Font.custom("${family.replace(/ /g, "-")}", size: ${val.pt})`);
+    lines.push(`    static let om${pascalCase(key)} = Font.custom("${swiftFamily}", size: ${val.pt})`);
   }
 
   lines.push("}");
