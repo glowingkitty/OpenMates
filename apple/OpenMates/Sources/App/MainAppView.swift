@@ -31,7 +31,7 @@ struct MainAppView: View {
     @State private var selectedChatId: String?
     @State private var isChatsPanelOpen = false
     @State private var showSettings = false
-    @State private var showNewChatSheet = false
+    @State private var showNewChat = false
     @State private var showExplore = false
     @State private var showSearch = false
     @State private var showShareChat = false
@@ -76,7 +76,7 @@ struct MainAppView: View {
                 isAuthenticated: isAuthenticated,
                 isChatsPanelOpen: isChatsPanelOpen,
                 onToggleChats: { withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen.toggle() } },
-                onNewChat: { showNewChatSheet = true },
+                onNewChat: { selectedChatId = nil; showNewChat = true },
                 onShareChat: { showShareChat = true },
                 canShareChat: selectedChatId != nil,
                 onOpenSettings: { showSettings = true },
@@ -124,7 +124,7 @@ struct MainAppView: View {
         }
         // Global keyboard shortcuts (iPad + Mac)
         .appKeyboardShortcuts(
-            onNewChat: { showNewChatSheet = true },
+            onNewChat: { selectedChatId = nil; showNewChat = true },
             onSearch: { showSearch = true },
             onSettings: { showSettings = true }
         )
@@ -143,12 +143,14 @@ struct MainAppView: View {
         }
         .onChange(of: deepLinkHandler.pendingInspirationId) { _, inspirationId in
             if inspirationId != nil {
-                showNewChatSheet = true
+                selectedChatId = nil
+                showNewChat = true
                 deepLinkHandler.pendingInspirationId = nil
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
-            showNewChatSheet = true
+            selectedChatId = nil
+            showNewChat = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleIncognito)) { _ in
             incognitoManager.toggle()
@@ -181,6 +183,8 @@ struct MainAppView: View {
             } else {
                 // Unauthenticated: populate sidebar with demo chats
                 loadDemoChats()
+                // Fetch default daily inspirations (public endpoint, no auth required)
+                await syncInspirationToWidget()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
@@ -212,15 +216,6 @@ struct MainAppView: View {
         if showExplore {
             appOverlay(title: AppStrings.explore, isPresented: $showExplore) {
                 PublicChatListView()
-            }
-        }
-
-        if showNewChatSheet {
-            appOverlay(title: AppStrings.newChat, isPresented: $showNewChatSheet) {
-                NewChatView { chatId in
-                    selectedChatId = chatId
-                    showNewChatSheet = false
-                }
             }
         }
 
@@ -452,10 +447,16 @@ struct MainAppView: View {
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId)
             )
-        } else if !isAuthenticated {
-            WelcomeView(onLogin: { showAuthSheet = true })
         } else {
-            EmptyStateView()
+            NewChatWelcomeView(
+                inspiration: dailyInspiration,
+                isAuthenticated: isAuthenticated,
+                onChatCreated: { chatId in
+                    selectedChatId = chatId
+                    showNewChat = false
+                },
+                onOpenAuth: { showAuthSheet = true }
+            )
         }
     }
 
@@ -484,7 +485,8 @@ struct MainAppView: View {
     private var chatsPanel: some View {
         VStack(spacing: 0) {
             DailyInspirationBanner(inspiration: dailyInspiration) { _ in
-                showNewChatSheet = true
+                selectedChatId = nil
+                showNewChat = true
             }
 
             HStack(spacing: .spacing3) {
@@ -586,6 +588,7 @@ struct MainAppView: View {
         let isSelected = selectedChatId == chat.id
         Button {
             selectedChatId = chat.id
+            showNewChat = false
             if isCompactShell {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isChatsPanelOpen = false
@@ -899,6 +902,13 @@ struct MainAppView: View {
 
             let response = try JSONDecoder().decode(Response.self, from: data)
             if let first = response.inspirations.first {
+                // Populate the daily inspiration state for the welcome screen
+                dailyInspiration = DailyInspirationBanner.DailyInspiration(
+                    text: first.phrase,
+                    category: first.category,
+                    iconName: nil
+                )
+
                 // Encode as WidgetInspirationData and write to shared App Group container
                 let widgetData = WidgetInspirationData(
                     phrase: first.phrase,
@@ -917,7 +927,15 @@ struct MainAppView: View {
                 WidgetCenter.shared.reloadAllTimelines()
             }
         } catch {
-            print("[MainApp] Failed to sync inspiration to widget: \(error)")
+            print("[MainApp] Inspiration API unavailable, using hardcoded default")
+            // Hardcoded fallback matching web's hardcodedInspirations.ts
+            if dailyInspiration == nil {
+                dailyInspiration = DailyInspirationBanner.DailyInspiration(
+                    text: "Why does your brain create entire worlds while you sleep?",
+                    category: "science",
+                    iconName: nil
+                )
+            }
         }
     }
 
@@ -1158,156 +1176,211 @@ private struct WebHeaderIconButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Welcome view for unauthenticated users
+// MARK: - Inline new chat welcome screen
+// Shown for ALL users (authenticated and unauthenticated) when no chat is selected.
+// Matches the web app's ActiveChat.svelte showWelcome state.
 
-struct WelcomeView: View {
-    let onLogin: () -> Void
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/ActiveChat.svelte (showWelcome state)
+//          frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+//          frontend/packages/ui/src/components/NewChatSuggestions.svelte
+// CSS:     ActiveChat.svelte <style> — .welcome-text, .new-chat-cta-button,
+//          .daily-inspiration-area, .center-content, .message-input-action-row
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift, GradientTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
-    var body: some View {
-        VStack(spacing: .spacing8) {
-            Spacer()
-
-            Image.iconOpenmates
-                .resizable()
-                .frame(width: 72, height: 72)
-
-            // Brand name — intentionally not translated (proper noun, same in all locales)
-            Text("OpenMates")
-                .font(.omH1)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.fontPrimary)
-
-            Text(LocalizationManager.shared.text("chat.select_or_new"))
-                .font(.omP)
-                .foregroundStyle(Color.fontSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, .spacing10)
-
-            Button(action: onLogin) {
-                Text("\(AppStrings.login) / \(AppStrings.signup)")
-                    .font(.omP)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontButton)
-                    .padding(.horizontal, .spacing12)
-                    .padding(.vertical, .spacing8)
-                    .frame(minHeight: 41)
-                    .background(Color.buttonPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-            }
-            .accessibilityIdentifier("welcome-login-button")
-            .padding(.top, .spacing4)
-
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Empty state
-
-struct EmptyStateView: View {
-    var body: some View {
-        VStack(spacing: .spacing6) {
-            Image.iconOpenmates
-                .resizable()
-                .frame(width: 48, height: 48)
-                .opacity(0.5)
-            Text(AppStrings.selectChatOrNew)
-                .font(.omP)
-                .foregroundStyle(Color.fontSecondary)
-        }
-    }
-}
-
-// MARK: - New chat sheet
-
-struct NewChatView: View {
+struct NewChatWelcomeView: View {
+    let inspiration: DailyInspirationBanner.DailyInspiration?
+    let isAuthenticated: Bool
     let onChatCreated: (String) -> Void
+    let onOpenAuth: () -> Void
     @State private var messageText = ""
-    @State private var selectedApp: String?
+    @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @FocusState private var isFocused: Bool
 
-    private let popularApps = [
-        ("ai", "AI Chat"), ("web", "Web Search"), ("code", "Code"),
-        ("travel", "Travel"), ("news", "News"), ("mail", "Email"),
-        ("maps", "Maps"), ("shopping", "Shopping"), ("events", "Events"),
-        ("videos", "Videos"), ("photos", "Photos"), ("nutrition", "Nutrition"),
-    ]
-
     var body: some View {
-        VStack(spacing: .spacing6) {
-            Text(AppStrings.whatToHelpWith)
-                .font(.omH3).fontWeight(.semibold)
-                .foregroundStyle(Color.fontPrimary)
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: .spacing6) {
+                    // 1. Daily inspiration banner — gradient card matching DailyInspirationBanner.svelte
+                    // Web: always shown on welcome screen, fades when keyboard opens
+                    if let inspiration, !isFocused {
+                        InspirationCard(inspiration: inspiration) {
+                            createChatWith(message: inspiration.text)
+                        }
+                        .padding(.horizontal, .spacing5)
+                        .transition(.opacity)
+                    }
 
-            // App selector
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: .spacing4) {
-                ForEach(popularApps, id: \.0) { appId, name in
-                    Button {
-                        selectedApp = selectedApp == appId ? nil : appId
-                    } label: {
-                        VStack(spacing: .spacing2) {
-                            AppIconView(appId: appId, size: 40)
-                                .overlay(
-                                    selectedApp == appId ?
-                                    Circle().stroke(Color.buttonPrimary, lineWidth: 2)
-                                        .frame(width: 44, height: 44) : nil
-                                )
-                            Text(name)
-                                .font(.omTiny)
-                                .foregroundStyle(Color.fontSecondary)
-                                .lineLimit(1)
+                    // 2. Welcome greeting — matches web .center-content .welcome-text
+                    // Web: fades out when keyboard opens (hideWelcomeForKeyboard class)
+                    if !isFocused {
+                        VStack(spacing: .spacing3) {
+                            Image.iconOpenmates
+                                .resizable()
+                                .frame(width: 48, height: 48)
+
+                            Text(AppStrings.whatDoYouNeedHelpWith)
+                                .font(.omH3)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontPrimary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.top, .spacing6)
+                        .transition(.opacity)
+                    }
+
+                    // 3. Suggestion chips — horizontal scroll matching NewChatSuggestions.svelte
+                    // Web: shown when input focused OR viewport tall enough, filters with typed text
+                    if !suggestions.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: .spacing3) {
+                                ForEach(filteredSuggestions) { suggestion in
+                                    SuggestionChip(suggestion: suggestion) {
+                                        messageText = suggestion.text
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, .spacing5)
                         }
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.top, .spacing5)
             }
-            .padding(.horizontal)
+            .animation(.easeInOut(duration: 0.2), value: isFocused)
 
-            // Message input — pill style matching ChatView.inputBar and fields.css
-            HStack(alignment: .bottom, spacing: .spacing3) {
-                TextField(AppStrings.startTyping, text: $messageText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.omP)
-                    .lineLimit(1...4)
-                    .padding(.horizontal, .spacing8)
-                    .padding(.vertical, .spacing6)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: .radiusFull)
-                            .stroke(isFocused ? Color.buttonPrimary : Color.grey30, lineWidth: 2)
-                    )
-                    .shadow(
-                        color: isFocused ? Color.buttonPrimary.opacity(0.22) : .clear,
-                        radius: 3, x: 0, y: 0
-                    )
-                    .shadow(
-                        color: isFocused ? .black.opacity(0.08) : .black.opacity(0.05),
-                        radius: isFocused ? 12 : 2, x: 0, y: 4
-                    )
-                    .tint(Color.buttonPrimary)
-                    .focused($isFocused)
+            // 4. Message input pinned to bottom — matches web .message-input-action-row
+            VStack(spacing: 0) {
+                HStack(alignment: .bottom, spacing: .spacing3) {
+                    // New chat CTA button — matches web .new-chat-cta-button with create icon
+                    // Web: visible beside input, hidden when input focused
+                    if !isFocused && messageText.isEmpty {
+                        Button {
+                            if isAuthenticated {
+                                isFocused = true
+                            } else {
+                                onOpenAuth()
+                            }
+                        } label: {
+                            HStack(spacing: .spacing3) {
+                                Icon("create", size: 18)
+                                    .foregroundStyle(Color.fontButton)
+                                Text(AppStrings.newChat)
+                                    .font(.omP)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.fontButton)
+                            }
+                            .padding(.horizontal, .spacing6)
+                            .padding(.vertical, .spacing5)
+                            .background(Color.buttonPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                            .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity)
+                    }
 
-                Button(action: createChat) {
-                    Icon("up", size: 16)
-                        .foregroundStyle(messageText.isEmpty ? Color.fontTertiary : Color.fontButton)
-                        .frame(width: 32, height: 32)
-                        .background(messageText.isEmpty ? Color.grey20 : Color.buttonPrimary)
-                        .clipShape(Circle())
+                    TextField(AppStrings.typeMessage, text: $messageText, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .font(.omP)
+                        .lineLimit(1...4)
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing6)
+                        .background(Color.grey0)
+                        .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: .radiusFull)
+                                .stroke(isFocused ? Color.buttonPrimary : Color.grey30, lineWidth: 2)
+                        )
+                        .shadow(
+                            color: isFocused ? Color.buttonPrimary.opacity(0.22) : .clear,
+                            radius: 3, x: 0, y: 0
+                        )
+                        .shadow(
+                            color: isFocused ? .black.opacity(0.08) : .black.opacity(0.05),
+                            radius: isFocused ? 12 : 2, x: 0, y: 4
+                        )
+                        .tint(Color.buttonPrimary)
+                        .focused($isFocused)
+
+                    if isFocused && messageText.isEmpty {
+                        // Cancel button — iOS-specific, dismisses keyboard to return to welcome view
+                        Button {
+                            isFocused = false
+                        } label: {
+                            Text(AppStrings.cancel)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity)
+                    } else {
+                        Button(action: { createChatWith(message: messageText) }) {
+                            Icon("up", size: 16)
+                                .foregroundStyle(messageText.isEmpty ? Color.fontTertiary : Color.fontButton)
+                                .frame(width: 32, height: 32)
+                                .background(messageText.isEmpty ? Color.grey20 : Color.buttonPrimary)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(messageText.isEmpty)
+                    }
                 }
-                .buttonStyle(.plain)
-                .disabled(messageText.isEmpty)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing4)
             }
-            .padding(.horizontal)
-
-            Spacer()
+            .background(Color.grey0)
+            .animation(.easeInOut(duration: 0.2), value: isFocused)
         }
-        .padding(.top, .spacing8)
-        .onAppear { isFocused = true }
+        .background(Color.grey0)
+        .task { await loadSuggestions() }
     }
 
-    private func createChat() {
+    /// Filter suggestions based on typed text, matching web's debounced filter behavior
+    private var filteredSuggestions: [NewChatSuggestionsView.ChatSuggestion] {
+        guard !messageText.isEmpty else { return suggestions }
+        let query = messageText.lowercased()
+        let filtered = suggestions.filter { $0.text.lowercased().contains(query) }
+        return filtered.isEmpty ? suggestions : filtered
+    }
+
+    private func loadSuggestions() async {
+        do {
+            suggestions = try await APIClient.shared.request(
+                .get, path: "/v1/chat/suggestions"
+            )
+        } catch {
+            print("[NewChatWelcome] Suggestions API unavailable, using defaults")
+        }
+
+        // Hardcoded fallback when API is unavailable (matches web DEFAULT_NEW_CHAT_SUGGESTION_KEYS)
+        if suggestions.isEmpty {
+            suggestions = Self.defaultSuggestions
+        }
+    }
+
+    /// Hardcoded default suggestions matching the web app's defaultNewChatSuggestions.ts
+    private static let defaultSuggestions: [NewChatSuggestionsView.ChatSuggestion] = [
+        .init(id: "s1", text: "What's the difference between machine learning and AI?", appId: "ai", category: nil, icon: nil),
+        .init(id: "s2", text: "Search the web for the latest AI news", appId: "web", category: nil, icon: nil),
+        .init(id: "s3", text: "Plan a 7-day trip to Japan", appId: "travel", category: nil, icon: nil),
+        .init(id: "s4", text: "Find trending videos about space exploration", appId: "videos", category: nil, icon: nil),
+        .init(id: "s5", text: "Explain quantum computing in simple terms", appId: "ai", category: nil, icon: nil),
+        .init(id: "s6", text: "Write a professional cover letter", appId: "ai", category: nil, icon: nil),
+        .init(id: "s7", text: "Create a healthy meal prep plan", appId: "nutrition", category: nil, icon: nil),
+        .init(id: "s8", text: "Help me learn basic Spanish phrases", appId: "ai", category: nil, icon: nil),
+    ]
+
+    private func createChatWith(message: String) {
+        guard !message.isEmpty else { return }
+
+        // Unauthenticated users: open auth flow instead of creating a chat
+        guard isAuthenticated else {
+            onOpenAuth()
+            return
+        }
+
         let chatId = UUID().uuidString
 
         Task {
@@ -1316,7 +1389,7 @@ struct NewChatView: View {
                 "message": [
                     "message_id": UUID().uuidString,
                     "role": "user",
-                    "content": messageText,
+                    "content": message,
                     "created_at": Int(Date().timeIntervalSince1970),
                     "chat_has_title": false
                 ] as [String: Any]
@@ -1328,8 +1401,60 @@ struct NewChatView: View {
                 )
                 onChatCreated(chatId)
             } catch {
-                print("[NewChat] Failed to create chat: \(error)")
+                print("[NewChatWelcome] Failed to create chat: \(error)")
             }
         }
+    }
+}
+
+// MARK: - Inspiration card for new chat screen
+// Matches DailyInspirationBanner.svelte gradient card with living gradient,
+// "Daily inspiration" label, phrase text, and "Click to start chat" CTA.
+
+private struct InspirationCard: View {
+    let inspiration: DailyInspirationBanner.DailyInspiration
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: .spacing3) {
+                HStack(spacing: .spacing2) {
+                    Icon("insight", size: 14)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text(AppStrings.dailyInspiration)
+                        .font(.omTiny)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .textCase(.uppercase)
+                }
+
+                Text(inspiration.text)
+                    .font(.omP)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .lineLimit(4)
+                    .multilineTextAlignment(.leading)
+
+                HStack(spacing: .spacing2) {
+                    Icon("create", size: 13)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text(LocalizationManager.shared.text("daily_inspiration.click_to_start_chat"))
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .padding(.top, .spacing2)
+            }
+            .padding(.spacing6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LinearGradient.primary)
+            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibleButton(
+            "Daily inspiration: \(inspiration.text)",
+            hint: "Starts a new chat with this inspiration"
+        )
     }
 }

@@ -57,6 +57,7 @@ enum AppStrings {
     static var loadEarlierMessages: String { L("chat.load_earlier") }
     static var selectChatOrNew: String { L("chat.select_or_new") }
     static var whatToHelpWith: String { L("chat.what_to_help_with") }
+    static var whatDoYouNeedHelpWith: String { L("chat.welcome.what_do_you_need_help_with") }
     static var pinnedChats: String { L("chat.pinned") }
     static var recentChats: String { L("chat.recent") }
     static var hiddenChats: String { L("chat.hidden_chats") }

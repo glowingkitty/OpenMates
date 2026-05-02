@@ -452,7 +452,7 @@ struct ChatView: View {
             NotificationCenter.default.post(name: .newChat, object: nil)
         } label: {
             HStack(spacing: .spacing3) {
-                Icon("plus", size: 18)
+                Icon("create", size: 18)
                     .foregroundStyle(Color.fontButton)
                 Text(AppStrings.newChat)
                     .font(.omP)
@@ -633,34 +633,52 @@ struct MessageBubble: View {
         return (appId == nil || appId == "ai") ? .primary : AppIconView.gradient(forAppId: appId!)
     }
 
+    // Web: .mate-profile = 60px; .mate-profile-small-mobile (≤500px container) = 25px
+    private var avatarSize: CGFloat { useStackedLayout ? 25 : 60 }
+    private var avatarIconSize: CGFloat { useStackedLayout ? 12 : 30 }
+    // Web: AI badge — normal: 24/16px, small-mobile: 12/8px
+    private var badgeSize: CGFloat { useStackedLayout ? 12 : 24 }
+    private var badgeIconSize: CGFloat { useStackedLayout ? 8 : 16 }
+    private var badgeAiIconSize: CGFloat { useStackedLayout ? 4 : 8 }
+
     private var assistantAvatar: some View {
-        Circle()
-            .fill(avatarGradient)
-            .frame(width: 60, height: 60)
-            .overlay {
-                // Web: openmates_official shows favicon.svg; others show category icon
-                Icon(isOpenMatesOfficial ? "openmates" : AppIconView.iconName(forAppId: appId ?? "ai"), size: 30)
-                    .foregroundStyle(.white)
+        Group {
+            if isOpenMatesOfficial {
+                // Web: .mate-profile.openmates_official — favicon.svg as background-image,
+                // background-size:contain, border-radius:50%, no AI badge.
+                // Render as .original to preserve the SVG's built-in gradient.
+                Image("openmates")
+                    .renderingMode(.original)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: avatarSize, height: avatarSize)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(avatarGradient)
+                    .frame(width: avatarSize, height: avatarSize)
+                    .overlay {
+                        Icon(AppIconView.iconName(forAppId: appId ?? "ai"), size: avatarIconSize)
+                            .foregroundStyle(.white)
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        Circle()
+                            .fill(Color.grey0)
+                            .frame(width: badgeSize, height: badgeSize)
+                            .overlay {
+                                Circle()
+                                    .fill(LinearGradient.primary)
+                                    .frame(width: badgeIconSize, height: badgeIconSize)
+                                    .overlay {
+                                        Icon("ai", size: badgeAiIconSize)
+                                            .foregroundStyle(.white)
+                                    }
+                            }
+                            .shadow(color: .black.opacity(0.10), radius: 2, x: 0, y: 1)
+                    }
             }
-            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-            .overlay(alignment: .bottomTrailing) {
-                // Web: openmates_official hides the AI badge entirely
-                if !isOpenMatesOfficial {
-                    Circle()
-                        .fill(Color.grey0)
-                        .frame(width: 24, height: 24)
-                        .overlay {
-                            Circle()
-                                .fill(LinearGradient.primary)
-                                .frame(width: 16, height: 16)
-                                .overlay {
-                                    Icon("ai", size: 8)
-                                        .foregroundStyle(.white)
-                                }
-                        }
-                        .shadow(color: .black.opacity(0.10), radius: 2, x: 0, y: 1)
-                }
-            }
+        }
+        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
     }
 
     private var userBubble: some View {
