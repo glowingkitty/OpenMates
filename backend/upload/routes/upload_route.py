@@ -1056,9 +1056,10 @@ async def _handle_pdf_dedup(
     """
     Safe PDF dedup: reuse existing S3 object with a fresh embed_id.
 
-    Skips encryption, vault wrap, S3 upload, and credit charging. Creates a new
-    upload record and triggers OCR with the existing S3 key so the new embed_id
-    gets its own OCR cache entry.  See OPE-485 for architecture rationale.
+    Skips encryption, vault wrap, and S3 upload. Credits are always charged
+    (every PDF upload costs credits regardless of dedup). Creates a new upload
+    record and triggers OCR with the existing S3 key so the new embed_id gets
+    its own OCR cache entry.  See OPE-485 for architecture rationale.
     """
     import hashlib as _hashlib
 
@@ -1082,11 +1083,45 @@ async def _handle_pdf_dedup(
     embed_id = str(uuid.uuid4())
     user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
 
+    # Always charge credits — every PDF upload costs credits regardless of dedup.
+    # The OCR cache copy is our internal cost optimization, not a user discount.
+    credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     logger.info(
         f"{log_prefix} [PDF-dedup] Fresh embed_id={embed_id} | "
         f"reusing S3 key={pdf_s3_key} | pages={page_count} | "
-        f"credits=0 (already charged on original upload)"
+        f"credits={credits_to_charge}"
     )
+    try:
+        async with httpx.AsyncClient(timeout=15) as _client:
+            charge_resp = await _client.post(
+                f"{core_api_url}/internal/billing/charge",
+                json={
+                    "user_id": user_id,
+                    "user_id_hash": user_id_hash,
+                    "credits": credits_to_charge,
+                    "skill_id": "process",
+                    "app_id": "pdf",
+                    "usage_details": {
+                        "page_count": page_count,
+                        "credits_per_page": PDF_CREDITS_PER_PAGE,
+                        "filename": filename,
+                        "deduplicated": True,
+                    },
+                },
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+        if charge_resp.status_code == 402:
+            logger.warning(f"{log_prefix} [PDF-dedup] Insufficient credits for {page_count}-page PDF")
+            raise HTTPException(status_code=402, detail="Insufficient credits for PDF processing")
+        elif charge_resp.status_code not in (200, 201):
+            logger.error(f"{log_prefix} [PDF-dedup] Billing charge failed: HTTP {charge_resp.status_code}")
+            raise HTTPException(status_code=503, detail="Billing service unavailable")
+        logger.info(f"{log_prefix} [PDF-dedup] Credits charged: {credits_to_charge}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} [PDF-dedup] Credit charge failed: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Billing service unavailable")
 
     # Build files metadata from existing record
     files_metadata = {
@@ -1146,7 +1181,7 @@ async def _handle_pdf_dedup(
                         "aes_nonce": nonce_b64,
                         "filename": filename,
                         "page_count": page_count,
-                        "credits_charged": 0,
+                        "credits_charged": credits_to_charge,
                         "user_id_hash": user_id_hash,
                         # Pass old embed_id so OCR task can copy cache instead of re-running
                         "source_embed_id": reuse_s3_data.get("embed_id"),
