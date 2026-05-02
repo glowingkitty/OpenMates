@@ -35,7 +35,7 @@ enum AppStrings {
     static var no: String { L("common.no") }
     static var ok: String { L("common.ok") }
     static var copied: String { L("common.copied") }
-    static var version: String { L("common.version") }
+    static var version: String { L("settings.current_version") }
 
     // MARK: - Chat
     static var newChat: String { L("chat.new_chat") }
@@ -96,7 +96,7 @@ enum AppStrings {
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
     static var storage: String { L("settings.storage") }
-    static var importChats: String { L("settings.account.import_chats") }
+    static var importChats: String { L("settings.account.import_title") }
     static var exportData: String { L("settings.export_data") }
     static var deleteAccount: String { L("settings.delete_account") }
     static var deleteAccountWarning: String { L("settings.delete_account.warning") }
@@ -104,7 +104,7 @@ enum AppStrings {
     static var permanentlyDeleteAccount: String { L("settings.delete_account.confirm_button") }
 
     // MARK: - Settings - AI
-    static var aiModelProviders: String { L("settings.ai.ai_model_providers") }
+    static var aiModelProviders: String { L("settings.ai") }
     static var defaultModels: String { L("settings.ai_ask.ai_ask_settings.default_models") }
     static var autoSelectModel: String { L("settings.ai_ask.ai_ask_settings.auto_select_model") }
     static var autoSelectDescription: String { L("settings.ai_ask.ai_ask_settings.auto_select_description") }
@@ -136,7 +136,7 @@ enum AppStrings {
     static var twoFactorAuth: String { L("settings.two_factor_auth") }
     static var recoveryKey: String { L("settings.recovery_key") }
     static var activeSessions: String { L("settings.sessions") }
-    static var pairNewDevice: String { L("settings.pair_device") }
+    static var pairNewDevice: String { L("settings.sessions.pair_initiate_title") }
     static var logoutAllSessions: String { L("settings.logout_all") }
     static var addPasskey: String { L("settings.passkeys.add") }
     static var setup2FA: String { L("settings.two_factor_auth.setup") }
@@ -145,8 +145,8 @@ enum AppStrings {
 
     // MARK: - Settings - Privacy
     static var hidePersonalData: String { L("settings.hide_personal_data") }
-    static var autoDeleteChats: String { L("settings.auto_delete_chats") }
-    static var shareDebugLogs: String { L("settings.share_debug_logs") }
+    static var autoDeleteChats: String { L("settings.privacy.auto_deletion") }
+    static var shareDebugLogs: String { L("settings.privacy.debug_logging_title") }
     static var never: String { L("common.never") }
 
     // MARK: - Settings - Billing
@@ -159,28 +159,28 @@ enum AppStrings {
 
     // MARK: - Settings - Notifications
     static var pushNotifications: String { L("settings.notifications.push") }
-    static var chatMessages: String { L("settings.notifications.chat_messages") }
+    static var chatMessages: String { L("settings.notifications.chat") }
     static var emailNotifications: String { L("settings.notifications.email") }
-    static var backupReminders: String { L("settings.backup_reminders") }
+    static var backupReminders: String { L("settings.notifications.backup") }
 
     // MARK: - Settings - Interface
-    static var theme: String { L("settings.interface.theme") }
+    static var theme: String { L("settings.interface.dark_mode") }
     static var language: String { L("settings.interface.language") }
-    static var systemTheme: String { L("settings.interface.theme.system") }
-    static var lightTheme: String { L("settings.interface.theme.light") }
-    static var darkTheme: String { L("settings.interface.theme.dark") }
+    static var systemTheme: String { L("settings.interface.dark_mode.auto") }
+    static var lightTheme: String { L("settings.interface.dark_mode.light") }
+    static var darkTheme: String { L("settings.interface.dark_mode.dark") }
 
     // MARK: - Settings - Developers
     static var apiKeys: String { L("settings.api_keys") }
     static var devices: String { L("settings.devices") }
-    static var webhooks: String { L("settings.webhooks") }
+    static var webhooks: String { L("settings.developers_webhooks") }
 
     // MARK: - Settings - About
-    static var privacyPolicy: String { L("settings.privacy_policy") }
-    static var termsOfService: String { L("settings.terms_of_service") }
-    static var imprint: String { L("settings.imprint") }
-    static var openSource: String { L("settings.open_source") }
-    static var about: String { L("common.about") }
+    static var privacyPolicy: String { L("legal.privacy.title") }
+    static var termsOfService: String { L("legal.terms.title") }
+    static var imprint: String { L("legal.imprint.title") }
+    static var openSource: String { L("design_guidelines.maximum_good.open_source") }
+    static var about: String { L("settings.app_store.provider_detail.about") }
 
     // MARK: - Settings - Newsletter
     static var newsletterSubscribe: String { L("settings.newsletter.subscribe") }
@@ -188,7 +188,8 @@ enum AppStrings {
 
     // MARK: - Settings - Server (admin)
     static var serverAdmin: String { L("settings.server") }
-    static var logs: String { L("settings.logs") }
+    // Web hardcodes "Logs" for this admin-only entry (no i18n key exists)
+    static var logs: String { "Logs" }
 
     // MARK: - Auth
     static var login: String { L("login.login") }
