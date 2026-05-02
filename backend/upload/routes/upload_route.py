@@ -1148,6 +1148,8 @@ async def _handle_pdf_dedup(
                         "page_count": page_count,
                         "credits_charged": 0,
                         "user_id_hash": user_id_hash,
+                        # Pass old embed_id so OCR task can copy cache instead of re-running
+                        "source_embed_id": reuse_s3_data.get("embed_id"),
                     },
                     headers={"X-Internal-Service-Token": internal_token},
                 )

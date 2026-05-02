@@ -125,6 +125,37 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         await task.initialize_services()
 
         # -----------------------------------------------------------------------
+        # Dedup shortcut: if source_embed_id is provided, try to copy the OCR
+        # cache from the original embed instead of re-running OCR. This saves
+        # the expensive OCR API call when the same PDF is uploaded again within
+        # the 72h cache TTL.  See OPE-485 for architecture details.
+        # -----------------------------------------------------------------------
+        source_embed_id = arguments.get("source_embed_id")
+        if source_embed_id:
+            copied = await _try_copy_ocr_cache(
+                source_embed_id=source_embed_id,
+                target_embed_id=embed_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                vault_key_id=vault_key_id,
+                chat_id=arguments.get("chat_id", ""),
+                embed_service=task._embed_service,
+                encryption_service=task._encryption_service,
+                log_prefix=log_prefix,
+            )
+            if copied:
+                logger.info(f"{log_prefix} OCR cache copied from {source_embed_id[:8]} — skipping OCR")
+                return {
+                    "embed_id": embed_id,
+                    "status": "finished",
+                    "page_count": page_count,
+                    "ocr_skipped": True,
+                    "source_embed_id": source_embed_id,
+                }
+            else:
+                logger.info(f"{log_prefix} OCR cache miss for {source_embed_id[:8]} — running full OCR")
+
+        # -----------------------------------------------------------------------
         # Step 1: Download and decrypt the PDF from S3
         # -----------------------------------------------------------------------
         logger.info(f"{log_prefix} Step 1: Downloading PDF from S3: {s3_key}")
@@ -567,6 +598,90 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
 
     finally:
         await task.cleanup_services()
+
+
+async def _try_copy_ocr_cache(
+    source_embed_id: str,
+    target_embed_id: str,
+    user_id: str,
+    user_id_hash: str,
+    vault_key_id: str,
+    chat_id: str,
+    embed_service: Any,
+    encryption_service: Any,
+    log_prefix: str,
+) -> bool:
+    """
+    Try to copy OCR cache from source_embed_id to target_embed_id.
+
+    Returns True if the cache was successfully copied and send_embed_data
+    was fired for the new embed_id. Returns False if the source cache is
+    cold (expired) and full OCR must run instead.
+    """
+    try:
+        cache_service = embed_service.cache_service
+        client = await cache_service.client
+        if not client:
+            return False
+
+        source_key = f"embed:{source_embed_id}"
+        cached_json = await client.get(source_key)
+        if not cached_json:
+            logger.info(f"{log_prefix} Source cache miss: {source_key}")
+            return False
+
+        import json as json_lib
+        cached_data = json_lib.loads(cached_json)
+
+        # The cached entry must have vault-encrypted TOON content with OCR data.
+        # Upload-only cache entries (no encrypted_content) can't be copied.
+        if not cached_data.get("encrypted_content"):
+            logger.info(f"{log_prefix} Source cache has no encrypted_content — not an OCR result")
+            return False
+
+        # Copy: write the same vault-encrypted TOON under the new embed_id's key.
+        # The TOON content (screenshot S3 keys, OCR text blob key, AES credentials)
+        # is identical because it was derived from the same S3 object.
+        target_data = dict(cached_data)
+        target_data["embed_id"] = target_embed_id
+
+        target_key = f"embed:{target_embed_id}"
+        await client.set(target_key, json_lib.dumps(target_data), ex=259200)  # 72h
+
+        # Add to chat embed index
+        if chat_id:
+            chat_index_key = f"chat:{chat_id}:embed_ids"
+            await client.sadd(chat_index_key, target_embed_id)
+            await client.expire(chat_index_key, 259200)
+
+        logger.info(f"{log_prefix} OCR cache copied: {source_key} → {target_key}")
+
+        # Decrypt the TOON from vault to get the plaintext content for send_embed_data.
+        # The client needs plaintext TOON to encrypt with its own session keys.
+        encrypted_content = cached_data["encrypted_content"]
+        content_toon = await encryption_service.vault_decrypt(
+            encrypted_content, vault_key_id
+        )
+
+        if content_toon:
+            await embed_service.send_embed_data_to_client(
+                embed_id=target_embed_id,
+                embed_type="app_skill_use",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id="",
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="finished",
+                log_prefix=f"{log_prefix} [dedup-copy]",
+            )
+            logger.info(f"{log_prefix} send_embed_data fired for copied embed {target_embed_id[:8]}")
+
+        return True
+
+    except Exception as exc:
+        logger.warning(f"{log_prefix} OCR cache copy failed (non-fatal): {exc}", exc_info=True)
+        return False
 
 
 async def _download_decrypt_pdf(
