@@ -340,6 +340,9 @@
     let panelHeightTransitionOverride = $state<string | null>(null);
     let suppressHeightChangeDispatch = $state(false);
     
+    // Draft preview mode: field has content but is not focused — show truncated text, hide buttons.
+    let isDraftPreview = $derived(hasContent && !isMessageFieldFocused && !isFullscreen);
+
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
     // In minimized mode: shows when prop is true OR when field is focused OR when recording is in progress.
@@ -348,7 +351,7 @@
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
     let shouldShowActionButtons = $derived(
-        !startNewChatOnClick && (
+        !startNewChatOnClick && !isDraftPreview && (
             isFullscreen ||
             showActionButtons ||
             isMessageFieldFocused ||
@@ -4384,7 +4387,7 @@
     />
     
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill}
@@ -4502,7 +4505,7 @@
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if !startNewChatOnClick && (isFullscreen || hasContent || isMessageFieldFocused) && !showCamera && !showSketch && !showMaps}
+        {#if !startNewChatOnClick && (isFullscreen || hasContent || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}

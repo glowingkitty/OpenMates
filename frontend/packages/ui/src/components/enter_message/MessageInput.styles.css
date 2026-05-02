@@ -175,6 +175,27 @@
   padding: 0 0 10px 0;
 }
 
+/* Draft preview mode: field has content but is not focused.
+   Truncate visible text to 3 lines with ellipsis, hide action buttons via JS. */
+.message-field.draft-preview {
+  min-height: unset;
+  padding-bottom: 10px;
+  cursor: pointer;
+}
+
+.message-field.draft-preview .scrollable-content {
+  max-height: calc(1.5em * 3 + 1em);
+  overflow: hidden;
+  padding-top: 0.75em;
+}
+
+.message-field.draft-preview :global(.ProseMirror) {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Inline compact mode: single-line height matching the new-chat CTA button (~48px).
    Active when the input sits beside the new-chat button and is not focused/has no content. */
 .message-field.inline-compact {
