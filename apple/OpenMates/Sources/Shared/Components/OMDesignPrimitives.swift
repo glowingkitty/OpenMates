@@ -89,13 +89,21 @@ struct OMSettingsToggleRow: View {
     var disabled = false
 
     var body: some View {
-        HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
+        HStack(spacing: 0) {
             if let icon {
-                Icon(icon, size: 18)
+                // 44x44 icon with grey gradient bg (Mode A), colored icon at 50% (22pt)
+                Icon(icon, size: 22)
                     .foregroundStyle(Color.fontSecondary)
-                    .frame(width: 28, height: 28)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                    .frame(width: 44, height: 44)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.grey20, Color.grey30],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    .padding(.trailing, .spacing6)
             }
 
             VStack(alignment: .leading, spacing: .spacing1) {
@@ -115,9 +123,11 @@ struct OMSettingsToggleRow: View {
 
             OMToggle(isOn: $isOn, disabled: disabled)
         }
-        .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
-        .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing2)
+        .frame(minHeight: 40)
         .contentShape(Rectangle())
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
         .accessibilityLabel(title)
     }
 }
@@ -242,13 +252,20 @@ struct OMSettingsPickerRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
+            HStack(spacing: 0) {
                 if let icon {
-                    Icon(icon, size: 18)
+                    Icon(icon, size: 22)
                         .foregroundStyle(Color.fontSecondary)
-                        .frame(width: 28, height: 28)
-                        .background(Color.grey0)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        .frame(width: 44, height: 44)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.grey20, Color.grey30],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                        .padding(.trailing, .spacing6)
                 }
 
                 VStack(alignment: .leading, spacing: .spacing1) {
@@ -267,8 +284,8 @@ struct OMSettingsPickerRow: View {
 
             OMDropdown(title: title, options: options, selection: $selection)
         }
-        .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
-        .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing2)
         .accessibilityLabel(title)
     }
 }
@@ -551,6 +568,12 @@ struct OMSettingsSection<Content: View>: View {
     }
 }
 
+// Web source: SettingsItem.svelte (top-level) — .menu-item with .settings-icon
+// Icon container: 44x44, radius-4 (10pt), icon at 50% (22pt), margin-end 12px
+// Mode B (.has-bg): gradient bg + white icon. Mode A (no .has-bg): grey gradient bg + colored icon
+// Row: padding 5px 10px, min-height 40px, border-radius radius-3 (8pt)
+// Hover: background-color grey-10
+
 struct OMSettingsRow: View {
     let title: String
     var subtitle: String?
@@ -563,13 +586,29 @@ struct OMSettingsRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
+            HStack(spacing: 0) {
                 if let icon {
-                    Icon(icon, size: 14)
-                        .foregroundStyle(iconGradient != nil ? AnyShapeStyle(.white) : AnyShapeStyle(isDestructive ? Color.error : Color.fontSecondary))
-                        .frame(width: 28, height: 28)
-                        .background(iconGradient ?? LinearGradient(colors: [Color.grey10], startPoint: .top, endPoint: .bottom))
-                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                    // .icon-container: 44x44, margin-inline-end 12px, flex-shrink 0
+                    // .settings-icon: 44x44, radius-4 (10pt)
+                    // Mode B (.has-bg): gradient bg, white icon at 50% (22pt)
+                    // Mode A (no .has-bg): grey-20→grey-30 gradient bg, colored icon at 50% (22pt)
+                    Icon(icon, size: 22)
+                        .foregroundStyle(
+                            iconGradient != nil
+                                ? AnyShapeStyle(.white)
+                                : AnyShapeStyle(isDestructive ? Color.error : Color.fontSecondary)
+                        )
+                        .frame(width: 44, height: 44)
+                        .background(
+                            iconGradient
+                                ?? LinearGradient(
+                                    colors: [Color.grey20, Color.grey30],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                        .padding(.trailing, .spacing6) // margin-inline-end: 12px
                 }
 
                 VStack(alignment: .leading, spacing: .spacing1) {
@@ -599,11 +638,14 @@ struct OMSettingsRow: View {
                         .foregroundStyle(Color.fontTertiary)
                 }
             }
-            .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
-            .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
+            // padding: 5px 10px (top/bottom 5pt, left/right 10pt)
+            .padding(.horizontal, .spacing5) // 10px
+            .padding(.vertical, .spacing2)   // web: 5px, closest token: spacing2 (4pt)
+            .frame(minHeight: 40)            // min-height: 40px
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .clipShape(RoundedRectangle(cornerRadius: .radius3)) // border-radius: var(--radius-3)
         .accessibilityLabel(title)
     }
 }
@@ -614,13 +656,20 @@ struct OMSettingsStaticRow: View {
     var icon: String?
 
     var body: some View {
-        HStack(spacing: .spacing6) { // gap: 0.75rem = 12pt from SettingsItem.svelte
+        HStack(spacing: 0) {
             if let icon {
-                Icon(icon, size: 18)
+                Icon(icon, size: 22)
                     .foregroundStyle(Color.fontSecondary)
-                    .frame(width: 28, height: 28)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                    .frame(width: 44, height: 44)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.grey20, Color.grey30],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    .padding(.trailing, .spacing6)
             }
             Text(title)
                 .font(.omP)
@@ -630,8 +679,9 @@ struct OMSettingsStaticRow: View {
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
         }
-        .padding(.horizontal, .spacing5) // 0.625rem = 10pt from SettingsItem.svelte
-        .padding(.vertical, .spacing6)   // 0.75rem = 12pt from SettingsItem.svelte
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing2)
+        .frame(minHeight: 40)
     }
 }
 
