@@ -2395,6 +2395,14 @@ export async function handleEmbedUpdateImpl(
     console.debug(
       `[ChatSyncService:AI] embed_update: Skipping ${payload.embed_id} - already fully processed by send_embed_data handler`,
     );
+    // FIX: Clear stale in-memory cache (same multi-tab fix as in send_embed_data DUPLICATE path)
+    const { embedStore: euEmbedStore } = await import("./embedStore");
+    euEmbedStore.removeFromMemoryCache(`embed:${payload.embed_id}`);
+    if (payload.child_embed_ids && Array.isArray(payload.child_embed_ids)) {
+      for (const childId of payload.child_embed_ids) {
+        euEmbedStore.removeFromMemoryCache(`embed:${childId}`);
+      }
+    }
     // Still dispatch a lightweight UI refresh event (status may have changed)
     serviceInstance.dispatchEvent(
       new CustomEvent("embedUpdated", {
@@ -3186,6 +3194,23 @@ export async function handleSendEmbedDataImpl(
             `(status=${embedData.status}) - skipping duplicate processing. ` +
             `This should not happen if deduplication is working correctly!`,
         );
+
+        // FIX: Clear stale in-memory cache entries so refetchFromStore() reads
+        // from IndexedDB. In multi-tab setups, tab 2 may still hold a "processing"
+        // entry from setInMemoryOnly() that putEncrypted() never overwrote (because
+        // this tab skipped processing via the DUPLICATE check). Without this,
+        // embedStore.get() always returns the stale cache hit and never reaches IDB
+        // where the correctly encrypted+finished data lives.
+        const { embedStore: dupEmbedStore } = await import("./embedStore");
+        dupEmbedStore.removeFromMemoryCache(`embed:${embedData.embed_id}`);
+        // Also clear child embed caches — fullscreen views load children via
+        // resolveEmbed() which would hit the same stale-cache problem.
+        if (embedData.embed_ids && Array.isArray(embedData.embed_ids)) {
+          for (const childId of embedData.embed_ids) {
+            dupEmbedStore.removeFromMemoryCache(`embed:${childId}`);
+          }
+        }
+
         // Still dispatch event for UI refresh, but don't re-encrypt or re-send
         serviceInstance.dispatchEvent(
           new CustomEvent("embedUpdated", {
