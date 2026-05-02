@@ -122,6 +122,26 @@ class SearchConnectionsRequest(BaseModel):
     )
 
 
+# Registry of known transport providers with display metadata.
+# Each provider that can return results should have an entry here.
+# icon_url is used as a favicon in the search preview (like web search favicons).
+PROVIDER_REGISTRY: Dict[str, Dict[str, str]] = {
+    "google_flights": {
+        "name": "Google Flights",
+        "icon_url": "https://www.gstatic.com/flights/airline_logos/70px/dark/multi.png",
+    },
+    "deutsche_bahn": {
+        "name": "Deutsche Bahn",
+        "icon_url": "https://www.bahn.de/favicon.ico",
+    },
+    # Add new providers here as they are integrated:
+    # "trainline": {
+    #     "name": "Trainline",
+    #     "icon_url": "https://www.thetrainline.com/favicon.ico",
+    # },
+}
+
+
 class SearchConnectionsResponse(BaseModel):
     """
     Response payload for the search_connections skill.
@@ -135,6 +155,10 @@ class SearchConnectionsResponse(BaseModel):
         description="List of result groups, each with 'id' and 'results' array",
     )
     provider: str = Field(default="Google")
+    providers: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="Providers that returned results, each with 'id', 'name', 'icon_url'",
+    )
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_inference: Optional[List[str]] = Field(
@@ -267,17 +291,27 @@ class SearchConnectionsSkill(BaseSkill):
             logger=logger,
         )
 
-        # 6. Determine provider attribution from requested transport methods
-        all_methods = set()
-        for req in validated_requests:
-            for m in req.get("transport_methods", ["airplane"]):
-                all_methods.add(m)
-        if all_methods == {"train"}:
-            provider_name = "Deutsche Bahn"
-        elif "train" in all_methods and "airplane" in all_methods:
-            provider_name = "Google, Deutsche Bahn"
-        else:
-            provider_name = "Google"
+        # 6. Determine provider attribution from actual results (not requested methods)
+        # Collect unique source_provider IDs from all result dicts across all groups
+        seen_provider_ids: set[str] = set()
+        for group in grouped_results:
+            for result in group.get("results", []):
+                sp = result.get("source_provider")
+                if sp:
+                    seen_provider_ids.add(sp)
+
+        # Build providers list with display metadata from the registry
+        providers_list: List[Dict[str, str]] = []
+        for pid in sorted(seen_provider_ids):
+            meta = PROVIDER_REGISTRY.get(pid)
+            if meta:
+                providers_list.append({"id": pid, **meta})
+            else:
+                # Unknown provider — use ID as fallback display name
+                providers_list.append({"id": pid, "name": pid, "icon_url": ""})
+
+        # Legacy provider string for backward compatibility
+        provider_name = ", ".join(p["name"] for p in providers_list) or "Google"
 
         # 7. Build and return response
         return self._build_response_with_errors(
@@ -285,6 +319,7 @@ class SearchConnectionsSkill(BaseSkill):
             grouped_results=grouped_results,
             errors=errors,
             provider=provider_name,
+            providers=providers_list,
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
@@ -403,6 +438,7 @@ class SearchConnectionsSkill(BaseSkill):
             result_dict: Dict[str, Any] = {
                 "type": "connection",
                 "transport_method": connection.transport_method,
+                "source_provider": connection.source_provider,
                 "trip_type": trip_type,
                 "total_price": connection.total_price,
                 "currency": connection.currency,

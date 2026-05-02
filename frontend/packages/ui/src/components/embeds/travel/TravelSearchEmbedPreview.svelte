@@ -21,6 +21,8 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   import { chatSyncService } from '../../../services/chatSyncService';
   
   /**
@@ -42,6 +44,13 @@
     carriers?: string[];
   }
   
+  /** Provider metadata for favicon display */
+  interface ProviderInfo {
+    id: string;
+    name: string;
+    icon_url: string;
+  }
+
   /**
    * Props for travel search embed preview
    * Supports both skill preview data format and direct embed format
@@ -51,8 +60,10 @@
     id: string;
     /** Search query summary (e.g., "Munich → London, 2025-03-15") */
     query?: string;
-    /** Search provider (e.g., 'Google') */
+    /** Legacy provider string (e.g., 'Google') — used as fallback text */
     provider?: string;
+    /** Providers that returned results, with display name and icon URL */
+    providers?: ProviderInfo[];
     /** Processing status - must match SkillExecutionStatus */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Connection results (for finished state) */
@@ -71,6 +82,7 @@
     id,
     query: queryProp,
     provider: providerProp,
+    providers: providersProp,
     status: statusProp,
     results: resultsProp,
     taskId: taskIdProp,
@@ -78,10 +90,11 @@
     isMobile = false,
     onFullscreen
   }: Props = $props();
-  
+
   // Local reactive state for embed data - these can be updated when embed data changes
   let localQuery = $state<string>('');
-  let localProvider = $state<string>('Google');
+  let localProvider = $state<string>('');
+  let localProviders = $state<ProviderInfo[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<ConnectionResult[]>([]);
@@ -94,7 +107,8 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || '';
-      localProvider = providerProp || 'Google';
+      localProvider = providerProp || '';
+      localProviders = providersProp || [];
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -102,10 +116,11 @@
       localErrorMessage = '';
     }
   });
-  
+
   // Use local state as the source of truth (allows updates from embed events)
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
+  let providers = $derived(localProviders);
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
@@ -133,6 +148,7 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
+      if (Array.isArray(content.providers)) localProviders = content.providers as ProviderInfo[];
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
@@ -207,9 +223,10 @@
   // Skill icon
   const skillIconName = 'search';
   
-  // Get "via {provider}" text
-  let viaProvider = $derived(
-    `${$text('embeds.via')} ${provider}`
+  // Provider display: prefer providers list (with icons), fall back to legacy text
+  let hasProviderIcons = $derived(providers.length > 0);
+  let viaProviderText = $derived(
+    provider ? `${$text('embeds.via')} ${provider}` : ''
   );
   
   /**
@@ -324,8 +341,29 @@
         <div class="search-date">{dateDisplay}</div>
       {/if}
       
-      <!-- Provider subtitle -->
-      <div class="ds-search-provider">{viaProvider}</div>
+      <!-- Provider attribution: icons when available, text fallback -->
+      {#if hasProviderIcons}
+        <div class="provider-row">
+          <span class="provider-via-label">{$text('embeds.via')}</span>
+          {#each providers as prov, index}
+            {#if prov.icon_url}
+              <img
+                src={proxyImage(prov.icon_url, MAX_WIDTH_FAVICON)}
+                alt={prov.name}
+                title={prov.name}
+                class="provider-favicon"
+                style="z-index: {providers.length - index};"
+                loading="lazy"
+                crossorigin="anonymous"
+                onerror={(e) => { handleImageError(e.currentTarget as HTMLImageElement); }}
+              />
+            {/if}
+            <span class="provider-name">{prov.name}</span>
+          {/each}
+        </div>
+      {:else if viaProviderText}
+        <div class="ds-search-provider">{viaProviderText}</div>
+      {/if}
       
       <!-- Error state -->
       {#if status === 'error'}
@@ -399,6 +437,45 @@
   
   .travel-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
+  }
+
+  /* Provider row: favicon + name pairs */
+  .provider-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+  }
+
+  .provider-via-label {
+    font-size: var(--font-size-small);
+    color: var(--color-grey-60);
+    font-weight: 500;
+  }
+
+  .provider-favicon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: white;
+    flex-shrink: 0;
+  }
+
+  .provider-name {
+    font-size: var(--font-size-small);
+    color: var(--color-grey-80);
+    font-weight: 600;
+  }
+
+  .travel-search-details.mobile .provider-via-label,
+  .travel-search-details.mobile .provider-name {
+    font-size: var(--font-size-xxs);
+  }
+
+  .travel-search-details.mobile .provider-favicon {
+    width: 13px;
+    height: 13px;
   }
 
   .travel-search-details.mobile .ds-search-results-info {

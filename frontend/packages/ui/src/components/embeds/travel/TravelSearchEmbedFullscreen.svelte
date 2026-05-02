@@ -152,7 +152,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
-      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Google';
+      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '';
       localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
@@ -162,7 +162,7 @@
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
   let legacyResults = $derived(localResults);
-  let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
+  let viaProvider = $derived(provider ? `${$text('embeds.via')} ${provider}` : '');
 
   // Track loaded results for header derivation
   let headerResults = $state<ConnectionResult[]>([]);
@@ -210,7 +210,7 @@
         : `${count} ${$text('embeds.connections')}`;
       parts.push(countLabel);
     }
-    parts.push(viaProvider);
+    if (viaProvider) parts.push(viaProvider);
     if (headerPriceInfo) parts.push(headerPriceInfo);
     return parts.join('  \u00b7  ');
   });

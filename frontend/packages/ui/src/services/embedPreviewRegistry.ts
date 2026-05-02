@@ -264,7 +264,8 @@ const travelSearchResolver: PreviewResolver = async ({
     props: {
       id: embedId,
       query: decodedContent.query || "",
-      provider: decodedContent.provider || "Google",
+      provider: decodedContent.provider || "",
+      providers: (decodedContent.providers as Array<{ id: string; name: string; icon_url: string }>) || [],
       status: normalizeStatus(embedData.status),
       results: decodedContent.results || [],
       isMobile: false,

@@ -1088,6 +1088,7 @@ class SerpApiProvider(BaseTransportProvider):
 
         return ConnectionResult(
             transport_method="airplane",
+            source_provider="google_flights",
             total_price=str(price) if price is not None else None,
             currency=currency,
             bookable_seats=None,

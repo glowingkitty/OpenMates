@@ -290,6 +290,7 @@ def _parse_connection(
 
     return ConnectionResult(
         transport_method="train",
+        source_provider="deutsche_bahn",
         total_price=f"{price_amount:.2f}" if price_amount is not None else None,
         currency=price_currency,
         booking_url=booking_url,
