@@ -40,184 +40,235 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Main settings menu (flat list matching web's CurrentSettingsPage.svelte)
+    // MARK: - Main settings menu
+    // Web: .settings-menu has grey-20 bg, 17px radius, shadow.
+    // Items sit directly on the background — NO container/section wrapper.
+    // Header is a thin strip with breadcrumb, NOT a big bold title.
 
     private var settingsHome: some View {
-        OMSettingsPage(
-            title: AppStrings.settings,
-            trailing: AnyView(
+        VStack(spacing: 0) {
+            // Header strip — web: .settings-header, sticky, min-height 30px,
+            // border-bottom 1px solid grey-30, box-shadow 0 2px 4px rgba(0,0,0,0.05)
+            HStack {
+                Text(AppStrings.settings)
+                    .font(.omP)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontPrimary)
+                Spacer()
                 OMIconButton(icon: "close", label: AppStrings.done) {
                     dismiss()
                 }
-            )
-        ) {
-            // Profile card — shown for authenticated users (matches SettingsMainHeader.svelte)
-            if isAuthenticated {
-                profileCard
             }
-
-            // Main menu — flat list, no section headers
-            // Web: CurrentSettingsPage.svelte renders all top-level items in a single {#each} loop
-            OMSettingsSection {
-                // Non-authenticated: pricing shown first
-                if !isAuthenticated {
-                    row(.pricing, AppStrings.settingsPricing, icon: "coins", gradient: .appFinance)
-                }
-
-                // Incognito toggle — authenticated only, shown above the menu items
-                if isAuthenticated {
-                    OMSettingsRow(
-                        title: AppStrings.settingsIncognito,
-                        icon: "eye-off",
-                        showsChevron: false
-                    ) {
-                        showIncognitoInfo = true
-                    }
-                }
-
-                // Web order: ai, app_store, settings_memories, privacy, mates, billing,
-                //            notifications, shared, interface, account, developers,
-                //            newsletter, support, report_issue, server, logs
-                // Non-authenticated: ai, app_store, mates, interface, support, report_issue, newsletter
-
-                row(.ai, AppStrings.settingsAI, icon: "ai", gradient: .appAi)
-                row(.apps, AppStrings.settingsApps, icon: "app", gradient: .primary)
-
-                if isAuthenticated {
-                    row(.memories, AppStrings.settingsMemories, icon: "insight", gradient: .appMessages)
-                }
-
-                if isAuthenticated {
-                    row(.privacy, AppStrings.settingsPrivacy, icon: "lock", gradient: .appSecrets)
-                }
-
-                row(.mates, AppStrings.settingsMates, icon: "mate", gradient: .appMessages)
-
-                if isAuthenticated {
-                    row(.billing, AppStrings.settingsBilling, icon: "coins", gradient: .appFinance)
-                    row(.notifications, AppStrings.settingsNotifications, icon: "chat", gradient: .appMessages)
-                    row(.shared, AppStrings.settingsShared, icon: "share", gradient: .appSocialmedia)
-                }
-
-                row(.interface, AppStrings.settingsInterface, icon: "darkmode", gradient: .appDesign)
-
-                if isAuthenticated {
-                    row(.account, AppStrings.settingsAccount, icon: "user", gradient: .primary)
-                    row(.developers, AppStrings.settingsDevelopers, icon: "coding", gradient: .appCode)
-                }
-
-                row(.newsletter, AppStrings.settingsNewsletter, icon: "mail", gradient: .appPublishing)
-                row(.support, AppStrings.settingsSupport, icon: "heart", gradient: .appHealth)
-                row(.reportIssue, AppStrings.settingsReportIssue, icon: "bug", gradient: .appNews)
-
-                if isAdmin {
-                    row(.server, AppStrings.serverAdmin, icon: "server", gradient: .appHosting)
-                    row(.logs, AppStrings.logs, icon: "log", gradient: .appCode)
-                }
-
-                // Logout — authenticated only, at the bottom (matches web)
-                if isAuthenticated {
-                    OMSettingsRow(
-                        title: AppStrings.logOut,
-                        icon: "logout",
-                        isDestructive: true,
-                        showsChevron: false
-                    ) {
-                        Task { await authManager.logout() }
-                    }
-                }
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey20)
+            .overlay(alignment: .bottom) {
+                // 1px bottom border (web: border-bottom: 1px solid var(--color-grey-30))
+                Color.grey30.frame(height: 1)
             }
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 2)
 
-            // Footer — legal links (matches web SettingsFooter.svelte)
-            settingsFooter
+            // Scrollable content — web: .settings-content-wrapper, overflow-y auto
+            // Background: grey-20 (same as outer panel), NO additional styling
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Profile section — web: .profile-container-docked + .user-info-container
+                    if isAuthenticated {
+                        profileSection
+                    }
+
+                    // Menu items — web: flat list, NO container/section wrapper
+                    // Each item sits directly on grey-20 background
+                    // Items use padding 5px 10px, min-height 40px, radius-3
+
+                    if !isAuthenticated {
+                        row(.pricing, AppStrings.settingsPricing, icon: "coins", gradient: .appFinance)
+                    }
+
+                    // Incognito toggle — web: SettingsItem type="quickaction" (flat icon, no bg)
+                    if isAuthenticated {
+                        OMSettingsRow(
+                            title: AppStrings.settingsIncognito,
+                            icon: "eye-off",
+                            showsChevron: false
+                        ) {
+                            showIncognitoInfo = true
+                        }
+                    }
+
+                    row(.ai, AppStrings.settingsAI, icon: "ai", gradient: .appAi)
+                    row(.apps, AppStrings.settingsApps, icon: "app", gradient: .primary)
+
+                    if isAuthenticated {
+                        row(.memories, AppStrings.settingsMemories, icon: "insight", gradient: .appMessages)
+                        row(.privacy, AppStrings.settingsPrivacy, icon: "lock", gradient: .appSecrets)
+                    }
+
+                    row(.mates, AppStrings.settingsMates, icon: "mate", gradient: .appMessages)
+
+                    if isAuthenticated {
+                        row(.billing, AppStrings.settingsBilling, icon: "coins", gradient: .appFinance)
+                        row(.notifications, AppStrings.settingsNotifications, icon: "chat", gradient: .appMessages)
+                        row(.shared, AppStrings.settingsShared, icon: "share", gradient: .appSocialmedia)
+                    }
+
+                    row(.interface, AppStrings.settingsInterface, icon: "darkmode", gradient: .appDesign)
+
+                    if isAuthenticated {
+                        row(.account, AppStrings.settingsAccount, icon: "user", gradient: .primary)
+                        row(.developers, AppStrings.settingsDevelopers, icon: "coding", gradient: .appCode)
+                    }
+
+                    row(.newsletter, AppStrings.settingsNewsletter, icon: "mail", gradient: .appPublishing)
+                    row(.support, AppStrings.settingsSupport, icon: "heart", gradient: .appHealth)
+                    row(.reportIssue, AppStrings.settingsReportIssue, icon: "bug", gradient: .appNews)
+
+                    if isAdmin {
+                        row(.server, AppStrings.serverAdmin, icon: "server", gradient: .appHosting)
+                        row(.logs, AppStrings.logs, icon: "log", gradient: .appCode)
+                    }
+
+                    if isAuthenticated {
+                        OMSettingsRow(
+                            title: AppStrings.logOut,
+                            icon: "logout",
+                            isDestructive: true,
+                            showsChevron: false
+                        ) {
+                            Task { await authManager.logout() }
+                        }
+                    }
+
+                    // Footer — web: SettingsFooter.svelte, margin-top 100px
+                    settingsFooter
+                }
+                .padding(.horizontal, .spacing5) // web: .menu-item padding is 5px 10px
+            }
+            .scrollContentBackground(.hidden)
         }
+        .background(Color.grey20) // web: .settings-menu background-color: var(--color-grey-20)
     }
 
-    // MARK: - Profile Card
+    // MARK: - Profile Section
+    // Web: .profile-container-docked (50x50 circle) + .user-info-container
+    // No container wrapper — sits directly on grey-20 background
 
-    private var profileCard: some View {
-        OMSettingsSection {
+    private var profileSection: some View {
+        Group {
             if let user = authManager.currentUser {
-                HStack(spacing: .spacing5) {
+                HStack(spacing: 0) {
+                    // Web: .profile-container-docked, 50x50 circle
                     Circle()
                         .fill(LinearGradient.primary)
-                        .frame(width: 52, height: 52)
+                        .frame(width: 50, height: 50)
                         .overlay {
                             Text(String(user.username.prefix(1)).uppercased())
                                 .font(.omH4)
                                 .fontWeight(.bold)
                                 .foregroundStyle(.white)
                         }
+                        .padding(.trailing, .spacing6)
 
-                    VStack(alignment: .leading, spacing: .spacing1) {
+                    // Web: .user-info-container, margin-inline-start 85px (but we use HStack)
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        // Web: .username, font-size-xl (20px), weight 500
                         Text(user.username)
-                            .font(.omP)
-                            .fontWeight(.semibold)
+                            .font(.omH3) // web: font-size-xl = 20px = omH3
                             .foregroundStyle(Color.fontPrimary)
                         if let credits = user.credits {
-                            Text(AppStrings.creditsAmount(String(format: "%.2f", credits)))
-                                .font(.omXs)
-                                .foregroundStyle(Color.fontSecondary)
+                            // Web: .credits-container with coins icon + amount
+                            HStack(spacing: .spacing4) {
+                                Icon("coins", size: 19)
+                                    .foregroundStyle(LinearGradient.primary)
+                                Text(AppStrings.creditsAmount(String(format: "%.2f", credits)))
+                                    .font(.omP)
+                                    .foregroundStyle(Color.fontPrimary)
+                            }
                         }
                     }
 
                     Spacer()
                 }
-                .padding(.horizontal, .spacing6)
-                .padding(.vertical, .spacing6)
+                .padding(.vertical, .spacing5)
             }
         }
     }
 
-    // MARK: - Footer (legal links)
+    // MARK: - Footer
+    // Web: SettingsFooter.svelte — margin-top 100px, sections with h3 headings + links
+    // Sections: For everyone (social), For developers, Contact, Legal, Version
 
     private var settingsFooter: some View {
-        VStack(spacing: .spacing3) {
-            OMSettingsStaticRow(
-                title: AppStrings.version,
-                value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
-                icon: "info"
-            )
-
-            HStack(spacing: .spacing8) {
-                footerLink(AppStrings.privacyPolicy) {
-                    destination = .privacyPolicy
-                }
-                footerLink(AppStrings.termsOfService) {
-                    destination = .terms
-                }
-                footerLink(AppStrings.imprint) {
-                    destination = .imprint
-                }
+        VStack(alignment: .leading, spacing: .spacing8) {
+            // "For everyone" — social links
+            footerSection(LocalizationManager.shared.text("footer.sections.for_everyone")) {
+                footerLink(LocalizationManager.shared.text("settings.instagram"), url: "https://instagram.com/openmates")
+                footerLink(LocalizationManager.shared.text("common.discord"), url: "https://discord.gg/openmates")
             }
-            .padding(.vertical, .spacing4)
 
-            Button {
-                if let url = URL(string: "https://github.com/OpenMates/OpenMates") {
-                    openURL(url)
-                }
-            } label: {
-                HStack(spacing: .spacing2) {
-                    Icon("opensource", size: 14)
-                        .foregroundStyle(Color.fontTertiary)
-                    Text(AppStrings.openSource)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
-                }
+            // "For developers"
+            footerSection(LocalizationManager.shared.text("footer.sections.for_developers")) {
+                footerLink(LocalizationManager.shared.text("common.github"), url: "https://github.com/OpenMates/OpenMates")
             }
-            .buttonStyle(.plain)
-            .padding(.bottom, .spacing4)
+
+            // Legal
+            footerSection(LocalizationManager.shared.text("common.legal")) {
+                footerNavLink(AppStrings.imprint) { destination = .imprint }
+                footerNavLink(AppStrings.privacyPolicy) { destination = .privacyPolicy }
+                footerNavLink(AppStrings.termsOfService) { destination = .terms }
+            }
+
+            // Version
+            footerSection("App version") {
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.grey50)
+                    .padding(.vertical, .spacing3)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, .spacing8)
+        // web: margin-top: 100px
+        // web: margin-top: 100px — no single token, combine spacing32 (64) + spacing20 (40) ≈ 104pt
+        .padding(.top, .spacing32 + .spacing20)
+        .padding(.horizontal, .spacing6)
+        .padding(.bottom, .spacing8)
     }
 
-    private func footerLink(_ title: String, action: @escaping () -> Void) -> some View {
+    private func footerSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // web: h3 — color grey-60, font-size-small (12px), weight 600, margin 6px 0
+            Text(title)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontSecondary)
+                .padding(.vertical, .spacing3)
+            content()
+        }
+    }
+
+    private func footerLink(_ title: String, url: String) -> some View {
+        Button {
+            if let u = URL(string: url) { openURL(u) }
+        } label: {
+            // web: .submenu-link — color grey-50, font-size-small (12px), padding 6px 0
+            Text(title)
+                .font(.omSmall)
+                .foregroundStyle(Color.grey50)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, .spacing3)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func footerNavLink(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.omXs)
-                .foregroundStyle(Color.fontTertiary)
-                .underline()
+                .font(.omSmall)
+                .foregroundStyle(Color.grey50)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, .spacing3)
         }
         .buttonStyle(.plain)
     }
