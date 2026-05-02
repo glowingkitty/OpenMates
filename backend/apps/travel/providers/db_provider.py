@@ -13,13 +13,16 @@ Provider wrapper: backend/shared/providers/deutsche_bahn.py
 """
 
 import logging
+import math
 import re
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 from backend.apps.travel.providers.base_provider import (
     BaseTransportProvider,
     ConnectionResult,
+    LayoverResult,
     LegResult,
     SegmentResult,
 )
@@ -117,6 +120,54 @@ def _format_duration(seconds: int) -> str:
     return f"{m}m"
 
 
+def _is_daytime(iso_time: str, latitude: Optional[float], longitude: Optional[float]) -> Optional[bool]:
+    """
+    Determine if a time is between sunrise and sunset at a location.
+
+    Uses the NOAA solar position algorithm (same approach as serpapi_provider).
+    Parses timezone offset from the ISO 8601 string directly — no IANA tz needed.
+
+    Returns True (daytime), False (night), or None if calculation not possible.
+    """
+    if not iso_time or latitude is None or longitude is None:
+        return None
+
+    try:
+        # Parse ISO 8601 with offset (e.g., "2026-05-15T08:29:00+02:00")
+        dt_local = datetime.fromisoformat(iso_time)
+        dt_utc = dt_local.utctimetuple()
+        day_of_year = dt_utc.tm_yday
+
+        # Solar declination (simplified, accurate to ~0.5°)
+        declination = 23.45 * math.sin(math.radians(360 / 365 * (day_of_year - 81)))
+        decl_rad = math.radians(declination)
+        lat_rad = math.radians(latitude)
+
+        # Hour angle at sunrise/sunset
+        cos_ha = -math.tan(lat_rad) * math.tan(decl_rad)
+        if cos_ha < -1:
+            return True   # Midnight sun
+        if cos_ha > 1:
+            return False  # Polar night
+
+        hour_angle = math.degrees(math.acos(cos_ha))
+
+        # Solar noon in UTC hours (approximate using longitude)
+        solar_noon_utc = 12.0 - (longitude / 15.0)
+        sunrise_utc = (solar_noon_utc - hour_angle / 15.0) % 24
+        sunset_utc = (solar_noon_utc + hour_angle / 15.0) % 24
+
+        # Current time in UTC fractional hours
+        current_utc_hours = dt_utc.tm_hour + dt_utc.tm_min / 60.0
+
+        if sunrise_utc < sunset_utc:
+            return sunrise_utc <= current_utc_hours <= sunset_utc
+        else:
+            return current_utc_hours >= sunrise_utc or current_utc_hours <= sunset_utc
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
 def _parse_connection(
     conn: Dict[str, Any],
     from_lid: str,
@@ -147,23 +198,64 @@ def _parse_connection(
         dep_pos = dep_ort.get("position", {})
         arr_pos = arr_ort.get("position", {})
 
+        dep_time = seg.get("abgangsDatum", "")
+        arr_time = seg.get("ankunftsDatum", "")
+        dep_lat = dep_pos.get("latitude")
+        dep_lng = dep_pos.get("longitude")
+        arr_lat = arr_pos.get("latitude")
+        arr_lng = arr_pos.get("longitude")
+
         segments.append(SegmentResult(
             carrier=seg.get("produktGattung", seg.get("kurztext", "Train")),
             carrier_code=None,
             number=seg.get("mitteltext", seg.get("kurztext")),
             departure_station=dep_ort.get("name", "?"),
-            departure_time=seg.get("abgangsDatum", ""),
-            departure_latitude=dep_pos.get("latitude"),
-            departure_longitude=dep_pos.get("longitude"),
+            departure_time=dep_time,
+            departure_latitude=dep_lat,
+            departure_longitude=dep_lng,
             arrival_station=arr_ort.get("name", "?"),
-            arrival_time=seg.get("ankunftsDatum", ""),
-            arrival_latitude=arr_pos.get("latitude"),
-            arrival_longitude=arr_pos.get("longitude"),
+            arrival_time=arr_time,
+            arrival_latitude=arr_lat,
+            arrival_longitude=arr_lng,
             duration=_format_duration(seg.get("abschnittsDauer", 0)),
+            departure_is_daytime=_is_daytime(dep_time, dep_lat, dep_lng),
+            arrival_is_daytime=_is_daytime(arr_time, arr_lat, arr_lng),
         ))
 
     if not segments:
         return None
+
+    # Build layover details between consecutive segments
+    layovers: List[LayoverResult] = []
+    for i in range(len(segments) - 1):
+        prev_seg = segments[i]
+        next_seg = segments[i + 1]
+        # Layover station is where previous segment arrives / next departs
+        layover_station = prev_seg.arrival_station
+
+        # Calculate layover duration from arrival→departure times
+        layover_duration: Optional[str] = None
+        layover_minutes: Optional[int] = None
+        overnight = False
+        try:
+            arr_dt = datetime.fromisoformat(prev_seg.arrival_time)
+            dep_dt = datetime.fromisoformat(next_seg.departure_time)
+            diff = dep_dt - arr_dt
+            total_min = int(diff.total_seconds() / 60)
+            if total_min > 0:
+                layover_minutes = total_min
+                layover_duration = _format_duration(total_min * 60)
+                # Overnight if layover spans past midnight
+                overnight = arr_dt.date() != dep_dt.date()
+        except (ValueError, TypeError):
+            pass
+
+        layovers.append(LayoverResult(
+            airport=layover_station,
+            duration=layover_duration,
+            duration_minutes=layover_minutes,
+            overnight=overnight,
+        ))
 
     # Extract price
     preise = angebote.get("preise", {})
@@ -185,6 +277,7 @@ def _parse_connection(
         duration=_format_duration(verbindung.get("reiseDauer", 0)),
         stops=verbindung.get("umstiegeAnzahl", 0),
         segments=segments,
+        layovers=layovers if layovers else None,
     )
 
     # Build booking URL for this specific connection's departure time
