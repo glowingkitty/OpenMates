@@ -129,6 +129,15 @@
 				inlineLinkText: 'Svelte 5 tutorial search',
 				quoteText: 'Found 24 results for "svelte 5 tutorial" — curated from YouTube.',
 				isAppSkill: true
+			},
+			{
+				skillLabel: 'Create (Video Timeline)',
+				appId: 'videos',
+				previewPath: 'embeds/videos/VideoCreateEmbedPreview',
+				fullscreenPath: 'embeds/videos/VideoCreateEmbedFullscreen',
+				inlineLinkText: 'Product launch promo — 15s',
+				quoteText: 'Generated a 15s product launch video with title, features, and CTA scenes.',
+				isAppSkill: true
 			}
 		],
 		images: [
