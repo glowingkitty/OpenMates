@@ -12,16 +12,19 @@ const PRODUCT_LAUNCH_CODE = `import { Sequence, AbsoluteFill, Audio } from "remo
 export const ProductLaunch: React.FC = () => {
   return (
     <AbsoluteFill>
-      <Sequence from={0} durationInFrames={450}>
+      <Sequence from={0} durationInFrames={240}>
         <GradientBg />
       </Sequence>
-      <Sequence from={0} durationInFrames={150}>
+      <Sequence from={0} durationInFrames={60}>
         <TitleCard text="Introducing OpenMates" />
       </Sequence>
-      <Sequence from={150} durationInFrames={150}>
+      <Sequence from={60} durationInFrames={60}>
         <FeatureList />
       </Sequence>
-      <Sequence from={300} durationInFrames={150}>
+      <Sequence from={120} durationInFrames={60}>
+        <ClientEncryptionDemo />
+      </Sequence>
+      <Sequence from={180} durationInFrames={60}>
         <CallToAction />
       </Sequence>
       <Audio src="/static/music/background.mp3" />
@@ -33,7 +36,7 @@ export const Root = () => (
   <Composition
     id="product-launch"
     component={ProductLaunch}
-    durationInFrames={450}
+    durationInFrames={240}
     fps={30}
     width={1920}
     height={1080}

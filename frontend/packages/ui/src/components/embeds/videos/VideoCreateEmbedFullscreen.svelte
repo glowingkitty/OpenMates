@@ -129,8 +129,12 @@
 
 	<!-- Custom controls -->
 	<div class="controls-bar">
-		<button class="play-btn" onclick={togglePlayback}>
-			{isPlaying ? '&#10074;&#10074;' : '&#9654;'}
+		<button class="play-btn" onclick={togglePlayback} aria-label={isPlaying ? 'Pause' : 'Play'}>
+			{#if isPlaying}
+				<span class="pause-icon"><span class="bar"></span><span class="bar"></span></span>
+			{:else}
+				<span class="play-icon"></span>
+			{/if}
 		</button>
 		<span class="time-display">
 			{formatTimestamp(currentTime)} / {formatTimestamp(manifest.meta.durationSeconds)}
@@ -287,6 +291,29 @@
 
 	.play-btn:active {
 		transform: scale(0.97);
+	}
+
+	.play-icon {
+		width: 0;
+		height: 0;
+		border-top: 9px solid transparent;
+		border-bottom: 9px solid transparent;
+		border-left: 15px solid white;
+		margin-left: 3px;
+	}
+
+	.pause-icon {
+		display: flex;
+		gap: 4px;
+		align-items: center;
+		height: 18px;
+	}
+
+	.pause-icon .bar {
+		width: 4px;
+		height: 18px;
+		background: white;
+		border-radius: 2px;
 	}
 
 	.time-display {
