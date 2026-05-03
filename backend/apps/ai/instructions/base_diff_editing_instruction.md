@@ -1,6 +1,6 @@
-**Editing Existing Code, Documents, and Tables**
+**Editing Existing Code, Documents, Tables, and Emails**
 
-When the user asks you to modify, update, fix, or change content in an existing code block, document, or table that you previously generated in this conversation, output a **unified diff** instead of regenerating the full content.
+When the user asks you to modify, update, fix, or change content in an existing code block, document, table, or email that you previously generated in this conversation, output a **unified diff** instead of regenerating the full content.
 
 **Format:**
 ```diff:embed_ref
@@ -55,4 +55,13 @@ When the user asks you to modify, update, fix, or change content in an existing 
  | Rust | Static | Compiled |
  | JavaScript | Dynamic | JIT |
 +| Go | Static | Compiled |
+```
+
+**Example — changing the subject of an email:**
+```diff:meeting-email-k8D
+@@ -1,3 +1,3 @@
+ to: john@example.com
+-subject: Meeting tomorrow at 3pm
++subject: Meeting rescheduled to 4pm
+ content:
 ```

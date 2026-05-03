@@ -1475,7 +1475,7 @@ async def handle_main_processing(
         if not isinstance(_msg_content, str):
             continue
         if ("type: code" in _msg_content or "type: document" in _msg_content or
-                "type: sheet" in _msg_content):
+                "type: sheet" in _msg_content or "type: mail" in _msg_content):
             _has_diffable_embeds = True
             break
     if _has_diffable_embeds:

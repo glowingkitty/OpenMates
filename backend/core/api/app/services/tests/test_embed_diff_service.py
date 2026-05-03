@@ -18,6 +18,10 @@ from backend.core.api.app.services.embed_diff_service import (
     is_diff_fence_open,
     parse_unified_diff,
 )
+from backend.apps.ai.tasks.stream_consumer import (
+    _parse_email_fence_content,
+    _reconstruct_mail_fence,
+)
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────
@@ -193,3 +197,135 @@ class TestDocumentDiff:
         assert result.success
         assert "Updated Report" in result.new_content
         assert "My Report" not in result.new_content
+
+
+# ─── Mail Diff ───────────────────────────────────────────────────────
+
+class TestMailDiff:
+    """Tests for mail embed diff editing via reconstruct → patch → re-parse."""
+
+    def test_change_subject(self):
+        """Change only the subject line of a mail embed."""
+        mail_fence = """to: john@example.com
+subject: Meeting tomorrow at 3pm
+content:
+Hi John,
+
+I wanted to confirm our meeting tomorrow.
+Please bring the Q2 report.
+
+footer:
+Best regards,
+Alice"""
+
+        diff_text = """@@ -1,3 +1,3 @@
+ to: john@example.com
+-subject: Meeting tomorrow at 3pm
++subject: Meeting rescheduled to 4pm
+ content:"""
+
+        result = apply_patch(mail_fence, parse_unified_diff(diff_text, "email-k8D"))
+        assert result.success
+        assert "subject: Meeting rescheduled to 4pm" in result.new_content
+        assert "subject: Meeting tomorrow at 3pm" not in result.new_content
+        # Other fields preserved
+        assert "to: john@example.com" in result.new_content
+        assert "Best regards," in result.new_content
+
+    def test_change_receiver(self):
+        """Change the recipient of a mail."""
+        mail_fence = """to: john@example.com
+subject: Project update
+content:
+Here is the latest update."""
+
+        diff_text = """@@ -1,2 +1,2 @@
+-to: john@example.com
++to: jane@example.com
+ subject: Project update"""
+
+        result = apply_patch(mail_fence, parse_unified_diff(diff_text, "email-x4F"))
+        assert result.success
+        assert "to: jane@example.com" in result.new_content
+
+    def test_modify_body_content(self):
+        """Modify a line in the body content."""
+        mail_fence = """to: team@company.com
+subject: Sprint review
+content:
+Hi team,
+
+The sprint review is scheduled for Friday.
+Please prepare your demos.
+
+footer:
+Thanks,
+PM"""
+
+        diff_text = """@@ -5,3 +5,3 @@
+
+-The sprint review is scheduled for Friday.
++The sprint review has been moved to Monday.
+ Please prepare your demos."""
+
+        result = apply_patch(mail_fence, parse_unified_diff(diff_text, "sprint-email-k8D"))
+        assert result.success
+        assert "moved to Monday" in result.new_content
+        assert "scheduled for Friday" not in result.new_content
+        # Rest preserved
+        assert "team@company.com" in result.new_content
+        assert "Thanks," in result.new_content
+
+    def test_add_footer(self):
+        """Add a footer to a mail that didn't have one."""
+        mail_fence = """to: client@example.com
+subject: Invoice attached
+content:
+Please find the invoice attached.
+Let me know if you have questions."""
+
+        diff_text = """@@ -4,2 +4,5 @@
+ Please find the invoice attached.
+ Let me know if you have questions.
++
++footer:
++Best regards,
++Finance Team"""
+
+        result = apply_patch(mail_fence, parse_unified_diff(diff_text, "invoice-email-x4F"))
+        assert result.success
+        assert "footer:" in result.new_content
+        assert "Finance Team" in result.new_content
+
+    def test_roundtrip_reconstruct_patch_reparse(self):
+        """Full roundtrip: reconstruct fence → apply diff → re-parse into fields."""
+        # Simulate what stream_consumer does: reconstruct from stored fields
+        original_fence = _reconstruct_mail_fence(
+            receiver="alice@company.com",
+            subject="Q2 Report",
+            content="Hi Alice,\n\nPlease review the attached Q2 report.",
+            footer="Thanks,\nBob"
+        )
+
+        # Verify reconstruction
+        assert "to: alice@company.com" in original_fence
+        assert "subject: Q2 Report" in original_fence
+        assert "Please review" in original_fence
+        assert "Thanks," in original_fence
+
+        # Apply a diff (change subject)
+        diff_text = """@@ -1,3 +1,3 @@
+ to: alice@company.com
+-subject: Q2 Report
++subject: Q2 Report — URGENT
+ content:"""
+
+        result = apply_patch(original_fence, parse_unified_diff(diff_text, "report-email"))
+        assert result.success
+
+        # Re-parse the patched content back into fields
+        parsed = _parse_email_fence_content(result.new_content)
+        assert parsed["receiver"] == "alice@company.com"
+        assert parsed["subject"] == "Q2 Report — URGENT"
+        assert "Please review" in parsed["content"]
+        assert "Thanks," in parsed["footer"]

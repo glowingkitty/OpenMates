@@ -293,6 +293,26 @@ def _parse_email_fence_content(raw_content: str) -> Dict[str, str]:
     }
 
 
+def _reconstruct_mail_fence(receiver: str, subject: str, content: str, footer: str) -> str:
+    """
+    Reconstruct the raw ```email fence text from parsed fields.
+    Used for diff-based editing: we diff against this reconstructed text,
+    then re-parse after patching to extract updated fields.
+    """
+    lines = []
+    if receiver:
+        lines.append(f"to: {receiver}")
+    if subject:
+        lines.append(f"subject: {subject}")
+    lines.append("content:")
+    if content:
+        lines.append(content)
+    if footer:
+        lines.append("footer:")
+        lines.append(footer)
+    return "\n".join(lines)
+
+
 async def _verify_and_strip_bad_quotes(
     aggregated_response: str,
     tool_calls_info: Optional[List[Dict[str, Any]]],
@@ -2510,12 +2530,21 @@ async def _consume_main_processing_stream(
                                                     )
                                                     decoded = decode(decrypted_toon)
                                                     # Extract the actual text content based on embed type
-                                                    current_content = (
-                                                        decoded.get("code") or
-                                                        decoded.get("html") or
-                                                        decoded.get("table") or
-                                                        ""
-                                                    )
+                                                    if decoded.get("type") == "mail":
+                                                        # Mail embeds: reconstruct fence text from fields for diffing
+                                                        current_content = _reconstruct_mail_fence(
+                                                            decoded.get("receiver", ""),
+                                                            decoded.get("subject", ""),
+                                                            decoded.get("content", ""),
+                                                            decoded.get("footer", ""),
+                                                        )
+                                                    else:
+                                                        current_content = (
+                                                            decoded.get("code") or
+                                                            decoded.get("html") or
+                                                            decoded.get("table") or
+                                                            ""
+                                                        )
                                                 except Exception as e:
                                                     logger.error(
                                                         f"{log_prefix} [DIFF_BLOCK] Failed to decrypt/decode "
@@ -2589,6 +2618,22 @@ async def _consume_main_processing_stream(
                                                     await embed_service.update_table_embed_content(
                                                         embed_id=target_embed_id,
                                                         table_content=patch_result.new_content,
+                                                        chat_id=request_data.chat_id,
+                                                        user_id=request_data.user_id,
+                                                        user_id_hash=request_data.user_id_hash,
+                                                        user_vault_key_id=user_vault_key_id,
+                                                        status="finished",
+                                                        log_prefix=log_prefix
+                                                    )
+                                                elif embed_type == "mail":
+                                                    # Re-parse patched fence text into structured fields
+                                                    parsed = _parse_email_fence_content(patch_result.new_content)
+                                                    await embed_service.update_mail_embed_content(
+                                                        embed_id=target_embed_id,
+                                                        receiver=parsed.get("receiver", ""),
+                                                        subject=parsed.get("subject", ""),
+                                                        content=parsed.get("content", ""),
+                                                        footer=parsed.get("footer", ""),
                                                         chat_id=request_data.chat_id,
                                                         user_id=request_data.user_id,
                                                         user_id_hash=request_data.user_id_hash,
