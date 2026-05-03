@@ -116,11 +116,13 @@ class ChatDatabase {
   //             that may have been saved to chats_db before the server migrated to word-slug IDs.
   // Version 22: key_version + key_fingerprint fields on chats store (no migration needed — new nullable fields).
   //             Enables key rotation, decryption failure diagnosis, and audit trail.
-  // Version 23: message_highlights store — per-row E2EE highlight/annotation rows.
+  // Version 23: message_highlights store — per-row encrypted highlight/annotation rows.
+  // Version 24: embed_diffs store — version history for diffable embeds (code, document, sheet).
   //             Primary key: id (uuid). Indexed by message_id and chat_id for
   //             bulk load on chat open + per-message decoration rendering.
-  private readonly VERSION = 23;
+  private readonly VERSION = 24;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
+  public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private initializationPromise: Promise<void> | null = null;
 
@@ -871,6 +873,19 @@ class ChatDatabase {
       highlightsStore.createIndex("message_id", "message_id", { unique: false });
       highlightsStore.createIndex("chat_id_message_id", ["chat_id", "message_id"], { unique: false });
       console.warn("[ChatDatabase] Created message_highlights store (v23)");
+    }
+
+    // Embed diffs store (v24) — version history for diffable embeds.
+    // Each row is one version (v1 = full snapshot, v2+ = unified diff patch).
+    // Encrypted with the same embed_key as the parent embed.
+    if (!db.objectStoreNames.contains(this.EMBED_DIFFS_STORE_NAME)) {
+      const embedDiffsStore = db.createObjectStore(
+        this.EMBED_DIFFS_STORE_NAME,
+        { keyPath: "id" },
+      );
+      embedDiffsStore.createIndex("embed_id", "embed_id", { unique: false });
+      embedDiffsStore.createIndex("embed_id_version", ["embed_id", "version_number"], { unique: true });
+      console.warn("[ChatDatabase] Created embed_diffs store (v24)");
     }
 
     // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.
