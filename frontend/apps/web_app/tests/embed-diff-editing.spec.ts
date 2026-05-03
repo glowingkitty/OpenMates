@@ -32,11 +32,8 @@ const {
 
 const {
 	createSignupLogger,
-	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -106,13 +103,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		setupPageListeners(page);
 
 		// Login
-		await loginToTestAccount(page, {
-			email: TEST_EMAIL,
-			password: TEST_PASSWORD,
-			otpKey: TEST_OTP_KEY,
-			log,
-			debugUrl: getE2EDebugUrl('embed-diff-code')
-		});
+		await loginToTestAccount(page, log, screenshot);
 		await screenshot('01-logged-in');
 
 		// Start a new chat
@@ -210,13 +201,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		const screenshot = createStepScreenshotter(page, 'embed-diff-sheet');
 		setupPageListeners(page);
 
-		await loginToTestAccount(page, {
-			email: TEST_EMAIL,
-			password: TEST_PASSWORD,
-			otpKey: TEST_OTP_KEY,
-			log,
-			debugUrl: getE2EDebugUrl('embed-diff-sheet')
-		});
+		await loginToTestAccount(page, log, screenshot);
 
 		await startNewChat(page, log);
 
@@ -274,13 +259,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		const screenshot = createStepScreenshotter(page, 'embed-diff-doc');
 		setupPageListeners(page);
 
-		await loginToTestAccount(page, {
-			email: TEST_EMAIL,
-			password: TEST_PASSWORD,
-			otpKey: TEST_OTP_KEY,
-			log,
-			debugUrl: getE2EDebugUrl('embed-diff-doc')
-		});
+		await loginToTestAccount(page, log, screenshot);
 
 		await startNewChat(page, log);
 
