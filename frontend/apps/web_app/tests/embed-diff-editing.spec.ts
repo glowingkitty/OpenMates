@@ -98,11 +98,9 @@ async function getAssistantMessageCount(page: any): Promise<number> {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('Embed Diff-Based Editing', () => {
-	test.beforeAll(() => {
-		skipWithoutCredentials();
-	});
 
 	test('code embed is patched in-place when assistant outputs diff', async ({ page }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-code');
 		const screenshot = createStepScreenshotter(page, 'embed-diff-code');
 		setupPageListeners(page);
@@ -207,6 +205,7 @@ test.describe('Embed Diff-Based Editing', () => {
 	});
 
 	test('sheet embed is patched when adding a row via diff', async ({ page }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-sheet');
 		const screenshot = createStepScreenshotter(page, 'embed-diff-sheet');
 		setupPageListeners(page);
@@ -270,6 +269,7 @@ test.describe('Embed Diff-Based Editing', () => {
 	});
 
 	test('document embed is patched when changing title via diff', async ({ page }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-doc');
 		const screenshot = createStepScreenshotter(page, 'embed-diff-doc');
 		setupPageListeners(page);
