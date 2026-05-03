@@ -99,16 +99,16 @@ test.describe('Embed Diff-Based Editing', () => {
 	test('code embed is patched in-place when assistant outputs diff', async ({ page }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-code');
-		const screenshot = createStepScreenshotter(page, 'embed-diff-code');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'embed-diff-code' });
 		setupPageListeners(page);
 
 		// Login
 		await loginToTestAccount(page, log, screenshot);
-		await screenshot('01-logged-in');
+		await screenshot(page, '01-logged-in');
 
 		// Start a new chat
 		await startNewChat(page, log);
-		await screenshot('02-new-chat');
+		await screenshot(page, '02-new-chat');
 
 		// Turn 1: Generate a code embed
 		const turn1Prompt = withMockMarker(
@@ -125,7 +125,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		const embedId = await waitForFinishedCodeEmbed(page, 0, log);
 		expect(embedId).toBeTruthy();
 		log(`Turn 1 code embed_id: ${embedId}`);
-		await screenshot('03-turn1-code-embed');
+		await screenshot(page, '03-turn1-code-embed');
 
 		// Turn 2: Ask to modify the code (should trigger diff)
 		const turn2Prompt = withMockMarker(
@@ -136,7 +136,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		log('Turn 2 sent — waiting for diff application...');
 
 		await waitForStreamingComplete(page, log);
-		await screenshot('04-turn2-response');
+		await screenshot(page, '04-turn2-response');
 
 		// Verify: the embed should still exist with the same embed_id
 		// After diff application, the embed is updated in-place
@@ -157,7 +157,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		const firstEmbed = allCodeEmbeds.first();
 		await firstEmbed.click();
 		await page.waitForTimeout(1000);
-		await screenshot('05-fullscreen-code');
+		await screenshot(page, '05-fullscreen-code');
 
 		// Look for the renamed function in fullscreen content
 		const fullscreenContent = page.locator('[data-testid="embed-fullscreen-content"]');
@@ -182,7 +182,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Version timeline visible: ${hasTimeline}`);
 		if (hasTimeline) {
 			log('SUCCESS: Version timeline is visible — diff was applied and versioned');
-			await screenshot('06-version-timeline');
+			await screenshot(page, '06-version-timeline');
 		}
 
 		// Close fullscreen
@@ -191,14 +191,14 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Cleanup: delete the chat
 		await deleteActiveChat(page, log);
-		await screenshot('07-cleanup');
+		await screenshot(page, '07-cleanup');
 		log('Test completed successfully.');
 	});
 
 	test('sheet embed is patched when adding a row via diff', async ({ page }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-sheet');
-		const screenshot = createStepScreenshotter(page, 'embed-diff-sheet');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'embed-diff-sheet' });
 		setupPageListeners(page);
 
 		await loginToTestAccount(page, log, screenshot);
@@ -230,7 +230,7 @@ test.describe('Embed Diff-Based Editing', () => {
 			return;
 		}
 
-		await screenshot('03-sheet-embed');
+		await screenshot(page, '03-sheet-embed');
 
 		// Turn 2: Add a row
 		const turn2Prompt = withMockMarker(
@@ -239,7 +239,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		);
 		await sendMessage(page, turn2Prompt, log);
 		await waitForStreamingComplete(page, log);
-		await screenshot('04-sheet-after-diff');
+		await screenshot(page, '04-sheet-after-diff');
 
 		// Verify table still exists
 		const allSheetEmbeds = page.locator(
@@ -256,7 +256,7 @@ test.describe('Embed Diff-Based Editing', () => {
 	test('document embed is patched when changing title via diff', async ({ page }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-doc');
-		const screenshot = createStepScreenshotter(page, 'embed-diff-doc');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'embed-diff-doc' });
 		setupPageListeners(page);
 
 		await loginToTestAccount(page, log, screenshot);
@@ -288,7 +288,7 @@ test.describe('Embed Diff-Based Editing', () => {
 			return;
 		}
 
-		await screenshot('03-doc-embed');
+		await screenshot(page, '03-doc-embed');
 
 		// Turn 2: Modify the document
 		const turn2Prompt = withMockMarker(
@@ -297,7 +297,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		);
 		await sendMessage(page, turn2Prompt, log);
 		await waitForStreamingComplete(page, log);
-		await screenshot('04-doc-after-diff');
+		await screenshot(page, '04-doc-after-diff');
 
 		// Verify document embed still exists
 		const allDocEmbeds = page.locator(
