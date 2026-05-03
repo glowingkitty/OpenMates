@@ -97,6 +97,7 @@ async function getAssistantMessageCount(page: any): Promise<number> {
 test.describe('Embed Diff-Based Editing', () => {
 
 	test('code embed is patched in-place when assistant outputs diff', async ({ page }) => {
+		test.slow(); // AI inference takes 60-90s per turn
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-code');
 		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'embed-diff-code' });
@@ -196,6 +197,7 @@ test.describe('Embed Diff-Based Editing', () => {
 	});
 
 	test('sheet embed is patched when adding a row via diff', async ({ page }) => {
+		test.slow();
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-sheet');
 		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'embed-diff-sheet' });
@@ -254,6 +256,7 @@ test.describe('Embed Diff-Based Editing', () => {
 	});
 
 	test('document embed is patched when changing title via diff', async ({ page }) => {
+		test.slow();
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('embed-diff-doc');
 		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'embed-diff-doc' });
