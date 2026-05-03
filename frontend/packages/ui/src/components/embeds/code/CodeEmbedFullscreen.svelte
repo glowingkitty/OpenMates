@@ -29,6 +29,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
   import CodePreviewPane from './CodePreviewPane.svelte';
+  import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
 
   /**
    * Props for code embed fullscreen
@@ -111,6 +112,10 @@
       : typeof dc.lineCount === 'number' ? dc.lineCount
       : typeof attrs?.lineCount === 'number' ? attrs.lineCount as number
       : 0
+    );
+  let versionNumber = $derived(
+      typeof dc.version_number === 'number' ? dc.version_number
+      : data.embedData?.version_number ?? 1
     );
 
   // Single source of truth: piiRevealed flows down from piiVisibilityStore via
@@ -398,6 +403,18 @@
       <div class="empty-state">
         <p>No code content available.</p>
       </div>
+    {/if}
+
+    <!-- Version timeline (shown when embed has been edited via diff) -->
+    {#if embedId && versionNumber > 1}
+      <EmbedVersionTimeline
+        {embedId}
+        currentVersion={versionNumber}
+        onVersionSelect={(version, content) => {
+          // TODO: Request versioned content from server and display
+          console.log('[CodeEmbedFullscreen] Version selected:', version);
+        }}
+      />
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>

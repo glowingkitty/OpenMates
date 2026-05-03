@@ -37,6 +37,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { replaceEmbedLinksInText, hydrateEmbedLinks, stripEmbedLinks } from '../../../utils/embedLinkUtils';
+  import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
 
   /**
    * Props for sheet embed fullscreen
@@ -121,6 +122,10 @@
       : typeof dc.cols === 'number' ? dc.cols
       : typeof attrs?.cols === 'number' ? attrs.cols as number
       : 0
+    );
+  let versionNumber = $derived(
+      typeof dc.version_number === 'number' ? dc.version_number
+      : data.embedData?.version_number ?? 1
     );
 
   // Single source of truth: piiRevealed flows down from piiVisibilityStore via
@@ -491,6 +496,17 @@
         {/if}
       </div>
     </div>
+
+    <!-- Version timeline (shown when embed has been edited via diff) -->
+    {#if embedId && versionNumber > 1}
+      <EmbedVersionTimeline
+        {embedId}
+        currentVersion={versionNumber}
+        onVersionSelect={(version, content) => {
+          console.log('[SheetEmbedFullscreen] Version selected:', version);
+        }}
+      />
+    {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
 

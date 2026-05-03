@@ -120,11 +120,12 @@ Full schema: [embed_schemas.py](../../backend/shared/python_schemas/embed_schema
 ## Improvement Opportunities
 
 > **Improvement opportunity:** Batch query child embeds by `embed_id` array instead of individual queries per composite embed
-> **Improvement opportunity:** Consider embed content versioning for collaborative editing scenarios
+> **Implemented:** Embed content versioning via diff-based editing — see [Embed Diff-Based Editing](./embed-diff-editing.md)
 
 ## Related Docs
 
 - [Message Processing](./message-processing.md) — embed resolution during AI inference
+- [Embed Diff-Based Editing](./embed-diff-editing.md) — unified diff patching and version timeline
 - [App Skills](../apps/app-skills.md) — skill execution that produces embeds
 - [Security](../core/security.md) — encryption tiers and key wrapping
 - [Sync](../data/sync.md) — embed sync across devices during login
