@@ -775,7 +775,8 @@
 	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
 		'embeds/news/NewsEmbedFullscreen',
 		'embeds/pdf/PdfReadEmbedFullscreen',
-		'embeds/pdf/PdfSearchEmbedFullscreen'
+		'embeds/pdf/PdfSearchEmbedFullscreen',
+		'embeds/videos/VideoCreateEmbedFullscreen'
 	]);
 
 	/**

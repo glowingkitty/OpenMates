@@ -62,7 +62,7 @@
 
 <UnifiedEmbedPreview
 	{id}
-	appId="video"
+	appId="videos"
 	skillId="create"
 	skillIconName="video"
 	status={unifiedStatus}
@@ -71,7 +71,7 @@
 	{onFullscreen}
 	customStatusText={status === 'processing' ? 'Rendering video...' : `${durationLabel} · ${resolutionLabel}`}
 >
-	{#snippet details()}
+	{#snippet details({ isMobile: isMobileLayout })}
 		<div class="preview-details">
 			{#if status === 'finished' && thumbnailUrl}
 				<div class="thumbnail-wrapper">
