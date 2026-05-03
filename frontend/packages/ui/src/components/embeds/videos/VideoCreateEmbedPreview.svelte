@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
 
-  Embed preview card for AI-generated Remotion videos.
+  Embed preview card for AI-generated Remotion videos (Video Create skill).
   Shows a compact timeline visualization of the video structure,
   with a thumbnail overlay once the video has been rendered.
 
