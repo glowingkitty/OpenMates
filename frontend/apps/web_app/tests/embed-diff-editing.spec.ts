@@ -34,7 +34,6 @@ const {
 	createSignupLogger,
 	createStepScreenshotter,
 	getTestAccount,
-	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
@@ -111,11 +110,8 @@ test.describe('Embed Diff-Based Editing', () => {
 		await startNewChat(page, log);
 		await screenshot(page, '02-new-chat');
 
-		// Turn 1: Generate a code embed
-		const turn1Prompt = withMockMarker(
-			'Write a Python function called calculate_average that takes a list of numbers and returns their average. Keep it simple, just 5-10 lines.',
-			'embed-diff-code-turn1'
-		);
+		// Turn 1: Generate a code embed (no mock — requires real AI inference)
+		const turn1Prompt = 'Write a Python function called calculate_average that takes a list of numbers and returns their average. Keep it simple, just 5-10 lines.';
 		await sendMessage(page, turn1Prompt, log);
 		log('Turn 1 sent — waiting for code embed...');
 
@@ -129,10 +125,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		await screenshot(page, '03-turn1-code-embed');
 
 		// Turn 2: Ask to modify the code (should trigger diff)
-		const turn2Prompt = withMockMarker(
-			'Rename the function from calculate_average to compute_mean and add a type hint for the return value (-> float).',
-			'embed-diff-code-turn2'
-		);
+		const turn2Prompt = 'Rename the function from calculate_average to compute_mean and add a type hint for the return value (-> float).';
 		await sendMessage(page, turn2Prompt, log);
 		log('Turn 2 sent — waiting for diff application...');
 
@@ -208,10 +201,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		await startNewChat(page, log);
 
 		// Turn 1: Generate a table
-		const turn1Prompt = withMockMarker(
-			'Create a comparison table of 3 programming languages (Python, JavaScript, Rust) with columns: Language, Typing, Speed, Use Case. Use a markdown table.',
-			'embed-diff-sheet-turn1'
-		);
+		const turn1Prompt = 'Create a comparison table of 3 programming languages (Python, JavaScript, Rust) with columns: Language, Typing, Speed, Use Case. Use a markdown table.';
 		await sendMessage(page, turn1Prompt, log);
 		await waitForStreamingComplete(page, log);
 
@@ -235,10 +225,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		await screenshot(page, '03-sheet-embed');
 
 		// Turn 2: Add a row
-		const turn2Prompt = withMockMarker(
-			'Add Go to the table with typing: Static, speed: Fast, use case: Systems/Cloud.',
-			'embed-diff-sheet-turn2'
-		);
+		const turn2Prompt = 'Add Go to the table with typing: Static, speed: Fast, use case: Systems/Cloud.';
 		await sendMessage(page, turn2Prompt, log);
 		await waitForStreamingComplete(page, log);
 		await screenshot(page, '04-sheet-after-diff');
@@ -267,10 +254,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		await startNewChat(page, log);
 
 		// Turn 1: Generate a document
-		const turn1Prompt = withMockMarker(
-			'Write a short cover letter document for a software engineer position at a startup. Title it "Cover Letter - Software Engineer". Keep it to 3 paragraphs.',
-			'embed-diff-doc-turn1'
-		);
+		const turn1Prompt = 'Write a short cover letter document for a software engineer position at a startup. Title it "Cover Letter - Software Engineer". Keep it to 3 paragraphs.';
 		await sendMessage(page, turn1Prompt, log);
 		await waitForStreamingComplete(page, log);
 
@@ -294,10 +278,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		await screenshot(page, '03-doc-embed');
 
 		// Turn 2: Modify the document
-		const turn2Prompt = withMockMarker(
-			'Change the title from "Cover Letter - Software Engineer" to "Application - Senior Engineer" and update the first paragraph to mention 8 years of experience instead of generic language.',
-			'embed-diff-doc-turn2'
-		);
+		const turn2Prompt = 'Change the title from "Cover Letter - Software Engineer" to "Application - Senior Engineer" and update the first paragraph to mention 8 years of experience instead of generic language.';
 		await sendMessage(page, turn2Prompt, log);
 		await waitForStreamingComplete(page, log);
 		await screenshot(page, '04-doc-after-diff');
