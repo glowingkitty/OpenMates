@@ -1946,6 +1946,7 @@ async def passkey_assertion_verify(
         # Update passkey sign_count and last_used_at
         passkey_id = passkey.get("id")
         await directus_service.update_passkey_sign_count(passkey_id, new_sign_count)
+        await cache_service.set(f"reauth_recent_passkey:{user_id}", credential_id, ttl=300)
         
         # Get user data
         user_profile = await cache_service.get_user_by_id(user_id)

@@ -491,12 +491,31 @@ async def verify_apple_transaction(
             private_key=private_key,
         )
 
-        # Step 1: Idempotency check
-        is_new = await apple_service.check_transaction_not_already_processed(
+        # Step 1: Fast idempotency check. Directus remains the durable source of truth.
+        is_new_cache = await apple_service.check_transaction_not_already_processed(
             tx_data.transaction_id, cache_service
         )
-        if not is_new:
+        if not is_new_cache:
             logger.info(f"Apple IAP tx {tx_data.transaction_id} already processed for user {user_id}")
+            user_cache = await cache_service.get_user_by_id(user_id) or {}
+            return AppleVerifyTransactionResponse(
+                success=True,
+                credits_added=0,
+                current_credits=user_cache.get("credits", 0),
+                message="Transaction already processed",
+            )
+
+        existing_transaction = await directus_service.apple_iap_transactions.get_by_transaction_id(
+            tx_data.transaction_id
+        )
+        if existing_transaction:
+            logger.info(f"Apple IAP tx {tx_data.transaction_id} already durably processed")
+            await apple_service.mark_transaction_processed(
+                tx_data.transaction_id,
+                existing_transaction.get("user_id", user_id),
+                int(existing_transaction.get("credits") or 0),
+                cache_service,
+            )
             user_cache = await cache_service.get_user_by_id(user_id) or {}
             return AppleVerifyTransactionResponse(
                 success=True,
@@ -524,30 +543,63 @@ async def verify_apple_transaction(
 
         credits_to_add = verified.credits
 
-        # Step 3: Add credits to user balance
-        user_cache_data = await cache_service.get_user_by_id(user_id)
-        if user_cache_data is None:
-            user_cache_data = {}
-
-        vault_key_id = user_cache_data.get("vault_key_id")
-        if not vault_key_id:
-            logger.error(f"Vault key ID missing from cache for user {user_id}")
-            raise HTTPException(status_code=500, detail="Account encryption key unavailable")
-
-        current_credits = user_cache_data.get("credits")
-        if current_credits is None:
-            logger.error(f"Credits field missing from cache for user {user_id}")
-            raise HTTPException(status_code=500, detail="Could not read current balance")
-
-        new_total = current_credits + credits_to_add
-        new_encrypted, _ = await encryption_service.encrypt_with_user_key(str(new_total), vault_key_id)
-        update_success = await directus_service.update_user(
-            user_id, {"encrypted_credit_balance": new_encrypted}
+        reserved_transaction = False
+        reserved, existing_transaction = await directus_service.apple_iap_transactions.reserve_processed_transaction(
+            transaction_id=verified.transaction_id,
+            original_transaction_id=verified.original_transaction_id,
+            user_id=user_id,
+            product_id=verified.product_id,
+            credits=credits_to_add,
+            environment=verified.environment,
         )
+        if not reserved:
+            if existing_transaction:
+                logger.info(f"Apple IAP tx {tx_data.transaction_id} replayed during processing")
+                await apple_service.mark_transaction_processed(
+                    tx_data.transaction_id,
+                    existing_transaction.get("user_id", user_id),
+                    int(existing_transaction.get("credits") or 0),
+                    cache_service,
+                )
+                user_cache = await cache_service.get_user_by_id(user_id) or {}
+                return AppleVerifyTransactionResponse(
+                    success=True,
+                    credits_added=0,
+                    current_credits=user_cache.get("credits", 0),
+                    message="Transaction already processed",
+                )
+            raise HTTPException(status_code=500, detail="Failed to reserve Apple transaction")
+        reserved_transaction = True
 
-        if not update_success:
-            logger.error(f"Failed to update credits in Directus for user {user_id}")
-            raise HTTPException(status_code=500, detail="Failed to update credit balance")
+        # Step 3: Add credits to user balance
+        try:
+            user_cache_data = await cache_service.get_user_by_id(user_id)
+            if user_cache_data is None:
+                user_cache_data = {}
+
+            vault_key_id = user_cache_data.get("vault_key_id")
+            if not vault_key_id:
+                logger.error(f"Vault key ID missing from cache for user {user_id}")
+                raise HTTPException(status_code=500, detail="Account encryption key unavailable")
+
+            current_credits = user_cache_data.get("credits")
+            if current_credits is None:
+                logger.error(f"Credits field missing from cache for user {user_id}")
+                raise HTTPException(status_code=500, detail="Could not read current balance")
+
+            new_total = current_credits + credits_to_add
+            new_encrypted, _ = await encryption_service.encrypt_with_user_key(str(new_total), vault_key_id)
+            update_success = await directus_service.update_user(
+                user_id, {"encrypted_credit_balance": new_encrypted}
+            )
+
+            if not update_success:
+                logger.error(f"Failed to update credits in Directus for user {user_id}")
+                raise HTTPException(status_code=500, detail="Failed to update credit balance")
+        except Exception:
+            if reserved_transaction:
+                await directus_service.apple_iap_transactions.delete_processed_transaction(tx_data.transaction_id)
+            raise
 
         # Step 4: Mark transaction as processed (idempotency)
         await apple_service.mark_transaction_processed(

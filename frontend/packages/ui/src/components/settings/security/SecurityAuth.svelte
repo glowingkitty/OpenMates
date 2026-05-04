@@ -24,6 +24,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         method: 'passkey' | 'password' | '2fa' | 'email_otp'; 
         credentialId?: string;  // For passkey authentication
         tfaCode?: string;       // For 2FA / email OTP authentication
+        hashedEmail?: string;   // For server-side password reauth
+        lookupHash?: string;    // For server-side password reauth
     };
     
     let { 
@@ -347,6 +349,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 showPasswordInput = false;
                 show2FAInput = true;
                 passwordVerifiedFor2FA = true;
+                password = '';
                 isPasswordLoading = false;
                 isAuthenticating = false;
                 return;
@@ -354,7 +357,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
 
             // Password authentication successful
             console.log('[SecurityAuth] Password authentication successful');
-            onSuccess({ method: 'password' });
+            onSuccess({ method: 'password', hashedEmail, lookupHash });
         } catch (error) {
             console.error('[SecurityAuth] Password authentication error:', error);
             const errMsg = error instanceof Error ? error.message : 'Password verification failed';

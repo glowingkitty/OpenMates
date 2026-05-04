@@ -26,6 +26,8 @@
         method: 'passkey' | 'password' | '2fa' | 'email_otp';
         credentialId?: string;
         tfaCode?: string;
+        hashedEmail?: string;
+        lookupHash?: string;
     };
 
     let email = $state<string | null>(null);
@@ -157,7 +159,31 @@
 
     async function handleAuthSuccess(data: AuthSuccessData) {
         showAuthModal = false;
-        await confirmChange(data);
+        try {
+            await verifyRecentReauth(data);
+            await confirmChange(data);
+        } catch (error) {
+            errorMessage = error instanceof Error ? error.message : 'Authentication verification failed';
+        }
+    }
+
+    async function verifyRecentReauth(authData: AuthSuccessData) {
+        const authMethod = authData.method === '2fa' ? '2fa_otp' : authData.method;
+        const response = await fetch(getApiEndpoint(apiEndpoints.settings.user.reauthEmailChange), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                auth_method: authMethod,
+                auth_code: authData.credentialId || authData.tfaCode || '',
+                hashed_email: authData.hashedEmail,
+                lookup_hash: authData.lookupHash
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.detail || data.message || 'Authentication verification failed');
+        }
     }
 
     function handleAuthFailed(message: string) {

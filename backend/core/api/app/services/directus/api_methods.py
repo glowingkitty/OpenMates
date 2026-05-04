@@ -25,12 +25,14 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
         if attempt > 0:
             logger.info(f"Retry attempt {attempt} for {method} {url}")
 
-        # Get a fresh token if this is a retry
-        token = await self.ensure_auth_token(force_refresh=(attempt > 0))
-        if not token:
-            raise HTTPException(status_code=500, detail="Failed to authenticate with CMS")
+        if "Authorization" not in headers:
+            # Get a fresh token if this is a retry. Callers that explicitly pass
+            # an Authorization header (for admin-token operations) keep it.
+            token = await self.ensure_auth_token(force_refresh=(attempt > 0))
+            if not token:
+                raise HTTPException(status_code=500, detail="Failed to authenticate with CMS")
 
-        headers["Authorization"] = f"Bearer {token}"
+            headers["Authorization"] = f"Bearer {token}"
 
         try:
             # Define timeout per attempt (consistent with update_user)
@@ -222,4 +224,3 @@ async def delete_items(self, collection: str, filter_dict: dict, admin_required:
     except Exception as e:
         logger.error(f"Exception during batch deletion from '{collection}': {str(e)}", exc_info=True)
         return 0
-

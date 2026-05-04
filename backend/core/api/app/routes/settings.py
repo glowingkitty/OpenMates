@@ -3247,6 +3247,14 @@ class ConfirmEmailChangeRequest(BaseModel):
     auth_code: Optional[str] = None
 
 
+class EmailChangeReauthRequest(BaseModel):
+    """Request model for server-verified recent email-change reauthentication."""
+    auth_method: str = Field(..., description="passkey, password, or 2fa_otp")
+    auth_code: Optional[str] = None
+    hashed_email: Optional[str] = None
+    lookup_hash: Optional[str] = None
+
+
 class ConfirmEmailChangeResponse(BaseModel):
     """Response model for committing a verified email change."""
     success: bool
@@ -3273,6 +3281,20 @@ def _email_change_code_key(user_id: str, hashed_new_email: str) -> str:
 
 def _email_change_verified_key(user_id: str, hashed_new_email: str) -> str:
     return f"email_change_verified:{user_id}:{hashed_new_email}"
+
+
+def _email_change_reauth_key(user_id: str) -> str:
+    return f"reauth_verified:{user_id}:email_change"
+
+
+async def _require_email_change_reauth(user_id: str, cache_service: CacheService) -> None:
+    reauth_status = await cache_service.get(_email_change_reauth_key(user_id))
+    if reauth_status != "verified":
+        raise HTTPException(status_code=401, detail="Recent authentication required")
+
+
+async def _mark_email_change_reauth_verified(user_id: str, cache_service: CacheService) -> None:
+    await cache_service.set(_email_change_reauth_key(user_id), "verified", ttl=300)
 
 
 async def _validate_email_change_target(
@@ -3662,6 +3684,63 @@ async def verify_email_change_code(
     return VerifyEmailChangeCodeResponse(success=True, message="Code verified")
 
 
+@router.post("/user/email/reauth", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("5/minute")
+async def verify_email_change_reauth(
+    request: Request,
+    body: EmailChangeReauthRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """Verify recent auth server-side and cache a short-lived email-change proof."""
+    user_id = current_user.id
+
+    if body.auth_method == "password":
+        if not body.hashed_email or not body.lookup_hash:
+            raise HTTPException(status_code=400, detail="Password verification data is required")
+        auth_success, auth_data, _ = await directus_service.login_user_with_lookup_hash(
+            hashed_email=body.hashed_email,
+            lookup_hash=body.lookup_hash,
+        )
+        auth_user = auth_data.get("user", {}) if auth_data else {}
+        if not auth_success or not auth_data or auth_user.get("id") != user_id:
+            logger.warning(f"Invalid password reauth for email change: user {user_id}")
+            raise HTTPException(status_code=401, detail="Invalid password authentication")
+    elif body.auth_method == "passkey":
+        if not body.auth_code:
+            raise HTTPException(status_code=400, detail="Passkey credential ID is required")
+        passkey = await directus_service.get_passkey_by_credential_id(body.auth_code)
+        recent_passkey = await cache_service.get(f"reauth_recent_passkey:{user_id}")
+        if not passkey or passkey.get("user_id") != user_id or recent_passkey != body.auth_code:
+            logger.warning(f"Invalid passkey reauth for email change: user {user_id}")
+            raise HTTPException(status_code=401, detail="Invalid passkey authentication")
+    elif body.auth_method == "2fa_otp":
+        if not body.auth_code:
+            raise HTTPException(status_code=400, detail="2FA code is required")
+        from backend.core.api.app.routes.auth_routes.auth_2fa_verify import verify_device_2fa
+        from backend.core.api.app.schemas.auth_2fa import VerifyDevice2FARequest
+
+        verify_response = await verify_device_2fa(
+            request=request,
+            verify_request=VerifyDevice2FARequest(tfa_code=body.auth_code),
+            directus_service=directus_service,
+            cache_service=cache_service,
+            compliance_service=compliance_service,
+            encryption_service=encryption_service,
+        )
+        if not verify_response.success:
+            raise HTTPException(status_code=401, detail="Invalid 2FA code")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid authentication method")
+
+    await _mark_email_change_reauth_verified(user_id, cache_service)
+    logger.info(f"Email change reauth verified for user {user_id}")
+    return SimpleSuccessResponse(success=True, message="Authentication verified")
+
+
 @router.post("/user/email/confirm-change", response_model=ConfirmEmailChangeResponse, include_in_schema=False)
 @limiter.limit("3/minute")
 async def confirm_email_change(
@@ -3690,32 +3769,13 @@ async def confirm_email_change(
     if verified_status != "verified":
         raise HTTPException(status_code=401, detail="New email verification required")
 
-    if body.auth_method == "passkey":
-        if not body.auth_code:
-            raise HTTPException(status_code=400, detail="Passkey credential ID is required")
-        passkey = await directus_service.get_passkey_by_credential_id(body.auth_code)
-        if not passkey or passkey.get("user_id") != current_user.id:
-            logger.warning(f"Invalid passkey verification for email change: user {current_user.id}")
-            raise HTTPException(status_code=401, detail="Invalid passkey authentication")
-    elif body.auth_method == "2fa_otp":
-        if not body.auth_code:
-            raise HTTPException(status_code=400, detail="2FA code is required")
-        from backend.core.api.app.routes.auth_routes.auth_2fa_verify import verify_device_2fa
-        from backend.core.api.app.schemas.auth_2fa import VerifyDevice2FARequest
+    await _require_email_change_reauth(current_user.id, cache_service)
 
-        verify_response = await verify_device_2fa(
-            request=request,
-            verify_request=VerifyDevice2FARequest(tfa_code=body.auth_code),
-            directus_service=directus_service,
-            cache_service=cache_service,
-            compliance_service=compliance_service,
-            encryption_service=encryption_service,
-        )
-        if not verify_response.success:
-            raise HTTPException(status_code=401, detail="Invalid 2FA code")
+    if body.auth_method == "passkey":
+        pass
+    elif body.auth_method == "2fa_otp":
+        pass
     elif body.auth_method == "password":
-        # SecurityAuth verifies the password through /v1/auth/login immediately before this call.
-        # The active session is the current-user proof for this backend commit step.
         pass
     elif body.auth_method == "email_otp":
         raise HTTPException(status_code=400, detail="Current email OTP is not supported for email changes")
@@ -3737,6 +3797,7 @@ async def confirm_email_change(
         raise HTTPException(status_code=500, detail="Failed to update email")
 
     await cache_service.delete(verified_key)
+    await cache_service.delete(_email_change_reauth_key(current_user.id))
     await cache_service.delete(f"login_methods:{current_user.id}")
     await cache_service.delete(f"user_profile:{current_user.id}")
 

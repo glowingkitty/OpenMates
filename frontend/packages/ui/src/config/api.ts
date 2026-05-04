@@ -175,6 +175,7 @@ export const apiEndpoints = {
       username: "/v1/settings/user/username", // Update username (validated + encrypted server-side)
       requestEmailChangeCode: "/v1/settings/user/email/request-change-code", // Send code to a new login email
       verifyEmailChangeCode: "/v1/settings/user/email/verify-change-code", // Verify new login email code
+      reauthEmailChange: "/v1/settings/user/email/reauth", // Verify recent auth server-side for email changes
       confirmEmailChange: "/v1/settings/user/email/confirm-change", // Commit verified login email change
     },
     autoTopUp: {
