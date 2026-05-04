@@ -72,6 +72,8 @@ async def _async_send_bank_transfer_reminder(
     expires_at: str,
 ) -> bool:
     from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus import DirectusService
+    from backend.core.api.app.services.email_delivery_guard import send_email_once
     from backend.core.api.app.services.email_template import EmailTemplateService
     from backend.core.api.app.utils.encryption import EncryptionService
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -79,6 +81,7 @@ async def _async_send_bank_transfer_reminder(
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     cache_service = CacheService()
+    directus_service = DirectusService()
     encryption_service = EncryptionService(secrets_manager)
     email_template_service = EmailTemplateService(secrets_manager)
 
@@ -129,7 +132,14 @@ async def _async_send_bank_transfer_reminder(
             "darkmode": darkmode,
         }
 
-        success = await email_template_service.send_email(
+        success, delivery_status = await send_email_once(
+            directus=directus_service,
+            email_template_service=email_template_service,
+            email_type="bank_transfer_reminder",
+            campaign_key=order_id,
+            recipient_kind="directus_user",
+            recipient_id=user_id,
+            stage="created",
             template="bank-transfer-reminder",
             recipient_email=email,
             context=context,
@@ -139,6 +149,9 @@ async def _async_send_bank_transfer_reminder(
 
         if success:
             logger.info("bank_transfer_reminder: sent for order %s", order_id)
+        elif delivery_status == "already_reserved":
+            logger.info("bank_transfer_reminder: already reserved for order %s", order_id)
+            return True
         else:
             logger.warning("bank_transfer_reminder: send failed for order %s", order_id)
 
@@ -149,3 +162,4 @@ async def _async_send_bank_transfer_reminder(
         return False
     finally:
         await cache_service.close()
+        await directus_service.close()

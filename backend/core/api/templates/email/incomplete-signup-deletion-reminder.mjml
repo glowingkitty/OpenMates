@@ -1,0 +1,67 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ subject }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section padding-bottom="10px">
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/warning.png" align="center" alt="Warning icon" css-class="email-icon-50" />
+
+          <mj-text font-size="30px" padding-bottom="20px">
+            <mark>{{ headline }}</mark>
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            Hey {{ username }},
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            You started signing up on <a href="{{ finish_setup_link }}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> but didn't complete the signup process.
+          </mj-text>
+
+          <mj-text align="left" font-size="18px" padding-bottom="18px">
+            <strong>Your incomplete account is scheduled for deletion {{ deletion_time_text }}.</strong>
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            If you still want to use OpenMates, simply log in to <a href="{{ finish_setup_link }}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> again and finish the signup flow by buying credits and start using OpenMates.
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            A lot of changes have been made in recent weeks: from various new apps which your AI team mates can use to fulfill all kinds of tasks, many bug fixes and stability improvements, and other features. OpenMates continues to be under very active development. Check the <a href="{{ latest_announcement_link }}" style="color: #4867CD; text-decoration: underline;">most recent announcement</a> for more details.
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            If you would rather delete your account now, you do not need to wait {{ wait_time_text }} but can easily <a href="{{ direct_delete_account_link }}" style="color: #4867CD; text-decoration: underline;">delete your account here</a>.
+          </mj-text>
+
+          {% if reminder_info %}
+          <mj-text align="left" padding-bottom="12px">
+            {{ reminder_info }}
+          </mj-text>
+          {% endif %}
+
+          <mj-text align="left" padding-top="16px" padding-bottom="0">
+            Greetings,<br />
+            Marco<br />
+            <span style="font-size: 14px; color: #808080;">Creator of OpenMates</span>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -421,3 +421,62 @@ async def preview_community_share_notification(
         chat_summary=chat_summary,
         share_link=share_link
     )
+
+
+@router.get("/incomplete-signup-deletion-reminder", response_class=HTMLResponse)
+async def preview_incomplete_signup_deletion_reminder(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    username: str = Query("there", description="Username to display in the email"),
+    days_remaining: int = Query(14, description="Days remaining before deletion"),
+):
+    """Preview the incomplete signup deletion reminder email template."""
+    reminder_info = ""
+    if days_remaining == 14:
+        reminder_info = "If you take no action, you will be reminded again 7 days before deletion and 1 day before deletion."
+    elif days_remaining == 7:
+        reminder_info = "If you take no action, you will receive one final reminder 1 day before deletion."
+
+    subject = "Complete your OpenMates signup before your account is deleted"
+    headline = "Complete your signup before deletion"
+    deletion_time_text = f"in {days_remaining} days"
+    wait_time_text = f"{days_remaining} days"
+    if days_remaining == 1:
+        subject = "Final notice: your incomplete OpenMates account will be deleted tomorrow"
+        headline = "Final notice"
+        deletion_time_text = "tomorrow"
+        wait_time_text = "until tomorrow"
+
+    return await _process_email_template(
+        request=request,
+        template_name="incomplete-signup-deletion-reminder",
+        lang=lang,
+        subject=subject,
+        headline=headline,
+        username=username,
+        finish_setup_link="https://openmates.org",
+        latest_announcement_link="https://openmates.org/announcements/introducing-openmates-v09",
+        direct_delete_account_link="https://openmates.org/#settings/account/delete/preview-account-id",
+        deletion_time_text=deletion_time_text,
+        wait_time_text=wait_time_text,
+        reminder_info=reminder_info,
+    )
+
+
+@router.get("/incomplete-signup-account-deleted", response_class=HTMLResponse)
+async def preview_incomplete_signup_account_deleted(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    username: str = Query("there", description="Username to display in the email"),
+):
+    """Preview the incomplete signup account deleted email template."""
+    return await _process_email_template(
+        request=request,
+        template_name="incomplete-signup-account-deleted",
+        lang=lang,
+        subject="Your incomplete OpenMates account has been deleted",
+        username=username,
+        signup_link="https://openmates.org",
+    )

@@ -30,6 +30,8 @@ from . import test_run_started_email_task  # Import test run started notificatio
 from . import cron_session_email_task  # Import cron job session notification task
 from . import webhook_chat_notification_email_task  # Import webhook offline notification task
 from . import webhook_rate_limit_digest_email_task  # Import webhook rate-limit daily digest task
+from . import email_delivery_archive_task  # Import unified email delivery archive task
+from . import incomplete_signup_deletion_task  # Import incomplete signup deletion reminders task
 
 # Note: When celery_config.py imports 'backend.core.api.app.tasks.email_tasks',
 # this __init__.py will execute and import all the task modules, which causes
@@ -61,4 +63,6 @@ __all__ = [
     'cron_session_email_task',
     'webhook_chat_notification_email_task',
     'webhook_rate_limit_digest_email_task',
+    'email_delivery_archive_task',
+    'incomplete_signup_deletion_task',
 ]

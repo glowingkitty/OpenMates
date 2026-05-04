@@ -121,6 +121,16 @@ BUCKETS = {
         # task (see celery_config.py and auto_delete_tasks.py).
         'lifecycle_policy': 1095,  # 3 years auto-delete (in days)
     },
+    'email_delivery_archives': {
+        'name': 'openmates-email-delivery-archives',
+        'dev_name': 'dev-openmates-email-delivery-archives',
+        'allowed_types': ['application/gzip', 'application/json'],
+        'max_size': 500 * 1024 * 1024,
+        'access': 'private',
+        # Short-lived operational audit trail. Directus keeps only recent rows;
+        # this archive keeps older delivery records available for debugging.
+        'lifecycle_policy': 365,
+    },
     # Temporary images bucket for reverse image search (Google Lens via SerpAPI).
     # Plaintext (decrypted) user images are uploaded here for a very short time so
     # SerpAPI's Google Lens fetcher can retrieve them. The bucket is PRIVATE; each

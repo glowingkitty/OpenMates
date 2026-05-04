@@ -26,6 +26,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.core.api.app.services.email_delivery_guard import send_email_once
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 
@@ -185,12 +186,21 @@ class BackupReminderHandler(NotificationHandler):
             "last_export_at": last_export_at,  # ISO string or None; rendered in template
         }
 
-        sent = await task.email_template_service.send_email(
+        sent, delivery_status = await send_email_once(
+            directus=task.directus_service,
+            email_template_service=task.email_template_service,
+            email_type="daily_notification",
+            campaign_key=self.notification_key,
+            recipient_kind="directus_user",
+            recipient_id=user["id"],
+            stage=datetime.now(timezone.utc).date().isoformat(),
             template="backup-reminder",
             recipient_email=decrypted_email,
             context=context,
             lang=user.get("language") or "en",
         )
+        if delivery_status == "already_reserved":
+            logger.info("Backup reminder already reserved for user %s", user.get("id", "?")[:8])
 
         if sent:
             # Mark that we sent a reminder today so the interval resets.

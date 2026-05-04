@@ -36,9 +36,10 @@ Three-step workflow on dev (mandatory order):
        Sends preview emails (EN + DE) to the admin, waits for the admin to
        type "received and checked", then broadcasts to all eligible subscribers.
 
-       Before sending to each subscriber, checks the ``newsletter_deliveries``
-       Directus collection and skips anyone already recorded as ``sent`` for
-       this slug — so the script is safe to re-run or resume after a failure.
+       Before sending to each subscriber, reserves a row in the unified
+       ``email_deliveries`` Directus collection. If a row already exists for
+       this newsletter/subscriber pair, the subscriber is skipped — so the
+       script is safe to re-run or resume after a failure.
 
        Broadcasts to every confirmed subscriber whose
        ``categories[<this issue's category>]`` is true. Prompts for a typed
@@ -78,12 +79,9 @@ Usage:
         --slug <slug> --send --admin-email admin@openmates.org --resume
 
 Directus prerequisite:
-    The ``newsletter_deliveries`` collection must exist with fields:
-        slug (string), subscriber_id (string), status (string),
-        lang (string), sent_at (datetime).
-    Create it via the Directus admin UI or a migration before first use.
-    Without it the script logs a warning and proceeds without duplicate-send
-    protection — delivery records will not be written.
+    The ``email_deliveries`` collection must exist. It is defined in
+    backend/core/directus/schemas/email_deliveries.yml and is required for
+    production broadcasts. Without it, --send fails closed.
 """
 
 from __future__ import annotations
@@ -109,6 +107,10 @@ sys.path.insert(0, "/app/backend")
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.services.email_delivery_guard import (
+    fetch_existing_recipient_ids,
+    send_email_once,
+)
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
@@ -405,31 +407,13 @@ async def fetch_subscribers(directus: DirectusService) -> List[Dict[str, Any]]:
 
 
 async def fetch_delivered_subscriber_ids(slug: str, directus: DirectusService) -> Set[str]:
-    """Return subscriber IDs that already have a ``sent`` delivery record for this slug.
-
-    Used to skip already-sent subscribers on every run — not just --resume.
-    Returns an empty set (with a warning) if the collection doesn't exist yet.
-    """
-    url = f"{directus.base_url}/items/newsletter_deliveries"
-    params = {
-        "fields": "subscriber_id",
-        "filter[slug][_eq]": slug,
-        "filter[status][_eq]": "sent",
-        "limit": "-1",
-    }
-    resp = await directus._make_api_request("GET", url, params=params)
-    if resp.status_code in (403, 404):
-        logger.warning(
-            "newsletter_deliveries collection not found or inaccessible. "
-            "Create it in Directus — see script docstring for required fields. "
-            "Proceeding without duplicate-send protection."
-        )
-        return set()
-    if resp.status_code != 200:
-        raise RuntimeError(
-            f"Failed to fetch delivery records: {resp.status_code} {resp.text[:200]}"
-        )
-    return {row["subscriber_id"] for row in resp.json().get("data", [])}
+    """Return subscriber IDs with existing protected delivery records for this slug."""
+    return await fetch_existing_recipient_ids(
+        directus,
+        email_type="newsletter",
+        campaign_key=slug,
+        statuses=("processing", "sent", "archived"),
+    )
 
 
 async def record_delivery(
@@ -439,21 +423,8 @@ async def record_delivery(
     lang: str,
     directus: DirectusService,
 ) -> None:
-    """Write a delivery record to newsletter_deliveries in Directus.
-
-    Silently skips (with a warning) if the collection doesn't exist.
-    """
-    url = f"{directus.base_url}/items/newsletter_deliveries"
-    payload = {
-        "slug": slug,
-        "subscriber_id": subscriber_id,
-        "status": status,
-        "lang": lang,
-        "sent_at": datetime.now(timezone.utc).isoformat(),
-    }
-    resp = await directus._make_api_request("POST", url, json=payload)
-    if resp.status_code not in (200, 201):
-        logger.warning(f"Failed to record delivery for subscriber {subscriber_id}: {resp.status_code}")
+    """Deprecated compatibility shim; delivery writes happen in send_email_once."""
+    logger.debug("Delivery already tracked by email_deliveries: %s %s %s %s", slug, subscriber_id, status, lang)
 
 
 def build_unsubscribe_url(token: Optional[str], base_url: str) -> Optional[str]:
@@ -562,8 +533,10 @@ def build_context(
 
 
 async def send_one(
+    directus: DirectusService,
     email_template_service: EmailTemplateService,
     manifest: Dict[str, Any],
+    subscriber_id: str,
     recipient_email: str,
     recipient_lang: str,
     darkmode: bool,
@@ -581,7 +554,13 @@ async def send_one(
     # Thumbnail is a ``data:`` URI inside the HTML (see _intro_thumbnail_data_uri)
     # — no attachment, no external fetch, nothing for a tracker-protection
     # shield to block.
-    return await email_template_service.send_email(
+    sent, status = await send_email_once(
+        directus=directus,
+        email_template_service=email_template_service,
+        email_type="newsletter",
+        campaign_key=manifest["slug"],
+        recipient_kind="newsletter_subscriber",
+        recipient_id=subscriber_id,
         template="newsletter",
         recipient_email=recipient_email,
         context=context,
@@ -589,6 +568,9 @@ async def send_one(
         lang=lang,
         attachments=None,
     )
+    if status == "already_reserved":
+        logger.info("Newsletter %s already reserved for subscriber %s", manifest["slug"], subscriber_id)
+    return sent
 
 
 def _print_summary(
@@ -909,8 +891,10 @@ async def run(args: argparse.Namespace) -> int:
             success = True
         else:
             success = await send_one(
+                directus=directus,
                 email_template_service=email_template_service,
                 manifest=manifest,
+                subscriber_id=sub_id,
                 recipient_email=email,
                 recipient_lang=lang,
                 darkmode=darkmode,
@@ -924,8 +908,6 @@ async def run(args: argparse.Namespace) -> int:
             audit_path,
             {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "lang": lang, "status": status},
         )
-        if not args.simulate:
-            await record_delivery(manifest["slug"], sub_id, status, lang, directus)
 
         if success:
             stats["sent"] += 1

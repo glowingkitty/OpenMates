@@ -406,6 +406,7 @@ class EmailTemplateService:
                 'signup_milestone', 'issue_report', 'issue_report_confirmation',
                 'community_share_notification',
                 'password-security-reminder',
+                'incomplete-signup-deletion-reminder', 'incomplete-signup-account-deleted',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',
             }

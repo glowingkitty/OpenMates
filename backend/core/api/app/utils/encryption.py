@@ -18,6 +18,9 @@ CREATOR_INCOME_ENCRYPTION_KEY = "creator_income"
 # Vault transit key name for newsletter email encryption
 # This is a system-level key used to encrypt newsletter subscriber email addresses
 NEWSLETTER_ENCRYPTION_KEY = "newsletter_emails"
+# Vault transit key name for mandatory account-lifecycle contact emails.
+# This is separate from newsletter consent and zero-knowledge user profile data.
+ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY = "account_contact_emails"
 # Vault transit key name for support payment receipt encryption
 # This is a system-level key used to wrap support receipt AES keys for archival in S3.
 SUPPORT_PAYMENTS_ENCRYPTION_KEY = "support_payments"
@@ -588,6 +591,51 @@ class EncryptionService:
             logger.error(f"Failed to ensure newsletter encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize newsletter encryption key: {str(e)}")
 
+        # --- Ensure ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for mandatory account-lifecycle contact emails only.
+        try:
+            logger.debug(f"Checking for account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create account contact email encryption key '{ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize account contact email encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure account contact email encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize account contact email encryption key: {str(e)}")
+
         # --- Ensure SUPPORT_PAYMENTS_ENCRYPTION_KEY exists in transit engine ---
         # This key is used for encrypting support payment receipt archive keys (system-level, not user-specific).
         try:
@@ -941,7 +989,22 @@ class EncryptionService:
             return None
         
         return await self.decrypt(encrypted_email, key_name=NEWSLETTER_ENCRYPTION_KEY)
-    
+
+    async def encrypt_account_contact_email(self, email: str) -> str:
+        """Encrypt a mandatory account-lifecycle contact email with a server-side Vault key."""
+        if not email:
+            return ""
+
+        ciphertext, _ = await self.encrypt(email, key_name=ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY)
+        return ciphertext
+
+    async def decrypt_account_contact_email(self, encrypted_email: str) -> Optional[str]:
+        """Decrypt a mandatory account-lifecycle contact email encrypted for server-side use."""
+        if not encrypted_email:
+            return None
+
+        return await self.decrypt(encrypted_email, key_name=ACCOUNT_CONTACT_EMAIL_ENCRYPTION_KEY)
+     
     async def encrypt_newsletter_token(self, token: str) -> str:
         """
         Encrypt a newsletter unsubscribe token using server-side encryption.

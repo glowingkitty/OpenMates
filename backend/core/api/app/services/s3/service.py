@@ -146,6 +146,9 @@ class S3UploadService:
                         # Attempt to create the bucket (Hetzner implies region from endpoint)
                         self.client.create_bucket(Bucket=bucket_name)
                         logger.info(f"Successfully created bucket '{bucket_name}'.")
+                        # Hetzner Object Storage can be briefly eventually consistent after bucket creation.
+                        # Wait before applying ACL/lifecycle so first-start initialization does not fail noisily.
+                        await asyncio.sleep(2)
                         bucket_exists = True
                     except ClientError as create_e:
                         logger.error(f"Failed to create bucket '{bucket_name}': {create_e}")

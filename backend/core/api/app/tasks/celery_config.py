@@ -1230,6 +1230,16 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
         'options': {'queue': 'email'},
     },
+    'email-delivery-archive-daily': {
+        'task': 'app.tasks.email_tasks.email_delivery_archive_task.archive_old_email_deliveries',
+        'schedule': crontab(hour=4, minute=30),  # Daily at 04:30 UTC
+        'options': {'queue': 'email'},
+    },
+    'incomplete-signup-deletion-daily': {
+        'task': 'app.tasks.email_tasks.incomplete_signup_deletion_task.process_incomplete_signup_deletions',
+        'schedule': crontab(hour=6, minute=0),  # Daily at 06:00 UTC
+        'options': {'queue': 'email'},
+    },
     # Webhook rate-limit digest — one email per affected user listing every
     # webhook of theirs that hit its rate limit in the last 24h. Runs at 07:00
     # UTC, slightly before the other daily email sweeps so the user sees
