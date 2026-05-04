@@ -10,7 +10,6 @@
 -->
 <script lang="ts">
 	import { getEmbedDiffs, type EmbedDiffRow } from '../../../services/embedDiffStore';
-	import { t } from '../../../i18n/i18n';
 
 	interface Props {
 		embedId: string;
@@ -21,13 +20,16 @@
 	let { embedId, currentVersion, onVersionSelect }: Props = $props();
 
 	let versions: EmbedDiffRow[] = $state([]);
-	let selectedVersion: number = $state(currentVersion);
+	let selectedVersion: number = $state(0);
 	let loading: boolean = $state(true);
-	let showDiffView: boolean = $state(false);
 
 	// Load version history on mount
 	$effect(() => {
 		loadVersions();
+	});
+
+	$effect(() => {
+		selectedVersion = currentVersion;
 	});
 
 	async function loadVersions() {
