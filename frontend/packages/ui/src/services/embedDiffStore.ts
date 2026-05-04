@@ -8,7 +8,7 @@
  * Architecture: docs/architecture/messaging/embed-diff-editing.md
  */
 
-import { ChatDatabase } from './db';
+import { chatDB } from './db';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -36,8 +36,8 @@ const STORE_NAME = 'embed_diffs';
  * Store a diff row in IndexedDB (called when receiving embed_diff_created WS event).
  */
 export async function storeEmbedDiff(diff: EmbedDiffRow): Promise<void> {
-	const db = ChatDatabase.getInstance();
-	const idb = await db.getDB();
+	await chatDB.init();
+	const idb = chatDB.db;
 	if (!idb) return;
 
 	const tx = idb.transaction(STORE_NAME, 'readwrite');
@@ -54,8 +54,8 @@ export async function storeEmbedDiff(diff: EmbedDiffRow): Promise<void> {
  * Returns rows sorted by version_number ascending.
  */
 export async function getEmbedDiffs(embedId: string): Promise<EmbedDiffRow[]> {
-	const db = ChatDatabase.getInstance();
-	const idb = await db.getDB();
+	await chatDB.init();
+	const idb = chatDB.db;
 	if (!idb) return [];
 
 	const tx = idb.transaction(STORE_NAME, 'readonly');
@@ -85,8 +85,8 @@ export async function hasLocalDiffs(embedId: string): Promise<boolean> {
  * Delete all diffs for an embed (called on embed deletion).
  */
 export async function deleteEmbedDiffs(embedId: string): Promise<void> {
-	const db = ChatDatabase.getInstance();
-	const idb = await db.getDB();
+	await chatDB.init();
+	const idb = chatDB.db;
 	if (!idb) return;
 
 	const tx = idb.transaction(STORE_NAME, 'readwrite');
