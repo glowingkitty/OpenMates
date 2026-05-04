@@ -49,7 +49,7 @@ def _parse_args() -> argparse.Namespace:
             "Examples:\n"
             "  Preview Dec-Jan matches:\n"
             "    docker exec api python /app/backend/scripts/backfill_account_contact_emails.py --start-date 2025-12-20 --end-date 2026-01-31\n"
-            "  Preview and include v0.10 newsletter recipient records:\n"
+            "  Preview and include v0.9 newsletter recipient records:\n"
             "    docker exec api python /app/backend/scripts/backfill_account_contact_emails.py --start-date 2026-04-18 --end-date 2026-04-19 --newsletter-slug introducing-openmates-v09\n"
             "  Write first 10 contact records and newsletter records:\n"
             "    docker exec api python /app/backend/scripts/backfill_account_contact_emails.py --start-date 2025-12-20 --end-date 2026-04-19 --newsletter-slug introducing-openmates-v09 --write --max-records 10 --confirm"
