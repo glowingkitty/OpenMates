@@ -120,6 +120,10 @@ actor APIClient {
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("OpenMates-Apple/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("ios", forHTTPHeaderField: "X-OpenMates-Client")
+        if let bundleIdentifier = Bundle.main.bundleIdentifier {
+            request.setValue(bundleIdentifier, forHTTPHeaderField: "X-OpenMates-Bundle-ID")
+        }
 
         if let headers {
             for (key, value) in headers {

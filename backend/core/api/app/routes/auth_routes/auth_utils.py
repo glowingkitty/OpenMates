@@ -17,24 +17,66 @@ async def verify_allowed_origin(request: Request):
     allowed_origins = request.app.state.allowed_origins
     
     if not origin or origin not in allowed_origins:
-        # Log detailed error information for debugging
-        logger.error(
-            f"🚨 CORS BLOCKED: Unauthorized origin access\n"
-            f"   Endpoint: {request.url.path}\n"
-            f"   Origin: {origin or '(MISSING)'}\n"
-            f"   Allowed Origins: {', '.join(allowed_origins) if allowed_origins else '(NONE CONFIGURED)'}\n"
-            f"   Method: {request.method}\n"
-            f"   ⚠️  This usually means FRONTEND_URLS/PRODUCTION_URL is missing the origin URL"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                f"Access denied: Origin '{origin or '(missing)'}' is not in the allowed origins list. "
-                f"Please check that FRONTEND_URLS (dev) or PRODUCTION_URL (prod) includes this origin."
-            )
-        )
+        _raise_disallowed_origin(request, origin, allowed_origins)
     
     return True
+
+
+async def verify_auth_client(request: Request):
+    """
+    Verify auth client access for login endpoints used by browsers and native iOS.
+
+    Browser requests keep the strict Origin allowlist behavior. Missing-Origin
+    requests are accepted only when they identify as the native iOS app; these
+    headers classify the client and are not treated as authentication.
+    """
+    origin = request.headers.get("origin")
+    allowed_origins = request.app.state.allowed_origins
+
+    if origin:
+        if origin not in allowed_origins:
+            _raise_disallowed_origin(request, origin, allowed_origins)
+        return True
+
+    if _is_native_ios_client(request):
+        return True
+
+    _raise_disallowed_origin(request, origin, allowed_origins)
+
+
+def _is_native_ios_client(request: Request) -> bool:
+    user_agent = request.headers.get("user-agent", "")
+    client = request.headers.get("x-openmates-client", "")
+    bundle_id = request.headers.get("x-openmates-bundle-id", "")
+    expected_bundle_id = os.getenv("OPENMATES_IOS_BUNDLE_ID", "").strip()
+
+    if not user_agent.startswith("OpenMates-Apple/"):
+        return False
+    if client != "ios":
+        return False
+    if expected_bundle_id and bundle_id != expected_bundle_id:
+        return False
+
+    return True
+
+
+def _raise_disallowed_origin(request: Request, origin: Optional[str], allowed_origins) -> None:
+    # Log detailed error information for debugging
+    logger.error(
+        f"🚨 CORS BLOCKED: Unauthorized origin access\n"
+        f"   Endpoint: {request.url.path}\n"
+        f"   Origin: {origin or '(MISSING)'}\n"
+        f"   Allowed Origins: {', '.join(allowed_origins) if allowed_origins else '(NONE CONFIGURED)'}\n"
+        f"   Method: {request.method}\n"
+        f"   ⚠️  This usually means FRONTEND_URLS/PRODUCTION_URL is missing the origin URL"
+    )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            f"Access denied: Origin '{origin or '(missing)'}' is not in the allowed origins list. "
+            f"Please check that FRONTEND_URLS (dev) or PRODUCTION_URL (prod) includes this origin."
+        )
+    )
 
 def get_cookie_domain(request: Request) -> Optional[str]:
     """

@@ -76,7 +76,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_compliance_service,
     get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, verify_auth_client, validate_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
@@ -1435,7 +1435,7 @@ async def passkey_registration_complete(
             user=None
         )
 
-@router.post("/passkey/assertion/initiate", response_model=PasskeyAssertionInitiateResponse, dependencies=[Depends(verify_allowed_origin)])
+@router.post("/passkey/assertion/initiate", response_model=PasskeyAssertionInitiateResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("10/minute")
 async def passkey_assertion_initiate(
     request: Request,
@@ -1588,7 +1588,7 @@ async def passkey_assertion_initiate(
             message=f"Failed to initiate passkey assertion: {str(e)}"
         )
 
-@router.post("/passkey/assertion/verify", response_model=PasskeyAssertionVerifyResponse, dependencies=[Depends(verify_allowed_origin)])
+@router.post("/passkey/assertion/verify", response_model=PasskeyAssertionVerifyResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("10/minute")
 async def passkey_assertion_verify(
     request: Request,
