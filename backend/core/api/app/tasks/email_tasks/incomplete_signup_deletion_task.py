@@ -26,7 +26,8 @@ INITIAL_NOTICE_AFTER_DAYS = 14
 SECOND_NOTICE_AFTER_DAYS = 7
 FINAL_NOTICE_AFTER_DAYS = 13
 DELETE_AFTER_FINAL_NOTICE_DAYS = 1
-ANNOUNCEMENT_PATH = "/announcements/introducing-openmates-v09"
+ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
+ANNOUNCEMENT_THUMBNAIL_PATH = "/newsletter-assets/intro-thumbnail-EN.jpg"
 SEND_DELAY_SECONDS = float(os.getenv("INCOMPLETE_SIGNUP_EMAIL_SEND_DELAY_SECONDS", "0.25"))
 
 
@@ -209,7 +210,8 @@ async def _decrypt_email_and_username(task: BaseServiceTask, user: dict[str, Any
 def _reminder_context(stage: str, username: str, account_id: str) -> tuple[str, dict[str, Any]]:
     base_url = get_frontend_base_url()
     finish_setup_link = base_url
-    latest_announcement_link = f"{base_url}{ANNOUNCEMENT_PATH}"
+    latest_announcement_video_link = f"{base_url}/#chat-id={ANNOUNCEMENT_CHAT_ID}&autoplay-video"
+    announcement_thumbnail_url = f"{base_url}{ANNOUNCEMENT_THUMBNAIL_PATH}"
     direct_delete_account_link = f"{base_url}/#settings/account/delete/{account_id}"
 
     if stage == "14d":
@@ -243,7 +245,8 @@ def _reminder_context(stage: str, username: str, account_id: str) -> tuple[str, 
     context.update({
         "username": username,
         "finish_setup_link": finish_setup_link,
-        "latest_announcement_link": latest_announcement_link,
+        "latest_announcement_video_link": latest_announcement_video_link,
+        "announcement_thumbnail_url": announcement_thumbnail_url,
         "direct_delete_account_link": direct_delete_account_link,
     })
     return subject, context

@@ -40,8 +40,25 @@
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            A lot of changes have been made in recent weeks: from various new apps which your AI team mates can use to fulfill all kinds of tasks, many bug fixes and stability improvements, and other features. OpenMates continues to be under very active development. Check the <a href="{{ latest_announcement_link }}" style="color: #4867CD; text-decoration: underline;">most recent announcement</a> for more details.
+            A lot of changes have been made in recent weeks: from various new apps which your AI team mates can use to fulfill all kinds of tasks, many bug fixes and stability improvements, and other features. OpenMates continues to be under very active development. Watch the latest announcement below for a quick tour of what changed.
           </mj-text>
+
+          <mj-text align="left" font-size="14px" color="#808080" padding-bottom="8px">
+            2:50 min update video:
+          </mj-text>
+
+          <mj-image
+            href="{{ latest_announcement_video_link }}"
+            src="{{ announcement_thumbnail_url }}"
+            alt="Watch the latest OpenMates announcement video"
+            width="520px"
+            border-radius="16px"
+            padding="0 0 12px 0"
+          />
+
+          <mj-button href="{{ latest_announcement_video_link }}" background-color="#4867CD" color="#ffffff" border-radius="999px" font-size="16px" font-weight="bold" padding="0 0 18px 0" inner-padding="13px 22px">
+            Watch the announcement
+          </mj-button>
 
           <mj-text align="left" padding-bottom="12px">
             If you would rather delete your account now, you do not need to wait {{ wait_time_text }} but can easily <a href="{{ direct_delete_account_link }}" style="color: #4867CD; text-decoration: underline;">delete your account here</a>.

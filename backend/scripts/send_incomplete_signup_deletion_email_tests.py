@@ -20,7 +20,8 @@ from backend.shared.python_utils.frontend_url import get_frontend_base_url
 
 logger = logging.getLogger(__name__)
 
-ANNOUNCEMENT_PATH = "/announcements/introducing-openmates-v09"
+ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
+ANNOUNCEMENT_THUMBNAIL_PATH = "/newsletter-assets/intro-thumbnail-EN.jpg"
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,8 @@ def _build_reminder_variant(days_remaining: int, base_url: str, username: str, a
             "headline": headline,
             "username": username,
             "finish_setup_link": base_url,
-            "latest_announcement_link": f"{base_url}{ANNOUNCEMENT_PATH}",
+            "latest_announcement_video_link": f"{base_url}/#chat-id={ANNOUNCEMENT_CHAT_ID}&autoplay-video",
+            "announcement_thumbnail_url": f"{base_url}{ANNOUNCEMENT_THUMBNAIL_PATH}",
             "direct_delete_account_link": f"{base_url}/#settings/account/delete/{account_id}",
             "deletion_time_text": deletion_time_text,
             "wait_time_text": wait_time_text,
