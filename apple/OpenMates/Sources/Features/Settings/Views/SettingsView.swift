@@ -20,8 +20,13 @@ struct SettingsView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.dismiss) var dismiss
     @Environment(\.openURL) private var openURL
+    var onClose: (() -> Void)?
     @State private var showIncognitoInfo = false
     @State private var destination: SettingsDestination?
+
+    init(onClose: (() -> Void)? = nil) {
+        self.onClose = onClose
+    }
 
     private var isAuthenticated: Bool { authManager.currentUser != nil }
     private var isAdmin: Bool { authManager.currentUser?.isAdmin == true }
@@ -43,40 +48,17 @@ struct SettingsView: View {
     // MARK: - Main settings menu
     // Web: .settings-menu has grey-20 bg, 17px radius, shadow.
     // Items sit directly on the background — NO container/section wrapper.
-    // Header is a thin strip with breadcrumb, NOT a big bold title.
+    // Root settings collapses .settings-header.app-top-level and starts with settings-banner-shell.
 
     private var settingsHome: some View {
         VStack(spacing: 0) {
-            // Header strip — web: .settings-header, sticky, min-height 30px,
-            // border-bottom 1px solid grey-30, box-shadow 0 2px 4px rgba(0,0,0,0.05)
-            HStack {
-                Text(AppStrings.settings)
-                    .font(.omP)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontPrimary)
-                Spacer()
-                OMIconButton(icon: "close", label: AppStrings.done) {
-                    dismiss()
-                }
-            }
-            .padding(.horizontal, .spacing5)
-            .padding(.vertical, .spacing3)
-            .background(Color.grey20)
-            .overlay(alignment: .bottom) {
-                // 1px bottom border (web: border-bottom: 1px solid var(--color-grey-30))
-                Color.grey30.frame(height: 1)
-            }
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 2)
+            // Web: <div class="settings-banner-shell"><SettingsMainHeader /></div>
+            settingsBannerShell
 
             // Scrollable content — web: .settings-content-wrapper, overflow-y auto
             // Background: grey-20 (same as outer panel), NO additional styling
             ScrollView {
                 VStack(spacing: 0) {
-                    // Profile section — web: .profile-container-docked + .user-info-container
-                    if isAuthenticated {
-                        profileSection
-                    }
-
                     // Menu items — web: flat list, NO container/section wrapper
                     // Each item sits directly on grey-20 background
                     // Items use padding 5px 10px, min-height 40px, radius-3
@@ -149,49 +131,16 @@ struct SettingsView: View {
         .background(Color.grey20) // web: .settings-menu background-color: var(--color-grey-20)
     }
 
-    // MARK: - Profile Section
-    // Web: .profile-container-docked (50x50 circle) + .user-info-container
-    // No container wrapper — sits directly on grey-20 background
+    // MARK: - Settings Banner Shell
+    // Web: .settings-banner-shell wrapping SettingsMainHeader.svelte.
 
-    private var profileSection: some View {
-        Group {
-            if let user = authManager.currentUser {
-                HStack(spacing: 0) {
-                    // Web: .profile-container-docked, 50x50 circle
-                    Circle()
-                        .fill(LinearGradient.primary)
-                        .frame(width: 50, height: 50)
-                        .overlay {
-                            Text(String(user.username.prefix(1)).uppercased())
-                                .font(.omH4)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.trailing, .spacing6)
-
-                    // Web: .user-info-container, margin-inline-start 85px (but we use HStack)
-                    VStack(alignment: .leading, spacing: .spacing2) {
-                        // Web: .username, font-size-xl (20px), weight 500
-                        Text(user.username)
-                            .font(.omH3) // web: font-size-xl = 20px = omH3
-                            .foregroundStyle(Color.fontPrimary)
-                        if let credits = user.credits {
-                            // Web: .credits-container with coins icon + amount
-                            HStack(spacing: .spacing4) {
-                                Icon("coins", size: 19)
-                                    .foregroundStyle(LinearGradient.primary)
-                                Text(AppStrings.creditsAmount(String(format: "%.2f", credits)))
-                                    .font(.omP)
-                                    .foregroundStyle(Color.fontPrimary)
-                            }
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(.vertical, .spacing5)
-            }
-        }
+    private var settingsBannerShell: some View {
+        SettingsMainBanner(
+            username: authManager.currentUser?.username ?? AppStrings.guest,
+            profileImageUrl: authManager.currentUser?.profileImageUrl,
+            isAuthenticated: isAuthenticated,
+            credits: authManager.currentUser?.credits
+        )
     }
 
     // MARK: - Footer
@@ -304,9 +253,9 @@ struct SettingsView: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.fontPrimary)
                     Spacer()
-                    OMIconButton(icon: "close", label: AppStrings.cancel, size: 32) {
-                        showIncognitoInfo = false
-                    }
+                OMIconButton(icon: "close", label: AppStrings.cancel, size: 32) {
+                    showIncognitoInfo = false
+                }
                 }
                 .padding(.spacing6)
 
@@ -346,7 +295,7 @@ struct SettingsView: View {
                     .foregroundStyle(Color.fontPrimary)
                 Spacer()
                 OMIconButton(icon: "close", label: AppStrings.done, size: 36) {
-                    dismiss()
+                    closeSettings()
                 }
             }
             .padding(.horizontal, .spacing8)
@@ -357,6 +306,14 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.grey0)
+    }
+
+    private func closeSettings() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 
     @ViewBuilder
@@ -428,6 +385,101 @@ struct SettingsView: View {
             case .imprint: LegalChatView(documentType: .imprint)
             }
         }
+    }
+}
+
+private struct SettingsMainBanner: View {
+    let username: String
+    let profileImageUrl: String?
+    let isAuthenticated: Bool
+    let credits: Double?
+
+    var body: some View {
+        ZStack {
+            LinearGradient.appOpenmates
+
+            Circle()
+                .fill(Color.white.opacity(0.18))
+                .frame(width: 220, height: 220)
+                .blur(radius: 24)
+                .offset(x: -70, y: -70)
+
+            Circle()
+                .fill(Color.white.opacity(0.14))
+                .frame(width: 190, height: 190)
+                .blur(radius: 24)
+                .offset(x: 90, y: 78)
+
+            VStack(spacing: .spacing4) {
+                avatar
+
+                Text(username)
+                    .font(.omH3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+
+                if isAuthenticated, let credits {
+                    HStack(spacing: .spacing3) {
+                        Icon("coins", size: 19)
+                            .foregroundStyle(.white)
+                        Text(AppStrings.creditsAmount(Self.formatCredits(credits)))
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .padding(.horizontal, .spacing8)
+        }
+        .frame(height: 190)
+        .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 4)
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        if isAuthenticated, let profileImageUrl, let url = URL(string: profileImageUrl) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                default:
+                    defaultAvatar
+                }
+            }
+            .frame(width: 56, height: 56)
+            .clipShape(Circle())
+            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
+        } else {
+            defaultAvatar
+        }
+    }
+
+    private var defaultAvatar: some View {
+        Circle()
+            .fill(Color.white.opacity(isAuthenticated ? 0.22 : 0.28))
+            .frame(width: 56, height: 56)
+            .overlay {
+                Icon("user", size: 34)
+                    .foregroundStyle(.white)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
+    }
+
+    private static func formatCredits(_ credits: Double) -> String {
+        let digits = String(Int(credits.rounded()))
+        var result = ""
+        for (index, character) in digits.reversed().enumerated() {
+            if index > 0, index % 3 == 0 {
+                result.append(".")
+            }
+            result.append(character)
+        }
+        return String(result.reversed())
     }
 }
 

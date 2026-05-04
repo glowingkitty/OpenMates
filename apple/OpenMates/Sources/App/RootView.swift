@@ -40,9 +40,11 @@ struct LaunchScreen: View {
         ZStack {
             Color.grey0.ignoresSafeArea()
             VStack(spacing: .spacing4) {
-                Image.iconOpenmates
+                Image("openmates-brand")
+                    .renderingMode(.original)
                     .resizable()
                     .frame(width: 64, height: 64)
+                    .clipShape(Circle())
                 ProgressView()
                     .tint(.fontSecondary)
             }

@@ -211,6 +211,7 @@ deployment/prod_server/prod-cloud-config.yaml
 .deployment
 
 # Private context files (anywhere within .context)
+.context/
 .tempcontext
 .ruff_cache
 .vscode
@@ -218,6 +219,11 @@ deployment/prod_server/prod-cloud-config.yaml
 *-env*
 .aider*
 .roo*
+
+# Local MCP/tooling state
+.xcodebuildmcp/
+.playwright-mcp/
+privacy-video.mp4
 .turbo
 
 # Claude Code — ignore runtime state, allow config/hooks/skills

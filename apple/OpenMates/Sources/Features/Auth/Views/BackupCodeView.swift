@@ -16,6 +16,7 @@ import SwiftUI
 struct BackupCodeView: View {
     @EnvironmentObject var authManager: AuthManager
     let email: String
+    let userEmailSalt: String?
 
     @State private var password = ""
     @State private var backupCode = ""
@@ -102,7 +103,10 @@ struct BackupCodeView: View {
         Task {
             do {
                 try await authManager.loginWithBackupCode(
-                    email: email, password: password, backupCode: backupCode
+                    email: email,
+                    password: password,
+                    backupCode: backupCode,
+                    userEmailSalt: userEmailSalt
                 )
             } catch let error as APIError {
                 errorMessage = error.localizedDescription

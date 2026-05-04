@@ -103,4 +103,54 @@ final class ChatModelsTests: XCTestCase {
 
         XCTAssertEqual(chat.displayTitle, "New Chat", "Should fall back to 'New Chat' when title is nil")
     }
+
+    func testWelcomeComposerRulesMatchWebWelcomeState() {
+        XCTAssertFalse(
+            WelcomeScreenState.shouldShowWelcomeNewChatCTA(inputText: ""),
+            "Welcome screen should not show the standalone New chat CTA"
+        )
+        XCTAssertFalse(
+            WelcomeScreenState.shouldShowInFieldSendButton(inputText: "   "),
+            "Send appears only once the composer has real content"
+        )
+        XCTAssertTrue(
+            WelcomeScreenState.shouldShowInFieldSendButton(inputText: "Hello"),
+            "Send appears inside the composer when content exists"
+        )
+        XCTAssertTrue(
+            WelcomeScreenState.shouldHideMobileNewChatLabel(isCompact: true),
+            "Mobile compact new-chat affordance should be icon-only"
+        )
+    }
+
+    func testWelcomeRecentChatsExcludeResumeAndPublicChats() {
+        let chats = [
+            makeWelcomeChat(id: "resume-chat", title: "Resume", lastMessageAt: "2026-05-04T10:00:00Z"),
+            makeWelcomeChat(id: "recent-chat", title: "Recent", lastMessageAt: "2026-05-04T09:00:00Z"),
+            makeWelcomeChat(id: "demo-for-everyone", title: "Demo", lastMessageAt: "2026-05-04T08:00:00Z"),
+            makeWelcomeChat(id: "legal-privacy", title: "Legal", lastMessageAt: "2026-05-04T07:00:00Z"),
+            makeWelcomeChat(id: "example-gigantic-airplanes", title: "Example", lastMessageAt: "2026-05-04T06:00:00Z")
+        ]
+
+        let resume = WelcomeScreenState.resumeChat(from: chats, lastOpened: "resume-chat")
+        let recent = WelcomeScreenState.recentChats(from: chats, excluding: resume?.id)
+
+        XCTAssertEqual(resume?.id, "resume-chat")
+        XCTAssertEqual(recent.map(\.id), ["recent-chat"])
+    }
+
+    private func makeWelcomeChat(id: String, title: String, lastMessageAt: String) -> Chat {
+        Chat(
+            id: id,
+            title: title,
+            lastMessageAt: lastMessageAt,
+            createdAt: lastMessageAt,
+            updatedAt: lastMessageAt,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil
+        )
+    }
 }

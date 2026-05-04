@@ -857,9 +857,31 @@ private enum PublicChatContent {
     }
 
     private static func sanitize(_ content: String) -> String {
-        content
+        let placeholders = [
+            "[[example_chats_group]]",
+            "[[dev_example_chats_group]]",
+            "[[app_store_group]]",
+            "[[dev_app_store_group]]",
+            "[[skills_group]]",
+            "[[dev_skills_group]]",
+            "[[focus_modes_group]]",
+            "[[dev_focus_modes_group]]",
+            "[[settings_memories_group]]",
+            "[[dev_settings_memories_group]]",
+            "[[ai_models_group]]",
+            "[[for_developers_embed]]"
+        ]
+        var cleaned = content
+        for (index, placeholder) in placeholders.enumerated() {
+            cleaned = cleaned.replacingOccurrences(of: placeholder, with: "__OM_DEMO_PLACEHOLDER_\(index)__")
+        }
+        cleaned = cleaned
             .replacingOccurrences(of: #"\[\[[^\]]+\]\]"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: "\n\n\n", with: "\n\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        for (index, placeholder) in placeholders.enumerated() {
+            cleaned = cleaned.replacingOccurrences(of: "__OM_DEMO_PLACEHOLDER_\(index)__", with: placeholder)
+        }
+        return cleaned
     }
 }

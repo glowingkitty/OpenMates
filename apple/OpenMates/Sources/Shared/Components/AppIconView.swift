@@ -23,6 +23,10 @@ struct AppIconView: View {
     }
 
     static func gradient(forAppId appId: String) -> LinearGradient {
+        if CategoryMapping.isKnownCategory(appId) {
+            return CategoryMapping.gradient(for: appId)
+        }
+
         switch appId {
         case "ai": return .appAi
         case "openmates": return .openMatesOfficial
@@ -52,6 +56,10 @@ struct AppIconView: View {
     }
 
     static func iconName(forAppId appId: String) -> String {
+        if CategoryMapping.isKnownCategory(appId) {
+            return CategoryMapping.iconName(for: appId)
+        }
+
         // Check aliases first
         switch appId {
         case "health": return IconAlias.health

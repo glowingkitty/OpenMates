@@ -15,6 +15,7 @@ import SwiftUI
 struct PasswordLoginView: View {
     @EnvironmentObject var authManager: AuthManager
     let email: String
+    let userEmailSalt: String?
     let tfaEnabled: Bool
     @Binding var stayLoggedIn: Bool
     let onRecoveryKey: () -> Void
@@ -52,10 +53,10 @@ struct PasswordLoginView: View {
                         else { performLogin() }
                     }
                     .accessibilityIdentifier("password-input")
-                    .accessibleInput(AppStrings.password, hint: LocalizationManager.shared.text("auth.enter_account_password"))
+                        .accessibleInput(AppStrings.password, hint: LocalizationManager.shared.text("login.password_placeholder"))
 
                 if showTfaField {
-                    TextField(LocalizationManager.shared.text("auth.authenticator_code"), text: $tfaCode)
+                    TextField(LocalizationManager.shared.text("login.2fa_code_placeholder"), text: $tfaCode)
                         .textFieldStyle(OMTextFieldStyle())
                         #if os(iOS)
                         .keyboardType(.numberPad)
@@ -65,8 +66,8 @@ struct PasswordLoginView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .accessibilityIdentifier("tfa-code-input")
                         .accessibleInput(
-                            LocalizationManager.shared.text("auth.two_factor_code"),
-                            hint: LocalizationManager.shared.text("auth.enter_6_digit_code")
+                            LocalizationManager.shared.text("login.2fa_code_placeholder"),
+                            hint: LocalizationManager.shared.text("login.check_your_2fa_app")
                         )
                 }
 
@@ -78,11 +79,11 @@ struct PasswordLoginView: View {
                 }
             }
 
-            Toggle(LocalizationManager.shared.text("auth.stay_logged_in"), isOn: $stayLoggedIn)
+            Toggle(LocalizationManager.shared.text("login.stay_logged_in"), isOn: $stayLoggedIn)
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
                 .tint(Color.buttonPrimary)
-                .accessibleToggle(LocalizationManager.shared.text("auth.stay_logged_in"), isOn: stayLoggedIn)
+                .accessibleToggle(LocalizationManager.shared.text("login.stay_logged_in"), isOn: stayLoggedIn)
 
             Button(action: performLogin) {
                 Group {
@@ -98,7 +99,7 @@ struct PasswordLoginView: View {
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(password.isEmpty || isLoading)
             .accessibilityIdentifier("login-button")
-            .accessibleButton(AppStrings.login, hint: LocalizationManager.shared.text("auth.sign_in_to_account"))
+            .accessibleButton(AppStrings.login, hint: LocalizationManager.shared.text("login.login_button"))
 
             // Recovery options
             VStack(spacing: .spacing3) {
@@ -107,17 +108,17 @@ struct PasswordLoginView: View {
                 }
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
-                .accessibleButton(AppStrings.loginWithRecoveryKey, hint: LocalizationManager.shared.text("auth.use_recovery_key_instead"))
+                .accessibleButton(AppStrings.loginWithRecoveryKey, hint: LocalizationManager.shared.text("login.login_with_recovery_key"))
 
                 if showTfaField {
-                    Button(LocalizationManager.shared.text("auth.use_backup_code")) {
+                    Button(LocalizationManager.shared.text("login.login_with_backup_code")) {
                         onBackupCode()
                     }
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
                     .accessibleButton(
-                        LocalizationManager.shared.text("auth.use_backup_code"),
-                        hint: LocalizationManager.shared.text("auth.use_backup_code_instead")
+                        LocalizationManager.shared.text("login.login_with_backup_code"),
+                        hint: LocalizationManager.shared.text("login.backup_code_is_single_use")
                     )
                 }
             }
@@ -138,6 +139,7 @@ struct PasswordLoginView: View {
                 try await authManager.loginWithPassword(
                     email: email,
                     password: password,
+                    userEmailSalt: userEmailSalt,
                     tfaCode: showTfaField ? tfaCode : nil,
                     stayLoggedIn: stayLoggedIn
                 )
@@ -146,11 +148,16 @@ struct PasswordLoginView: View {
                     showTfaField = true
                     focusedField = .tfa
                 }
-                AccessibilityAnnouncement.announce(LocalizationManager.shared.text("auth.two_factor_required"))
+                AccessibilityAnnouncement.announce(LocalizationManager.shared.text("login.check_your_2fa_app"))
+            } catch AuthError.invalidTwoFactorCode {
+                errorMessage = AuthError.invalidTwoFactorCode.localizedDescription
+                tfaCode = ""
+                focusedField = .tfa
+                AccessibilityAnnouncement.announce(AuthError.invalidTwoFactorCode.localizedDescription)
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
             } catch {
-                errorMessage = LocalizationManager.shared.text("auth.login_failed")
+                errorMessage = LocalizationManager.shared.text("login.login_failed")
             }
             isLoading = false
         }

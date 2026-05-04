@@ -15,10 +15,14 @@
 //
 // inputBar:
 //   Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
-//   CSS:     frontend/packages/ui/src/styles/fields.css
-//            border-radius:24px; border:2px solid var(--color-grey-0);
-//            :focus { border-color:var(--color-button-primary);
-//              box-shadow:0 0 0 3px rgba(255,85,59,.22), 0 4px 12px rgba(0,0,0,.08) }
+//   CSS:     frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+//            .message-field { background-color:var(--color-grey-blue); border-radius:24px;
+//              min-height:100px; padding:0 0 60px 0;
+//              box-shadow:0 4px 12px rgba(0,0,0,0.08); /* no border, no focus ring */ }
+//   CSS:     frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+//            .send-button { color:white; padding:spacing-4 spacing-8; border-radius:radius-8;
+//              height:40px; font-weight:500 }
+//            .action-buttons { position:absolute; bottom:1rem; left:1rem; right:1rem }
 //
 // messageList / StreamingIndicator:
 //   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
@@ -90,7 +94,7 @@ struct ChatView: View {
                     inputBar
                 }
             }
-            .background(Color.grey0)
+            .background(Color.grey20)
 
             if showReminder {
                 customOverlay(title: AppStrings.setReminder, isPresented: $showReminder) {
@@ -176,7 +180,7 @@ struct ChatView: View {
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
-        .background(Color.grey0)
+        .background(Color.grey20)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.grey20)
@@ -460,14 +464,14 @@ struct ChatView: View {
                     .foregroundStyle(Color.fontButton)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, .spacing5)
+            .frame(height: 48)
             .background(Color.buttonPrimary)
             .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
         }
         .buttonStyle(.plain)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
-        .background(Color.grey0)
+        .background(Color.grey20)
     }
 
     // MARK: - Input bar
@@ -486,7 +490,7 @@ struct ChatView: View {
                     .accessibilityHint(AppStrings.typeMessage)
                     .padding(.horizontal, .spacing6)
                     .padding(.top, .spacing6)
-                    .padding(.bottom, 62)
+                    .padding(.bottom, .spacing32)
                     .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
 
                 HStack(spacing: .spacing5) {
@@ -527,17 +531,19 @@ struct ChatView: View {
                         }
                     } else {
                         Button(action: sendMessage) {
-                            Icon("up", size: 16)
-                                .foregroundStyle(
-                                    messageText.isEmpty ? Color.fontTertiary : Color.fontButton
-                                )
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    messageText.isEmpty ? Color.grey20 : Color.buttonPrimary
-                                )
-                                .clipShape(Circle())
+                            Text(AppStrings.sendAction)
+                                .font(.omP)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color.fontButton)
+                                .padding(.horizontal, .spacing8)
+                                .padding(.vertical, .spacing4)
+                                .frame(height: 40)
+                                .background(Color.buttonPrimary)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius8))
                         }
+                        .buttonStyle(.plain)
                         .disabled(messageText.isEmpty || viewModel.isStreaming)
+                        .opacity(messageText.isEmpty ? 0.6 : 1.0)
                         .accessibilityLabel(AppStrings.sendMessage)
                         .accessibilityHint(AppStrings.typeMessage)
                         #if os(macOS)
@@ -550,25 +556,7 @@ struct ChatView: View {
             }
             .background(Color.greyBlue)
             .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(
-                        isInputFocused ? Color.buttonPrimary : Color.grey20,
-                        lineWidth: 2
-                    )
-            )
-            .shadow(
-                color: isInputFocused ? Color.buttonPrimary.opacity(0.22) : .clear,
-                radius: 3,
-                x: 0,
-                y: 0
-            )
-            .shadow(
-                color: isInputFocused ? .black.opacity(0.10) : .black.opacity(0.08),
-                radius: isInputFocused ? 12 : 2,
-                x: 0,
-                y: 4
-            )
+            .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
         }
@@ -622,9 +610,19 @@ struct MessageBubble: View {
 
     // MARK: - Assistant avatar with AI badge
 
-    /// True for openmates_official chats — shows OpenMates favicon, hides AI badge
+    private static let openMatesOfficialChatIds: Set<String> = [
+        "demo-for-everyone",
+        "demo-for-developers",
+        "demo-who-develops-openmates",
+        "announcements-introducing-openmates-v09",
+        "legal-privacy",
+        "legal-terms",
+        "legal-imprint"
+    ]
+
+    /// True for openmates_official chats — shows OpenMates favicon, hides AI badge.
     private var isOpenMatesOfficial: Bool {
-        chatId == "demo-for-everyone" || chatId == "demo-who-develops-openmates"
+        Self.openMatesOfficialChatIds.contains(chatId)
     }
 
     /// Gradient for the avatar — openmates_official and default "ai" use .primary (blue/purple).
@@ -644,10 +642,10 @@ struct MessageBubble: View {
     private var assistantAvatar: some View {
         Group {
             if isOpenMatesOfficial {
-                // Web: .mate-profile.openmates_official — favicon.svg as background-image,
+                // Web: .mate-profile.openmates_official — favicon as background-image,
                 // background-size:contain, border-radius:50%, no AI badge.
-                // Render as .original to preserve the SVG's built-in gradient.
-                Image("openmates")
+                // Use the PNG brand asset because Xcode distorts this colorful SVG.
+                Image("openmates-brand")
                     .renderingMode(.original)
                     .resizable()
                     .scaledToFill()
@@ -700,15 +698,24 @@ struct MessageBubble: View {
     private var assistantContent: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if !displayContent.isEmpty {
-                RichMarkdownView(content: displayContent, isUserMessage: false)
-                    .foregroundStyle(Color.fontPrimary)
-                    .padding(.spacing6)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: 13))
-                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-                    .overlay(alignment: .topLeading) {
-                        SpeechTailView(side: .leading, color: Color.grey0)
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    if isOpenMatesOfficial {
+                        Text(AppStrings.openMatesName)
+                            .font(.omH3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(LinearGradient.primary)
                     }
+
+                    RichMarkdownView(content: displayContent, isUserMessage: false)
+                }
+                .foregroundStyle(Color.grey100)
+                .padding(.spacing6)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: 13))
+                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                .overlay(alignment: .topLeading) {
+                    SpeechTailView(side: .leading, color: Color.grey0)
+                }
             }
             if !embeds.isEmpty {
                 let groups = EmbedGrouper.group(embeds)

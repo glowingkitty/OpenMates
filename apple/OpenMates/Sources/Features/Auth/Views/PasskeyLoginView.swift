@@ -32,13 +32,12 @@ struct PasskeyLoginView: View {
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
 
-            Image(systemName: "person.badge.key.fill")
-                .font(.system(size: 48))
+            LucideNativeIcon("key-round", size: 48)
                 .foregroundStyle(Color.buttonPrimary)
                 .padding(.vertical, .spacing6)
                 .accessibilityHidden(true)
 
-            Text(LocalizationManager.shared.text("auth.passkey_sign_in_description"))
+            Text(LocalizationManager.shared.text("login.sign_in_via_trusted_device"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
@@ -56,7 +55,10 @@ struct PasskeyLoginView: View {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Label(LocalizationManager.shared.text("auth.continue_with_passkey"), systemImage: "person.badge.key.fill")
+                        HStack(spacing: .spacing2) {
+                            LucideNativeIcon("key-round", size: 16)
+                            Text(LocalizationManager.shared.text("login.login_with_passkey"))
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -64,8 +66,8 @@ struct PasskeyLoginView: View {
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(isLoading)
             .accessibleButton(
-                LocalizationManager.shared.text("auth.continue_with_passkey"),
-                hint: LocalizationManager.shared.text("auth.use_face_id_or_touch_id")
+                LocalizationManager.shared.text("login.login_with_passkey"),
+                hint: LocalizationManager.shared.text("login.login_with_passkey")
             )
         }
     }

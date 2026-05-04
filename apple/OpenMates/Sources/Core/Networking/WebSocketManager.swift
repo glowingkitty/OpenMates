@@ -312,6 +312,13 @@ private struct WSInboundParsed: Decodable {
 struct WSOutboundMessage: Encodable {
     let type: String
     let data: [String: String]?
+    let payload: [String: String]?
+
+    init(type: String, data: [String: String]? = nil, payload: [String: String]? = nil) {
+        self.type = type
+        self.data = data
+        self.payload = payload
+    }
 }
 
 // MARK: - Notifications

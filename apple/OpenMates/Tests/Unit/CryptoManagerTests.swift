@@ -6,6 +6,29 @@ import XCTest
 
 final class CryptoManagerTests: XCTestCase {
 
+    func testAuthEmailHashMatchesWebCryptoService() async {
+        let hash = await CryptoManager.shared.hashEmail("User@Example.COM ")
+        XCTAssertEqual(hash, "dw08B3jtSDceVX2wPC3wEokV4PjyZRVJLe6V98kDXSE=")
+    }
+
+    func testAuthLookupHashMatchesWebCryptoService() async {
+        let salt = Data([0, 1, 2, 3, 4, 250, 251, 252, 253, 254, 255])
+        let hash = await CryptoManager.shared.hashKey(
+            "correct horse battery staple",
+            salt: salt
+        )
+        XCTAssertEqual(hash, "yaYZc0OAZhR1IQDqqLNIGacvCUxu4vKMlmxdfpVINck=")
+    }
+
+    func testEmailEncryptionKeyMatchesWebCryptoService() async {
+        let salt = Data([0, 1, 2, 3, 4, 250, 251, 252, 253, 254, 255])
+        let key = await CryptoManager.shared.deriveEmailEncryptionKey(
+            email: "User@Example.COM ",
+            salt: salt
+        )
+        XCTAssertEqual(key.base64EncodedString(), "BpQbRHxLfa5NtlSrw1jB0r1jRdeK0Amz9QP1+tWqJRQ=")
+    }
+
     func testEncryptDecryptRoundTrip() async throws {
         let plaintext = "Hello, OpenMates!"
         let key = CryptoManager.generateRandomKey()

@@ -64,6 +64,14 @@ final class LocalizationManager: ObservableObject {
         if let value = resolveKeyPath(keyPath, in: fallbackTranslations) {
             return value
         }
+        if let alias = legacyAuthKeyAliases[keyPath] {
+            if let value = resolveKeyPath(alias, in: translations) {
+                return value
+            }
+            if let value = resolveKeyPath(alias, in: fallbackTranslations) {
+                return value
+            }
+        }
         return keyPath
     }
 
@@ -147,6 +155,89 @@ final class LocalizationManager: ObservableObject {
             return nil
         }
     }
+
+    private let legacyAuthKeyAliases: [String: String] = [
+        "auth.create_account": "signup.create_new_account",
+        "auth.cancel_signup": "signup.cancel_signup",
+        "auth.lets_get_started": "signup.create_new_account",
+        "auth.email": "login.email_placeholder",
+        "auth.enter_account_email": "login.email_placeholder",
+        "auth.choose_username_hint": "signup.enter_username",
+        "auth.create_account_hint": "signup.create_new_account",
+        "auth.check_your_email": "signup.you_received_a_one_time_code_via_email",
+        "auth.sent_verification_code": "signup.you_received_a_one_time_code_via_email",
+        "auth.verification_code": "signup.enter_one_time_code",
+        "auth.enter_code_from_email": "signup.enter_one_time_code",
+        "auth.verify": "common.continue",
+        "auth.verify_email_hint": "signup.enter_one_time_code",
+        "auth.set_a_password": "signup.create_password",
+        "auth.password_min_chars": "signup.create_password",
+        "auth.password": "signup.password",
+        "auth.password_min_chars_hint": "signup.password_needs_number",
+        "auth.confirm_password": "signup.confirm_password",
+        "auth.retype_new_password": "signup.repeat_password",
+        "auth.passwords_dont_match": "signup.passwords_do_not_match",
+        "auth.set_password_and_continue": "signup.create_password",
+        "auth.add_a_passkey": "signup.passkey_instruction_title",
+        "auth.passkey_description": "signup.passkey_instruction_text",
+        "auth.set_up_passkey": "signup.create_passkey",
+        "auth.use_face_id_or_touch_id": "signup.passkey_info",
+        "auth.skip_passkey_hint": "signup.skip_for_now",
+        "auth.save_your_recovery_key": "common.recovery_key",
+        "auth.recovery_key_description": "signup.recovery_key_save_description",
+        "auth.recovery_key": "common.recovery_key",
+        "auth.double_tap_to_select": "common.copy",
+        "auth.copy_key": "common.copy",
+        "auth.copy_recovery_key_hint": "common.copy",
+        "auth.ive_saved_my_key": "common.continue",
+        "auth.confirm_key_saved_hint": "common.continue",
+        "auth.backup_codes": "login.login_with_backup_code",
+        "auth.backup_codes_description": "login.backup_code_is_single_use",
+        "auth.copy_all_codes": "common.copy",
+        "auth.copy_all_backup_codes_hint": "common.copy",
+        "auth.continue_after_saving_codes": "common.continue",
+        "auth.add_credits": "common.credits",
+        "auth.credits_description": "common.credits",
+        "auth.opens_payment_in_browser": "common.credits",
+        "auth.skip_payment_hint": "signup.skip_for_now",
+        "auth.continue_with_profile_picture": "common.continue",
+        "auth.skip_profile_picture_hint": "signup.skip_for_now",
+        "auth.welcome_to_openmates": "signup.sign_up",
+        "auth.account_ready": "signup.recovery_key_downloaded",
+        "auth.get_started": "common.continue",
+        "auth.open_app_hint": "common.continue",
+        "auth.enter_password": "login.password_placeholder",
+        "auth.forgot_password": "login.forgot_password",
+        "auth.login_with_passkey": "login.login_with_passkey",
+        "auth.login_with_password": "login.login_with_password_and_tfa",
+        "auth.login_with_recovery_key": "login.login_with_recovery_key",
+        "auth.two_factor_required": "login.check_your_2fa_app",
+        "auth.invalid_credentials": "login.email_or_password_wrong",
+        "auth.lookup_login_methods": "login.continue",
+        "auth.passkey_login_screen": "login.login_with_passkey",
+        "auth.password_login_screen": "login.password_placeholder",
+        "auth.account_recovery": "login.cant_login",
+        "auth.enter_recovery_key_description": "login.recovery_use_recovery_key",
+        "auth.recovery_key_placeholder": "login.recoverykey_placeholder",
+        "auth.enter_24_char_recovery_key": "login.recoverykey_placeholder",
+        "auth.recover_account": "login.complete_reset",
+        "auth.sign_in_with_recovery_key": "login.login_with_recovery_key",
+        "auth.recovery_failed": "login.recovery_key_wrong",
+        "auth.use_backup_code": "login.login_with_backup_code",
+        "auth.enter_password_and_backup_code": "login.enter_backup_code_description",
+        "auth.backup_code_format": "login.enter_backup_code",
+        "auth.backup_code": "login.enter_backup_code",
+        "auth.backup_code_format_hint": "login.backup_code_is_single_use",
+        "auth.login_with_backup_code": "login.login_with_backup_code",
+        "auth.sign_in_using_backup_code": "login.login_with_backup_code",
+        "auth.login_failed_check_credentials": "login.login_failed",
+        "auth.verify_this_device": "login.verify_device_passkey_button",
+        "auth.verify_device_description": "login.verify_device_location_change_notice",
+        "auth.six_digit_code": "login.2fa_code_placeholder",
+        "auth.enter_6_digit_code_auto_submit": "login.check_your_2fa_app",
+        "auth.verify_device_hint": "login.verify_device_passkey_prompt",
+        "auth.verification_failed": "login.verify_device_passkey_error"
+    ]
 }
 
 // MARK: - SwiftUI Environment

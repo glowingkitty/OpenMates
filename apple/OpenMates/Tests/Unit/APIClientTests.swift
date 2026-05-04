@@ -17,6 +17,19 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(webURL.absoluteString.hasPrefix("http"))
     }
 
+    func testNativeClientHeadersIdentifyAppleClientWithoutOrigin() {
+        let headers = APIClient.nativeClientHeaders
+
+        XCTAssertTrue(headers["User-Agent"]?.hasPrefix("OpenMates-Apple/") == true)
+        #if os(iOS)
+        XCTAssertEqual(headers["X-OpenMates-Client"], "ios")
+        #elseif os(macOS)
+        XCTAssertEqual(headers["X-OpenMates-Client"], "macos")
+        #endif
+        XCTAssertFalse(headers["X-OpenMates-Bundle-ID"]?.isEmpty ?? true)
+        XCTAssertNil(headers["Origin"])
+    }
+
     func testUnauthenticatedRequestReturns401() async {
         do {
             let _: [String: AnyCodable] = try await APIClient.shared.request(

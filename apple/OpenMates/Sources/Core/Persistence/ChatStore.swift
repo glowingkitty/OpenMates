@@ -46,6 +46,11 @@ final class ChatStore: ObservableObject {
         bridge?.onChatDeleted(chatId)
     }
 
+    func clearInMemory() {
+        chats.removeAll()
+        messagesByChat.removeAll()
+    }
+
     func chat(for id: String) -> Chat? {
         chats.first { $0.id == id }
     }

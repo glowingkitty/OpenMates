@@ -21,6 +21,12 @@
 
 import SwiftUI
 import AVKit
+import LucideIcons
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 // MARK: - Banner State
 
@@ -62,7 +68,9 @@ struct ChatBannerView: View {
     private var isCompact: Bool { sizeClass == .compact }
     /// True when banner is narrow enough for mobile crossfade layout (matches web's max-width: 520px).
     private var useCompactTeaser: Bool { bannerWidth > 0 ? bannerWidth < 520 : isCompact }
-    private var minHeight: CGFloat { isCompact ? 230 : 240 }
+    /// Web mobile screenshot parity: the intro header resolves to the fixed
+    /// minimum card height instead of growing with the viewport.
+    private let bannerHeight: CGFloat = 240
 
     var body: some View {
         // TimelineView drives continuous animation for orbs + deco icons.
@@ -70,7 +78,6 @@ struct ChatBannerView: View {
         TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
             let now = timeline.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
-                let bannerHeight = max(minHeight, geo.size.height * 0.35)
                 let _ = updateBannerWidth(geo.size.width)
                 ZStack {
                     // 1. Gradient background
@@ -112,7 +119,7 @@ struct ChatBannerView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: minHeight)
+        .frame(height: bannerHeight)
     }
 
     // MARK: - Gradient Background
@@ -125,7 +132,9 @@ struct ChatBannerView: View {
         case .loading:
             LinearGradient.primary
         case .loaded(_, let appId, _):
-            AppIconView.gradient(forAppId: appId)
+            CategoryMapping.isKnownCategory(appId)
+                ? CategoryMapping.gradient(for: appId)
+                : AppIconView.gradient(forAppId: appId)
         }
     }
 
@@ -137,7 +146,10 @@ struct ChatBannerView: View {
         switch state {
         case .incognito: return Color(hex: 0x6B6BAA)
         case .loading: return Color(hex: 0xA0BEFF)
-        case .loaded(_, let appId, _): return orbColorForApp(appId)
+        case .loaded(_, let appId, _):
+            return CategoryMapping.isKnownCategory(appId)
+                ? CategoryMapping.orbColor(for: appId)
+                : orbColorForApp(appId)
         }
     }
 
@@ -236,12 +248,7 @@ struct ChatBannerView: View {
     /// Container layer controls opacity (0.4 for loaded, 1.0 for incognito).
     @ViewBuilder
     private func decoIcon(appId: String, size: CGFloat, rotation: Double) -> some View {
-        Image(AppIconView.iconName(forAppId: appId))
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
+        bannerIcon(appId: appId, size: size)
             .rotationEffect(.degrees(rotation))
     }
 
@@ -416,12 +423,7 @@ struct ChatBannerView: View {
     /// AI icon + teaser copy lines
     private func teaserTextColumn(appId: String) -> some View {
         VStack(alignment: .leading, spacing: .spacing4) {
-            Image(AppIconView.iconName(forAppId: appId))
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: isCompact ? 32 : 38, height: isCompact ? 32 : 38)
-                .foregroundStyle(.white)
+            bannerIcon(appId: appId, size: isCompact ? 32 : 38)
 
             VStack(alignment: .leading, spacing: .spacing1) {
                 Text(AppStrings.teaserLine1)
@@ -479,12 +481,7 @@ struct ChatBannerView: View {
     private func standardLoadedContent(title: String, appId: String, summary: String?) -> some View {
         VStack(spacing: .spacing2) {
             // Category icon (38px, white, raw shape — NOT a gradient circle)
-            Image(AppIconView.iconName(forAppId: appId))
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: isCompact ? 32 : 38, height: isCompact ? 32 : 38)
-                .foregroundStyle(.white)
+            bannerIcon(appId: appId, size: isCompact ? 32 : 38)
 
             Text(title)
                 .font(isCompact ? .omLg : .omH3)
@@ -527,6 +524,21 @@ struct ChatBannerView: View {
         .frame(maxWidth: isCompact ? 360 : 480)
         .padding(.horizontal, isCompact ? .spacing10 : .spacing12)
         .padding(.vertical, .spacing8)
+    }
+
+    @ViewBuilder
+    private func bannerIcon(appId: String, size: CGFloat) -> some View {
+        if CategoryMapping.isKnownCategory(appId) {
+            LucideNativeIcon(CategoryMapping.lucideIconName(for: appId), size: size)
+                .foregroundStyle(.white)
+        } else {
+            Image(AppIconView.iconName(forAppId: appId))
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.white)
+                .frame(width: size, height: size)
+        }
     }
 
     // MARK: - Navigation Arrows

@@ -21,10 +21,26 @@ enum MarkdownBlock {
     case unorderedList([String])
     case orderedList([String])
     case table(headers: [String], rows: [[String]])
+    case demoGroup(DemoGroupKind)
 
 }
 
 enum MarkdownParser {
+    private static let demoPlaceholders: [String: DemoGroupKind] = [
+        "[[example_chats_group]]": .exampleChats,
+        "[[dev_example_chats_group]]": .developerExampleChats,
+        "[[app_store_group]]": .apps,
+        "[[dev_app_store_group]]": .developerApps,
+        "[[skills_group]]": .skills,
+        "[[dev_skills_group]]": .developerSkills,
+        "[[focus_modes_group]]": .focusModes,
+        "[[dev_focus_modes_group]]": .developerFocusModes,
+        "[[settings_memories_group]]": .memories,
+        "[[dev_settings_memories_group]]": .developerMemories,
+        "[[ai_models_group]]": .aiModels,
+        "[[for_developers_embed]]": .forDevelopers
+    ]
+
     static func parse(_ text: String) -> [MarkdownBlock] {
         var blocks: [MarkdownBlock] = []
         let lines = text.components(separatedBy: "\n")
@@ -33,6 +49,12 @@ enum MarkdownParser {
         while i < lines.count {
             let line = lines[i]
             let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if let group = demoPlaceholders[trimmed] {
+                blocks.append(.demoGroup(group))
+                i += 1
+                continue
+            }
 
             // Fenced code block
             if trimmed.hasPrefix("```") {
@@ -143,7 +165,8 @@ enum MarkdownParser {
                 if pTrimmed.isEmpty || pTrimmed.hasPrefix("```") || pTrimmed.hasPrefix("#")
                     || pTrimmed.hasPrefix(">") || pTrimmed == "---" || pTrimmed == "***"
                     || pTrimmed.hasPrefix("- ") || pTrimmed.hasPrefix("* ")
-                    || pTrimmed.range(of: #"^\d+\.\s"#, options: .regularExpression) != nil {
+                    || pTrimmed.range(of: #"^\d+\.\s"#, options: .regularExpression) != nil
+                    || demoPlaceholders[pTrimmed] != nil {
                     break
                 }
                 paraLines.append(pLine)
@@ -222,6 +245,9 @@ struct RichMarkdownView: View {
 
         case .table(let headers, let rows):
             TableBlockView(headers: headers, rows: rows, isUserMessage: isUserMessage)
+
+        case .demoGroup(let kind):
+            DemoRichGroupView(kind: kind)
         }
     }
 }
@@ -244,7 +270,9 @@ struct InlineMarkdownText: View {
     var body: some View {
         Text(attributedContent)
             .font(.omP)
-            .foregroundStyle(isUserMessage ? Color.fontButton : Color.fontPrimary)
+            .fontWeight(isUserMessage ? .regular : .medium)
+            .foregroundStyle(isUserMessage ? Color.fontButton : Color.grey100)
+            .lineSpacing(2)
             .textSelection(.enabled)
     }
 }
@@ -438,19 +466,17 @@ struct HeaderView: View {
     var body: some View {
         Text(text)
             .font(headerFont)
-            .fontWeight(level <= 2 ? .bold : .semibold)
-            .foregroundStyle(isUserMessage ? Color.fontButton : Color.fontPrimary)
+            .fontWeight(.semibold)
+            .foregroundStyle(isUserMessage ? Color.fontButton : Color.grey100)
             .padding(.top, level <= 2 ? .spacing3 : .spacing2)
             .textSelection(.enabled)
     }
 
     private var headerFont: Font {
-        // Capped for in-message use: H1→omH2(30pt), H2→omH3(20pt) to avoid
-        // oversized headings in chat bubbles. Web chat CSS caps heading scale similarly.
         switch level {
-        case 1: return .omH2
+        case 1: return .omXl
         case 2: return .omH3
-        case 3: return .omH4
+        case 3: return .omLg
         default: return .omSmall
         }
     }
@@ -527,5 +553,201 @@ struct TableBlockView: View {
             RoundedRectangle(cornerRadius: .radius3)
                 .stroke(Color.grey20, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Demo placeholder groups
+
+enum DemoGroupKind {
+    case exampleChats
+    case developerExampleChats
+    case apps
+    case developerApps
+    case skills
+    case developerSkills
+    case focusModes
+    case developerFocusModes
+    case memories
+    case developerMemories
+    case aiModels
+    case forDevelopers
+}
+
+private struct DemoRichGroupItem: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let appId: String
+    let icon: String
+}
+
+@MainActor
+private struct DemoRichGroupView: View {
+    let kind: DemoGroupKind
+
+    private var items: [DemoRichGroupItem] {
+        switch kind {
+        case .exampleChats:
+            return [
+                .init(id: "airplanes", title: AppStrings.exampleGiganticAirplanesTitle, subtitle: AppStrings.exampleGiganticAirplanesSummary, appId: "general_knowledge", icon: "plane"),
+                .init(id: "artemis", title: AppStrings.exampleArtemisMissionTitle, subtitle: AppStrings.exampleArtemisMissionSummary, appId: "science", icon: "rocket"),
+                .init(id: "eu-law", title: AppStrings.exampleEuChatControlTitle, subtitle: AppStrings.exampleEuChatControlSummary, appId: "legal_law", icon: "shield"),
+                .init(id: "travel", title: AppStrings.exampleFlightsBerlinBangkokTitle, subtitle: AppStrings.exampleFlightsBerlinBangkokSummary, appId: "travel", icon: "travel")
+            ]
+        case .developerExampleChats:
+            return [
+                .init(id: "html", title: AppStrings.exampleBeautifulHtmlTitle, subtitle: AppStrings.exampleBeautifulHtmlSummary, appId: "software_development", icon: "code")
+            ]
+        case .apps:
+            return [
+                translatedItem(id: "web", titleKey: "apps.web", subtitleKey: "apps.web.description", appId: "web", icon: "web"),
+                translatedItem(id: "travel", titleKey: "apps.travel", subtitleKey: "apps.travel.description", appId: "travel", icon: "travel"),
+                translatedItem(id: "videos", titleKey: "apps.videos", subtitleKey: "apps.videos.description", appId: "videos", icon: "videos"),
+                translatedItem(id: "maps", titleKey: "apps.maps", subtitleKey: "apps.maps.description", appId: "maps", icon: "maps")
+            ]
+        case .developerApps:
+            return [
+                translatedItem(id: "code", titleKey: "apps.code", subtitleKey: "apps.code.description", appId: "code", icon: "code")
+            ]
+        case .skills:
+            return [
+                translatedItem(id: "web-search", titleKey: "app_skills.web.search", subtitleKey: "app_skills.web.search.description", appId: "web", icon: "search"),
+                translatedItem(id: "videos-search", titleKey: "app_skills.videos.search", subtitleKey: "app_skills.videos.search.description", appId: "videos", icon: "videos"),
+                translatedItem(id: "maps-search", titleKey: "app_skills.maps.search", subtitleKey: "app_skills.maps.search.description", appId: "maps", icon: "maps"),
+                translatedItem(id: "travel-connections", titleKey: "app_skills.travel.search_connections", subtitleKey: "app_skills.travel.search_connections.description", appId: "travel", icon: "travel")
+            ]
+        case .developerSkills:
+            return [
+                translatedItem(id: "code-docs", titleKey: "app_skills.code.get_docs", subtitleKey: "app_skills.code.get_docs.description", appId: "code", icon: "code")
+            ]
+        case .focusModes:
+            return [
+                translatedItem(id: "research", titleKey: "app_focus_modes.web.research", subtitleKey: "app_focus_modes.web.research.description", appId: "web", icon: "insight"),
+                translatedItem(id: "learning", titleKey: "app_focus_modes.code.learn_new_tech", subtitleKey: "app_focus_modes.code.learn_new_tech.description", appId: "study", icon: "books"),
+                translatedItem(id: "planning", titleKey: "app_focus_modes.code.plan_project", subtitleKey: "app_focus_modes.code.plan_project.description", appId: "travel", icon: "travel")
+            ]
+        case .developerFocusModes:
+            return [
+                translatedItem(id: "code-review", titleKey: "app_focus_modes.code.test_git_repo", subtitleKey: "app_focus_modes.code.test_git_repo.description", appId: "code", icon: "code")
+            ]
+        case .memories:
+            return [
+                .init(id: "interests", title: AppStrings.memoriesTitle, subtitle: AppStrings.memoriesDescription, appId: "messages", icon: "insight"),
+                .init(id: "settings", title: AppStrings.settingsMemories, subtitle: AppStrings.encryptionNotice, appId: "secrets", icon: "settings")
+            ]
+        case .developerMemories:
+            return [
+                .init(id: "developer-memory", title: AppStrings.memoriesTitle, subtitle: AppStrings.memoriesDescription, appId: "code", icon: "code")
+            ]
+        case .aiModels:
+            return [
+                .init(id: "auto", title: AppStrings.autoSelectModel, subtitle: AppStrings.autoSelectDescription, appId: "ai", icon: "ai"),
+                .init(id: "simple", title: AppStrings.simpleRequests, subtitle: AppStrings.availableModels, appId: "ai", icon: "ai"),
+                .init(id: "complex", title: AppStrings.complexRequests, subtitle: AppStrings.availableProviders, appId: "ai", icon: "ai")
+            ]
+        case .forDevelopers:
+            return [
+                .init(id: "developers", title: AppStrings.demoForDevelopersTitle, subtitle: AppStrings.demoForDevelopersDescription, appId: "code", icon: "code")
+            ]
+        }
+    }
+
+    var body: some View {
+        if !items.isEmpty {
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(spacing: .spacing6) {
+                    ForEach(items) { item in
+                        DemoRichCard(item: item, style: cardStyle)
+                    }
+                }
+                .padding(.vertical, .spacing2)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, .spacing4)
+        }
+    }
+
+    private var cardStyle: DemoRichCard.Style {
+        switch kind {
+        case .exampleChats, .developerExampleChats:
+            return .large
+        default:
+            return .compact
+        }
+    }
+
+    private func translatedItem(
+        id: String,
+        titleKey: String,
+        subtitleKey: String,
+        appId: String,
+        icon: String
+    ) -> DemoRichGroupItem {
+        let title = AppStrings.localized(titleKey)
+        let subtitle = AppStrings.localized(subtitleKey)
+        return DemoRichGroupItem(
+            id: id,
+            title: title.hasPrefix("[T:") ? id.replacingOccurrences(of: "-", with: " ").capitalized : title,
+            subtitle: subtitle.hasPrefix("[T:") ? "" : subtitle,
+            appId: appId,
+            icon: icon
+        )
+    }
+}
+
+@MainActor
+private struct DemoRichCard: View {
+    enum Style { case large, compact }
+
+    let item: DemoRichGroupItem
+    let style: Style
+
+    private var width: CGFloat { style == .large ? 300 : 256 }
+    private var height: CGFloat { style == .large ? 200 : 148 }
+
+    var body: some View {
+        ZStack {
+            CategoryMapping.gradient(for: item.appId)
+
+            decorativeIcon(alignment: .bottomLeading, xOffset: -10, rotation: -15)
+            decorativeIcon(alignment: .bottomTrailing, xOffset: 10, rotation: 15)
+
+            VStack(spacing: .spacing4) {
+                Icon(item.icon, size: style == .large ? 34 : 28)
+                    .foregroundStyle(.white)
+
+                Text(item.title)
+                    .font(style == .large ? .omH3 : .omH4)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
+
+                if !item.subtitle.isEmpty {
+                    Text(item.subtitle)
+                        .font(.omXxs)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white.opacity(0.88))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(style == .large ? 4 : 3)
+                }
+            }
+            .padding(.horizontal, .spacing10)
+            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 1)
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: style == .large ? 30 : .radius5))
+        .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.title)
+    }
+
+    private func decorativeIcon(alignment: Alignment, xOffset: CGFloat, rotation: Double) -> some View {
+        Icon(item.icon, size: style == .large ? 80 : 64)
+            .foregroundStyle(.white.opacity(0.24))
+            .rotationEffect(.degrees(rotation))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+            .offset(x: xOffset, y: 14)
     }
 }

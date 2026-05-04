@@ -1,8 +1,67 @@
 # Apple UI — Web Source of Truth
 
+@apple/CLAUDE.md
+@apple/AGENTS.md
+
 Every Swift UI file must visually match its web counterpart exactly.
 The web app (Svelte + CSS custom properties) is the design source of truth.
 Design tokens are pre-generated — never hardcode colors, spacing, or radii.
+
+---
+
+## Build & Run Workflow
+
+The Xcode project is at `apple/OpenMates.xcodeproj`.
+XcodeBuildMCP is configured with `simulator`, `ui-automation`, and `debugging` workflows.
+
+**Before your first build/run:** call `session_show_defaults` to verify project, scheme, and simulator.
+Use `build_run_sim` for build+run — it boots the simulator automatically.
+
+**Targets/Schemes:** `OpenMates_iOS` (iPhone/iPad), `OpenMates_macOS` (Mac). No shared schemes — Xcode auto-generates them from targets.
+
+**Manual fallback** (if MCP tools unavailable):
+```bash
+xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS \
+  -destination 'platform=iOS Simulator,name=iPhone 17' build
+xcrun simctl install booted <path-to-.app>
+xcrun simctl launch booted org.openmates.app
+```
+
+---
+
+## Design Token Pipeline (web → Xcode)
+
+All tokens are generated from the web app — **never duplicate or manually edit**.
+
+```
+frontend/packages/ui/src/tokens/
+       ↓  built by: cd frontend/packages/ui && npm run build:tokens
+frontend/packages/ui/src/tokens/generated/swift/
+  ├── ColorTokens.generated.swift
+  ├── SpacingTokens.generated.swift
+  ├── TypographyTokens.generated.swift
+  ├── GradientTokens.generated.swift
+  ├── ComponentTokens.generated.swift
+  ├── IconMapping.generated.swift
+  ├── Icons.xcassets/          ← all web SVG icons as Xcode imagesets
+  └── Assets.xcassets/         ← colors as named color assets
+```
+
+The Xcode project references these files **in-place** (not copied).
+`Icons.xcassets` has `template-rendering-intent: template` on all icons.
+For icons that need original colors (e.g. `openmates` favicon), use
+`.renderingMode(.original)` in Swift code to override.
+
+### Icon usage
+- `Icon("name", size: N)` — renders from `Icons.xcassets` as template (tints with foregroundStyle)
+- `Image("name").renderingMode(.original)` — renders with original SVG colors (rare, only for favicon-like icons)
+- `AppIconView(appId:, size:)` — gradient circle + template icon overlay for app categories
+- `AppIconView.iconName(forAppId:)` — maps app IDs to icon names (e.g. "openmates" → "ai")
+
+### Avatar rendering (from `styles/mates.css`)
+- `.mate-profile` = 60px circle on desktop, 25px on mobile (≤500px container)
+- `.mate-profile.openmates_official` = `favicon.svg` as `background-image`, no AI badge
+- Other categories = JPEG profile images or gradient+icon circles with AI badge overlay
 
 ---
 
@@ -123,8 +182,15 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 - Both: `shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)`.
 - `clipShape(RoundedRectangle(cornerRadius: 13))`.
 - Fade-in: `opacity(0→1)` + `offset(y: 10→0)` over 0.4s `.easeIn`. Respect `accessibilityReduceMotion`.
-- Assistant avatar: 60pt circle, same shadow. AI badge: 24pt white circle, 16pt gradient icon inside.
 - Max width: `Spacer(minLength: 100)` on iPhone, `Spacer(minLength: 100)` on iPad/Mac (content capped at 1000pt).
+
+### Assistant avatar (from `styles/mates.css`)
+- **Desktop (regular):** 60pt circle, AI badge 24pt white circle + 16pt gradient icon.
+- **Mobile (compact):** 25pt circle, AI badge 12pt white circle + 8pt gradient icon.
+  Matches `.mate-profile-small-mobile` (applied when container ≤500px).
+- **openmates_official:** `Image("openmates").renderingMode(.original)` — uses favicon SVG
+  with its built-in gradient. No AI badge. No gradient circle overlay.
+- **Other categories:** `Circle().fill(gradient)` + template `Icon()` overlay + AI badge.
 
 ### Input field (from `fields.css`)
 - Shape: `.clipShape(RoundedRectangle(cornerRadius: .radiusFull))`.

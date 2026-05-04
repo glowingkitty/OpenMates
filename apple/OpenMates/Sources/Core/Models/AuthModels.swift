@@ -7,6 +7,7 @@ import Foundation
 
 struct LookupRequest: Encodable {
     let hashedEmail: String
+    let stayLoggedIn: Bool
 }
 
 struct LookupResponse: Decodable {
@@ -30,6 +31,8 @@ struct LoginRequest: Encodable {
     let lookupHash: String
     let loginMethod: String
     let tfaCode: String?
+    let codeType: String?
+    let emailEncryptionKey: String?
     let stayLoggedIn: Bool
     let sessionId: String?
     let deviceInfo: DeviceInfo?

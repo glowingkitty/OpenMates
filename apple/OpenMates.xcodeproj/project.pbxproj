@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2A7C8E1B14D54A3286C7E901 /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 2A7C8E1D14D54A3286C7E901 /* LucideIcons */; };
+		2A7C8E1C14D54A3286C7E901 /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 2A7C8E1E14D54A3286C7E901 /* LucideIcons */; };
 		0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */; };
 		00E9903CB4B266B59E16AB50 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
 		012057623219277299AA30A1 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
@@ -423,6 +425,8 @@
 		919D15C64C974701B423418F /* intro-teaser.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 8B781C5D492E4A928199BC2F /* intro-teaser.mp4 */; };
 		5D5FBDE7EC72440382D263F1 /* i18n in Resources */ = {isa = PBXBuildFile; fileRef = DA23155E062343E5809E56AB /* i18n */; };
 		05403C956F654A2D87B32A83 /* i18n in Resources */ = {isa = PBXBuildFile; fileRef = DA23155E062343E5809E56AB /* i18n */; };
+		2A7C8E1914D54A3286C7E901 /* Mates in Resources */ = {isa = PBXBuildFile; fileRef = 2A7C8E1814D54A3286C7E901 /* Mates */; };
+		2A7C8E1A14D54A3286C7E901 /* Mates in Resources */ = {isa = PBXBuildFile; fileRef = 2A7C8E1814D54A3286C7E901 /* Mates */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -510,6 +514,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2A7C8E2014D54A3286C7E901 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A7C8E1B14D54A3286C7E901 /* LucideIcons in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2A7C8E2114D54A3286C7E901 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A7C8E1C14D54A3286C7E901 /* LucideIcons in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0227C2E4CCA424320275BF24 /* EmbedContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedContentView.swift; sourceTree = "<group>"; };
@@ -732,6 +755,7 @@
 		ACF50C3461E94EACA1C8325D /* LexendDeca-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "LexendDeca-ExtraBold.ttf"; path = "Resources/Fonts/LexendDeca-ExtraBold.ttf"; sourceTree = "<group>"; };
 		8B781C5D492E4A928199BC2F /* intro-teaser.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; name = "intro-teaser.mp4"; path = "Resources/Videos/intro-teaser.mp4"; sourceTree = "<group>"; };
 		DA23155E062343E5809E56AB /* i18n */ = {isa = PBXFileReference; lastKnownFileType = folder; name = i18n; path = Resources/i18n; sourceTree = "<group>"; };
+		2A7C8E1814D54A3286C7E901 /* Mates */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Mates; path = Resources/Mates; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -928,6 +952,7 @@
 				FF2496D82DC8800F165AFAFA /* Sources */,
 				A81F667F41D9CC374EF3494A /* Tests */,
 				DA23155E062343E5809E56AB /* i18n */,
+				2A7C8E1814D54A3286C7E901 /* Mates */,
 				8B781C5D492E4A928199BC2F /* intro-teaser.mp4 */,
 				C97B4736E5D9418381A05BBD /* LexendDeca-Light.ttf */,
 				8EB44DAA3ECD43B2A9CE7060 /* LexendDeca-Regular.ttf */,
@@ -1331,6 +1356,7 @@
 			buildConfigurationList = 7C45214DD39498742E9FEF0E /* Build configuration list for PBXNativeTarget "OpenMates_iOS" */;
 			buildPhases = (
 				830E7D0E116B4B5F89080C48 /* Sources */,
+				2A7C8E2014D54A3286C7E901 /* Frameworks */,
 				B4B0CAA1635A0D7801CFC6A2 /* Resources */,
 				953B1F3E0F10C6DD7636355F /* Embed Foundation Extensions */,
 			);
@@ -1342,6 +1368,7 @@
 			);
 			name = OpenMates_iOS;
 			packageProductDependencies = (
+				2A7C8E1D14D54A3286C7E901 /* LucideIcons */,
 			);
 			productName = OpenMates_iOS;
 			productReference = BE1031D79B03616FF9E0E7F7 /* OpenMates.app */;
@@ -1422,6 +1449,7 @@
 			buildConfigurationList = C8D6826FABAA4321C0AEF0B0 /* Build configuration list for PBXNativeTarget "OpenMates_macOS" */;
 			buildPhases = (
 				591446FAB19B231024F85B8C /* Sources */,
+				2A7C8E2114D54A3286C7E901 /* Frameworks */,
 				D76DD5C267E59E845677EED4 /* Resources */,
 				622667174AB5198BCFC77065 /* Embed Foundation Extensions */,
 			);
@@ -1433,6 +1461,7 @@
 			);
 			name = OpenMates_macOS;
 			packageProductDependencies = (
+				2A7C8E1E14D54A3286C7E901 /* LucideIcons */,
 			);
 			productName = OpenMates_macOS;
 			productReference = 6B67074848688485A446BC5C /* OpenMates.app */;
@@ -1520,6 +1549,9 @@
 			);
 			mainGroup = 8EB4113AA0C6F3AF17639778;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2A7C8E1F14D54A3286C7E901 /* XCRemoteSwiftPackageReference "lucide-icons-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AA17F1DC1A7C9E6EE61B6010 /* Products */;
 			projectDirPath = "";
@@ -1545,6 +1577,7 @@
 				D5FD84D2FCAAD032743CE93D /* Assets.xcassets in Resources */,
 				B2F0023ACAE268FD9B9C1669 /* Icons.xcassets in Resources */,
 				5D5FBDE7EC72440382D263F1 /* i18n in Resources */,
+				2A7C8E1914D54A3286C7E901 /* Mates in Resources */,
 				697B8880313645D08C6ADF36 /* intro-teaser.mp4 in Resources */,
 				081C0ABB6EAE44BDA61C611E /* LexendDeca-Light.ttf in Resources */,
 				0878F3891B284FF883BAC894 /* LexendDeca-Regular.ttf in Resources */,
@@ -1562,6 +1595,7 @@
 				C7109C0A3B0CBE9D553F6844 /* Assets.xcassets in Resources */,
 				D7B6ED7F307EAE39934B3226 /* Icons.xcassets in Resources */,
 				05403C956F654A2D87B32A83 /* i18n in Resources */,
+				2A7C8E1A14D54A3286C7E901 /* Mates in Resources */,
 				919D15C64C974701B423418F /* intro-teaser.mp4 in Resources */,
 				1497ECDF505449618442DED1 /* LexendDeca-Light.ttf in Resources */,
 				D0F7A6505553404FBD3FCCFB /* LexendDeca-Regular.ttf in Resources */,
@@ -2559,6 +2593,30 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2A7C8E1F14D54A3286C7E901 /* XCRemoteSwiftPackageReference "lucide-icons-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/JakubMazur/lucide-icons-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2A7C8E1D14D54A3286C7E901 /* LucideIcons */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2A7C8E1F14D54A3286C7E901 /* XCRemoteSwiftPackageReference "lucide-icons-swift" */;
+			productName = LucideIcons;
+		};
+		2A7C8E1E14D54A3286C7E901 /* LucideIcons */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2A7C8E1F14D54A3286C7E901 /* XCRemoteSwiftPackageReference "lucide-icons-swift" */;
+			productName = LucideIcons;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FA6E6E20CD0A094A87EB04A8 /* Project object */;
 }

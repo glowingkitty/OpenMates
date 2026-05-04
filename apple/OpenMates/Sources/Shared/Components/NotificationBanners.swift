@@ -21,9 +21,11 @@ struct PushNotificationBanner: View {
                     AppIconView(appId: appIcon, size: 32)
                         .accessibilityHidden(true)
                 } else {
-                    Image.iconOpenmates
+                    Image("openmates-brand")
+                        .renderingMode(.original)
                         .resizable()
                         .frame(width: 32, height: 32)
+                        .clipShape(Circle())
                         .accessibilityHidden(true)
                 }
 

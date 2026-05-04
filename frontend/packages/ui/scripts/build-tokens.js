@@ -31,6 +31,7 @@ const CSS_OUTPUT = resolve(GENERATED_DIR, "theme.generated.css");
 const TS_OUTPUT = resolve(GENERATED_DIR, "tokens.generated.ts");
 const ICONS_DIR = resolve(__dirname, "../static/icons");
 const ICONS_XCASSETS_DIR = resolve(SWIFT_DIR, "Icons.xcassets");
+const BRAND_FAVICON_PNG = resolve(__dirname, "../static/favicon.png");
 const COMPONENTS_DIR = resolve(SOURCES_DIR, "components");
 const COMPONENT_CSS_OUTPUT = resolve(GENERATED_DIR, "component-classes.generated.css");
 const COMPONENT_SWIFT_OUTPUT = resolve(SWIFT_DIR, "ComponentTokens.generated.swift");
@@ -1045,6 +1046,28 @@ function generateIconXcassets() {
   return svgFiles.length;
 }
 
+function generateBrandImageAssets() {
+  if (!existsSync(BRAND_FAVICON_PNG)) return 0;
+
+  const imagesetDir = resolve(XCASSETS_DIR, "openmates-brand.imageset");
+  ensureDir(imagesetDir);
+
+  copyFileSync(BRAND_FAVICON_PNG, resolve(imagesetDir, "openmates-brand.png"));
+
+  const contents = {
+    images: [
+      {
+        filename: "openmates-brand.png",
+        idiom: "universal"
+      }
+    ],
+    info: { author: "build-tokens.js", version: 1 }
+  };
+  writeFileSync(resolve(imagesetDir, "Contents.json"), JSON.stringify(contents, null, 2) + "\n", "utf-8");
+
+  return 1;
+}
+
 function generateSwiftIconMapping() {
   /** Generate Swift enum mapping Lucide names → SF Symbols + custom icon accessors. */
   const mapping = readYaml("icons-mapping.yml");
@@ -1231,6 +1254,9 @@ function main() {
   // Generate xcassets (colors)
   const colorSetCount = generateXcassets();
   console.log(`[build-tokens] Generated ${colorSetCount} color sets → ${XCASSETS_DIR}/`);
+
+  const brandImageCount = generateBrandImageAssets();
+  console.log(`[build-tokens] Generated ${brandImageCount} brand image sets → ${XCASSETS_DIR}/`);
 
   // Generate icon xcassets (SVGs)
   const iconCount = generateIconXcassets();
