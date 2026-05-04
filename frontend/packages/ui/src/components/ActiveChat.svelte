@@ -3825,9 +3825,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     );
     let showNewChatButtonBesideInput = $derived(
         createButtonVisible &&
-        !showWelcome &&
-        !!currentChat?.chat_id &&
-        (isExampleChat(currentChat.chat_id) || (!isPublicChat(currentChat.chat_id) && chatOwnershipResolved))
+        (
+            (showWelcome && messageInputHasContent) ||
+            (
+                !showWelcome &&
+                !!currentChat?.chat_id &&
+                (isExampleChat(currentChat.chat_id) || (!isPublicChat(currentChat.chat_id) && chatOwnershipResolved))
+            )
+        )
     );
 
     // Set followup placeholder variant when the new chat button is visible beside the input
