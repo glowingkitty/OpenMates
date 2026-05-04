@@ -425,6 +425,11 @@ test.describe('Unauthenticated app load', () => {
 		).toBeGreaterThan(5);
 		console.log(`[unauthenticated-load] Announcement message rendered (${messageText?.trim().length} chars)`);
 
+		// Announcement chats are read-only public chats and should offer the same
+		// start-new-chat CTA as intro/legal chats.
+		await expect(page.getByTestId('new-chat-cta-fullwidth')).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Announcement new chat CTA visible');
+
 		// ─── 5. No missing translations ─────────────────────────────────
 		await assertNoMissingTranslations(page);
 		console.log('[unauthenticated-load] Announcement click test passed');

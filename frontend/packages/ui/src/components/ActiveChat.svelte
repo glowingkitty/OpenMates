@@ -3819,7 +3819,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
 
     let startNewChatPlaceholderMode = $derived(
-        !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))
+        !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
     );
     let showNewChatButtonBesideInput = $derived(
         createButtonVisible &&
@@ -10235,10 +10235,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
 
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
-                        <!-- Hide for newsletter/legal chats, except unauthenticated legal chats use the start-new-chat placeholder. -->
-                        {#if !(currentChat && isNewsletterChat(currentChat.chat_id)) && (!(currentChat && isLegalChat(currentChat.chat_id)) || startNewChatPlaceholderMode) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
+                        <!-- Public read-only chats use the start-new-chat placeholder instead of MessageInput. -->
+                        {#if (!(currentChat && (isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))) || startNewChatPlaceholderMode) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
                             {#if startNewChatPlaceholderMode}
-                                <!-- Intro/legal/demo chats: full-width orange CTA button instead of MessageInput -->
+                                <!-- Intro/legal/newsletter demo chats: full-width orange CTA button instead of MessageInput -->
                                 <div class="message-input-action-row">
                                     <button
                                         class="new-chat-cta-button new-chat-cta-fullwidth"
