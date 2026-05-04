@@ -142,6 +142,7 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "deepseek-v3.2", name: "DeepSeek V3.2" },
   { id: "qwen3-235b-a22b-2507", name: "Qwen 3 256b" },
   { id: "kimi-k2.5", name: "Kimi K2.5" },
+  { id: "kimi-k2.6", name: "Kimi K2.6" },
   { id: "zai-glm-4.7", name: "GLM 4.7" },
   { id: "mistral-medium-latest", name: "Mistral Medium" },
   { id: "mistral-small-2506", name: "Mistral Small 3.2" },
