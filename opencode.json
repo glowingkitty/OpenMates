@@ -1,5 +1,23 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    ".claude/rules/frontend.md",
+    ".claude/rules/backend.md",
+    ".claude/rules/testing.md",
+    ".claude/rules/privacy.md",
+    ".claude/rules/settings-ui.md",
+    ".claude/rules/i18n.md",
+    ".claude/rules/deployment.md",
+    ".claude/rules/session-lifecycle.md",
+    ".claude/rules/debugging.md",
+    ".claude/rules/embed.md"
+  ],
+  "permission": {
+    "skill": {
+      "*": "allow",
+      "gsd-*": "deny"
+    }
+  },
   "provider": {
     "claude-code": {
       "npm": "opencode-claude-code-plugin",

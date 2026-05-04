@@ -88,7 +88,8 @@ The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
 ## Research Before New Integrations
 
 Before any new app, skill, API integration, or significant feature:
-1. Search for official docs (never rely on training data for APIs/pricing).
-2. Check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research.
-3. Ask clarifying questions before writing code. Wait for confirmation.
+1. **Check Linear for existing tasks** — search `mcp__linear__list_issues` for related tasks in Todo/Backlog/In Progress. Link your work to an existing task or confirm with the user before creating a new one.
+2. Search for official docs (never rely on training data for APIs/pricing).
+3. Check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research.
+4. Ask clarifying questions before writing code. Wait for confirmation.
 

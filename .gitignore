@@ -1,6 +1,9 @@
 # GSD planning artifacts
 .planning/
 
+# Obsidian vaults
+vaults/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -305,8 +308,11 @@ backend/tests/output/
 # Claude Code — worktree runtime state (empty dirs managed by sessions.py)
 .claude/worktrees/
 
-# OpenCode AI editor local state
-.opencode/
+# OpenCode AI editor local state; keep repo plugins trackable.
+.opencode/*
+!.opencode/
+!.opencode/plugins/
+!.opencode/plugins/openmates-claude-hooks.js
 
 # Claude Code — additional ephemeral state (rules, skills, agents, hooks are committed)
 .claude/plans/
