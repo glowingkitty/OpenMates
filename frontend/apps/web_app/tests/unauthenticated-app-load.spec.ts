@@ -55,6 +55,7 @@ test.describe('Unauthenticated app load', () => {
 		page: any;
 	}) => {
 		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
 
 		// ─── Console + network logging for diagnostics ──────────────────────
 		page.on('console', (msg: any) => {
@@ -119,6 +120,29 @@ test.describe('Unauthenticated app load', () => {
 		console.log(
 			`[unauthenticated-load] Banner text verified (${bannerText?.trim().length} chars)`
 		);
+
+		// Mobile regression check: horizontal swipe should navigate the carousel,
+		// not trigger the banner click that starts a chat.
+		const phrase = page.getByTestId('daily-inspiration-phrase');
+		const firstPhrase = (await phrase.textContent())?.trim();
+		await expect(page.getByTestId('daily-inspiration-next')).toBeVisible();
+		const box = await inspirationBanner.boundingBox();
+		expect(box, 'Daily inspiration banner must have bounds for swipe test').toBeTruthy();
+		await inspirationBanner.dispatchEvent('touchstart', {
+			touches: [{ clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }],
+			changedTouches: [{ clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }]
+		});
+		await inspirationBanner.dispatchEvent('touchmove', {
+			touches: [{ clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }],
+			changedTouches: [{ clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
+		});
+		await inspirationBanner.dispatchEvent('touchend', {
+			touches: [],
+			changedTouches: [{ clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
+		});
+		await expect(phrase).not.toHaveText(firstPhrase ?? '', { timeout: 3000 });
+		expect(page.url(), 'Swipe navigation should not start a chat').not.toContain('chat-id=');
+		console.log('[unauthenticated-load] Mobile swipe navigation changed the banner phrase');
 
 		// Verify the /v1/default-inspirations endpoint was called and succeeded
 		const inspirationApiCalled = networkRequests.some(

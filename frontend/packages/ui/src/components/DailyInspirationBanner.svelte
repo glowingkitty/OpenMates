@@ -15,7 +15,7 @@
    * Interaction model:
    *   - Click on the video thumbnail → opens the video in fullscreen (via onEmbedFullscreen)
    *   - Click anywhere else → creates a local-only chat from this inspiration (via onStartChat)
-   *   - Left/right arrow buttons → navigate the carousel
+   *   - Left/right arrow buttons or horizontal touch swipes → navigate the carousel
    *
    * Layout:
    *   - Banner is fixed-height: 240px on desktop, 190px on mobile (≤730px)
@@ -44,6 +44,8 @@
   const ChevronRight = getLucideIcon('chevron-right');
 
   const MOBILE_EMBED_ROTATION_INTERVAL_MS = 5000;
+  const TOUCH_SWIPE_DISTANCE_PX = 56;
+  const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -87,6 +89,12 @@
   // On mobile, alternate between the assistant message and video preview instead
   // of squeezing both into the narrow banner width.
   let showMobileEmbed = $state(false);
+
+  // Touch gesture state for mobile carousel swipes.
+  let touchStartX = $state(0);
+  let touchStartY = $state(0);
+  let touchSwipeHandled = $state(false);
+  let suppressNextClick = $state(false);
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -312,11 +320,66 @@
     dailyInspirationStore.next();
   }
 
+  function handleTouchStart(e: TouchEvent) {
+    if (!hasMultiple || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchSwipeHandled = false;
+  }
+
+  function handleTouchMove(e: TouchEvent) {
+    if (!hasMultiple || touchSwipeHandled || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const absDeltaY = Math.abs(deltaY);
+    const isMostlyHorizontal = Math.abs(deltaX) > absDeltaY * 1.2;
+
+    if (absDeltaY > TOUCH_SWIPE_VERTICAL_CANCEL_PX && !isMostlyHorizontal) {
+      touchSwipeHandled = true;
+      return;
+    }
+
+    if (!isMostlyHorizontal || Math.abs(deltaX) < TOUCH_SWIPE_DISTANCE_PX) return;
+
+    e.preventDefault();
+    touchSwipeHandled = true;
+    suppressNextClick = true;
+
+    if (deltaX < 0) {
+      dailyInspirationStore.next();
+    } else {
+      dailyInspirationStore.previous();
+    }
+  }
+
+  function handleTouchEnd() {
+    touchStartX = 0;
+    touchStartY = 0;
+    touchSwipeHandled = false;
+
+    if (suppressNextClick) {
+      window.setTimeout(() => {
+        suppressNextClick = false;
+      }, 400);
+    }
+  }
+
   /**
    * Handle clicking on the banner body — start a chat from this inspiration.
    * Also marks the inspiration as viewed via WebSocket.
    */
   function handleStartChat(_e: MouseEvent) {
+    if (suppressNextClick) {
+      _e.stopPropagation();
+      _e.preventDefault();
+      suppressNextClick = false;
+      return;
+    }
+
     if (!current) return;
 
     // Send viewed event if not already sent
@@ -404,6 +467,10 @@
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
+      ontouchstart={handleTouchStart}
+      ontouchmove={handleTouchMove}
+      ontouchend={handleTouchEnd}
+      ontouchcancel={handleTouchEnd}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
       role="button"
       tabindex="0"
@@ -456,7 +523,7 @@
               <div class="mate-profile banner-mate-profile {current.category}"></div>
 
               <!-- Inspiration phrase -->
-              <p class="banner-phrase">{current.phrase}</p>
+              <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
             </div>
 
             <!-- CTA: plain text + create icon — pinned to bottom of banner-left.
@@ -512,6 +579,7 @@
       {#if hasMultiple}
         <button
           class="carousel-arrow carousel-arrow-left"
+          data-testid="daily-inspiration-previous"
           onclick={handlePrevious}
           aria-label={$text('daily_inspiration.previous')}
           type="button"
@@ -521,6 +589,7 @@
 
         <button
           class="carousel-arrow carousel-arrow-right"
+          data-testid="daily-inspiration-next"
           onclick={handleNext}
           aria-label={$text('daily_inspiration.next')}
           type="button"
@@ -577,6 +646,7 @@
     color: white;
     display: flex;
     align-items: stretch;
+    touch-action: pan-y;
   }
 
   /* When settings panel is open or embed fullscreen is side-by-side, revert to
