@@ -1,7 +1,5 @@
 import type { DemoChat } from "./types";
 import { forEveryoneChat } from "./data/for_everyone";
-import { privacyChat } from "./data/privacy";
-import { safetyChat } from "./data/safety";
 import { forDevelopersChat } from "./data/for_developers";
 import { whoDevelopsOpenmatesChat } from "./data/who_develops_openmates";
 import { LEGAL_CHATS } from "../legal";
@@ -74,8 +72,6 @@ export { loadDefaultInspirations } from "./loadDefaultInspirations";
  */
 export const INTRO_CHATS: DemoChat[] = [
   forEveryoneChat,
-  privacyChat,
-  safetyChat,
   forDevelopersChat,
   whoDevelopsOpenmatesChat,
   // Legal Privacy, Terms, and Imprint are not intro chats; they are accessed via /legal/* routes.

@@ -71,18 +71,6 @@ export const GET: RequestHandler = async ({ url }) => {
     <priority>0.9</priority>
   </url>`,
 		`  <url>
-    <loc>${siteOrigin}/intro/privacy</loc>
-    <lastmod>${BUILD_DATE}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>`,
-		`  <url>
-    <loc>${siteOrigin}/intro/safety</loc>
-    <lastmod>${BUILD_DATE}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>`,
-		`  <url>
     <loc>${siteOrigin}/intro/for-developers</loc>
     <lastmod>${BUILD_DATE}</lastmod>
     <changefreq>monthly</changefreq>
