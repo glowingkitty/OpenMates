@@ -3619,9 +3619,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // the editor/toolbar area, plus a ~60px allowance for padding and action bar.
         const inputHeight = messageInputHeight + 60;
 
-        // The welcome block is vertically centered (top: 50% + 60px transform).
+        // The welcome block is vertically centered below the inspiration banner
+        // and welcome top-button row.
         // Approximate its bottom edge position within the container.
-        const welcomeCenter = containerHeight * 0.5 + 60;
+        const welcomeTopOffset = isEffectivelyNarrow ? 127 : 60;
+        const welcomeCenter = containerHeight * 0.5 + welcomeTopOffset;
         const welcomeBottom = welcomeCenter + welcomeHeight / 2;
 
         // Available gap between welcome bottom and the message input top.
@@ -12007,10 +12009,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             left: 10px;
             right: 10px;
         }
-        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh),
-           so recalibrate: 50% + 190px/2 = 50% + 95px */
+        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh).
+           Include the welcome top-buttons row below it so the greeting centers in
+           the remaining space above the message input. */
         .center-content {
-            top: calc(50% + 95px);
+            top: calc(50% + 127px);
         }
     }
 
