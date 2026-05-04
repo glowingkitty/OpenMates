@@ -30,8 +30,8 @@ DAILY_NOTES_DIR = "Daily Notes"
 STATE_DIR = ".obsidian-auto/daily-note-state"
 SERVER_STATS_CACHE_DIR = ".obsidian-auto/server-stats"
 SERVER_STATS_CACHE_MAX_AGE_SECONDS = 60 * 60
-KANBAN_BOARD_EMBED = "![[OpenMates/Tasks/Boards/All Todos]]"
-KANBAN_BOARD_LINK = "Kanban: [[OpenMates/Tasks/Boards/All Todos|Open All Todos board]]"
+KANBAN_BOARD_EMBED = "![[Boards/all-todos]]"
+KANBAN_BOARD_LINK = "Kanban: [[Boards/all-todos|Open All Todos board]]"
 MARKER_PATTERN = re.compile(
     r"<!-- AUTO:(?P<name>[a-z0-9-]+):start -->.*?<!-- AUTO:(?P=name):end -->",
     re.DOTALL,
@@ -78,7 +78,7 @@ def should_skip(path: Path, vault: Path) -> bool:
     if not rel_parts:
         return True
     first = rel_parts[0]
-    return first in {DAILY_NOTES_DIR, "Templates", ".obsidian", ".obsidian-auto"}
+    return first in {DAILY_NOTES_DIR, "Templates", "Boards", "Archive", ".obsidian", ".obsidian-auto"}
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
@@ -213,8 +213,7 @@ Server stats not fetched yet.
 ## Recent Activity
 
 <!-- AUTO:changed-notes:start -->
-| Latest Note Changes | Git Commits |
-| --- | --- |
+- No activity detected yet.
 <!-- AUTO:changed-notes:end -->
 
 ## Due Today
@@ -576,44 +575,32 @@ def git_commits(repo: Path, start_ts: float, end_ts: float, tz: ZoneInfo) -> lis
     return commits
 
 
-def escape_table_cell(value: str) -> str:
-    return value.replace("|", "\\|").replace("\n", " ")
+def activity_list_body(notes: dict[str, dict[str, str | None]], commits: list[dict[str, str]]) -> str:
+    """Build a single chronological list combining note changes and git commits."""
+    entries: list[tuple[str, str]] = []
 
+    for note in notes.values():
+        link = note.get("link") or note.get("title") or "Untitled"
+        meta = [str(note[k]) for k in ("type", "area", "task_status") if note.get(k)]
+        suffix = f" ({', '.join(meta)})" if meta else ""
+        mtime = str(note.get("mtime") or "")
+        # Extract HH:MM from ISO timestamp
+        time_str = mtime[11:16] if len(mtime) >= 16 else ""
+        label = f"{time_str} note changed: {link}{suffix}" if time_str else f"note changed: {link}{suffix}"
+        entries.append((mtime, label))
 
-def note_table_cell(note: dict[str, str | None]) -> str:
-    link = note.get("link") or note.get("title") or "Untitled"
-    meta = [str(note[key]) for key in ("type", "project", "area", "task_status") if note.get(key)]
-    suffix = f" ({', '.join(meta)})" if meta else ""
-    return escape_table_cell(f"{link}{suffix}")
+    for commit in commits:
+        label = f"{commit['time']} commit: [`{commit['hash']}`]({commit['url']}) {commit['subject']}"
+        # Use time for sorting (commits don't have full ISO, build a sortable key)
+        sort_key = commit.get("time", "00:00")
+        entries.append((sort_key, label))
 
+    if not entries:
+        return "- No activity detected yet."
 
-def commit_table_cell(commit: dict[str, str]) -> str:
-    return escape_table_cell(
-        f"[`{commit['hash']}`]({commit['url']}) {commit['time']} - {commit['subject']}"
-    )
-
-
-def activity_table_body(notes: dict[str, dict[str, str | None]], commits: list[dict[str, str]]) -> str:
-    sorted_notes = [
-        note
-        for _, note in sorted(notes.items(), key=lambda item: str(item[1].get("mtime") or ""), reverse=True)
-    ]
-    rows = max(len(sorted_notes), len(commits))
-    if rows == 0:
-        return "\n".join(
-            [
-                "| Latest Note Changes | Git Commits |",
-                "| --- | --- |",
-                "| No changed notes detected yet. | No commits detected yet. |",
-            ]
-        )
-
-    lines = ["| Latest Note Changes | Git Commits |", "| --- | --- |"]
-    for index in range(rows):
-        note_cell = note_table_cell(sorted_notes[index]) if index < len(sorted_notes) else ""
-        commit_cell = commit_table_cell(commits[index]) if index < len(commits) else ""
-        lines.append(f"| {note_cell} | {commit_cell} |")
-    return "\n".join(lines)
+    # Sort by timestamp descending (most recent first)
+    entries.sort(key=lambda e: e[0], reverse=True)
+    return "\n".join(f"- {label}" for _, label in entries)
 
 
 def update_daily_note(
@@ -636,7 +623,7 @@ def update_daily_note(
     text = ensure_kanban_link(text)
     text = ensure_marker(text, "daily-summary", "Daily Summary", "No changed notes detected yet.\n")
     text = ensure_marker(text, "server-stats", "Server Stats", "Server stats not fetched yet.\n")
-    text = ensure_marker(text, "changed-notes", "Recent Activity", "- No changed notes or commits detected yet.\n")
+    text = ensure_marker(text, "changed-notes", "Recent Activity", "- No activity detected yet.\n")
     server_stats_payload, server_stats_warning = load_or_refresh_server_stats(vault, git_repo, now, dry_run)
     text = replace_auto_block(text, "daily-summary", summary_from_manifest(manifest))
     text = replace_auto_block(
@@ -645,7 +632,7 @@ def update_daily_note(
         server_stats_summary_body(server_stats_payload, server_stats_warning),
     )
     text = move_section_after_auto_block(text, "Server Stats", "server-stats", "daily-summary")
-    text = replace_auto_block(text, "changed-notes", activity_table_body(manifest, commits))
+    text = replace_auto_block(text, "changed-notes", activity_list_body(manifest, commits))
     if "<!-- AUTO:git-commits:start -->" in text:
         text = replace_auto_block(text, "git-commits", "See the activity table above.")
 

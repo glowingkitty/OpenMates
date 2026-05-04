@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 DEFAULT_VAULT = Path("/home/superdev/vaults/memory")
-BOARDS_DIR = Path("OpenMates/Tasks/Boards")
+BOARDS_DIR = Path("Boards")
 TASK_STATUSES = ("backlog", "todo", "in_progress", "in_review", "done")
 STATUS_TITLES = {
     "backlog": "Backlog",
@@ -27,7 +27,7 @@ STATUS_TITLES = {
     "done": "Done",
 }
 EXCLUDED_TYPES = {"board", "dashboard", "daily-note", "guide"}
-EXCLUDED_DIRS = {".obsidian", ".obsidian-auto", "Daily Notes", "Templates"}
+EXCLUDED_DIRS = {".obsidian", ".obsidian-auto", "Daily Notes", "Templates", "Boards", "Archive"}
 
 
 @dataclass(frozen=True)
@@ -54,23 +54,23 @@ class Board:
 
 BOARDS = (
     Board(
-        filename="All Todos.md",
+        filename="all-todos.md",
         title="All Todos",
-        description="All note-level tasks in the vault, grouped by Linear-style status.",
+        description="All note-level tasks in the vault, grouped by status.",
         area="task-management",
         predicate="all",
     ),
     Board(
-        filename="Marketing.md",
+        filename="marketing.md",
         title="Marketing",
-        description="Open marketing tasks and projects, grouped by Linear-style status.",
+        description="Open marketing tasks and projects, grouped by status.",
         area="marketing",
         predicate="marketing",
     ),
     Board(
-        filename="Bugs & Reported Issues.md",
+        filename="bugs.md",
         title="Bugs & Reported Issues",
-        description="Bugs and reported issues, grouped by Linear-style status.",
+        description="Bugs and reported issues, grouped by status.",
         area="bugs",
         predicate="bugs",
     ),
