@@ -129,16 +129,16 @@ test.describe('Unauthenticated app load', () => {
 		const box = await inspirationBanner.boundingBox();
 		expect(box, 'Daily inspiration banner must have bounds for swipe test').toBeTruthy();
 		await inspirationBanner.dispatchEvent('touchstart', {
-			touches: [{ clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }],
-			changedTouches: [{ clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }]
+			touches: [{ identifier: 0, clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }],
+			changedTouches: [{ identifier: 0, clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }]
 		});
 		await inspirationBanner.dispatchEvent('touchmove', {
-			touches: [{ clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }],
-			changedTouches: [{ clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
+			touches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }],
+			changedTouches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
 		});
 		await inspirationBanner.dispatchEvent('touchend', {
 			touches: [],
-			changedTouches: [{ clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
+			changedTouches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
 		});
 		await expect(phrase).not.toHaveText(firstPhrase ?? '', { timeout: 3000 });
 		expect(page.url(), 'Swipe navigation should not start a chat').not.toContain('chat-id=');
