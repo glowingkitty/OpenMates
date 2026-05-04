@@ -352,7 +352,7 @@
               iconName: validIcon,
               gradientStart: gradient.start,
               gradientEnd: gradient.end,
-              dateLabel: formatChatDate(timestamp),
+              dateLabel: isPublicResult ? '' : formatChatDate(timestamp),
             };
           })
         );
@@ -795,7 +795,9 @@
               </span>
               <span class="card-text">{chatResult.title}</span>
             </button>
-            <span class="card-date">{chatResult.dateLabel}</span>
+            {#if chatResult.dateLabel}
+              <span class="card-date">{chatResult.dateLabel}</span>
+            {/if}
           </div>
         {/each}
       {/if}
