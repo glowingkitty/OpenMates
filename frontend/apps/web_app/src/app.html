@@ -56,6 +56,29 @@
 				background-color: #171717;
 				color-scheme: dark;
 			}
+
+			.safari-browser-tint-sampler {
+				position: fixed;
+				left: 0;
+				right: 0;
+				width: 100vw;
+				height: 8px;
+				background-color: #ffffff;
+				pointer-events: none;
+				z-index: 2147483647;
+			}
+
+			.safari-browser-tint-sampler.top {
+				top: 0;
+			}
+
+			.safari-browser-tint-sampler.bottom {
+				bottom: 0;
+			}
+
+			html[data-theme='dark'] .safari-browser-tint-sampler {
+				background-color: #171717;
+			}
 		</style>
 
 		<!-- Safari-specific cache control meta tags to prevent aggressive HTML caching -->
@@ -83,6 +106,8 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<div class="safari-browser-tint-sampler top" aria-hidden="true"></div>
+		<div class="safari-browser-tint-sampler bottom" aria-hidden="true"></div>
 		<!--
 			SEO-friendly content for crawlers that don't execute JavaScript.
 			This content is visually hidden when JS runs (the app renders in the body div),
