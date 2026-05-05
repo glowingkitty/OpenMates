@@ -14,7 +14,7 @@ class UserDatabaseService {
   public db: IDBDatabase | null = null;
   public readonly DB_NAME = "user_db";
   public readonly STORE_NAME = "user_data";
-  private readonly VERSION = 1;
+  private readonly VERSION = 2;
 
   // Flag to prevent new operations during database deletion
   // This ensures that no new transactions are started while we're trying to delete the database
