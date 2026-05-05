@@ -16,7 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-DEFAULT_VAULT = Path("/home/superdev/vaults/memory")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_VAULT = PROJECT_ROOT / "vaults" / "memory"
 BOARDS_DIR = Path("Boards")
 TASK_STATUSES = ("backlog", "todo", "in_progress", "in_review", "done")
 STATUS_TITLES = {

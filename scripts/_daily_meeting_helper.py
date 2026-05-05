@@ -54,7 +54,7 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 TMP_DIR = SCRIPTS_DIR / ".tmp"
 STATE_FILE = SCRIPTS_DIR / ".daily-meeting-state.json"
 TEST_RESULTS_DIR = PROJECT_ROOT / "test-results"
-OBSIDIAN_DAILY_NOTES_DIR = Path("/home/superdev/vaults/memory/Daily Notes")
+OBSIDIAN_DAILY_NOTES_DIR = PROJECT_ROOT / "vaults" / "memory" / "Daily Notes"
 
 # Main meeting prompt template
 PROMPT_MEETING = SCRIPTS_DIR / "prompts" / "daily-meeting.md"

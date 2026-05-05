@@ -19,7 +19,7 @@ from typing import Any
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_VAULT = Path("/home/superdev/vaults/memory")
+DEFAULT_VAULT = PROJECT_ROOT / "vaults" / "memory"
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 TESTS_DIR = Path("OpenMates/Tests")

@@ -22,8 +22,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 
-DEFAULT_VAULT = Path("/home/superdev/vaults/memory")
-DEFAULT_GIT_REPO = Path("/home/superdev/projects/OpenMates")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_VAULT = PROJECT_ROOT / "vaults" / "memory"
+DEFAULT_GIT_REPO = PROJECT_ROOT
 DEFAULT_TIMEZONE = "Europe/Berlin"
 GITHUB_REPO_URL = "https://github.com/glowingkitty/OpenMates"
 DAILY_NOTES_DIR = "Daily Notes"

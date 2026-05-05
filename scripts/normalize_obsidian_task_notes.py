@@ -17,7 +17,8 @@ from datetime import date
 from pathlib import Path
 
 
-DEFAULT_VAULT = Path("/home/superdev/vaults/memory")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_VAULT = PROJECT_ROOT / "vaults" / "memory"
 EXCLUDED_DIRS = {".obsidian", ".obsidian-auto", "Daily Notes", "Templates"}
 EXCLUDED_TYPES = {"board", "dashboard", "daily-note", "guide"}
 CAPTURE_TAG_PATTERN = re.compile(r"(?<!\w)#(?P<tag>todo|bug|event)\b", re.IGNORECASE)
