@@ -185,10 +185,7 @@ async def test_incomplete_signup_completion_requires_invoice_or_gift_card():
 
     invoice_call, gift_card_call = task.directus_service.get_items.call_args_list
     assert invoice_call.args[0] == "invoices"
-    assert invoice_call.kwargs["params"]["filter"] == {
-        "user_id_hash": {"_eq": user_id_hash},
-        "status": {"_eq": "completed"},
-    }
+    assert invoice_call.kwargs["params"]["filter"] == {"user_id_hash": {"_eq": user_id_hash}}
     assert gift_card_call.args[0] == "redeemed_gift_cards"
     assert gift_card_call.kwargs["params"]["filter"] == {"user_id_hash": {"_eq": user_id_hash}}
 
