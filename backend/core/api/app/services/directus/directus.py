@@ -151,8 +151,10 @@ class DirectusService:
             headers = {"Authorization": f"Bearer {admin_token}"}
             logger.info(f"Using admin token for collection: {collection}")
         else:
-            # Use regular token for non-sensitive collections
-            headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+            # Let _make_api_request attach and refresh the regular API token.
+            # Passing self.token here would make a stale token look caller-owned
+            # and bypass the refresh path.
+            headers = {}
         
         # Optionally bypass Directus cache using no-store
         if no_cache:

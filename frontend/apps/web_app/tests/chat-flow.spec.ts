@@ -414,8 +414,8 @@ async function performLogin(
 
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
-	await page.waitForURL(/chat/);
-	logCheckpoint('Redirected to chat page.');
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+	logCheckpoint('Authenticated chat interface is visible.');
 	// Wait for phased sync to complete
 	await page.waitForTimeout(5000);
 }

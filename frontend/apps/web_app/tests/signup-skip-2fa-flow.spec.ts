@@ -210,8 +210,9 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	// Wait for the consent toggle or Stripe iframe to appear (payment step loaded)
 	await expect(consentToggle.or(stripeIframe)).toBeAttached({ timeout: 10000 });
 
-	if (await consentToggle.isVisible().catch(() => false)) {
+	if (await consentToggle.count()) {
 		await setToggleChecked(consentToggle, true);
+		await expect(consentToggle).not.toBeAttached({ timeout: 10000 });
 		logSignupCheckpoint('Payment consent accepted.');
 	} else {
 		logSignupCheckpoint('No consent toggle — Stripe loaded directly (hosted invoice path).');
@@ -252,7 +253,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	logSignupCheckpoint('Stripe payment completed successfully.');
 
 	await page.getByTestId('signup-finish-setup').first().click();
-	await page.waitForURL(/chat/);
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'chat-after-signup');
 
 	// Logout
@@ -304,7 +305,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(loginSubmitButton).toBeVisible({ timeout: 10000 });
 	await loginSubmitButton.click();
 
-	await page.waitForURL(/chat/, { timeout: 10000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'relogin-success');
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('Re-login with password completed. No 2FA/OTP was requested.');
