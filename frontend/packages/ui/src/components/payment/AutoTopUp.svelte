@@ -332,26 +332,30 @@ Matches the design from the signup flow screenshot.
             // If no subscription activation needed, complete signup
             // CRITICAL: Always call oncomplete when finish button is pressed
             // This ensures last_opened is updated to '/chat/new' so signup doesn't reopen on reload
+            const completionDetail = {
+                lowBalanceEnabled: lowBalanceEnabled,
+                monthlyEnabled: false // Set to false if payment method wasn't saved
+            };
             if (oncomplete) {
-                oncomplete(new CustomEvent('complete', {
-                    detail: {
-                        lowBalanceEnabled: lowBalanceEnabled,
-                        monthlyEnabled: false // Set to false if payment method wasn't saved
-                    }
-                }));
+                oncomplete(new CustomEvent('complete', { detail: completionDetail }));
+            } else {
+                _dispatch('complete', completionDetail);
             }
         } catch (error) {
             console.error('Error finishing setup:', error);
             isProcessing = false;
             // Even on error, try to complete signup if possible
             // This ensures user doesn't get stuck in signup flow
-            if (oncomplete && !monthlyEnabled) {
-                oncomplete(new CustomEvent('complete', {
-                    detail: {
-                        lowBalanceEnabled: lowBalanceEnabled,
-                        monthlyEnabled: false
-                    }
-                }));
+            if (!monthlyEnabled) {
+                const completionDetail = {
+                    lowBalanceEnabled: lowBalanceEnabled,
+                    monthlyEnabled: false
+                };
+                if (oncomplete) {
+                    oncomplete(new CustomEvent('complete', { detail: completionDetail }));
+                } else {
+                    _dispatch('complete', completionDetail);
+                }
             }
         }
     }

@@ -1538,6 +1538,7 @@
                                             oncomplete={handleAutoTopUpComplete}
                                             onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:consentGiven={handleRefundConsent}
+                                            on:complete={handleAutoTopUpComplete}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}
                                             on:payment={handlePaymentSubmission}

@@ -206,6 +206,14 @@ step_10_top_content_svelte:
         showGiftCardInput = false;
     }
 
+    function handleAutoTopUpComplete(event: CustomEvent) {
+        if (oncomplete) {
+            oncomplete(event);
+        } else {
+            dispatch('complete', event.detail);
+        }
+    }
+
     function openGiftCardInput() {
         if (typeof window !== 'undefined') {
             pendingGiftCardCode = sessionStorage.getItem('pending_gift_card_code')?.toUpperCase() || '';
@@ -262,6 +270,7 @@ step_10_top_content_svelte:
                             paymentMethodSaved={localPaymentMethodSaved}
                             paymentMethodSaveError={localPaymentMethodSaveError}
                             {oncomplete}
+                            on:complete={handleAutoTopUpComplete}
                             onactivate-subscription={onactivateSubscription}
                         />
                     </div>
