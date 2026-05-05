@@ -211,7 +211,8 @@ async function waitForChatInSidebarAndClick(
 	page: any,
 	expectedTitleFragment: string,
 	logFn: (msg: string) => void,
-	timeoutMs: number = SIDEBAR_SYNC_TIMEOUT_MS
+	timeoutMs: number = SIDEBAR_SYNC_TIMEOUT_MS,
+	chatId?: string
 ): Promise<void> {
 	// OPE-360: On viewports <=1440px (Playwright default 1280x720) the sidebar is
 	// closed by default and Chats.svelte is NOT mounted -- so chat-item-wrapper
@@ -238,11 +239,13 @@ async function waitForChatInSidebarAndClick(
 
 	logFn(`Waiting for chat with title containing "${expectedTitleFragment}" to appear in sidebar...`);
 
-	const chatItem = page.getByTestId('chat-item-wrapper').filter({
-		has: page.getByTestId('chat-title').filter({
-			hasText: new RegExp(expectedTitleFragment, 'i')
-		})
-	});
+	const chatItem = chatId
+		? page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`)
+		: page.getByTestId('chat-item-wrapper').filter({
+			has: page.getByTestId('chat-title').filter({
+				hasText: new RegExp(expectedTitleFragment, 'i')
+			})
+		});
 
 	await expect(chatItem.first()).toBeVisible({ timeout: timeoutMs });
 	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar -- clicking to open.`);
@@ -396,7 +399,7 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 
 		// Step 5: Tab B discovers the chat via sidebar sync and opens it
 		await screenshotB(tabB, 'before-sidebar-check');
-		await waitForChatInSidebarAndClick(tabB, 'multi-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS);
+		await waitForChatInSidebarAndClick(tabB, 'multi-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS, chatId);
 		await screenshotB(tabB, 'chat-opened');
 
 		// Step 6: Assert both tabs have correct decryption
@@ -512,7 +515,7 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 		// This is the key assertion: tab B never created this chat. It discovers
 		// it via WebSocket sync and must decrypt using the shared chat key from
 		// IndexedDB (populated by tab A and visible to tab B via shared storage).
-		await waitForChatInSidebarAndClick(tabB, 'cross-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS);
+		await waitForChatInSidebarAndClick(tabB, 'cross-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS, chatId);
 		await screenshotB(tabB, 'chat-opened');
 
 		// Step 6: Assert tab B decrypts correctly
@@ -631,7 +634,7 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 		await screenshotFresh(freshTab, 'loaded');
 
 		// Step 6: Find and open the test chat in sidebar
-		await waitForChatInSidebarAndClick(freshTab, 'fresh tab', logFresh, SIDEBAR_SYNC_TIMEOUT_MS);
+		await waitForChatInSidebarAndClick(freshTab, 'fresh tab', logFresh, SIDEBAR_SYNC_TIMEOUT_MS, chatId);
 		await screenshotFresh(freshTab, 'chat-opened');
 
 		// Step 7: Wait for key loading + decryption (OPE-314 retry mechanism).
