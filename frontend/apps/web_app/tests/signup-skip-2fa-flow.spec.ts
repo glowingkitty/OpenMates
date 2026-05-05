@@ -197,6 +197,26 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(page.getByTestId('credits-package').getByTestId('buy-button').first()).toBeVisible({
 		timeout: 10000
 	});
+
+	const lessCreditsButton = page.locator('#signup-credits-less');
+	if (await lessCreditsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await lessCreditsButton.click();
+	}
+
+	await page.getByRole('button', { name: /recovery key/i }).click();
+	await expect(recoveryConfirmToggle).toBeVisible({ timeout: 10000 });
+	expect(
+		consoleLogs.some((log) => log.includes('indexOf is not a function') || log.includes('[UnhandledRejection]')),
+		'Signup credits back navigation must not throw the OPE-490 indexOf crash.'
+	).toBe(false);
+	await takeStepScreenshot(page, 'recovery-key-after-credits-back');
+
+	await setToggleChecked(recoveryConfirmToggle, true);
+	await expect(page.getByTestId('credits-package').getByTestId('buy-button').first()).toBeVisible({
+		timeout: 10000
+	});
+	logSignupCheckpoint('Navigated from credits back to recovery key and forward again without crashing.');
+
 	await page.getByTestId('credits-package').getByTestId('buy-button').first().click();
 	await takeStepScreenshot(page, 'payment-consent');
 	logSignupCheckpoint('Reached payment consent step.');
