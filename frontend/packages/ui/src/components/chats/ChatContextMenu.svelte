@@ -43,8 +43,8 @@
     // Derive if chat is currently unread (has unread_count > 0)
     let isUnread = $derived(chat ? (chat.unread_count > 0) : false);
     let menuElement = $state<HTMLDivElement>();
-    let adjustedX = $state(x);
-    let adjustedY = $state(y);
+    let adjustedX = $state(0);
+    let adjustedY = $state(0);
     let showBelow = $state(false); // Track whether menu should appear below clicked point
     let deleteConfirmMode = $state(false);
     let deleteConfirmTimeout: number | undefined;
@@ -317,6 +317,10 @@
         }
     }
 
+    function stopInsideTouch(event: TouchEvent) {
+        event.stopPropagation();
+    }
+
     async function handleToggleDebug(event: Event) {
         event.stopPropagation();
         event.preventDefault();
@@ -382,8 +386,12 @@
     <div
         class="menu-container {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
         data-testid="context-menu"
+        role="menu"
+        tabindex="-1"
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
+        ontouchstart={stopInsideTouch}
+        ontouchend={stopInsideTouch}
     >
         <!-- Active focus mode indicator (shown at top if a focus mode is active) -->
         {#if activeFocusId && focusAppId && focusDisplayName}
@@ -420,6 +428,7 @@
                         class:downloading={downloading}
                         disabled={downloading}
                         onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
+                        ontouchend={(event) => { if (!downloading) handleButtonClick('download', event); }}
                     >
                         <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
                         <span class:shimmer={downloading}>
@@ -432,6 +441,7 @@
                     <button
                         class="menu-item copy"
                         onclick={(event) => handleButtonClick('copy', event)}
+                        ontouchend={(event) => handleButtonClick('copy', event)}
                     >
                         <div class="clickable-icon icon_copy"></div>
                         {$text('chats.context_menu.copy_selected')}
@@ -443,6 +453,7 @@
                         class="menu-item delete"
                         data-testid="chat-context-delete"
                         onclick={(event) => handleButtonClick('delete', event)}
+                        ontouchend={(event) => handleButtonClick('delete', event)}
                     >
                         <div class="clickable-icon icon_delete"></div>
                         {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('chats.context_menu.delete_selected')}
@@ -452,6 +463,7 @@
                 <button
                     class="menu-item unselect"
                     onclick={(event) => handleButtonClick('unselect', event)}
+                    ontouchend={(event) => handleButtonClick('unselect', event)}
                 >
                     <div class="clickable-icon icon_close"></div>
                     {$text('chats.context_menu.unselect')}
@@ -461,6 +473,7 @@
                 <button
                     class="menu-item select"
                     onclick={(event) => handleButtonClick('selectChat', event)}
+                    ontouchend={(event) => handleButtonClick('selectChat', event)}
                 >
                     <div class="clickable-icon icon_select"></div>
                     {$text('chats.context_menu.select')}
@@ -471,6 +484,7 @@
             <button
                 class="menu-item select"
                 onclick={(event) => handleButtonClick('enterSelectMode', event)}
+                ontouchend={(event) => handleButtonClick('enterSelectMode', event)}
             >
                 <div class="clickable-icon icon_select"></div>
                 {$text('chats.context_menu.select')}
@@ -483,6 +497,7 @@
                     class:downloading={downloading}
                     disabled={downloading}
                     onclick={(event) => { if (!downloading) handleButtonClick('download', event); }}
+                    ontouchend={(event) => { if (!downloading) handleButtonClick('download', event); }}
                 >
                     <div class="clickable-icon icon_download" class:shimmer={downloading}></div>
                     <span class:shimmer={downloading}>
@@ -495,6 +510,7 @@
                 <button
                     class="menu-item copy"
                     onclick={(event) => handleButtonClick('copy', event)}
+                    ontouchend={(event) => handleButtonClick('copy', event)}
                 >
                     <div class="clickable-icon icon_copy"></div>
                     {$text('common.copy')}
@@ -507,6 +523,11 @@
                     class:disabled={!$authStore.isAuthenticated}
                     disabled={!$authStore.isAuthenticated}
                     onclick={(event) => {
+                        if ($authStore.isAuthenticated) {
+                            handleButtonClick('share', event);
+                        }
+                    }}
+                    ontouchend={(event) => {
                         if ($authStore.isAuthenticated) {
                             handleButtonClick('share', event);
                         }
@@ -528,6 +549,11 @@
                             handleButtonClick('hide', event);
                         }
                     }}
+                    ontouchend={(event) => {
+                        if ($authStore.isAuthenticated) {
+                            handleButtonClick('hide', event);
+                        }
+                    }}
                 >
                     <div class="clickable-icon icon_hidden"></div>
                     {$text('chats.context_menu.hide')}
@@ -541,6 +567,11 @@
                     class:disabled={!$authStore.isAuthenticated}
                     disabled={!$authStore.isAuthenticated}
                     onclick={(event) => {
+                        if ($authStore.isAuthenticated) {
+                            handleButtonClick('unhide', event);
+                        }
+                    }}
+                    ontouchend={(event) => {
                         if ($authStore.isAuthenticated) {
                             handleButtonClick('unhide', event);
                         }
@@ -563,6 +594,11 @@
                                 handleButtonClick('unpin', event);
                             }
                         }}
+                        ontouchend={(event) => {
+                            if ($authStore.isAuthenticated) {
+                                handleButtonClick('unpin', event);
+                            }
+                        }}
                     >
                         <div class="clickable-icon icon_pin_off"></div>
                         {$text('chats.context_menu.unpin')}
@@ -574,6 +610,11 @@
                         class:disabled={!$authStore.isAuthenticated}
                         disabled={!$authStore.isAuthenticated}
                         onclick={(event) => {
+                            if ($authStore.isAuthenticated) {
+                                handleButtonClick('pin', event);
+                            }
+                        }}
+                        ontouchend={(event) => {
                             if ($authStore.isAuthenticated) {
                                 handleButtonClick('pin', event);
                             }
@@ -591,6 +632,7 @@
                         class="menu-item mark-read"
                         data-testid="chat-context-mark-read"
                         onclick={(event) => handleButtonClick('markRead', event)}
+                        ontouchend={(event) => handleButtonClick('markRead', event)}
                     >
                         <div class="clickable-icon icon_mail"></div>
                         {$text('chats.context_menu.mark_read')}
@@ -600,6 +642,7 @@
                         class="menu-item mark-unread"
                         data-testid="chat-context-mark-unread"
                         onclick={(event) => handleButtonClick('markUnread', event)}
+                        ontouchend={(event) => handleButtonClick('markUnread', event)}
                     >
                         <div class="clickable-icon icon_mail"></div>
                         {$text('chats.context_menu.mark_unread')}
@@ -612,6 +655,7 @@
                     class="menu-item delete"
                     data-testid="chat-context-delete"
                     onclick={(event) => handleButtonClick('delete', event)}
+                    ontouchend={(event) => handleButtonClick('delete', event)}
                 >
                     <div class="clickable-icon icon_delete"></div>
                     {deleteConfirmMode ? $text('chats.context_menu.confirm') : $text('common.delete')}
@@ -626,6 +670,7 @@
                     class="menu-item debug"
                     class:debug-active={$chatDebugStore.rawTextMode}
                     onclick={handleToggleDebug}
+                    ontouchend={handleToggleDebug}
                 >
                     <div class="clickable-icon icon_bug"></div>
                     {$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
