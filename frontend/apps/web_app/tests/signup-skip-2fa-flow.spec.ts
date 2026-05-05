@@ -204,7 +204,7 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	}
 
 	await page.getByRole('button', { name: /recovery key/i }).click();
-	await expect(recoveryConfirmToggle).toBeVisible({ timeout: 10000 });
+	await expect(page.getByText(/i stored the recovery key somewhere safe/i)).toBeVisible({ timeout: 10000 });
 	expect(
 		consoleLogs.some((log) => log.includes('indexOf is not a function') || log.includes('[UnhandledRejection]')),
 		'Signup credits back navigation must not throw the OPE-490 indexOf crash.'
