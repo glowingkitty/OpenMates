@@ -157,10 +157,7 @@ async def _has_completed_credit_source(task: BaseServiceTask, user_id: str) -> b
     invoices = await task.directus_service.get_items(
         "invoices",
         params={
-            "filter": {
-                "user_id_hash": {"_eq": user_id_hash},
-                "status": {"_eq": "completed"},
-            },
+            "filter": {"user_id_hash": {"_eq": user_id_hash}},
             "fields": "id",
             "limit": 1,
         },
