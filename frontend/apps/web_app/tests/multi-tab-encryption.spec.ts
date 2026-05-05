@@ -113,6 +113,28 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	logFn('Redirected to /chat -- login complete.');
 }
 
+async function navigateSharedTabToChatReady(
+	page: any,
+	logFn: (msg: string) => void,
+	timeoutMs: number = TAB_NAVIGATION_TIMEOUT_MS
+): Promise<void> {
+	await page.goto(getE2EDebugUrl('/'));
+
+	try {
+		await waitForChatReady(page, logFn, timeoutMs);
+		return;
+	} catch (firstError) {
+		logFn(`Root did not show composer directly; trying resume/recent chat card. ${firstError}`);
+	}
+
+	const resumeCard = page
+		.locator('[data-testid="resume-chat-card"], [data-testid="resume-chat-large-card"]')
+		.first();
+	await expect(resumeCard).toBeVisible({ timeout: 10000 });
+	await resumeCard.click();
+	await waitForChatReady(page, logFn, timeoutMs);
+}
+
 // ---- Start new chat ----
 
 async function startNewChat(page: any, logFn: (msg: string) => void): Promise<void> {
@@ -359,8 +381,7 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 
 		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
 		logB('Tab B navigating to / (shared session)...');
-		await tabB.goto(getE2EDebugUrl('/'));
-		await waitForChatReady(tabB, logB, TAB_NAVIGATION_TIMEOUT_MS);
+		await navigateSharedTabToChatReady(tabB, logB);
 		logB('Tab B authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
 
@@ -475,8 +496,7 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 
 		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
 		logB('Tab B navigating to / (shared session)...');
-		await tabB.goto(getE2EDebugUrl('/'));
-		await waitForChatReady(tabB, logB, TAB_NAVIGATION_TIMEOUT_MS);
+		await navigateSharedTabToChatReady(tabB, logB);
 		logB('Tab B authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
 
@@ -616,8 +636,7 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 		attachListeners(freshTab, 'FRESH-TAB', logsFresh);
 
 		logFresh('Fresh tab navigating to / (already authenticated via shared cookies)...');
-		await freshTab.goto(getE2EDebugUrl('/'));
-		await waitForChatReady(freshTab, logFresh, TAB_NAVIGATION_TIMEOUT_MS);
+		await navigateSharedTabToChatReady(freshTab, logFresh);
 		logFresh('Fresh tab authenticated via shared cookies.');
 		await screenshotFresh(freshTab, 'loaded');
 
