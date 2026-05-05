@@ -17,6 +17,11 @@ import SwiftUI
 import WidgetKit
 import CoreSpotlight
 import LucideIcons
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct MainAppView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -72,6 +77,14 @@ struct MainAppView: View {
         horizontalSizeClass == .compact
     }
 
+    private var platformScreenWidth: CGFloat {
+        #if os(iOS)
+        UIScreen.main.bounds.width
+        #elseif os(macOS)
+        NSScreen.main?.visibleFrame.width ?? 390
+        #endif
+    }
+
     // Web `.active-chat-container`: border-radius: 17px.
     private let activeChatContainerRadius: CGFloat = 17
 
@@ -103,7 +116,7 @@ struct MainAppView: View {
     ]
 
     var body: some View {
-        let compactPanelWidth = min(UIScreen.main.bounds.width - 10, 390)
+        let compactPanelWidth = min(platformScreenWidth - 10, 390)
 
         ZStack(alignment: .leading) {
             activeAppChrome
@@ -352,7 +365,7 @@ struct MainAppView: View {
                     }
                         .environmentObject(authManager)
                         .environmentObject(themeManager)
-                        .frame(width: min(UIScreen.main.bounds.width - 40, 323))
+                        .frame(width: min(platformScreenWidth - 40, 323))
                         .frame(maxHeight: .infinity)
                         .background(Color.grey20)
                         .clipShape(RoundedRectangle(cornerRadius: activeChatContainerRadius))

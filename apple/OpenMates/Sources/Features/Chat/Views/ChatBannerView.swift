@@ -356,11 +356,7 @@ struct ChatBannerView: View {
                 desktopIntroTeaser(appId: appId)
             }
         }
-        .fullScreenCover(isPresented: $showFullVideo) {
-            if let url = fullVideoURL {
-                FullVideoPlayerView(url: url, isPresented: $showFullVideo)
-            }
-        }
+        .modifier(FullVideoPresentation(url: fullVideoURL, isPresented: $showFullVideo))
     }
 
     // MARK: Mobile — crossfade loop between text and video
@@ -750,9 +746,12 @@ private struct BottomRoundedRect: Shape {
 // Silent looping AVPlayer for the bundled intro teaser clip.
 // Web: .teaser-video-preview { autoplay, muted, loop, playsinline }
 
-private struct TeaserVideoPlayer: UIViewRepresentable {
+private struct TeaserVideoPlayer {
     let url: URL
+}
 
+#if os(iOS)
+extension TeaserVideoPlayer: UIViewRepresentable {
     func makeUIView(context: Context) -> TeaserPlayerUIView {
         TeaserPlayerUIView(url: url)
     }
@@ -810,6 +809,78 @@ private class TeaserPlayerUIView: UIView {
         super.removeFromSuperview()
     }
 }
+#elseif os(macOS)
+extension TeaserVideoPlayer: NSViewRepresentable {
+    func makeNSView(context: Context) -> TeaserPlayerNSView {
+        TeaserPlayerNSView(url: url)
+    }
+
+    func updateNSView(_ nsView: TeaserPlayerNSView, context: Context) {}
+
+    static func dismantleNSView(_ nsView: TeaserPlayerNSView, coordinator: ()) {
+        nsView.cleanupPlayer()
+    }
+}
+
+private class TeaserPlayerNSView: NSView {
+    private var player: AVPlayer?
+    private var playerLayer: AVPlayerLayer?
+    private var loopObserver: Any?
+    private var hasCleanedUp = false
+
+    init(url: URL) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.clear.cgColor
+
+        let player = AVPlayer(url: url)
+        player.isMuted = true
+        player.preventsDisplaySleepDuringVideoPlayback = false
+
+        let playerLayer = AVPlayerLayer(player: player)
+        playerLayer.videoGravity = .resizeAspectFill
+        layer?.addSublayer(playerLayer)
+
+        self.player = player
+        self.playerLayer = playerLayer
+
+        loopObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: player.currentItem,
+            queue: .main
+        ) { [weak player] _ in
+            player?.seek(to: .zero)
+            player?.play()
+        }
+
+        player.play()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        playerLayer?.frame = bounds
+    }
+
+    func cleanupPlayer() {
+        guard !hasCleanedUp else { return }
+        hasCleanedUp = true
+
+        if let loopObserver {
+            NotificationCenter.default.removeObserver(loopObserver)
+            self.loopObserver = nil
+        }
+
+        player?.pause()
+        playerLayer?.player = nil
+        playerLayer?.removeFromSuperlayer()
+        player?.replaceCurrentItem(with: nil)
+        playerLayer = nil
+        player = nil
+    }
+}
+#endif
 
 // MARK: - Play Triangle
 // Web: .video-play-icon { border-left: 22px solid white } — CSS border triangle
@@ -828,6 +899,218 @@ private struct PlayTriangle: Shape {
 // MARK: - Full Video Player
 // Streams the full video from api.video when the user taps the play button.
 // Web: mounts a <video> element and calls requestFullscreen().
+
+private struct FullVideoPresentation: ViewModifier {
+    let url: URL?
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content
+            .fullScreenCover(isPresented: $isPresented) {
+                if let url {
+                    FullVideoPlayerView(url: url, isPresented: $isPresented)
+                }
+            }
+        #elseif os(macOS)
+        content
+            .background {
+                if let url {
+                    FullVideoWindowPresenter(url: url, isPresented: $isPresented)
+                        .frame(width: 0, height: 0)
+                }
+            }
+        #endif
+    }
+}
+
+#if os(macOS)
+private struct FullVideoWindowPresenter: NSViewRepresentable {
+    let url: URL
+    @Binding var isPresented: Bool
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if isPresented {
+            FullVideoWindowController.shared.present(url: url, isPresented: $isPresented)
+        } else {
+            FullVideoWindowController.shared.dismiss()
+        }
+    }
+}
+
+@MainActor
+private final class FullVideoWindowController: NSObject, NSWindowDelegate {
+    static let shared = FullVideoWindowController()
+
+    private var window: NSWindow?
+    private var playerView: MacFullVideoPlayerView?
+    private var isPresented: Binding<Bool>?
+    private var isDismissing = false
+
+    func present(url: URL, isPresented: Binding<Bool>) {
+        self.isPresented = isPresented
+
+        let window = window ?? makeWindow()
+        self.window = window
+
+        if playerView?.url != url || playerView?.isStopped == true {
+            playerView?.stop()
+            let playerView = MacFullVideoPlayerView(url: url) { [weak self] in
+                self?.dismiss()
+            }
+            window.contentView = playerView
+            window.makeFirstResponder(playerView)
+            self.playerView = playerView
+        }
+
+        isDismissing = false
+        window.makeKeyAndOrderFront(nil)
+        playerView?.play()
+
+        if !window.styleMask.contains(.fullScreen) {
+            window.toggleFullScreen(nil)
+        }
+    }
+
+    func dismiss() {
+        guard let window, !isDismissing else { return }
+        isDismissing = true
+        playerView?.stop()
+
+        if window.styleMask.contains(.fullScreen) {
+            window.toggleFullScreen(nil)
+        } else {
+            finishDismiss()
+        }
+    }
+
+    func windowDidExitFullScreen(_ notification: Notification) {
+        finishDismiss()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        playerView?.stop()
+        isPresented?.wrappedValue = false
+    }
+
+    private func makeWindow() -> NSWindow {
+        let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1280, height: 720)
+        let window = NSWindow(
+            contentRect: screenFrame,
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.backgroundColor = .black
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.isReleasedWhenClosed = false
+        window.isRestorable = false
+        window.delegate = self
+        return window
+    }
+
+    private func finishDismiss() {
+        guard isDismissing else { return }
+        window?.orderOut(nil)
+        isDismissing = false
+        isPresented?.wrappedValue = false
+    }
+}
+
+private final class MacFullVideoPlayerView: NSView {
+    let url: URL
+
+    private let player: AVPlayer
+    private let playerView = AVPlayerView()
+    private let closeButton = NSButton()
+    private let onClose: () -> Void
+    private var hasStopped = false
+    var isStopped: Bool { hasStopped }
+
+    init(url: URL, onClose: @escaping () -> Void) {
+        self.url = url
+        self.player = AVPlayer(url: url)
+        self.onClose = onClose
+
+        super.init(frame: .zero)
+        setupView()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    func play() {
+        guard !hasStopped else { return }
+        player.play()
+    }
+
+    func stop() {
+        guard !hasStopped else { return }
+        hasStopped = true
+        player.pause()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            close()
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+
+    private func setupView() {
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
+
+        playerView.player = player
+        playerView.controlsStyle = .floating
+        playerView.videoGravity = .resizeAspect
+        playerView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(playerView)
+
+        closeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: AppStrings.close)
+        closeButton.imagePosition = .imageOnly
+        closeButton.isBordered = false
+        closeButton.wantsLayer = true
+        closeButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.45).cgColor
+        closeButton.layer?.cornerRadius = 18
+        closeButton.contentTintColor = .white
+        closeButton.target = self
+        closeButton.action = #selector(closeButtonPressed)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.setAccessibilityLabel(AppStrings.close)
+        addSubview(closeButton)
+
+        NSLayoutConstraint.activate([
+            playerView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            playerView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            playerView.topAnchor.constraint(equalTo: topAnchor),
+            playerView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            closeButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            closeButton.topAnchor.constraint(equalTo: topAnchor, constant: 54),
+            closeButton.widthAnchor.constraint(equalToConstant: 36),
+            closeButton.heightAnchor.constraint(equalToConstant: 36)
+        ])
+    }
+
+    @objc private func closeButtonPressed() {
+        close()
+    }
+
+    private func close() {
+        onClose()
+    }
+}
+#endif
 
 private struct FullVideoPlayerView: View {
     let url: URL
