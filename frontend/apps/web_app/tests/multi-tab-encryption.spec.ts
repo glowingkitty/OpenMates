@@ -43,7 +43,7 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
-const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -119,20 +119,10 @@ async function navigateSharedTabToChatReady(
 	timeoutMs: number = TAB_NAVIGATION_TIMEOUT_MS
 ): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'));
-
-	try {
-		await waitForChatReady(page, logFn, timeoutMs);
-		return;
-	} catch (firstError) {
-		logFn(`Root did not show composer directly; trying resume/recent chat card. ${firstError}`);
-	}
-
-	const resumeCard = page
-		.locator('[data-testid="resume-chat-card"], [data-testid="resume-chat-large-card"]')
-		.first();
-	await expect(resumeCard).toBeVisible({ timeout: 10000 });
-	await resumeCard.click();
-	await waitForChatReady(page, logFn, timeoutMs);
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: timeoutMs });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: timeoutMs });
+	await page.waitForTimeout(1500);
+	logFn('Shared tab chat surface ready: authenticated + editor visible.');
 }
 
 // ---- Start new chat ----
