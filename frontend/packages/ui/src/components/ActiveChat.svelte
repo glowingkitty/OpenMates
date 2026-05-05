@@ -10526,7 +10526,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 piiRevealed={piiRevealed}
                                 chatId={currentChat?.chat_id}
                             />
+                        {:else}
+                            <div class="embed-fullscreen-fallback">
+                                <div class="fullscreen-header">
+                                    <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                                </div>
+                                <div class="fullscreen-content">
+                                    <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
+                                </div>
+                            </div>
                         {/if}
+                    {:catch}
+                        <div class="embed-fullscreen-fallback">
+                            <div class="fullscreen-header">
+                                <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                            </div>
+                            <div class="fullscreen-content">
+                                <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
+                            </div>
+                        </div>
                     {/await}
                 {:else}
                     <!-- Fallback for unknown/unregistered embed types -->
