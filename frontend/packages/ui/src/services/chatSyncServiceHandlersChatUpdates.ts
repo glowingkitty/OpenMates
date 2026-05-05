@@ -18,6 +18,7 @@ import type { EmbedType } from "../message_parsing/types";
 // so that system messages queued before the key was available get saved correctly.
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
@@ -1401,6 +1402,15 @@ export async function handleChatMetadataForEncryptionImpl(
     }
     if (!metadataKey) return; // Safety — should not happen after withKey resolves
     const chatKey: Uint8Array = metadataKey;
+    if (
+      !(await ensureChatKeySafeForWrite(
+        chat_id,
+        chatKey,
+        "broadcast metadata encryption",
+      ))
+    ) {
+      return;
+    }
 
     // Encrypt metadata with chat-specific key for local storage
     let encryptedTitle: string | null = null;

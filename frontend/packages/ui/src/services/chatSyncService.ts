@@ -934,6 +934,16 @@ export class ChatSynchronizationService extends EventTarget {
         if (chat) {
           const chatKey = await chatKeyManager.getKey(chatId);
           if (chatKey) {
+            const { ensureChatKeySafeForWrite } = await import("./chatKeyWriteGuard");
+            if (
+              !(await ensureChatKeySafeForWrite(
+                chatId,
+                chatKey,
+                "active focus id encryption",
+              ))
+            ) {
+              return;
+            }
             const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
             const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
             chat.encrypted_active_focus_id = encryptedFocusId;

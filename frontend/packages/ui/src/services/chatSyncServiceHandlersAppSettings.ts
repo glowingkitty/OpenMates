@@ -18,6 +18,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptWithMasterKey } from "./encryption/MetadataEncryptor";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -1088,6 +1089,15 @@ async function saveAppSettingsMemoriesResponseMessage(
     );
     throw new Error(`No chat key found for chat ${chatId}`);
   }
+  if (
+    !(await ensureChatKeySafeForWrite(
+      chatId,
+      chatKey,
+      "app settings response system message encryption",
+    ))
+  ) {
+    throw new Error(`Unsafe chat key for chat ${chatId}`);
+  }
 
   // Encrypt content with chat key (same as regular messages)
   const encryptedContent = await encryptWithChatKey(contentString, chatKey);
@@ -1245,6 +1255,15 @@ async function saveAppSettingsMemoriesRequestMessage(
       `[ChatSyncService:AppSettings] No chat key found for chat ${chatId}, cannot encrypt request system message`,
     );
     throw new Error(`No chat key found for chat ${chatId}`);
+  }
+  if (
+    !(await ensureChatKeySafeForWrite(
+      chatId,
+      chatKey,
+      "app settings request system message encryption",
+    ))
+  ) {
+    throw new Error(`Unsafe chat key for chat ${chatId}`);
   }
 
   // Encrypt content with chat key (same as regular messages)
@@ -2232,6 +2251,16 @@ export async function handleReminderFiredImpl(
         return;
       }
       chatKey = await chatKeyManager.getKey(chat_id);
+      if (
+        chatKey &&
+        !(await ensureChatKeySafeForWrite(
+          chat_id,
+          chatKey,
+          "reminder existing-chat system message encryption",
+        ))
+      ) {
+        return;
+      }
     } else {
       // new_chat: Create the chat locally first
       // Generate a new chat key for this chat

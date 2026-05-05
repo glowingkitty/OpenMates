@@ -14,6 +14,7 @@ import { webSocketService } from "./websocketService";
 import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import type {
 	UpdateTitlePayload,
@@ -37,6 +38,9 @@ export async function sendUpdateTitleImpl(
 			`[ChatSyncService:Senders] No chat key available for title encryption (chat ${chat_id})`
 		);
 		notificationStore.error("Failed to encrypt title - chat key not available");
+		return;
+	}
+	if (!(await ensureChatKeySafeForWrite(chat_id, chatKey, "manual title update encryption"))) {
 		return;
 	}
 
