@@ -10,16 +10,17 @@ struct SettingsAppsFullView: View {
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var selectedApp: AppInfo?
-    @State private var showDetail = false
 
     struct AppInfo: Identifiable, Decodable {
         let id: String
         let name: String
         let description: String?
-        let category: String?
+        var category: String?
         var isInstalled: Bool?
         let iconName: String?
         let skills: [AppSkill]?
+        var focusModes: [AppSkill]?
+        var settingsAndMemories: [AppSkill]?
     }
 
     struct AppSkill: Identifiable, Decodable {
@@ -37,70 +38,128 @@ struct SettingsAppsFullView: View {
     }
 
     private var categories: [String] {
-        Array(Set(apps.compactMap(\.category))).sorted()
+        Array(Set(filteredApps.map { $0.category ?? "apps" })).sorted()
     }
 
     var body: some View {
-        List {
-            if isLoading {
-                ProgressView()
-            } else if apps.isEmpty {
-                Section {
-                    Text(AppStrings.noAppsAvailable)
-                        .foregroundStyle(Color.fontSecondary)
+        Group {
+            if let selectedApp {
+                AppDetailView(app: selectedApp, onToggle: {
+                    toggleApp(selectedApp)
+                }) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        self.selectedApp = nil
+                    }
                 }
+                .transition(.move(edge: .trailing))
             } else {
-                ForEach(categories, id: \.self) { category in
-                    Section(category.capitalized) {
-                        ForEach(filteredApps.filter { $0.category == category }) { app in
-                            AppRow(
-                                app: app,
-                                onToggle: { toggleApp(app) },
-                                onTap: {
-                                    selectedApp = app
-                                    showDetail = true
-                                }
-                            )
+                OMSettingsPage(title: AppStrings.settingsApps, showsHeader: false) {
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.spacing8)
+                    } else if apps.isEmpty {
+                        OMSettingsSection {
+                            Text(AppStrings.noAppsAvailable)
+                                .foregroundStyle(Color.fontSecondary)
+                                .padding(.spacing5)
                         }
-                    }
-                }
+                    } else {
+                        OMSettingsSection {
+                            OMSettingsRow(title: AppStrings.showAllApps, icon: "app_store") {}
+                        }
 
-                let uncategorized = filteredApps.filter { $0.category == nil }
-                if !uncategorized.isEmpty {
-                    Section(LocalizationManager.shared.text("settings.app_store.categories.other")) {
-                        ForEach(uncategorized) { app in
-                            AppRow(
-                                app: app,
-                                onToggle: { toggleApp(app) },
-                                onTap: {
-                                    selectedApp = app
-                                    showDetail = true
+                        ForEach(categories, id: \.self) { category in
+                            let categoryApps = filteredApps.filter { ($0.category ?? "apps") == category }
+                            OMSettingsSection(categoryTitle(category), icon: categoryIcon(category)) {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: .spacing6) {
+                                        ForEach(categoryApps) { app in
+                                            AppStoreCardNative(app: app) {
+                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                    selectedApp = app
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, .spacing5)
+                                    .padding(.bottom, .spacing4)
                                 }
-                            )
+                            }
                         }
                     }
                 }
             }
         }
-        .searchable(text: $searchText, prompt: AppStrings.searchApps)
-        .navigationTitle(AppStrings.settingsApps)
         .task { await loadApps() }
-        .sheet(isPresented: $showDetail) {
-            if let app = selectedApp {
-                AppDetailView(app: app, onToggle: {
-                    toggleApp(app)
-                })
-            }
-        }
     }
 
     private func loadApps() async {
         do {
-            apps = try await APIClient.shared.request(.get, path: "/v1/apps")
+            let response: AppsMetadataResponse = try await APIClient.shared.request(
+                .get,
+                path: "/v1/apps/metadata?include_unavailable=true"
+            )
+            apps = response.apps.values
+                .map { app in
+                    AppInfo(
+                        id: app.id,
+                        name: app.name,
+                        description: app.description,
+                        category: Self.category(for: app.id),
+                        isInstalled: nil,
+                        iconName: nil,
+                        skills: app.skills,
+                        focusModes: app.focusModes,
+                        settingsAndMemories: app.settingsAndMemories
+                    )
+                }
+                .filter { $0.id != "ai" }
+                .sorted { $0.name < $1.name }
         } catch {
             print("[Settings] Failed to load apps: \(error)")
         }
         isLoading = false
+    }
+
+    private struct AppsMetadataResponse: Decodable {
+        let apps: [String: AppMetadataItem]
+    }
+
+    private struct AppMetadataItem: Decodable {
+        let id: String
+        let name: String
+        let description: String?
+        let skills: [AppSkill]
+        let focusModes: [AppSkill]
+        let settingsAndMemories: [AppSkill]
+    }
+
+    private static func category(for appId: String) -> String {
+        switch appId {
+        case "docs", "sheets", "slides", "pdf", "notes", "code": return "explore"
+        case "web", "videos", "images", "maps", "news": return "most_used"
+        case "travel", "shopping", "events", "health", "nutrition": return "daily_life"
+        default: return "apps"
+        }
+    }
+
+    private func categoryTitle(_ category: String) -> String {
+        switch category {
+        case "explore": return LocalizationManager.shared.text("settings.app_store.categories.explore_discover")
+        case "most_used": return LocalizationManager.shared.text("settings.app_store.categories.most_used")
+        case "daily_life": return LocalizationManager.shared.text("settings.app_store.categories.for_everyday_life")
+        default: return AppStrings.apps
+        }
+    }
+
+    private func categoryIcon(_ category: String) -> String {
+        switch category {
+        case "explore": return "search"
+        case "most_used": return "heart"
+        case "daily_life": return "calendar"
+        default: return "app_store"
+        }
     }
 
     private func toggleApp(_ app: AppInfo) {
@@ -167,85 +226,94 @@ struct AppRow: View {
     }
 }
 
+struct AppStoreCardNative: View {
+    let app: SettingsAppsFullView.AppInfo
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: .spacing5) {
+                AppIconView(appId: app.id, size: 44)
+
+                Text(app.name)
+                    .font(.omH4.weight(.bold))
+                    .foregroundStyle(Color.fontButton)
+                    .lineLimit(1)
+
+                if let description = app.description {
+                    Text(description)
+                        .font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.fontButton)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            .padding(.spacing8)
+            .frame(width: 210, height: 150, alignment: .topLeading)
+            .background(AppIconView.gradient(forAppId: app.id))
+            .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - App detail view
 
 struct AppDetailView: View {
     let app: SettingsAppsFullView.AppInfo
     let onToggle: () -> Void
-    @Environment(\.dismiss) var dismiss
+    let onBack: () -> Void
 
     var body: some View {
-        NavigationStack {
-            List {
-                // App header
-                Section {
-                    VStack(spacing: .spacing4) {
-                        AppIconView(appId: app.id, size: 64)
-                        Text(app.name)
-                            .font(.omH3).fontWeight(.bold)
-                        if let desc = app.description {
-                            Text(desc)
-                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        if let category = app.category {
-                            Text(category.capitalized)
-                                .font(.omXs).foregroundStyle(Color.fontTertiary)
-                                .padding(.horizontal, .spacing3)
-                                .padding(.vertical, .spacing1)
-                                .background(Color.grey10)
-                                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-                        }
-
-                        Button {
-                            onToggle()
-                            dismiss()
-                        } label: {
-                            Text(app.isInstalled == true ? AppStrings.remove : AppStrings.add)
-                                .font(.omSmall).fontWeight(.medium)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, .spacing6)
-                                .padding(.vertical, .spacing3)
-                                .background(app.isInstalled == true ? Color.error : Color.buttonPrimary)
-                                .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibleButton(
-                            app.isInstalled == true ? AppStrings.remove : AppStrings.add,
-                            hint: app.isInstalled == true
-                                ? LocalizationManager.shared.text("settings.app_store.remove_hint")
-                                : LocalizationManager.shared.text("settings.app_store.add_hint")
-                        )
+        OMSettingsPage(title: app.name, showsHeader: false) {
+            OMSettingsSection {
+                VStack(spacing: .spacing4) {
+                    AppIconView(appId: app.id, size: 64)
+                    Text(app.name)
+                        .font(.omH3.weight(.bold))
+                        .foregroundStyle(Color.fontPrimary)
+                    if let desc = app.description {
+                        Text(desc)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                            .multilineTextAlignment(.center)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, .spacing4)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing8)
+                .padding(.horizontal, .spacing5)
+            }
 
-                // Skills
-                if let skills = app.skills, !skills.isEmpty {
-                    Section(LocalizationManager.shared.text("settings.app_store.skills")) {
-                        ForEach(skills) { skill in
-                            VStack(alignment: .leading, spacing: .spacing1) {
-                                Text(skill.name)
-                                    .font(.omSmall).fontWeight(.medium)
-                                if let desc = skill.description {
-                                    Text(desc)
-                                        .font(.omXs).foregroundStyle(Color.fontSecondary)
-                                }
-                            }
-                        }
+            if let skills = app.skills, !skills.isEmpty {
+                OMSettingsSection(LocalizationManager.shared.text("settings.app_store.skills"), icon: "skill") {
+                    ForEach(skills) { skill in
+                        skillRow(skill)
                     }
                 }
             }
-            .navigationTitle(app.name)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(AppStrings.done) { dismiss() }
+
+            if let focusModes = app.focusModes, !focusModes.isEmpty {
+                OMSettingsSection(LocalizationManager.shared.text("settings.app_store.focus_modes"), icon: "focus") {
+                    ForEach(focusModes) { focus in
+                        skillRow(focus)
+                    }
                 }
             }
         }
+    }
+
+    private func skillRow(_ item: SettingsAppsFullView.AppSkill) -> some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(item.name)
+                .font(.omP.weight(.medium))
+                .foregroundStyle(Color.fontPrimary)
+            if let desc = item.description {
+                Text(desc)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing3)
     }
 }

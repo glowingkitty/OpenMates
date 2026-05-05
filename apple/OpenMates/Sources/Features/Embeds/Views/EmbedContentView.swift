@@ -18,6 +18,20 @@ enum EmbedDisplayMode {
 struct EmbedContentView: View {
     let embed: EmbedRecord
     let mode: EmbedDisplayMode
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    init(
+        embed: EmbedRecord,
+        mode: EmbedDisplayMode,
+        allEmbedRecords: [String: EmbedRecord] = [:],
+        onOpenEmbed: @escaping (EmbedRecord) -> Void = { _ in }
+    ) {
+        self.embed = embed
+        self.mode = mode
+        self.allEmbedRecords = allEmbedRecords
+        self.onOpenEmbed = onOpenEmbed
+    }
 
     private var embedType: EmbedType? {
         EmbedType(rawValue: embed.type)
@@ -30,6 +44,9 @@ struct EmbedContentView: View {
 
     var body: some View {
         Group {
+            if embed.isAppSkillUse {
+                AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
+            } else {
             switch embedType {
             // Web
             case .webSearch, .newsSearch:
@@ -149,6 +166,7 @@ struct EmbedContentView: View {
 
             default:
                 GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+            }
             }
         }
     }

@@ -11,6 +11,7 @@ enum AppStrings {
     static var settings: String { L("common.settings") }
     static var cancel: String { L("common.cancel") }
     static var save: String { L("common.save") }
+    static var saveDraft: String { L("common.save_draft") }
     static var done: String { L("common.done") }
     static var delete: String { L("common.delete") }
     static var close: String { L("common.close") }
@@ -54,6 +55,7 @@ enum AppStrings {
     static var forkConversation: String { L("context_menu.fork") }
     static var chatMessageInput: String { L("chat.message_input") }
     static var typeMessage: String { L("enter_message.placeholder.touch") }
+    static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("chat.ai_responding") }
     static var stopResponse: String { L("chat.stop_response") }
@@ -77,6 +79,9 @@ enum AppStrings {
     static var setReminder: String { L("chat.set_reminder") }
     static var chats: String { L("common.chats") }
     static var explore: String { L("common.explore") }
+    static var openChat: String { L("chat.open_chat") }
+    static var scrollToTop: String { L("chats.scroll_to_top") }
+    static var scrollToBottom: String { L("chats.scroll_to_bottom") }
 
     static func welcomeHeyUser(_ username: String) -> String {
         LocalizationManager.shared.text("chat.welcome.hey_user", replacements: ["username": username])

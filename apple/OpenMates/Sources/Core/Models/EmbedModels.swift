@@ -27,7 +27,20 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     let createdAt: String?
 
     var childEmbedIds: [String] {
-        embedIds?.split(separator: "|").map(String.init) ?? []
+        guard let embedIds else { return [] }
+        return embedIds
+            .split { $0 == "|" || $0 == "," }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    var rawData: [String: AnyCodable]? {
+        guard let data, case .raw(let dict) = data else { return nil }
+        return dict
+    }
+
+    var isAppSkillUse: Bool {
+        rawData?["type"]?.value as? String == "app_skill_use"
     }
 }
 

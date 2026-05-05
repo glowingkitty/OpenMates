@@ -22,7 +22,7 @@ struct Icon: View {
     var size: CGFloat = 20
 
     init(_ name: String, size: CGFloat = 20) {
-        self.name = name
+        self.name = Self.resolveName(name)
         self.size = size
     }
 
@@ -32,5 +32,57 @@ struct Icon: View {
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
+    }
+
+    private static func resolveName(_ rawName: String) -> String {
+        let cleanName = rawName.hasPrefix("subsetting_icon ")
+            ? String(rawName.dropFirst("subsetting_icon ".count))
+            : rawName
+
+        return [
+            "account": "user",
+            "apps": "app",
+            "app_store": "app",
+            "developers": "coding",
+            "gift_cards": "gift",
+            "incognito": "anonym",
+            "interface": "language",
+            "mates": "mate",
+            "messengers": "chat",
+            "newsletter": "mail",
+            "notifications": "announcement",
+            "passkeys": "passkey",
+            "pricing": "coins",
+            "privacy": "lock",
+            "recovery_key": "warning",
+            "report_issue": "bug",
+            "security": "lock",
+            "settings_memories": "heart",
+            "shared": "share",
+            "storage": "files",
+            "support": "volunteering",
+            "tfa": "2fa",
+            "users": "team",
+            "clock": "time",
+            "devices": "desktop",
+            "document": "pdf",
+            "email": "mail",
+            "icon_gift": "gift",
+            "icon_info": "question",
+            "info": "question",
+            "key": "security_key",
+            "low_balance": "coins",
+            "secrets": "lock",
+            "api-keys": "coding",
+            "app-ai": "ai",
+            "dark_mode": "darkmode",
+            "focus": "search",
+            "light_mode": "darkmode",
+            "link": "web",
+            "notification": "announcement",
+            "profile-picture": "user",
+            "shield": "lock",
+            "username": "user"
+        ][cleanName] ?? cleanName
     }
 }

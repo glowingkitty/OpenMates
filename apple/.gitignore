@@ -1,5 +1,7 @@
 # Xcode generated project (regenerate with: cd apple && xcodegen generate)
 *.xcodeproj/
+!OpenMates.xcodeproj/
+!OpenMates.xcodeproj/project.pbxproj
 *.xcworkspace/
 
 # Build artifacts

@@ -208,9 +208,21 @@ struct ImageRenderer: View {
 struct ImageResultRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    @Environment(\.openURL) private var openURL
 
     private var title: String? { data?["title"]?.value as? String }
-    private var url: String? { data?["url"]?.value as? String ?? data?["thumbnail_url"]?.value as? String }
+    private var url: String? {
+        data?["image_url"]?.value as? String
+            ?? data?["thumbnail_url"]?.value as? String
+            ?? data?["thumbnail_original"]?.value as? String
+            ?? data?["image"]?.value as? String
+            ?? data?["url"]?.value as? String
+    }
+    private var thumbnailUrl: String? {
+        data?["thumbnail_url"]?.value as? String
+            ?? data?["thumbnail_original"]?.value as? String
+    }
+    private var sourcePageUrl: String? { data?["source_page_url"]?.value as? String ?? data?["url"]?.value as? String }
 
     var body: some View {
         switch mode {
@@ -223,14 +235,67 @@ struct ImageResultRenderer: View {
             }
 
         case .fullscreen:
-            VStack(spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: 0) {
                 if let url, let imgURL = URL(string: url) {
-                    AsyncImage(url: imgURL) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: { ProgressView() }
+                    ZStack {
+                        if let thumbnailUrl, let thumbURL = URL(string: thumbnailUrl) {
+                            AsyncImage(url: thumbURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable().aspectRatio(contentMode: .fit).blur(radius: 2)
+                                default:
+                                    Color.grey20
+                                }
+                            }
+                        }
+                        AsyncImage(url: imgURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().aspectRatio(contentMode: .fit)
+                            default:
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.spacing8)
+                    .background(Color.grey10)
                 }
                 if let title {
-                    Text(title).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    Text(title)
+                        .font(.omP)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.grey100)
+                        .padding(.horizontal, .spacing8)
+                        .padding(.top, .spacing6)
+                }
+                if let sourcePageUrl, let sourceURL = URL(string: sourcePageUrl) {
+                    Button { openURL(sourceURL) } label: {
+                        HStack(spacing: .spacing3) {
+                            Icon("web", size: 16)
+                            Text(LocalizationManager.shared.text("embeds.image_search.view_source"))
+                        }
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .foregroundStyle(LinearGradient.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, .spacing8)
+                    .padding(.top, .spacing6)
+                }
+                if let url, let imageURL = URL(string: url) {
+                    Button { openURL(imageURL) } label: {
+                        HStack(spacing: .spacing3) {
+                            Icon("image", size: 16)
+                            Text(LocalizationManager.shared.text("embeds.image_search.open_image"))
+                        }
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .foregroundStyle(LinearGradient.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, .spacing8)
+                    .padding(.top, .spacing6)
                 }
             }
         }

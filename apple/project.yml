@@ -25,6 +25,11 @@ configs:
   Debug: debug
   Release: release
 
+packages:
+  LucideIcons:
+    url: https://github.com/JakubMazur/lucide-icons-swift.git
+    from: 1.8.0
+
 targets:
   OpenMates:
     type: application
@@ -82,7 +87,15 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        UIAppFonts:
+          - LexendDeca-Light.ttf
+          - LexendDeca-Regular.ttf
+          - LexendDeca-Medium.ttf
+          - LexendDeca-SemiBold.ttf
+          - LexendDeca-Bold.ttf
+          - LexendDeca-ExtraBold.ttf
     dependencies:
+      - package: LucideIcons
       - target: OpenMatesShareExtension
         platformFilter: iOS
       - target: OpenMatesWidget
@@ -118,49 +131,3 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
     entitlements:
       path: OpenMatesWidget/OpenMatesWidget.entitlements
-
-  # Unit + integration tests (XCTest) — mirrors vitest/pytest suites
-  OpenMatesTests_iOS:
-    type: bundle.unit-test
-    platform: iOS
-    sources:
-      - path: OpenMates/Tests/Unit
-    dependencies:
-      - target: OpenMates_iOS
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: true
-
-  OpenMatesTests_macOS:
-    type: bundle.unit-test
-    platform: macOS
-    sources:
-      - path: OpenMates/Tests/Unit
-    dependencies:
-      - target: OpenMates_macOS
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: true
-
-  # UI tests (XCUITest) — mirrors Playwright E2E specs
-  OpenMatesUITests_iOS:
-    type: bundle.ui-testing
-    platform: iOS
-    sources:
-      - path: OpenMates/Tests/UI
-    dependencies:
-      - target: OpenMates_iOS
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: true
-
-  OpenMatesUITests_macOS:
-    type: bundle.ui-testing
-    platform: macOS
-    sources:
-      - path: OpenMates/Tests/UI
-    dependencies:
-      - target: OpenMates_macOS
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: true

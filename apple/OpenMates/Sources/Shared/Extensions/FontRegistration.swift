@@ -19,13 +19,15 @@ enum FontRegistration {
 
     static func registerFonts() {
         guard !isRegistered else { return }
-        isRegistered = true
+        var registeredAnyFont = false
 
         for fontName in fontFiles {
-            guard let url = Bundle.main.url(forResource: fontName, withExtension: "ttf") else {
+            guard let url = Bundle.main.url(forResource: fontName, withExtension: "ttf", subdirectory: "Fonts")
+                ?? Bundle.main.url(forResource: fontName, withExtension: "ttf") else {
                 print("[Font] Font file not found: \(fontName) — using system font fallback")
                 continue
             }
+            registeredAnyFont = true
 
             var error: Unmanaged<CFError>?
             if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
@@ -34,6 +36,8 @@ enum FontRegistration {
                 }
             }
         }
+
+        isRegistered = registeredAnyFont
     }
 
     /// The family name used by Font.custom() — matches the font's nameID=1.
