@@ -2,6 +2,7 @@
 #
 # Focused regression tests for merge-blocking security fixes.
 
+import hashlib
 import sys
 import types
 from types import SimpleNamespace
@@ -169,3 +170,34 @@ async def test_incomplete_signup_deletion_requires_account_contact_email():
     assert email is None
     assert username == ""
     task.encryption_service.decrypt_with_user_key.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_incomplete_signup_completion_requires_invoice_or_gift_card():
+    from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _has_completed_credit_source
+
+    user_id = "user-1"
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    task = SimpleNamespace(directus_service=AsyncMock())
+    task.directus_service.get_items = AsyncMock(side_effect=[[], []])
+
+    assert await _has_completed_credit_source(task, user_id) is False
+
+    invoice_call, gift_card_call = task.directus_service.get_items.call_args_list
+    assert invoice_call.args[0] == "invoices"
+    assert invoice_call.kwargs["params"]["filter"] == {
+        "user_id_hash": {"_eq": user_id_hash},
+        "status": {"_eq": "completed"},
+    }
+    assert gift_card_call.args[0] == "redeemed_gift_cards"
+    assert gift_card_call.kwargs["params"]["filter"] == {"user_id_hash": {"_eq": user_id_hash}}
+
+
+@pytest.mark.asyncio
+async def test_incomplete_signup_completion_accepts_redeemed_gift_card():
+    from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _has_completed_credit_source
+
+    task = SimpleNamespace(directus_service=AsyncMock())
+    task.directus_service.get_items = AsyncMock(side_effect=[[], [{"id": "redemption-1"}]])
+
+    assert await _has_completed_credit_source(task, "user-1") is True
