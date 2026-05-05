@@ -1535,7 +1535,7 @@
                                             purchasedCredits={isGiftCardRedemption ? selectedCreditsAmount : null}
                                             purchasedPrice={isGiftCardRedemption ? 0 : null}
                                             paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
-                                            oncomplete={undefined}
+                                            oncomplete={handleAutoTopUpComplete}
                                             onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:consentGiven={handleRefundConsent}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
