@@ -14,7 +14,7 @@
 // **Usage**: Run automatically via the "prepare" / "prebuild" npm scripts.
 //            Run with --verify to diff against current theme.css/fonts.css.
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync, rmSync } from "fs";
 import { dirname, resolve, basename } from "path";
 import { fileURLToPath } from "url";
 import YAML from "yaml";
@@ -32,6 +32,9 @@ const TS_OUTPUT = resolve(GENERATED_DIR, "tokens.generated.ts");
 const ICONS_DIR = resolve(__dirname, "../static/icons");
 const ICONS_XCASSETS_DIR = resolve(SWIFT_DIR, "Icons.xcassets");
 const BRAND_FAVICON_PNG = resolve(__dirname, "../static/favicon.png");
+const APP_ICON_PNG = resolve(__dirname, "../../../../apple/mates.png");
+const MAC_APP_ICON_PNG = resolve(__dirname, "../../../../apple/mates-macos.png");
+const MAC_APP_ICON_DIR = resolve(__dirname, "../../../../apple/AppIcon/macos");
 const COMPONENTS_DIR = resolve(SOURCES_DIR, "components");
 const COMPONENT_CSS_OUTPUT = resolve(GENERATED_DIR, "component-classes.generated.css");
 const COMPONENT_SWIFT_OUTPUT = resolve(SWIFT_DIR, "ComponentTokens.generated.swift");
@@ -1068,6 +1071,65 @@ function generateBrandImageAssets() {
   return 1;
 }
 
+function generateAppIconAssets() {
+  if (!existsSync(APP_ICON_PNG)) return 0;
+
+  const appIconDir = resolve(XCASSETS_DIR, "AppIcon.appiconset");
+  rmSync(appIconDir, { recursive: true, force: true });
+  ensureDir(appIconDir);
+
+  copyFileSync(APP_ICON_PNG, resolve(appIconDir, "mates.png"));
+  const macIconFiles = [
+    { filename: "icon_16x16.png", size: "16x16", scale: "1x" },
+    { filename: "icon_16x16@2x.png", size: "16x16", scale: "2x" },
+    { filename: "icon_32x32.png", size: "32x32", scale: "1x" },
+    { filename: "icon_32x32@2x.png", size: "32x32", scale: "2x" },
+    { filename: "icon_128x128.png", size: "128x128", scale: "1x" },
+    { filename: "icon_128x128@2x.png", size: "128x128", scale: "2x" },
+    { filename: "icon_256x256.png", size: "256x256", scale: "1x" },
+    { filename: "icon_256x256@2x.png", size: "256x256", scale: "2x" },
+    { filename: "icon_512x512.png", size: "512x512", scale: "1x" },
+    { filename: "icon_512x512@2x.png", size: "512x512", scale: "2x" }
+  ];
+  const hasMacIconSet = macIconFiles.every(icon => existsSync(resolve(MAC_APP_ICON_DIR, icon.filename)));
+
+  if (hasMacIconSet) {
+    for (const icon of macIconFiles) {
+      copyFileSync(resolve(MAC_APP_ICON_DIR, icon.filename), resolve(appIconDir, icon.filename));
+    }
+  } else if (existsSync(MAC_APP_ICON_PNG)) {
+    copyFileSync(MAC_APP_ICON_PNG, resolve(appIconDir, "mates-macos.png"));
+  }
+
+  const contents = {
+    images: [
+      {
+        filename: "mates.png",
+        idiom: "universal",
+        platform: "ios",
+        size: "1024x1024"
+      },
+      ...(hasMacIconSet
+        ? macIconFiles.map(icon => ({
+            filename: icon.filename,
+            idiom: "mac",
+            scale: icon.scale,
+            size: icon.size
+          }))
+        : [{
+            filename: existsSync(MAC_APP_ICON_PNG) ? "mates-macos.png" : "mates.png",
+            idiom: "mac",
+            scale: "2x",
+            size: "512x512"
+          }])
+    ],
+    info: { author: "build-tokens.js", version: 1 }
+  };
+  writeFileSync(resolve(appIconDir, "Contents.json"), JSON.stringify(contents, null, 2) + "\n", "utf-8");
+
+  return 1;
+}
+
 function generateSwiftIconMapping() {
   /** Generate Swift enum mapping Lucide names → SF Symbols + custom icon accessors. */
   const mapping = readYaml("icons-mapping.yml");
@@ -1257,6 +1319,9 @@ function main() {
 
   const brandImageCount = generateBrandImageAssets();
   console.log(`[build-tokens] Generated ${brandImageCount} brand image sets → ${XCASSETS_DIR}/`);
+
+  const appIconCount = generateAppIconAssets();
+  console.log(`[build-tokens] Generated ${appIconCount} app icon sets → ${XCASSETS_DIR}/`);
 
   // Generate icon xcassets (SVGs)
   const iconCount = generateIconXcassets();

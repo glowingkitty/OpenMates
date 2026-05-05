@@ -252,7 +252,7 @@ struct ChatView: View {
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: .spacing4) {
+                VStack(spacing: 0) {
                     // Gradient banner — shown for demo/example chats (ChatHeader.svelte equivalent)
                     if let banner = bannerState {
                         ChatBannerView(
@@ -269,66 +269,67 @@ struct ChatView: View {
                             onPrevious: onPreviousChat,
                             onNext: onNextChat
                         )
-                            .padding(.horizontal, 0)
-                            .padding(.top, 0)
                             .id("banner")
                     }
 
-                    // Load older messages button at the top
-                    if viewModel.hasOlderMessages {
-                        Button {
-                            let topMessageId = viewModel.messages.first?.id
-                            viewModel.loadOlderMessages()
-                            // Keep scroll position at the previously-top message
-                            if let topId = topMessageId {
-                                proxy.scrollTo(topId, anchor: .top)
-                            }
-                        } label: {
-                            HStack(spacing: .spacing2) {
-                                if viewModel.isLoadingOlder {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                } else {
-                                    Icon("up", size: 12)
+                    LazyVStack(spacing: .spacing4) {
+                        // Load older messages button at the top
+                        if viewModel.hasOlderMessages {
+                            Button {
+                                let topMessageId = viewModel.messages.first?.id
+                                viewModel.loadOlderMessages()
+                                // Keep scroll position at the previously-top message
+                                if let topId = topMessageId {
+                                    proxy.scrollTo(topId, anchor: .top)
                                 }
-                                Text(AppStrings.loadEarlierMessages)
-                                    .font(.omXs)
+                            } label: {
+                                HStack(spacing: .spacing2) {
+                                    if viewModel.isLoadingOlder {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                    } else {
+                                        Icon("up", size: 12)
+                                    }
+                                    Text(AppStrings.loadEarlierMessages)
+                                        .font(.omXs)
+                                }
+                                .foregroundStyle(Color.fontSecondary)
+                                .padding(.vertical, .spacing3)
+                                .frame(maxWidth: .infinity)
                             }
-                            .foregroundStyle(Color.fontSecondary)
-                            .padding(.vertical, .spacing3)
-                            .frame(maxWidth: .infinity)
+                            .buttonStyle(.plain)
+                            .id("load-older")
                         }
-                        .buttonStyle(.plain)
-                        .id("load-older")
-                    }
 
-                    ForEach(viewModel.messages) { message in
-                        MessageBubble(
-                            message: message,
-                            chatId: chatId,
-                            appId: viewModel.chat?.appId,
-                            embeds: viewModel.embeds(for: message),
-                            streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
-                            onEmbedTap: { embed in
-                                selectedEmbed = embed
-                                showEmbedFullscreen = true
+                        ForEach(viewModel.messages) { message in
+                            MessageBubble(
+                                message: message,
+                                chatId: chatId,
+                                appId: viewModel.chat?.appId,
+                                embeds: viewModel.embeds(for: message),
+                                streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
+                                onEmbedTap: { embed in
+                                    selectedEmbed = embed
+                                    showEmbedFullscreen = true
+                                }
+                            )
+                            .id(message.id)
+                            .onLongPressGesture {
+                                actionMessage = message
                             }
-                        )
-                        .id(message.id)
-                        .onLongPressGesture {
-                            actionMessage = message
+                        }
+
+                        if viewModel.isStreaming && viewModel.streamingContent.isEmpty {
+                            StreamingIndicator()
+                                .id("streaming")
                         }
                     }
-
-                    if viewModel.isStreaming && viewModel.streamingContent.isEmpty {
-                        StreamingIndicator()
-                            .id("streaming")
-                    }
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing4)
+                    // Cap message area width on iPad/Mac, centered
+                    .frame(maxWidth: 1000)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, .spacing4)
-                .padding(.vertical, .spacing4)
-                // Cap message area width on iPad/Mac, centered
-                .frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
@@ -469,6 +470,8 @@ struct ChatView: View {
             .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: 1000)
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
         .background(Color.grey20)
