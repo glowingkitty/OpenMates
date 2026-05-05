@@ -77,6 +77,10 @@ struct MainAppView: View {
         horizontalSizeClass == .compact
     }
 
+    private func isSettingsSideBySide(width: CGFloat) -> Bool {
+        width > 1100
+    }
+
     private var platformScreenWidth: CGFloat {
         #if os(iOS)
         UIScreen.main.bounds.width
@@ -116,23 +120,28 @@ struct MainAppView: View {
     ]
 
     var body: some View {
-        let compactPanelWidth = min(platformScreenWidth - 10, 390)
+        GeometryReader { geo in
+            let viewportWidth = geo.size.width
+            let compactPanelWidth = min(viewportWidth - 10, 390)
 
-        ZStack(alignment: .leading) {
-            activeAppChrome
-                .offset(x: isCompactShell && isChatsPanelOpen ? compactPanelWidth : 0)
+            ZStack(alignment: .leading) {
+                activeAppChrome(viewportWidth: viewportWidth)
+                    .offset(x: isCompactShell && isChatsPanelOpen ? compactPanelWidth : 0)
 
-            if isCompactShell {
-                chatsPanel
-                    .frame(width: compactPanelWidth)
-                    .offset(x: isChatsPanelOpen ? 0 : -compactPanelWidth)
-                    .allowsHitTesting(isChatsPanelOpen)
-                    .accessibilityHidden(!isChatsPanelOpen)
-                    .zIndex(1)
+                if isCompactShell {
+                    chatsPanel
+                        .frame(width: compactPanelWidth)
+                        .offset(x: isChatsPanelOpen ? 0 : -compactPanelWidth)
+                        .allowsHitTesting(isChatsPanelOpen)
+                        .accessibilityHidden(!isChatsPanelOpen)
+                        .zIndex(1)
+                }
             }
+            .clipped()
+            .contentShape(Rectangle())
+            .simultaneousGesture(shellSwipeGesture(viewportWidth: viewportWidth))
+            .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
         }
-        .clipped()
-        .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
         .background(Color.grey0)
         .overlay {
             ToastOverlay()
@@ -250,7 +259,39 @@ struct MainAppView: View {
         }
     }
 
-    private var activeAppChrome: some View {
+    private func shellSwipeGesture(viewportWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 45)
+            .onEnded { value in
+                handleShellSwipe(value, viewportWidth: viewportWidth)
+            }
+    }
+
+    private func handleShellSwipe(_ value: DragGesture.Value, viewportWidth: CGFloat) {
+        let dx = value.translation.width
+        let dy = value.translation.height
+        guard abs(dx) > 70, abs(dx) > abs(dy) * 1.35 else { return }
+
+        let startedNearLeftEdge = value.startLocation.x <= 42
+        let startedNearRightEdge = value.startLocation.x >= viewportWidth - 42
+
+        withAnimation(.easeInOut(duration: 0.24)) {
+            if dx < 0 {
+                if isChatsPanelOpen {
+                    isChatsPanelOpen = false
+                } else if !showSettings, startedNearRightEdge || !isCompactShell {
+                    showSettings = true
+                }
+            } else {
+                if showSettings {
+                    showSettings = false
+                } else if !isChatsPanelOpen, startedNearLeftEdge || !isCompactShell {
+                    isChatsPanelOpen = true
+                }
+            }
+        }
+    }
+
+    private func activeAppChrome(viewportWidth: CGFloat) -> some View {
         VStack(spacing: 0) {
             OpenMatesWebHeader(
                 isAuthenticated: isAuthenticated || showAuthSheet,
@@ -269,10 +310,22 @@ struct MainAppView: View {
             )
 
             chatContainer {
-                shellContent
-            }
-            .overlay {
-                settingsSlidePanel
+                if isSettingsSideBySide(width: viewportWidth) {
+                    HStack(spacing: showSettings ? .spacing10 : 0) {
+                        shellContent
+
+                        if showSettings {
+                            settingsPanel(width: 323)
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.3), value: showSettings)
+                } else {
+                    shellContent
+                        .overlay {
+                            settingsSlidePanel(viewportWidth: viewportWidth)
+                        }
+                }
             }
         }
     }
@@ -344,7 +397,22 @@ struct MainAppView: View {
 
     // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
 
-    private var settingsSlidePanel: some View {
+    private func settingsPanel(width: CGFloat) -> some View {
+        SettingsView {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showSettings = false
+            }
+        }
+        .environmentObject(authManager)
+        .environmentObject(themeManager)
+        .frame(width: width)
+        .frame(maxHeight: .infinity)
+        .background(Color.grey20)
+        .clipShape(RoundedRectangle(cornerRadius: activeChatContainerRadius))
+        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 0)
+    }
+
+    private func settingsSlidePanel(viewportWidth: CGFloat) -> some View {
         ZStack(alignment: .trailing) {
             // Dimmed backdrop — web: .active-chat-container.dimmed opacity 0.3
             if showSettings {
@@ -358,18 +426,7 @@ struct MainAppView: View {
             if showSettings {
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    SettingsView {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showSettings = false
-                        }
-                    }
-                        .environmentObject(authManager)
-                        .environmentObject(themeManager)
-                        .frame(width: min(platformScreenWidth - 40, 323))
-                        .frame(maxHeight: .infinity)
-                        .background(Color.grey20)
-                        .clipShape(RoundedRectangle(cornerRadius: activeChatContainerRadius))
-                        .shadow(color: .black.opacity(0.15), radius: 12, x: -4, y: 0)
+                    settingsPanel(width: min(viewportWidth - 40, 323))
                 }
                 .transition(.move(edge: .trailing))
             }
@@ -512,16 +569,20 @@ struct MainAppView: View {
         if isAuthenticated, let chatId = selectedChatId {
             ChatView(
                 chatId: chatId,
+                isSettingsOpen: showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
-                onNextChat: nextChatAction(for: chatId)
+                onNextChat: nextChatAction(for: chatId),
+                onOpenPublicChat: openPublicChat
             )
         } else if !isAuthenticated, let chatId = selectedChatId {
             ChatView(
                 chatId: chatId,
                 bannerState: demoBannerState(for: chatId),
                 bannerCreatedAt: nil,
+                isSettingsOpen: showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
-                onNextChat: nextChatAction(for: chatId)
+                onNextChat: nextChatAction(for: chatId),
+                onOpenPublicChat: openPublicChat
             )
         } else {
             NewChatWelcomeView(
@@ -577,6 +638,17 @@ struct MainAppView: View {
         guard let idx = orderedChatIds.firstIndex(of: chatId), idx < orderedChatIds.count - 1 else { return nil }
         let nextId = orderedChatIds[idx + 1]
         return { selectedChatId = nextId }
+    }
+
+    private func openPublicChat(_ chatId: String) {
+        guard chatStore.chat(for: chatId) != nil else {
+            print("[MainApp] Public chat card selected unknown chat id: \(chatId)")
+            return
+        }
+        selectedChatId = chatId
+        if isCompactShell {
+            isChatsPanelOpen = false
+        }
     }
 
     private var chatsPanel: some View {

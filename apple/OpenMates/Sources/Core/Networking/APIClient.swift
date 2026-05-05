@@ -123,7 +123,13 @@ actor APIClient {
         path: String,
         headers: [String: String]?
     ) -> URLRequest {
-        let url = baseURL.appendingPathComponent(path)
+        let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1).map(String.init)
+        var url = baseURL.appendingPathComponent(pathAndQuery[0])
+        if pathAndQuery.count == 2, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            components.percentEncodedQuery = pathAndQuery[1]
+            url = components.url ?? url
+        }
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

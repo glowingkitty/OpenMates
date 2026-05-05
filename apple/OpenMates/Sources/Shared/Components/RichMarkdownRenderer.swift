@@ -3,6 +3,20 @@
 // tables, horizontal rules, and lists. Falls back to Apple's built-in
 // AttributedString for inline formatting (bold, italic, links, inline code).
 // Replaces the previous inline-only MarkdownText view for assistant messages.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/DemoMessageContent.svelte
+//          frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
+//          frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+// CSS:     ChatEmbedPreview.svelte <style>
+//          .chat-embed-card { width:300px; height:200px; border-radius:30px;
+//            box-shadow:0 8px 24px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.1) }
+//          .card-icon { width:32px; height:32px }
+//          .card-title { font-size:var(--font-size-p); font-weight:700 }
+//          .card-summary { font-size:var(--font-size-xxs); font-weight:500 }
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
@@ -22,6 +36,7 @@ enum MarkdownBlock {
     case orderedList([String])
     case table(headers: [String], rows: [[String]])
     case demoGroup(DemoGroupKind)
+    case embedGroup([String])
 
 }
 
@@ -53,6 +68,23 @@ enum MarkdownParser {
             if let group = demoPlaceholders[trimmed] {
                 blocks.append(.demoGroup(group))
                 i += 1
+                continue
+            }
+
+            if let embedId = parseEmbedPlaceholder(trimmed) {
+                var ids = [embedId]
+                i += 1
+                while i < lines.count {
+                    let nextTrimmed = lines[i].trimmingCharacters(in: .whitespaces)
+                    if nextTrimmed.isEmpty {
+                        i += 1
+                        continue
+                    }
+                    guard let nextId = parseEmbedPlaceholder(nextTrimmed) else { break }
+                    ids.append(nextId)
+                    i += 1
+                }
+                blocks.append(.embedGroup(ids))
                 continue
             }
 
@@ -166,7 +198,8 @@ enum MarkdownParser {
                     || pTrimmed.hasPrefix(">") || pTrimmed == "---" || pTrimmed == "***"
                     || pTrimmed.hasPrefix("- ") || pTrimmed.hasPrefix("* ")
                     || pTrimmed.range(of: #"^\d+\.\s"#, options: .regularExpression) != nil
-                    || demoPlaceholders[pTrimmed] != nil {
+                    || demoPlaceholders[pTrimmed] != nil
+                    || parseEmbedPlaceholder(pTrimmed) != nil {
                     break
                 }
                 paraLines.append(pLine)
@@ -190,6 +223,14 @@ enum MarkdownParser {
         return nil
     }
 
+    private static func parseEmbedPlaceholder(_ line: String) -> String? {
+        guard line.hasPrefix("[[embed:"), line.hasSuffix("]]") else { return nil }
+        let start = line.index(line.startIndex, offsetBy: 8)
+        let end = line.index(line.endIndex, offsetBy: -2)
+        guard start < end else { return nil }
+        return String(line[start..<end])
+    }
+
     private static func parseTableRow(_ line: String) -> [String] {
         line.split(separator: "|")
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -202,11 +243,26 @@ enum MarkdownParser {
 struct RichMarkdownView: View {
     let content: String
     let isUserMessage: Bool
+    let onOpenPublicChat: ((String) -> Void)?
+    let embedLookup: [String: EmbedRecord]
+    let allEmbedRecords: [String: EmbedRecord]
+    let onEmbedTap: ((EmbedRecord) -> Void)?
     private let blocks: [MarkdownBlock]
 
-    init(content: String, isUserMessage: Bool) {
+    init(
+        content: String,
+        isUserMessage: Bool,
+        onOpenPublicChat: ((String) -> Void)? = nil,
+        embedLookup: [String: EmbedRecord] = [:],
+        allEmbedRecords: [String: EmbedRecord] = [:],
+        onEmbedTap: ((EmbedRecord) -> Void)? = nil
+    ) {
         self.content = content
         self.isUserMessage = isUserMessage
+        self.onOpenPublicChat = onOpenPublicChat
+        self.embedLookup = embedLookup
+        self.allEmbedRecords = allEmbedRecords
+        self.onEmbedTap = onEmbedTap
         self.blocks = MarkdownParser.parse(content)
     }
 
@@ -247,7 +303,18 @@ struct RichMarkdownView: View {
             TableBlockView(headers: headers, rows: rows, isUserMessage: isUserMessage)
 
         case .demoGroup(let kind):
-            DemoRichGroupView(kind: kind)
+            DemoRichGroupView(kind: kind, onOpenPublicChat: onOpenPublicChat)
+
+        case .embedGroup(let ids):
+            let embeds = ids.compactMap { embedLookup[$0] }
+            if !embeds.isEmpty {
+                let groups = EmbedGrouper.group(embeds)
+                ForEach(groups) { group in
+                    GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
+                        onEmbedTap?(embed)
+                    }
+                }
+            }
         }
     }
 }
@@ -270,7 +337,7 @@ struct InlineMarkdownText: View {
     var body: some View {
         Text(attributedContent)
             .font(.omP)
-            .fontWeight(isUserMessage ? .regular : .medium)
+            .fontWeight(.medium)
             .foregroundStyle(isUserMessage ? Color.fontButton : Color.grey100)
             .lineSpacing(2)
             .textSelection(.enabled)
@@ -584,19 +651,22 @@ private struct DemoRichGroupItem: Identifiable {
 @MainActor
 private struct DemoRichGroupView: View {
     let kind: DemoGroupKind
+    let onOpenPublicChat: ((String) -> Void)?
 
     private var items: [DemoRichGroupItem] {
         switch kind {
         case .exampleChats:
             return [
-                .init(id: "airplanes", title: AppStrings.exampleGiganticAirplanesTitle, subtitle: AppStrings.exampleGiganticAirplanesSummary, appId: "general_knowledge", icon: "plane"),
-                .init(id: "artemis", title: AppStrings.exampleArtemisMissionTitle, subtitle: AppStrings.exampleArtemisMissionSummary, appId: "science", icon: "rocket"),
-                .init(id: "eu-law", title: AppStrings.exampleEuChatControlTitle, subtitle: AppStrings.exampleEuChatControlSummary, appId: "legal_law", icon: "shield"),
-                .init(id: "travel", title: AppStrings.exampleFlightsBerlinBangkokTitle, subtitle: AppStrings.exampleFlightsBerlinBangkokSummary, appId: "travel", icon: "travel")
+                .init(id: "example-gigantic-airplanes", title: AppStrings.exampleGiganticAirplanesTitle, subtitle: AppStrings.exampleGiganticAirplanesSummary, appId: "general_knowledge", icon: "plane"),
+                .init(id: "example-artemis-ii-mission", title: AppStrings.exampleArtemisMissionTitle, subtitle: AppStrings.exampleArtemisMissionSummary, appId: "science", icon: "rocket"),
+                .init(id: "example-beautiful-single-page-html", title: AppStrings.exampleBeautifulHtmlTitle, subtitle: AppStrings.exampleBeautifulHtmlSummary, appId: "software_development", icon: "code"),
+                .init(id: "example-flights-berlin-bangkok", title: AppStrings.exampleFlightsBerlinBangkokTitle, subtitle: AppStrings.exampleFlightsBerlinBangkokSummary, appId: "general_knowledge", icon: "plane"),
+                .init(id: "example-eu-chat-control-law", title: AppStrings.exampleEuChatControlTitle, subtitle: AppStrings.exampleEuChatControlSummary, appId: "legal_law", icon: "shield"),
+                .init(id: "example-creativity-drawing-meetups-berlin", title: AppStrings.exampleCreativityDrawingTitle, subtitle: AppStrings.exampleCreativityDrawingSummary, appId: "general_knowledge", icon: "pencil")
             ]
         case .developerExampleChats:
             return [
-                .init(id: "html", title: AppStrings.exampleBeautifulHtmlTitle, subtitle: AppStrings.exampleBeautifulHtmlSummary, appId: "software_development", icon: "code")
+                .init(id: "example-beautiful-single-page-html", title: AppStrings.exampleBeautifulHtmlTitle, subtitle: AppStrings.exampleBeautifulHtmlSummary, appId: "software_development", icon: "code")
             ]
         case .apps:
             return [
@@ -647,7 +717,7 @@ private struct DemoRichGroupView: View {
             ]
         case .forDevelopers:
             return [
-                .init(id: "developers", title: AppStrings.demoForDevelopersTitle, subtitle: AppStrings.demoForDevelopersDescription, appId: "code", icon: "code")
+                .init(id: "demo-for-developers", title: AppStrings.demoForDevelopersTitle, subtitle: AppStrings.demoForDevelopersDescription, appId: "code", icon: "code")
             ]
         }
     }
@@ -657,7 +727,7 @@ private struct DemoRichGroupView: View {
             ScrollView(.horizontal, showsIndicators: true) {
                 HStack(spacing: .spacing6) {
                     ForEach(items) { item in
-                        DemoRichCard(item: item, style: cardStyle)
+                        DemoRichCard(item: item, style: cardStyle, onOpenPublicChat: onOpenPublicChat)
                     }
                 }
                 .padding(.vertical, .spacing2)
@@ -701,11 +771,35 @@ private struct DemoRichCard: View {
 
     let item: DemoRichGroupItem
     let style: Style
+    let onOpenPublicChat: ((String) -> Void)?
 
     private var width: CGFloat { style == .large ? 300 : 256 }
     private var height: CGFloat { style == .large ? 200 : 148 }
+    private var canOpenPublicChat: Bool {
+        onOpenPublicChat != nil &&
+        (item.id.hasPrefix("example-") || item.id.hasPrefix("demo-") ||
+         item.id.hasPrefix("legal-") || item.id.hasPrefix("announcements-"))
+    }
 
     var body: some View {
+        Group {
+            if canOpenPublicChat {
+                Button {
+                    onOpenPublicChat?(item.id)
+                } label: {
+                    cardContent
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(AppStrings.openChat)
+            } else {
+                cardContent
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.title)
+    }
+
+    private var cardContent: some View {
         ZStack {
             CategoryMapping.gradient(for: item.appId)
 
@@ -713,7 +807,7 @@ private struct DemoRichCard: View {
             decorativeIcon(alignment: .bottomTrailing, xOffset: 10, rotation: 15)
 
             VStack(spacing: .spacing4) {
-                Icon(item.icon, size: style == .large ? 34 : 28)
+                cardIcon(size: style == .large ? 34 : 28)
                     .foregroundStyle(.white)
 
                 Text(item.title)
@@ -739,15 +833,22 @@ private struct DemoRichCard: View {
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: style == .large ? 30 : .radius5))
         .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 6)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(item.title)
     }
 
     private func decorativeIcon(alignment: Alignment, xOffset: CGFloat, rotation: Double) -> some View {
-        Icon(item.icon, size: style == .large ? 80 : 64)
+        cardIcon(size: style == .large ? 80 : 64)
             .foregroundStyle(.white.opacity(0.24))
             .rotationEffect(.degrees(rotation))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             .offset(x: xOffset, y: 14)
+    }
+
+    @ViewBuilder
+    private func cardIcon(size: CGFloat) -> some View {
+        if canOpenPublicChat {
+            LucideNativeIcon(item.icon, size: size)
+        } else {
+            Icon(item.icon, size: size)
+        }
     }
 }

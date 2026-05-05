@@ -482,7 +482,7 @@ private enum PublicChatContent {
         let specs: [String: (title: String, appId: String, messages: [MessageSpec], followUps: ClosedRange<Int>)] = [
             "example-gigantic-airplanes": (
                 AppStrings.exampleGiganticAirplanesTitle,
-                "ai",
+                "general_knowledge",
                 [
                     .user("example-gigantic-airplanes-user-1", "example_chats.gigantic_airplanes.user_message_1"),
                     .assistant("example-gigantic-airplanes-assistant-1", "example_chats.gigantic_airplanes.assistant_message_1"),
@@ -493,7 +493,7 @@ private enum PublicChatContent {
             ),
             "example-artemis-ii-mission": (
                 AppStrings.exampleArtemisMissionTitle,
-                "ai",
+                "science",
                 [
                     .user("example-artemis-ii-mission-user-1", "example_chats.artemis_ii_mission.user_message_1"),
                     .assistant("example-artemis-ii-mission-assistant-2", "example_chats.artemis_ii_mission.assistant_message_2")
@@ -502,7 +502,7 @@ private enum PublicChatContent {
             ),
             "example-beautiful-single-page-html": (
                 AppStrings.exampleBeautifulHtmlTitle,
-                "code",
+                "software_development",
                 [
                     .user("example-beautiful-single-page-html-user-1", "example_chats.beautiful_single_page_html.user_message_1"),
                     .assistant("example-beautiful-single-page-html-assistant-2", "example_chats.beautiful_single_page_html.assistant_message_2")
@@ -511,7 +511,7 @@ private enum PublicChatContent {
             ),
             "example-eu-chat-control-law": (
                 AppStrings.exampleEuChatControlTitle,
-                "legal",
+                "legal_law",
                 [
                     .user("example-eu-chat-control-law-user-1", "example_chats.eu_chat_control_law.user_message_1"),
                     .assistant("example-eu-chat-control-law-assistant-1", "example_chats.eu_chat_control_law.assistant_message_1")
@@ -520,7 +520,7 @@ private enum PublicChatContent {
             ),
             "example-flights-berlin-bangkok": (
                 AppStrings.exampleFlightsBerlinBangkokTitle,
-                "travel",
+                "general_knowledge",
                 [
                     .user("example-flights-berlin-bangkok-user-1", "example_chats.flights_berlin_bangkok.user_message_1"),
                     .assistant("example-flights-berlin-bangkok-assistant-1", "example_chats.flights_berlin_bangkok.assistant_message_1")
@@ -529,7 +529,7 @@ private enum PublicChatContent {
             ),
             "example-creativity-drawing-meetups-berlin": (
                 AppStrings.exampleCreativityDrawingTitle,
-                "events",
+                "general_knowledge",
                 [
                     .user("example-creativity-drawing-meetups-berlin-user-1", "example_chats.creativity_drawing_meetups_berlin.user_message_1"),
                     .assistant("example-creativity-drawing-meetups-berlin-assistant-1", "example_chats.creativity_drawing_meetups_berlin.assistant_message_1")
@@ -582,6 +582,8 @@ private enum PublicChatContent {
         followUpKeys: [String]
     ) -> PublicChat {
         let embedded = attachEmbeds(to: messages)
+        let demoRecords = demoEmbedRecords(for: id)
+        let embedRecords = embedded.records.merging(demoRecords) { _, demo in demo }
 
         return PublicChat(
             chat: Chat(
@@ -598,7 +600,7 @@ private enum PublicChatContent {
             ),
             messages: embedded.messages,
             followUpSuggestions: followUpKeys.map(text).filter { !$0.isEmpty && !$0.contains(".follow_up_") },
-            embedRecords: embedded.records
+            embedRecords: embedRecords
         )
     }
 
@@ -677,19 +679,30 @@ private enum PublicChatContent {
         var refs: [EmbedRef] = []
         var records: [EmbedRecord] = []
 
-        let jsonPattern = #"```json\s*([\s\S]*?)\s*```"#
+        let jsonPattern = #"```(json_embed|json)\s*([\s\S]*?)\s*```"#
         for match in regexMatches(jsonPattern, in: content).reversed() {
-            guard let jsonRange = Range(match.range(at: 1), in: content),
+            guard let fenceRange = Range(match.range(at: 1), in: content),
+                  let jsonRange = Range(match.range(at: 2), in: content),
                   let fullRange = Range(match.range(at: 0), in: cleaned) else { continue }
 
+            let fence = String(content[fenceRange])
             let json = String(content[jsonRange])
             guard let data = json.data(using: .utf8),
                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let type = object["type"] as? String,
-                  let embedId = object["embed_id"] as? String else { continue }
+                  let type = object["type"] as? String else { continue }
 
             let record: EmbedRecord
-            if type == "app_skill_use" {
+            if fence == "json_embed", type == "website", let url = object["url"] as? String {
+                record = embedRecord(
+                    id: stableEmbedId(prefix: "web", value: url),
+                    type: "web-website",
+                    appId: "web",
+                    skillId: nil,
+                    data: object,
+                    parentEmbedId: object["parent_embed_id"] as? String,
+                    embedIds: nil
+                )
+            } else if type == "app_skill_use", let embedId = object["embed_id"] as? String {
                 let appId = object["app_id"] as? String ?? fallbackAppId ?? "web"
                 let skillId = object["skill_id"] as? String ?? "search"
                 let embedType = "app:\(appId):\(skillId)"
@@ -698,40 +711,53 @@ private enum PublicChatContent {
                     type: embedType,
                     appId: appId,
                     skillId: skillId,
-                    data: object
+                    data: object,
+                    parentEmbedId: object["parent_embed_id"] as? String,
+                    embedIds: embedIds(from: object["embed_ids"] ?? object["child_embed_ids"])
                 )
-            } else if type == "code" {
+            } else if type == "code", let embedId = object["embed_id"] as? String {
+                var codeData = object
+                if codeData["language"] == nil { codeData["language"] = "html" }
+                if codeData["filename"] == nil { codeData["filename"] = "index.html" }
                 record = embedRecord(
                     id: embedId,
                     type: "code-code",
                     appId: "code",
                     skillId: nil,
-                    data: ["code": "", "language": "html", "filename": "index.html"]
+                    data: codeData,
+                    parentEmbedId: object["parent_embed_id"] as? String,
+                    embedIds: nil
                 )
-            } else if type == "sheet" {
+            } else if type == "sheet", let embedId = object["embed_id"] as? String {
                 record = embedRecord(
                     id: embedId,
                     type: "sheets-sheet",
                     appId: "sheets",
                     skillId: nil,
-                    data: ["title": "Table", "rows": []]
+                    data: ["title": "Table", "rows": []],
+                    parentEmbedId: object["parent_embed_id"] as? String,
+                    embedIds: nil
                 )
-            } else {
+            } else if let embedId = object["embed_id"] as? String {
                 record = embedRecord(
                     id: embedId,
-                    type: type,
-                    appId: fallbackAppId,
-                    skillId: nil,
-                    data: object
+                    type: normalizedEmbedType(from: type, appId: object["app_id"] as? String ?? fallbackAppId, skillId: object["skill_id"] as? String),
+                    appId: object["app_id"] as? String ?? fallbackAppId,
+                    skillId: object["skill_id"] as? String,
+                    data: object,
+                    parentEmbedId: object["parent_embed_id"] as? String,
+                    embedIds: embedIds(from: object["embed_ids"] ?? object["child_embed_ids"])
                 )
+            } else {
+                continue
             }
 
             records.insert(record, at: 0)
             refs.insert(embedRef(for: record), at: 0)
-            cleaned.replaceSubrange(fullRange, with: "")
+            cleaned.replaceSubrange(fullRange, with: "\n[[embed:\(record.id)]]\n")
         }
 
-        let markdownEmbedPattern = #"!?\[[^\]]*\]\(embed:([^)]+)\)"#
+        let markdownEmbedPattern = #"\[!\]\(embed:([^)]+)\)"#
         for match in regexMatches(markdownEmbedPattern, in: cleaned).reversed() {
             guard let refRange = Range(match.range(at: 1), in: cleaned),
                   let fullRange = Range(match.range(at: 0), in: cleaned) else { continue }
@@ -740,7 +766,7 @@ private enum PublicChatContent {
             let record = markerEmbedRecord(ref: ref, fallbackAppId: fallbackAppId)
             records.insert(record, at: 0)
             refs.insert(embedRef(for: record), at: 0)
-            cleaned.replaceSubrange(fullRange, with: "")
+            cleaned.replaceSubrange(fullRange, with: "\n[[embed:\(record.id)]]\n")
         }
 
         return (sanitize(cleaned), refs, records)
@@ -760,7 +786,7 @@ private enum PublicChatContent {
             "thumbnail_url": ""
         ]
 
-        return embedRecord(id: "static-\(ref)", type: type, appId: EmbedType(rawValue: type)?.appId ?? fallbackAppId, skillId: nil, data: data)
+        return embedRecord(id: "static-\(ref)", type: type, appId: EmbedType(rawValue: type)?.appId ?? fallbackAppId, skillId: nil, data: data, parentEmbedId: nil, embedIds: nil)
     }
 
     private static func embedRef(for record: EmbedRecord) -> EmbedRef {
@@ -772,19 +798,173 @@ private enum PublicChatContent {
         type: String,
         appId: String?,
         skillId: String?,
-        data: [String: Any]
+        data: [String: Any],
+        parentEmbedId: String?,
+        embedIds: String?
     ) -> EmbedRecord {
         EmbedRecord(
             id: id,
             type: type,
             status: .finished,
             data: .raw(data.mapValues { AnyCodable($0) }),
-            parentEmbedId: nil,
+            parentEmbedId: parentEmbedId,
             appId: appId,
             skillId: skillId,
-            embedIds: nil,
+            embedIds: embedIds,
             createdAt: "2026-04-20T12:00:00Z"
         )
+    }
+
+    private static func demoEmbedRecords(for chatId: String) -> [String: EmbedRecord] {
+        guard let fileName = demoEmbedFileName(for: chatId),
+              let sourceURL = demoEmbedURL(fileName: fileName),
+              let source = try? String(contentsOf: sourceURL, encoding: .utf8) else {
+            return [:]
+        }
+
+        var records: [String: EmbedRecord] = [:]
+        let objectPattern = #"\{\s*embed_id:\s*"([^"]+)"([\s\S]*?)\n\s*\},"#
+        for match in regexMatches(objectPattern, in: source) {
+            guard let idRange = Range(match.range(at: 1), in: source),
+                  let blockRange = Range(match.range(at: 2), in: source) else { continue }
+
+            let embedId = String(source[idRange])
+            let block = String(source[blockRange])
+            guard let rawType = firstRegexCapture(#"type:\s*"([^"]+)""#, in: block),
+                  let content = firstRegexCapture(#"content:\s*`([\s\S]*?)`"#, in: block) else { continue }
+            var data = parseToonObject(content)
+            data["embed_id"] = embedId
+            data["type"] = data["type"] ?? rawType
+
+            let parentEmbedId = firstRegexCapture(#"parent_embed_id:\s*"([^"]+)""#, in: block)
+            let embedIds = firstRegexCapture(#"embed_ids:\s*\[([^\]]*)\]"#, in: block)
+                .map(parseEmbedIdArray)
+                ?? firstRegexCapture(#"embed_ids:\s*"([^"]*)""#, in: block)
+                ?? data["embed_ids"] as? String
+            let appId = data["app_id"] as? String
+            let skillId = data["skill_id"] as? String
+            let normalizedType = normalizedEmbedType(from: rawType, appId: appId, skillId: skillId)
+
+            records[embedId] = embedRecord(
+                id: embedId,
+                type: normalizedType,
+                appId: appId ?? EmbedType(rawValue: normalizedType)?.appId,
+                skillId: skillId,
+                data: data,
+                parentEmbedId: parentEmbedId,
+                embedIds: embedIds
+            )
+        }
+        return records
+    }
+
+    private static func firstRegexCapture(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[range])
+    }
+
+    private static func parseEmbedIdArray(_ value: String) -> String {
+        value
+            .split(separator: ",")
+            .map {
+                $0.trimmingCharacters(in: CharacterSet(charactersIn: " \n\t\""))
+            }
+            .filter { !$0.isEmpty }
+            .joined(separator: "|")
+    }
+
+    private static func demoEmbedFileName(for chatId: String) -> String? {
+        switch chatId {
+        case "example-gigantic-airplanes": return "gigantic-airplanes.ts"
+        case "example-artemis-ii-mission": return "artemis-ii-mission.ts"
+        case "example-beautiful-single-page-html": return "beautiful-single-page-html.ts"
+        case "example-eu-chat-control-law": return "eu-chat-control-law-criticisms.ts"
+        case "example-flights-berlin-bangkok": return "flights-berlin-bangkok.ts"
+        case "example-creativity-drawing-meetups-berlin": return "creativity-drawing-meetups-berlin.ts"
+        default: return nil
+        }
+    }
+
+    private static func demoEmbedURL(fileName: String) -> URL? {
+        let bundleCandidates = [
+            Bundle.main.url(forResource: fileName, withExtension: nil, subdirectory: "example_chats"),
+            Bundle.main.url(forResource: fileName, withExtension: nil, subdirectory: "demo_chats/example_chats"),
+            Bundle.main.url(forResource: fileName, withExtension: nil)
+        ]
+        if let bundled = bundleCandidates.compactMap({ $0 }).first {
+            return bundled
+        }
+
+        let sourceFile = URL(fileURLWithPath: #filePath)
+        let repoRoot = sourceFile
+            .deletingLastPathComponent() // ViewModels/
+            .deletingLastPathComponent() // Chat/
+            .deletingLastPathComponent() // Features/
+            .deletingLastPathComponent() // Sources/
+            .deletingLastPathComponent() // OpenMates/
+            .deletingLastPathComponent() // apple/
+        return repoRoot.appendingPathComponent("frontend/packages/ui/src/demo_chats/data/example_chats/\(fileName)")
+    }
+
+    private static func parseToonObject(_ content: String) -> [String: Any] {
+        var result: [String: Any] = [:]
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let separator = trimmed.firstIndex(of: ":") else { continue }
+            let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
+            var value = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 {
+                value.removeFirst()
+                value.removeLast()
+            }
+            value = value
+                .replacingOccurrences(of: #"\""#, with: #"""#)
+                .replacingOccurrences(of: #"\\n"#, with: "\n")
+            if !key.isEmpty {
+                result[key] = value
+            }
+        }
+        return result
+    }
+
+    private static func embedIds(from value: Any?) -> String? {
+        if let ids = value as? [String] {
+            return ids.joined(separator: "|")
+        }
+        if let ids = value as? [Any] {
+            let strings = ids.compactMap { $0 as? String }
+            return strings.isEmpty ? nil : strings.joined(separator: "|")
+        }
+        return value as? String
+    }
+
+    private static func normalizedEmbedType(from type: String, appId: String?, skillId: String?) -> String {
+        if type == "website" || type == "web_result" || type == "search_result" {
+            return "web-website"
+        }
+        if type == "image_result" {
+            return "images-image-result"
+        }
+        if type == "video_result" {
+            return "videos-video"
+        }
+        if let appId, let skillId, type == "app_skill_use" {
+            return "app:\(appId):\(skillId)"
+        }
+        return type
+    }
+
+    private static func stableEmbedId(prefix: String, value: String) -> String {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in value.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return "\(prefix)-\(String(hash, radix: 16))"
     }
 
     private static func regexMatches(_ pattern: String, in text: String) -> [NSTextCheckingResult] {
@@ -872,6 +1052,15 @@ private enum PublicChatContent {
             "[[for_developers_embed]]"
         ]
         var cleaned = content
+        let embedPlaceholderPattern = #"\[\[embed:[^\]]+\]\]"#
+        let embedPlaceholderMatches = regexMatches(embedPlaceholderPattern, in: cleaned)
+            .compactMap { match -> String? in
+                guard let range = Range(match.range(at: 0), in: cleaned) else { return nil }
+                return String(cleaned[range])
+            }
+        for (index, placeholder) in embedPlaceholderMatches.enumerated() {
+            cleaned = cleaned.replacingOccurrences(of: placeholder, with: "__OM_EMBED_PLACEHOLDER_\(index)__")
+        }
         for (index, placeholder) in placeholders.enumerated() {
             cleaned = cleaned.replacingOccurrences(of: placeholder, with: "__OM_DEMO_PLACEHOLDER_\(index)__")
         }
@@ -881,6 +1070,9 @@ private enum PublicChatContent {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         for (index, placeholder) in placeholders.enumerated() {
             cleaned = cleaned.replacingOccurrences(of: "__OM_DEMO_PLACEHOLDER_\(index)__", with: placeholder)
+        }
+        for (index, placeholder) in embedPlaceholderMatches.enumerated() {
+            cleaned = cleaned.replacingOccurrences(of: "__OM_EMBED_PLACEHOLDER_\(index)__", with: placeholder)
         }
         return cleaned
     }

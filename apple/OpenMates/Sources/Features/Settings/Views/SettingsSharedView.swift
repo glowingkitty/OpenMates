@@ -17,6 +17,7 @@ struct SettingsSharedView: View {
     @State private var sharedWithMe: [SharedItem] = []
     @State private var isLoading = true
     @State private var error: String?
+    @State private var showsTip = false
 
     struct SharedItem: Identifiable, Decodable {
         let id: String
@@ -29,55 +30,67 @@ struct SettingsSharedView: View {
     }
 
     var body: some View {
-        List {
-            if isLoading {
-                ProgressView()
+        Group {
+            if showsTip {
+                SettingsTipView()
             } else {
-                Section("Shared by Me") {
-                    if sharedByMe.isEmpty {
-                        Text(LocalizationManager.shared.text("settings.shared.no_shared_chats"))
-                            .font(.omSmall).foregroundStyle(Color.fontTertiary)
+                OMSettingsPage(title: AppStrings.settingsShared, showsHeader: false) {
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.spacing8)
                     } else {
-                        ForEach(sharedByMe) { item in
-                            SharedItemRow(item: item)
-                                .swipeActions {
-                                    Button(role: .destructive) {
+                        OMSettingsSection(LocalizationManager.shared.text("settings.shared.by_me")) {
+                            if sharedByMe.isEmpty {
+                                Text(LocalizationManager.shared.text("settings.shared.no_shared_chats"))
+                                    .font(.omSmall).foregroundStyle(Color.fontTertiary)
+                                    .padding(.spacing5)
+                            } else {
+                                ForEach(sharedByMe) { item in
+                                    SharedItemRow(item: item)
+                                        .padding(.horizontal, .spacing5)
+                                        .padding(.vertical, .spacing3)
+
+                                    Button(LocalizationManager.shared.text("settings.shared.unshare")) {
                                         unshare(item.id)
-                                    } label: {
-                                        Label("Unshare", systemImage: "link.badge.plus")
                                     }
+                                    .buttonStyle(OMPrimaryButtonStyle())
+                                    .padding(.horizontal, .spacing5)
+                                    .padding(.bottom, .spacing4)
                                 }
+                            }
+                        }
+
+                        OMSettingsSection(LocalizationManager.shared.text("settings.shared.with_me")) {
+                            if sharedWithMe.isEmpty {
+                                Text(LocalizationManager.shared.text("settings.shared.no_chats_shared_with_you"))
+                                    .font(.omSmall).foregroundStyle(Color.fontTertiary)
+                                    .padding(.spacing5)
+                            } else {
+                                ForEach(sharedWithMe) { item in
+                                    SharedItemRow(item: item)
+                                        .padding(.horizontal, .spacing5)
+                                        .padding(.vertical, .spacing3)
+                                }
+                            }
                         }
                     }
-                }
 
-                Section("Shared with Me") {
-                    if sharedWithMe.isEmpty {
-                        Text(LocalizationManager.shared.text("settings.shared.no_chats_shared_with_you"))
-                            .font(.omSmall).foregroundStyle(Color.fontTertiary)
-                    } else {
-                        ForEach(sharedWithMe) { item in
-                            SharedItemRow(item: item)
+                    if let error {
+                        OMSettingsSection {
+                            Text(error).font(.omSmall).foregroundStyle(Color.error)
+                                .padding(.spacing5)
                         }
                     }
-                }
-            }
 
-            if let error {
-                Section {
-                    Text(error).font(.omSmall).foregroundStyle(Color.error)
-                }
-            }
-
-            Section {
-                NavigationLink {
-                    SettingsTipView()
-                } label: {
-                    Label("Tip a Friend", systemImage: "gift")
+                    OMSettingsSection {
+                        OMSettingsRow(title: LocalizationManager.shared.text("settings.shared.tip"), icon: "gift") {
+                            showsTip = true
+                        }
+                    }
                 }
             }
         }
-        .navigationTitle("Shared")
         .task { await loadShared() }
     }
 
@@ -162,43 +175,51 @@ struct SettingsTipView: View {
     @State private var result: String?
 
     var body: some View {
-        Form {
-            Section("Recipient") {
+        OMSettingsPage(title: LocalizationManager.shared.text("settings.shared.tip"), showsHeader: false) {
+            OMSettingsSection(LocalizationManager.shared.text("settings.shared.recipient")) {
                 TextField("Username", text: $recipientUsername)
+                    .textFieldStyle(OMTextFieldStyle())
+                    .padding(.spacing5)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     #endif
             }
 
-            Section("Amount") {
+            OMSettingsSection(LocalizationManager.shared.text("settings.shared.amount")) {
                 HStack {
                     Text(LocalizationManager.shared.text("settings.shared.credits_label"))
                     TextField("0.00", text: $amount)
+                        .textFieldStyle(OMTextFieldStyle())
                         #if os(iOS)
                         .keyboardType(.decimalPad)
                         #endif
                 }
+                .padding(.spacing5)
             }
 
-            Section("Message (optional)") {
+            OMSettingsSection(LocalizationManager.shared.text("settings.shared.message_optional")) {
                 TextField("Add a note", text: $message)
+                    .textFieldStyle(OMTextFieldStyle())
+                    .padding(.spacing5)
             }
 
-            Section {
+            OMSettingsSection {
                 Button("Send Tip") { sendTip() }
                     .disabled(recipientUsername.isEmpty || amount.isEmpty || isSending)
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .padding(.spacing5)
             }
 
             if let result {
-                Section {
+                OMSettingsSection {
                     Text(result)
                         .font(.omSmall)
                         .foregroundStyle(result.contains("Error") ? Color.error : .green)
+                        .padding(.spacing5)
                 }
             }
         }
-        .navigationTitle("Tip a Friend")
     }
 
     private func sendTip() {

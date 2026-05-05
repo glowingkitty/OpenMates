@@ -40,6 +40,7 @@ struct AppIconView: View {
         case "news": return .appNews
         case "jobs": return .appJobs
         case "code": return .appCode
+        case "web": return .appWeb
         case "music": return .appMusic
         case "maps": return .appMaps
         case "shopping": return .appShopping
@@ -75,6 +76,7 @@ struct AppIconView: View {
         case "messages": return IconAlias.messages
         case "contacts": return IconAlias.contacts
         case "openmates": return "ai"
+        case "images": return "image"
         default: return appId
         }
     }

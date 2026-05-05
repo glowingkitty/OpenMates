@@ -31,11 +31,9 @@ struct AttachmentPicker: View {
                     isPresented.toggle()
                 }
             } label: {
-                Icon("plus", size: 22)
-                    .foregroundStyle(Color.fontPrimary)
-                    .frame(width: 36, height: 36)
-                    .background(Color.grey0.opacity(0.72))
-                    .clipShape(Circle())
+                Icon("files", size: 25)
+                    .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
 
@@ -78,9 +76,10 @@ struct AttachmentPicker: View {
         Button {
             openFilePicker()
         } label: {
-            Icon("files", size: 18)
-                .foregroundStyle(Color.fontTertiary)
+            Icon("files", size: 25)
+                .foregroundStyle(LinearGradient.primary)
         }
+        .buttonStyle(.plain)
         #endif
     }
 

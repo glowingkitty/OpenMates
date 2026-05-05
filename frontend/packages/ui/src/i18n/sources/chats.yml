@@ -2193,6 +2193,56 @@ scroll_to_active_chat:
   he: "גלילה לצ'אט הפעיל"
   verified_by_human: []
 
+scroll_to_top:
+  context: Accessible aria-label for the chat history button that scrolls to the top of the current chat
+  en: Scroll to top
+  de: Nach oben scrollen
+  zh: 滚动到顶部
+  es: Desplazarse arriba
+  fr: Faire défiler vers le haut
+  pt: Rolar para o topo
+  ru: Прокрутить наверх
+  ja: 一番上へスクロール
+  ko: 맨 위로 스크롤
+  it: Scorri in alto
+  tr: En üste kaydır
+  vi: Cuộn lên đầu
+  id: Gulir ke atas
+  pl: Przewiń do góry
+  nl: Naar boven scrollen
+  ar: التمرير إلى الأعلى
+  hi: ऊपर स्क्रॉल करें
+  th: เลื่อนไปด้านบน
+  cs: Přejít nahoru
+  sv: Rulla högst upp
+  he: גלילה לראש הדף
+  verified_by_human: []
+
+scroll_to_bottom:
+  context: Accessible aria-label for the chat history button that scrolls to the bottom of the current chat
+  en: Scroll to bottom
+  de: Nach unten scrollen
+  zh: 滚动到底部
+  es: Desplazarse abajo
+  fr: Faire défiler vers le bas
+  pt: Rolar para o fim
+  ru: Прокрутить вниз
+  ja: 一番下へスクロール
+  ko: 맨 아래로 스크롤
+  it: Scorri in basso
+  tr: En alta kaydır
+  vi: Cuộn xuống cuối
+  id: Gulir ke bawah
+  pl: Przewiń w dół
+  nl: Naar beneden scrollen
+  ar: التمرير إلى الأسفل
+  hi: नीचे स्क्रॉल करें
+  th: เลื่อนไปด้านล่าง
+  cs: Přejít dolů
+  sv: Rulla längst ned
+  he: גלילה לתחתית
+  verified_by_human: []
+
 active_chat:
   context: Fallback label shown in the sticky pin when the active chat title is not available (e.g. still loading)
   en: Active chat

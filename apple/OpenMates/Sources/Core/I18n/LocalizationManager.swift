@@ -121,9 +121,15 @@ final class LocalizationManager: ObservableObject {
     private func candidateTranslationURLs(locale: String) -> [URL] {
         var urls: [URL] = []
 
-        // 1. Bundle resource (for release builds — copied by Xcode build phase)
+        // 1. Bundle resource (for release builds — copied from the web app generated locale output)
         if let bundled = Bundle.main.url(forResource: locale, withExtension: "json", subdirectory: "i18n") {
             urls.append(bundled)
+        }
+        if let bundledLocales = Bundle.main.url(forResource: locale, withExtension: "json", subdirectory: "locales") {
+            urls.append(bundledLocales)
+        }
+        if let nestedBundledLocales = Bundle.main.url(forResource: locale, withExtension: "json", subdirectory: "i18n/locales") {
+            urls.append(nestedBundledLocales)
         }
         if let flatBundled = Bundle.main.url(forResource: locale, withExtension: "json") {
             urls.append(flatBundled)

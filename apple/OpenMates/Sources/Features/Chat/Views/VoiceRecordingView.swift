@@ -108,9 +108,10 @@ struct VoiceRecordingButton: View {
                 }
             } else {
                 Button { recorder.startRecording() } label: {
-                    Icon("recordaudio", size: 24)
-                        .foregroundStyle(Color.fontTertiary)
+                    Icon("recordaudio", size: 25)
+                        .foregroundStyle(LinearGradient.primary)
                 }
+                .buttonStyle(.plain)
             }
         }
     }

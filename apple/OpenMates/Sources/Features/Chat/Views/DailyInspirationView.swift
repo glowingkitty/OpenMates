@@ -478,14 +478,16 @@ private struct MateProfileImage: View {
 
     #if os(iOS)
     private var bundledMateImage: UIImage? {
-        guard let path = Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "Mates") else {
+        guard let path = Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "mates")
+            ?? Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "Mates") else {
             return nil
         }
         return UIImage(contentsOfFile: path)
     }
     #elseif os(macOS)
     private var bundledMateImage: NSImage? {
-        guard let path = Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "Mates") else {
+        guard let path = Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "mates")
+            ?? Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "Mates") else {
             return nil
         }
         return NSImage(contentsOfFile: path)

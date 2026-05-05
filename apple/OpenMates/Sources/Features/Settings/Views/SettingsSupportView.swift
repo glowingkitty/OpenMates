@@ -5,47 +5,82 @@
 import SwiftUI
 
 struct SettingsSupportView: View {
+    @State private var destination: SupportDestination?
+
     var body: some View {
-        List {
-            Section {
+        if let destination {
+            switch destination {
+            case .oneTime: SupportOneTimeView()
+            case .monthly: SupportMonthlyView()
+            }
+        } else {
+            OMSettingsPage(title: AppStrings.settingsSupport, showsHeader: false) {
+            OMSettingsSection {
                 Text(LocalizationManager.shared.text("settings.support.description"))
-                    .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.spacing5)
             }
 
-            Section("Contribute") {
-                NavigationLink {
-                    SupportOneTimeView()
-                } label: {
-                    Label("One-Time Contribution", systemImage: "heart")
+            OMSettingsSection(LocalizationManager.shared.text("settings.support.contribute")) {
+                OMSettingsRow(title: LocalizationManager.shared.text("settings.support.one_time"), icon: "support") {
+                    destination = .oneTime
                 }
 
-                NavigationLink {
-                    SupportMonthlyView()
-                } label: {
-                    Label("Monthly Support", systemImage: "heart.circle")
+                OMSettingsRow(title: LocalizationManager.shared.text("settings.support.monthly"), icon: "support") {
+                    destination = .monthly
                 }
             }
 
-            Section("Other Ways") {
+            OMSettingsSection(LocalizationManager.shared.text("settings.support.other_ways")) {
                 Link(destination: URL(string: "https://github.com/sponsors/glowingkitty")!) {
-                    Label("GitHub Sponsors", systemImage: "star")
+                    HStack(spacing: .spacing4) {
+                        Icon("github", size: 22)
+                        Text("GitHub Sponsors")
+                            .font(.omP)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(LinearGradient.primary)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
                 }
                 .accessibilityHint(LocalizationManager.shared.text("settings.support.github_sponsors_hint"))
 
                 Link(destination: URL(string: "https://github.com/OpenMates/OpenMates")!) {
-                    Label("Contribute Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                    HStack(spacing: .spacing4) {
+                        Icon("coding", size: 22)
+                        Text(LocalizationManager.shared.text("settings.support.contribute_code"))
+                            .font(.omP)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(LinearGradient.primary)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
                 }
                 .accessibilityHint(LocalizationManager.shared.text("settings.support.contribute_code_hint"))
 
                 Button {
                     shareApp()
                 } label: {
-                    Label("Share OpenMates", systemImage: "square.and.arrow.up")
+                    HStack(spacing: .spacing4) {
+                        Icon("share", size: 22)
+                        Text(LocalizationManager.shared.text("settings.support.share_openmates"))
+                            .font(.omP)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(LinearGradient.primary)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
                 }
                 .accessibleButton("Share OpenMates")
+                .buttonStyle(.plain)
             }
         }
-        .navigationTitle("Support")
+        }
+    }
+
+    private enum SupportDestination {
+        case oneTime, monthly
     }
 
     private func shareApp() {
@@ -76,8 +111,8 @@ struct SupportOneTimeView: View {
     private let presetAmounts = [5, 10, 25, 50, 100]
 
     var body: some View {
-        List {
-            Section("Choose Amount") {
+        OMSettingsPage(title: LocalizationManager.shared.text("settings.support.one_time"), showsHeader: false) {
+            OMSettingsSection(LocalizationManager.shared.text("settings.support.choose_amount")) {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: .spacing3) {
                     ForEach(presetAmounts, id: \.self) { amount in
                         Button {
@@ -99,10 +134,12 @@ struct SupportOneTimeView: View {
                         )
                     }
                 }
+                .padding(.spacing5)
 
                 HStack {
                     Text("$")
                     TextField("Custom amount", text: $customAmount)
+                        .textFieldStyle(OMTextFieldStyle())
                         #if os(iOS)
                         .keyboardType(.numberPad)
                         #endif
@@ -111,9 +148,11 @@ struct SupportOneTimeView: View {
                         }
                         .accessibleInput("Custom amount", hint: LocalizationManager.shared.text("settings.support.custom_amount_hint"))
                 }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing5)
             }
 
-            Section {
+            OMSettingsSection {
                 Button {
                     processPayment()
                 } label: {
@@ -129,17 +168,24 @@ struct SupportOneTimeView: View {
                     }
                 }
                 .disabled(selectedAmount == nil && customAmount.isEmpty)
+                .buttonStyle(OMPrimaryButtonStyle())
                 .accessibleButton(LocalizationManager.shared.text("settings.support.contribute"))
+                .padding(.spacing5)
             }
 
             if success {
-                Section {
-                    Label("Thank you for your support!", systemImage: "heart.fill")
-                        .foregroundStyle(.pink)
+                OMSettingsSection {
+                    HStack(spacing: .spacing3) {
+                        Icon("support", size: 22)
+                        Text(LocalizationManager.shared.text("settings.support.thank_you"))
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(Color.buttonPrimary)
+                    .padding(.spacing5)
                 }
             }
         }
-        .navigationTitle("One-Time")
     }
 
     private func processPayment() {
@@ -176,30 +222,39 @@ struct SupportMonthlyView: View {
     ]
 
     var body: some View {
-        List {
+        OMSettingsPage(title: LocalizationManager.shared.text("settings.support.monthly"), showsHeader: false) {
             if isActive, let amount = currentAmount {
-                Section {
+                OMSettingsSection {
                     HStack {
-                        Label("Active subscription", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                        Icon("check", size: 18)
+                            .foregroundStyle(Color.buttonPrimary)
+                        Text(LocalizationManager.shared.text("settings.support.active_subscription"))
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontPrimary)
                         Spacer()
                         Text("$\(amount)/month")
                             .font(.omSmall).fontWeight(.medium)
                     }
+                    .padding(.spacing5)
 
                     Button("Manage on Web") {
                         openWebSupport()
                     }
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .padding(.horizontal, .spacing5)
 
                     Button(role: .destructive) {
                         openWebSupport()
                     } label: {
                         Text(LocalizationManager.shared.text("settings.support.cancel_subscription"))
                     }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.error)
+                    .padding(.spacing5)
                 }
             }
 
-            Section("Monthly Tiers") {
+            OMSettingsSection(LocalizationManager.shared.text("settings.support.monthly_tiers")) {
                 ForEach(tiers, id: \.0) { amount, name, description in
                     Button {
                         selectedTier = amount
@@ -219,11 +274,13 @@ struct SupportMonthlyView: View {
                                 .foregroundStyle(Color.buttonPrimary)
                         }
                     }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
                     .accessibleButton("\(name), $\(amount) per month. \(description)")
                 }
             }
         }
-        .navigationTitle("Monthly Support")
         .task { await loadStatus() }
     }
 

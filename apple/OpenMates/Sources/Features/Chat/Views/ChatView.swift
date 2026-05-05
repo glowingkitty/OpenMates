@@ -34,8 +34,26 @@
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 // ChatBannerView and ChatBannerState are defined in ChatBannerView.swift
+
+private enum ChatScrollSentinelEdge: Hashable {
+    case top
+    case bottom
+}
+
+private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
+    static let defaultValue: [ChatScrollSentinelEdge: CGFloat] = [:]
+
+    static func reduce(value: inout [ChatScrollSentinelEdge: CGFloat], nextValue: () -> [ChatScrollSentinelEdge: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
 
 struct ChatView: View {
     let chatId: String
@@ -43,9 +61,15 @@ struct ChatView: View {
     /// omit (nil) for regular user chats where no banner should appear.
     var bannerState: ChatBannerState? = nil
     var bannerCreatedAt: Date? = nil
+    /// Mirrors web `.chat-container.menu-open`; used by the banner header to
+    /// collapse from viewport-responsive height to the fixed adjacent-panel height.
+    var isSettingsOpen = false
     /// Navigation callbacks for prev/next chat arrows on the banner.
     var onPreviousChat: (() -> Void)? = nil
     var onNextChat: (() -> Void)? = nil
+    /// Mirrors web `demoChatSelected`: embedded public chat cards ask the app shell
+    /// to select and load a different bundled demo/example chat.
+    var onOpenPublicChat: ((String) -> Void)? = nil
 
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
@@ -56,60 +80,80 @@ struct ChatView: View {
     @State private var showPIIPlaceholders = false
     @State private var showAttachmentMenu = false
     @State private var actionMessage: Message?
+    @State private var chatViewportHeight: CGFloat = 0
+    @State private var isAtTop = true
+    @State private var isAtBottom = false
     @StateObject private var focusModeManager = FocusModeManager()
     @FocusState private var isInputFocused: Bool
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     /// True for demo/intro/legal chats that show "New chat" CTA instead of input field
     private var isDemoOrLegalChat: Bool {
         chatId.hasPrefix("demo-") || chatId.hasPrefix("legal-") || chatId.hasPrefix("announcements-")
     }
 
+    private var isExampleChat: Bool {
+        chatId.hasPrefix("example-")
+    }
+
+    private var introTeaserVideoURL: URL? {
+        Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4", subdirectory: "Videos")
+            ?? Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4")
+    }
+
     var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                if bannerState == nil {
-                    chatTopBar
+        GeometryReader { geo in
+            ZStack {
+                VStack(spacing: 0) {
+                    if bannerState == nil {
+                        chatTopBar
+                    }
+
+                    messageList
+
+                    // Hide for demo/example chats — they have static content, no streaming state
+                    if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming && bannerState == nil {
+                        FollowUpSuggestions(suggestions: viewModel.followUpSuggestions) { suggestion in
+                            messageText = suggestion
+                        }
+                    }
+
+                    FocusModePill(focusModeManager: focusModeManager)
+
+                    if viewModel.isStreaming {
+                        streamingBanner
+                    }
+
+                    // Web: intro/legal chats show a full-width "New chat" CTA instead of the input field
+                    if isDemoOrLegalChat {
+                        newChatCTA
+                    } else if isExampleChat {
+                        exampleChatInputRow
+                    } else {
+                        inputBar
+                    }
                 }
+                .background(Color.grey20)
 
-                messageList
-
-                // Hide for demo/example chats — they have static content, no streaming state
-                if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming && bannerState == nil {
-                    FollowUpSuggestions(suggestions: viewModel.followUpSuggestions) { suggestion in
-                        messageText = suggestion
+                if showReminder {
+                    customOverlay(title: AppStrings.setReminder, isPresented: $showReminder) {
+                        ReminderCreationView(chatId: chatId)
                     }
                 }
 
-                FocusModePill(focusModeManager: focusModeManager)
-
-                if viewModel.isStreaming {
-                    streamingBanner
-                }
-
-                // Web: intro/legal chats show a full-width "New chat" CTA instead of the input field
-                if isDemoOrLegalChat {
-                    newChatCTA
-                } else {
-                    inputBar
-                }
-            }
-            .background(Color.grey20)
-
-            if showReminder {
-                customOverlay(title: AppStrings.setReminder, isPresented: $showReminder) {
-                    ReminderCreationView(chatId: chatId)
-                }
-            }
-
-            if showEmbedFullscreen, let embed = selectedEmbed {
-                customOverlay(title: "", isPresented: $showEmbedFullscreen, showHeader: false) {
+                if showEmbedFullscreen, let embed = selectedEmbed {
                     embedFullscreenSheet(for: embed)
+                    .ignoresSafeArea()
+                }
+
+                if let actionMessage {
+                    messageActionsOverlay(for: actionMessage)
                 }
             }
-
-            if let actionMessage {
-                messageActionsOverlay(for: actionMessage)
+            .onAppear { chatViewportHeight = geo.size.height }
+            .onChange(of: geo.size.height) { _, height in
+                chatViewportHeight = height
             }
         }
         .chatKeyboardShortcuts(
@@ -243,111 +287,191 @@ struct ChatView: View {
         EmbedFullscreenContainer(
             embeds: messageEmbeds.isEmpty ? [embed] : messageEmbeds,
             initialEmbedId: embed.id,
-            allEmbedRecords: viewModel.embedRecords
+            allEmbedRecords: viewModel.embedRecords,
+            onClose: {
+                showEmbedFullscreen = false
+            }
         )
     }
 
     // MARK: - Message list
 
     private var messageList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Gradient banner — shown for demo/example chats (ChatHeader.svelte equivalent)
-                    if let banner = bannerState {
-                        ChatBannerView(
-                            state: banner,
-                            createdAt: bannerCreatedAt,
-                            isExampleChat: chatId.hasPrefix("example-"),
-                            isIntroChat: chatId == "demo-for-everyone",
-                            teaserVideoURL: chatId == "demo-for-everyone"
-                                ? Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4")
-                                : nil,
-                            fullVideoURL: chatId == "demo-for-everyone"
-                                ? URL(string: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4")
-                                : nil,
-                            onPrevious: onPreviousChat,
-                            onNext: onNextChat
-                        )
-                            .id("banner")
-                    }
+        GeometryReader { scrollGeo in
+            ScrollViewReader { proxy in
+                ZStack {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            scrollSentinel(id: "scroll-top", edge: .top)
 
-                    LazyVStack(spacing: .spacing4) {
-                        // Load older messages button at the top
-                        if viewModel.hasOlderMessages {
-                            Button {
-                                let topMessageId = viewModel.messages.first?.id
-                                viewModel.loadOlderMessages()
-                                // Keep scroll position at the previously-top message
-                                if let topId = topMessageId {
-                                    proxy.scrollTo(topId, anchor: .top)
-                                }
-                            } label: {
-                                HStack(spacing: .spacing2) {
-                                    if viewModel.isLoadingOlder {
-                                        ProgressView()
-                                            .scaleEffect(0.7)
-                                    } else {
-                                        Icon("up", size: 12)
+                            // Gradient banner — shown for demo/example chats (ChatHeader.svelte equivalent)
+                            if let banner = bannerState {
+                                ChatBannerView(
+                                    state: banner,
+                                    createdAt: bannerCreatedAt,
+                                    isExampleChat: chatId.hasPrefix("example-"),
+                                    isIntroChat: chatId == "demo-for-everyone",
+                                    teaserVideoURL: chatId == "demo-for-everyone"
+                                        ? introTeaserVideoURL
+                                        : nil,
+                                    fullVideoURL: chatId == "demo-for-everyone"
+                                        ? URL(string: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4")
+                                        : nil,
+                                    iconName: publicChatIconName(for: chatId),
+                                    isSettingsOpen: isSettingsOpen,
+                                    viewportHeight: chatViewportHeight,
+                                    onPrevious: onPreviousChat,
+                                    onNext: onNextChat
+                                )
+                                    .id("banner")
+                            }
+
+                            LazyVStack(spacing: .spacing4) {
+                                // Load older messages button at the top
+                                if viewModel.hasOlderMessages {
+                                    Button {
+                                        let topMessageId = viewModel.messages.first?.id
+                                        viewModel.loadOlderMessages()
+                                        // Keep scroll position at the previously-top message
+                                        if let topId = topMessageId {
+                                            proxy.scrollTo(topId, anchor: .top)
+                                        }
+                                    } label: {
+                                        HStack(spacing: .spacing2) {
+                                            if viewModel.isLoadingOlder {
+                                                ProgressView()
+                                                    .scaleEffect(0.7)
+                                            } else {
+                                                Icon("up", size: 12)
+                                            }
+                                            Text(AppStrings.loadEarlierMessages)
+                                                .font(.omXs)
+                                        }
+                                        .foregroundStyle(Color.fontSecondary)
+                                        .padding(.vertical, .spacing3)
+                                        .frame(maxWidth: .infinity)
                                     }
-                                    Text(AppStrings.loadEarlierMessages)
-                                        .font(.omXs)
+                                    .buttonStyle(.plain)
+                                    .id("load-older")
                                 }
-                                .foregroundStyle(Color.fontSecondary)
-                                .padding(.vertical, .spacing3)
-                                .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.plain)
-                            .id("load-older")
-                        }
 
-                        ForEach(viewModel.messages) { message in
-                            MessageBubble(
-                                message: message,
-                                chatId: chatId,
-                                appId: viewModel.chat?.appId,
-                                embeds: viewModel.embeds(for: message),
-                                streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
-                                onEmbedTap: { embed in
-                                    selectedEmbed = embed
-                                    showEmbedFullscreen = true
+                                ForEach(viewModel.messages) { message in
+                                    MessageBubble(
+                                        message: message,
+                                        chatId: chatId,
+                                        appId: viewModel.chat?.appId,
+                                        embeds: viewModel.embeds(for: message),
+                                        allEmbedRecords: viewModel.embedRecords,
+                                        streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
+                                        onEmbedTap: { embed in
+                                            selectedEmbed = embed
+                                            showEmbedFullscreen = true
+                                        },
+                                        onOpenPublicChat: onOpenPublicChat
+                                    )
+                                    .id(message.id)
+                                    .onLongPressGesture {
+                                        actionMessage = message
+                                    }
                                 }
-                            )
-                            .id(message.id)
-                            .onLongPressGesture {
-                                actionMessage = message
+
+                                if viewModel.isStreaming && viewModel.streamingContent.isEmpty {
+                                    StreamingIndicator()
+                                        .id("streaming")
+                                }
+                            }
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, .spacing4)
+                            // Cap message area width on iPad/Mac, centered
+                            .frame(maxWidth: 1000)
+                            .frame(maxWidth: .infinity)
+
+                            scrollSentinel(id: "scroll-bottom", edge: .bottom)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .coordinateSpace(name: "chat-scroll")
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        dismissExampleInputIfNeeded()
+                    }
+                    .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
+                        updateScrollNavState(values: values, viewportHeight: scrollGeo.size.height)
+                    }
+
+                    if !viewModel.messages.isEmpty && !isAtTop {
+                        scrollNavButton(isTop: true) {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                proxy.scrollTo("scroll-top", anchor: .top)
                             }
                         }
+                        .padding(.top, 18)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                    }
 
-                        if viewModel.isStreaming && viewModel.streamingContent.isEmpty {
-                            StreamingIndicator()
-                                .id("streaming")
+                    if !viewModel.messages.isEmpty && !isAtBottom {
+                        scrollNavButton(isTop: false) {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                proxy.scrollTo("scroll-bottom", anchor: .bottom)
+                            }
+                        }
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                    }
+                }
+                .onChange(of: viewModel.messages.count) { _, _ in
+                    // Demo/example chats (with banner) start at the top; real chats scroll to bottom
+                    if bannerState != nil {
+                        proxy.scrollTo("scroll-top", anchor: .top)
+                    } else {
+                        withAnimation {
+                            proxy.scrollTo("scroll-bottom", anchor: .bottom)
                         }
                     }
-                    .padding(.horizontal, .spacing4)
-                    .padding(.vertical, .spacing4)
-                    // Cap message area width on iPad/Mac, centered
-                    .frame(maxWidth: 1000)
-                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
-            }
-            .onChange(of: viewModel.messages.count) { _, _ in
-                // Demo/example chats (with banner) start at the top; real chats scroll to bottom
-                if bannerState != nil {
-                    proxy.scrollTo("banner", anchor: .top)
-                } else {
+                .onChange(of: viewModel.streamingContent) { _, _ in
                     withAnimation {
-                        proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
+                        proxy.scrollTo("scroll-bottom", anchor: .bottom)
                     }
-                }
-            }
-            .onChange(of: viewModel.streamingContent) { _, _ in
-                if let lastId = viewModel.messages.last?.id {
-                    proxy.scrollTo(lastId, anchor: .bottom)
                 }
             }
         }
+    }
+
+    private func scrollSentinel(id: String, edge: ChatScrollSentinelEdge) -> some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: ChatScrollSentinelPreferenceKey.self,
+                value: [edge: edge == .top
+                    ? geo.frame(in: .named("chat-scroll")).minY
+                    : geo.frame(in: .named("chat-scroll")).maxY
+                ]
+            )
+        }
+        .frame(height: 1)
+        .id(id)
+    }
+
+    private func updateScrollNavState(values: [ChatScrollSentinelEdge: CGFloat], viewportHeight: CGFloat) {
+        if let top = values[.top] {
+            isAtTop = top >= -8
+        }
+        if let bottom = values[.bottom] {
+            isAtBottom = bottom <= viewportHeight + 8
+        }
+    }
+
+    private func scrollNavButton(isTop: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon("dropdown", size: 12)
+                .foregroundStyle(Color.grey60)
+                .rotationEffect(isTop ? .degrees(180) : .degrees(0))
+                .frame(width: 120, height: 36)
+                .contentShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+        .opacity(0.7)
+        .accessibilityLabel(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom)
+        .accessibilityIdentifier(isTop ? "scroll-to-top-button" : "scroll-to-bottom-button")
     }
 
     // MARK: - Streaming banner
@@ -479,24 +603,60 @@ struct ChatView: View {
 
     // MARK: - Input bar
 
+    private var exampleChatInputRow: some View {
+        VStack(spacing: isInputFocused ? .spacing3 : 0) {
+            HStack(alignment: .bottom, spacing: .spacing3) {
+                newChatInlineButton
+                    .frame(width: isInputFocused ? 0 : (sizeClass == .compact ? 48 : nil), height: 48)
+                    .opacity(isInputFocused ? 0 : 1)
+                    .clipped()
+                    .allowsHitTesting(!isInputFocused)
+
+                inputField(
+                    compact: !isInputFocused && messageText.isEmpty,
+                    placeholder: AppStrings.typeFollowup,
+                    expandedMinHeight: isInputFocused ? 150 : 100
+                )
+            }
+
+            if isInputFocused {
+                inputDismissButton
+                    .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: 1000)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing3)
+        .background(Color.grey0)
+        .animation(.easeInOut(duration: 0.25), value: isInputFocused)
+    }
+
     private var inputBar: some View {
-        VStack(spacing: 0) {
-            ZStack(alignment: .bottom) {
-                TextField(AppStrings.typeMessage, text: $messageText, axis: .vertical)
+        inputField(compact: false, placeholder: AppStrings.typeMessage)
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey0)
+    }
+
+    private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
+        ZStack(alignment: .bottom) {
+            TextField(placeholder, text: $messageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.omP)
-                    .lineLimit(1...6)
+                    .lineLimit(compact ? 1...1 : 1...6)
                     .tint(Color.buttonPrimary)
                     .focused($isInputFocused)
                     .onSubmit { sendMessage() }
                     .accessibilityLabel(AppStrings.chatMessageInput)
-                    .accessibilityHint(AppStrings.typeMessage)
+                    .accessibilityHint(placeholder)
                     .padding(.horizontal, .spacing6)
-                    .padding(.top, .spacing6)
-                    .padding(.bottom, .spacing32)
-                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
+                    .padding(.top, compact ? 0 : .spacing6)
+                    .padding(.bottom, compact ? 0 : .spacing32)
+                    .frame(maxWidth: .infinity, minHeight: compact ? 48 : expandedMinHeight, alignment: compact ? .center : .topLeading)
 
-                HStack(spacing: .spacing5) {
+            if !compact {
+                HStack(spacing: .spacing6) {
                     AttachmentPicker(
                         isPresented: $showAttachmentMenu,
                         onImageSelected: { data, filename in
@@ -508,18 +668,18 @@ struct ChatView: View {
                     )
                     .accessibilityLabel(AppStrings.attachFiles)
 
-                    inputActionButton(icon: "maps", label: AppStrings.shareLocation, gradient: .appMaps) {
+                    inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
                         ToastManager.shared.show(AppStrings.shareLocation, type: .info)
                     }
 
-                    inputActionButton(icon: "modify", label: AppStrings.sketchAction, gradient: .appDesign) {
+                    inputActionButton(icon: "whiteboard", label: AppStrings.sketchAction) {
                         ToastManager.shared.show(AppStrings.sketchAction, type: .info)
                     }
 
                     Spacer()
 
                     #if os(iOS)
-                    inputActionButton(icon: "take_photo", label: AppStrings.takePhoto, gradient: .appPhotos) {
+                    inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
                         ToastManager.shared.show(AppStrings.takePhoto, type: .info)
                     }
                     #endif
@@ -555,27 +715,74 @@ struct ChatView: View {
                     }
                 }
                 .padding(.horizontal, .spacing5)
-                .padding(.bottom, .spacing4)
+                .padding(.bottom, .spacing6)
             }
-            .background(Color.greyBlue)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing3)
         }
-        .background(Color.grey0)
+        .background(Color.greyBlue)
+        .clipShape(RoundedRectangle(cornerRadius: compact ? .radiusFull : 24))
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        .animation(.easeInOut(duration: 0.25), value: compact)
     }
 
-    private func inputActionButton(icon: String, label: String, gradient: LinearGradient = .primary, action: @escaping () -> Void) -> some View {
+    private var newChatInlineButton: some View {
+        Button {
+            NotificationCenter.default.post(name: .newChat, object: nil)
+        } label: {
+            HStack(spacing: .spacing4) {
+                Icon("create", size: 20)
+                    .foregroundStyle(Color.fontButton)
+                if sizeClass != .compact {
+                    Text(AppStrings.newChat)
+                        .font(.omP)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontButton)
+                }
+            }
+            .frame(width: sizeClass == .compact ? 48 : nil, height: 48)
+            .padding(.horizontal, sizeClass == .compact ? 0 : .spacing8)
+            .background(Color.buttonPrimary)
+            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.newChat)
+    }
+
+    private var inputDismissButton: some View {
+        Button {
+            dismissExampleInputIfNeeded()
+        } label: {
+            Text(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft)
+                .font(.omSmall)
+                .fontWeight(.medium)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing3)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radiusFull)
+                        .stroke(Color.grey30, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft)
+    }
+
+    private func inputActionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Icon(icon, size: 22)
-                .foregroundStyle(gradient)
-                .frame(width: 36, height: 36)
-                .background(Color.grey0.opacity(0.72))
-                .clipShape(Circle())
+            Icon(icon, size: 25)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 25, height: 25)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+
+    private func dismissExampleInputIfNeeded() {
+        guard isExampleChat, isInputFocused else { return }
+        isInputFocused = false
+        showAttachmentMenu = false
     }
 
     private func sendMessage() {
@@ -587,6 +794,33 @@ struct ChatView: View {
             await viewModel.sendMessage(text)
         }
     }
+
+    private func publicChatIconName(for chatId: String) -> String? {
+        switch chatId {
+        case "demo-for-developers", "example-beautiful-single-page-html":
+            return "code"
+        case "demo-who-develops-openmates":
+            return "user"
+        case "announcements-introducing-openmates-v09":
+            return "megaphone"
+        case "legal-privacy":
+            return "shield-check"
+        case "legal-terms":
+            return "file-text"
+        case "legal-imprint":
+            return "building"
+        case "example-gigantic-airplanes", "example-flights-berlin-bangkok":
+            return "plane"
+        case "example-artemis-ii-mission":
+            return "rocket"
+        case "example-eu-chat-control-law":
+            return "shield"
+        case "example-creativity-drawing-meetups-berlin":
+            return "pencil"
+        default:
+            return nil
+        }
+    }
 }
 
 // MARK: - Message bubble with embed support
@@ -596,8 +830,10 @@ struct MessageBubble: View {
     let chatId: String
     let appId: String?
     let embeds: [EmbedRecord]
+    let allEmbedRecords: [String: EmbedRecord]
     let streamingContent: String?
     let onEmbedTap: (EmbedRecord) -> Void
+    let onOpenPublicChat: ((String) -> Void)?
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var hasAppeared = false
@@ -605,6 +841,7 @@ struct MessageBubble: View {
     var isUser: Bool { message.role == .user }
     /// Web: ≤500px uses stacked layout (avatar above message). Map to compact size class.
     private var useStackedLayout: Bool { sizeClass == .compact }
+    private var assistantCategory: String? { message.appId ?? appId }
 
     var displayContent: String {
         if let streaming = streamingContent { return streaming }
@@ -631,7 +868,7 @@ struct MessageBubble: View {
     /// Gradient for the avatar — openmates_official and default "ai" use .primary (blue/purple).
     private var avatarGradient: LinearGradient {
         if isOpenMatesOfficial { return .primary }
-        return (appId == nil || appId == "ai") ? .primary : AppIconView.gradient(forAppId: appId!)
+        return (assistantCategory == nil || assistantCategory == "ai") ? .primary : AppIconView.gradient(forAppId: assistantCategory!)
     }
 
     // Web: .mate-profile = 60px; .mate-profile-small-mobile (≤500px container) = 25px
@@ -640,7 +877,6 @@ struct MessageBubble: View {
     // Web: AI badge — normal: 24/16px, small-mobile: 12/8px
     private var badgeSize: CGFloat { useStackedLayout ? 12 : 24 }
     private var badgeIconSize: CGFloat { useStackedLayout ? 8 : 16 }
-    private var badgeAiIconSize: CGFloat { useStackedLayout ? 4 : 8 }
 
     private var assistantAvatar: some View {
         Group {
@@ -655,31 +891,69 @@ struct MessageBubble: View {
                     .frame(width: avatarSize, height: avatarSize)
                     .clipShape(Circle())
             } else {
-                Circle()
-                    .fill(avatarGradient)
-                    .frame(width: avatarSize, height: avatarSize)
-                    .overlay {
-                        Icon(AppIconView.iconName(forAppId: appId ?? "ai"), size: avatarIconSize)
-                            .foregroundStyle(.white)
-                    }
+                assistantCategoryAvatar
                     .overlay(alignment: .bottomTrailing) {
                         Circle()
                             .fill(Color.grey0)
                             .frame(width: badgeSize, height: badgeSize)
                             .overlay {
-                                Circle()
-                                    .fill(LinearGradient.primary)
-                                    .frame(width: badgeIconSize, height: badgeIconSize)
-                                    .overlay {
-                                        Icon("ai", size: badgeAiIconSize)
-                                            .foregroundStyle(.white)
-                                    }
+                                Icon("ai", size: badgeIconSize)
+                                    .foregroundStyle(LinearGradient.primary)
                             }
                             .shadow(color: .black.opacity(0.10), radius: 2, x: 0, y: 1)
                     }
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+    }
+
+    @ViewBuilder
+    private var assistantCategoryAvatar: some View {
+        if let assistantCategory, let image = categoryProfileImage(for: assistantCategory) {
+            image
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFill()
+                .frame(width: avatarSize, height: avatarSize)
+                .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(avatarGradient)
+                .frame(width: avatarSize, height: avatarSize)
+                .overlay {
+                    Icon(AppIconView.iconName(forAppId: assistantCategory ?? "ai"), size: avatarIconSize)
+                        .foregroundStyle(.white)
+                }
+        }
+    }
+
+    private func categoryProfileImage(for category: String) -> Image? {
+        guard CategoryMapping.isKnownCategory(category) else { return nil }
+        #if os(iOS)
+        let path = Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "mates")
+            ?? Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "Mates")
+            ?? Bundle.main.path(forResource: category, ofType: "jpeg")
+        guard let path, let image = UIImage(contentsOfFile: path) else { return nil }
+        return Image(uiImage: image)
+        #elseif os(macOS)
+        let path = Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "mates")
+            ?? Bundle.main.path(forResource: category, ofType: "jpeg", inDirectory: "Mates")
+            ?? Bundle.main.path(forResource: category, ofType: "jpeg")
+        guard let path, let image = NSImage(contentsOfFile: path) else { return nil }
+        return Image(nsImage: image)
+        #endif
+    }
+
+    private var assistantDisplayName: String {
+        if isOpenMatesOfficial {
+            return AppStrings.openMatesName
+        }
+        guard let assistantCategory else {
+            return AppStrings.openMatesName
+        }
+        let key = "mates.\(assistantCategory)"
+        let localized = AppStrings.localized(key)
+        return localized == key ? AppStrings.openMatesName : localized
     }
 
     private var userBubble: some View {
@@ -702,14 +976,20 @@ struct MessageBubble: View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if !displayContent.isEmpty {
                 VStack(alignment: .leading, spacing: .spacing3) {
-                    if isOpenMatesOfficial {
-                        Text(AppStrings.openMatesName)
-                            .font(.omH3)
-                            .fontWeight(.bold)
-                            .foregroundStyle(LinearGradient.primary)
-                    }
+                    Text(assistantDisplayName)
+                        .font(.omP)
+                        .fontWeight(.medium)
+                        .foregroundStyle(LinearGradient.primary)
+                        .padding(.bottom, .spacing1)
 
-                    RichMarkdownView(content: displayContent, isUserMessage: false)
+                    RichMarkdownView(
+                        content: displayContent,
+                        isUserMessage: false,
+                        onOpenPublicChat: onOpenPublicChat,
+                        embedLookup: Dictionary(uniqueKeysWithValues: embeds.map { ($0.id, $0) }),
+                        allEmbedRecords: allEmbedRecords,
+                        onEmbedTap: onEmbedTap
+                    )
                 }
                 .foregroundStyle(Color.grey100)
                 .padding(.spacing6)
@@ -718,14 +998,6 @@ struct MessageBubble: View {
                 .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
                 .overlay(alignment: .topLeading) {
                     SpeechTailView(side: .leading, color: Color.grey0)
-                }
-            }
-            if !embeds.isEmpty {
-                let groups = EmbedGrouper.group(embeds)
-                ForEach(groups) { group in
-                    GroupedEmbedView(group: group) { embed in
-                        onEmbedTap(embed)
-                    }
                 }
             }
         }

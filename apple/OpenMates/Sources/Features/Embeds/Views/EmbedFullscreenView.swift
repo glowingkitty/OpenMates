@@ -7,7 +7,14 @@ import SwiftUI
 struct EmbedFullscreenView: View {
     let embed: EmbedRecord
     let childEmbeds: [EmbedRecord]
+    let allEmbedRecords: [String: EmbedRecord]
     @Environment(\.dismiss) var dismiss
+
+    init(embed: EmbedRecord, childEmbeds: [EmbedRecord], allEmbedRecords: [String: EmbedRecord] = [:]) {
+        self.embed = embed
+        self.childEmbeds = childEmbeds
+        self.allEmbedRecords = allEmbedRecords
+    }
 
     @State private var selectedChildId: String?
     @State private var showChildFullscreen = false
@@ -57,7 +64,7 @@ struct EmbedFullscreenView: View {
                             showChildFullscreen = false
                         }
 
-                    EmbedFullscreenView(embed: child, childEmbeds: [])
+                    EmbedFullscreenView(embed: child, childEmbeds: [], allEmbedRecords: allEmbedRecords)
                         .clipShape(RoundedRectangle(cornerRadius: .radius8))
                         .padding(.spacing8)
                 }
@@ -111,7 +118,7 @@ struct EmbedFullscreenView: View {
 
     private var contentArea: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
-            EmbedContentView(embed: embed, mode: .fullscreen)
+            EmbedContentView(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords)
         }
         .padding(.spacing6)
     }
@@ -129,7 +136,7 @@ struct EmbedFullscreenView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: .spacing4) {
                     ForEach(childEmbeds) { child in
-                        EmbedPreviewCard(embed: child) {
+                        EmbedPreviewCard(embed: child, allEmbedRecords: allEmbedRecords) {
                             selectedChildId = child.id
                             showChildFullscreen = true
                         }

@@ -48,6 +48,15 @@ struct ChatBannerView: View {
     var teaserVideoURL: URL? = nil
     /// Full video URL (streamed) — opened when user taps the play button on the teaser.
     var fullVideoURL: URL? = nil
+    /// Explicit Lucide icon for public/example chats. Web passes `chat.icon`
+    /// through `getValidIconName(icon, category)` before rendering ChatHeader.
+    var iconName: String? = nil
+    /// Web: `.menu-open .chat-header-banner` switches from responsive 35vh
+    /// to fixed height while the settings panel is open.
+    var isSettingsOpen = false
+    /// Height of the active chat viewport, used to mirror CSS `height: 35vh`
+    /// inside the rounded app shell instead of pinning the banner to its minimum.
+    var viewportHeight: CGFloat = 0
     /// Callbacks for previous/next chat navigation arrows
     var onPrevious: (() -> Void)? = nil
     var onNext: (() -> Void)? = nil
@@ -68,9 +77,25 @@ struct ChatBannerView: View {
     private var isCompact: Bool { sizeClass == .compact }
     /// True when banner is narrow enough for mobile crossfade layout (matches web's max-width: 520px).
     private var useCompactTeaser: Bool { bannerWidth > 0 ? bannerWidth < 520 : isCompact }
-    /// Web mobile screenshot parity: the intro header resolves to the fixed
-    /// minimum card height instead of growing with the viewport.
-    private let bannerHeight: CGFloat = 240
+    private let desktopMinimumBannerHeight: CGFloat = 240
+    private let compactMinimumBannerHeight: CGFloat = 230
+    private let responsiveBannerHeightRatio: CGFloat = 0.35
+
+    private var minimumBannerHeight: CGFloat {
+        isCompact ? compactMinimumBannerHeight : desktopMinimumBannerHeight
+    }
+
+    private var bannerHeight: CGFloat {
+        if isSettingsOpen {
+            return minimumBannerHeight
+        }
+
+        guard viewportHeight > 0 else {
+            return minimumBannerHeight
+        }
+
+        return max(minimumBannerHeight, viewportHeight * responsiveBannerHeightRatio)
+    }
 
     var body: some View {
         // TimelineView drives continuous animation for orbs + deco icons.
@@ -191,7 +216,7 @@ struct ChatBannerView: View {
 
                 // Left icon — positioned at left edge, partially clipped
                 // Web: left: calc(50% - 240px - 106px); bottom: -15px
-                decoIcon(appId: appId, size: iconSize, rotation: -15)
+                decoIcon(appId: appId, iconName: iconName, size: iconSize, rotation: -15)
                     .position(
                         x: geo.size.width * 0.08,
                         y: geo.size.height - 15 + floatOffset
@@ -199,7 +224,7 @@ struct ChatBannerView: View {
                     .opacity(decoAppeared ? 0.4 : 0)
 
                 // Right icon — positioned at right edge
-                decoIcon(appId: appId, size: iconSize, rotation: 15)
+                decoIcon(appId: appId, iconName: iconName, size: iconSize, rotation: 15)
                     .position(
                         x: geo.size.width * 0.92,
                         y: geo.size.height - 15 + floatY(time: time + 8, period: 16, radius: 10)
@@ -247,8 +272,8 @@ struct ChatBannerView: View {
     /// Web: .deco-icon uses the Lucide/custom icon directly at 126px.
     /// Container layer controls opacity (0.4 for loaded, 1.0 for incognito).
     @ViewBuilder
-    private func decoIcon(appId: String, size: CGFloat, rotation: Double) -> some View {
-        bannerIcon(appId: appId, size: size)
+    private func decoIcon(appId: String, iconName: String?, size: CGFloat, rotation: Double) -> some View {
+        bannerIcon(appId: appId, iconName: iconName, size: size)
             .rotationEffect(.degrees(rotation))
     }
 
@@ -282,7 +307,7 @@ struct ChatBannerView: View {
             incognitoContent
 
         case .loaded(let title, let appId, let summary):
-            loadedContent(title: title, appId: appId, summary: summary)
+            loadedContent(title: title, appId: appId, iconName: iconName, summary: summary)
         }
     }
 
@@ -333,12 +358,12 @@ struct ChatBannerView: View {
 
     // MARK: Loaded
 
-    private func loadedContent(title: String, appId: String, summary: String?) -> some View {
+    private func loadedContent(title: String, appId: String, iconName: String?, summary: String?) -> some View {
         Group {
             if isIntroChat {
                 introTeaserContent(appId: appId)
             } else {
-                standardLoadedContent(title: title, appId: appId, summary: summary)
+                standardLoadedContent(title: title, appId: appId, iconName: iconName, summary: summary)
             }
         }
     }
@@ -419,7 +444,7 @@ struct ChatBannerView: View {
     /// AI icon + teaser copy lines
     private func teaserTextColumn(appId: String) -> some View {
         VStack(alignment: .leading, spacing: .spacing4) {
-            bannerIcon(appId: appId, size: isCompact ? 32 : 38)
+            bannerIcon(appId: appId, iconName: nil, size: isCompact ? 32 : 38)
 
             VStack(alignment: .leading, spacing: .spacing1) {
                 Text(AppStrings.teaserLine1)
@@ -474,10 +499,10 @@ struct ChatBannerView: View {
 
     // MARK: Standard loaded content — centered icon + title + summary
 
-    private func standardLoadedContent(title: String, appId: String, summary: String?) -> some View {
+    private func standardLoadedContent(title: String, appId: String, iconName: String?, summary: String?) -> some View {
         VStack(spacing: .spacing2) {
             // Category icon (38px, white, raw shape — NOT a gradient circle)
-            bannerIcon(appId: appId, size: isCompact ? 32 : 38)
+            bannerIcon(appId: appId, iconName: iconName, size: isCompact ? 32 : 38)
 
             Text(title)
                 .font(isCompact ? .omLg : .omH3)
@@ -523,8 +548,11 @@ struct ChatBannerView: View {
     }
 
     @ViewBuilder
-    private func bannerIcon(appId: String, size: CGFloat) -> some View {
-        if CategoryMapping.isKnownCategory(appId) {
+    private func bannerIcon(appId: String, iconName: String?, size: CGFloat) -> some View {
+        if let iconName, !iconName.isEmpty {
+            LucideNativeIcon(iconName, size: size)
+                .foregroundStyle(.white)
+        } else if CategoryMapping.isKnownCategory(appId) {
             LucideNativeIcon(CategoryMapping.lucideIconName(for: appId), size: size)
                 .foregroundStyle(.white)
         } else {

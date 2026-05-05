@@ -16,6 +16,33 @@
 
 import SwiftUI
 
+private struct OMSettingsScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat { 0 }
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+struct OMSettingsScrollOffsetHandler: @unchecked Sendable {
+    var callback: (@MainActor @Sendable (CGFloat) -> Void)?
+
+    init(_ callback: (@MainActor @Sendable (CGFloat) -> Void)? = nil) {
+        self.callback = callback
+    }
+}
+
+private struct OMSettingsScrollOffsetHandlerKey: EnvironmentKey {
+    static var defaultValue: OMSettingsScrollOffsetHandler { OMSettingsScrollOffsetHandler() }
+}
+
+extension EnvironmentValues {
+    var omSettingsScrollOffsetHandler: OMSettingsScrollOffsetHandler {
+        get { self[OMSettingsScrollOffsetHandlerKey.self] }
+        set { self[OMSettingsScrollOffsetHandlerKey.self] = newValue }
+    }
+}
+
 // MARK: - OMToggle
 // Web source: Toggle.svelte — 52x32 pill track, 24px white circle thumb
 // OFF = grey-30 track, ON = primary gradient (#4867cd->#5a85eb), 0.3s animation
@@ -108,8 +135,7 @@ struct OMSettingsToggleRow: View {
 
             VStack(alignment: .leading, spacing: .spacing1) {
                 Text(title)
-                    .font(.omP)
-                    .fontWeight(.medium)
+                    .font(.omP.weight(.medium))
                     .foregroundStyle(Color.fontPrimary)
                 if let subtitle {
                     Text(subtitle)
@@ -480,91 +506,212 @@ struct OMIconButton: View {
 }
 
 struct OMSettingsPage<Content: View>: View {
+    @Environment(\.omSettingsScrollOffsetHandler) private var scrollOffsetHandler
     let title: String
     var subtitle: String?
     var trailing: AnyView?
+    var showsHeader = true
+    var showsFooter = true
     @ViewBuilder let content: Content
 
     init(
         title: String,
         subtitle: String? = nil,
         trailing: AnyView? = nil,
+        showsHeader: Bool = true,
+        showsFooter: Bool = true,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
         self.subtitle = subtitle
         self.trailing = trailing
+        self.showsHeader = showsHeader
+        self.showsFooter = showsFooter
         self.content = content()
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: .spacing4) {
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(title)
-                        .font(.omH2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontPrimary)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.omSmall)
-                            .foregroundStyle(Color.fontSecondary)
+            if showsHeader {
+                HStack(alignment: .center, spacing: .spacing4) {
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(title)
+                            .font(.omH2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontPrimary)
+                        if let subtitle {
+                            Text(subtitle)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                        }
+                    }
+                    Spacer(minLength: .spacing4)
+                    if let trailing {
+                        trailing
                     }
                 }
-                Spacer(minLength: .spacing4)
-                if let trailing {
-                    trailing
-                }
-            }
-            .padding(.horizontal, .spacing8)
-            .padding(.top, .spacing8)
-            .padding(.bottom, .spacing6)
-            .background(Color.grey0)
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: .spacing8) {
-                    content
-                }
                 .padding(.horizontal, .spacing8)
-                .padding(.bottom, .spacing16)
+                .padding(.top, .spacing8)
+                .padding(.bottom, .spacing6)
+                .background(Color.grey20)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.grey0)
+
+            GeometryReader { scrollFrame in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: .spacing8) {
+                        GeometryReader { contentFrame in
+                            Color.clear.preference(
+                                key: OMSettingsScrollOffsetPreferenceKey.self,
+                                value: max(
+                                    0,
+                                    scrollFrame.frame(in: .global).minY - contentFrame.frame(in: .global).minY
+                                )
+                            )
+                        }
+                        .frame(height: 0)
+
+                        content
+
+                        if showsFooter {
+                            OMSettingsFooter()
+                        }
+                    }
+                    .padding(.horizontal, .spacing5)
+                    .padding(.bottom, .spacing16)
+                }
+                .onPreferenceChange(OMSettingsScrollOffsetPreferenceKey.self) { offset in
+                    if let callback = scrollOffsetHandler.callback {
+                        Task { @MainActor in
+                            callback(offset)
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+                .background(Color.grey20)
+            }
         }
-        .background(Color.grey0)
+        .background(Color.grey20)
+    }
+}
+
+struct OMSettingsFooter: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            footerSection(LocalizationManager.shared.text("footer.sections.for_everyone")) {
+                footerLink(LocalizationManager.shared.text("settings.instagram"), url: "https://instagram.com/openmates")
+                footerLink(LocalizationManager.shared.text("common.discord"), url: "https://discord.gg/openmates")
+                footerLink(LocalizationManager.shared.text("settings.meetup"), url: "https://www.meetup.com/openmates")
+                footerLink(LocalizationManager.shared.text("settings.bluesky"), url: "https://bsky.app/profile/openmates.org")
+                footerLink(LocalizationManager.shared.text("settings.mastodon"), url: "https://mastodon.social/@openmates")
+                footerLink(LocalizationManager.shared.text("settings.pixelfed"), url: "https://pixelfed.social/openmates")
+            }
+
+            footerSection(LocalizationManager.shared.text("footer.sections.for_developers")) {
+                footerLink(LocalizationManager.shared.text("settings.api_docs"), url: "\(APIClient.shared.baseURL.absoluteString)/docs")
+                footerLink(LocalizationManager.shared.text("common.github"), url: "https://github.com/OpenMates/OpenMates")
+                footerLink(LocalizationManager.shared.text("settings.signal"), url: "https://signal.me/#eu/openmates")
+            }
+
+            footerSection(LocalizationManager.shared.text("common.contact")) {
+                footerLink(LocalizationManager.shared.text("common.email"), url: "mailto:hello@openmates.org")
+            }
+
+            footerSection(LocalizationManager.shared.text("common.legal")) {
+                footerLink(AppStrings.imprint, url: "https://openmates.org/imprint")
+                footerLink(AppStrings.privacyPolicy, url: "https://openmates.org/privacy")
+                footerLink(AppStrings.termsOfService, url: "https://openmates.org/terms")
+            }
+
+            footerSection("App version") {
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.grey50)
+                    .padding(.vertical, .spacing3)
+            }
+        }
+        .padding(.top, .spacing32 + .spacing20)
+        .padding(.horizontal, .spacing5)
+        .padding(.bottom, .spacing8)
+    }
+
+    private func footerSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.omSmall.weight(.semibold))
+                .foregroundStyle(Color.fontSecondary)
+                .padding(.vertical, .spacing3)
+            content()
+        }
+    }
+
+    private func footerLink(_ title: String, url: String) -> some View {
+        Button {
+            if let target = URL(string: url) {
+                openURL(target)
+            }
+        } label: {
+            Text(title)
+                .font(.omSmall)
+                .foregroundStyle(Color.grey50)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, .spacing3)
+        }
+        .buttonStyle(.plain)
     }
 }
 
 struct OMSettingsSection<Content: View>: View {
     let title: String?
+    let icon: String
     @ViewBuilder let content: Content
 
-    init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
+    init(_ title: String? = nil, icon: String = "settings", @ViewBuilder content: () -> Content) {
         self.title = title
+        self.icon = icon
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if let title {
-                Text(title)
-                    .font(.omXs)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontTertiary)
-                    .textCase(.uppercase)
-                    .padding(.horizontal, .spacing2)
+                OMSettingsSectionHeading(title: title, icon: icon)
             }
 
             VStack(spacing: 0) {
                 content
             }
-            .background(Color.grey10)
-            .clipShape(RoundedRectangle(cornerRadius: .radius8))
-            .overlay(
-                RoundedRectangle(cornerRadius: .radius8)
-                    .stroke(Color.grey20, lineWidth: 1)
-            )
         }
+    }
+}
+
+struct OMSettingsSectionHeading: View {
+    let title: String
+    var icon: String = "settings"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            HStack(spacing: .spacing6) {
+                Icon(icon, size: 22)
+                    .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 44, height: 44)
+
+                Text(title)
+                    .font(.omP.weight(.bold))
+                    .foregroundStyle(Color.fontPrimary)
+            }
+
+            RoundedRectangle(cornerRadius: 11)
+                .fill(LinearGradient.primary)
+                .frame(height: 4)
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.top, .spacing12)
+        .padding(.bottom, .spacing8)
     }
 }
 
@@ -593,29 +740,17 @@ struct OMSettingsRow: View {
                     // Mode B (.has-bg): gradient bg, white icon at 50% (22pt)
                     // Mode A (no .has-bg): grey-20→grey-30 gradient bg, colored icon at 50% (22pt)
                     Icon(icon, size: 22)
-                        .foregroundStyle(
-                            iconGradient != nil
-                                ? AnyShapeStyle(.white)
-                                : AnyShapeStyle(isDestructive ? Color.error : Color.fontSecondary)
-                        )
+                        .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
-                        .background(
-                            iconGradient
-                                ?? LinearGradient(
-                                    colors: [Color.grey20, Color.grey30],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                        )
+                        .background(isDestructive ? LinearGradient.appNews : LinearGradient.primary)
                         .clipShape(RoundedRectangle(cornerRadius: .radius4))
                         .padding(.trailing, .spacing6) // margin-inline-end: 12px
                 }
 
                 VStack(alignment: .leading, spacing: .spacing1) {
                     Text(title)
-                        .font(.omP)
-                        .fontWeight(.medium)
-                        .foregroundStyle(isDestructive ? Color.error : Color.fontPrimary)
+                        .font(.omP.weight(.medium))
+                        .foregroundStyle(isDestructive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
                     if let subtitle {
                         Text(subtitle)
                             .font(.omXs)
