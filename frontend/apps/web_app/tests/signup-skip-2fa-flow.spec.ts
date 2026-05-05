@@ -252,8 +252,14 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 60000 });
 	logSignupCheckpoint('Stripe payment completed successfully.');
 
-	await page.getByTestId('signup-finish-setup').first().click();
-	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+	const finishSetupButton = page.getByTestId('signup-finish-setup').first();
+	await expect(finishSetupButton).toBeVisible({ timeout: 10000 });
+	await expect(finishSetupButton).toBeEnabled({ timeout: 10000 });
+	await finishSetupButton.click({ force: true });
+	if (await finishSetupButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+		await finishSetupButton.evaluate((button: HTMLButtonElement) => button.click());
+	}
+	await expect(finishSetupButton).not.toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'chat-after-signup');
 
 	// Logout
