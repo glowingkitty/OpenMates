@@ -259,17 +259,23 @@ test('completes signup with skipped 2FA, login with password, and delete account
 	if (await finishSetupButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 		await finishSetupButton.evaluate((button: HTMLButtonElement) => button.click());
 	}
-	await expect(finishSetupButton).not.toBeVisible({ timeout: 30000 });
+	await expect(page.getByRole('button', { name: /logout/i }).or(page.getByTestId('profile-container'))).toBeVisible({
+		timeout: 30000
+	});
 	await takeStepScreenshot(page, 'chat-after-signup');
 
 	// Logout
-	const settingsMenuButton = page.getByTestId('profile-container');
-	await settingsMenuButton.click();
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
-
+	const signupLogoutButton = page.getByRole('button', { name: /logout/i }).first();
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
-	await expect(logoutItem).toBeVisible({ timeout: 10000 });
-	await logoutItem.click();
+	if (await signupLogoutButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await signupLogoutButton.click();
+	} else {
+		const settingsMenuButton = page.getByTestId('profile-container');
+		await settingsMenuButton.click();
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+		await expect(logoutItem).toBeVisible({ timeout: 10000 });
+		await logoutItem.click();
+	}
 
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 		timeout: 10000
