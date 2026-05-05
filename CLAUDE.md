@@ -23,6 +23,8 @@ OpenMates/
 ├── docs/
 │   ├── architecture/           # Architecture decision docs
 │   └── contributing/           # Coding standards, guides (loaded by rules via @import)
+├── vaults/
+│   └── memory/                 # Obsidian vault for notes, research, memory, and attachments
 └── scripts/                    # sessions.py, lint_changed.sh, test runners
 ```
 
@@ -49,6 +51,12 @@ OpenMates/
 | `settings/elements/`                   | Settings UI components (29 canonical)      |
 
 Architecture decisions: write once in `docs/architecture/`, reference in code.
+
+## Obsidian Vault
+
+- The Obsidian vault lives at `vaults/memory/`.
+- Create user-requested notes in that vault, using the existing folders such as `Resources/research/`, `Areas/`, or `Projects/`.
+- Put PDFs, images, and other attachments in `vaults/memory/assets/` unless the user asks for a different location.
 
 ---
 
@@ -92,4 +100,3 @@ Before any new app, skill, API integration, or significant feature:
 2. Search for official docs (never rely on training data for APIs/pricing).
 3. Check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research.
 4. Ask clarifying questions before writing code. Wait for confirmation.
-

@@ -10,7 +10,10 @@
     ".claude/rules/deployment.md",
     ".claude/rules/session-lifecycle.md",
     ".claude/rules/debugging.md",
-    ".claude/rules/embed.md"
+    ".claude/rules/embed.md",
+    ".claude/rules/apple-ui.md",
+    ".claude/rules/planning.md",
+    ".claude/rules/linear-tasks.md"
   ],
   "permission": {
     "skill": {
