@@ -71,7 +71,7 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
         if skipped_not_due:
             lines.append(f"- {skipped_not_due} not due yet")
         if skipped_safety_completed:
-            lines.append(f"- {skipped_safety_completed} looked completed or had account activity")
+            lines.append(f"- {skipped_safety_completed} purchased credits or redeemed a gift card")
         if skipped_missing_email:
             lines.append(f"- {skipped_missing_email} had no decryptable email address")
 

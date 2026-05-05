@@ -151,27 +151,30 @@ async def _get_stage_deliveries(task: BaseServiceTask, user_id: str) -> dict[str
     return {row.get("stage"): row for row in rows if row.get("stage")}
 
 
-async def _has_usage_or_invoice(task: BaseServiceTask, user_id: str) -> bool:
+async def _has_completed_credit_source(task: BaseServiceTask, user_id: str) -> bool:
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
-
-    usage = await task.directus_service.get_items(
-        "usage",
-        params={"filter": {"user_id_hash": {"_eq": user_id_hash}}, "fields": "id", "limit": 1},
-        admin_required=True,
-    )
-    if usage:
-        return True
 
     invoices = await task.directus_service.get_items(
         "invoices",
         params={
-            "filter": {"user_id_hash": {"_eq": user_id_hash}},
+            "filter": {
+                "user_id_hash": {"_eq": user_id_hash},
+                "status": {"_eq": "completed"},
+            },
             "fields": "id",
             "limit": 1,
         },
         admin_required=True,
     )
-    return bool(invoices)
+    if invoices:
+        return True
+
+    redeemed_gift_cards = await task.directus_service.get_items(
+        "redeemed_gift_cards",
+        params={"filter": {"user_id_hash": {"_eq": user_id_hash}}, "fields": "id", "limit": 1},
+        admin_required=True,
+    )
+    return bool(redeemed_gift_cards)
 
 
 async def _mark_signup_completed(task: BaseServiceTask, user_id: str, reason: str) -> None:
@@ -373,7 +376,7 @@ async def _async_process_incomplete_signup_deletions(
             users = await task.directus_service.get_items(
                 "directus_users",
                 params={
-                    "fields": "id,status,is_admin,last_opened,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_username",
+                    "fields": "id,status,is_admin,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_username",
                     "filter": {
                         "_and": [
                             {"status": {"_eq": "active"}},
@@ -405,16 +408,9 @@ async def _async_process_incomplete_signup_deletions(
                     stats["skipped_not_due"] += 1
                     continue
 
-                last_opened = user.get("last_opened") or ""
-                if not last_opened.startswith("/signup/"):
+                if await _has_completed_credit_source(task, user_id):
                     if not dry_run:
-                        await _mark_signup_completed(task, user_id, "last_opened_not_signup")
-                    stats["skipped_safety_completed"] += 1
-                    continue
-
-                if await _has_usage_or_invoice(task, user_id):
-                    if not dry_run:
-                        await _mark_signup_completed(task, user_id, "usage_or_invoice")
+                        await _mark_signup_completed(task, user_id, "completed_credit_source")
                     stats["skipped_safety_completed"] += 1
                     continue
 
