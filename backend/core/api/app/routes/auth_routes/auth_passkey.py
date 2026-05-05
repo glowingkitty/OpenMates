@@ -76,7 +76,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_compliance_service,
     get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, verify_auth_client, validate_username
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, verify_auth_client, validate_username, store_account_lifecycle_contact_email
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
@@ -997,12 +997,28 @@ async def passkey_registration_complete(
                 )
             
             user_id = user_data.get("id")
+            # Fetch verification data from cache to get the plaintext email
+            verification_cache_key = f"email_verified:{complete_request.hashed_email}"
+            verification_data = await cache_service.get(verification_cache_key)
+
+            try:
+                if verification_data and verification_data.get("email"):
+                    await store_account_lifecycle_contact_email(
+                        directus_service,
+                        encryption_service,
+                        user_id=user_id,
+                        hashed_email=complete_request.hashed_email,
+                        email=verification_data.get("email"),
+                        verified_at=verification_data.get("verified_at"),
+                    )
+            except Exception as contact_email_err:
+                logger.error(
+                    f"Failed to store account lifecycle contact email for new user {user_id}: {contact_email_err}",
+                    exc_info=True,
+                )
+
             # Send 'Account created' confirmation email
             try:
-                # Fetch verification data from cache to get the plaintext email
-                verification_cache_key = f"email_verified:{complete_request.hashed_email}"
-                verification_data = await cache_service.get(verification_cache_key)
-                
                 if verification_data and verification_data.get("email"):
                     celery_app.send_task(
                         name="app.tasks.email_tasks.account_created_email_task.send_account_created_email",

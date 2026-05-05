@@ -24,44 +24,48 @@
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            Hey {{ username }},
+            {{ t.email.incomplete_signup_deletion_reminder.greeting.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            You started signing up on <a href="{{ finish_setup_link }}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> but didn't complete the signup process.
+            {{ t.email.incomplete_signup_deletion_reminder.intro.text }}
           </mj-text>
 
           <mj-text align="left" font-size="18px" padding-bottom="18px">
-            <strong>Your incomplete account is scheduled for deletion {{ deletion_time_text }}.</strong>
+            <strong>{{ t.email.incomplete_signup_deletion_reminder.scheduled.text }}</strong>
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            If you still want to use OpenMates, simply log in to <a href="{{ finish_setup_link }}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> again and finish the signup flow by buying credits and start using OpenMates.
+            {{ t.email.incomplete_signup_deletion_reminder.finish_setup.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            A lot of changes have been made in recent weeks: from various new apps which your AI team mates can use to fulfill all kinds of tasks, many bug fixes and stability improvements, and other features. OpenMates continues to be under very active development. Watch the latest announcement below for a quick tour of what changed.
+            {{ t.email.incomplete_signup_deletion_reminder.changes.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.incomplete_signup_deletion_reminder.newsletter.text }}
           </mj-text>
 
           <mj-text align="left" font-size="14px" color="#808080" padding-bottom="8px">
-            2:50 min update video:
+            {{ t.email.incomplete_signup_deletion_reminder.video_label.text }}
           </mj-text>
 
           <mj-image
             href="{{ latest_announcement_video_link }}"
             src="{{ announcement_thumbnail_url }}"
-            alt="Watch the latest OpenMates announcement video"
+            alt="{{ t.email.incomplete_signup_deletion_reminder.image_alt.text }}"
             width="520px"
             border-radius="16px"
             padding="0 0 12px 0"
           />
 
           <mj-button href="{{ latest_announcement_video_link }}" background-color="#4867CD" color="#ffffff" border-radius="999px" font-size="16px" font-weight="bold" padding="0 0 18px 0" inner-padding="13px 22px">
-            Watch the announcement
+            {{ t.email.incomplete_signup_deletion_reminder.watch_button.text }}
           </mj-button>
 
           <mj-text align="left" padding-bottom="12px">
-            If you would rather delete your account now, you do not need to wait {{ wait_time_text }} but can easily <a href="{{ direct_delete_account_link }}" style="color: #4867CD; text-decoration: underline;">delete your account here</a>.
+            {{ t.email.incomplete_signup_deletion_reminder.delete_now.text }}
           </mj-text>
 
           {% if reminder_info %}
@@ -71,9 +75,9 @@
           {% endif %}
 
           <mj-text align="left" padding-top="16px" padding-bottom="0">
-            Greetings,<br />
+            {{ t.email.incomplete_signup_deletion_reminder.signoff.text }}<br />
             Marco<br />
-            <span style="font-size: 14px; color: #808080;">Creator of OpenMates</span>
+            <span style="font-size: 14px; color: #808080;">{{ t.email.incomplete_signup_deletion_reminder.creator_title.text }}</span>
           </mj-text>
         </mj-column>
       </mj-section>

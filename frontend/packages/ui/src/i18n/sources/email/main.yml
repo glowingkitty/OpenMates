@@ -237,6 +237,200 @@ password_security_reminder.open_passkey_settings:
   sv: Lägg till nyckelkod
   he: הוסף מפתח גישה
   verified_by_human: []
+incomplete_signup_deletion_reminder.subject_14d:
+  context: Subject for incomplete signup deletion reminder sent 14 days before deletion
+  en: Complete your OpenMates signup before your account is deleted
+  de: Schließe deine OpenMates-Registrierung ab, bevor dein Konto gelöscht wird
+  verified_by_human: []
+incomplete_signup_deletion_reminder.headline_14d:
+  context: Headline for incomplete signup deletion reminder sent 14 days before deletion
+  en: Complete your signup before deletion
+  de: Schließe deine Registrierung vor der Löschung ab
+  verified_by_human: []
+incomplete_signup_deletion_reminder.deletion_time_14d:
+  context: Time until deletion for the 14-day incomplete signup reminder
+  en: in 14 days
+  de: in 14 Tagen
+  verified_by_human: []
+incomplete_signup_deletion_reminder.wait_time_14d:
+  context: Wait time phrase for the manual delete link in the 14-day reminder
+  en: 14 days
+  de: 14 Tage
+  verified_by_human: []
+incomplete_signup_deletion_reminder.reminder_info_14d:
+  context: Follow-up reminder schedule for the 14-day incomplete signup reminder
+  en: If you take no action, you will be reminded again 7 days before deletion and 1 day before deletion.
+  de: Wenn du nichts unternimmst, wirst du erneut 7 Tage vor der Löschung und 1 Tag vor der Löschung informiert.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.subject_7d:
+  context: Subject for incomplete signup deletion reminder sent 7 days before deletion
+  en: Your incomplete OpenMates account will be deleted in 7 days
+  de: Dein unvollständiges OpenMates-Konto wird in 7 Tagen gelöscht
+  verified_by_human: []
+incomplete_signup_deletion_reminder.headline_7d:
+  context: Headline for incomplete signup deletion reminder sent 7 days before deletion
+  en: Your account will be deleted soon
+  de: Dein Konto wird bald gelöscht
+  verified_by_human: []
+incomplete_signup_deletion_reminder.deletion_time_7d:
+  context: Time until deletion for the 7-day incomplete signup reminder
+  en: in 7 days
+  de: in 7 Tagen
+  verified_by_human: []
+incomplete_signup_deletion_reminder.wait_time_7d:
+  context: Wait time phrase for the manual delete link in the 7-day reminder
+  en: 7 days
+  de: 7 Tage
+  verified_by_human: []
+incomplete_signup_deletion_reminder.reminder_info_7d:
+  context: Follow-up reminder schedule for the 7-day incomplete signup reminder
+  en: If you take no action, you will receive one final reminder 1 day before deletion.
+  de: Wenn du nichts unternimmst, erhältst du 1 Tag vor der Löschung eine letzte Erinnerung.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.subject_1d:
+  context: Subject for incomplete signup deletion reminder sent 1 day before deletion
+  en: "Final notice: your incomplete OpenMates account will be deleted tomorrow"
+  de: "Letzte Erinnerung: Dein unvollständiges OpenMates-Konto wird morgen gelöscht"
+  verified_by_human: []
+incomplete_signup_deletion_reminder.headline_1d:
+  context: Headline for incomplete signup deletion reminder sent 1 day before deletion
+  en: Final notice
+  de: Letzte Erinnerung
+  verified_by_human: []
+incomplete_signup_deletion_reminder.deletion_time_1d:
+  context: Time until deletion for the 1-day incomplete signup reminder
+  en: tomorrow
+  de: morgen
+  verified_by_human: []
+incomplete_signup_deletion_reminder.wait_time_1d:
+  context: Wait time phrase for the manual delete link in the 1-day reminder
+  en: until tomorrow
+  de: bis morgen
+  verified_by_human: []
+incomplete_signup_deletion_reminder.reminder_info_1d:
+  context: Follow-up reminder schedule for the 1-day incomplete signup reminder
+  en: ""
+  de: ""
+  verified_by_human: []
+incomplete_signup_deletion_reminder.greeting:
+  context: Greeting in incomplete signup deletion reminder email
+  en: Hey{greeting_name},
+  de: Hallo{greeting_name},
+  verified_by_human: []
+incomplete_signup_deletion_reminder.intro:
+  context: Intro paragraph in incomplete signup deletion reminder email
+  en: >-
+    You started signing up on <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> but didn't complete the signup process.
+  de: >-
+    Du hast mit der Registrierung auf <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> begonnen, den Prozess aber nicht abgeschlossen.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.scheduled:
+  context: Bold scheduled deletion sentence in incomplete signup deletion reminder email
+  en: Your incomplete account is scheduled for deletion {deletion_time_text}.
+  de: Dein unvollständiges Konto ist zur Löschung {deletion_time_text} vorgesehen.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.finish_setup:
+  context: Paragraph explaining how to finish setup in incomplete signup deletion reminder email
+  en: >-
+    If you still want to use OpenMates, simply log in to <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> again and finish the signup flow by buying credits and start using OpenMates.
+  de: >-
+    Wenn du OpenMates weiterhin nutzen möchtest, melde dich einfach wieder bei <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> an, schließe die Registrierung durch den Kauf von Credits ab und nutze OpenMates.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.changes:
+  context: Product update paragraph in incomplete signup deletion reminder email
+  en: >-
+    A lot of changes have been made in recent weeks: from various new apps which your AI team mates can use to fulfill all kinds of tasks, many bug fixes and stability improvements, and other features. OpenMates continues to be under very active development. Watch the latest announcement below for a quick tour of what changed.
+  de: >-
+    In den letzten Wochen hat sich viel getan: verschiedene neue Apps, die deine KI-Teammitglieder für alle möglichen Aufgaben nutzen können, viele Fehlerbehebungen, Stabilitätsverbesserungen und weitere Funktionen. OpenMates wird weiterhin sehr aktiv entwickelt. Schau dir unten die neueste Ankündigung an, um einen schnellen Überblick über die Änderungen zu bekommen.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.newsletter:
+  context: Newsletter signup paragraph in incomplete signup deletion reminder email
+  en: >-
+    You can also <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">sign up for the OpenMates newsletter</a> to stay up to date on future changes.
+  de: >-
+    Du kannst dich auch <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">für den OpenMates-Newsletter anmelden</a>, um über zukünftige Änderungen auf dem Laufenden zu bleiben.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.video_label:
+  context: Label above announcement video in incomplete signup deletion reminder email
+  en: "2:50 min update video:"
+  de: "2:50 Min. Update-Video:"
+  verified_by_human: []
+incomplete_signup_deletion_reminder.image_alt:
+  context: Alt text for announcement video thumbnail in incomplete signup deletion reminder email
+  en: Watch the latest OpenMates announcement video
+  de: Sieh dir das neueste OpenMates-Ankündigungsvideo an
+  verified_by_human: []
+incomplete_signup_deletion_reminder.watch_button:
+  context: Announcement video button in incomplete signup deletion reminder email
+  en: Watch the announcement
+  de: Ankündigung ansehen
+  verified_by_human: []
+incomplete_signup_deletion_reminder.delete_now:
+  context: Manual delete account paragraph in incomplete signup deletion reminder email
+  en: >-
+    If you would rather delete your account now, you do not need to wait {wait_time_text} but can easily <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">delete your account here</a>.
+  de: >-
+    Wenn du dein Konto lieber sofort löschen möchtest, musst du nicht {wait_time_text} warten, sondern kannst dein Konto ganz einfach <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">hier löschen</a>.
+  verified_by_human: []
+incomplete_signup_deletion_reminder.signoff:
+  context: Signoff in incomplete signup deletion reminder email
+  en: Greetings,
+  de: Viele Grüße,
+  verified_by_human: []
+incomplete_signup_deletion_reminder.creator_title:
+  context: Sender title in incomplete signup deletion reminder email
+  en: Creator of OpenMates
+  de: Gründer von OpenMates
+  verified_by_human: []
+incomplete_signup_account_deleted.subject:
+  context: Subject for incomplete signup account deleted confirmation email
+  en: Your incomplete OpenMates account has been deleted
+  de: Dein unvollständiges OpenMates-Konto wurde gelöscht
+  verified_by_human: []
+incomplete_signup_account_deleted.header:
+  context: Header for incomplete signup account deleted confirmation email
+  en: Your OpenMates account was deleted
+  de: Dein OpenMates-Konto wurde gelöscht
+  verified_by_human: []
+incomplete_signup_account_deleted.greeting:
+  context: Greeting in incomplete signup account deleted confirmation email
+  en: Hey{greeting_name},
+  de: Hallo{greeting_name},
+  verified_by_human: []
+incomplete_signup_account_deleted.deleted_notice:
+  context: Deletion notice in incomplete signup account deleted confirmation email
+  en: Your incomplete OpenMates account has now been deleted because the signup process was not completed.
+  de: Dein unvollständiges OpenMates-Konto wurde jetzt gelöscht, weil die Registrierung nicht abgeschlossen wurde.
+  verified_by_human: []
+incomplete_signup_account_deleted.no_action:
+  context: No action required sentence in incomplete signup account deleted confirmation email
+  en: No further action is needed.
+  de: Du musst nichts weiter tun.
+  verified_by_human: []
+incomplete_signup_account_deleted.signup_again:
+  context: Signup again paragraph in incomplete signup account deleted confirmation email
+  en: >-
+    If you want to use OpenMates in the future, you can create a new account again on <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a>.
+  de: >-
+    Wenn du OpenMates in Zukunft nutzen möchtest, kannst du auf <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> wieder ein neues Konto erstellen.
+  verified_by_human: []
+incomplete_signup_account_deleted.newsletter:
+  context: Newsletter signup paragraph in incomplete signup account deleted confirmation email
+  en: >-
+    You can also <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">sign up for the OpenMates newsletter</a> to stay up to date on future changes.
+  de: >-
+    Du kannst dich auch <a href="{newsletter_settings_link}" style="color: #4867CD; text-decoration: underline;">für den OpenMates-Newsletter anmelden</a>, um über zukünftige Änderungen auf dem Laufenden zu bleiben.
+  verified_by_human: []
+incomplete_signup_account_deleted.signoff:
+  context: Signoff in incomplete signup account deleted confirmation email
+  en: Greetings,
+  de: Viele Grüße,
+  verified_by_human: []
+incomplete_signup_account_deleted.creator_title:
+  context: Sender title in incomplete signup account deleted confirmation email
+  en: Creator of OpenMates
+  de: Gründer von OpenMates
+  verified_by_human: []
 backup_reminder.subject:
   context: Subject line for periodic backup reminder emails
   en: "Time to back up your OpenMates data"

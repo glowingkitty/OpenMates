@@ -3009,6 +3009,8 @@ async def report_issue(
                     # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
                     # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
                     "screenshot_presigned_url": screenshot_presigned_url,
+                    # Account stats are resolved in the email task for admin triage.
+                    "reported_by_user_id": reported_by_user_id,
                     # OTel trace IDs from frontend for trace-to-issue correlation in S3 YAML
                     "trace_ids": issue_data.trace_ids or []
                 },

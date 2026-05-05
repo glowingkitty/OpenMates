@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.core.api.app.services.email_delivery_guard import send_email_once
+from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.shared.python_utils.frontend_url import get_frontend_base_url
@@ -27,8 +28,33 @@ SECOND_NOTICE_AFTER_DAYS = 7
 FINAL_NOTICE_AFTER_DAYS = 13
 DELETE_AFTER_FINAL_NOTICE_DAYS = 1
 ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
-ANNOUNCEMENT_THUMBNAIL_PATH = "/newsletter-assets/intro-thumbnail-EN.jpg"
+ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE = "/newsletter-assets/intro-thumbnail-{lang}.jpg"
 SEND_DELAY_SECONDS = float(os.getenv("INCOMPLETE_SIGNUP_EMAIL_SEND_DELAY_SECONDS", "0.25"))
+SUPPORTED_TEMPLATE_LANGS = {"en", "de"}
+TRANSLATION_SERVICE = TranslationService()
+
+
+def _email_lang(lang: str | None) -> str:
+    return lang if lang in SUPPORTED_TEMPLATE_LANGS else "en"
+
+
+def _email_text(key: str, lang: str, context: dict[str, Any] | None = None) -> str:
+    return TRANSLATION_SERVICE.get_nested_translation(key, lang, context)
+
+
+def _greeting_name(username: str | None) -> str:
+    username = (username or "").strip()
+    return f" {username}" if username else ""
+
+
+def _announcement_url(base_url: str, lang: str) -> str:
+    lang_query = "?lang=de" if lang == "de" else ""
+    return f"{base_url}/{lang_query}#chat-id={ANNOUNCEMENT_CHAT_ID}&autoplay-video"
+
+
+def _announcement_thumbnail_url(base_url: str, lang: str) -> str:
+    thumbnail_lang = "DE" if lang == "de" else "EN"
+    return f"{base_url}{ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE.format(lang=thumbnail_lang)}"
 
 
 @app.task(
@@ -177,7 +203,7 @@ async def _decrypt_email_and_username(task: BaseServiceTask, user: dict[str, Any
             contact_rows[0].get("encrypted_email_address")
         )
         if contact_email:
-            username = "there"
+            username = ""
             encrypted_username = user.get("encrypted_username")
             vault_key_id = user.get("vault_key_id")
             if encrypted_username and vault_key_id:
@@ -189,58 +215,36 @@ async def _decrypt_email_and_username(task: BaseServiceTask, user: dict[str, Any
                     logger.debug("Could not decrypt username for incomplete signup user %s", user.get("id", "?")[:8])
             return contact_email, username
 
-    vault_key_id = user.get("vault_key_id")
-    encrypted_email = user.get("encrypted_email_address")
-    if not vault_key_id or not encrypted_email:
-        return None, "there"
-
-    email = await task.encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
-    username = "there"
-    encrypted_username = user.get("encrypted_username")
-    if encrypted_username:
-        try:
-            decrypted_username = await task.encryption_service.decrypt_with_user_key(encrypted_username, vault_key_id)
-            if decrypted_username:
-                username = decrypted_username
-        except Exception:
-            logger.debug("Could not decrypt username for incomplete signup user %s", user.get("id", "?")[:8])
-    return email, username
+    return None, ""
 
 
-def _reminder_context(stage: str, username: str, account_id: str) -> tuple[str, dict[str, Any]]:
+def _reminder_context(stage: str, username: str, account_id: str, lang: str) -> tuple[str, dict[str, Any]]:
     base_url = get_frontend_base_url()
     finish_setup_link = base_url
-    latest_announcement_video_link = f"{base_url}/#chat-id={ANNOUNCEMENT_CHAT_ID}&autoplay-video"
-    announcement_thumbnail_url = f"{base_url}{ANNOUNCEMENT_THUMBNAIL_PATH}"
+    latest_announcement_video_link = _announcement_url(base_url, lang)
+    announcement_thumbnail_url = _announcement_thumbnail_url(base_url, lang)
     direct_delete_account_link = f"{base_url}/#settings/account/delete/{account_id}"
+    newsletter_settings_link = f"{base_url}/#settings/newsletter"
 
     if stage == "14d":
-        subject = "Complete your OpenMates signup before your account is deleted"
-        context = {
-            "subject": subject,
-            "headline": "Complete your signup before deletion",
-            "deletion_time_text": "in 14 days",
-            "wait_time_text": "14 days",
-            "reminder_info": "If you take no action, you will be reminded again 7 days before deletion and 1 day before deletion.",
-        }
+        key_suffix = "14d"
     elif stage == "7d":
-        subject = "Your incomplete OpenMates account will be deleted in 7 days"
-        context = {
-            "subject": subject,
-            "headline": "Your account will be deleted soon",
-            "deletion_time_text": "in 7 days",
-            "wait_time_text": "7 days",
-            "reminder_info": "If you take no action, you will receive one final reminder 1 day before deletion.",
-        }
+        key_suffix = "7d"
     else:
-        subject = "Final notice: your incomplete OpenMates account will be deleted tomorrow"
-        context = {
-            "subject": subject,
-            "headline": "Final notice",
-            "deletion_time_text": "tomorrow",
-            "wait_time_text": "until tomorrow",
-            "reminder_info": "",
-        }
+        key_suffix = "1d"
+
+    key_prefix = "email.incomplete_signup_deletion_reminder"
+    context = {
+        "deletion_time_text": _email_text(f"{key_prefix}.deletion_time_{key_suffix}", lang),
+        "wait_time_text": _email_text(f"{key_prefix}.wait_time_{key_suffix}", lang),
+    }
+    subject = _email_text(f"{key_prefix}.subject_{key_suffix}", lang, context)
+    context.update({
+        "subject": subject,
+        "headline": _email_text(f"{key_prefix}.headline_{key_suffix}", lang, context),
+        "reminder_info": "" if key_suffix == "1d" else _email_text(f"{key_prefix}.reminder_info_{key_suffix}", lang, context),
+        "greeting_name": _greeting_name(username),
+    })
 
     context.update({
         "username": username,
@@ -248,6 +252,7 @@ def _reminder_context(stage: str, username: str, account_id: str) -> tuple[str, 
         "latest_announcement_video_link": latest_announcement_video_link,
         "announcement_thumbnail_url": announcement_thumbnail_url,
         "direct_delete_account_link": direct_delete_account_link,
+        "newsletter_settings_link": newsletter_settings_link,
     })
     return subject, context
 
@@ -258,7 +263,8 @@ async def _send_reminder(task: BaseServiceTask, user: dict[str, Any], stage: str
         logger.warning("Incomplete signup user %s missing account_id; cannot send delete link", user.get("id", "?")[:8])
         return False
 
-    subject, context = _reminder_context(stage, username, account_id)
+    lang = _email_lang(user.get("language"))
+    subject, context = _reminder_context(stage, username, account_id, lang)
     context["darkmode"] = bool(user.get("darkmode", False))
     sent, status = await send_email_once(
         directus=task.directus_service,
@@ -273,7 +279,7 @@ async def _send_reminder(task: BaseServiceTask, user: dict[str, Any], stage: str
         recipient_name=username,
         context=context,
         subject=subject,
-        lang=user.get("language") or "en",
+        lang=lang,
     )
     if status == "already_reserved":
         logger.info("Incomplete signup %s reminder already reserved for user %s", stage, user["id"][:8])
@@ -302,7 +308,9 @@ async def _delete_and_send_confirmation(task: BaseServiceTask, user: dict[str, A
         return False
 
     base_url = get_frontend_base_url()
-    subject = "Your incomplete OpenMates account has been deleted"
+    newsletter_settings_link = f"{base_url}/#settings/newsletter"
+    lang = _email_lang(user.get("language"))
+    subject = _email_text("email.incomplete_signup_account_deleted.subject", lang)
     sent, status = await send_email_once(
         directus=task.directus_service,
         email_template_service=task.email_template_service,
@@ -318,10 +326,12 @@ async def _delete_and_send_confirmation(task: BaseServiceTask, user: dict[str, A
             "darkmode": bool(user.get("darkmode", False)),
             "subject": subject,
             "username": username,
+            "greeting_name": _greeting_name(username),
             "signup_link": base_url,
+            "newsletter_settings_link": newsletter_settings_link,
         },
         subject=subject,
-        lang=user.get("language") or "en",
+        lang=lang,
     )
     if status == "already_reserved":
         return True
@@ -363,7 +373,7 @@ async def _async_process_incomplete_signup_deletions(
             users = await task.directus_service.get_items(
                 "directus_users",
                 params={
-                    "fields": "id,status,is_admin,last_opened,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_email_address,encrypted_username",
+                    "fields": "id,status,is_admin,last_opened,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_username",
                     "filter": {
                         "_and": [
                             {"status": {"_eq": "active"}},

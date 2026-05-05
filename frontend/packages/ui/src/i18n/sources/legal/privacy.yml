@@ -1584,7 +1584,7 @@ data_categories.intro:
   he: 'אנו אוספים ומעבדים את קטגוריות הנתונים הבאות להפעלה ואבטחה של שירותינו:'
 data_categories.account:
   context: Account data category
-  en: "Account: Email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Passwords are stored as salted hashes."
+  en: "Account: Email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Email and username are encrypted with your key before storage. We also keep a separate server-side Vault-encrypted copy of your verified email address for mandatory account lifecycle notices, such as account verification, security alerts, and deletion reminders. Passwords are stored as salted hashes."
   de: "Konto: E-Mail-Adresse, Benutzername/Anzeigename, Profilbild, Gebietsschema und Sicherheitseinstellungen (z. B. 2FA aktiviert). Passwörter werden als gesalzene Hashes gespeichert."
   zh: "帐户：电子邮件地址、用户名/显示名称、个人资料图片、区域设置和安全设置（例如，启用 2FA）。密码以加盐哈希值的形式存储。"
   es: "Cuenta: Dirección de correo electrónico, nombre de usuario/nombre para mostrar, imagen de perfil, configuración regional y configuración de seguridad (por ejemplo, 2FA habilitado). Las contraseñas se almacenan como hashes con sal."

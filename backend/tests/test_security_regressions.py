@@ -114,3 +114,58 @@ async def test_apple_iap_transaction_reservation_reports_existing_duplicate():
     assert reserved is False
     assert row == existing
     directus.create_item.assert_called_once()
+@pytest.mark.asyncio
+async def test_store_account_lifecycle_contact_email_uses_vault_encryption():
+    from backend.core.api.app.routes.auth_routes.auth_utils import store_account_lifecycle_contact_email
+
+    directus_service = AsyncMock()
+    directus_service.create_item = AsyncMock(return_value=(True, {"id": "bed33190-7517-5958-9b7f-bc9fd4e7cb2a"}))
+    encryption_service = AsyncMock()
+    encryption_service.encrypt_account_contact_email = AsyncMock(return_value="vault:v1:encrypted-email")
+
+    stored = await store_account_lifecycle_contact_email(
+        directus_service,
+        encryption_service,
+        user_id="user-1",
+        hashed_email="hashed-email",
+        email="user@example.com",
+        verified_at=1234567890,
+    )
+
+    assert stored is True
+    encryption_service.encrypt_account_contact_email.assert_awaited_once_with("user@example.com")
+    collection, payload = directus_service.create_item.call_args.args[:2]
+    assert collection == "account_contact_emails"
+    assert payload["id"] == "bed33190-7517-5958-9b7f-bc9fd4e7cb2a"
+    assert payload["user_id"] == "user-1"
+    assert payload["hashed_email"] == "hashed-email"
+    assert payload["encrypted_email_address"] == "vault:v1:encrypted-email"
+    assert payload["purpose"] == "account_lifecycle"
+    assert payload["source"] == "signup"
+    assert payload["verified_at"] == 1234567890
+    assert directus_service.create_item.call_args.kwargs["admin_required"] is True
+
+
+@pytest.mark.asyncio
+async def test_incomplete_signup_deletion_requires_account_contact_email():
+    from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _decrypt_email_and_username
+
+    task = SimpleNamespace(
+        directus_service=AsyncMock(),
+        encryption_service=AsyncMock(),
+    )
+    task.directus_service.get_items = AsyncMock(return_value=[])
+
+    email, username = await _decrypt_email_and_username(
+        task,
+        {
+            "id": "user-1",
+            "vault_key_id": "user-vault-key",
+            "encrypted_email_address": "client-side-encrypted-email",
+            "encrypted_username": "encrypted-username",
+        },
+    )
+
+    assert email is None
+    assert username == ""
+    task.encryption_service.decrypt_with_user_key.assert_not_called()

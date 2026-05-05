@@ -103,7 +103,10 @@ data_categories:
       Account and profile data provided during signup and use of the web app,
       such as email address, username/display name, profile image, locale, and
       security settings (e.g., 2FA enabled). Email and username are encrypted
-      with your key before storage. Passwords are not stored; we only retain a
+      with your key before storage. We also keep a separate server-side
+      Vault-encrypted copy of your verified email address for mandatory account
+      lifecycle notices, such as account verification, security alerts, and
+      deletion reminders. Passwords are not stored; we only retain a
       verification hash.
   usage:
     description: >

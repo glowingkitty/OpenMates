@@ -3,10 +3,66 @@ import logging
 import regex
 import hashlib
 import os
-from typing import Tuple, Optional
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Tuple, Optional
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+ACCOUNT_CONTACT_EMAIL_COLLECTION = "account_contact_emails"
+ACCOUNT_LIFECYCLE_EMAIL_PURPOSE = "account_lifecycle"
+ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE = uuid.UUID("7f330c19-7aa0-5403-89ca-d97578fb8110")
+
+
+def _account_contact_email_id(user_id: str) -> str:
+    return str(uuid.uuid5(ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE, user_id))
+
+
+async def store_account_lifecycle_contact_email(
+    directus_service: Any,
+    encryption_service: Any,
+    *,
+    user_id: str,
+    hashed_email: str,
+    email: str,
+    verified_at: Any,
+) -> bool:
+    """Store the verified account email under a server-side Vault key for lifecycle notices."""
+    if not user_id or not hashed_email or not email:
+        logger.warning("Skipping account lifecycle contact email storage due to missing input")
+        return False
+
+    contact_id = _account_contact_email_id(user_id)
+    encrypted_email = await encryption_service.encrypt_account_contact_email(email)
+    now = datetime.now(timezone.utc).isoformat()
+    success, result = await directus_service.create_item(
+        ACCOUNT_CONTACT_EMAIL_COLLECTION,
+        {
+            "id": contact_id,
+            "user_id": user_id,
+            "hashed_email": hashed_email,
+            "encrypted_email_address": encrypted_email,
+            "purpose": ACCOUNT_LIFECYCLE_EMAIL_PURPOSE,
+            "source": "signup",
+            "verified_at": verified_at,
+            "metadata": {
+                "signup_version": 1,
+                "stored_at": now,
+            },
+        },
+        admin_required=True,
+    )
+    if success:
+        logger.info("Stored account lifecycle contact email for user %s", user_id[:8])
+        return True
+
+    if isinstance(result, dict) and result.get("status_code") == 400 and "unique" in result.get("text", "").lower():
+        logger.info("Account lifecycle contact email already exists for user %s", user_id[:8])
+        return True
+
+    logger.error("Failed to store account lifecycle contact email for user %s: %s", user_id[:8], result)
+    return False
 
 async def verify_allowed_origin(request: Request):
     """

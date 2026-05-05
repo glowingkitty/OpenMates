@@ -20,29 +20,33 @@
           <mj-image width="50px" height="50px" src="icons/user.png" align="center" alt="User icon" css-class="email-icon-50" />
 
           <mj-text font-size="30px" padding-bottom="20px">
-            <mark>Your OpenMates account was deleted</mark>
+            <mark>{{ t.email.incomplete_signup_account_deleted.header.text }}</mark>
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            Hey {{ username }},
+            {{ t.email.incomplete_signup_account_deleted.greeting.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            Your incomplete OpenMates account has now been deleted because the signup process was not completed.
+            {{ t.email.incomplete_signup_account_deleted.deleted_notice.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            No further action is needed.
+            {{ t.email.incomplete_signup_account_deleted.no_action.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            If you want to use OpenMates in the future, you can create a new account again on <a href="{{ signup_link }}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a>.
+            {{ t.email.incomplete_signup_account_deleted.signup_again.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.incomplete_signup_account_deleted.newsletter.text }}
           </mj-text>
 
           <mj-text align="left" padding-top="16px" padding-bottom="0">
-            Greetings,<br />
+            {{ t.email.incomplete_signup_account_deleted.signoff.text }}<br />
             Marco<br />
-            <span style="font-size: 14px; color: #808080;">Creator of OpenMates</span>
+            <span style="font-size: 14px; color: #808080;">{{ t.email.incomplete_signup_account_deleted.creator_title.text }}</span>
           </mj-text>
         </mj-column>
       </mj-section>
