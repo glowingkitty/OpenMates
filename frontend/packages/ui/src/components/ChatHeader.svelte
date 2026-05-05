@@ -50,11 +50,13 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import { resolveHeaderSwipeNavigation } from './headerSwipeNavigation';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
 
   let {
     title = '',
+    currentChatId = null,
     category = null,
     icon = null,
     summary = null,
@@ -70,9 +72,14 @@
      *  is mounted inside the media frame and native browser fullscreen is requested.
      *  No video is loaded before the user clicks play. */
     videoMp4Url = null,
+    /** Tiny silent preview video that can autoplay safely before the full video is clicked. */
+    videoTeaserUrl = null,
+    /** MP4 fallback for browsers that cannot play the WebM teaser. */
+    videoTeaserMp4Url = null,
+    /** WebP poster/fallback for the silent teaser. */
+    videoTeaserWebpUrl = null,
     /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
-     *  16:9 media frame. These are the only media assets the header ever loads —
-     *  the video is loaded on demand when the user clicks the play button. */
+     *  16:9 media frame. Used when no compact teaser video is configured. */
     backgroundFrames = null,
     /** Aggregated highlight counts across all messages in this chat. When
      *  `highlights > 0`, a yellow pill is rendered below the summary. Clicking
@@ -87,6 +94,7 @@
     showSignupCta = false,
   }: {
     title?: string;
+    currentChatId?: string | null;
     category?: string | null;
     icon?: string | null;
     summary?: string | null;
@@ -102,6 +110,12 @@
     /** MP4 URL — gates the play button in the media frame. The video is only
      *  loaded by the fullscreen embed after the user clicks play. */
     videoMp4Url?: string | null;
+    /** Tiny silent preview video that can autoplay safely before the full video is clicked. */
+    videoTeaserUrl?: string | null;
+    /** MP4 fallback for browsers that cannot play the WebM teaser. */
+    videoTeaserMp4Url?: string | null;
+    /** WebP poster/fallback for the silent teaser. */
+    videoTeaserWebpUrl?: string | null;
     /** Image URLs for the crossfading Ken-Burns slideshow inside the media frame. */
     backgroundFrames?: string[] | null;
     /** Aggregated highlight counts across all messages in this chat. */
@@ -115,9 +129,18 @@
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
-  const useSlideshow = $derived(Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
+  const useTeaser = $derived(!!videoTeaserUrl || !!videoTeaserMp4Url || !!videoTeaserWebpUrl);
+  const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
-  const hasHeaderMedia = $derived(useSlideshow || !!videoMp4Url);
+  const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
+  // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
+  const introTeaserCopyLines = $derived([
+    $text('demo_chats.for_everyone.teaser_line1'),
+    $text('demo_chats.for_everyone.teaser_line2'),
+    $text('demo_chats.for_everyone.teaser_line3'),
+  ]);
+  const isIntroTeaserChat = $derived(currentChatId === 'demo-for-everyone');
+  const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [title]);
 
   // ─── In-place video player ────────────────────────────────────────────────
   //
@@ -127,10 +150,75 @@
 
   let videoEl = $state<HTMLVideoElement | null>(null);
   let isVideoActive = $state(false);
+  let chatHeaderBannerEl = $state<HTMLElement | null>(null);
+  let chatHeaderHeight = $state(240);
+  let touchStartX = $state(0);
+  let touchStartY = $state(0);
+  let touchSwipeHandled = $state(false);
+  let teaserVideoBoxEl = $state<HTMLElement | null>(null);
+  let isTeaserVideoHovering = $state(false);
+  let teaserMouseX = $state(0);
+  let teaserMouseY = $state(0);
+
+  const TEASER_TILT_MAX_ANGLE = 3;
+  const TEASER_TILT_PERSPECTIVE = 800;
+  const TEASER_TILT_SCALE = 0.985;
+  const TEASER_VERTICAL_EDGE_GAP = 10;
+  const TEASER_MAX_WIDTH = 640;
+
+  let teaserVideoMaxWidth = $derived.by(() => {
+    const maxHeight = Math.max(0, chatHeaderHeight - TEASER_VERTICAL_EDGE_GAP * 2);
+    const maxWidthByHeaderHeight = Math.floor(maxHeight * 16 / 9);
+    return `min(${TEASER_MAX_WIDTH}px, 52%, ${maxWidthByHeaderHeight}px)`;
+  });
+
+  let teaserTiltTransform = $derived.by(() => {
+    if (!isTeaserVideoHovering) return '';
+    const rotateY = teaserMouseX * TEASER_TILT_MAX_ANGLE;
+    const rotateX = -teaserMouseY * TEASER_TILT_MAX_ANGLE;
+    return `perspective(${TEASER_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TEASER_TILT_SCALE})`;
+  });
 
   function handlePlayClick(e: MouseEvent) {
     e.stopPropagation();
     isVideoActive = true;
+  }
+
+  function handleTeaserPreviewClick(e: MouseEvent) {
+    e.stopPropagation();
+    if (!videoMp4Url) return;
+    isVideoActive = true;
+  }
+
+  function handleTeaserPreviewKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!videoMp4Url) return;
+    isVideoActive = true;
+  }
+
+  function handleTeaserMouseEnter(e: MouseEvent) {
+    isTeaserVideoHovering = true;
+    updateTeaserMousePosition(e);
+  }
+
+  function handleTeaserMouseMove(e: MouseEvent) {
+    if (!isTeaserVideoHovering || !teaserVideoBoxEl) return;
+    updateTeaserMousePosition(e);
+  }
+
+  function handleTeaserMouseLeave() {
+    isTeaserVideoHovering = false;
+    teaserMouseX = 0;
+    teaserMouseY = 0;
+  }
+
+  function updateTeaserMousePosition(e: MouseEvent) {
+    if (!teaserVideoBoxEl) return;
+    const rect = teaserVideoBoxEl.getBoundingClientRect();
+    teaserMouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    teaserMouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
   }
 
   // Once the video element is bound after isVideoActive flips, autoplay and
@@ -158,6 +246,19 @@
 
   onDestroy(() => {
     if (browser) document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  });
+
+  $effect(() => {
+    if (!browser || !chatHeaderBannerEl) return;
+
+    const updateHeaderHeight = () => {
+      chatHeaderHeight = chatHeaderBannerEl?.getBoundingClientRect().height ?? 240;
+    };
+    const resizeObserver = new ResizeObserver(updateHeaderHeight);
+    updateHeaderHeight();
+    resizeObserver.observe(chatHeaderBannerEl);
+
+    return () => resizeObserver.disconnect();
   });
 
   // ─── Relative-time ticker ──────────────────────────────────────────────────
@@ -231,8 +332,8 @@
    * Calls the store's navigate method directly — works even when the sidebar
    * (Chats.svelte) is closed/unmounted because the store holds the chat list.
    */
-  function handlePrevious(e: MouseEvent) {
-    e.stopPropagation();
+  function handlePrevious(e?: MouseEvent) {
+    e?.stopPropagation();
     navigatePrev();
   }
 
@@ -241,9 +342,53 @@
    * Calls the store's navigate method directly — works even when the sidebar
    * (Chats.svelte) is closed/unmounted because the store holds the chat list.
    */
-  function handleNext(e: MouseEvent) {
-    e.stopPropagation();
+  function handleNext(e?: MouseEvent) {
+    e?.stopPropagation();
     navigateNext();
+  }
+
+  function handleHeaderTouchStart(e: TouchEvent) {
+    if (e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchSwipeHandled = false;
+  }
+
+  function handleHeaderTouchMove(e: TouchEvent) {
+    if (touchSwipeHandled || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const navigation = resolveHeaderSwipeNavigation({
+      deltaX,
+      deltaY,
+      // Chat lists are newest-first. A right-to-left gesture should move to the
+      // previous recent chat, which is the store's "next" item in sorted order.
+      hasPrevious: navState.hasNext,
+      hasNext: navState.hasPrev,
+    });
+
+    if (navigation === 'previous') {
+      e.preventDefault();
+      touchSwipeHandled = true;
+      navigateNext();
+      return;
+    }
+
+    if (navigation === 'next') {
+      e.preventDefault();
+      touchSwipeHandled = true;
+      navigatePrev();
+    }
+  }
+
+  function handleHeaderTouchEnd() {
+    touchStartX = 0;
+    touchStartY = 0;
+    touchSwipeHandled = false;
   }
 
   // ─── Derived state ─────────────────────────────────────────────────────────
@@ -400,9 +545,15 @@
      Smooth background-color transition from primary → category gradient.
      position:relative is required for the absolutely-positioned arrow buttons. -->
 <div
+  bind:this={chatHeaderBannerEl}
   class="chat-header-banner"
   class:is-loaded={isLoaded}
   style={bannerStyle}
+  role="presentation"
+  ontouchstart={handleHeaderTouchStart}
+  ontouchmove={handleHeaderTouchMove}
+  ontouchend={handleHeaderTouchEnd}
+  ontouchcancel={handleHeaderTouchEnd}
 >
   <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
        Three soft radial-gradient blobs that slowly morph shape and drift
@@ -451,143 +602,299 @@
       <div class="incognito-header-icon"></div>
 
       <!-- "Incognito Mode" title -->
-      <span class="loaded-title">{$text('settings.incognito_mode_active')}</span>
+      <span class="loaded-title" data-testid="chat-header-title">{$text('settings.incognito_mode_active')}</span>
     </div>
   {/if}
 
   <!-- ── Loaded state: category icon + title + summary + time ── -->
   {#if isLoaded && !isIncognito}
-    <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
-    {#if IconComponent}
-      <div class="deco-icon deco-icon-left">
-        <IconComponent size={126} color="white" />
-      </div>
-      <div class="deco-icon deco-icon-right">
-        <IconComponent size={126} color="white" />
-      </div>
-    {/if}
+    {#if useTeaser}
+      <!-- Large decorative icons at left and right edges for teaser layout -->
+      {#if isIntroTeaserChat}
+        <div class="deco-icon deco-icon-left ai-deco-icon"></div>
+        <div class="deco-icon deco-icon-right ai-deco-icon"></div>
+      {:else if IconComponent}
+        <div class="deco-icon deco-icon-left">
+          <IconComponent size={126} color="white" />
+        </div>
+        <div class="deco-icon deco-icon-right">
+          <IconComponent size={126} color="white" />
+        </div>
+      {/if}
 
-    <!-- When the header has media: render a 16:9 rounded frame containing the
-         crossfading Ken-Burns slideshow with the play button centered over it,
-         and the chat title below the frame.
+      <!-- ── Teaser split layout: text left + video right ──
+           Mirrors the DailyInspirationBanner split: orbs provide the gradient
+           backdrop, text on the left, teaser video in a rounded contained box
+           on the right. The full MP4 is still mounted only after play click. -->
+      <div class="teaser-split-layout">
 
-         The header never loads a <video> element — clicking play opens the
-         DirectVideoEmbedFullscreen, which is the only place the MP4 is fetched. -->
-    {#if hasHeaderMedia}
-      <div class="media-center-group">
-        <!-- Title rendered above the media frame -->
-        {#if !showSignupCta}
-          <div class="loaded-content">
-            <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-                 never render as HTML to prevent stored XSS via prompt injection. -->
-            <span class="loaded-title" data-testid="chat-header-title">{title}</span>
-
-            {#if isExampleChat}
-              <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-            {/if}
-          </div>
-        {/if}
-
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
-          {#if useSlideshow}
-            <div class="header-slideshow" aria-hidden="true">
-              {#each backgroundFrames as frameUrl, i (frameUrl)}
-                <img
-                  class="header-slide"
-                  src={frameUrl}
-                  alt=""
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
-                />
-              {/each}
+        <!-- Left column: fixed intro teaser copy -->
+        <div class="teaser-split-left">
+          {#if isIntroTeaserChat}
+            <div class="ai-header-icon" data-testid="chat-header-icon"></div>
+          {:else if IconComponent}
+            <div class="loaded-icon" data-testid="chat-header-icon">
+              <IconComponent size={38} color="white" />
             </div>
           {/if}
 
-          {#if videoMp4Url && !isVideoActive}
-            <button
-              class="video-play-btn"
-              onclick={handlePlayClick}
-              type="button"
-              aria-label="Play video"
-              data-testid="chat-header-play-btn"
-            >
-              <div class="video-play-icon" aria-hidden="true"></div>
-            </button>
+          <div class="teaser-copy" aria-label={teaserCopyLines.join(' ')}>
+            {#each teaserCopyLines as line, index}
+              <span
+                class="loaded-title teaser-title teaser-copy-line"
+                data-testid={index === 0 ? 'chat-header-title' : undefined}
+              >{line}</span>
+            {/each}
+          </div>
+
+          {#if isExampleChat}
+            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {/if}
 
-          {#if isVideoActive && videoMp4Url}
-            <!-- Mounted only after user clicks play. requestFullscreen is called
-                 via $effect once the element is bound. Unmounted when fullscreen exits. -->
-            <video
-              bind:this={videoEl}
-              class="media-video"
-              data-testid="chat-header-video"
-              src={videoMp4Url}
-              autoplay
-              controls
-              playsinline
-              preload="auto"
+          {#if !isIntroTeaserChat && showSummary}
+            <p class="loaded-summary teaser-summary" data-testid="chat-header-summary">{summary}</p>
+          {/if}
+
+          {#if showSignupCta}
+            <button
+              class="banner-signup-button"
+              data-testid="banner-signup-button"
+              onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
             >
-              <track kind="captions" />
-            </video>
+              {$text('signup.sign_up')} / {$text('login.login')}
+            </button>
           {/if}
         </div>
 
-        <!-- Signup CTA rendered BELOW the media frame -->
-        {#if showSignupCta}
-          <button
-            class="banner-signup-button"
-            data-testid="banner-signup-button"
-            onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
+        <!-- Right column: teaser video in a rounded, contained box -->
+        <div class="teaser-split-right" data-testid="chat-header-media-frame" style={`--teaser-video-max-width: ${teaserVideoMaxWidth};`}>
+          <div
+            bind:this={teaserVideoBoxEl}
+            class="teaser-video-box"
+            class:hovering={isTeaserVideoHovering}
+            class:clickable={!!videoMp4Url}
+            role="button"
+            tabindex="0"
+            aria-label={videoMp4Url ? 'Play video' : undefined}
+            data-testid="chat-header-teaser-video-box"
+            style={teaserTiltTransform ? `transform: ${teaserTiltTransform};` : ''}
+            onclick={handleTeaserPreviewClick}
+            onkeydown={handleTeaserPreviewKeydown}
+            onmouseenter={handleTeaserMouseEnter}
+            onmousemove={handleTeaserMouseMove}
+            onmouseleave={handleTeaserMouseLeave}
           >
-            {$text('signup.sign_up')} / {$text('login.login')}
-          </button>
-        {/if}
+            {#if videoTeaserUrl || videoTeaserMp4Url}
+              <video
+                class="teaser-video-preview"
+                poster={videoTeaserWebpUrl ?? undefined}
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+              >
+                {#if videoTeaserUrl}
+                  <source src={videoTeaserUrl} type="video/webm" />
+                {/if}
+                {#if videoTeaserMp4Url}
+                  <source src={videoTeaserMp4Url} type="video/mp4" />
+                {/if}
+              </video>
+            {:else if videoTeaserWebpUrl}
+              <img class="teaser-video-preview" src={videoTeaserWebpUrl} alt="" loading="eager" decoding="async" />
+            {/if}
+
+            {#if videoMp4Url && !isVideoActive}
+              <div
+                class="video-play-btn teaser-video-play-affordance"
+                data-testid="chat-header-play-btn"
+                aria-hidden="true"
+              >
+                <div class="video-play-icon" aria-hidden="true"></div>
+              </div>
+            {/if}
+
+            {#if isVideoActive && videoMp4Url}
+              <video
+                bind:this={videoEl}
+                class="media-video"
+                data-testid="chat-header-video"
+                src={videoMp4Url}
+                autoplay
+                controls
+                playsinline
+                preload="auto"
+              >
+                <track kind="captions" />
+              </video>
+            {/if}
+          </div>
+        </div>
       </div>
     {:else}
-      <div class="loaded-content">
-        <!-- Category icon: only shown when no header media (video or slideshow) -->
-        {#if IconComponent}
-          <div class="loaded-icon" data-testid="chat-header-icon">
-            <IconComponent size={38} color="white" />
-          </div>
-        {/if}
+      <!-- ── Standard layout: decorative icons + media frame or icon/title/summary ── -->
 
-        <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
-             never render as HTML to prevent stored XSS via prompt injection. -->
-        <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+      <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
+      {#if isIntroTeaserChat}
+        <div class="deco-icon deco-icon-left ai-deco-icon"></div>
+        <div class="deco-icon deco-icon-right ai-deco-icon"></div>
+      {:else if IconComponent}
+        <div class="deco-icon deco-icon-left">
+          <IconComponent size={126} color="white" />
+        </div>
+        <div class="deco-icon deco-icon-right">
+          <IconComponent size={126} color="white" />
+        </div>
+      {/if}
 
-        {#if isExampleChat}
-          <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-        {/if}
+      {#if hasHeaderMedia}
+        <div class="media-center-group">
+          <!-- Title rendered above the media frame -->
+          {#if !showSignupCta}
+            <div class="loaded-content">
+              <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+                   never render as HTML to prevent stored XSS via prompt injection. -->
+              <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
-        <!-- Summary: fades in with max-height expand when available -->
-        {#if showSummary}
-          <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
-        {/if}
+              {#if isExampleChat}
+                <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+              {/if}
+            </div>
+          {/if}
 
-        <!-- Highlights pill: yellow annotation-layer count. Clickable when an
-             onHighlightJump handler is wired; falls back to a static badge
-             otherwise so the count is still visible in read-only contexts
-             (e.g. shared-chat preview rendered without the nav overlay). -->
-        {#if showHighlightPill}
-          <button
-            class="highlight-count-pill"
-            type="button"
-            data-testid="chat-header-highlight-count"
-            onclick={handleHighlightPillClick}
-            disabled={!onHighlightJump}
-          >{highlightPillLabel}</button>
-        {/if}
+          {#if useSlideshow}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="media-frame" data-testid="chat-header-media-frame" onclick={handlePlayClick}>
+              <div class="header-slideshow" aria-hidden="true">
+                {#each backgroundFrames as frameUrl, i (frameUrl)}
+                  <img
+                    class="header-slide"
+                    src={frameUrl}
+                    alt=""
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    style="--slide-index: {i}; --slide-count: {backgroundFrames.length};"
+                  />
+                {/each}
+              </div>
 
-        <!-- Creation time -->
-        {#if showTime}
-          <span class="loaded-time">{formattedTime}</span>
-        {/if}
-      </div>
+              {#if videoMp4Url && !isVideoActive}
+                <button
+                  class="video-play-btn"
+                  onclick={handlePlayClick}
+                  type="button"
+                  aria-label="Play video"
+                  data-testid="chat-header-play-btn"
+                >
+                  <div class="video-play-icon" aria-hidden="true"></div>
+                </button>
+              {/if}
+
+              {#if isVideoActive && videoMp4Url}
+                <!-- Mounted only after user clicks play. requestFullscreen is called
+                     via $effect once the element is bound. Unmounted when fullscreen exits. -->
+                <video
+                  bind:this={videoEl}
+                  class="media-video"
+                  data-testid="chat-header-video"
+                  src={videoMp4Url}
+                  autoplay
+                  controls
+                  playsinline
+                  preload="auto"
+                >
+                  <track kind="captions" />
+                </video>
+              {/if}
+            </div>
+          {:else}
+            {#if videoMp4Url && !isVideoActive}
+              <button
+                class="video-play-btn"
+                onclick={handlePlayClick}
+                type="button"
+                aria-label="Play video"
+                data-testid="chat-header-play-btn"
+              >
+                <div class="video-play-icon" aria-hidden="true"></div>
+              </button>
+            {/if}
+
+            {#if isVideoActive && videoMp4Url}
+              <!-- Mounted only after user clicks play. requestFullscreen is called
+                   via $effect once the element is bound. Unmounted when fullscreen exits. -->
+              <video
+                bind:this={videoEl}
+                class="media-video"
+                data-testid="chat-header-video"
+                src={videoMp4Url}
+                autoplay
+                controls
+                playsinline
+                preload="auto"
+              >
+                <track kind="captions" />
+              </video>
+            {/if}
+          {/if}
+
+          <!-- Signup CTA rendered below the preview/play affordance for non-auth intro chats. -->
+          {#if showSignupCta}
+            <button
+              class="banner-signup-button"
+              data-testid="banner-signup-button"
+              onclick={() => window.dispatchEvent(new CustomEvent('openSignupInterface'))}
+            >
+              {$text('signup.sign_up')} / {$text('login.login')}
+            </button>
+          {/if}
+        </div>
+      {:else}
+        <div class="loaded-content">
+          <!-- Category icon: only shown when no header media (video or slideshow) -->
+          {#if isIntroTeaserChat}
+            <div class="ai-header-icon" data-testid="chat-header-icon"></div>
+          {:else if IconComponent}
+            <div class="loaded-icon" data-testid="chat-header-icon">
+              <IconComponent size={38} color="white" />
+            </div>
+          {/if}
+
+          <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+               never render as HTML to prevent stored XSS via prompt injection. -->
+          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+
+          {#if isExampleChat}
+            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {/if}
+
+          <!-- Summary: fades in with max-height expand when available -->
+          {#if showSummary}
+            <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
+          {/if}
+
+          <!-- Highlights pill: yellow annotation-layer count. Clickable when an
+               onHighlightJump handler is wired; falls back to a static badge
+               otherwise so the count is still visible in read-only contexts
+               (e.g. shared-chat preview rendered without the nav overlay). -->
+          {#if showHighlightPill}
+            <button
+              class="highlight-count-pill"
+              type="button"
+              data-testid="chat-header-highlight-count"
+              onclick={handleHighlightPillClick}
+              disabled={!onHighlightJump}
+            >{highlightPillLabel}</button>
+          {/if}
+
+          <!-- Creation time -->
+          {#if showTime}
+            <span class="loaded-time">{formattedTime}</span>
+          {/if}
+        </div>
+      {/if}
     {/if}
   {/if}
 
@@ -600,7 +907,8 @@
     <button
       class="nav-arrow nav-arrow-left"
       onclick={handlePrevious}
-      aria-label={$text('chat.header.previous_chat')}
+      data-testid="chat-header-next"
+      aria-label={$text('chat.header.next_chat')}
       type="button"
     >
       <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
@@ -610,7 +918,8 @@
     <button
       class="nav-arrow nav-arrow-right"
       onclick={handleNext}
-      aria-label={$text('chat.header.next_chat')}
+      data-testid="chat-header-previous"
+      aria-label={$text('chat.header.previous_chat')}
       type="button"
     >
       <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
@@ -645,8 +954,7 @@
     isolation: isolate;
     transition: background 0.5s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
-    /* Decorative content is non-interactive; arrows override with pointer-events:auto below. */
-    pointer-events: none;
+    pointer-events: auto;
     user-select: none;
   }
 
@@ -957,6 +1265,47 @@
     }
   }
 
+  /* ─── AI icon for the for-everyone intro chat ──────────────────────── */
+
+  .ai-header-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+
+  .ai-deco-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.15);
+    --deco-target-opacity: 1;
+    --float-rx: 10px;
+    --float-ry: 12px;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-deco-icon {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
+    }
+  }
+
   /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */
 
   .deco-icon {
@@ -1198,6 +1547,11 @@
       height: 32px !important;
     }
 
+    .ai-header-icon {
+      width: 32px;
+      height: 32px;
+    }
+
     .loaded-title {
       font-size: var(--font-size-lg);
     }
@@ -1238,6 +1592,183 @@
       border-bottom: 10px solid transparent;
       border-left: 17px solid rgba(255, 255, 255, 0.95);
       margin-left: 3px;
+    }
+  }
+
+  /* ─── Teaser split layout (text left + video right) ────────────────────────
+     Mirrors DailyInspirationBanner's split: orbs are the gradient backdrop,
+     text column on the left, teaser video in a rounded 16:9 box on the right.
+     On narrow mobile, text and video alternate because both cannot fit at once. */
+
+  .teaser-split-layout {
+    position: relative;
+    z-index: var(--z-index-raised-2);
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    width: min(calc(100% - 80px), clamp(960px, 72vw, 1080px));
+    max-width: none;
+    padding: 8px 40px;
+    height: 100%;
+    box-sizing: border-box;
+    transform: translateZ(0);
+    contain: layout paint;
+  }
+
+  .teaser-split-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--spacing-2);
+  }
+
+  .teaser-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .teaser-copy-line {
+    display: block;
+  }
+
+  /* Left-align and uncap text lines in the split layout */
+  .teaser-title {
+    text-align: left !important;
+    -webkit-line-clamp: 1 !important;
+    line-clamp: 1 !important;
+  }
+
+  .teaser-summary {
+    text-align: left !important;
+    -webkit-line-clamp: 3 !important;
+    line-clamp: 3 !important;
+  }
+
+  .teaser-split-right {
+    flex-shrink: 0;
+    width: var(--teaser-video-max-width);
+    height: calc(100% - 20px);
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .teaser-video-box {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-4);
+    overflow: hidden;
+    background: #1a1a1a;
+    box-shadow: var(--shadow-lg);
+    transition: transform var(--duration-fast) var(--easing-default),
+                box-shadow var(--duration-fast) var(--easing-default);
+    transform-style: preserve-3d;
+  }
+
+  .teaser-video-box.clickable {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .teaser-video-box.hovering {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.12),
+      0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .teaser-video-box.clickable:active {
+    transform: scale(0.96) !important;
+    transition: transform 0.05s ease-out;
+  }
+
+  .teaser-video-play-affordance {
+    pointer-events: none;
+  }
+
+  .teaser-video-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  @media (max-width: 520px) {
+    .teaser-split-layout {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      padding: 16px 48px;
+    }
+
+    .teaser-split-left,
+    .teaser-split-right {
+      position: absolute;
+      inset: 16px 48px;
+      width: auto;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .teaser-split-left {
+      animation: mobileTeaserTextCycle 7s 1 ease-in-out forwards;
+    }
+
+    .teaser-split-right {
+      opacity: 0;
+      animation: mobileTeaserVideoCycle 7s 1 ease-in-out forwards;
+    }
+
+    .teaser-copy {
+      align-items: flex-start;
+      max-width: 280px;
+    }
+
+    .teaser-title {
+      font-size: var(--font-size-lg);
+    }
+
+    .teaser-video-box {
+      width: min(100%, 280px);
+    }
+
+    .teaser-video-box.hovering {
+      transform: none !important;
+    }
+  }
+
+  @keyframes mobileTeaserTextCycle {
+    0%, 45% { opacity: 1; transform: translateY(0); }
+    55%, 100% { opacity: 0; transform: translateY(-8px); }
+  }
+
+  @keyframes mobileTeaserVideoCycle {
+    0%, 45% { opacity: 0; transform: translateY(8px); }
+    55%, 100% { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 520px) and (prefers-reduced-motion: reduce) {
+    .teaser-split-layout {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: var(--spacing-4);
+    }
+
+    .teaser-split-left,
+    .teaser-split-right {
+      position: static;
+      inset: auto;
+      animation: none !important;
+      opacity: 1;
     }
   }
 

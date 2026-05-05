@@ -20,7 +20,7 @@
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, isPublicChat, isDemoChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -56,7 +56,6 @@
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
-  import { authStore } from '../stores/authStore';
   import { introBannerVisible } from '../stores/uiStateStore';
 
   type AppCardData = {
@@ -474,10 +473,9 @@
   // Bound to the chat-header-wrapper div; used by the IntersectionObserver below.
   let headerWrapperEl = $state<HTMLElement | null>(null);
 
-  // True only for non-auth users on intro chats — shows CTA inside the banner.
-  const showSignupCta = $derived(
-    !$authStore.isAuthenticated && !!currentChatId && isDemoChat(currentChatId)
-  );
+  // The intro video now uses the full banner as a media hero. Keep auth CTAs in
+  // the app header so the banner can stay focused on playback.
+  const showSignupCta = $derived(false);
 
   // Keep introBannerVisible in sync with whether the banner is visible in the viewport.
   // When it is visible, Header hides its own signup button so there's no duplicate CTA.
@@ -511,6 +509,7 @@
     chatCategory = null,
     chatIcon = null,
     chatSummary = null,
+    chatHeaderRenderKey = 0,
     chatCreatedAt = null,
     isNewChatGeneratingTitle = false,
     isNewChatCreditsError = false,
@@ -519,6 +518,9 @@
     isIncognito = false,
     isExampleChat = false,
     videoMp4Url = null,
+    videoTeaserUrl = null,
+    videoTeaserMp4Url = null,
+    videoTeaserWebpUrl = null,
     backgroundFrames = null,
     autoplayVideo = false,
     followUpSuggestions = [],
@@ -539,6 +541,8 @@
     chatIcon?: string | null;
     /** Decrypted chat summary — shown as 14px text below the title if available. */
     chatSummary?: string | null;
+    /** Incremented by ActiveChat when fullscreen layout changes require a clean header repaint. */
+    chatHeaderRenderKey?: number;
     /** Unix timestamp in seconds of when the chat was created. Used for the "Started ..." time in the header banner. */
     chatCreatedAt?: number | null;
     /** True while the server is still generating the title/category/icon for a new chat.
@@ -565,9 +569,14 @@
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
-     *  no video is ever loaded by the header itself; the fullscreen embed loads
-     *  the MP4 on demand when the user clicks play. */
+     *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
+    /** Tiny silent autoplay teaser rendered before the user clicks the full video. */
+    videoTeaserUrl?: string | null;
+    /** MP4 fallback for browsers that cannot play the WebM teaser. */
+    videoTeaserMp4Url?: string | null;
+    /** WebP poster/fallback for the silent autoplay teaser. */
+    videoTeaserWebpUrl?: string | null;
     /** Background frame image URLs rendered inside the chat header's 16:9 media
      *  frame as a crossfading Ken-Burns slideshow. */
     backgroundFrames?: string[] | null;
@@ -1648,8 +1657,10 @@
          Scrolls naturally with the content because it lives in the scroll container. -->
     {#if showChatHeader}
         <div class="chat-header-wrapper" bind:this={headerWrapperEl}>
+            {#key `${currentChatId ?? 'new'}:${chatHeaderRenderKey}`}
             <ChatHeader
                 title={chatTitle}
+                {currentChatId}
                 category={chatCategory}
                 icon={chatIcon}
                 summary={chatSummary}
@@ -1659,12 +1670,16 @@
                 {isIncognito}
                 {isExampleChat}
                 {videoMp4Url}
+                {videoTeaserUrl}
+                {videoTeaserMp4Url}
+                {videoTeaserWebpUrl}
                 {backgroundFrames}
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}
                 {showSignupCta}
             />
+            {/key}
         </div>
     {/if}
 

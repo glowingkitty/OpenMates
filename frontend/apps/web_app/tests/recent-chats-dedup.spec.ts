@@ -138,8 +138,10 @@ async function clickChatByTitle(
  * Click the "New Chat" button via data-testid.
  */
 async function clickNewChat(page: any, logStep: (...args: any[]) => void): Promise<void> {
+	// Blur first — the new-chat button hides when the input is focused
+	await page.evaluate(() => (document.activeElement as HTMLElement)?.blur?.());
 	const newChatBtn = page.locator('[data-testid="new-chat-button"]');
-	await expect(newChatBtn).toBeVisible({ timeout: 5000 });
+	await expect(newChatBtn).toBeVisible({ timeout: 8000 });
 	await newChatBtn.click();
 	logStep('Clicked New Chat button.');
 	// Wait for welcome screen to render and resume card to populate

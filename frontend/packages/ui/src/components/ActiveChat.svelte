@@ -1,5 +1,7 @@
 <script lang="ts">
     import MessageInput from './enter_message/MessageInput.svelte';
+    import { messageInputPlaceholderVariant } from './enter_message/extensions/Placeholder';
+    import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
@@ -78,7 +80,8 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
@@ -110,7 +113,7 @@
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
-    import { chatMetadataCache } from '../services/chatMetadataCache'; // For decrypting recent chat titles
+    import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import type {
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -161,7 +164,7 @@
     };
 
     type MessageInputFieldRef = {
-        setDraftContent: (chatId: string | undefined, content: TiptapJSON | string | null, version: number, isRemote: boolean) => void;
+        setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
@@ -1664,6 +1667,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             history.replaceState(null, '', `#chat-id=${currentChat.chat_id}`);
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
+
+        void remountChatHeaderAfterFullscreenClose();
     }
     
     // ===========================================
@@ -2035,6 +2040,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // from accumulating when the user searches and clicks an existing chat instead of sending.
             await clearCurrentDraft();
 
+            if (isPublicChat(chatId)) {
+                const publicChat = getPublicChatForNavigation(chatId);
+                if (!publicChat) {
+                    console.warn('[ActiveChat] Public chat not found:', chatId);
+                    return;
+                }
+                phasedSyncState.markInitialChatLoaded();
+                activeChatStore.setActiveChat(publicChat.chat_id);
+                await loadChat(publicChat);
+                window.dispatchEvent(new CustomEvent('globalChatSelected', {
+                    bubbles: true, composed: true, detail: { chatId: publicChat.chat_id }
+                }));
+                return;
+            }
+
             await chatDB.init();
             const chat = await chatDB.getChat(chatId);
             if (!chat) {
@@ -2049,6 +2069,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         } catch (error) {
             console.error('[ActiveChat] Failed to navigate to chat:', chatId, error);
         }
+    }
+
+    function getPublicChatForNavigation(chatId: string): Chat | null {
+        const demoChat = DEMO_CHATS.find((chat) => chat.chat_id === chatId);
+        if (demoChat) return convertDemoChatToChat(translateDemoChat(demoChat));
+
+        const legalChat = LEGAL_CHATS.find((chat) => chat.chat_id === chatId);
+        if (legalChat) return convertDemoChatToChat(translateDemoChat(legalChat));
+
+        return getAllExampleChats().find((chat) => chat.chat_id === chatId) ?? null;
     }
 
     // Handler for the dislike/report-bad-answer retry prompt.
@@ -3053,6 +3083,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeChatDecryptedIcon = $state<string | null>(null);
     // Decrypted chat summary shown in the header below the title (available after post-processing).
     let activeChatDecryptedSummary = $state<string | null>(null);
+    // Bumped after closing embed fullscreen so ChatHeader remounts after layout classes settle.
+    let chatHeaderRenderKey = $state(0);
     // Mate name captured from the mate_selected preprocessing step, used for the
     // "{Mate} is typing..." spinner text after model_selected arrives.
     let selectedPreprocessingMateName = $state<string | null>(null);
@@ -3095,6 +3127,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         activeChatDecryptedCategory = null;
         activeChatDecryptedIcon = null;
         activeChatDecryptedSummary = null;
+    }
+
+    async function remountChatHeaderAfterFullscreenClose() {
+        await tick();
+        chatHeaderRenderKey += 1;
     }
 
     // ─── Credits restoration detection ─────────────────────────────────────────
@@ -3468,14 +3505,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    let recentChatTiltStates = $derived(
-        recentChats.map(() => new RecentChatTiltState())
-    );
+    // Use $state + $effect instead of $derived so that RecentChatTiltState instances
+    // (which hold their own $state properties) are not created inside a derived context.
+    // Creating $state-bearing objects inside $derived is a Svelte 5 edge case that can
+    // produce a reactive cascade when the source array is rapidly cleared and repopulated,
+    // potentially causing all UI effects to stall without throwing an error.
+    let recentChatTiltStates = $state<RecentChatTiltState[]>([]);
+    $effect(() => {
+        const len = recentChats.length;
+        if (recentChatTiltStates.length !== len) {
+            recentChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+        }
+    });
 
     // Separate tilt state array for non-authenticated users' intro+example chats carousel
-    let nonAuthChatTiltStates = $derived(
-        nonAuthRecentChats.map(() => new RecentChatTiltState())
-    );
+    let nonAuthChatTiltStates = $state<RecentChatTiltState[]>([]);
+    $effect(() => {
+        const len = nonAuthRecentChats.length;
+        if (nonAuthChatTiltStates.length !== len) {
+            nonAuthChatTiltStates = Array.from({ length: len }, () => new RecentChatTiltState());
+        }
+    });
 
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
@@ -3569,9 +3619,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // the editor/toolbar area, plus a ~60px allowance for padding and action bar.
         const inputHeight = messageInputHeight + 60;
 
-        // The welcome block is vertically centered (top: 50% + 60px transform).
+        // The welcome block is vertically centered below the inspiration banner
+        // and welcome top-button row.
         // Approximate its bottom edge position within the container.
-        const welcomeCenter = containerHeight * 0.5 + 60;
+        const welcomeTopOffset = isEffectivelyNarrow ? 127 : 60;
+        const welcomeCenter = containerHeight * 0.5 + welcomeTopOffset;
         const welcomeBottom = welcomeCenter + welcomeHeight / 2;
 
         // Available gap between welcome bottom and the message input top.
@@ -3767,6 +3819,41 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+
+    let startNewChatPlaceholderMode = $derived(
+        !!currentChat?.chat_id && (isDemoChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))
+    );
+    let showNewChatButtonBesideInput = $derived(
+        createButtonVisible &&
+        (
+            (showWelcome && messageInputHasContent) ||
+            (
+                !showWelcome &&
+                !!currentChat?.chat_id &&
+                (isExampleChat(currentChat.chat_id) || (!isPublicChat(currentChat.chat_id) && chatOwnershipResolved))
+            )
+        )
+    );
+
+    // Set followup placeholder variant when the new chat button is visible beside the input
+    // (example chats and user-owned chats show the button, indicating a followup context)
+    $effect(() => {
+        messageInputPlaceholderVariant.set(showNewChatButtonBesideInput ? 'followup' : 'default');
+        return () => messageInputPlaceholderVariant.set('default');
+    });
+
+    let activePublicChatMetadata = $derived.by(() => {
+        const currentChatId = currentChat?.chat_id;
+        if (!currentChatId) return null;
+        const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS];
+        return allChats.find((chat) => chat.chat_id === currentChatId)?.metadata ?? null;
+    });
+
+    let activeLocaleVideo = $derived.by(() => {
+        const videoKey = activePublicChatMetadata?.video_key;
+        if (!videoKey) return null;
+        return getVideoForLocale(videoKey, $locale ?? 'en');
+    });
 
     // Generation counter to prevent stale loadChat() completions from overwriting currentMessages.
     // Each loadChat() call increments this; if the counter has moved on by the time async work
@@ -7474,6 +7561,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (sessionDraft) {
                     console.debug(`[ActiveChat] Loading sessionStorage draft for demo chat ${currentChat.chat_id}`);
                     setTimeout(() => {
+                        if (!messageInputFieldRef) return;
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, sessionDraft, 0, false);
                         // CRITICAL: Restore the original markdown from the stored draft to preserve user input
                         // This ensures URLs and other content are preserved exactly as the user typed them
@@ -7487,6 +7575,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // This ensures that when the user types in this demo chat, the draft is saved to the correct chat ID
                     // Without this, the draft service might still use the previous chat's ID, causing drafts to overwrite each other
                     setTimeout(() => {
+                        if (!messageInputFieldRef) return;
                         // Set the draft context to the new demo chat ID, even though there's no draft content
                         // This ensures the draft service knows which chat ID to use when saving drafts
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, null, 0, false);
@@ -7547,6 +7636,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 
                                 if (messageInputFieldRef) {
                                     setTimeout(() => {
+                                        if (!messageInputFieldRef) return;
                                         messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion || 1, false);
                                     }, 50);
                                 }
@@ -7554,6 +7644,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 // No embeds found in store, just set context
                                 if (messageInputFieldRef) {
                                     setTimeout(() => {
+                                        if (!messageInputFieldRef) return;
                                         messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
                                     }, 50);
                                 }
@@ -7563,6 +7654,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${currentChat.chat_id}, setting context only`);
                             if (messageInputFieldRef) {
                                 setTimeout(() => {
+                                    if (!messageInputFieldRef) return;
                                     messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
                                 }, 50);
                             }
@@ -7572,6 +7664,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         // Fallback: just set context
                         if (messageInputFieldRef) {
                             setTimeout(() => {
+                                if (!messageInputFieldRef) return;
                                 messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
                             }, 50);
                         }
@@ -7588,6 +7681,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
                             
                             setTimeout(() => {
+                                if (!messageInputFieldRef) return;
                                 // Pass the decrypted and parsed TipTap JSON content
                                 messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion, false);
                             }, 50);
@@ -8167,6 +8261,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Listen for local chat list changes (dispatched when drafts are saved)
         window.addEventListener('localChatListChanged', handleDraftSaveSync);
+
+        // Refresh carousel when a chat key loads after initial render (Safari cold-boot race).
+        // On iPad/Safari the phased sync can complete and keys can become ready before this
+        // component mounts, so the window event fires into the void. To handle both late
+        // key-ready events AND keys that became ready before mount, we also run an initial
+        // carousel load via the $effect above (triggered by phasedSyncState.initialSyncCompleted).
+        const handleChatKeyReady = () => {
+            if (showWelcome && !currentChat) {
+                carouselInvalidationCounter++;
+            }
+        };
+        window.addEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
 
         // ─── Preprocessing step: refresh currentChat from DB ──────────────────────────
         // When a preprocessing step (title_generated, mate_selected) arrives, we fire
@@ -9399,6 +9505,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListenerCallback);
             // Remove draft save sync listener
             window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListenerCallback);
+            // Remove chat key-ready carousel refresh listener
+            window.removeEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
             // Remove preprocessing step chat refresh listener
             window.removeEventListener('localChatListChanged', handlePreprocessingChatRefresh as EventListenerCallback);
             if (handleLogoutEvent) {
@@ -9539,23 +9647,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <div class="top-buttons" class:top-buttons-flow={showWelcome} class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}>
                         <!-- Left side buttons -->
                         <div class="left-buttons">
-                            {#if createButtonVisible}
-                                <!-- New chat CTA button: same color as Send, pill shape, white icon; label visible on larger screens only -->
-                                <div class="new-chat-button-wrapper new-chat-cta-wrapper">
-                                    <button
-                                        class="new-chat-cta-button"
-                                        data-action="new-chat"
-                                        data-testid="new-chat-button"
-                                        aria-label={$text('common.new_chat')}
-                                        onclick={handleNewChatClick}
-                                        in:fade={{ duration: 300 }}
-                                        use:tooltip
-                                    >
-                                        <span class="clickable-icon icon_create new-chat-cta-icon"></span>
-                                        <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
-                                    </button>
-                                </div>
-                            {/if}
                             {#if !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                                 <!-- Share button - opens settings menu with share submenu -->
                                 <!-- Hidden for intro, example, and legal chats (public/static chats the user doesn't own) -->
@@ -10016,15 +10107,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          chatCategory={activeChatDecryptedCategory}
                          chatIcon={activeChatDecryptedIcon}
                          chatSummary={activeChatDecryptedSummary}
+                         {chatHeaderRenderKey}
                          chatCreatedAt={currentChat && !isPublicChat(currentChat.chat_id) ? (currentChat.created_at ?? null) : null}
                          {isNewChatGeneratingTitle}
                          {isNewChatCreditsError}
                          {isCreditsRestored}
-                         isIncognito={!!currentChat?.is_incognito}
-                         isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
-                         canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
-                         videoMp4Url={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; return dc?.metadata?.video_mp4_url ?? null; })()}
-                         backgroundFrames={(() => { const allChats = [...DEMO_CHATS, ...LEGAL_CHATS, ...ALL_NEWSLETTER_CHATS]; const dc = currentChat?.chat_id ? allChats.find(c => c.chat_id === currentChat.chat_id) : null; const frames = dc?.metadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
+                          isIncognito={!!currentChat?.is_incognito}
+                          isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id)}
+                          canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                           videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
+                           videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}
+                           videoTeaserMp4Url={activeLocaleVideo?.teaser_mp4_url ?? activePublicChatMetadata?.video_teaser_mp4_url ?? null}
+                           videoTeaserWebpUrl={activeLocaleVideo?.teaser_webp_url ?? activePublicChatMetadata?.video_teaser_webp_url ?? null}
+                           backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                          autoplayVideo={pendingAutoplayVideo}
                          onResend={handleResendAfterCreditsRestored}
                          followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
@@ -10147,51 +10242,105 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {/if}
 
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
-                        <!-- Hide for newsletter/legal chats (read-only); show for demo/example/intro/regular chats -->
-                        {#if !(currentChat && (isNewsletterChat(currentChat.chat_id) || isLegalChat(currentChat.chat_id))) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
-                            <MessageInput
-                                bind:this={messageInputFieldRef}
-                                currentChatId={currentChat?.chat_id || temporaryChatId}
-                                showActionButtons={showActionButtons}
-                                activeFocusId={!showWelcome ? activeFocusId : null}
-                                activeFocusAppId={!showWelcome ? activeFocusAppId : null}
-                                activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
-                                onFocusPillDeepLink={() => {
-                                    if (activeFocusAppId && activeFocusModeKey) {
-                                        settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
-                                        panelState.openSettings();
-                                    }
+                        <!-- Public read-only chats use the start-new-chat placeholder instead of MessageInput. -->
+                        {#if (!(currentChat && (isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))) || startNewChatPlaceholderMode) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
+                            {#if startNewChatPlaceholderMode}
+                                <!-- Intro/legal/newsletter demo chats: full-width orange CTA button instead of MessageInput -->
+                                <div class="message-input-action-row">
+                                    <button
+                                        class="new-chat-cta-button new-chat-cta-fullwidth"
+                                        data-action="new-chat"
+                                        data-testid="new-chat-cta-fullwidth"
+                                        onclick={handleNewChatClick}
+                                    >
+                                        <span class="clickable-icon icon_create new-chat-cta-icon"></span>
+                                        <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
+                                    </button>
+                                </div>
+                            {:else}
+                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput}>
+                                {#if showNewChatButtonBesideInput}
+                                    <div
+                                        class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper"
+                                        class:hidden-for-input={messageInputFocused}
+                                    >
+                                        <button
+                                            class="new-chat-cta-button"
+                                            data-action="new-chat"
+                                            data-testid="new-chat-button"
+                                            aria-label={$text('common.new_chat')}
+                                            onclick={handleNewChatClick}
+                                            in:fade={{ duration: 300 }}
+                                            use:tooltip
+                                        >
+                                            <span class="clickable-icon icon_create new-chat-cta-icon"></span>
+                                            <span class="new-chat-cta-label">{$text('common.new_chat')}</span>
+                                        </button>
+                                    </div>
+                                {/if}
+                                <MessageInput
+                                    bind:this={messageInputFieldRef}
+                                    currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
+                                    showActionButtons={showActionButtons}
+                                    inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
+                                    activeFocusId={!showWelcome ? activeFocusId : null}
+                                    activeFocusAppId={!showWelcome ? activeFocusAppId : null}
+                                    activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
+                                    onFocusPillDeepLink={() => {
+                                        if (activeFocusAppId && activeFocusModeKey) {
+                                            settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                            panelState.openSettings();
+                                        }
+                                    }}
+                                    onFocusPillDeactivate={() => {
+                                        if (activeFocusId) {
+                                            handleFocusModeDeactivation(activeFocusId);
+                                            activeFocusId = null;
+                                        }
+                                    }}
+                                    isIncognitoMode={!!(currentChat?.is_incognito || (showWelcome && $incognitoMode))}
+                                    onIncognitoPillDeactivate={() => {
+                                        incognitoMode.set(false);
+                                    }}
+                                    on:codefullscreen={handleCodeFullscreen}
+                                    on:imagefullscreen={handleImageFullscreen}
+                                    on:pdffullscreen={handlePdfFullscreen}
+                                    on:recordingfullscreen={handleRecordingFullscreen}
+                                    on:sendMessage={handleSendMessage}
+                                    on:startNewChat={handleNewChatClick}
+                                    on:heightchange={handleInputHeightChange}
+                                    on:draftSaved={handleDraftSaved}
+                                    on:textchange={(e) => {
+                                        const t = (e.detail?.text || '');
+                                        liveInputText = t;
+                                        // NOTE: messageInputHasContent is NOT set here from text alone —
+                                        // bind:hasContent below is the authoritative source and correctly
+                                        // accounts for embeds (images, files) even when there is no text.
+                                    }}
+                                    bind:isFullscreen
+                                    bind:hasContent={messageInputHasContent}
+                                    bind:isFocused={messageInputFocused}
+                                    bind:isMapsOpen={messageInputMapsOpen}
+                                    {containerRect}
+                                />
+                            </div>
+                            {/if}
+                        {/if}
+
+                        <!-- Cancel / Save draft pill: shown below the input when focused in a chat
+                             that has the new-chat button. Blurs the editor to restore compact mode. -->
+                        {#if showNewChatButtonBesideInput && messageInputFocused}
+                            <button
+                                class="input-dismiss-button"
+                                data-testid="input-dismiss-button"
+                                onclick={() => {
+                                    const active = document.activeElement;
+                                    if (active instanceof HTMLElement) active.blur();
                                 }}
-                                onFocusPillDeactivate={() => {
-                                    if (activeFocusId) {
-                                        handleFocusModeDeactivation(activeFocusId);
-                                        activeFocusId = null;
-                                    }
-                                }}
-                                isIncognitoMode={!!(currentChat?.is_incognito || (showWelcome && $incognitoMode))}
-                                onIncognitoPillDeactivate={() => {
-                                    incognitoMode.set(false);
-                                }}
-                                on:codefullscreen={handleCodeFullscreen}
-                                on:imagefullscreen={handleImageFullscreen}
-                                on:pdffullscreen={handlePdfFullscreen}
-                                on:recordingfullscreen={handleRecordingFullscreen}
-                                on:sendMessage={handleSendMessage}
-                                on:heightchange={handleInputHeightChange}
-                                on:draftSaved={handleDraftSaved}
-                                on:textchange={(e) => { 
-                                    const t = (e.detail?.text || '');
-                                    liveInputText = t;
-                                    // NOTE: messageInputHasContent is NOT set here from text alone —
-                                    // bind:hasContent below is the authoritative source and correctly
-                                    // accounts for embeds (images, files) even when there is no text.
-                                }}
-                                 bind:isFullscreen
-                                 bind:hasContent={messageInputHasContent}
-                                 bind:isFocused={messageInputFocused}
-                                 bind:isMapsOpen={messageInputMapsOpen}
-                                 {containerRect}
-                             />
+                                in:fade={{ duration: 150 }}
+                            >
+                                {messageInputHasContent ? $text('common.save_draft') : $text('common.cancel')}
+                            </button>
                         {/if}
                     </div>
                 </div>
@@ -10377,7 +10526,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 piiRevealed={piiRevealed}
                                 chatId={currentChat?.chat_id}
                             />
+                        {:else}
+                            <div class="embed-fullscreen-fallback">
+                                <div class="fullscreen-header">
+                                    <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                                </div>
+                                <div class="fullscreen-content">
+                                    <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
+                                </div>
+                            </div>
                         {/if}
+                    {:catch}
+                        <div class="embed-fullscreen-fallback">
+                            <div class="fullscreen-header">
+                                <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                            </div>
+                            <div class="fullscreen-content">
+                                <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
+                            </div>
+                        </div>
                     {/await}
                 {:else}
                     <!-- Fallback for unknown/unregistered embed types -->
@@ -11609,6 +11776,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: 15px;
     }
 
+    .message-input-action-row {
+        display: flex;
+        align-items: flex-end;
+        gap: var(--spacing-3);
+        width: 100%;
+    }
+
+    .message-input-action-row :global(.message-input-wrapper) {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .input-new-chat-wrapper {
+        flex: 0 0 auto;
+    }
+
+    .message-input-action-row:not(.has-new-chat-button) .input-new-chat-wrapper {
+        display: none;
+    }
+
+    .active-chat-container.narrow .message-input-action-row {
+        gap: var(--spacing-2);
+    }
+
     .chat-wrapper:not(.fullscreen) .message-input-wrapper { /* Changed from .message-input-container */
         /* Flex child instead of position:absolute — this lets iOS Safari's
          * virtual keyboard push the input up naturally via dvh + flex layout,
@@ -11841,10 +12032,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             left: 10px;
             right: 10px;
         }
-        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh),
-           so recalibrate: 50% + 190px/2 = 50% + 95px */
+        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh).
+           Include the welcome top-buttons row below it so the greeting centers in
+           the remaining space above the message input. */
         .center-content {
-            top: calc(50% + 95px);
+            top: calc(50% + 127px);
         }
     }
 
@@ -11897,6 +12089,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .center-content.welcome-hiding,
     .top-buttons.welcome-hiding {
         opacity: 0;
+        pointer-events: none;
         visibility: hidden;
         transition: opacity 200ms ease, visibility 0s 200ms;
     }
@@ -11972,7 +12165,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         justify-content: center;
         gap: var(--spacing-4);
         min-width: 0;
-        height: 41px;
+        height: 48px;
         padding: var(--spacing-4) var(--spacing-8);
         border: none;
         border-radius: var(--radius-full);
@@ -11980,7 +12173,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: white;
         font-weight: 500;
         cursor: pointer;
-        transition: background-color var(--duration-fast) var(--easing-in-out), transform var(--duration-fast) var(--easing-in-out);
+        transition:
+            background-color var(--duration-fast) var(--easing-in-out),
+            transform var(--duration-fast) var(--easing-in-out),
+            width 0.25s ease-in-out,
+            padding 0.25s ease-in-out,
+            gap 0.25s ease-in-out;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         margin-right: 0;
     }
@@ -12011,24 +12209,105 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         mask-repeat: no-repeat;
     }
 
-    /* "New chat" label: visible when chat-side is wide enough */
-    .new-chat-cta-label {
-        white-space: nowrap;
+    /* Full-width CTA for intro/legal/demo chats — replaces MessageInput entirely */
+    .new-chat-cta-fullwidth {
+        width: 100%;
+        height: 48px;
     }
 
-    /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport) */
+    /* "New chat" label: visible when chat-side is wide enough. */
+    .new-chat-cta-label {
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    /* When input is focused or has content, completely hide the new-chat button
+       so the MessageInput can expand to full width. */
+    .input-new-chat-wrapper.hidden-for-input {
+        width: 0;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transition: width 0.25s ease-in-out, opacity 0.15s ease-in-out;
+    }
+
+    /* Default visible state needs explicit transition for smooth return */
+    .input-new-chat-wrapper {
+        transition: width 0.25s ease-in-out, opacity 0.2s ease-in-out;
+    }
+
+    /* Cancel / Save draft pill: rounded grey container below the input.
+       Normal flow so it sits after ChatSearchSuggestions + MessageInput. */
+    .input-dismiss-button {
+        display: block;
+        margin: var(--spacing-3) auto 0;
+        padding: var(--spacing-3) var(--spacing-8);
+        background-color: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-small);
+        font-weight: 500;
+        color: var(--color-font-secondary);
+        cursor: pointer;
+        white-space: nowrap;
+        /* Override global button styles */
+        min-width: unset;
+        height: auto;
+        box-shadow: none;
+        filter: none;
+        transition: background-color var(--duration-fast) var(--easing-in-out),
+                    color var(--duration-fast) var(--easing-in-out);
+    }
+
+    .input-dismiss-button:hover {
+        background-color: var(--color-grey-20);
+        color: var(--color-font-primary);
+        transform: none;
+        scale: none;
+    }
+
+    .input-dismiss-button:active {
+        background-color: var(--color-grey-30);
+        color: var(--color-font-primary);
+        transform: none;
+        scale: none;
+        filter: none;
+    }
+
+    /* Mobile layout when chat-side container is narrower than 550px (container query, not viewport).
+       Scoped to .input-new-chat-wrapper so the fullwidth CTA for intro/legal chats is unaffected. */
     @container chat-side (max-width: 550px) {
-        .new-chat-cta-label {
-            display: none;
+        .input-new-chat-wrapper .new-chat-cta-label {
+            display: none !important;
+            max-width: 0 !important;
         }
 
-        /* Circle shape: match .new-chat-button-wrapper height (41px) */
-        .new-chat-cta-button {
+        /* Circle shape: match inline compact input height (48px) */
+        .input-new-chat-wrapper .new-chat-cta-button {
             min-width: 0;
-            width: 41px;
-            height: 41px;
+            width: 48px;
+            height: 48px;
             padding: var(--spacing-4);
             box-sizing: border-box;
+            gap: 0;
+        }
+    }
+
+    /* Viewport fallback for browsers/contexts where the container query doesn't fire.
+       Scoped to .input-new-chat-wrapper so the fullwidth CTA is unaffected. */
+    @media (max-width: 600px) {
+        .input-new-chat-wrapper .new-chat-cta-label {
+            display: none !important;
+            max-width: 0 !important;
+        }
+
+        .input-new-chat-wrapper .new-chat-cta-button {
+            min-width: 0;
+            width: 48px;
+            height: 48px;
+            padding: var(--spacing-4);
+            box-sizing: border-box;
+            gap: 0;
         }
     }
 

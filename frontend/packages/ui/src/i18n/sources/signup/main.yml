@@ -24,27 +24,27 @@ sign_up:
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.9 alpha
-  de: v0.9 alpha
-  zh: v0.9 测试版
-  es: v0.9 alfa
-  fr: v0.9 alpha
-  pt: v0.9 alfa
-  ru: v0.9 альфа
-  ja: v0.9 アルファ
-  ko: v0.9 알파
-  it: v0.9 alpha
-  tr: v0.9 alfa
-  vi: v0.9 alpha
-  id: v0.9 alpha
-  pl: v0.9 alpha
-  nl: v0.9 alpha
-  ar: v0.9 ألفا
-  hi: v0.9 अल्फा
-  th: v0.9 อัลฟา
-  cs: v0.9 alpha
-  sv: "v0.9 alpha"
-  he: v0.9 אלפא
+  en: v0.10 alpha
+  de: v0.10 alpha
+  zh: v0.10 测试版
+  es: v0.10 alfa
+  fr: v0.10 alpha
+  pt: v0.10 alfa
+  ru: v0.10 альфа
+  ja: v0.10 アルファ
+  ko: v0.10 알파
+  it: v0.10 alpha
+  tr: v0.10 alfa
+  vi: v0.10 alpha
+  id: v0.10 alpha
+  pl: v0.10 alpha
+  nl: v0.10 alpha
+  ar: v0.10 ألفا
+  hi: v0.10 अल्फा
+  th: v0.10 อัลฟา
+  cs: v0.10 alpha
+  sv: "v0.10 alpha"
+  he: v0.10 אלפא
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
@@ -6139,7 +6139,7 @@ payment_failed:
   he: התשלום נכשל
   verified_by_human: []
 switch_to_eu_card:
-  context: Link text in Polar payment form to switch to Stripe (for EU card holders)
+  context: Link text in Managed Payments checkout to switch to EU Stripe (for EU card holders)
   en: Pay with an EU card instead
   de: Stattdessen mit einer EU-Karte bezahlen
   zh: 改用欧盟卡支付
@@ -6163,7 +6163,7 @@ switch_to_eu_card:
   he: תשלום בכרטיס אירופאי במקום זאת
   verified_by_human: []
 switch_to_non_eu_card:
-  context: Link text in Stripe payment form to switch to Polar (for non-EU card holders)
+  context: Link text in EU Stripe payment form to switch to Managed Payments (for non-EU card holders)
   en: Pay with a non-EU card
   de: Mit einer Nicht-EU-Karte bezahlen
   zh: 使用非欧盟卡支付
@@ -6187,7 +6187,7 @@ switch_to_non_eu_card:
   he: תשלום בכרטיס לא-אירופאי
   verified_by_human: []
 you_will_receive_payment_confirmation_soon:
-  context: Message shown after successful Polar purchase (says 'payment confirmation' instead of 'invoice' because Polar as MoR issues the official tax invoice)
+  context: Message shown after successful Managed Payments purchase (says 'payment confirmation' instead of 'invoice' because Stripe as MoR issues the official tax invoice)
   en: You will receive an e-mail confirmation with your payment confirmation soon.
   de: Die E-Mail-Bestätigung mit deiner Zahlungsbestätigung folgt in Kürze.
   zh: 您将很快收到带有付款确认的电子邮件确认信息。

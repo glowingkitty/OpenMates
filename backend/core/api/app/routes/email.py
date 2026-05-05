@@ -14,6 +14,33 @@ router = APIRouter(
     tags=["email"] # Removed admin access key dependency
 )
 logger = logging.getLogger(__name__)
+SUPPORTED_INCOMPLETE_SIGNUP_EMAIL_LANGS = {"en", "de"}
+TRANSLATION_SERVICE = TranslationService()
+ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
+ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE = "/newsletter-assets/intro-thumbnail-{lang}.jpg"
+
+
+def _incomplete_signup_email_lang(lang: str | None) -> str:
+    return lang if lang in SUPPORTED_INCOMPLETE_SIGNUP_EMAIL_LANGS else "en"
+
+
+def _email_text(key: str, lang: str, context: dict | None = None) -> str:
+    return TRANSLATION_SERVICE.get_nested_translation(key, lang, context)
+
+
+def _greeting_name(username: str | None) -> str:
+    username = (username or "").strip()
+    return f" {username}" if username else ""
+
+
+def _announcement_url(base_url: str, lang: str) -> str:
+    lang_query = "?lang=de" if lang == "de" else ""
+    return f"{base_url}/{lang_query}#chat-id={ANNOUNCEMENT_CHAT_ID}&autoplay-video"
+
+
+def _announcement_thumbnail_url(base_url: str, lang: str) -> str:
+    thumbnail_lang = "DE" if lang == "de" else "EN"
+    return f"{base_url}{ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE.format(lang=thumbnail_lang)}"
 
 # Remove the generic template endpoint and replace with specific template handlers
 
@@ -393,6 +420,8 @@ async def preview_issue_report(
             issue_title=issue_title,
             issue_description=issue_description,
             chat_or_embed_url=chat_or_embed_url or "Not provided",
+            contact_email="user@example.com",
+            user_stats="Chats: 12<br/>User messages sent: 248<br/>Credits purchased so far: 500<br/>Last purchase date: 2026-05-01<br/>Last purchase credits: 100",
             timestamp=timestamp,
             estimated_location=estimated_location
         )
@@ -420,4 +449,64 @@ async def preview_community_share_notification(
         chat_title=chat_title,
         chat_summary=chat_summary,
         share_link=share_link
+    )
+
+
+@router.get("/incomplete-signup-deletion-reminder", response_class=HTMLResponse)
+async def preview_incomplete_signup_deletion_reminder(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    username: str = Query("", description="Username to display in the email"),
+    days_remaining: int = Query(14, description="Days remaining before deletion"),
+):
+    """Preview the incomplete signup deletion reminder email template."""
+    lang = _incomplete_signup_email_lang(lang)
+    key_suffix = f"{days_remaining}d" if days_remaining in {14, 7, 1} else "14d"
+    key_prefix = "email.incomplete_signup_deletion_reminder"
+    context = {
+        "deletion_time_text": _email_text(f"{key_prefix}.deletion_time_{key_suffix}", lang),
+        "wait_time_text": _email_text(f"{key_prefix}.wait_time_{key_suffix}", lang),
+    }
+    subject = _email_text(f"{key_prefix}.subject_{key_suffix}", lang, context)
+    headline = _email_text(f"{key_prefix}.headline_{key_suffix}", lang, context)
+    reminder_info = "" if key_suffix == "1d" else _email_text(f"{key_prefix}.reminder_info_{key_suffix}", lang, context)
+
+    return await _process_email_template(
+        request=request,
+        template_name="incomplete-signup-deletion-reminder",
+        lang=lang,
+        subject=subject,
+        headline=headline,
+        username=username,
+        greeting_name=_greeting_name(username),
+        finish_setup_link="https://openmates.org",
+        latest_announcement_video_link=_announcement_url("https://openmates.org", lang),
+        announcement_thumbnail_url=_announcement_thumbnail_url("https://openmates.org", lang),
+        direct_delete_account_link="https://openmates.org/#settings/account/delete/preview-account-id",
+        newsletter_settings_link="https://openmates.org/#settings/newsletter",
+        deletion_time_text=context["deletion_time_text"],
+        wait_time_text=context["wait_time_text"],
+        reminder_info=reminder_info,
+    )
+
+
+@router.get("/incomplete-signup-account-deleted", response_class=HTMLResponse)
+async def preview_incomplete_signup_account_deleted(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    username: str = Query("", description="Username to display in the email"),
+):
+    """Preview the incomplete signup account deleted email template."""
+    lang = _incomplete_signup_email_lang(lang)
+    return await _process_email_template(
+        request=request,
+        template_name="incomplete-signup-account-deleted",
+        lang=lang,
+        subject=_email_text("email.incomplete_signup_account_deleted.subject", lang),
+        username=username,
+        greeting_name=_greeting_name(username),
+        signup_link="https://openmates.org",
+        newsletter_settings_link="https://openmates.org/#settings/newsletter",
     )

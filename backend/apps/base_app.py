@@ -637,6 +637,23 @@ class BaseApp:
                                     clean_request_body.pop(k, None)
                                 clean_request_body['requests'] = [request_item_fields]
                     
+                    # Auto-unwrap: If the LLM wrapped flat args in a 'requests' array but the
+                    # skill does NOT expect a 'requests' parameter (e.g. pdf.read expects file_path),
+                    # flatten requests[0] into clean_request_body. This is the symmetric counterpart
+                    # to the auto-wrap logic above — the LLM sometimes wraps flat-schema skill args
+                    # in {"requests": [{"file_path": "..."}]} when the skill expects {"file_path": "..."}.
+                    if 'requests' in clean_request_body and 'requests' not in execute_params:
+                        requests_val = clean_request_body['requests']
+                        if isinstance(requests_val, list) and len(requests_val) > 0 and isinstance(requests_val[0], dict):
+                            flat_item = requests_val[0]
+                            logger.warning(
+                                f"Auto-unwrapping 'requests[0]' into flat args for skill '{skill_definition.id}'. "
+                                f"LLM sent requests=[{{...}}] but skill expects flat kwargs. "
+                                f"Flat keys: {list(flat_item.keys())}."
+                            )
+                            clean_request_body.pop('requests')
+                            clean_request_body.update(flat_item)
+
                     # Validate that all required parameters are present before calling execute()
                     # This catches cases where the LLM hallucinated wrong parameter names
                     # (e.g. sending "reminder_text" instead of "prompt") and provides a clear error

@@ -82,6 +82,14 @@ export async function loadFullscreenComponent(
 		return null;
 	}
 
-	const module = await loader();
-	return module.default;
+	try {
+		const module = await loader();
+		return module.default;
+	} catch (error) {
+		console.error(
+			`[embedFullscreenResolver] Failed to load fullscreen component for key="${key}", path="${importPath}"`,
+			error
+		);
+		return null;
+	}
 }

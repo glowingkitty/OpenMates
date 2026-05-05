@@ -52,6 +52,21 @@ DEDUP_KEY_PREFIX = "celery_task_dedup:"
 DEFAULT_DEDUP_TTL_SECONDS = 600
 
 
+def _sync_redis_client(host: str, port: int, password: Optional[str], db: int):
+    """Create a short-lived sync Redis client for dedup operations."""
+    import redis
+
+    return redis.Redis(
+        host=host,
+        port=port,
+        password=password,
+        db=db,
+        socket_timeout=2,
+        socket_connect_timeout=2,
+        decode_responses=False,
+    )
+
+
 def acquire_celery_task_dedup_lock(
     task_id: str,
     broker_url: Optional[str] = None,
@@ -85,10 +100,6 @@ def acquire_celery_task_dedup_lock(
         # happens for direct/eager invocations, not real broker delivery.
         return True
 
-    # Local import: keep `redis` out of any module that imports this helper
-    # transitively but never calls it (e.g. tests).
-    import redis  # sync client; already a transitive dep via redis>=5.2
-
     url = broker_url or os.getenv("CELERY_BROKER_URL")
     if not url:
         raise RuntimeError(
@@ -106,15 +117,7 @@ def acquire_celery_task_dedup_lock(
 
     client = None
     try:
-        client = redis.Redis(
-            host=host,
-            port=port,
-            password=password,
-            db=db,
-            socket_timeout=2,
-            socket_connect_timeout=2,
-            decode_responses=False,
-        )
+        client = _sync_redis_client(host, port, password, db)
         was_set = client.set(
             f"{DEDUP_KEY_PREFIX}{task_id}",
             b"1",
@@ -125,6 +128,59 @@ def acquire_celery_task_dedup_lock(
     except Exception as e:
         # Re-raise as RuntimeError so callers can fail-closed via Ignore().
         raise RuntimeError(f"sync redis dedup lock failed: {e}") from e
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+
+def release_celery_task_dedup_lock(
+    task_id: str,
+    broker_url: Optional[str] = None,
+) -> bool:
+    """
+    Delete the per-task_id dedup lock so a Celery retry can re-acquire it.
+
+    Called from DedupedTask.on_retry() — when a task explicitly retries via
+    self.retry(), the retry reuses the same task_id. Without releasing the lock
+    first, the retry hits the still-alive NX guard and is silently skipped.
+
+    Returns True if the key was deleted, False if it didn't exist.
+    Swallows all exceptions — a failed release is non-fatal (the lock will
+    expire via TTL, and the retry will be deduped, which is the pre-fix
+    behaviour). We log a warning so operators can see it.
+    """
+    if not task_id:
+        return False
+
+    url = broker_url or os.getenv("CELERY_BROKER_URL")
+    if not url:
+        logger.warning("Cannot release dedup lock: no broker URL")
+        return False
+
+    parsed = urlparse(url)
+    host = parsed.hostname or "cache"
+    port = parsed.port or 6379
+    password = unquote(parsed.password) if parsed.password else None
+    try:
+        db = int((parsed.path or "/0").lstrip("/") or "0")
+    except ValueError:
+        db = 0
+
+    client = None
+    try:
+        client = _sync_redis_client(host, port, password, db)
+        deleted = client.delete(f"{DEDUP_KEY_PREFIX}{task_id}")
+        if deleted:
+            logger.info(
+                f"Released dedup lock for task {task_id} (retry can proceed)"
+            )
+        return bool(deleted)
+    except Exception as e:
+        logger.warning(f"Failed to release dedup lock for task {task_id}: {e}")
+        return False
     finally:
         if client is not None:
             try:

@@ -21,6 +21,13 @@ Before planning, debugging, or writing code — ask questions first. Do not assu
 
 **After questions are answered:** State your understanding in 2-3 sentences and get a final confirmation before starting work.
 
+## Pre-Planning Checks (Mandatory for Features & Integrations)
+
+Before planning any new feature or provider implementation:
+1. **Search Linear** — call `mcp__linear__list_issues` with relevant keywords across Todo/Backlog/In Progress states. Check for existing tasks, prior research, or related work that should be linked.
+2. **Search docs** — check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research or decisions on the topic.
+3. Only proceed to clarifying questions and implementation after both checks are done.
+
 ## Acceptance Criteria Before Implementing
 
 Every non-trivial task needs a checklist of verifiable acceptance criteria before implementation.

@@ -1,4 +1,59 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@thehugeman/opencode-anthropic-auth-community@latest"]
+  "instructions": [
+    ".claude/rules/frontend.md",
+    ".claude/rules/backend.md",
+    ".claude/rules/testing.md",
+    ".claude/rules/privacy.md",
+    ".claude/rules/settings-ui.md",
+    ".claude/rules/i18n.md",
+    ".claude/rules/deployment.md",
+    ".claude/rules/session-lifecycle.md",
+    ".claude/rules/debugging.md",
+    ".claude/rules/embed.md",
+    ".claude/rules/apple-ui.md",
+    ".claude/rules/planning.md",
+    ".claude/rules/linear-tasks.md"
+  ],
+  "permission": {
+    "skill": {
+      "*": "allow",
+      "gsd-*": "deny"
+    }
+  },
+  "provider": {
+    "claude-code": {
+      "npm": "opencode-claude-code-plugin",
+      "models": {
+        "haiku": {
+          "name": "Claude Code Haiku",
+          "attachment": false,
+          "limit": { "context": 200000, "output": 8192 },
+          "capabilities": { "reasoning": false, "toolcall": true }
+        },
+        "sonnet": {
+          "name": "Claude Code Sonnet",
+          "attachment": false,
+          "limit": { "context": 1000000, "output": 16384 },
+          "capabilities": { "reasoning": true, "toolcall": true }
+        },
+        "opus": {
+          "name": "Claude Code Opus",
+          "attachment": false,
+          "limit": { "context": 1000000, "output": 16384 },
+          "capabilities": { "reasoning": true, "toolcall": true }
+        }
+      },
+      "options": {
+        "cliPath": "claude"
+      }
+    }
+  },
+  "mcp": {
+    "remotion-documentation": {
+      "type": "local",
+      "command": ["npx", "-y", "@remotion/mcp@latest"],
+      "enabled": true
+    }
+  }
 }

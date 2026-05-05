@@ -17,7 +17,7 @@ ADMIN_PASSWORD = os.getenv('DATABASE_ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
 
 # Print environment variables for debugging
-print(f"Environment variables loaded.")
+print("Environment variables loaded.")
 print(f"ADMIN_EMAIL: {'*****' if ADMIN_EMAIL else 'Not set'}")
 print(f"ADMIN_PASSWORD: {'*****' if ADMIN_PASSWORD else 'Not set'}")
 print(f"DIRECTUS_TOKEN: {'*****' if DIRECTUS_TOKEN else 'Not set'}")
@@ -217,12 +217,12 @@ def create_relation(token, collection_name, field_name, relation_config):
             
             # Ensure types are compatible (both should be uuid)
             if local_data_type != related_data_type:
-                print(f"Warning: Field type mismatch. Relation may fail.")
+                print("Warning: Field type mismatch. Relation may fail.")
                 
                 # Try to update field type if needed
                 if (local_data_type == 'uuid' and related_data_type != 'uuid') or \
                    (local_data_type != 'uuid' and related_data_type == 'uuid'):
-                    print(f"Attempting to fix incompatible data types...")
+                    print("Attempting to fix incompatible data types...")
         
         # Prepare relation data with proper structure
         relation_data = {
@@ -345,7 +345,42 @@ def create_or_update_field(token, collection_name, field_name, field_config, is_
             # For existing custom collections, if field exists, we skip updating it
             # to preserve any user changes. This is expected behavior.
             # Note: This else block only executes when field exists and it's NOT a system collection
-            print(f"Field {collection_name}.{field_name} already exists in custom collection. Skipping update to preserve user changes.")
+            existing_type, existing_db_type = check_field_type(token, collection_name, field_name)
+            desired_db_type = map_type(field_config.get('type'), field_config.get('length'))
+            force_migrate = field_config.get('force_migrate', False)
+            if existing_db_type and existing_db_type.lower() != desired_db_type.lower():
+                if force_migrate:
+                    # force_migrate: true in YAML → apply type change via Directus PATCH
+                    print(
+                        f"Force-migrating {collection_name}.{field_name}: "
+                        f"'{existing_db_type}' → '{desired_db_type}'"
+                    )
+                    patch_data = {
+                        "type": field_data["type"],
+                        "meta": field_data["meta"]
+                    }
+                    try:
+                        response = requests.patch(
+                            f"{CMS_URL}/fields/{collection_name}/{field_name}",
+                            json=patch_data,
+                            headers={"Authorization": f"Bearer {token}"}
+                        )
+                        if response.status_code >= 400:
+                            print(f"Failed to force-migrate field: {response.status_code}")
+                            print(f"Response body: {response.text}")
+                        else:
+                            print(f"Successfully force-migrated field {collection_name}.{field_name}")
+                    except Exception as e:
+                        print(f"Exception while force-migrating field {field_name}: {str(e)}")
+                else:
+                    print(
+                        f"WARNING: {collection_name}.{field_name} type mismatch — "
+                        f"schema wants '{desired_db_type}' but DB has '{existing_db_type}'. "
+                        f"Add 'force_migrate: true' to the field in the YAML schema to auto-apply, "
+                        f"or run: ALTER TABLE {collection_name} ALTER COLUMN {field_name} TYPE {desired_db_type};"
+                    )
+            else:
+                print(f"Field {collection_name}.{field_name} already exists in custom collection. Skipping update to preserve user changes.")
         
         # Return True if it's a relation field, so it gets added to relations_to_create
         # Note: For existing fields in custom collections, we still check if relation exists
@@ -684,11 +719,11 @@ def setup_schemas():
             
             # Store as admin invite code
             if store_invite_code(token, invite_code, is_admin=True):
-                print(f"\n==================================")
-                print(f"IMPORTANT: Use this invite code to create your first admin user:")
+                print("\n==================================")
+                print("IMPORTANT: Use this invite code to create your first admin user:")
                 print(f"Admin Invite Code: {invite_code}")
-                print(f"This user will be granted full server admin privileges.")
-                print(f"==================================\n")
+                print("This user will be granted full server admin privileges.")
+                print("==================================\n")
             else:
                 print("Failed to store admin invite code")
         

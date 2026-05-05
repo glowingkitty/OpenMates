@@ -93,13 +93,13 @@ invoices:
       type: string
       length: 50
       nullable: true
-      note: "Payment provider used for this purchase: 'stripe', 'polar', or 'bank_transfer' (SEPA via Revolut Business). May also be 'revolut' for historical rows from the old Revolut integration. Null for legacy invoices created before this field was added."
+      note: "Payment provider/mode used for this purchase: 'stripe', 'stripe_managed', legacy 'polar', or 'bank_transfer' (SEPA via Revolut Business). May also be 'revolut' for historical rows from the old Revolut integration. Null for legacy invoices created before this field was added."
 
     provider_order_id:
       type: string
       length: 255
       nullable: true
-      note: "Provider-specific order ID needed for refunds. For Polar: the Polar Order UUID (different from checkout session ID stored in order_id). For Stripe: null (order_id is the PaymentIntent ID)."
+      note: "Provider-specific order ID needed for refunds. For stripe_managed: the PaymentIntent ID (order_id stores the Checkout Session). For direct Stripe: null (order_id is the PaymentIntent ID)."
 
     encrypted_currency:
       type: string

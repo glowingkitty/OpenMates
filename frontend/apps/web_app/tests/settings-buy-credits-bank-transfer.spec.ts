@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -22,7 +21,6 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
-	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -70,13 +68,15 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	await archiveExistingScreenshots(log);
 
 	// Force bank_transfer_available=true with a hardcoded config mock.
+	// Use a non-empty placeholder public key so Payment.svelte doesn't throw
+	// "Stripe Public Key not found" before the bank_transfer_available flag is read.
 	await page.route('**/v1/payments/config', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
 			body: JSON.stringify({
-				provider: 'polar',
-				public_key: '',
+				provider: 'stripe',
+				public_key: 'pk_test_placeholder_bank_transfer_test',
 				environment: 'sandbox',
 				bank_transfer_available: true,
 			}),

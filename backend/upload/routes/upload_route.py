@@ -621,7 +621,35 @@ async def upload_file(
                 f"(key={sample_key!r}) — discarding stale record, proceeding with fresh upload"
             )
             existing_record = None  # Fall through to fresh upload below
+
+        elif is_pdf:
+            # ── Safe PDF dedup: reuse S3 object but create fresh embed_id ──
+            # NEVER reuse the old embed_id — it has stale encryption keys from
+            # a previous session. Instead, pass the existing S3 data to the PDF
+            # upload handler so it can skip S3 upload + encryption + credit charge
+            # but still create a fresh embed_id and trigger fresh OCR processing.
+            # See OPE-485 for the full rationale.
+            logger.info(
+                f"{log_prefix} [5/13] PDF duplicate — reusing S3 object with fresh embed_id "
+                f"(old_embed={existing_record.get('embed_id')})"
+            )
+            return await _handle_pdf_upload(
+                request=request,
+                file_bytes=file_bytes,
+                filename=filename,
+                content_type=content_type,
+                content_hash=content_hash,
+                user_id=user_id,
+                vault_key_id=vault_key_id,
+                core_api_url=core_api_url,
+                internal_token=internal_token,
+                log_prefix=log_prefix,
+                target_env=target_env,
+                reuse_s3_data=existing_record,
+            )
+
         else:
+            # ── Standard dedup for images/audio: return existing embed_id ──
             elapsed = time.monotonic() - upload_start
             logger.info(
                 f"{log_prefix} [5/13] Duplicate confirmed — S3 object exists. "
@@ -634,6 +662,7 @@ async def upload_file(
             # bucket URL due to the shared-service bucket bug.
             s3_service_for_dedup = request.app.state.s3
             dedup_s3_base_url = s3_service_for_dedup.get_base_url(target_env=target_env)
+
             return UploadFileResponse(
                 embed_id=existing_record["embed_id"],
                 filename=existing_record.get("original_filename", filename),
@@ -1006,7 +1035,190 @@ async def upload_file(
 
 
 # ---------------------------------------------------------------------------
-# PDF upload helper
+# PDF upload helpers
+# ---------------------------------------------------------------------------
+
+
+async def _handle_pdf_dedup(
+    request: Any,
+    reuse_s3_data: Dict[str, Any],
+    page_count: int,
+    filename: str,
+    content_type: str,
+    content_hash: str,
+    user_id: str,
+    vault_key_id: str,
+    core_api_url: str,
+    internal_token: str,
+    log_prefix: str,
+    target_env: str = "prod",
+) -> UploadFileResponse:
+    """
+    Safe PDF dedup: reuse existing S3 object with a fresh embed_id.
+
+    Skips encryption, vault wrap, and S3 upload. Credits are always charged
+    (every PDF upload costs credits regardless of dedup). Creates a new upload
+    record and triggers OCR with the existing S3 key so the new embed_id gets
+    its own OCR cache entry.  See OPE-485 for architecture rationale.
+    """
+    import hashlib as _hashlib
+
+    files_data = reuse_s3_data.get("files_metadata", {})
+    pdf_s3_key = next(
+        (v.get("s3_key") for v in files_data.values() if v.get("s3_key")),
+        None,
+    )
+    if not pdf_s3_key:
+        logger.error(f"{log_prefix} [PDF-dedup] No S3 key in reuse data — falling back to fresh upload")
+        raise HTTPException(status_code=500, detail="PDF dedup failed: missing S3 key")
+
+    aes_key_b64 = reuse_s3_data["aes_key"]
+    nonce_b64 = reuse_s3_data["aes_nonce"]
+    vault_wrapped_aes_key = reuse_s3_data["vault_wrapped_aes_key"]
+
+    s3_service = request.app.state.s3
+    s3_base_url = s3_service.get_base_url(target_env=target_env)
+
+    # Fresh embed_id — never reuse the old one (stale encryption keys)
+    embed_id = str(uuid.uuid4())
+    user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+
+    # Always charge credits — every PDF upload costs credits regardless of dedup.
+    # The OCR cache copy is our internal cost optimization, not a user discount.
+    credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
+    logger.info(
+        f"{log_prefix} [PDF-dedup] Fresh embed_id={embed_id} | "
+        f"reusing S3 key={pdf_s3_key} | pages={page_count} | "
+        f"credits={credits_to_charge}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=15) as _client:
+            charge_resp = await _client.post(
+                f"{core_api_url}/internal/billing/charge",
+                json={
+                    "user_id": user_id,
+                    "user_id_hash": user_id_hash,
+                    "credits": credits_to_charge,
+                    "skill_id": "process",
+                    "app_id": "pdf",
+                    "usage_details": {
+                        "page_count": page_count,
+                        "credits_per_page": PDF_CREDITS_PER_PAGE,
+                        "filename": filename,
+                        "deduplicated": True,
+                    },
+                },
+                headers={"X-Internal-Service-Token": internal_token},
+            )
+        if charge_resp.status_code == 402:
+            logger.warning(f"{log_prefix} [PDF-dedup] Insufficient credits for {page_count}-page PDF")
+            raise HTTPException(status_code=402, detail="Insufficient credits for PDF processing")
+        elif charge_resp.status_code not in (200, 201):
+            logger.error(f"{log_prefix} [PDF-dedup] Billing charge failed: HTTP {charge_resp.status_code}")
+            raise HTTPException(status_code=503, detail="Billing service unavailable")
+        logger.info(f"{log_prefix} [PDF-dedup] Credits charged: {credits_to_charge}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{log_prefix} [PDF-dedup] Credit charge failed: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="Billing service unavailable")
+
+    # Build files metadata from existing record
+    files_metadata = {
+        k: FileVariantMetadata(**v) for k, v in files_data.items()
+    }
+
+    # Store new upload record pointing to the same S3 object
+    upload_record = {
+        "embed_id": embed_id,
+        "user_id": user_id,
+        "content_hash": content_hash,
+        "original_filename": filename,
+        "content_type": content_type,
+        "file_size_bytes": reuse_s3_data.get("file_size_bytes", 0),
+        "s3_base_url": s3_base_url,
+        "files_metadata": {k: v.model_dump() for k, v in files_metadata.items()},
+        "aes_key": aes_key_b64,
+        "aes_nonce": nonce_b64,
+        "vault_wrapped_aes_key": vault_wrapped_aes_key,
+        "malware_scan": "clean",
+        "ai_detection": None,
+        "created_at": int(datetime.now(timezone.utc).timestamp()),
+        "page_count": page_count,
+    }
+    await _store_record_via_api(core_api_url, internal_token, upload_record)
+    logger.info(f"{log_prefix} [PDF-dedup] Upload record stored")
+
+    # Cache embed in Redis
+    await _cache_embed_via_api(
+        core_api_url=core_api_url,
+        internal_token=internal_token,
+        embed_id=embed_id,
+        user_id=user_id,
+        vault_wrapped_aes_key=vault_wrapped_aes_key,
+        aes_nonce=nonce_b64,
+        s3_base_url=s3_base_url,
+        files_metadata={k: v.model_dump() for k, v in files_metadata.items()},
+        content_type=content_type,
+        original_filename=filename,
+        ai_detection=None,
+    )
+
+    # Trigger OCR for the new embed_id (always — even if the old embed's OCR
+    # cache is still warm, we need a cache entry keyed to the new embed_id).
+    async def _trigger_dedup_ocr() -> None:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(
+                    f"{core_api_url}/internal/pdf/process",
+                    json={
+                        "embed_id": embed_id,
+                        "user_id": user_id,
+                        "vault_key_id": vault_key_id,
+                        "s3_key": pdf_s3_key,
+                        "s3_base_url": s3_base_url,
+                        "vault_wrapped_aes_key": vault_wrapped_aes_key,
+                        "aes_nonce": nonce_b64,
+                        "filename": filename,
+                        "page_count": page_count,
+                        "credits_charged": credits_to_charge,
+                        "user_id_hash": user_id_hash,
+                        # Pass old embed_id so OCR task can copy cache instead of re-running
+                        "source_embed_id": reuse_s3_data.get("embed_id"),
+                    },
+                    headers={"X-Internal-Service-Token": internal_token},
+                )
+            if resp.status_code not in (200, 201, 202):
+                logger.warning(
+                    f"{log_prefix} [PDF-dedup] OCR trigger returned HTTP {resp.status_code}"
+                )
+            else:
+                logger.info(f"{log_prefix} [PDF-dedup] OCR processing triggered for {embed_id}")
+        except Exception as exc:
+            logger.warning(f"{log_prefix} [PDF-dedup] OCR trigger failed (non-fatal): {exc}")
+
+    import asyncio as _asyncio_dedup
+    _asyncio_dedup.create_task(_trigger_dedup_ocr())
+
+    logger.info(f"{log_prefix} [PDF-dedup] Complete — fresh embed_id={embed_id}")
+
+    return UploadFileResponse(
+        embed_id=embed_id,
+        filename=filename,
+        content_type=content_type,
+        content_hash=content_hash,
+        files=files_metadata,
+        s3_base_url=s3_base_url,
+        aes_key=aes_key_b64,
+        aes_nonce=nonce_b64,
+        vault_wrapped_aes_key=vault_wrapped_aes_key,
+        malware_scan="clean",
+        ai_detection=None,
+        deduplicated=True,
+        page_count=page_count,
+    )
+
+
 # ---------------------------------------------------------------------------
 
 async def _handle_pdf_upload(
@@ -1021,6 +1233,7 @@ async def _handle_pdf_upload(
     internal_token: str,
     log_prefix: str,
     target_env: str = "prod",
+    reuse_s3_data: Optional[Dict[str, Any]] = None,
 ) -> UploadFileResponse:
     """
     Handle the PDF-specific upload pipeline:
@@ -1031,6 +1244,11 @@ async def _handle_pdf_upload(
       5. Upload to S3
       6. Store upload record
       7. Trigger background OCR processing (fire-and-forget)
+
+    When reuse_s3_data is provided (safe PDF dedup), steps 2-5 are skipped:
+    the same S3 object is reused but a fresh embed_id is created. Credits
+    are not re-charged (already paid on the original upload). OCR always
+    runs to ensure a fresh cache entry for the new embed_id.
 
     Returns UploadFileResponse with page_count set.
     """
@@ -1076,6 +1294,26 @@ async def _handle_pdf_upload(
     if page_count == 0:
         logger.warning(f"{log_prefix} [PDF-1/7] REJECTED — PDF has no pages")
         raise HTTPException(status_code=422, detail="PDF has no pages.")
+
+    # ── Safe PDF dedup shortcut: reuse S3 object, fresh embed_id ──
+    # When reuse_s3_data is provided, the S3 object already exists. Skip
+    # encryption, vault wrap, S3 upload, and credit charging. Just create
+    # a new embed record + trigger OCR with the existing S3 key.
+    if reuse_s3_data:
+        return await _handle_pdf_dedup(
+            request=request,
+            reuse_s3_data=reuse_s3_data,
+            page_count=page_count,
+            filename=filename,
+            content_type=content_type,
+            content_hash=content_hash,
+            user_id=user_id,
+            vault_key_id=vault_key_id,
+            core_api_url=core_api_url,
+            internal_token=internal_token,
+            log_prefix=log_prefix,
+            target_env=target_env,
+        )
 
     # --- PDF 2. Charge credits upfront (3 credits/page) ---
     import hashlib as _hashlib

@@ -11,7 +11,7 @@ from backend.core.api.app.utils.device_fingerprint import generate_device_finger
 from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, store_account_lifecycle_contact_email
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.schemas.auth import LoginRequest
@@ -129,6 +129,21 @@ async def setup_password(
 
         user_id = user_data.get("id")
         vault_key_id = user_data.get("vault_key_id")
+
+        try:
+            await store_account_lifecycle_contact_email(
+                directus_service,
+                encryption_service,
+                user_id=user_id,
+                hashed_email=setup_request.hashed_email,
+                email=verification_data.get("email"),
+                verified_at=verification_data.get("verified_at"),
+            )
+        except Exception as contact_email_err:
+            logger.error(
+                f"Failed to store account lifecycle contact email for new user {user_id}: {contact_email_err}",
+                exc_info=True,
+            )
 
         # Update newsletter subscriber status if this email was subscribed.
         # The Directus user record has just been created (signup_completed=False at this point),

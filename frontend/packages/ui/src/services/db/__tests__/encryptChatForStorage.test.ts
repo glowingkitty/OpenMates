@@ -37,6 +37,7 @@ vi.mock("../../encryption/ChatKeyManager", () => ({
     getKeySync: (...args: unknown[]) => mockGetKeySync(...args),
     injectKey: (...args: unknown[]) => mockInjectKey(...args),
     createKeyForNewChat: (...args: unknown[]) => mockCreateKeyForNewChat(...args),
+    onKeyReady: vi.fn(() => () => {}),
   },
   computeKeyFingerprint: (...args: unknown[]) =>
     mockComputeKeyFingerprint(...args),
@@ -51,6 +52,23 @@ vi.mock("../../../stores/signupState", () => ({
 // Mock svelte/store get()
 vi.mock("svelte/store", () => ({
   get: () => false,
+  writable: (initial: unknown) => ({
+    subscribe: vi.fn((cb: (v: unknown) => void) => {
+      cb(initial);
+      return () => {};
+    }),
+    set: vi.fn(),
+    update: vi.fn(),
+  }),
+  derived: () => ({
+    subscribe: vi.fn(() => () => {}),
+  }),
+  readable: (initial: unknown) => ({
+    subscribe: vi.fn((cb: (v: unknown) => void) => {
+      cb(initial);
+      return () => {};
+    }),
+  }),
 }));
 
 import { encryptChatForStorage } from "../chatCrudOperations";
@@ -157,8 +175,9 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     const db = makeDbInstance();
     const chat = makeChat({ encrypted_chat_key: "server-encrypted-key" });
 
-    // Step 2: server key decrypts successfully
+    // Step 2: server key decrypts successfully and injectKey accepts it
     mockDecryptChatKeyWithMasterKey.mockResolvedValue(fakeKey);
+    mockInjectKey.mockReturnValue(true);
     mockEncryptChatKeyWithMasterKey.mockResolvedValue("re-encrypted");
 
     const result = await encryptChatForStorage(db as any, chat, {
@@ -179,16 +198,71 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.encrypted_chat_key).toBe("server-encrypted-key");
   });
 
+  it("does NOT overwrite IDB key when server key is rejected by injectKey (step 2 regression)", async () => {
+    // Regression: aac318eee added injectKey guard for memory but forgot to gate
+    // the IDB write. When injectKey returns false (key conflict), the server's
+    // encrypted_chat_key must NOT be saved to IDB — it would corrupt decryption
+    // after the next page reload.
+    const db = makeDbInstance();
+    const chat = makeChat({ encrypted_chat_key: "server-encrypted-key-wrong" });
+
+    // Step 2: server key decrypts but injectKey REJECTS it (conflict with loaded key)
+    mockDecryptChatKeyWithMasterKey
+      .mockResolvedValueOnce(new Uint8Array(32).fill(99)) // server key (rejected)
+      .mockResolvedValueOnce(fakeKey); // IDB key (accepted in step 3)
+    mockInjectKey
+      .mockReturnValueOnce(false) // step 2 rejection
+      .mockReturnValueOnce(true); // step 3 acceptance
+
+    // Step 3: IDB has the correct key
+    db.getChat.mockResolvedValue({
+      chat_id: "test-chat-123",
+      encrypted_chat_key: "idb-correct-key",
+    });
+
+    const result = await encryptChatForStorage(db as any, chat, {
+      isFromSync: true,
+    });
+
+    expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
+    // IDB key must win — server's wrong key must NOT appear here
+    expect(result.encrypted_chat_key).toBe("idb-correct-key");
+    expect(result.encrypted_chat_key).not.toBe("server-encrypted-key-wrong");
+  });
+
+  it("does NOT store a conflicting server key when a different key is already cached", async () => {
+    const db = makeDbInstance();
+    const chat = makeChat({ encrypted_chat_key: "server-encrypted-key-wrong" });
+    const incomingWrongKey = new Uint8Array(32).fill(99);
+
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockDecryptChatKeyWithMasterKey.mockResolvedValue(incomingWrongKey);
+    db.getChat.mockResolvedValue({
+      chat_id: "test-chat-123",
+      encrypted_chat_key: "idb-correct-key",
+    });
+
+    const result = await encryptChatForStorage(db as any, chat, {
+      isFromSync: true,
+    });
+
+    expect(mockCreateKeyForNewChat).not.toHaveBeenCalled();
+    expect(result.encrypted_chat_key).toBe("idb-correct-key");
+    expect(result.encrypted_chat_key).not.toBe("server-encrypted-key-wrong");
+    expect(result.key_fingerprint).toBe("abcd1234");
+  });
+
   it("falls back to IDB key during sync (Step 3)", async () => {
     const db = makeDbInstance();
     const chat = makeChat(); // No encrypted_chat_key from server
 
-    // Step 3: IDB has the key
+    // Step 3: IDB has the key and injectKey accepts it
     db.getChat.mockResolvedValue({
       chat_id: "test-chat-123",
       encrypted_chat_key: "idb-encrypted-key",
     });
     mockDecryptChatKeyWithMasterKey.mockResolvedValue(fakeKey);
+    mockInjectKey.mockReturnValue(true);
 
     await encryptChatForStorage(db as any, chat, {
       isFromSync: true,

@@ -162,36 +162,36 @@ class StripeProductSync:
     async def _sync_one_time_products_optimized(self, pricing_config: Dict[str, Any], existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> Dict[str, int]:
         """
         Synchronize one-time purchase products using pre-fetched data.
-        
+
         Args:
             pricing_config: Loaded pricing configuration
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID
-            
+
         Returns:
             Dictionary with sync statistics
         """
         results = {"created": 0, "updated": 0, "errors": 0}
         pricing_tiers = pricing_config.get("pricingTiers", [])
-        
+
         for tier in pricing_tiers:
             credits = tier.get("credits")
             if not credits:
                 logger.warning("Skipping tier without credits")
                 continue
-            
-            # Create/update product for each currency
-            # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
-            for currency in ["eur", "usd"]:
+
+            # bank_transfer_only tiers are SEPA-only — never create a Stripe card product for them
+            if tier.get("bank_transfer_only"):
+                logger.debug(f"Skipping bank-transfer-only tier ({credits} credits) — no Stripe product needed")
+                continue
+
+            # EUR only: Adaptive Pricing handles other currencies automatically
+            for currency in ["eur"]:
                 price = tier.get("price", {}).get(currency)
                 if not price:
-                    # bank_transfer_only tiers are EUR-only (SEPA) — no USD price is expected
-                    if tier.get("bank_transfer_only"):
-                        logger.debug(f"Skipping {currency} for bank-transfer-only tier {credits} credits (SEPA/EUR only)")
-                    else:
-                        logger.warning(f"No price found for {currency} in tier {credits} credits")
+                    logger.warning(f"No price found for {currency} in tier {credits} credits")
                     continue
-                
+
                 try:
                     result = await self._sync_one_time_product_optimized(credits, currency, price, existing_products, existing_prices)
                     if result == "created":
@@ -203,20 +203,39 @@ class StripeProductSync:
                 except Exception as e:
                     logger.error(f"Error syncing one-time product for {credits} credits in {currency}: {str(e)}")
                     results["errors"] += 1
-        
+
+                # Global products (Managed Payments — Stripe collects + remits local VAT)
+                price_global = tier.get("price_global", {}).get(currency)
+                if price_global:
+                    try:
+                        result = await self._sync_one_time_product_optimized(
+                            credits, currency, price_global, existing_products, existing_prices,
+                            name_suffix=" (global)"
+                        )
+                        if result == "created":
+                            results["created"] += 1
+                        elif result == "updated":
+                            results["updated"] += 1
+                        else:
+                            results["errors"] += 1
+                    except Exception as e:
+                        logger.error(f"Error syncing global one-time product for {credits} credits in {currency}: {str(e)}")
+                        results["errors"] += 1
+
         return results
     
-    async def _sync_one_time_product_optimized(self, credits: int, currency: str, price: float, existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> str:
+    async def _sync_one_time_product_optimized(self, credits: int, currency: str, price: float, existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]], name_suffix: str = "") -> str:
         """
         Create or update a single one-time purchase product using pre-fetched data.
-        
+
         Args:
             credits: Number of credits
             currency: Currency code (eur, usd)
             price: Price in the currency
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID
-            
+            name_suffix: Optional suffix appended to the product name (e.g. " (global)")
+
         Returns:
             "created" if new product was created, "updated" if existing product was updated, "error" if failed
         """
@@ -226,9 +245,9 @@ class StripeProductSync:
                 price_cents = int(price)
             else:
                 price_cents = int(price * 100)
-            
+
             # Create product name with European number format
-            product_name = f"{credits:,}".replace(",", ".") + " credits"
+            product_name = f"{credits:,}".replace(",", ".") + " credits" + name_suffix
             
             # Check if product already exists
             existing_product = existing_products.get(product_name)
@@ -443,21 +462,19 @@ class StripeProductSync:
                     extra_credits = tier.get("monthly_auto_top_up_extra_credits", 0)
                     total_credits = credits + extra_credits
                     
-                    # Create subscription config for each currency
-                    # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
-                    for currency in ["eur", "usd"]:
-                        price = tier.get("price", {}).get(currency)
-                        if price is not None:
-                            subscription_tiers.append({
-                                "credits": total_credits,
-                                "base_credits": credits,
-                                "extra_credits": extra_credits,
-                                "currency": currency,
-                                "price": price
-                            })
-        
+                    # EUR only: Adaptive Pricing handles other currencies automatically
+                    price = tier.get("price", {}).get("eur")
+                    if price is not None:
+                        subscription_tiers.append({
+                            "credits": total_credits,
+                            "base_credits": credits,
+                            "extra_credits": extra_credits,
+                            "currency": "eur",
+                            "price": price
+                        })
+
         logger.info(f"Found {len(subscription_tiers)} subscription tiers to sync")
-        
+
         for tier in subscription_tiers:
             try:
                 result = await self._sync_subscription_product_optimized(
@@ -797,18 +814,16 @@ class StripeProductSync:
                     extra_credits = tier.get("monthly_auto_top_up_extra_credits", 0)
                     total_credits = credits + extra_credits
                     
-                    # Create subscription config for each currency
-                    # JPY removed: Stripe is only used for EU/EEA users; non-EU users go through Polar
-                    for currency in ["eur", "usd"]:
-                        price = tier.get("price", {}).get(currency)
-                        if price is not None:
-                            subscription_tiers.append({
-                                "credits": total_credits,
-                                "base_credits": credits,
-                                "extra_credits": extra_credits,
-                                "currency": currency,
-                                "price": price
-                            })
+                    # EUR only: Adaptive Pricing handles other currencies automatically
+                    price = tier.get("price", {}).get("eur")
+                    if price is not None:
+                        subscription_tiers.append({
+                            "credits": total_credits,
+                            "base_credits": credits,
+                            "extra_credits": extra_credits,
+                            "currency": "eur",
+                            "price": price
+                        })
         
         logger.info(f"Found {len(subscription_tiers)} subscription tiers to sync")
         
@@ -1261,17 +1276,16 @@ class StripeProductSync:
 
         # Define supporter contribution tiers (€5, €10, €20, €50, €100, €200)
         # Supporter payments always go through Stripe for all users.
-        # JPY removed: non-EU users pay via Polar (not Stripe), so JPY is no longer needed.
+        # JPY removed: Stripe Managed Payments (non-EU) uses adaptive pricing; JPY not needed here.
         supporter_tiers = [5, 10, 20, 50, 100, 200]
-        currencies = ["eur", "usd"]
+        currencies = ["eur"]
 
-        # Currency conversion rates (approximate)
+        # EUR only: Adaptive Pricing handles other currencies automatically
         eur_to_other = {
             "eur": 1.0,
-            "usd": 1.1,
         }
 
-        logger.info(f"Synchronizing supporter products with {len(supporter_tiers)} tiers across {len(currencies)} currencies")
+        logger.info(f"Synchronizing supporter products with {len(supporter_tiers)} tiers (EUR only, Adaptive Pricing enabled)")
 
         try:
             # Sync one-time supporter product (with all tiers and currencies as prices)
@@ -1318,7 +1332,7 @@ class StripeProductSync:
             product_description: Description of the product
             is_recurring: True for monthly subscriptions, False for one-time
             supporter_tiers: List of EUR amounts [5, 10, 20, 50, 100, 200]
-            currencies: List of currency codes ["eur", "usd"]
+            currencies: List of currency codes (EUR only; Adaptive Pricing handles the rest)
             eur_to_other: Currency conversion rates
             existing_products: Dict of existing products by name
             existing_prices: Dict of existing prices by product ID

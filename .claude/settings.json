@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/lint-design-tokens.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash scripts/lint-swift-design-tokens.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

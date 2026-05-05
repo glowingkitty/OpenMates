@@ -1,0 +1,117 @@
+<mjml>
+  <mj-head>
+    <mj-title>Weekly Error Digest</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      <mj-text color="#e6e6e6" />
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="dark-mode">
+    <mj-include path="./components/header.mjml" />
+
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section>
+        <mj-column>
+          {% if total_errors == 0 %}
+          <mj-image width="50px" height="50px" src="icons/checkmark.png" align="center" css-class="email-icon-50" />
+          {% else %}
+          <mj-image width="50px" height="50px" src="icons/warning.png" align="center" css-class="email-icon-50" />
+          {% endif %}
+
+          <mj-text font-size="30px" padding-bottom="10px">
+            <mark>Weekly Error Digest</mark>
+          </mj-text>
+          <mj-text font-size="14px" padding-bottom="30px" color="#888888">
+            {{ week_label }}
+          </mj-text>
+
+          <!-- Summary row -->
+          <mj-text font-size="16px" padding-bottom="20px">
+            <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; text-align: left;">
+              <tr>
+                <td style="background-color: #1a1a2e; border-radius: 6px 0 0 6px; padding: 10px 16px;">
+                  <span style="font-size: 24px; font-weight: bold; color: {% if prod_errors > 0 %}#F44336{% else %}#4CAF50{% endif %};">{{ prod_errors }}</span><br/>
+                  <span style="font-size: 12px; color: #aaaaaa;">PROD errors</span>
+                </td>
+                <td style="background-color: #1a1a2e; padding: 10px 16px;">
+                  <span style="font-size: 24px; font-weight: bold; color: {% if dev_errors > 0 %}#FF9800{% else %}#4CAF50{% endif %};">{{ dev_errors }}</span><br/>
+                  <span style="font-size: 12px; color: #aaaaaa;">DEV errors</span>
+                </td>
+                <td style="background-color: #1a1a2e; border-radius: 0 6px 6px 0; padding: 10px 16px;">
+                  <span style="font-size: 24px; font-weight: bold; color: {% if key_fallback_events > 0 %}#FF9800{% else %}#4CAF50{% endif %};">{{ key_fallback_events }}</span><br/>
+                  <span style="font-size: 12px; color: #aaaaaa;">key fallbacks</span>
+                </td>
+              </tr>
+            </table>
+          </mj-text>
+
+          <!-- Key fallback alert (encryption) -->
+          {% if key_fallback_events > 0 %}
+          <mj-text font-size="14px" padding-bottom="20px">
+            <div style="background-color: #3d2000; border-left: 4px solid #FF9800; padding: 10px 14px; border-radius: 0 4px 4px 0; text-align: left;">
+              ⚠️ <strong>{{ key_fallback_events }} candidate key promotion(s)</strong> detected this week — at least {{ key_fallback_events }} chat(s) recovered via fallback key. Investigate root cause in OpenObserve: <code style="font-size: 12px;">candidate_key_promoted</code>
+            </div>
+          </mj-text>
+          {% endif %}
+
+          <!-- Production errors -->
+          {% if prod_top_errors %}
+          <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
+            🔴 Production — Top Errors
+          </mj-text>
+          <mj-text font-size="13px" padding-bottom="20px">
+            <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; text-align: left; font-family: monospace;">
+              <tr style="background-color: #2a2a2a;">
+                <th style="padding: 6px 10px; color: #aaaaaa; font-size: 11px; text-transform: uppercase;">Count</th>
+                <th style="padding: 6px 10px; color: #aaaaaa; font-size: 11px; text-transform: uppercase;">Service</th>
+                <th style="padding: 6px 10px; color: #aaaaaa; font-size: 11px; text-transform: uppercase;">Message (truncated)</th>
+              </tr>
+              {% for err in prod_top_errors %}
+              <tr style="background-color: {% if loop.index is odd %}#1e1e1e{% else %}#252525{% endif %};">
+                <td style="padding: 6px 10px; color: #F44336; font-weight: bold;">{{ err.count }}×</td>
+                <td style="padding: 6px 10px; color: #81C784; white-space: nowrap;">{{ err.service }}</td>
+                <td style="padding: 6px 10px; color: #e6e6e6; word-break: break-all; font-size: 12px;">{{ err.message }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </mj-text>
+          {% else %}
+          <mj-text font-size="15px" padding-bottom="20px">
+            <span style="color: #4CAF50;">✓ No production errors this week.</span>
+          </mj-text>
+          {% endif %}
+
+          <!-- Dev errors -->
+          {% if dev_top_errors %}
+          <mj-text font-size="18px" padding-bottom="10px" font-weight="bold">
+            🟡 Dev — Top Errors
+          </mj-text>
+          <mj-text font-size="13px" padding-bottom="20px">
+            <table width="100%" cellpadding="6" cellspacing="0" style="border-collapse: collapse; text-align: left; font-family: monospace;">
+              <tr style="background-color: #2a2a2a;">
+                <th style="padding: 6px 10px; color: #aaaaaa; font-size: 11px; text-transform: uppercase;">Count</th>
+                <th style="padding: 6px 10px; color: #aaaaaa; font-size: 11px; text-transform: uppercase;">Service</th>
+                <th style="padding: 6px 10px; color: #aaaaaa; font-size: 11px; text-transform: uppercase;">Message (truncated)</th>
+              </tr>
+              {% for err in dev_top_errors %}
+              <tr style="background-color: {% if loop.index is odd %}#1e1e1e{% else %}#252525{% endif %};">
+                <td style="padding: 6px 10px; color: #FF9800; font-weight: bold;">{{ err.count }}×</td>
+                <td style="padding: 6px 10px; color: #81C784; white-space: nowrap;">{{ err.service }}</td>
+                <td style="padding: 6px 10px; color: #e6e6e6; word-break: break-all; font-size: 12px;">{{ err.message }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </mj-text>
+          {% endif %}
+
+          <mj-text font-size="13px" padding-bottom="30px" color="#888888" font-weight="normal">
+            Generated {{ generated_at }} UTC &nbsp;|&nbsp; Query window: last 7 days &nbsp;|&nbsp; Showing top 20 per environment
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

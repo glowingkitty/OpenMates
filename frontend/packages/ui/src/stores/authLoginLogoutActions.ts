@@ -594,6 +594,18 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
           );
         }
 
+        // Clear any queued AI responses (would belong to the logged-out session)
+        try {
+          const { clearAllPendingAIResponses } =
+            await import("../services/pendingAIResponses");
+          clearAllPendingAIResponses();
+        } catch (clearError) {
+          console.error(
+            "[AuthStore] Failed to clear pending AI responses:",
+            clearError,
+          );
+        }
+
         // RACE CONDITION CHECK: If a new login happened while we were deleting
         // databases, skip the server logout and cookie deletion — they would
         // invalidate the new session's credentials.

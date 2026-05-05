@@ -27,7 +27,25 @@ import {
 } from "./encryption/MetadataEncryptor";
 import { getTracer } from './tracing/setup';
 import { injectTraceparent } from './tracing/wsSpans';
+import { addCandidateKey } from "./db/chatCrudOperations";
+import { encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
+import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import type { Chat, Message } from "../types/chat";
+
+async function abortUnsafeKeyMismatch(
+	chatId: string,
+	encryptedChatKey: string,
+	reason: string
+): Promise<void> {
+	addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
+	console.error(
+		`[ChatSyncService:Senders] ❌ UNSAFE KEY MISMATCH for ${chatId}: ${reason}. ` +
+			`Aborting send instead of uploading content encrypted with one key and encrypted_chat_key from another.`
+	);
+	notificationStore.error(
+		"We could not safely send this message because this chat has conflicting encryption keys. Please reload and try again."
+	);
+}
 
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
@@ -847,9 +865,21 @@ export async function sendNewMessageImpl(
 						`[ChatSyncService:Senders] No chat key available for embed key wrapping (chat ${message.chat_id}). Embeds will not be encrypted.`
 					);
 				}
+				const chatKeySafeForEmbedStorage = chatKey
+					? await ensureChatKeySafeForWrite(
+							message.chat_id,
+							chatKey,
+							"direct message embed storage"
+						)
+					: false;
+				if (chatKey && !chatKeySafeForEmbedStorage) {
+					console.error(
+						`[ChatSyncService:Senders] Skipping direct embed storage for ${message.chat_id} because chat key validation failed.`
+					);
+				}
 
 				// Only proceed if we have a chat key (user_id is optional - server fills it in)
-				if (chatKey) {
+				if (chatKey && chatKeySafeForEmbedStorage) {
 					// Prepare encrypted embeds for Directus storage
 					// IMPORTANT: Use snake_case for Directus fields (created_at, updated_at)
 					// and Unix timestamps in SECONDS (not milliseconds)
@@ -1142,8 +1172,13 @@ export async function sendCompletedAIResponseImpl(
 	aiMessage: Message
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+		// Queue for replay on reconnect instead of silently dropping — a dropped
+		// ai_response_completed leaves messages_v permanently stale on the server,
+		// making the AI reply invisible even after logout+login (no version gap detected).
+		const { addPendingAIResponse } = await import("./pendingAIResponses");
+		addPendingAIResponse(aiMessage.message_id, aiMessage.chat_id);
 		console.warn(
-			"[ChatSyncService:Senders] WebSocket not connected. AI response not sent to server."
+			`[ChatSyncService:Senders] WebSocket not connected. Queued AI response ${aiMessage.message_id} for reconnect.`
 		);
 		return;
 	}
@@ -1187,6 +1222,21 @@ export async function sendCompletedAIResponseImpl(
 		console.debug(
 			`[ChatSyncService:Senders] Using current messages_v for chat ${chat.chat_id}: ${newMessagesV} (not writing back to IDB — version owned by chat_message_added handler)`
 		);
+
+		const chatKey =
+			chatKeyManager.getKeySync(aiMessage.chat_id) ||
+			(await chatKeyManager.getKey(aiMessage.chat_id));
+		if (
+			chatKey &&
+			!(await ensureChatKeySafeForWrite(
+				aiMessage.chat_id,
+				chatKey,
+				"assistant response encryption"
+			))
+		) {
+			serviceInstance.unmarkMessageSyncing(aiMessage.message_id);
+			return;
+		}
 
 		// Encrypt the completed AI response for storage
 		// CRITICAL FIX: await getEncryptedFields since it's now async to prevent storing Promises
@@ -1365,6 +1415,22 @@ export async function sendEncryptedStoragePackage(
 		// Prefer any cached chat key first (covers hidden chats already unlocked).
 		let chatKey: Uint8Array | null = await chatKeyManager.getKey(chat_id);
 
+		if (chatKey && encryptedChatKey) {
+			const keyMatches = await encryptedChatKeyMatchesRawKey(
+				encryptedChatKey,
+				chatKey,
+				decryptChatKeyWithMasterKey
+			);
+			if (keyMatches === false) {
+				await abortUnsafeKeyMismatch(
+					chat_id,
+					encryptedChatKey,
+					"cached raw key differs from persisted encrypted_chat_key"
+				);
+				return;
+			}
+		}
+
 		if (!chatKey && encryptedChatKey) {
 			// CASE 1: encrypted_chat_key exists - MUST decrypt it to get the original key
 			// This ensures we use the SAME key that was stored when the chat was created
@@ -1374,9 +1440,16 @@ export async function sendEncryptedStoragePackage(
 			const decryptedKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
 
 			if (decryptedKey) {
+				const accepted = chatDB.setChatKey(chat_id, decryptedKey);
+				if (!accepted) {
+					await abortUnsafeKeyMismatch(
+						chat_id,
+						encryptedChatKey,
+						"decrypted persisted key was rejected by ChatKeyManager"
+					);
+					return;
+				}
 				chatKey = decryptedKey;
-				// Update the cache with the correct key
-				chatDB.setChatKey(chat_id, chatKey);
 				console.log(
 					`[ChatSyncService:Senders] ✅ Decrypted and cached chat key for ${chat_id}, length: ${chatKey.length}`
 				);
@@ -1394,8 +1467,16 @@ export async function sendEncryptedStoragePackage(
 					const hiddenResult =
 						await hiddenChatService.tryDecryptChatKey(encryptedChatKey);
 					if (hiddenResult.chatKey) {
+						const accepted = chatDB.setChatKey(chat_id, hiddenResult.chatKey);
+						if (!accepted) {
+							await abortUnsafeKeyMismatch(
+								chat_id,
+								encryptedChatKey,
+								"hidden-chat decrypted key was rejected by ChatKeyManager"
+							);
+							return;
+						}
 						chatKey = hiddenResult.chatKey;
-						chatDB.setChatKey(chat_id, chatKey);
 						console.info(
 							`[ChatSyncService:Senders] ✅ Decrypted chat key via hidden chat path for ${chat_id}`
 						);
@@ -1438,7 +1519,15 @@ export async function sendEncryptedStoragePackage(
 				if (!chatKey) {
 					chatKey = await decryptChatKeyWithMasterKey(freshEncKey);
 					if (chatKey) {
-						chatDB.setChatKey(chat_id, chatKey);
+						const accepted = chatDB.setChatKey(chat_id, chatKey);
+						if (!accepted) {
+							await abortUnsafeKeyMismatch(
+								chat_id,
+								freshEncKey,
+								"freshly re-read encrypted_chat_key was rejected by ChatKeyManager"
+							);
+							return;
+						}
 					}
 				}
 			}

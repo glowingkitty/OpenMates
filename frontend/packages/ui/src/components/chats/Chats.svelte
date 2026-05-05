@@ -247,9 +247,15 @@ let _chatUpdatedFlushPending = false;
 		// Reference the locale store to make the derived recalculate when language changes
 		// This triggers reactivity whenever the user changes the language
 		void $svelteLocaleStore;
-		
+
 		// Reference the text store to ensure reactivity when translations are loaded
 		void $text;
+
+		// Explicit dependency on language-changed events (bumped by languageChangeHandler).
+		// This guarantees a re-derive after the ?lang= URL param flow completes — that path
+		// dispatches language-changed only after waitLocale() resolves, so translations are
+		// confirmed loaded when this runs.
+		void _languageChangeTick;
 		
 		// Example chats are static — no store subscription needed
 		
@@ -361,7 +367,12 @@ let _chatUpdatedFlushPending = false;
 	// - Incognito chats: Ephemeral chats, stored in sessionStorage
 	let incognitoChatsTrigger = $state(0); // Trigger for reactivity when incognito chats change
 	let incognitoChats: ChatType[] = $state([]); // Cache for incognito chats
-	
+	// Incremented by the language-changed event handler so visiblePublicChats
+	// is guaranteed to re-derive after translations are confirmed loaded —
+	// even when the locale change originates from a ?lang= URL param (which
+	// doesn't rely solely on store-subscription timing).
+	let _languageChangeTick = $state(0);
+
 	let allChats = $derived((() => {
 		void visiblePublicChats;
 
@@ -1557,9 +1568,11 @@ let _chatUpdatedFlushPending = false;
 		// languageChangeHandler for UI text (e.g. static labels, not dynamic group titles)
 		languageChangeHandler = () => {
 			console.debug('[Chats] Language changed event detected.');
-			// Force a re-render of components that use $_ directly if necessary,
-			// though reactive group titles should update via `currentLocale` change.
-			// Forcing update of allChatsFromDB to trigger reactivity:
+			// Bump the tick so visiblePublicChats re-derives with fresh translations.
+			// This is the primary trigger for re-translating intro chat titles after
+			// a language switch (both from Settings and from ?lang= URL param).
+			_languageChangeTick++;
+			// Also re-spread allChatsFromDB to refresh group headings / date labels.
 			allChatsFromDB = [...allChatsFromDB];
 		};
 		window.addEventListener('language-changed', languageChangeHandler);

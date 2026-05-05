@@ -839,6 +839,11 @@ export async function handleSend(
     );
     throw recEmbedRegError;
   }
+
+  // NOTE: PDF embed registration is intentionally NOT done here.
+  // PDF dedup is disabled (see internal_api.py). Every PDF upload triggers
+  // fresh OCR which delivers the full TOON via send_embed_data. Registering
+  // a minimal TOON here would overwrite the full OCR cache on the server.
   embedRegSpan.end();
 
   // Get the TipTap editor content as JSON

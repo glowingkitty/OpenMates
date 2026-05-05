@@ -11,6 +11,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
+from backend.core.api.app.services.email_delivery_guard import send_email_once
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 
@@ -140,7 +141,14 @@ async def _async_process_password_security_reminders(task: BaseServiceTask) -> d
                     "passkeys_settings_url": _build_settings_url("account/security/passkeys"),
                 }
 
-                sent = await task.email_template_service.send_email(
+                sent, delivery_status = await send_email_once(
+                    directus=task.directus_service,
+                    email_template_service=task.email_template_service,
+                    email_type="password_security_reminder",
+                    campaign_key="password_security_reminder_v1",
+                    recipient_kind="directus_user",
+                    recipient_id=user_id,
+                    stage=f"day-{days_since_signup}",
                     template="password-security-reminder",
                     recipient_email=decrypted_email,
                     context=context,
@@ -149,6 +157,8 @@ async def _async_process_password_security_reminders(task: BaseServiceTask) -> d
 
                 if sent:
                     stats["sent"] += 1
+                elif delivery_status == "already_reserved":
+                    logger.info("Password security reminder already reserved for user %s day %s", user_id[:8], days_since_signup)
 
             if len(users) < USER_PAGE_SIZE:
                 break

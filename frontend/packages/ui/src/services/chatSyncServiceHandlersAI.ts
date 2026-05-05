@@ -15,6 +15,7 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import {
   encryptWithChatKey,
   decryptWithChatKey,
@@ -610,7 +611,11 @@ async function requestEmbedFromServer(embedId: string): Promise<void> {
 
     // Check if embed already exists in local store
     const { embedStore } = await import("./embedStore");
-    const existingEmbed = await embedStore.get(`embed:${embedId}`);
+    const existingEmbedRaw = await embedStore.get(`embed:${embedId}`);
+    const existingEmbed =
+      existingEmbedRaw && typeof existingEmbedRaw !== "string"
+        ? existingEmbedRaw
+        : null;
 
     if (existingEmbed && existingEmbed.status === "finished") {
       console.debug(
@@ -1192,6 +1197,15 @@ export async function handleAITypingStartedImpl( // Changed to async
         }, 3000);
         // Return early — do NOT proceed with metadata encryption or sendEncryptedStoragePackage
         // on a secondary device without the correct key. The originating device handles all of it.
+        return;
+      }
+      if (
+        !(await ensureChatKeySafeForWrite(
+          payload.chat_id,
+          chatKey,
+          "ai_typing_started metadata encryption",
+        ))
+      ) {
         return;
       }
       // Flush regular messages and system messages queued waiting for this key (cross-device sync fix)
@@ -1916,6 +1930,15 @@ export async function handlePostProcessingCompletedImpl(
     }
     if (!postProcessingKey) return; // Safety — should not happen after withKey resolves
     const chatKey: Uint8Array = postProcessingKey;
+    if (
+      !(await ensureChatKeySafeForWrite(
+        payload.chat_id,
+        chatKey,
+        "post-processing metadata encryption",
+      ))
+    ) {
+      return;
+    }
     // Encrypt and save follow-up suggestions to chat record (last 18)
     // CRITICAL FIX: await encryption operation since encryptArrayWithChatKey is async
     if (
@@ -2395,6 +2418,14 @@ export async function handleEmbedUpdateImpl(
     console.debug(
       `[ChatSyncService:AI] embed_update: Skipping ${payload.embed_id} - already fully processed by send_embed_data handler`,
     );
+    // FIX: Clear stale in-memory cache (same multi-tab fix as in send_embed_data DUPLICATE path)
+    const { embedStore: euEmbedStore } = await import("./embedStore");
+    euEmbedStore.removeFromMemoryCache(`embed:${payload.embed_id}`);
+    if (payload.child_embed_ids && Array.isArray(payload.child_embed_ids)) {
+      for (const childId of payload.child_embed_ids) {
+        euEmbedStore.removeFromMemoryCache(`embed:${childId}`);
+      }
+    }
     // Still dispatch a lightweight UI refresh event (status may have changed)
     serviceInstance.dispatchEvent(
       new CustomEvent("embedUpdated", {
@@ -2416,8 +2447,33 @@ export async function handleEmbedUpdateImpl(
     const embedRef = `embed:${payload.embed_id}`;
 
     // Get the existing embed (from memory cache or IndexedDB)
-    const existingEmbed = await embedStore.get(embedRef);
-    if (existingEmbed) {
+    const existingEmbedRaw = await embedStore.get(embedRef);
+    if (existingEmbedRaw && typeof existingEmbedRaw !== "string") {
+      type MutableEmbedRecord = Record<string, unknown> & {
+        status?: string;
+        encrypted_content?: string;
+        encrypted_type?: string;
+        hashed_chat_id?: string;
+        hashed_message_id?: string;
+        hashed_task_id?: string;
+        content?: string;
+        type?: EmbedType;
+        parent_embed_id?: string;
+        embed_ids?: string[];
+        version_number?: number;
+        file_path?: string;
+        content_hash?: string;
+        text_length_chars?: number;
+        is_private?: boolean;
+        is_shared?: boolean;
+        createdAt?: number;
+        updatedAt?: number;
+        app_id?: string;
+        skill_id?: string;
+        chat_id?: string;
+        user_id?: string;
+      };
+      const existingEmbed = existingEmbedRaw as MutableEmbedRecord;
       // STATE MACHINE: Validate transition before applying the status change
       if (existingEmbed.status) {
         try {
@@ -2630,6 +2686,17 @@ export async function handleEmbedUpdateImpl(
               if (!chatKey) {
                 throw new Error(
                   `No chat key available for embed key wrapping (chat ${chatId})`,
+                );
+              }
+              if (
+                !(await ensureChatKeySafeForWrite(
+                  chatId,
+                  chatKey,
+                  "embed_update key wrapping",
+                ))
+              ) {
+                throw new Error(
+                  `Unsafe chat key for embed key wrapping (chat ${chatId})`,
                 );
               }
               const wrappedChatKey = await wrapEmbedKeyWithChatKey(
@@ -2931,8 +2998,14 @@ export async function handleSendEmbedDataImpl(
     const { embedStore: stateCheckStore } = await import("./embedStore");
     const stateCheckRef = `embed:${embedData.embed_id}`;
     const existingEntry = await stateCheckStore.get(stateCheckRef);
-    if (existingEntry?.status) {
-      const currentStatus = existingEntry.status;
+    const existingStatus =
+      existingEntry && typeof existingEntry !== "string"
+        ? typeof existingEntry.status === "string"
+          ? existingEntry.status
+          : null
+        : null;
+    if (existingStatus) {
+      const currentStatus = existingStatus;
       const incomingStatus = normalizeStatus(embedData.status);
       if (
         !validateEmbedTransition(
@@ -3067,7 +3140,14 @@ export async function handleSendEmbedDataImpl(
         );
         if (!existingKey) {
           const chatKey = await chatKeyManager.getKey(embedData.chat_id);
-          if (chatKey) {
+          if (
+            chatKey &&
+            (await ensureChatKeySafeForWrite(
+              embedData.chat_id,
+              chatKey,
+              "early embed key derivation",
+            ))
+          ) {
             // Deterministic derivation: HKDF(chatKey, embedId) — same on every tab
             const newKey = await deriveEmbedKeyFromChatKey(chatKey, embedData.embed_id);
             // Cache the key so children can find it
@@ -3186,6 +3266,23 @@ export async function handleSendEmbedDataImpl(
             `(status=${embedData.status}) - skipping duplicate processing. ` +
             `This should not happen if deduplication is working correctly!`,
         );
+
+        // FIX: Clear stale in-memory cache entries so refetchFromStore() reads
+        // from IndexedDB. In multi-tab setups, tab 2 may still hold a "processing"
+        // entry from setInMemoryOnly() that putEncrypted() never overwrote (because
+        // this tab skipped processing via the DUPLICATE check). Without this,
+        // embedStore.get() always returns the stale cache hit and never reaches IDB
+        // where the correctly encrypted+finished data lives.
+        const { embedStore: dupEmbedStore } = await import("./embedStore");
+        dupEmbedStore.removeFromMemoryCache(`embed:${embedData.embed_id}`);
+        // Also clear child embed caches — fullscreen views load children via
+        // resolveEmbed() which would hit the same stale-cache problem.
+        if (embedData.embed_ids && Array.isArray(embedData.embed_ids)) {
+          for (const childId of embedData.embed_ids) {
+            dupEmbedStore.removeFromMemoryCache(`embed:${childId}`);
+          }
+        }
+
         // Still dispatch event for UI refresh, but don't re-encrypt or re-send
         serviceInstance.dispatchEvent(
           new CustomEvent("embedUpdated", {
@@ -3421,7 +3518,6 @@ export async function handleSendEmbedDataImpl(
       const embedStoreModule = await import("./embedStore");
       const embedStore = embedStoreModule.embedStore;
       const { computeSHA256 } = await import("../message_parsing/utils");
-      const { chatDB } = await import("./db");
 
       // 0. Hash IDs first (needed for parent key lookup if this is a child embed)
       const hashedChatId = await computeSHA256(embedData.chat_id);
@@ -3526,16 +3622,21 @@ export async function handleSendEmbedDataImpl(
         } else {
           // Derive deterministically from chat key — all tabs produce the same result
           const chatKeyForDerivation = await chatKeyManager.getKey(embedData.chat_id);
-          if (chatKeyForDerivation) {
+          if (
+            chatKeyForDerivation &&
+            (await ensureChatKeySafeForWrite(
+              embedData.chat_id,
+              chatKeyForDerivation,
+              "finalized parent embed key derivation",
+            ))
+          ) {
             embedKey = await deriveEmbedKeyFromChatKey(chatKeyForDerivation, embedData.embed_id);
             console.debug(
               `[ChatSyncService:AI] Derived embed key (HKDF) for finalized parent embed ${embedData.embed_id}`,
             );
           } else {
-            // Fallback to random key if chat key unavailable (should not happen for finalized embeds)
-            embedKey = generateEmbedKey();
-            console.warn(
-              `[ChatSyncService:AI] ⚠️ Chat key unavailable for HKDF derivation, using random key for embed ${embedData.embed_id}`,
+            throw new Error(
+              `[ChatSyncService:AI] Chat key unavailable or unsafe for HKDF derivation; refusing to persist embed ${embedData.embed_id}`,
             );
           }
         }
@@ -3632,6 +3733,17 @@ export async function handleSendEmbedDataImpl(
             `[ChatSyncService:AI] Chat key not in cache for chat ${embedData.chat_id} — ` +
               `refusing to generate throwaway key. Embed ${embedData.embed_id} will be ` +
               `re-requested by the renderer after the chat key is available.`,
+          );
+        }
+        if (
+          !(await ensureChatKeySafeForWrite(
+            embedData.chat_id,
+            chatKey,
+            "finalized parent embed key wrapping",
+          ))
+        ) {
+          throw new Error(
+            `[ChatSyncService:AI] Unsafe chat key for embed ${embedData.embed_id}; refusing Directus storage.`,
           );
         }
         wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
@@ -3922,7 +4034,15 @@ export async function handleSendEmbedDataImpl(
     // Without this, a transient failure (for example chat-key cache race while
     // wrapping key_type='chat') can permanently skip key-wrapper persistence.
     unmarkEmbedAsProcessed(embedData.embed_id);
-    console.error(
+
+    // Key-not-in-cache is an expected transient race during embed finalization —
+    // the renderer's stale-recovery path re-requests the embed once the chat key
+    // loads, so this is a warning, not an error. Genuine failures stay at error.
+    const isKeyRace =
+      error instanceof Error &&
+      error.message.includes("Chat key not in cache");
+    const logFn = isKeyRace ? console.warn : console.error;
+    logFn(
       `[ChatSyncService:AI] Error handling send_embed_data for embed ${embedData.embed_id}:`,
       error,
     );

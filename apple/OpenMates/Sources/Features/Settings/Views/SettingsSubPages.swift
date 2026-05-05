@@ -1,5 +1,15 @@
 // Settings sub-page views — each page loads data from backend API endpoints.
 // All functionality is native — no web redirects. All strings use AppStrings (i18n).
+// Uses OMSettingsPage/Section/Row primitives — no Form/List/Toggle/Picker/.navigationTitle.
+
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+//          frontend/packages/ui/src/components/settings/SettingsSecurity.svelte
+//          frontend/packages/ui/src/components/settings/SettingsNotifications.svelte
+//          frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+//          frontend/packages/ui/src/components/settings/SettingsChat.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 import AuthenticationServices
@@ -14,27 +24,40 @@ struct SettingsAccountDetailView: View {
     @State private var saveMessage: String?
 
     var body: some View {
-        Form {
-            Section(AppStrings.username) {
-                TextField(AppStrings.username, text: $username)
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    #endif
-                    .accessibleInput(AppStrings.username, hint: LocalizationManager.shared.text("settings.username_hint"))
-                Button(AppStrings.save) {
-                    saveField(path: "/v1/settings/user/username", body: ["username": username])
+        OMSettingsPage(title: AppStrings.settingsAccount) {
+            OMSettingsSection(AppStrings.username) {
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    TextField(AppStrings.username, text: $username)
+                        .autocorrectionDisabled()
+                        .font(.omP)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing4)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .accessibleInput(AppStrings.username, hint: L("settings.username_hint"))
+
+                    Button(AppStrings.save) {
+                        saveField(path: "/v1/settings/user/username", body: ["username": username])
+                    }
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .disabled(username.isEmpty || isSaving)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.bottom, .spacing4)
+                    .accessibleButton(AppStrings.save, hint: L("settings.save_username_hint"))
                 }
-                .disabled(username.isEmpty || isSaving)
-                .accessibleButton(AppStrings.save, hint: LocalizationManager.shared.text("settings.save_username_hint"))
             }
 
-            Section(AppStrings.timezone) {
-                Picker(AppStrings.timezone, selection: $timezone) {
-                    ForEach(TimeZone.knownTimeZoneIdentifiers.sorted(), id: \.self) { tz in
-                        Text(tz).tag(tz)
-                    }
-                }
+            OMSettingsSection(AppStrings.timezone) {
+                OMDropdown(
+                    title: AppStrings.timezone,
+                    options: TimeZone.knownTimeZoneIdentifiers.sorted().map {
+                        OMDropdownOption($0, label: $0)
+                    },
+                    selection: $timezone
+                )
+                .padding(.horizontal, .spacing6)
+                .padding(.vertical, .spacing4)
                 .onChange(of: timezone) { _, newValue in
                     saveField(path: "/v1/settings/user/timezone", body: ["timezone": newValue])
                 }
@@ -44,9 +67,9 @@ struct SettingsAccountDetailView: View {
                 Text(saveMessage)
                     .font(.omXs)
                     .foregroundStyle(Color.fontSecondary)
+                    .padding(.horizontal, .spacing6)
             }
         }
-        .navigationTitle(AppStrings.settingsAccount)
         .onAppear {
             username = authManager.currentUser?.username ?? ""
             timezone = authManager.currentUser?.timezone ?? TimeZone.current.identifier
@@ -79,37 +102,29 @@ struct SettingsUsageView: View {
     @State private var usageDetails: [[String: AnyCodable]] = []
 
     var body: some View {
-        List {
-            Section {
-                HStack {
-                    Text(L("settings.usage.total_credits"))
-                    Spacer()
-                    Text(String(format: "%.4f", totalCreditsUsed))
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                HStack {
-                    Text(L("settings.usage.messages"))
-                    Spacer()
-                    Text("\(messageCount)")
-                        .foregroundStyle(Color.fontSecondary)
-                }
+        OMSettingsPage(title: AppStrings.usage) {
+            OMSettingsSection {
+                OMSettingsStaticRow(
+                    title: L("settings.usage.total_credits"),
+                    value: String(format: "%.4f", totalCreditsUsed)
+                )
+                OMSettingsStaticRow(
+                    title: L("settings.usage.messages"),
+                    value: "\(messageCount)"
+                )
             }
 
             if !usageDetails.isEmpty {
-                Section(L("settings.usage.by_app")) {
+                OMSettingsSection(L("settings.usage.by_app")) {
                     ForEach(Array(usageDetails.enumerated()), id: \.offset) { _, detail in
-                        HStack {
-                            Text(detail["app_name"]?.value as? String ?? "—")
-                                .font(.omSmall)
-                            Spacer()
-                            Text(String(format: "%.4f", detail["credits"]?.value as? Double ?? 0))
-                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                        }
+                        OMSettingsStaticRow(
+                            title: detail["app_name"]?.value as? String ?? "—",
+                            value: String(format: "%.4f", detail["credits"]?.value as? Double ?? 0)
+                        )
                     }
                 }
             }
         }
-        .navigationTitle(AppStrings.usage)
         .task { await loadUsage() }
     }
 
@@ -138,26 +153,35 @@ struct SettingsGiftCardsView: View {
     @State private var result: String?
 
     var body: some View {
-        Form {
-            Section(L("settings.gift_cards.redeem")) {
-                TextField(L("settings.gift_cards.code"), text: $giftCode)
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.characters)
-                    #endif
-                    .accessibleInput(L("settings.gift_cards.code"), hint: L("settings.gift_cards.code_hint"))
-                Button(L("settings.gift_cards.redeem_button")) { redeemGiftCard() }
-                    .disabled(giftCode.isEmpty || isRedeeming)
-                    .accessibleButton(L("settings.gift_cards.redeem_button"), hint: L("settings.gift_cards.redeem_hint"))
-            }
-            if let result {
-                Section {
-                    Text(result)
-                        .foregroundStyle(result.contains("error") ? Color.error : Color.fontPrimary)
+        OMSettingsPage(title: AppStrings.giftCards) {
+            OMSettingsSection(L("settings.gift_cards.redeem")) {
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    TextField(L("settings.gift_cards.code"), text: $giftCode)
+                        .autocorrectionDisabled()
+                        .font(.omP)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing4)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.characters)
+                        #endif
+                        .accessibleInput(L("settings.gift_cards.code"), hint: L("settings.gift_cards.code_hint"))
+
+                    Button(L("settings.gift_cards.redeem_button")) { redeemGiftCard() }
+                        .buttonStyle(OMPrimaryButtonStyle())
+                        .disabled(giftCode.isEmpty || isRedeeming)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.bottom, .spacing4)
+                        .accessibleButton(L("settings.gift_cards.redeem_button"), hint: L("settings.gift_cards.redeem_hint"))
                 }
             }
+
+            if let result {
+                Text(result)
+                    .font(.omSmall)
+                    .foregroundStyle(result.contains("error") ? Color.error : Color.fontPrimary)
+                    .padding(.horizontal, .spacing6)
+            }
         }
-        .navigationTitle(AppStrings.giftCards)
     }
 
     private func redeemGiftCard() {
@@ -194,20 +218,26 @@ struct SettingsPasskeysView: View {
     }
 
     var body: some View {
-        List {
+        OMSettingsPage(title: AppStrings.passkeys) {
             if isLoading {
                 ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.spacing8)
             } else if passkeys.isEmpty {
-                Section {
+                OMSettingsSection {
                     Text(L("settings.passkeys.none_registered"))
+                        .font(.omSmall)
                         .foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing5)
                 }
             } else {
-                Section(AppStrings.passkeys) {
+                OMSettingsSection(AppStrings.passkeys) {
                     ForEach(passkeys) { passkey in
                         VStack(alignment: .leading, spacing: .spacing1) {
                             Text(passkey.name ?? L("settings.passkeys.unnamed"))
                                 .font(.omP).fontWeight(.medium)
+                                .foregroundStyle(Color.fontPrimary)
                             if let created = passkey.createdAt {
                                 Text("\(L("settings.passkeys.added")): \(String(created.prefix(10)))")
                                     .font(.omXs).foregroundStyle(Color.fontTertiary)
@@ -217,23 +247,18 @@ struct SettingsPasskeysView: View {
                                     .font(.omXs).foregroundStyle(Color.fontTertiary)
                             }
                         }
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                deletePasskey(id: passkey.id)
-                            } label: {
-                                Label(AppStrings.delete, systemImage: "trash")
-                            }
-                        }
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing5)
                     }
                 }
             }
 
-            Section {
-                Button(AppStrings.addPasskey) { addPasskey() }
-                    .accessibleButton(AppStrings.addPasskey, hint: L("settings.add_passkey_hint"))
+            OMSettingsSection {
+                OMSettingsRow(title: AppStrings.addPasskey, icon: "plus", showsChevron: false) {
+                    addPasskey()
+                }
             }
         }
-        .navigationTitle(AppStrings.passkeys)
         .task { await loadPasskeys() }
     }
 
@@ -247,7 +272,6 @@ struct SettingsPasskeysView: View {
     }
 
     private func addPasskey() {
-        // Native passkey registration via ASAuthorization
         #if os(iOS)
         let controller = ASAuthorizationController(authorizationRequests: [
             ASAuthorizationPlatformPublicKeyCredentialProvider(
@@ -258,10 +282,8 @@ struct SettingsPasskeysView: View {
                 userID: Data()
             )
         ])
-        // Registration flow handled by the system dialog
         isAddingPasskey = true
         #endif
-        // Reload after attempting
         Task {
             try? await Task.sleep(for: .seconds(2))
             await loadPasskeys()
@@ -298,38 +320,49 @@ struct SettingsPasswordView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                SecureField(L("settings.password.current"), text: $currentPassword)
-                    .textContentType(.password)
-                    .accessibleInput(L("settings.password.current"), hint: L("settings.current_password_hint"))
-                SecureField(L("settings.password.new"), text: $newPassword)
-                    .textContentType(.newPassword)
-                    .accessibleInput(L("settings.password.new"), hint: L("settings.new_password_hint"))
-                SecureField(L("settings.password.confirm"), text: $confirmPassword)
-                    .textContentType(.newPassword)
-                    .accessibleInput(L("settings.password.confirm"), hint: L("auth.retype_new_password"))
+        OMSettingsPage(title: AppStrings.password) {
+            OMSettingsSection {
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    SecureField(L("settings.password.current"), text: $currentPassword)
+                        .textContentType(.password)
+                        .font(.omP)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing4)
+                        .accessibleInput(L("settings.password.current"), hint: L("settings.current_password_hint"))
+                    SecureField(L("settings.password.new"), text: $newPassword)
+                        .textContentType(.newPassword)
+                        .font(.omP)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing4)
+                        .accessibleInput(L("settings.password.new"), hint: L("settings.new_password_hint"))
+                    SecureField(L("settings.password.confirm"), text: $confirmPassword)
+                        .textContentType(.newPassword)
+                        .font(.omP)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing4)
+                        .accessibleInput(L("settings.password.confirm"), hint: L("auth.retype_new_password"))
+                }
             }
 
             if newPassword != confirmPassword && !confirmPassword.isEmpty {
                 Text(L("settings.password.mismatch"))
                     .font(.omXs).foregroundStyle(Color.error)
+                    .padding(.horizontal, .spacing6)
                     .accessibilityLabel(L("settings.password.mismatch"))
             }
 
-            Section {
-                Button(L("settings.password.update")) { updatePassword() }
-                    .disabled(!isValid || isSaving)
-                    .accessibleButton(L("settings.password.update"), hint: L("settings.save_new_password_hint"))
-            }
+            Button(L("settings.password.update")) { updatePassword() }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .disabled(!isValid || isSaving)
+                .accessibleButton(L("settings.password.update"), hint: L("settings.save_new_password_hint"))
 
             if let result {
                 Text(result)
                     .font(.omXs)
                     .foregroundStyle(result.contains(AppStrings.error) ? Color.error : Color.fontPrimary)
+                    .padding(.horizontal, .spacing6)
             }
         }
-        .navigationTitle(AppStrings.password)
     }
 
     private func updatePassword() {
@@ -368,28 +401,26 @@ struct Settings2FAView: View {
     @State private var isSettingUp = false
 
     var body: some View {
-        List {
-            Section {
-                HStack {
-                    Text(L("settings.two_factor_auth.status"))
-                    Spacer()
-                    Text(is2FAEnabled ? AppStrings.enabled : AppStrings.disabled)
-                        .foregroundStyle(is2FAEnabled ? .green : Color.fontSecondary)
-                        .fontWeight(.medium)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibleSetting(L("settings.two_factor_auth.status"), value: is2FAEnabled ? AppStrings.enabled : AppStrings.disabled)
+        OMSettingsPage(title: AppStrings.twoFactorAuth) {
+            OMSettingsSection {
+                OMSettingsStaticRow(
+                    title: L("settings.two_factor_auth.status"),
+                    value: is2FAEnabled ? AppStrings.enabled : AppStrings.disabled
+                )
             }
 
             if is2FAEnabled {
-                Section {
-                    Button(AppStrings.disable2FA, role: .destructive) {
+                OMSettingsSection {
+                    OMSettingsRow(
+                        title: AppStrings.disable2FA,
+                        isDestructive: true,
+                        showsChevron: false
+                    ) {
                         disable2FA()
                     }
-                    .accessibleButton(AppStrings.disable2FA, hint: L("settings.disable_2fa_hint"))
                 }
             } else {
-                Section {
+                OMSettingsSection {
                     if isSettingUp, let secret = setupSecret {
                         VStack(alignment: .leading, spacing: .spacing3) {
                             Text(L("settings.two_factor_auth.scan_or_enter"))
@@ -397,8 +428,10 @@ struct Settings2FAView: View {
                             Text(secret)
                                 .font(.system(.body, design: .monospaced))
                                 .textSelection(.enabled)
+                                .foregroundStyle(Color.fontPrimary)
 
                             TextField(L("settings.two_factor_auth.enter_code"), text: $verificationCode)
+                                .font(.omP)
                                 #if os(iOS)
                                 .keyboardType(.numberPad)
                                 #endif
@@ -407,20 +440,25 @@ struct Settings2FAView: View {
                             Button(L("settings.two_factor_auth.verify")) {
                                 verify2FA()
                             }
+                            .buttonStyle(OMPrimaryButtonStyle())
                             .disabled(verificationCode.count != 6)
                             .accessibleButton(L("settings.two_factor_auth.verify"), hint: L("settings.verify_2fa_code_hint"))
                         }
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing5)
                     } else {
-                        Button(AppStrings.setup2FA) { initSetup2FA() }
-                            .accessibleButton(AppStrings.setup2FA, hint: L("settings.setup_2fa_hint"))
+                        OMSettingsRow(title: AppStrings.setup2FA, icon: "shield", showsChevron: false) {
+                            initSetup2FA()
+                        }
                     }
 
                     Text(L("settings.two_factor_auth.description"))
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing4)
                 }
             }
         }
-        .navigationTitle(AppStrings.twoFactorAuth)
         .task { await load2FAStatus() }
     }
 
@@ -487,65 +525,86 @@ struct SettingsRecoveryKeyView: View {
     @State private var regeneratePassword = ""
 
     var body: some View {
-        List {
-            Section {
+        OMSettingsPage(title: AppStrings.recoveryKey) {
+            OMSettingsSection {
                 Text(L("settings.recovery_key.description"))
+                    .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing5)
             }
 
             if needsVerification {
-                Section(L("settings.recovery_key.verify_identity")) {
-                    SecureField(AppStrings.enterPassword, text: $verificationCode)
-                        .accessibleInput(AppStrings.enterPassword, hint: L("auth.enter_account_password"))
-                    Button(L("settings.recovery_key.verify")) { verifyAndShow() }
-                        .disabled(verificationCode.isEmpty || isLoading)
-                        .accessibleButton(L("settings.recovery_key.verify"), hint: L("settings.verify_to_reveal_key"))
+                OMSettingsSection(L("settings.recovery_key.verify_identity")) {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        SecureField(AppStrings.enterPassword, text: $verificationCode)
+                            .font(.omP)
+                            .padding(.horizontal, .spacing6)
+                            .padding(.vertical, .spacing4)
+                            .accessibleInput(AppStrings.enterPassword, hint: L("auth.enter_account_password"))
+                        Button(L("settings.recovery_key.verify")) { verifyAndShow() }
+                            .buttonStyle(OMPrimaryButtonStyle())
+                            .disabled(verificationCode.isEmpty || isLoading)
+                            .padding(.horizontal, .spacing6)
+                            .padding(.bottom, .spacing4)
+                            .accessibleButton(L("settings.recovery_key.verify"), hint: L("settings.verify_to_reveal_key"))
+                    }
                 }
             } else if let key = recoveryKey {
-                Section(L("settings.recovery_key.your_key")) {
-                    Text(key)
-                        .font(.system(.body, design: .monospaced))
-                        .textSelection(.enabled)
-                        .padding(.vertical, .spacing2)
-                        .accessibilityLabel(L("settings.recovery_key.your_key"))
-                        .accessibilityValue(key)
-                        .accessibilityHint(L("auth.double_tap_to_select"))
+                OMSettingsSection(L("settings.recovery_key.your_key")) {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        Text(key)
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
+                            .foregroundStyle(Color.fontPrimary)
+                            .padding(.vertical, .spacing2)
+                            .accessibilityLabel(L("settings.recovery_key.your_key"))
+                            .accessibilityValue(key)
+                            .accessibilityHint(L("auth.double_tap_to_select"))
 
-                    Button(AppStrings.copy) {
-                        #if os(iOS)
-                        UIPasteboard.general.string = key
-                        #elseif os(macOS)
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(key, forType: .string)
-                        #endif
-                        ToastManager.shared.show(AppStrings.copied, type: .success)
-                        AccessibilityAnnouncement.announce(AppStrings.copied)
+                        Button(AppStrings.copy) {
+                            #if os(iOS)
+                            UIPasteboard.general.string = key
+                            #elseif os(macOS)
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(key, forType: .string)
+                            #endif
+                            ToastManager.shared.show(AppStrings.copied, type: .success)
+                            AccessibilityAnnouncement.announce(AppStrings.copied)
+                        }
+                        .buttonStyle(OMPrimaryButtonStyle())
+                        .accessibleButton(AppStrings.copy, hint: L("auth.copy_recovery_key_hint"))
+
+                        Text(L("settings.recovery_key.store_securely"))
+                            .font(.omXs).foregroundStyle(Color.warning)
                     }
-                    .accessibleButton(AppStrings.copy, hint: L("auth.copy_recovery_key_hint"))
-
-                    Text(L("settings.recovery_key.store_securely"))
-                        .font(.omXs).foregroundStyle(Color.warning)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing5)
                 }
             }
 
-            Section {
+            OMSettingsSection {
                 if isRegenerating {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         SecureField(AppStrings.enterPassword, text: $regeneratePassword)
+                            .font(.omP)
+                            .padding(.horizontal, .spacing6)
+                            .padding(.vertical, .spacing4)
                             .accessibleInput(AppStrings.enterPassword, hint: L("auth.enter_account_password"))
                         Button(AppStrings.confirm) { regenerateKey() }
+                            .buttonStyle(OMPrimaryButtonStyle())
                             .disabled(regeneratePassword.isEmpty)
+                            .padding(.horizontal, .spacing6)
+                            .padding(.bottom, .spacing4)
                             .accessibleButton(AppStrings.confirm, hint: L("settings.confirm_regenerate_key_hint"))
                     }
                 } else {
-                    Button(AppStrings.regenerateRecoveryKey) {
+                    OMSettingsRow(title: AppStrings.regenerateRecoveryKey, showsChevron: false) {
                         isRegenerating = true
                     }
-                    .accessibleButton(AppStrings.regenerateRecoveryKey, hint: L("settings.regenerate_key_hint"))
                 }
             }
         }
-        .navigationTitle(AppStrings.recoveryKey)
     }
 
     private func verifyAndShow() {
@@ -601,57 +660,65 @@ struct SettingsSessionsView: View {
     }
 
     var body: some View {
-        List {
+        OMSettingsPage(title: AppStrings.activeSessions) {
             if isLoading {
                 ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.spacing8)
             } else {
-                ForEach(sessions) { session in
-                    VStack(alignment: .leading, spacing: .spacing1) {
-                        HStack {
-                            Text(session.deviceOs ?? L("common.unknown"))
-                                .font(.omP).fontWeight(.medium)
-                            if session.isCurrent == true {
-                                Text(L("settings.sessions.current"))
-                                    .font(.omTiny).fontWeight(.bold)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, .spacing2)
-                                    .padding(.vertical, 2)
-                                    .background(Color.buttonPrimary)
-                                    .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                OMSettingsSection {
+                    ForEach(sessions) { session in
+                        VStack(alignment: .leading, spacing: .spacing1) {
+                            HStack {
+                                Text(session.deviceOs ?? L("common.unknown"))
+                                    .font(.omP).fontWeight(.medium)
+                                    .foregroundStyle(Color.fontPrimary)
+                                if session.isCurrent == true {
+                                    Text(L("settings.sessions.current"))
+                                        .font(.omTiny).fontWeight(.bold)
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, .spacing2)
+                                        .padding(.vertical, 2)
+                                        .background(Color.buttonPrimary)
+                                        .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                                }
+                            }
+                            if let model = session.deviceModel {
+                                Text(model).font(.omXs).foregroundStyle(Color.fontSecondary)
+                            }
+                            HStack(spacing: .spacing3) {
+                                if let city = session.city, let country = session.country {
+                                    Text("\(city), \(country)").font(.omXs).foregroundStyle(Color.fontTertiary)
+                                }
+                                if let lastActive = session.lastActive {
+                                    Text(lastActive).font(.omXs).foregroundStyle(Color.fontTertiary)
+                                }
                             }
                         }
-                        if let model = session.deviceModel {
-                            Text(model).font(.omXs).foregroundStyle(Color.fontSecondary)
-                        }
-                        HStack(spacing: .spacing3) {
-                            if let city = session.city, let country = session.country {
-                                Text("\(city), \(country)").font(.omXs).foregroundStyle(Color.fontTertiary)
-                            }
-                            if let lastActive = session.lastActive {
-                                Text(lastActive).font(.omXs).foregroundStyle(Color.fontTertiary)
-                            }
-                        }
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing5)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel({
+                            var label = session.deviceOs ?? L("common.unknown")
+                            if let model = session.deviceModel { label += ", \(model)" }
+                            if let city = session.city, let country = session.country { label += ", \(city), \(country)" }
+                            if session.isCurrent == true { label += ", \(L("settings.sessions.current"))" }
+                            return label
+                        }())
                     }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel({
-                        var label = session.deviceOs ?? L("common.unknown")
-                        if let model = session.deviceModel { label += ", \(model)" }
-                        if let city = session.city, let country = session.country { label += ", \(city), \(country)" }
-                        if session.isCurrent == true { label += ", \(L("settings.sessions.current"))" }
-                        return label
-                    }())
-                    .accessibilityHint(L("settings.swipe_left_to_revoke"))
                 }
             }
 
-            Section {
-                Button(AppStrings.logoutAllSessions, role: .destructive) {
+            OMSettingsSection {
+                OMSettingsRow(
+                    title: AppStrings.logoutAllSessions,
+                    isDestructive: true,
+                    showsChevron: false
+                ) {
                     logoutAll()
                 }
-                .accessibleButton(AppStrings.logoutAllSessions, hint: L("settings.logout_all_sessions_hint"))
             }
         }
-        .navigationTitle(AppStrings.activeSessions)
         .task { await loadSessions() }
     }
 
@@ -689,30 +756,35 @@ struct SettingsAutoDeleteView: View {
     }
 
     var body: some View {
-        List {
-            Section(AppStrings.autoDeleteChats) {
+        OMSettingsPage(title: AppStrings.autoDeleteChats) {
+            OMSettingsSection(AppStrings.autoDeleteChats) {
                 ForEach(options, id: \.0) { days, label in
                     Button {
                         autoDeleteDays = days
                         saveAutoDelete(days)
                     } label: {
                         HStack {
-                            Text(label).foregroundStyle(Color.fontPrimary)
+                            Text(label)
+                                .font(.omP)
+                                .foregroundStyle(Color.fontPrimary)
                             Spacer()
                             if autoDeleteDays == days {
-                                Image(systemName: "checkmark").foregroundStyle(Color.buttonPrimary)
+                                Icon("check", size: 16)
+                                    .foregroundStyle(Color.buttonPrimary)
                             }
                         }
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing5)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
 
-            Section {
-                Text(L("settings.auto_delete.description"))
-                    .font(.omXs).foregroundStyle(Color.fontSecondary)
-            }
+            Text(L("settings.auto_delete.description"))
+                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                .padding(.horizontal, .spacing6)
         }
-        .navigationTitle(AppStrings.autoDeleteChats)
         .task {
             guard !isLoaded else { return }
             do {
@@ -740,30 +812,38 @@ struct SettingsLanguageView: View {
     @EnvironmentObject var authManager: AuthManager
 
     var body: some View {
-        List {
-            ForEach(SupportedLanguage.allCases) { language in
-                Button {
-                    switchLanguage(language)
-                } label: {
-                    HStack {
-                        Text(language.name).foregroundStyle(Color.fontPrimary)
-                        if language.isRTL {
-                            Text("RTL")
-                                .font(.omTiny).foregroundStyle(Color.fontTertiary)
-                                .padding(.horizontal, .spacing2)
-                                .padding(.vertical, 1)
-                                .background(Color.grey10)
-                                .clipShape(RoundedRectangle(cornerRadius: .radius1))
+        OMSettingsPage(title: AppStrings.language) {
+            OMSettingsSection {
+                ForEach(SupportedLanguage.allCases) { language in
+                    Button {
+                        switchLanguage(language)
+                    } label: {
+                        HStack {
+                            Text(language.name)
+                                .font(.omP)
+                                .foregroundStyle(Color.fontPrimary)
+                            if language.isRTL {
+                                Text("RTL")
+                                    .font(.omTiny).foregroundStyle(Color.fontTertiary)
+                                    .padding(.horizontal, .spacing2)
+                                    .padding(.vertical, 1)
+                                    .background(Color.grey10)
+                                    .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                            }
+                            Spacer()
+                            if locManager.currentLanguage == language {
+                                Icon("check", size: 16)
+                                    .foregroundStyle(Color.buttonPrimary)
+                            }
                         }
-                        Spacer()
-                        if locManager.currentLanguage == language {
-                            Image(systemName: "checkmark").foregroundStyle(Color.buttonPrimary)
-                        }
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing5)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .navigationTitle(AppStrings.language)
         .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
     }
 
@@ -788,31 +868,31 @@ struct SettingsNotificationsView: View {
     @State private var isLoaded = false
 
     var body: some View {
-        Form {
-            Section(AppStrings.pushNotifications) {
-                Toggle(AppStrings.chatMessages, isOn: $chatNotifications)
-                    .tint(Color.buttonPrimary)
-                    .onChange(of: chatNotifications) { _, newValue in
-                        savePushNotifications(newValue)
-                    }
-                    .accessibleToggle(AppStrings.chatMessages, isOn: chatNotifications)
+        OMSettingsPage(title: AppStrings.settingsNotifications) {
+            OMSettingsSection(AppStrings.pushNotifications) {
+                OMSettingsToggleRow(
+                    title: AppStrings.chatMessages,
+                    isOn: $chatNotifications
+                )
+                .onChange(of: chatNotifications) { _, newValue in
+                    savePushNotifications(newValue)
+                }
             }
 
-            Section(AppStrings.emailNotifications) {
-                Toggle(AppStrings.emailNotifications, isOn: $emailNotifications)
-                    .tint(Color.buttonPrimary)
-                    .onChange(of: emailNotifications) { _, newValue in
-                        saveEmailNotifications(newValue)
-                    }
-                    .accessibleToggle(AppStrings.emailNotifications, isOn: emailNotifications)
+            OMSettingsSection(AppStrings.emailNotifications) {
+                OMSettingsToggleRow(
+                    title: AppStrings.emailNotifications,
+                    isOn: $emailNotifications
+                )
+                .onChange(of: emailNotifications) { _, newValue in
+                    saveEmailNotifications(newValue)
+                }
             }
 
-            Section {
-                Text(L("settings.notifications.permission_hint"))
-                    .font(.omXs).foregroundStyle(Color.fontSecondary)
-            }
+            Text(L("settings.notifications.permission_hint"))
+                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                .padding(.horizontal, .spacing6)
         }
-        .navigationTitle(AppStrings.settingsNotifications)
         .task {
             guard !isLoaded else { return }
             do {
@@ -849,28 +929,33 @@ struct SettingsBackupRemindersView: View {
     @State private var isEnabled = true
 
     var body: some View {
-        Form {
-            Toggle(AppStrings.backupReminders, isOn: $isEnabled)
-                .tint(Color.buttonPrimary)
+        OMSettingsPage(title: AppStrings.backupReminders) {
+            OMSettingsSection {
+                OMSettingsToggleRow(
+                    title: AppStrings.backupReminders,
+                    isOn: $isEnabled
+                )
                 .onChange(of: isEnabled) { _, _ in
                     saveBackupReminders()
                 }
-                .accessibleToggle(AppStrings.backupReminders, isOn: isEnabled)
 
-            if isEnabled {
-                Stepper(L("settings.backup_reminders.every_days", ["days": "\(reminderDays)"]),
-                        value: $reminderDays, in: 7...365, step: 7)
-                    .onChange(of: reminderDays) { _, _ in
-                        saveBackupReminders()
-                    }
+                if isEnabled {
+                    Stepper(L("settings.backup_reminders.every_days", ["days": "\(reminderDays)"]),
+                            value: $reminderDays, in: 7...365, step: 7)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontPrimary)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.vertical, .spacing4)
+                        .onChange(of: reminderDays) { _, _ in
+                            saveBackupReminders()
+                        }
+                }
             }
 
-            Section {
-                Text(L("settings.backup_reminders.description"))
-                    .font(.omXs).foregroundStyle(Color.fontSecondary)
-            }
+            Text(L("settings.backup_reminders.description"))
+                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                .padding(.horizontal, .spacing6)
         }
-        .navigationTitle(AppStrings.backupReminders)
     }
 
     private func saveBackupReminders() {

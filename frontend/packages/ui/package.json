@@ -24,6 +24,7 @@
       "default": "./src/legal/index.ts"
     },
     "./components/*": "./src/components/*",
+    "./utils/*": "./src/utils/*",
     "./components/settings/elements": {
       "types": "./src/components/settings/elements/index.ts",
       "svelte": "./src/components/settings/elements/index.ts",

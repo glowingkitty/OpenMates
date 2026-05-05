@@ -24,10 +24,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # webhook_incoming imports `routes.websockets` and `tasks.celery_config` lazily
-# inside the function body. Both pull in payment_service → polar_sdk, which may
-# or may not be installed depending on the env. Force the lazy imports to
-# resolve to lightweight stubs in sys.modules so tests get the same fake
-# manager / celery app regardless of whether the real modules would have loaded.
+# inside the function body. Force the lazy imports to resolve to lightweight
+# stubs in sys.modules so tests get the same fake manager / celery app
+# regardless of whether the real modules would have loaded.
 
 _FAKE_WS_MANAGER = MagicMock(name="fake_ws_manager")
 _FAKE_WS_MANAGER.is_user_active = MagicMock(return_value=True)
@@ -41,10 +40,9 @@ def _force_stub_leaf_module(dotted_name: str, **attrs) -> types.ModuleType:
     """Force-replace the leaf module in sys.modules with a stub.
 
     Works in both environments:
-      - Local dev: the real parent package may fail to import (e.g.
-        backend.core.api.app.tasks.__init__ pulls in polar_sdk via the email
-        task chain). Fall back to a minimal stub parent so the lazy
-        `from x.y.z import w` inside webhook_incoming still finds something.
+      - Local dev: the real parent package may fail to import. Fall back to a
+        minimal stub parent so the lazy `from x.y.z import w` inside
+        webhook_incoming still finds something.
       - CI / production: the real parent imports cleanly. We still replace the
         leaf so tests get a deterministic fake manager / celery app instead of
         whatever the real package put in sys.modules.
@@ -89,6 +87,9 @@ try:
     )
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
+    # Fallback definitions so function signatures at module level evaluate without NameError.
+    DEFAULT_MESSAGE_TEMPLATE = ""
+    WEBHOOK_TASK_TEMPLATE = ""
 
 
 # ---------------------------------------------------------------------------

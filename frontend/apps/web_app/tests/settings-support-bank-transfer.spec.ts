@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -42,7 +41,6 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
-	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -109,8 +107,9 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 
 	// ─── Mock endpoints ───────────────────────────────────────────────────────
 
-	// Mock: /config — return polar provider (no Stripe key needed) + bank_transfer_available=true.
-	// Using polar avoids the "Stripe Public Key not found" error that would occur with an empty key.
+	// Mock: /config — return stripe provider + bank_transfer_available=true.
+	// Use a non-empty placeholder public key so Payment.svelte doesn't throw
+	// "Stripe Public Key not found" before the bank_transfer_available flag is read.
 	// We don't use route.fetch() because GHA's outbound IP may get an HTML error page from the
 	// dev server's rate limiter, causing a JSON parse failure.
 	await page.route('**/v1/payments/config', async (route: any) => {
@@ -118,21 +117,20 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 			status: 200,
 			contentType: 'application/json',
 			body: JSON.stringify({
-				provider: 'polar',
-				public_key: '',
+				provider: 'stripe',
+				public_key: 'pk_test_placeholder_bank_transfer_test',
 				environment: 'sandbox',
 				bank_transfer_available: true,
 			}),
 		});
 	});
 
-	// Mock: create-support-order (called by Payment.svelte when provider=polar).
-	// Prevents network errors in the console while we wait for the bank transfer button.
+	// Mock: create-support-order to prevent network errors while we wait for the bank transfer button.
 	await page.route('**/v1/payments/create-support-order', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify({ provider: 'polar', order_id: 'mock_support_order', client_secret: '', checkout_url: '' }),
+			body: JSON.stringify({ provider: 'stripe', order_id: 'mock_support_order', client_secret: '', checkout_url: '' }),
 		});
 	});
 
@@ -323,132 +321,3 @@ test('settings support: shows SEPA bank transfer details and transitions to succ
 
 // NOTE: The 110k EUR-only tier test was moved to settings-buy-credits-bank-transfer.spec.ts
 // to avoid shared browser state issues when tests run sequentially in the same spec.
-
-// Placeholder to satisfy the linter (file must export something)
-if (false) test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view', async ({
-	page
-}: {
-	page: any;
-}) => {
-	test.slow();
-	test.setTimeout(180000);
-
-	page.on('console', (msg: any) =>
-		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
-	);
-
-	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
-
-	const log = createSignupLogger('BUY_CREDITS_110K_BANK_TRANSFER');
-	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'buy-credits-110k' });
-	await archiveExistingScreenshots(log);
-
-	// Mock: /config — force bank_transfer_available=true. Hardcoded (no route.fetch) because
-	// GHA's IP may receive an HTML error page from the dev server's rate limiter.
-	await page.route('**/v1/payments/config', async (route: any) => {
-		await route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({
-				provider: 'polar',
-				public_key: '',
-				environment: 'sandbox',
-				bank_transfer_available: true,
-			}),
-		});
-	});
-
-	// Mock the bank transfer order creation
-	await page.route('**/v1/payments/create-bank-transfer-order', async (route: any) => {
-		log('Intercepted create-bank-transfer-order request.');
-		await route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({
-				order_id: 'bt_110k_test',
-				reference: 'OM-TEST-110ktest',
-				iban: MOCK_IBAN,
-				bic: MOCK_BIC,
-				bank_name: 'Revolut Bank UAB',
-				amount_eur: '100.00',
-				credits_amount: 110000,
-				expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-			}),
-		});
-	});
-
-	await page.route('**/v1/payments/bank-transfer-status/bt_110k_test', async (route: any) => {
-		await route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({ order_id: 'bt_110k_test', status: 'pending',
-				credits_amount: 110000, amount_eur: '100.00', reference: 'OM-TEST-110ktest',
-				expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-				created_at: new Date().toISOString() }),
-		});
-	});
-
-	await loginToTestAccount(page, log, screenshot);
-	await page.waitForTimeout(4000);
-
-	// Navigate to Settings → Billing → Buy Credits
-	const profileContainer = page.getByTestId('profile-container');
-	await expect(profileContainer).toBeVisible({ timeout: 10000 });
-	await profileContainer.click();
-
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu).toBeVisible({ timeout: 8000 });
-	await expect(
-		page.locator('[data-testid="settings-menu"].visible [data-testid="credits-row"]')
-	).toBeVisible({ timeout: 15000 });
-
-	const billingItem = page
-		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
-		.filter({ hasText: /billing/i });
-	await billingItem.click();
-
-	const buyCreditsItem = page
-		.locator('[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]')
-		.filter({ hasText: /buy credits/i });
-	await expect(buyCreditsItem).toBeVisible({ timeout: 10000 });
-	await buyCreditsItem.click();
-	log('Navigated to Buy Credits.');
-	await screenshot(page, '01-buy-credits-page');
-
-	// Select the 110k tier (bank_transfer_only — shows "Bank transfer only" tag)
-	const tierItems = page.locator(
-		'[data-testid="settings-menu"].visible [data-testid="menu-item"][role="menuitem"]'
-	);
-	const bankTransferTier = tierItems.filter({ hasText: /110.*credits|110\.000/i });
-	await expect(bankTransferTier).toBeVisible({ timeout: 10000 });
-	log('110k credits bank-transfer-only tier is visible.');
-	await screenshot(page, '02-110k-tier-visible');
-	await bankTransferTier.click();
-	log('Selected 110k tier.');
-
-	// Bank transfer view should auto-load (no manual switch button needed)
-	const detailsContainer = page.getByTestId('bank-transfer-details');
-	await expect(detailsContainer).toBeVisible({ timeout: 15000 });
-	log('Bank transfer details auto-loaded for 110k tier.');
-	await screenshot(page, '03-auto-routed-to-bank-transfer');
-
-	// Verify amount shows €100.00
-	const amountRow = page.getByTestId('bank-transfer-amount');
-	await expect(amountRow).toBeVisible({ timeout: 5000 });
-	await expect(amountRow).toContainText('100.00');
-	log('Amount shows €100.00 correctly.');
-
-	// Verify reference is present
-	const referenceRow = page.getByTestId('bank-transfer-reference');
-	await expect(referenceRow).toBeVisible({ timeout: 5000 });
-	await expect(referenceRow).toContainText('OM-TEST-110ktest');
-	log('Reference is shown correctly.');
-	await screenshot(page, '04-details-verified');
-
-	// No back button (SEPA-only tier — can't go back to card payment)
-	const backBtn = page.getByTestId('bank-transfer-back');
-	await expect(backBtn).not.toBeVisible();
-	log('No back button shown for bank-transfer-only tier (correct).');
-
-	log('✅ 110k EUR-only tier auto-routing test passed.');
-});

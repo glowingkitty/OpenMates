@@ -14,7 +14,7 @@ Architecture:
 
 import logging
 import asyncio
-from typing import Optional
+from typing import Any, Dict, Optional
 
 # Import the Celery app and Base Task
 from backend.core.api.app.tasks.celery_config import app
@@ -55,6 +55,7 @@ def send_issue_report_email(
     action_history: Optional[str] = None,
     picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None,
+    reported_by_user_id: Optional[str] = None,
     trace_ids: Optional[list] = None
 ) -> bool:
     """
@@ -96,7 +97,7 @@ def send_issue_report_email(
                 self, admin_email, issue_id, issue_title, issue_description,
                 chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
                 indexeddb_report, last_messages_html, active_chat_sidebar_html, runtime_debug_state, action_history,
-                picked_element_html, screenshot_presigned_url
+                picked_element_html, screenshot_presigned_url, reported_by_user_id
             )
         )
         if result:
@@ -224,6 +225,199 @@ async def _async_upload_issue_yaml_to_s3(
             logger.warning(f"[S3_RETRY] Error during cleanup: {str(cleanup_error)}", exc_info=True)
 
 
+async def _async_get_issue_report_user_stats(
+    task: BaseServiceTask,
+    reported_by_user_id: Optional[str],
+    contact_email: Optional[str],
+) -> Dict[str, Any]:
+    """Fetch lightweight account stats for admin issue triage."""
+    empty_stats: Dict[str, Any] = {
+        "matched_user": False,
+        "error": None,
+        "chat_count": None,
+        "user_messages_sent": None,
+        "credits_purchased_total": None,
+        "last_purchase_date": None,
+        "last_purchase_credits": None,
+    }
+    user_id = reported_by_user_id
+
+    try:
+        import hashlib
+
+        user_data: Dict[str, Any] = {}
+
+        if user_id:
+            user_data = await task.directus_service.get_user_fields_direct(
+                user_id,
+                ["vault_key_id"],
+            ) or {}
+        elif contact_email:
+            from backend.core.api.app.utils.newsletter_utils import hash_email
+
+            success, matched_user, _message = await task.directus_service.get_user_by_hashed_email(
+                hash_email(contact_email)
+            )
+            if success and matched_user:
+                user_data = matched_user
+                user_id = matched_user.get("id")
+
+        if not user_id:
+            return empty_stats
+
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        stats: Dict[str, Any] = {
+            **empty_stats,
+            "matched_user": True,
+        }
+
+        stats["chat_count"] = await task.directus_service.chat.get_user_chat_count(user_id)
+
+        message_count_rows = await task.directus_service.get_items(
+            "messages",
+            params={
+                "filter[hashed_user_id][_eq]": hashed_user_id,
+                "filter[role][_eq]": "user",
+                "aggregate[count]": "*",
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if message_count_rows and isinstance(message_count_rows, list):
+            stats["user_messages_sent"] = _parse_directus_aggregate_count(message_count_rows[0].get("count", 0))
+        else:
+            stats["user_messages_sent"] = 0
+
+        credits_purchased_total = 0
+        purchases = []
+        vault_key_id = user_data.get("vault_key_id")
+        invoices = await task.directus_service.get_items(
+            "invoices",
+            params={
+                "filter": {"user_id_hash": {"_eq": hashed_user_id}},
+                "fields": "id,date,encrypted_credits_purchased,has_chargeback,refund_status",
+                "limit": -1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        for invoice in invoices or []:
+            if invoice.get("has_chargeback") or invoice.get("refund_status") == "completed":
+                continue
+
+            encrypted_credits = invoice.get("encrypted_credits_purchased")
+            invoice_credits = None
+            if encrypted_credits and vault_key_id:
+                try:
+                    decrypted_credits = await task.encryption_service.decrypt_with_user_key(
+                        encrypted_credits,
+                        vault_key_id,
+                    )
+                    invoice_credits = int(float(decrypted_credits or 0))
+                    credits_purchased_total += invoice_credits
+                except Exception as decrypt_error:
+                    logger.warning(
+                        f"Could not decrypt invoice credits for issue-report user stats: {decrypt_error}"
+                    )
+
+            invoice_date = _parse_issue_report_purchase_date(invoice.get("date"))
+            if invoice_date:
+                purchases.append({"date": invoice_date, "credits": invoice_credits})
+
+        apple_transactions = await task.directus_service.get_items(
+            "apple_iap_transactions",
+            params={
+                "filter": {"user_id": {"_eq": user_id}},
+                "fields": "credits,processed_at",
+                "limit": -1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        for transaction in apple_transactions or []:
+            transaction_credits = None
+            try:
+                transaction_credits = int(transaction.get("credits") or 0)
+                credits_purchased_total += transaction_credits
+            except (TypeError, ValueError):
+                logger.warning("Invalid Apple IAP credits value while building issue-report user stats")
+
+            processed_at = _parse_issue_report_purchase_date(transaction.get("processed_at"))
+            if processed_at:
+                purchases.append({"date": processed_at, "credits": transaction_credits})
+
+        stats["credits_purchased_total"] = credits_purchased_total
+        latest_purchase = max(purchases, key=lambda purchase: purchase["date"]) if purchases else None
+        if latest_purchase:
+            stats["last_purchase_date"] = latest_purchase["date"]
+            stats["last_purchase_credits"] = latest_purchase["credits"]
+        return stats
+    except Exception as error:
+        logger.warning(f"Failed to build issue-report user stats: {error}", exc_info=True)
+        return {
+            **empty_stats,
+            "matched_user": bool(user_id),
+            "error": "Stats lookup failed",
+        }
+
+
+def _parse_directus_aggregate_count(value: Any) -> int:
+    if isinstance(value, dict):
+        value = value.get("*") or next(iter(value.values()), 0)
+
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _parse_issue_report_purchase_date(value: Any) -> Optional[str]:
+    if not value:
+        return None
+
+    from datetime import datetime
+
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).date().isoformat()
+        except ValueError:
+            return None
+
+    return None
+
+
+def _format_issue_report_user_stats(stats: Dict[str, Any]) -> str:
+    if stats.get("error"):
+        return "Matching registered user found, but stats lookup failed. Check task-worker logs."
+
+    if not stats.get("matched_user"):
+        return "No matching registered user found."
+
+    last_purchase_date = stats.get("last_purchase_date") or "None"
+    last_purchase_credits = stats.get("last_purchase_credits")
+    if last_purchase_credits is None:
+        last_purchase_credits = "None"
+    credits_purchased_total = stats.get("credits_purchased_total")
+    if credits_purchased_total is None:
+        credits_purchased_total = "Unknown"
+
+    chat_count = stats.get("chat_count") if stats.get("chat_count") is not None else "Unknown"
+    user_messages_sent = (
+        stats.get("user_messages_sent") if stats.get("user_messages_sent") is not None else "Unknown"
+    )
+
+    return (
+        f"Chats: {chat_count}<br/>"
+        f"User messages sent: {user_messages_sent}<br/>"
+        f"Credits purchased so far: {credits_purchased_total}<br/>"
+        f"Last purchase date: {last_purchase_date}<br/>"
+        f"Last purchase credits: {last_purchase_credits}"
+    )
+
+
 async def _async_send_issue_report_email(
     task: BaseServiceTask,
     admin_email: str,
@@ -243,7 +437,8 @@ async def _async_send_issue_report_email(
     runtime_debug_state: Optional[str] = None,
     action_history: Optional[str] = None,
     picked_element_html: Optional[str] = None,
-    screenshot_presigned_url: Optional[str] = None
+    screenshot_presigned_url: Optional[str] = None,
+    reported_by_user_id: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -304,6 +499,9 @@ async def _async_send_issue_report_email(
         # Convert newlines to <br/> for HTML display in email
         device_info_formatted = device_info_formatted.replace('\n', '<br/>')
 
+        user_stats = await _async_get_issue_report_user_stats(task, reported_by_user_id, contact_email)
+        user_stats_formatted = _format_issue_report_user_stats(user_stats)
+
         # Prepare consolidated YAML attachment
         attachments = []
 
@@ -357,7 +555,8 @@ async def _async_send_issue_report_email(
                     'title': issue_title,
                     'description': issue_description,
                     'contact_email': contact_email,
-                    'estimated_location': estimated_location
+                    'estimated_location': estimated_location,
+                    'user_stats': user_stats
                 },
                 'technical_details': {
                     'chat_or_embed_url': chat_or_embed_url,
@@ -495,6 +694,7 @@ async def _async_send_issue_report_email(
             "timestamp": timestamp,
             "estimated_location": estimated_location,
             "device_info": device_info_formatted,
+            "user_stats": user_stats_formatted,
             # Pre-signed URL for the screenshot PNG — included in the email so admins
             # and LLMs can view the screenshot directly without needing the inspect script.
             "screenshot_presigned_url": screenshot_presigned_url if screenshot_presigned_url else None

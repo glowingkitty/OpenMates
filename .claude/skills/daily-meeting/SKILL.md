@@ -92,9 +92,17 @@ These are safe, reliable commands that should never fail. Issue them all in para
     docker exec api python /app/backend/scripts/audit_inspiration_pool.py --include-defaults --json 2>/dev/null
     ```
 
+11. **Today's Obsidian daily note** — Bash:
+    ```bash
+    TODAY=$(date +%F)
+    python3 /home/superdev/projects/OpenMates/scripts/update_obsidian_daily_note.py >/dev/null
+    python3 -c "from pathlib import Path; p = Path('/home/superdev/vaults/memory/Daily Notes') / f'${TODAY}.md'; print('\n'.join(p.read_text(errors='replace').splitlines()[:220]))"
+    ```
+    Treat the `## Server Stats` section as the compact persistent server-health dashboard. Use the full production stats command below only for deeper diagnosis.
+
 #### Parallel Batch 1a-linear — Linear tasks (issue simultaneously with batch 1a):
 
-11. **All Linear tasks** — call `mcp__linear__list_issues` with **no limit** (or limit: 200) for states: Todo, In Progress, In Review, Backlog, Triage. If the result count equals the limit, paginate with `after` cursor to get ALL remaining tasks. **Every non-Done/non-Canceled task must be fetched — never truncate.** Sort for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority), then by age. Collect the title of every task.
+12. **All Linear tasks** — call `mcp__linear__list_issues` with **no limit** (or limit: 200) for states: Todo, In Progress, In Review, Backlog, Triage. If the result count equals the limit, paginate with `after` cursor to get ALL remaining tasks. **Every non-Done/non-Canceled task must be fetched — never truncate.** Sort for display: **Todo before Backlog**, then by priority (Urgent → High → Medium → Low → No priority), then by age. Collect the title of every task.
 
 #### Parallel Batch 1b — potentially-failing commands (issue separately from batch 1a)
 

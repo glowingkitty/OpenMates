@@ -1,6 +1,9 @@
 # GSD planning artifacts
 .planning/
 
+# Obsidian vaults
+vaults/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -208,6 +211,7 @@ deployment/prod_server/prod-cloud-config.yaml
 .deployment
 
 # Private context files (anywhere within .context)
+.context/
 .tempcontext
 .ruff_cache
 .vscode
@@ -215,6 +219,11 @@ deployment/prod_server/prod-cloud-config.yaml
 *-env*
 .aider*
 .roo*
+
+# Local MCP/tooling state
+.xcodebuildmcp/
+.playwright-mcp/
+privacy-video.mp4
 .turbo
 
 # Claude Code — ignore runtime state, allow config/hooks/skills
@@ -241,6 +250,8 @@ security-audit/
 
 # Generated translation JSON files (built from YAML sources)
 frontend/packages/ui/src/i18n/locales/*.json
+# iOS app symlink to generated translations (points to web locales above)
+apple/OpenMates/Resources/i18n
 
 # Generated app metadata (built from backend app.yml files)
 frontend/packages/ui/src/data/appsMetadata.ts
@@ -281,6 +292,7 @@ frontend/apps/web_app/test-results*
 # Personal/local data
 personaldata/
 rankings.json
+local/
 
 # Local debug and cache artifacts
 debug_output*.yml
@@ -302,8 +314,11 @@ backend/tests/output/
 # Claude Code — worktree runtime state (empty dirs managed by sessions.py)
 .claude/worktrees/
 
-# OpenCode AI editor local state
-.opencode/
+# OpenCode AI editor local state; keep repo plugins trackable.
+.opencode/*
+!.opencode/
+!.opencode/plugins/
+!.opencode/plugins/openmates-claude-hooks.js
 
 # Claude Code — additional ephemeral state (rules, skills, agents, hooks are committed)
 .claude/plans/

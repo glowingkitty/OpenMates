@@ -183,8 +183,10 @@ skills:
     description_translation_key: app_skills.travel.search_connections.description
     icon_image: travel.svg
     preprocessor_hint: >
-      Search specific flight/train connections for a particular date with details (airlines, times, stops, durations).
-      Use when user specifies an exact travel date. Costs 25 credits per search.
+      Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices).
+      Use when user asks about flights, train connections, or travel between cities on a specific date.
+      Set transport_methods to ["airplane"] for flights or ["train"] for trains (Deutsche Bahn).
+      Costs 25 credits per search.
     stage: production
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     pricing:
@@ -193,6 +195,9 @@ skills:
     providers:
       - name: SerpAPI
         display_name: Google
+      - name: Deutsche Bahn
+        display_name: Deutsche Bahn
+        no_api_key: true
     exclude_fields_for_llm:
       - type
       - hash
@@ -244,8 +249,9 @@ skills:
               transport_methods:
                 type: array
                 description: >
-                  Transport types to search. Currently supported: ["airplane"].
-                  Future: "train", "bus", "boat".
+                  Transport types to search. Supported: "airplane" (worldwide via Google Flights),
+                  "train" (Germany + select European routes via Deutsche Bahn).
+                  IMPORTANT: Set to ["train"] when user asks about trains, rail, or Deutsche Bahn.
                 items:
                   type: string
                   enum:

@@ -47,6 +47,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { hydrateEmbedLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
+  import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
 
   /**
    * Props for document embed fullscreen
@@ -127,6 +128,10 @@
       typeof dc.word_count === 'number' ? dc.word_count
       : typeof attrs?.wordCount === 'number' ? attrs.wordCount as number
       : 0
+    );
+  let versionNumber = $derived(
+      typeof dc.version_number === 'number' ? dc.version_number
+      : data.embedData?.version_number ?? 1
     );
 
   // Single source of truth: piiRevealed flows down from piiVisibilityStore
@@ -673,6 +678,17 @@ ${downloadHtmlContent}
       <div class="empty-state">
         <p>{$text('embeds.document_no_content')}</p>
       </div>
+    {/if}
+
+    <!-- Version timeline (shown when embed has been edited via diff) -->
+    {#if embedId && versionNumber > 1}
+      <EmbedVersionTimeline
+        {embedId}
+        currentVersion={versionNumber}
+        onVersionSelect={(version, content) => {
+          console.log('[DocsEmbedFullscreen] Version selected:', version);
+        }}
+      />
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>

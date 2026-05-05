@@ -1129,8 +1129,7 @@ async def _async_delete_user_account(
                     for invoice in invoices:
                         invoice_id = invoice.get("id", "unknown")
                         order_id = invoice.get("order_id", "")
-                        invoice_provider = invoice.get("provider")  # "stripe", "polar", or None (legacy)
-                        provider_order_id = invoice.get("provider_order_id")  # Polar Order UUID
+                        invoice_provider = invoice.get("provider")  # "stripe", legacy "polar", or None
                         encrypted_amount = invoice.get("encrypted_amount")
                         encrypted_credits = invoice.get("encrypted_credits_purchased")
                         vault_key_id = None
@@ -1159,41 +1158,16 @@ async def _async_delete_user_account(
                             refund_fail_count += 1
                             continue
 
-                        # Determine the provider-specific order ID to refund against
-                        # For Polar: use provider_order_id (the Polar Order UUID)
-                        # For Stripe: use order_id (the PaymentIntent ID like 'pi_...')
+                        # Determine the provider-specific order ID to refund against.
+                        # Legacy "polar" invoices cannot be refunded (Polar is decommissioned).
                         if invoice_provider == "polar":
-                            refund_order_id = provider_order_id
-                            if not refund_order_id:
-                                # Fallback: look up the Order UUID via Polar API
-                                # (handles the race where order.paid arrived before invoice was created)
-                                logger.warning(
-                                    f"[DELETE_ACCOUNT] Polar invoice {invoice_id} missing provider_order_id, "
-                                    f"attempting Polar API lookup by checkout_id={order_id}"
-                                )
-                                try:
-                                    resolved_uuid = await payment_service.get_polar_order_uuid_by_checkout_id(order_id)
-                                    if resolved_uuid:
-                                        refund_order_id = resolved_uuid
-                                        logger.info(
-                                            f"[DELETE_ACCOUNT] Resolved Polar order UUID {resolved_uuid} "
-                                            f"for invoice {invoice_id}"
-                                        )
-                                    else:
-                                        logger.error(
-                                            f"[DELETE_ACCOUNT] Polar invoice {invoice_id} missing provider_order_id "
-                                            f"and API lookup failed, cannot refund"
-                                        )
-                                        refund_fail_count += 1
-                                        continue
-                                except Exception as lookup_exc:
-                                    logger.error(
-                                        f"[DELETE_ACCOUNT] Polar API lookup failed for invoice {invoice_id}: {lookup_exc}"
-                                    )
-                                    refund_fail_count += 1
-                                    continue
-                        else:
-                            refund_order_id = order_id
+                            logger.warning(
+                                f"[DELETE_ACCOUNT] Skipping legacy Polar invoice {invoice_id} — "
+                                f"Polar is decommissioned and cannot process refunds"
+                            )
+                            refund_fail_count += 1
+                            continue
+                        refund_order_id = order_id
 
                         if not refund_order_id:
                             logger.warning(

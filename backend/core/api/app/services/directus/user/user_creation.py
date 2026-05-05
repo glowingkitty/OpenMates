@@ -3,6 +3,7 @@ import json
 import time
 import random
 import string
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Tuple
 
 # hash_username is a standalone helper — imported here to avoid circular imports
@@ -137,6 +138,7 @@ async def create_user(self,
             "encrypted_devices": encrypted_devices,
             "is_admin": is_admin,
             "last_opened": "/signup/one_time_codes",
+            "signup_started_at": datetime.now(timezone.utc).isoformat(),
             "language": language,
             "darkmode": darkmode,
             "hashed_email": hashed_email,  # Store the client-provided hashed email

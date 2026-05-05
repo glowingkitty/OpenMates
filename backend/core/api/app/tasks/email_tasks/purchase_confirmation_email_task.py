@@ -42,15 +42,15 @@ def process_invoice_and_send_email(
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
-    provider: Optional[str] = None,  # Payment provider ("stripe" or "polar") — controls PDF document type
-    provider_order_id: Optional[str] = None,  # Provider-specific order ID for refunds (e.g. Polar Order UUID)
+    provider: Optional[str] = None,  # Payment provider/mode — controls PDF document type
+    provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
 ) -> bool:
     """
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
 
-    For Polar orders the PDF title is "Payment Confirmation" (not "Invoice") because Polar as
-    Merchant of Record issues the real tax invoice. A footer note is added to inform the buyer.
-    For Stripe orders the PDF title remains "Invoice".
+    For Stripe Managed Payments the PDF title is "Payment Confirmation" (not "Invoice") because
+    Stripe/Link as Merchant of Record issues the real tax invoice.
+    For direct Stripe orders the PDF title remains "Invoice".
     """
     logger.info(f"Starting invoice processing task for Order ID: {order_id}, User ID: {user_id}, Provider: {provider}")
     try:
@@ -86,8 +86,8 @@ async def _async_process_invoice_and_send_email(
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
     is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
-    provider: Optional[str] = None,  # Payment provider ("stripe" or "polar")
-    provider_order_id: Optional[str] = None,  # Provider-specific order ID for refunds (e.g. Polar Order UUID)
+    provider: Optional[str] = None,  # Payment provider/mode
+    provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -118,7 +118,7 @@ async def _async_process_invoice_and_send_email(
         logger.info(f"User profile details extracted for {user_id}")
 
         # 3. Fetch Full Order Details from PaymentService
-        # Bank transfer orders (provider="bank_transfer") are not stored in Stripe/Polar.
+        # Bank transfer orders (provider="bank_transfer") are not stored in Stripe.
         # Supply synthetic order details directly instead of calling payment_service.get_order().
         if provider == "bank_transfer":
             payment_order_details = {
@@ -139,11 +139,12 @@ async def _async_process_invoice_and_send_email(
                 logger.warning(f"Could not fetch bank transfer amount for {order_id}: {bt_err}")
             logger.info(f"Bank transfer order details synthesised for {order_id}")
         else:
-            payment_order_details = await task.payment_service.get_order(order_id)
+            order_lookup_id = provider_order_id if provider == "stripe_managed" and provider_order_id else order_id
+            payment_order_details = await task.payment_service.get_order(order_lookup_id)
             if not payment_order_details:
-                logger.error(f"Failed to fetch payment order details for {order_id} in invoice task.")
+                logger.error(f"Failed to fetch payment order details for {order_lookup_id} in invoice task.")
                 raise Exception("Failed to fetch payment order details")
-            logger.info(f"Payment order details fetched for {order_id}")
+            logger.info(f"Payment order details fetched for {order_lookup_id}")
 
         # 4. Extract Payment Details (same as before)
         payment_method_details = {}
@@ -197,13 +198,12 @@ async def _async_process_invoice_and_send_email(
         effective_provider = provider or task.payment_service.provider_name
 
         # Determine PDF document type:
-        # - Polar: "payment_confirmation" (Polar as MoR issues the real tax invoice)
-        # - Stripe / unknown: "invoice"
-        document_type = "payment_confirmation" if effective_provider == "polar" else "invoice"
+        # - Stripe Managed Payments: "payment_confirmation" (Stripe/Link is MoR)
+        # - Direct Stripe / unknown: "invoice"
+        document_type = "payment_confirmation" if effective_provider == "stripe_managed" else "invoice"
         logger.info(f"Invoice task for order {order_id}: provider={effective_provider}, document_type={document_type}")
 
         # Create customer portal link for subscription management — Stripe only.
-        # Polar does not have a customer portal concept in Phase 1.
         customer_portal_url = None
         if effective_provider == "stripe" and stripe_customer_id and is_auto_topup:
             try:
@@ -346,18 +346,16 @@ async def _async_process_invoice_and_send_email(
         #     else:
         #         receiver_country_display = country_code # Fallback to code if translation not found
         
-        # For Polar orders, pass the actual amount charged by Polar (in smallest currency unit)
-        # so the PDF can display the real amount the buyer paid, regardless of currency.
-        # Polar may charge in CAD, AUD, KRW, etc. — currencies not in our pricing.yml.
-        # For Stripe orders this is not set; the PDF looks up the price from pricing.yml.
+        # For Merchant-of-Record orders, pass the actual amount charged (in smallest
+        # currency unit) so the PDF displays what the buyer paid, regardless of currency.
+        # For direct Stripe orders this is not set; the PDF looks up the EU price.
         actual_amount_paid: Optional[float] = None
-        # Tax amount from Polar (in display units) — used for the PDF tax line.
-        # None for Stripe (they use the §19 UStG Kleinunternehmer 0% rule).
+        # Tax/net amounts for MoR payment confirmations when the provider exposes them.
         actual_tax_amount: Optional[float] = None
         # Net amount (before tax, in display units) — subtotal for the PDF.
         actual_net_amount: Optional[float] = None
 
-        if effective_provider == "polar" and amount_paid is not None and currency_paid is not None:
+        if effective_provider == "stripe_managed" and amount_paid is not None and currency_paid is not None:
             # Convert from smallest unit to display unit.
             # Zero-decimal currencies (e.g. JPY, KRW) use the amount as-is; all others divide by 100.
             # We use a known list of zero-decimal currencies to handle this correctly.
@@ -369,8 +367,7 @@ async def _async_process_invoice_and_send_email(
             else:
                 actual_amount_paid = float(amount_paid) / 100.0
 
-            # Extract tax_amount from Polar checkout response (nullable int, in cents).
-            # When Polar as MoR charges sales tax, this is the actual tax amount.
+            # Extract tax_amount from providers that expose it (nullable int, in cents).
             raw_tax_amount = payment_order_details.get("tax_amount")
             if raw_tax_amount is not None:
                 if is_zero_decimal:
@@ -385,9 +382,9 @@ async def _async_process_invoice_and_send_email(
                 actual_net_amount = actual_amount_paid
 
             logger.info(
-                f"Polar order {order_id}: actual_amount_paid={actual_amount_paid} "
+                f"MoR order {order_id}: actual_amount_paid={actual_amount_paid} "
                 f"actual_tax_amount={actual_tax_amount} actual_net_amount={actual_net_amount} "
-                f"{currency_paid.upper()} (from Polar amount={amount_paid}, tax_amount={raw_tax_amount})"
+                f"{currency_paid.upper()} (from provider amount={amount_paid}, tax_amount={raw_tax_amount})"
             )
 
         invoice_data = {
@@ -408,13 +405,13 @@ async def _async_process_invoice_and_send_email(
             "sender_email": sender_email,
             "sender_vat": sender_vat,
             "is_gift_card": is_gift_card,  # Flag to indicate if this is a gift card purchase
-            # For Polar: the exact amount the buyer was charged (display units, any currency).
+            # For MoR payments: the exact amount the buyer was charged.
             # When set, overrides the pricing.yml lookup in the PDF generator.
             "actual_amount_paid": actual_amount_paid,
-            # For Polar: actual tax amount (display units) charged by Polar as MoR.
+            # For MoR payments: actual tax amount (display units), if available.
             # When set, the PDF shows the real tax instead of "VAT (0%) *".
             "actual_tax_amount": actual_tax_amount,
-            # For Polar: net amount before tax (display units).
+            # For MoR payments: net amount before tax (display units), if available.
             # When set, the PDF uses this as the subtotal line.
             "actual_net_amount": actual_net_amount,
             # Note: refund_link will be added after invoice is created and we have the UUID
@@ -436,7 +433,6 @@ async def _async_process_invoice_and_send_email(
 
         # 7. Generate Invoice/Payment Confirmation PDF(s)
         # Always generate English version first.
-        # For Polar orders the PDF title is "Payment Confirmation"; for all others it's "Invoice".
         logger.info(f"Generating English PDF ({document_type})")
         pdf_buffer_en = task.invoice_template_service.generate_invoice(
             invoice_data, lang='en', currency=currency_paid.lower(), document_type=document_type
@@ -560,8 +556,8 @@ async def _async_process_invoice_and_send_email(
             "encrypted_filename": encrypted_filename, # Store encrypted filename for download
             "aes_nonce": nonce_b64, # Store the base64 encoded nonce
             "is_gift_card": is_gift_card,  # Store gift card flag for invoice display
-            "provider": provider,  # Payment provider for routing refunds correctly
-            "provider_order_id": provider_order_id,  # Polar Order UUID for refund API (None for Stripe)
+            "provider": effective_provider,  # Payment provider/mode for routing refunds correctly
+            "provider_order_id": provider_order_id,  # PaymentIntent for managed Stripe refunds
         }
 
         # Encrypt and store the currency code so the frontend can display amounts
@@ -601,46 +597,6 @@ async def _async_process_invoice_and_send_email(
             logger.warning(f"Could not extract invoice UUID from created_item for invoice {invoice_number}. Deep link will not be generated.")
         else:
             logger.info(f"Extracted invoice UUID: {invoice_uuid} for invoice {invoice_number}")
-
-        # 10a. Reconcile Polar order UUID if the order.paid webhook arrived before
-        # this invoice was created. The order.paid handler caches the checkout_id →
-        # order_uuid mapping under "polar_order_pending:{checkout_id}" in Redis.
-        if provider == "polar" and not provider_order_id and invoice_uuid:
-            try:
-                pending_key = f"polar_order_pending:{order_id}"
-                pending_data = await cache_service.get(pending_key)
-                if pending_data and isinstance(pending_data, dict):
-                    cached_order_uuid = pending_data.get("order_uuid")
-                    if cached_order_uuid:
-                        update_ok = await task.directus_service.update_item(
-                            "invoices", invoice_uuid,
-                            {"provider_order_id": cached_order_uuid}
-                        )
-                        if update_ok:
-                            logger.info(
-                                f"Reconciled Polar order UUID: updated invoice "
-                                f"{invoice_uuid} provider_order_id={cached_order_uuid} "
-                                f"from cached order.paid event."
-                            )
-                            # Clean up the pending cache key
-                            await cache_service.delete(pending_key)
-                        else:
-                            logger.error(
-                                f"Failed to update invoice {invoice_uuid} with "
-                                f"cached Polar order UUID {cached_order_uuid}."
-                            )
-                else:
-                    logger.debug(
-                        f"No cached Polar order UUID found for "
-                        f"checkout {order_id} (key={pending_key}). "
-                        f"The order.paid webhook may not have arrived yet."
-                    )
-            except Exception as reconcile_exc:
-                # Non-blocking — the refund endpoint has its own Polar API fallback
-                logger.warning(
-                    f"Error reconciling Polar order UUID for invoice "
-                    f"{invoice_uuid}: {reconcile_exc}"
-                )
 
         # 10b. Update the invoice counter in Directus and Cache
         try:
@@ -770,7 +726,7 @@ async def _async_process_invoice_and_send_email(
         email_context = {
             "darkmode": user_darkmode,
             "invoice_id": invoice_number,  # Use invoice_id instead of account_id for email template
-            "document_type": document_type,  # "payment_confirmation" for Polar, "invoice" for Stripe
+            "document_type": document_type,
             "refund_deep_link_url": refund_deep_link_url,  # Deep link URL for refund button (for variable processor)
             "refund_link": refund_deep_link_url,  # Set refund_link directly to ensure it's used in email template
             "customer_portal_url": customer_portal_url  # Pass management link to email
@@ -813,7 +769,7 @@ async def _async_process_invoice_and_send_email(
         # 13. Notify user via WebSocket that payment is completed (credits updated and invoice sent)
         # This notification is ONLY sent for regular credit purchases, NOT for gift card purchases
         # Gift card purchases already have their own 'gift_card_created' event sent from the webhook handler
-        if not is_gift_card:
+        if not is_gift_card and effective_provider != "stripe_managed":
             try:
                 # Get current credits from cache to include in notification
                 current_credits = user_profile.get('credits', 0)
@@ -840,14 +796,13 @@ async def _async_process_invoice_and_send_email(
             logger.info(f"Skipping 'payment_completed' event for gift card purchase (order {order_id}). Gift card notification already sent via webhook.")
 
         # 14. Process Income Transaction in Invoice Ninja
-        # Skip for Polar: Polar is the Merchant of Record and handles all tax/accounting
-        # documents. We only record our periodic payout from Polar, not individual customer
-        # transactions. Invoice Ninja recording is only needed for Stripe where
-        # OpenMates is the seller of record.
-        if effective_provider == "polar":
+        # Skip for managed payments: Stripe/Link is the Merchant of Record and handles
+        # the official tax/accounting documents. Invoice Ninja recording is only needed
+        # for direct Stripe where OpenMates is the seller of record.
+        if effective_provider == "stripe_managed":
             logger.info(
-                f"Skipping Invoice Ninja recording for Polar order {order_id}: "
-                f"Polar is MoR, individual transactions are not recorded in our accounting."
+                f"Skipping Invoice Ninja recording for managed Stripe order {order_id}: "
+                f"Stripe/Link is MoR, individual transactions are not recorded in our accounting."
             )
         else:
             logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}, provider={effective_provider}")

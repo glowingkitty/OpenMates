@@ -62,6 +62,18 @@ Supports both saved payment methods and new payment form
     // SEPA-only tier auto-routes to bank transfer (cards can't process this tier)
     let isSepaOnlyTier = $derived(!!tier.bank_transfer_only);
 
+    // EU27 VAT country codes — must match backend geo_utils.EU_VAT_COUNTRY_CODES.
+    // Non-EU cards (incl. CH, NO, GB, US…) require Checkout Sessions (Managed Payments).
+    const EU_VAT_COUNTRIES = new Set([
+        "AT","BE","BG","CY","CZ","DE","DK","EE","ES","FI",
+        "FR","GR","HR","HU","IE","IT","LT","LU","LV","MT",
+        "NL","PL","PT","RO","SE","SI","SK",
+    ]);
+
+    function isEuCard(country: string | null | undefined): boolean {
+        return !!country && EU_VAT_COUNTRIES.has(country.toUpperCase());
+    }
+
     // Payment method state
     let hasSavedPaymentMethods = $state(false);
     let paymentMethods: Array<{
@@ -72,10 +84,14 @@ Supports both saved payment methods and new payment form
             last4: string;
             exp_month: number;
             exp_year: number;
+            country: string | null;
         };
         created: number;
     }> = $state([]);
     let selectedPaymentMethodId: string | null = $state(null);
+    // Set to true when Buy Now was clicked for a non-EU card, so handleAuthSuccess
+    // knows to open Checkout Session instead of calling processPayment().
+    let pendingManagedPayment = $state(false);
     // Start as true so the {:else} branch (Payment.svelte) does not mount and call
     // createOrder() before onMount has had a chance to check for saved methods.
     // This prevents a premature mount that creates a stale PaymentIntent causing
@@ -88,8 +104,10 @@ Supports both saved payment methods and new payment form
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
 
-    // providerOverride: if the user explicitly switches provider from the saved-method view
-    let savedMethodProviderOverride: 'stripe' | 'polar' | null = $state(null);
+    // providerOverride: if the user explicitly switches mode from the saved-method view
+    let savedMethodProviderOverride: 'stripe' | 'managed' | null = $state(null);
+    // True when backend says use_managed_payments (non-EU user → Checkout Session flow)
+    let isManaged = $state(false);
 
     // Bank transfer state
     let showBankTransfer = $state(false);
@@ -168,17 +186,25 @@ Supports both saved payment methods and new payment form
     });
 
     /**
-     * Detect the active payment provider from /config, then load saved payment methods
-     * if on Stripe. Polar does not support saved methods (Stripe-only feature).
+     * Detect the active payment mode from /config, then load saved payment methods
+     * if EU (PaymentIntent flow). Non-EU users use Checkout Sessions — Stripe handles
+     * saved methods internally, so we skip the list and show the payment form directly.
      */
     async function detectProviderAndLoadMethods() {
-        // Saved payment methods are always stored in Stripe regardless of the active payment
-        // provider (Stripe for EU users, Polar for non-EU users). The backend always uses the
-        // Stripe provider when listing saved methods, so we don't need to detect the active
-        // provider here — just check for saved Stripe methods directly.
         isLoadingPaymentMethods = true;
         try {
-            await checkPaymentMethods();
+            const configResponse = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
+            if (configResponse.ok) {
+                const config = await configResponse.json();
+                isManaged = !!config.use_managed_payments;
+            }
+
+            if (isManaged) {
+                // Non-EU: Checkout Session handles its own saved methods — skip list
+                showPaymentForm = true;
+            } else {
+                await checkPaymentMethods();
+            }
         } catch (error) {
             console.error('Error loading payment methods:', error);
             showPaymentForm = true;
@@ -192,13 +218,14 @@ Supports both saved payment methods and new payment form
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.listPaymentMethods), {
                 credentials: 'include'
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
+                // Show all saved cards. Routing (EU PaymentIntent vs non-EU Checkout Session)
+                // happens in handleBuyNow() based on the selected card's country.
                 paymentMethods = data.payment_methods || [];
                 hasSavedPaymentMethods = paymentMethods.length > 0;
-                
-                // If no saved methods, show payment form
+
                 if (!hasSavedPaymentMethods) {
                     showPaymentForm = true;
                 }
@@ -213,20 +240,6 @@ Supports both saved payment methods and new payment form
             hasSavedPaymentMethods = false;
             showPaymentForm = true;
         }
-    }
-
-    /**
-     * Switch from the saved-method Stripe view to Polar.
-     * Resets saved-method state and re-fetches config with override.
-     */
-    async function switchToProvider(newProvider: 'stripe' | 'polar') {
-        savedMethodProviderOverride = newProvider;
-        showPaymentForm = false;
-        hasSavedPaymentMethods = false;
-        paymentMethods = [];
-        selectedPaymentMethodId = null;
-        isLoadingPaymentMethods = true;
-        await detectProviderAndLoadMethods();
     }
 
     // Handle payment method selection
@@ -250,31 +263,40 @@ Supports both saved payment methods and new payment form
             return;
         }
 
-        // Check authentication methods
+        // Determine routing BEFORE auth so handleAuthSuccess knows what to do.
+        // Non-EU cards use Checkout Sessions; EU cards use PaymentIntent.
+        const selectedMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId);
+        pendingManagedPayment = !!(selectedMethod && !isEuCard(selectedMethod.card?.country));
+
+        // Auth check applies to both EU and non-EU flows
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
                 credentials: 'include'
             });
-            
+
             if (response.ok) {
                 authMethods = await response.json();
                 showAuthModal = true;
             } else {
                 console.error('Failed to get auth methods');
-                // Proceed without auth modal (shouldn't happen, but handle gracefully)
-                await processPayment();
+                await handleAuthSuccess();
             }
         } catch (error) {
             console.error('Error getting auth methods:', error);
-            // Proceed without auth modal
-            await processPayment();
+            await handleAuthSuccess();
         }
     }
 
     // Handle authentication success
     async function handleAuthSuccess() {
         showAuthModal = false;
-        await processPayment();
+        if (pendingManagedPayment) {
+            pendingManagedPayment = false;
+            savedMethodProviderOverride = 'managed';
+            showPaymentForm = true;
+        } else {
+            await processPayment();
+        }
     }
 
     // Process payment with saved method
@@ -403,7 +425,7 @@ Supports both saved payment methods and new payment form
             credits_amount={selectedCreditsAmount}
             price={selectedPrice()}
             currency="EUR"
-            emailEncryptionKey=""
+            emailEncryptionKey={cryptoService.getEmailEncryptionKeyForApi()}
             on:paymentStateChange={handlePaymentComplete}
         />
     </div>
@@ -451,9 +473,9 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
-        <!-- Provider switch buttons -->
         <div class="provider-switch-container">
-            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
+            <button class="provider-switch-btn" data-testid="switch-to-non-eu"
+                onclick={() => { savedMethodProviderOverride = 'managed'; showPaymentForm = true; }}>
                 {$text('signup.switch_to_non_eu_card')}
             </button>
             {#if bankTransferAvailable}
@@ -473,10 +495,10 @@ Supports both saved payment methods and new payment form
         />
     {/if}
 {:else}
-    <!-- Show payment form for new payment method or Polar provider.
+    <!-- Show payment form for new payment method.
          Pass savedMethodProviderOverride as initialProviderOverride so the Payment component
-         immediately requests the correct provider (e.g. 'polar' when user clicked non-EU card),
-         instead of re-detecting from geo which could fall back to stripe. -->
+         immediately requests the correct mode (e.g. 'managed' when user clicked non-EU card),
+         instead of re-detecting from geo. -->
     <div class="payment-container">
         <Payment
             purchasePrice={selectedPrice()}
@@ -614,8 +636,7 @@ Supports both saved payment methods and new payment form
     }
 
     .payment-container {
-        /* Full width — Polar iframe needs to fill the entire panel.
-           The Payment component handles its own internal layout. */
+        /* Full width — the Payment component handles its own internal layout. */
         width: 100%;
         padding: 0;
     }
@@ -626,7 +647,7 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    /* Provider switch button — shown below saved-method list to switch to Polar */
+    /* Provider switch button — shown below saved-method list */
     .provider-switch-container {
         display: flex;
         justify-content: center;

@@ -3,10 +3,66 @@ import logging
 import regex
 import hashlib
 import os
-from typing import Tuple, Optional
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Tuple, Optional
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+ACCOUNT_CONTACT_EMAIL_COLLECTION = "account_contact_emails"
+ACCOUNT_LIFECYCLE_EMAIL_PURPOSE = "account_lifecycle"
+ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE = uuid.UUID("7f330c19-7aa0-5403-89ca-d97578fb8110")
+
+
+def _account_contact_email_id(user_id: str) -> str:
+    return str(uuid.uuid5(ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE, user_id))
+
+
+async def store_account_lifecycle_contact_email(
+    directus_service: Any,
+    encryption_service: Any,
+    *,
+    user_id: str,
+    hashed_email: str,
+    email: str,
+    verified_at: Any,
+) -> bool:
+    """Store the verified account email under a server-side Vault key for lifecycle notices."""
+    if not user_id or not hashed_email or not email:
+        logger.warning("Skipping account lifecycle contact email storage due to missing input")
+        return False
+
+    contact_id = _account_contact_email_id(user_id)
+    encrypted_email = await encryption_service.encrypt_account_contact_email(email)
+    now = datetime.now(timezone.utc).isoformat()
+    success, result = await directus_service.create_item(
+        ACCOUNT_CONTACT_EMAIL_COLLECTION,
+        {
+            "id": contact_id,
+            "user_id": user_id,
+            "hashed_email": hashed_email,
+            "encrypted_email_address": encrypted_email,
+            "purpose": ACCOUNT_LIFECYCLE_EMAIL_PURPOSE,
+            "source": "signup",
+            "verified_at": verified_at,
+            "metadata": {
+                "signup_version": 1,
+                "stored_at": now,
+            },
+        },
+        admin_required=True,
+    )
+    if success:
+        logger.info("Stored account lifecycle contact email for user %s", user_id[:8])
+        return True
+
+    if isinstance(result, dict) and result.get("status_code") == 400 and "unique" in result.get("text", "").lower():
+        logger.info("Account lifecycle contact email already exists for user %s", user_id[:8])
+        return True
+
+    logger.error("Failed to store account lifecycle contact email for user %s: %s", user_id[:8], result)
+    return False
 
 async def verify_allowed_origin(request: Request):
     """
@@ -17,24 +73,66 @@ async def verify_allowed_origin(request: Request):
     allowed_origins = request.app.state.allowed_origins
     
     if not origin or origin not in allowed_origins:
-        # Log detailed error information for debugging
-        logger.error(
-            f"🚨 CORS BLOCKED: Unauthorized origin access\n"
-            f"   Endpoint: {request.url.path}\n"
-            f"   Origin: {origin or '(MISSING)'}\n"
-            f"   Allowed Origins: {', '.join(allowed_origins) if allowed_origins else '(NONE CONFIGURED)'}\n"
-            f"   Method: {request.method}\n"
-            f"   ⚠️  This usually means FRONTEND_URLS/PRODUCTION_URL is missing the origin URL"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                f"Access denied: Origin '{origin or '(missing)'}' is not in the allowed origins list. "
-                f"Please check that FRONTEND_URLS (dev) or PRODUCTION_URL (prod) includes this origin."
-            )
-        )
+        _raise_disallowed_origin(request, origin, allowed_origins)
     
     return True
+
+
+async def verify_auth_client(request: Request):
+    """
+    Verify auth client access for login endpoints used by browsers and native iOS.
+
+    Browser requests keep the strict Origin allowlist behavior. Missing-Origin
+    requests are accepted only when they identify as the native iOS app; these
+    headers classify the client and are not treated as authentication.
+    """
+    origin = request.headers.get("origin")
+    allowed_origins = request.app.state.allowed_origins
+
+    if origin:
+        if origin not in allowed_origins:
+            _raise_disallowed_origin(request, origin, allowed_origins)
+        return True
+
+    if _is_native_ios_client(request):
+        return True
+
+    _raise_disallowed_origin(request, origin, allowed_origins)
+
+
+def _is_native_ios_client(request: Request) -> bool:
+    user_agent = request.headers.get("user-agent", "")
+    client = request.headers.get("x-openmates-client", "")
+    bundle_id = request.headers.get("x-openmates-bundle-id", "")
+    expected_bundle_id = os.getenv("OPENMATES_IOS_BUNDLE_ID", "").strip()
+
+    if not user_agent.startswith("OpenMates-Apple/"):
+        return False
+    if client != "ios":
+        return False
+    if expected_bundle_id and bundle_id != expected_bundle_id:
+        return False
+
+    return True
+
+
+def _raise_disallowed_origin(request: Request, origin: Optional[str], allowed_origins) -> None:
+    # Log detailed error information for debugging
+    logger.error(
+        f"🚨 CORS BLOCKED: Unauthorized origin access\n"
+        f"   Endpoint: {request.url.path}\n"
+        f"   Origin: {origin or '(MISSING)'}\n"
+        f"   Allowed Origins: {', '.join(allowed_origins) if allowed_origins else '(NONE CONFIGURED)'}\n"
+        f"   Method: {request.method}\n"
+        f"   ⚠️  This usually means FRONTEND_URLS/PRODUCTION_URL is missing the origin URL"
+    )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            f"Access denied: Origin '{origin or '(missing)'}' is not in the allowed origins list. "
+            f"Please check that FRONTEND_URLS (dev) or PRODUCTION_URL (prod) includes this origin."
+        )
+    )
 
 def get_cookie_domain(request: Request) -> Optional[str]:
     """

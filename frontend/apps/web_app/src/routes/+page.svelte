@@ -41,6 +41,9 @@
 		getKeyFromStorage,
 		text,
 		LANGUAGE_CODES,
+		getDetectedBrowserLanguage,
+		getLanguageByCode,
+		isRtlLanguage,
 		forcedLogoutInProgress,
 		setForcedLogoutInProgress,
 		resetForcedLogoutInProgress,
@@ -62,6 +65,7 @@
 		cryptoReady
 	} from '@repo/ui';
 	import { pushNotificationService } from '@repo/ui';
+	import { settingsMenuVisible } from '@repo/ui/components/Settings.svelte';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { locale, waitLocale } from 'svelte-i18n';
@@ -87,11 +91,122 @@
 	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
 	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';
 	const SHORTCUT_TOGGLE_SETTINGS_KEY = '.';
+	const EDGE_SWIPE_START_WIDTH_PX = 28;
+	const EDGE_SWIPE_OPEN_DISTANCE_PX = 64;
+	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
+
+	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
+
+	let edgeSwipeTarget: EdgeSwipeTarget | null = null;
+	let edgeSwipeStartX = 0;
+	let edgeSwipeStartY = 0;
+	let edgeSwipeHandled = false;
+	let edgeSwipeTouchStartHandler: ((event: TouchEvent) => void) | null = null;
+	let edgeSwipeTouchMoveHandler: ((event: TouchEvent) => void) | null = null;
+	let edgeSwipeTouchEndHandler: (() => void) | null = null;
 
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
 		settingsDeepLink.set('billing/gift-cards/redeem');
 		setTimeout(() => panelState.openSettings(), 100);
+	}
+
+	function isTouchDevice(): boolean {
+		return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+	}
+
+	function resetEdgeSwipe(): void {
+		edgeSwipeTarget = null;
+		edgeSwipeStartX = 0;
+		edgeSwipeStartY = 0;
+		edgeSwipeHandled = false;
+	}
+
+	function closeSettingsMenu(): void {
+		settingsMenuVisible.set(false);
+		panelState.closeSettings();
+	}
+
+	function handleEdgeSwipeStart(event: TouchEvent): void {
+		if (!isTouchDevice() || event.touches.length !== 1) {
+			resetEdgeSwipe();
+			return;
+		}
+
+		const touch = event.touches[0];
+		const viewportWidth = window.innerWidth;
+		edgeSwipeStartX = touch.clientX;
+		edgeSwipeStartY = touch.clientY;
+		edgeSwipeHandled = false;
+
+		if (edgeSwipeStartX <= EDGE_SWIPE_START_WIDTH_PX && !$panelState.isActivityHistoryOpen) {
+			edgeSwipeTarget = 'open-chats';
+			return;
+		}
+
+		if (
+			edgeSwipeStartX >= viewportWidth - EDGE_SWIPE_START_WIDTH_PX &&
+			!$panelState.isSettingsOpen
+		) {
+			edgeSwipeTarget = 'open-settings';
+			return;
+		}
+
+		if ($panelState.isSettingsOpen) {
+			edgeSwipeTarget = 'close-settings';
+			return;
+		}
+
+		if ($panelState.isActivityHistoryOpen) {
+			edgeSwipeTarget = 'close-chats';
+			return;
+		}
+
+		resetEdgeSwipe();
+	}
+
+	function handleEdgeSwipeMove(event: TouchEvent): void {
+		if (!edgeSwipeTarget || edgeSwipeHandled || event.touches.length !== 1) {
+			return;
+		}
+
+		const touch = event.touches[0];
+		const deltaX = touch.clientX - edgeSwipeStartX;
+		const deltaY = touch.clientY - edgeSwipeStartY;
+		const absDeltaY = Math.abs(deltaY);
+		const isMostlyHorizontal = Math.abs(deltaX) > absDeltaY * 1.2;
+
+		if (absDeltaY > EDGE_SWIPE_VERTICAL_CANCEL_PX && !isMostlyHorizontal) {
+			resetEdgeSwipe();
+			return;
+		}
+
+		const shouldOpenChats = edgeSwipeTarget === 'open-chats' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
+		const shouldCloseChats =
+			edgeSwipeTarget === 'close-chats' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
+		const shouldOpenSettings =
+			edgeSwipeTarget === 'open-settings' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
+		const shouldCloseSettings =
+			edgeSwipeTarget === 'close-settings' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
+
+		if (!shouldOpenChats && !shouldCloseChats && !shouldOpenSettings && !shouldCloseSettings) {
+			return;
+		}
+
+		event.preventDefault();
+		edgeSwipeHandled = true;
+
+		if (shouldOpenChats) {
+			panelState.closeSettings();
+			panelState.openChats();
+		} else if (shouldCloseChats) {
+			panelState.closeChats();
+		} else if (shouldOpenSettings) {
+			panelState.closeChats();
+			panelState.openSettings();
+		} else {
+			closeSettingsMenu();
+		}
 	}
 
 	$effect(() => {
@@ -707,6 +822,7 @@
 		// (with daily inspiration + for-everyone card) stays visible — used by /dev/og-image iframes.
 		const ogMediaParams = browser ? new URLSearchParams(window.location.search) : null;
 		const isOgMode = ogMediaParams?.get('og') === '1' || ogMediaParams?.get('media') === '1';
+
 		if (!$activeChatStore && activeChat) {
 			if (!$authStore.isAuthenticated && !isOgMode) {
 				// Non-auth: load demo-for-everyone
@@ -846,6 +962,18 @@
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
 
+		// ?lang= has absolute priority over stored preferredLanguage.
+		// Apply it here — at the very top of onMount, before any chat loading
+		// (Priority 1/2/3), so translateDemoChat always uses the URL-specified
+		// language regardless of whether this is a first visit or a return visit.
+		if (browser) {
+			const langParamEarly = new URLSearchParams(window.location.search).get('lang');
+			if (langParamEarly && LANGUAGE_CODES.includes(langParamEarly)) {
+				locale.set(langParamEarly);
+				await waitLocale();
+			}
+		}
+
 		// Persistent Cmd/Ctrl+F interceptor at page level.
 		// Chats.svelte is conditionally mounted, so its KeyboardShortcuts instance can be
 		// unavailable while the sidebar is closed. Keeping this at page level guarantees we
@@ -925,6 +1053,14 @@
 		};
 		globalOpenSearchShortcutHandler = handleGlobalOpenSearchShortcut;
 		window.addEventListener('keydown', handleGlobalOpenSearchShortcut, true);
+
+		edgeSwipeTouchStartHandler = handleEdgeSwipeStart;
+		edgeSwipeTouchMoveHandler = handleEdgeSwipeMove;
+		edgeSwipeTouchEndHandler = resetEdgeSwipe;
+		window.addEventListener('touchstart', edgeSwipeTouchStartHandler, { passive: true });
+		window.addEventListener('touchmove', edgeSwipeTouchMoveHandler, { passive: false });
+		window.addEventListener('touchend', edgeSwipeTouchEndHandler, { passive: true });
+		window.addEventListener('touchcancel', edgeSwipeTouchEndHandler, { passive: true });
 
 		// --- Pair session rehydration ---
 		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
@@ -1403,20 +1539,70 @@
 			if (langParam && supportedLocales.includes(langParam)) {
 				console.debug(`[+page.svelte] Setting locale from URL parameter: ${langParam}`);
 
-				// Set the locale
+				// Set the locale and wait for translations to fully load
 				locale.set(langParam);
 				await waitLocale();
 
 				// Save to localStorage (sole source of truth for language preference)
 				localStorage.setItem('preferredLanguage', langParam);
 
-				// Update HTML lang attribute
+				// Update HTML lang + dir attributes (RTL languages need dir="rtl")
 				document.documentElement.setAttribute('lang', langParam);
+				document.documentElement.setAttribute(
+					'dir',
+					isRtlLanguage(langParam) ? 'rtl' : 'ltr'
+				);
+
+				// Notify all components that depend on language-changed events.
+				// This matches the event flow in SettingsLanguage.svelte and ensures
+				// components like Chats.svelte (intro chat titles), DailyInspirationBanner,
+				// and ActiveChat re-render with the correct locale after ?lang= param.
+				setTimeout(() => {
+					window.dispatchEvent(new CustomEvent('language-changed'));
+					setTimeout(() => {
+						window.dispatchEvent(new CustomEvent('language-changed-complete'));
+					}, 50);
+				}, 0);
 
 				// Remove the lang parameter from URL (cleaner URL after setting preference)
 				const newUrl = new URL(window.location.href);
 				newUrl.searchParams.delete('lang');
 				replaceState(newUrl.toString(), {});
+			}
+		}
+
+		// One-time language suggestion: if the visitor's browser language differs from English
+		// and they have no stored preference, show a persistent notification in English letting
+		// them switch. Marked shown immediately so a page refresh doesn't re-show it.
+		if (browser) {
+			const hasPreference = !!localStorage.getItem("preferredLanguage");
+			const alreadyShown = !!localStorage.getItem("language_suggestion_shown");
+
+			if (!hasPreference && !alreadyShown) {
+				const browserLang = getDetectedBrowserLanguage();
+				if (browserLang !== "en" && LANGUAGE_CODES.includes(browserLang)) {
+					const language = getLanguageByCode(browserLang);
+					if (language) {
+						localStorage.setItem("language_suggestion_shown", "1");
+						notificationStore.addNotificationWithOptions("info", {
+							title: "Language Detected",
+							message: `Your browser language is ${language.nativeName}.`,
+							duration: 0,
+							dismissible: true,
+							actionLabel: `Switch to ${language.nativeName}`,
+							onAction: async () => {
+								locale.set(browserLang);
+								await waitLocale();
+								localStorage.setItem("preferredLanguage", browserLang);
+								document.documentElement.setAttribute("lang", browserLang);
+								document.documentElement.setAttribute(
+									"dir",
+									isRtlLanguage(browserLang) ? "rtl" : "ltr"
+								);
+							}
+						});
+					}
+				}
 			}
 		}
 
@@ -2228,6 +2414,16 @@
 		}
 		if (globalOpenSearchShortcutHandler) {
 			window.removeEventListener('keydown', globalOpenSearchShortcutHandler, true);
+		}
+		if (edgeSwipeTouchStartHandler) {
+			window.removeEventListener('touchstart', edgeSwipeTouchStartHandler);
+		}
+		if (edgeSwipeTouchMoveHandler) {
+			window.removeEventListener('touchmove', edgeSwipeTouchMoveHandler);
+		}
+		if (edgeSwipeTouchEndHandler) {
+			window.removeEventListener('touchend', edgeSwipeTouchEndHandler);
+			window.removeEventListener('touchcancel', edgeSwipeTouchEndHandler);
 		}
 		// Note: hashchange, visibilitychange, and beforeunload handlers are cleaned up automatically on page unload
 	});

@@ -44,9 +44,9 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount
 } = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
@@ -63,7 +63,6 @@ test.beforeEach(async () => {
 // eslint-disable-next-line no-empty-pattern
 test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
-		// eslint-disable-next-line no-console
 		console.log(
 			'\n--- CLI IMAGES DEBUG ---\n' + consoleLogs.slice(-60).join('\n') + '\n--- END DEBUG ---\n'
 		);
@@ -188,7 +187,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 
 	await page.goto('/');
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginBtn).toBeVisible({ timeout: 15000 });
 	await loginBtn.click();
 
@@ -208,21 +207,8 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		await otpInput.fill(generateTotp(TEST_OTP_KEY));
-		await submitBtn.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-			loginSuccess = true;
-		} catch {
-			if (attempt < 3) await page.waitForTimeout(31000);
-		}
-	}
 	await page.waitForURL(/chat/, { timeout: 20000 });
 	logCheckpoint('Web app logged in.');
 
@@ -300,7 +286,7 @@ test.describe('CLI Images', () => {
 		let chatData: any;
 		try {
 			chatData = JSON.parse(chatResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(
 				`Expected JSON from chats new --json, got:\n${chatResult.stdout}\nstderr:\n${chatResult.stderr}`
 			);
@@ -326,7 +312,7 @@ test.describe('CLI Images', () => {
 		let showData: any;
 		try {
 			showData = JSON.parse(showResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(`Expected JSON from chats show --json, got:\n${showResult.stdout}`);
 		}
 
@@ -372,7 +358,7 @@ test.describe('CLI Images', () => {
 		let embedData: any;
 		try {
 			embedData = JSON.parse(embedResult.stdout);
-		} catch (e) {
+		} catch (_e) {
 			throw new Error(
 				`Expected JSON from embeds show --json, got:\n${embedResult.stdout}\nstderr:\n${embedResult.stderr}`
 			);
@@ -385,7 +371,7 @@ test.describe('CLI Images', () => {
 		expect(resolvedId.length).toBeGreaterThan(0);
 
 		// The decrypted content should contain the generation prompt
-		const embedContent = embedData.content || embedData.data || {};
+		const _embedContent = embedData.content || embedData.data || {};
 		logCheckpoint(`Embed type: ${embedData.embed_type || embedData.type}`);
 
 		// verify it's an image embed type

@@ -26,7 +26,7 @@ struct PublicChatListView: View {
                 if !store.introChats.isEmpty {
                     chatSection(
                         title: "Welcome",
-                        icon: "hand.wave",
+                        icon: "ai",
                         chats: store.introChats
                     )
                 }
@@ -34,7 +34,7 @@ struct PublicChatListView: View {
                 if !store.exampleChats.isEmpty {
                     chatSection(
                         title: "Example Conversations",
-                        icon: "text.bubble",
+                        icon: "messages",
                         chats: store.exampleChats
                     )
                 }
@@ -42,7 +42,7 @@ struct PublicChatListView: View {
                 if !store.announcementChats.isEmpty {
                     chatSection(
                         title: "Announcements",
-                        icon: "megaphone",
+                        icon: "mail",
                         chats: store.announcementChats
                     )
                 }
@@ -50,7 +50,7 @@ struct PublicChatListView: View {
                 if !store.tipsChats.isEmpty {
                     chatSection(
                         title: "Tips & Tricks",
-                        icon: "lightbulb",
+                        icon: "ai",
                         chats: store.tipsChats
                     )
                 }
@@ -58,21 +58,55 @@ struct PublicChatListView: View {
             .padding(.horizontal, .spacing6)
             .padding(.vertical, .spacing4)
         }
-        .navigationTitle("Explore")
         .task { await store.loadAll() }
-        .sheet(isPresented: $showChatDetail) {
-            if let chat = selectedChat {
-                PublicChatDetailView(chat: chat)
+        .overlay {
+            if showChatDetail, let chat = selectedChat {
+                ZStack {
+                    Color.black.opacity(0.35)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showChatDetail = false
+                        }
+
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text(chat.title)
+                                .font(.omH3)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontPrimary)
+                                .lineLimit(1)
+                            Spacer()
+                            OMIconButton(icon: "close", label: AppStrings.close, size: 34) {
+                                showChatDetail = false
+                            }
+                        }
+                        .padding(.spacing6)
+
+                        PublicChatDetailView(chat: chat)
+                    }
+                    .frame(maxWidth: 760, maxHeight: 760)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: .radius8)
+                            .stroke(Color.grey20, lineWidth: 1)
+                    )
+                    .padding(.spacing8)
+                }
             }
         }
     }
 
     private func chatSection(title: String, icon: String, chats: [DemoChat]) -> some View {
         VStack(alignment: .leading, spacing: .spacing4) {
-            Label(title, systemImage: icon)
-                .font(.omH4)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.fontPrimary)
+            HStack(spacing: .spacing3) {
+                Icon(icon, size: 18)
+                    .foregroundStyle(Color.fontSecondary)
+                Text(title)
+                    .font(.omH4)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: .spacing4) {
@@ -135,44 +169,32 @@ struct PublicChatCard: View {
 
 struct PublicChatDetailView: View {
     let chat: DemoChat
-    @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: .spacing4) {
-                    ForEach(chat.messages) { message in
-                        VStack(alignment: .leading, spacing: .spacing2) {
-                            HStack {
-                                Text(message.role == "user" ? "You" : "OpenMates")
-                                    .font(.omXs)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(Color.fontTertiary)
-                                Spacer()
-                            }
-
-                            InlineMarkdownText(content: message.content ?? "", isUserMessage: message.role == "user")
-                                .padding(.spacing4)
-                                .background(
-                                    message.role == "user"
-                                        ? AnyShapeStyle(LinearGradient.primary)
-                                        : AnyShapeStyle(Color.grey10)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                ForEach(chat.messages) { message in
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        HStack {
+                            Text(message.role == "user" ? "You" : "OpenMates")
+                                .font(.omXs)
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color.fontTertiary)
+                            Spacer()
                         }
+
+                        InlineMarkdownText(content: message.content, isUserMessage: message.role == "user")
+                            .padding(.spacing4)
+                            .background(
+                                message.role == "user"
+                                    ? AnyShapeStyle(LinearGradient.primary)
+                                    : AnyShapeStyle(Color.grey10)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
                     }
                 }
-                .padding(.spacing6)
             }
-            .navigationTitle(chat.title)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .padding(.spacing6)
         }
     }
 }

@@ -46,15 +46,9 @@
 
     /**
      * For authenticated users: the decrypted account email loaded on mount.
-     * Used as the value submitted when includeEmailToggle is true.
+     * Always included in the report for authenticated users so admins can follow up.
      */
     let authenticatedUserEmail = $state('');
-
-    /**
-     * For authenticated users: whether to include their account email in the report.
-     * Defaults to true (opt-in by default) so users get follow-up contact.
-     */
-    let includeEmailToggle = $state(true);
 
     /**
      * Admin-only: what agent action to trigger on submit.
@@ -503,10 +497,10 @@
                 : null;
             // Only include the share URL if the toggle is enabled and a URL was generated
             const sanitizedUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
-            // For authenticated users: use their account email if the toggle is on, otherwise null.
+            // For authenticated users: always include their account email so admins can follow up.
             // For guest users: use the manually entered email (optional input field).
             const sanitizedEmail = $authStore.isAuthenticated
-                ? (includeEmailToggle && authenticatedUserEmail.trim() ? authenticatedUserEmail.trim() : null)
+                ? (authenticatedUserEmail.trim() ? authenticatedUserEmail.trim() : null)
                 : (contactEmail.trim() || null);
 
             // Collect current device information for debugging purposes
@@ -658,8 +652,6 @@
                 shareChatEnabled = true;
                 chatOrEmbedUrl = '';
                 contactEmail = '';
-                // Re-enable the email toggle for authenticated users after a successful submission
-                includeEmailToggle = true;
                 // Reset admin toggles back to defaults (off)
                 addToLinear = false;
                 sendEmailNotification = false;
@@ -1026,7 +1018,6 @@
             shareChatEnabled,
             chatOrEmbedUrl,
             contactEmail,
-            includeEmailToggle,
             agentAction,
             addToLinear,
             sendEmailNotification,
@@ -1500,7 +1491,6 @@
             shareChatEnabled = draft.shareChatEnabled;
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
-            includeEmailToggle = draft.includeEmailToggle;
             if (draft.agentAction !== undefined) agentAction = draft.agentAction;
             if (draft.addToLinear !== undefined) addToLinear = draft.addToLinear;
             if (draft.sendEmailNotification !== undefined) sendEmailNotification = draft.sendEmailNotification;
@@ -1631,31 +1621,9 @@
         {/if}
         
         <!-- Contact Email Section -->
-        <!-- Authenticated users: toggle to include their account email (on by default) -->
+        <!-- Authenticated users: account email is always included automatically. -->
         <!-- Guest users: free-text email input (optional) -->
-        {#if $authStore.isAuthenticated}
-            <div class="toggle-group">
-                <div class="toggle-row">
-                    <label for="include-email-toggle">{$text('settings.report_issue.email_toggle_label')}</label>
-                    <Toggle
-                        id="include-email-toggle"
-                        bind:checked={includeEmailToggle}
-                        disabled={isSubmitting}
-                        ariaLabel={$text('settings.report_issue.email_toggle_label')}
-                    />
-                </div>
-                <p class="input-hint">
-                    {#if includeEmailToggle && authenticatedUserEmail}
-                        {$text('settings.report_issue.email_toggle_hint').replace('{email}', authenticatedUserEmail)}
-                    {:else if includeEmailToggle}
-                        <!-- Email not yet loaded; show a neutral hint while loading -->
-                        {$text('settings.report_issue.email_hint')}
-                    {:else}
-                        {$text('settings.report_issue.email_toggle_off_hint')}
-                    {/if}
-                </p>
-            </div>
-        {:else}
+        {#if !$authStore.isAuthenticated}
             <div class="input-group">
                 <label for="contact-email">{$text('settings.report_issue.email_label')}</label>
                 <SettingsInput

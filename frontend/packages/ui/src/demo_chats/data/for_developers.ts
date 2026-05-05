@@ -46,7 +46,7 @@ export const forDevelopersChat: DemoChat = {
     category: "openmates_official", // Official OpenMates category - shows favicon, not mate profile
     icon_names: ["code", "terminal", "shield-check"], // Lucide icons for code/terminal/security
     featured: true,
-    order: 2,
+    order: 4,
     lastUpdated: new Date().toISOString(),
   },
 };

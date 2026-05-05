@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Keyboard navigation accessibility tests.
@@ -15,9 +14,9 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	getTestAccount,
-	generateTotp,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 // ─── Unauthenticated keyboard tests ────────────────────────────────────────
 
@@ -107,9 +106,7 @@ test.describe('Keyboard navigation — unauthenticated', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open login dialog
-		const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-		await expect(loginButton).toBeVisible({ timeout: 15000 });
-		await loginButton.click();
+		await openSignupInterface(page);
 		await page.waitForTimeout(1000);
 
 		// Check dialog is open
@@ -150,9 +147,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('networkidle');
 
-		const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-		await headerLoginButton.click();
+		await openSignupInterface(page);
 
 		// Click Login tab to switch from signup to login view
 		const loginTab = page.getByTestId('tab-login');
@@ -168,16 +163,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 		await expect(passwordInput).toBeVisible({ timeout: 15000 });
 		await passwordInput.fill(TEST_PASSWORD);
 
-		// Submit password first — OTP field appears after backend confirms 2FA required
-		const submitButton = page.locator('#login-submit-button');
-		await expect(submitButton).toBeVisible();
-		await submitButton.click();
-
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		const otpInput = page.locator('#login-otp-input');
-		await expect(otpInput).toBeVisible({ timeout: 15000 });
-		await otpInput.fill(otpCode);
-		await submitButton.click();
+		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY);
 
 		await page.waitForURL(/chat/, { timeout: 30000 });
 		await page.waitForTimeout(5000);
@@ -233,7 +219,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 
 		if (dialogVisible) {
 			// Record the first focused element inside the dialog
-			const firstFocused = await page.evaluate(() => {
+			await page.evaluate(() => {
 				return document.activeElement?.tagName?.toLowerCase() || 'none';
 			});
 

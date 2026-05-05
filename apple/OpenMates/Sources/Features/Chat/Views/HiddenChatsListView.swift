@@ -10,12 +10,13 @@ struct HiddenChatsListView: View {
     @State private var hiddenChats: [Chat] = []
     @State private var isLoading = true
     @State private var error: String?
-    @Environment(\.dismiss) var dismiss
 
     var body: some View {
         Group {
             if isLoading {
-                ProgressView("Loading hidden chats...")
+                Text("Loading hidden chats...")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
                     .accessibilityLabel("Loading hidden chats")
             } else if hiddenChats.isEmpty {
                 VStack(spacing: .spacing4) {
@@ -29,54 +30,56 @@ struct HiddenChatsListView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("No hidden chats")
             } else {
-                List {
-                    ForEach(hiddenChats) { chat in
-                        Button {
-                            onSelectChat(chat.id)
-                        } label: {
-                            VStack(alignment: .leading, spacing: .spacing2) {
-                                Text(chat.displayTitle)
-                                    .font(.omP)
-                                    .foregroundStyle(Color.fontPrimary)
-                                if let date = chat.lastMessageAt {
-                                    Text(String(date.prefix(10)))
-                                        .font(.omXs)
-                                        .foregroundStyle(Color.fontTertiary)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: .spacing3) {
+                        ForEach(hiddenChats) { chat in
+                            HStack(spacing: .spacing3) {
+                                Button {
+                                    onSelectChat(chat.id)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: .spacing2) {
+                                        Text(chat.displayTitle)
+                                            .font(.omP)
+                                            .foregroundStyle(Color.fontPrimary)
+                                        if let date = chat.lastMessageAt {
+                                            Text(String(date.prefix(10)))
+                                                .font(.omXs)
+                                                .foregroundStyle(Color.fontTertiary)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                 }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    onUnhideChat(chat.id)
+                                    hiddenChats.removeAll { $0.id == chat.id }
+                                    AccessibilityAnnouncement.announce("\(chat.displayTitle) unhidden")
+                                } label: {
+                                    Icon("visible", size: 18)
+                                        .foregroundStyle(Color.buttonPrimary)
+                                        .frame(width: 34, height: 34)
+                                        .background(Color.grey0)
+                                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Unhide \(chat.displayTitle)")
                             }
-                        }
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(
-                            chat.lastMessageAt.map { "\(chat.displayTitle), \(String($0.prefix(10)))" }
-                            ?? chat.displayTitle
-                        )
-                        .accessibilityHint("Opens this hidden chat")
-                        .accessibilityAddTraits(.isButton)
-                        .swipeActions(edge: .trailing) {
-                            Button {
-                                onUnhideChat(chat.id)
-                                hiddenChats.removeAll { $0.id == chat.id }
-                                AccessibilityAnnouncement.announce("\(chat.displayTitle) unhidden")
-                            } label: {
-                                Label("Unhide", systemImage: "eye")
-                            }
-                            .tint(Color.buttonPrimary)
-                            .accessibilityLabel("Unhide \(chat.displayTitle)")
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, .spacing3)
+                            .background(Color.grey10)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(
+                                chat.lastMessageAt.map { "\(chat.displayTitle), \(String($0.prefix(10)))" }
+                                ?? chat.displayTitle
+                            )
+                            .accessibilityHint("Opens this hidden chat")
+                            .accessibilityAddTraits(.isButton)
                         }
                     }
+                    .padding(.spacing4)
                 }
-                #if os(iOS)
-                .listStyle(.insetGrouped)
-                #endif
-            }
-        }
-        .navigationTitle("Hidden Chats")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Done") { dismiss() }
             }
         }
         .task {

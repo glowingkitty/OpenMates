@@ -5,9 +5,8 @@ Top-level orchestrator that holds all payment providers simultaneously
 and selects the correct one based on user region and any explicit override.
 
 Routing logic:
-  - EU/EEA/CH/GB users → Stripe (default)
-  - All other countries → Polar (handles global tax compliance as MoR)
-  - Either provider can be overridden explicitly via the `provider_override` param
+  - EU users → Stripe PaymentIntent (standard EU prices, no VAT via §19 UStG)
+  - Non-EU users → Stripe Managed Payments (Checkout Session, global prices)
   - SEPA bank transfers → Revolut Business (separate flow, not region-based)
 
 All providers are always initialized at startup so provider switching
@@ -18,7 +17,6 @@ import logging
 from typing import Optional, Dict, Any, Tuple
 
 from backend.core.api.app.services.payment.stripe_service import StripeService
-from backend.core.api.app.services.payment.polar_service import PolarService
 from backend.core.api.app.services.payment.revolut_business_service import RevolutBusinessService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -30,23 +28,21 @@ class PaymentService:
     Manages all payment providers and routes transactions to the correct one.
 
     Provider selection priority (highest to lowest):
-      1. Explicit provider_override in the request ("stripe" or "polar")
-      2. Region-based detection: EU → Stripe, non-EU → Polar
+      1. Explicit provider_override in the request
+      2. Region-based detection: EU → Stripe PaymentIntent, non-EU → Stripe Managed Payments
     """
 
     def __init__(self, secrets_manager: SecretsManager) -> None:
         self.secrets_manager = secrets_manager
 
-        # Multi-provider mode: Stripe (EU) + Polar (non-EU) + Revolut Business (SEPA transfers)
         self._stripe_provider: Optional[StripeService] = StripeService(secrets_manager)
-        self._polar_provider: Optional[PolarService] = PolarService(secrets_manager)
         self._revolut_business: Optional[RevolutBusinessService] = RevolutBusinessService(secrets_manager)
         # Default provider_name for legacy callers (e.g. /payments/config without override)
         self.provider_name = "stripe"
         # Legacy .provider points to Stripe for backwards compatibility
         # (StripeProductSync accesses payment_service.provider directly)
         self.provider = self._stripe_provider
-        logger.info("PaymentService: running in multi-provider mode (Stripe EU + Polar non-EU + Revolut Business SEPA)")
+        logger.info("PaymentService: initialized with Stripe + Revolut Business SEPA")
 
     async def initialize(self, is_production: bool) -> None:
         """
@@ -58,20 +54,6 @@ class PaymentService:
         if self._stripe_provider:
             await self._stripe_provider.initialize(is_production)
             logger.info("PaymentService: Stripe provider initialized")
-
-        if self._polar_provider:
-            try:
-                await self._polar_provider.initialize(is_production)
-                logger.info("PaymentService: Polar provider initialized")
-            except ValueError as exc:
-                # Polar credentials missing — log warning but don't fail startup.
-                # Polar simply won't be available until credentials are added to Vault.
-                logger.warning(
-                    f"PaymentService: Polar provider could not be initialized "
-                    f"(credentials missing from Vault): {exc}. "
-                    f"Non-EU users will fall back to Stripe until Polar is configured."
-                )
-                self._polar_provider = None
 
         if self._revolut_business:
             try:
@@ -97,7 +79,7 @@ class PaymentService:
 
         Args:
             is_eu: True if the user's IP resolves to an EU/EEA/CH/GB country
-            provider_override: Optional explicit provider name ("stripe" or "polar")
+            provider_override: Optional explicit provider name ("stripe" or "managed")
 
         Returns:
             Tuple of (provider_name, provider_instance)
@@ -105,17 +87,10 @@ class PaymentService:
         # Explicit override takes highest priority
         if provider_override:
             normalized = provider_override.lower().strip()
-            if normalized == "polar":
-                if self._polar_provider:
-                    return ("polar", self._polar_provider)
-                else:
-                    logger.warning(
-                        "PaymentService: Polar requested via override but not initialized. "
-                        "Falling back to Stripe."
-                    )
-                    return ("stripe", self._stripe_provider)
-            elif normalized == "stripe":
+            if normalized == "stripe":
                 return ("stripe", self._stripe_provider)
+            elif normalized == "managed":
+                return ("stripe_managed", self._stripe_provider)
             else:
                 logger.warning(
                     f"PaymentService: unknown provider_override '{provider_override}', "
@@ -123,13 +98,10 @@ class PaymentService:
                 )
 
         # Region-based selection
-        if is_eu or not self._polar_provider:
-            # EU users → Stripe
-            # Also use Stripe if Polar isn't available (credentials not yet configured)
+        if is_eu:
             return ("stripe", self._stripe_provider)
         else:
-            # Non-EU users → Polar
-            return ("polar", self._polar_provider)
+            return ("stripe_managed", self._stripe_provider)
 
     async def create_order(
         self,
@@ -142,39 +114,43 @@ class PaymentService:
         is_eu: bool = True,
         success_url: Optional[str] = None,
         embed_origin: Optional[str] = None,
+        return_url: Optional[str] = None,
+        use_global_pricing: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Create a payment order through the appropriate provider.
 
         Args:
-            amount: Amount in smallest currency unit (cents for USD/EUR)
+            amount: Amount in smallest currency unit (cents for EUR)
             currency: ISO currency code
             email: Customer email
             credits_amount: Number of credits being purchased
             customer_id: Optional existing customer ID (provider-specific)
-            provider_override: Optional explicit provider ("stripe" or "polar")
-            is_eu: Whether the user is in the EU/EEA region
-            success_url: URL for Polar to redirect after successful checkout
-            embed_origin: Embedding page origin for Polar iframe security
+            provider_override: Optional explicit provider ("stripe" or "managed")
+            is_eu: Whether the user is in the EU VAT territory (EU27 only)
+            success_url: Unused — kept for signature compatibility
+            embed_origin: Unused — kept for signature compatibility
+            return_url: URL Stripe redirects to after Embedded Checkout
+            use_global_pricing: Non-EU path — use global product prices with
+                Stripe Managed Payments (Checkout Session). EU path uses
+                PaymentIntents at standard EU prices.
 
         Returns:
             Provider-specific order dict, or None on error
         """
         provider_name, provider = self.get_provider(is_eu, provider_override)
 
-        if provider_name == "polar":
+        if provider_name == "stripe_managed" or use_global_pricing:
+            # Non-EU: Stripe Managed Payments via Checkout Session, global prices
             return await provider.create_order(
-                amount=amount,
-                currency=currency,
-                email=email,
-                credits_amount=credits_amount,
-                customer_id=customer_id,
-                success_url=success_url,
-                embed_origin=embed_origin,
+                amount, currency, email, credits_amount, customer_id,
+                return_url=return_url, use_global_pricing=True,
             )
         else:
-            # Stripe
-            return await provider.create_order(amount, currency, email, credits_amount, customer_id)
+            # EU27: regular Stripe PaymentIntent, standard EU prices, no VAT
+            return await provider.create_order_eu(
+                amount, currency, email, credits_amount, customer_id,
+            )
 
     async def create_support_order(
         self,
@@ -186,7 +162,6 @@ class PaymentService:
     ) -> Optional[Dict[str, Any]]:
         """
         Supporter contributions always use Stripe (for all users, all regions).
-        Polar does not support supporter contributions in Phase 1.
         """
         # Support orders always go through Stripe regardless of region
         if self._stripe_provider is None:
@@ -200,8 +175,8 @@ class PaymentService:
         """
         Retrieve an order by ID.
 
-        For Polar orders the order_id is a Polar checkout session ID (UUID).
-        For Stripe orders it's a PaymentIntent ID (pi_...).
+        For managed Stripe orders the order_id is a Checkout Session ID (cs_...).
+        For direct Stripe orders it's a PaymentIntent ID (pi_...).
         The correct provider is determined by the ID prefix.
 
         Args:
@@ -210,14 +185,6 @@ class PaymentService:
         Returns:
             Normalized order dict, or None on error
         """
-        # Route by ID format: Polar uses UUID-style IDs, Stripe uses "pi_" prefix
-        if self._polar_provider and not order_id.startswith("pi_"):
-            # Try Polar first for non-Stripe IDs
-            result = await self._polar_provider.get_order(order_id)
-            if result:
-                return result
-            # Fall through to Stripe if Polar 404s (shouldn't happen in normal flow)
-
         return await self._stripe_provider.get_order(order_id)
 
     async def verify_and_parse_webhook(
@@ -228,39 +195,8 @@ class PaymentService:
     ) -> Optional[Dict[str, Any]]:
         """
         Verify and parse a Stripe webhook event.
-
-        The payments.py route layer already detects which provider sent the
-        webhook (by checking the signature header name) and passes in the
-        correct provider. This method is kept for backwards compatibility
-        with code that calls it directly on the service.
-
-        Polar webhooks are handled via verify_polar_webhook() called directly
-        from payments.py.
         """
         return await self._stripe_provider.verify_and_parse_webhook(payload, sig_header)
-
-    async def verify_polar_webhook(
-        self,
-        payload: bytes,
-        headers: Dict[str, str],
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Verify and parse a Polar webhook using the Standard Webhooks spec.
-
-        Called directly from payments.py when a 'webhook-signature' header
-        is detected (Polar uses Standard Webhooks, not X-Polar-Signature).
-
-        Args:
-            payload: Raw request body bytes
-            headers: All request headers dict (keys may be mixed-case)
-
-        Returns:
-            Parsed event dict if signature valid, None otherwise
-        """
-        if not self._polar_provider:
-            logger.error("PaymentService: received Polar webhook but Polar provider not initialized")
-            return None
-        return await self._polar_provider.verify_and_parse_webhook(payload, headers)
 
     async def verify_revolut_business_webhook(
         self,
@@ -327,41 +263,23 @@ class PaymentService:
         reason: str = "customer_request",
     ) -> Optional[Dict[str, Any]]:
         """
-        Refund a payment via the appropriate provider.
-
-        Provider routing order:
-        1. Explicit provider override (if given)
-        2. Stripe (if order ID starts with 'pi_')
-        3. Polar (if initialized and order ID doesn't match Stripe)
+        Refund a payment via Stripe.
 
         Args:
-            payment_intent_id: Provider-specific order/payment ID.
-                               For Stripe: PaymentIntent ID ('pi_...').
-                               For Polar: the Polar Order UUID (from invoices.provider_order_id).
-            amount: Refund amount in smallest currency unit (cents). If None, full refund (Stripe only).
-            provider: Explicit provider name ('stripe' or 'polar') to bypass auto-detection.
-            reason: Refund reason (used by Polar). Default: 'customer_request'.
+            payment_intent_id: Stripe PaymentIntent ID ('pi_...').
+            amount: Refund amount in smallest currency unit (cents). If None, full refund.
+            provider: Explicit provider name ('stripe' or 'stripe_managed') — both route to Stripe.
+            reason: Refund reason (unused for Stripe, kept for signature compatibility).
 
         Returns:
             Dict with 'refund_id', 'amount', 'currency', 'status' on success, None on error.
         """
-        # Explicit provider override
-        if provider == "polar" and self._polar_provider:
-            return await self._polar_provider.refund_payment(payment_intent_id, amount, reason=reason)
-        if provider == "stripe" and self._stripe_provider:
+        if self._stripe_provider:
             return await self._stripe_provider.refund_payment(payment_intent_id, amount)
-
-        # Auto-detection fallback (for backwards compatibility)
-        if self._stripe_provider and payment_intent_id.startswith("pi_"):
-            return await self._stripe_provider.refund_payment(payment_intent_id, amount)
-
-        # Polar fallback: non-pi_ order ID with Polar initialized
-        if self._polar_provider:
-            return await self._polar_provider.refund_payment(payment_intent_id, amount, reason=reason)
 
         logger.warning(
-            f"PaymentService.refund_payment: cannot determine provider for order "
-            f"'{payment_intent_id}' (provider={provider}). No matching provider available."
+            f"PaymentService.refund_payment: Stripe provider not available for order "
+            f"'{payment_intent_id}'."
         )
         return None
 
@@ -371,42 +289,15 @@ class PaymentService:
         return_url: str = "https://openmates.org/settings/support",
     ) -> Optional[str]:
         """
-        Get a Stripe billing portal URL. Only supported for Stripe.
+        Get a Stripe billing portal URL.
         """
         if self._stripe_provider and hasattr(self._stripe_provider, "get_customer_portal_url"):
             return await self._stripe_provider.get_customer_portal_url(customer_id, return_url)
         return None
 
-    async def get_polar_order_uuid_by_checkout_id(
-        self, checkout_id: str
-    ) -> Optional[str]:
-        """
-        Look up the Polar Order UUID for a checkout session ID.
-
-        Delegates to PolarService.get_order_uuid_by_checkout_id().
-        Used as a fallback when the order.paid webhook arrived before the
-        Directus invoice was created, leaving provider_order_id unset.
-
-        Args:
-            checkout_id: Polar checkout session ID (our invoice's order_id).
-
-        Returns:
-            Polar Order UUID string, or None if Polar is not configured
-            or the lookup fails.
-        """
-        if not self._polar_provider:
-            logger.warning(
-                "PaymentService: cannot look up Polar order UUID — "
-                "Polar provider not initialized"
-            )
-            return None
-        return await self._polar_provider.get_order_uuid_by_checkout_id(checkout_id)
-
     async def close(self) -> None:
         """Clean up provider connections."""
         if self._stripe_provider:
             await self._stripe_provider.close()
-        if self._polar_provider:
-            await self._polar_provider.close()
         if self._revolut_business:
             await self._revolut_business.close()

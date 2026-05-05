@@ -18,6 +18,7 @@ API docs: https://serpapi.com/google-flights-api
 
 import logging
 import re
+from datetime import date
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 import httpx
 
@@ -1087,6 +1088,7 @@ class SerpApiProvider(BaseTransportProvider):
 
         return ConnectionResult(
             transport_method="airplane",
+            source_provider="google_flights",
             total_price=str(price) if price is not None else None,
             currency=currency,
             bookable_seats=None,
@@ -1246,6 +1248,18 @@ async def lookup_booking_url(
             val = booking_context.get(key)
             if val:
                 params[key] = val
+        # SerpAPI rejects outbound_date / return_date in the past.
+        # The booking_context stores the original search date, which may be
+        # past by the time the user clicks "Get booking link". Clamp to today.
+        today_str = date.today().isoformat()
+        for date_key in ("outbound_date", "return_date"):
+            if params.get(date_key) and params[date_key] < today_str:
+                logger.info(
+                    f"Clamping {date_key} from {params[date_key]} to {today_str} "
+                    "(original date is in the past)"
+                )
+                params[date_key] = today_str
+
         # Verify that the critical departure_id parameter is present
         if "departure_id" not in params:
             logger.error(

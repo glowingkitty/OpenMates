@@ -1,0 +1,57 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ subject }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section padding-bottom="10px">
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/user.png" align="center" alt="User icon" css-class="email-icon-50" />
+
+          <mj-text font-size="30px" padding-bottom="20px">
+            <mark>{{ t.email.incomplete_signup_account_deleted.header.text }}</mark>
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.incomplete_signup_account_deleted.greeting.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.incomplete_signup_account_deleted.deleted_notice.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.incomplete_signup_account_deleted.no_action.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.incomplete_signup_account_deleted.signup_again.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.incomplete_signup_account_deleted.newsletter.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-top="16px" padding-bottom="0">
+            {{ t.email.incomplete_signup_account_deleted.signoff.text }}<br />
+            Marco<br />
+            <span style="font-size: 14px; color: #808080;">{{ t.email.incomplete_signup_account_deleted.creator_title.text }}</span>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

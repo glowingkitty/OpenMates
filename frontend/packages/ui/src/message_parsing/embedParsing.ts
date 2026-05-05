@@ -262,6 +262,14 @@ export function parseEmbedNodes(
                 embedAttrs.focus_mode_name = embedRef.focus_mode_name;
               }
 
+              // Copy PDF metadata if present (filename + page_count survive reload)
+              if (embedRef.filename) {
+                embedAttrs.filename = embedRef.filename;
+              }
+              if (embedRef.page_count != null) {
+                embedAttrs.pageCount = embedRef.page_count;
+              }
+
               embedNodes.push(embedAttrs);
               console.debug(
                 "[parseEmbedNodes] Created embed from JSON reference:",

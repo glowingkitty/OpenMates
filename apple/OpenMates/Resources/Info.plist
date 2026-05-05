@@ -28,6 +28,15 @@
 		<string>org.openmates.app.composeChat</string>
 		<string>org.openmates.app.browseChats</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>LexendDeca-Light.ttf</string>
+		<string>LexendDeca-Regular.ttf</string>
+		<string>LexendDeca-Medium.ttf</string>
+		<string>LexendDeca-SemiBold.ttf</string>
+		<string>LexendDeca-Bold.ttf</string>
+		<string>LexendDeca-ExtraBold.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

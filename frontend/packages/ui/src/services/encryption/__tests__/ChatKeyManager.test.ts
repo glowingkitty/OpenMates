@@ -453,7 +453,7 @@ describe("ChatKeyManager — getKey (IDB load)", () => {
 
     // Mock: encrypting/decrypting is handled by cryptoService which we mock
     const rawKey = makeKey(55);
-    const fakeEncrypted = "encrypted-key-base64";
+    const _fakeEncrypted = "encrypted-key-base64";
 
     // Mock decryptChatKeyWithMasterKey inline via the fetcher returning
     // an encrypted string, but we can't easily mock the crypto import here.
@@ -631,7 +631,7 @@ describe("ChatKeyManager — state machine transitions (KEYS-05)", () => {
 
     // First attempt: getKey should fail (decryptChatKeyWithMasterKey returns null in test)
     await mgr.getKey("chat-1");
-    expect(mgr.getState("chat-1")).toBe("failed").valueOf;
+    expect(mgr.getState("chat-1")).toBe("failed");
 
     // Inject key directly to simulate successful reload path
     // (since we can't easily mock decryptChatKeyWithMasterKey here)
@@ -1183,6 +1183,35 @@ describe("SYNC-01: key_received acknowledgment", () => {
 
     // No ack sent because the key was already cached (early return path)
     expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps local key when server sends a conflicting key (regression: aac318eee)", async () => {
+    // Regression: receiveKeyFromServer used to accept the server key as
+    // "source of truth" when it differed from the local key. If the server
+    // holds a stale key from a previous sync race, this silently corrupts
+    // all decryption. The local key (loaded from IDB) must win.
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const localKey = makeKey(80);
+    const serverKey = makeKey(81); // different bytes
+
+    mgr.injectKey("chat-conflict", localKey, "master_key");
+
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(serverKey);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await mgr.receiveKeyFromServer("chat-conflict", "server-encrypted-key");
+
+    // Local key must be returned unchanged
+    expect(result).toEqual(localKey);
+    expect(mgr.getKeySync("chat-conflict")).toEqual(localKey);
+    expect(mgr.getKeySync("chat-conflict")).not.toEqual(serverKey);
+
+    // Conflict must be logged
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("KEY CONFLICT"),
+    );
+
+    consoleSpy.mockRestore();
   });
 });
 

@@ -1230,6 +1230,16 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
         'options': {'queue': 'email'},
     },
+    'email-delivery-archive-daily': {
+        'task': 'app.tasks.email_tasks.email_delivery_archive_task.archive_old_email_deliveries',
+        'schedule': crontab(hour=4, minute=30),  # Daily at 04:30 UTC
+        'options': {'queue': 'email'},
+    },
+    'incomplete-signup-deletion-daily': {
+        'task': 'app.tasks.email_tasks.incomplete_signup_deletion_task.process_incomplete_signup_deletions',
+        'schedule': crontab(hour=6, minute=0),  # Daily at 06:00 UTC
+        'options': {'queue': 'email'},
+    },
     # Webhook rate-limit digest — one email per affected user listing every
     # webhook of theirs that hit its rate limit in the last 24h. Runs at 07:00
     # UTC, slightly before the other daily email sweeps so the user sees
@@ -1371,6 +1381,14 @@ app.conf.beat_schedule = {
         'task': 'app.tasks.bank_transfer_expiry_task.expire_stale_bank_transfers',
         'schedule': crontab(hour='*/6', minute=30),  # Every 6 hours at :30
         'options': {'queue': 'persistence'},
+    },
+    # Weekly error digest — aggregates dev + prod ERROR/CRITICAL events from the past 7 days
+    # and emails a summary to SERVER_OWNER_EMAIL. Also surfaces candidate_key_promoted events
+    # from the encryption fallback system. Monday 08:00 UTC so it's waiting at start of week.
+    'error-digest-weekly': {
+        'task': 'app.tasks.email_tasks.error_digest_task.send_weekly_error_digest',
+        'schedule': crontab(hour=8, minute=0, day_of_week=1),  # Monday 08:00 UTC
+        'options': {'queue': 'email'},
     },
 }
 app.conf.timezone = 'UTC'

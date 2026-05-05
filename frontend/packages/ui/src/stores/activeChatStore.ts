@@ -6,17 +6,19 @@
  * the Chats panel is closed and reopened.
  *
  * URL management (privacy-first):
- *   - Public chats (intro, example, announcements, tips, legal) → semantic path
- *     e.g. /intro/for-everyone, /announcements/introducing-openmates-v09
- *     Shared links hit an SSR page with full OG tags, then redirect to the SPA.
+ *   - All in-session chat navigation → hash fragment (#chat-id=xxx)
+ *     Using replaceState to a different SvelteKit route (e.g. /intro/for-developers)
+ *     can trigger SvelteKit's client router on prerendered (seo) pages, causing
+ *     unexpected navigation or UI freeze. Hash-based navigation is safe for all
+ *     in-session switching. Prerendered semantic paths serve SEO crawlers only.
  *   - Private chats → hash fragment (#chat-id=xxx), never sent to the server.
- *   All updates use replaceState — no browser history entries are added.
+ *   All updates use replaceState or hash assignment — no browser history entries added.
  */
 
 import { writable } from "svelte/store";
 import { browser } from "$app/environment";
 import { replaceState } from "$app/navigation";
-import { getSemanticUrlForChat, isOnSemanticChatPath } from "../services/chatUrlService";
+import { isOnSemanticChatPath } from "../services/chatUrlService";
 
 /**
  * Store to track when deep link processing is happening
@@ -34,33 +36,23 @@ const PROGRAMMATIC_UPDATE_WINDOW_MS = 100; // Window to ignore hashchange events
 
 /**
  * Update the browser URL to reflect the active chat.
- *
- * Public chats (intro, example, announcements, tips, legal) get a semantic path
- * (e.g. /intro/for-everyone) so shared links hit an SSR page with OG tags.
- * Private chats use the hash fragment (#chat-id=xxx) which is never sent to the
- * server, preserving privacy.
- *
- * Always uses replaceState — no browser history entries are added.
+ * All in-session navigation uses the hash fragment so no SvelteKit route change occurs.
+ * Always uses replaceState or hash assignment — no browser history entries are added.
  */
 function updateUrlHash(chatId: string | null) {
   if (!browser) return;
 
   if (chatId) {
-    const semanticUrl = getSemanticUrlForChat(chatId);
-
-    if (semanticUrl) {
-      // Public chat → update path to semantic URL (no hash, no history entry)
-      if (window.location.pathname !== semanticUrl) {
-        replaceState(semanticUrl, {});
-      }
-      return;
-    }
-
-    // Private chat → use hash fragment.
-    // If we're currently on a semantic path, move back to root first so the hash
-    // doesn't get appended to e.g. /intro/for-everyone.
+    // Always use hash fragment for in-session navigation (public and private chats alike).
+    // Using replaceState to a semantic path like /intro/for-developers risks triggering
+    // SvelteKit's client router because those paths exist as real prerendered (seo) routes.
+    // If SvelteKit navigates to the SEO page, its onMount fires window.location.replace
+    // which can interrupt loadChat mid-flight and leave the UI unresponsive.
+    // Hash-based navigation avoids any route change and is consistent for all chat types.
     const expectedHash = `#chat-id=${chatId}`;
     if (isOnSemanticChatPath()) {
+      // Currently on a semantic path (e.g. user arrived via direct link /intro/for-developers).
+      // Move back to root with the hash so it doesn't get appended to the semantic path.
       replaceState(`/${expectedHash}`, {});
       return;
     }

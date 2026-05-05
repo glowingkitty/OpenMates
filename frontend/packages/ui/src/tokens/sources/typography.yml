@@ -9,6 +9,9 @@
 
 font-family:
   primary: "Lexend Deca Variable"
+  # iOS/macOS registered PostScript family name — must match FontRegistration.swift
+  # "Lexend Deca Variable" is the CSS variable font name; Swift uses the static font family name.
+  swift: "Lexend Deca"
 
 font-weight:
   medium:     500

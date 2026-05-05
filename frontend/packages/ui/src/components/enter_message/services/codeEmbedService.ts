@@ -176,13 +176,13 @@ export async function loadEmbedPIIMappings(
 ): Promise<PIIMappingForStorage[]> {
   const piiKey = `embed_pii:${embedId}`;
   try {
-    const piiData = await embedStore.get(piiKey);
+    const piiData = await embedStore.get(piiKey) as Record<string, unknown> | null;
     if (
       piiData &&
-      piiData.pii_mappings &&
-      Array.isArray(piiData.pii_mappings)
+      piiData["pii_mappings"] &&
+      Array.isArray(piiData["pii_mappings"])
     ) {
-      return piiData.pii_mappings as PIIMappingForStorage[];
+      return piiData["pii_mappings"] as PIIMappingForStorage[];
     }
   } catch (error) {
     console.debug(
@@ -327,19 +327,14 @@ export async function createCodeEmbed(
 
   // ── Store Embed in EmbedStore ────────────────────────────────────────────
   // The embed content (with redacted code) is stored encrypted with the master key.
-  try {
-    await embedStore.put(`embed:${embed_id}`, embedData, "code-code");
-    console.info(
-      "[codeEmbedService] Stored code embed in EmbedStore:",
-      embed_id,
-    );
-  } catch (error) {
-    console.error(
-      "[codeEmbedService] Failed to store embed in EmbedStore:",
-      error,
-    );
-    // Continue anyway - embed can still be sent with message
-  }
+  // We intentionally let this throw — callers must handle the failure so they can
+  // fall back to an inline embed rather than inserting a dangling reference that
+  // GroupRenderer can never resolve (which would show an empty code preview).
+  await embedStore.put(`embed:${embed_id}`, embedData, "code-code");
+  console.info(
+    "[codeEmbedService] Stored code embed in EmbedStore:",
+    embed_id,
+  );
 
   // ── Store PII Mappings Separately ───────────────────────────────────────
   // PII mappings are stored under a separate key (`embed_pii:{embed_id}`) using

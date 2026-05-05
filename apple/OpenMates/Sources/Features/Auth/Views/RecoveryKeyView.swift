@@ -16,6 +16,7 @@ import SwiftUI
 struct RecoveryKeyView: View {
     @EnvironmentObject var authManager: AuthManager
     let email: String
+    let userEmailSalt: String?
 
     @State private var recoveryKey = ""
     @State private var isLoading = false
@@ -89,7 +90,11 @@ struct RecoveryKeyView: View {
 
         Task {
             do {
-                try await authManager.loginWithRecoveryKey(email: email, recoveryKey: recoveryKey)
+                try await authManager.loginWithRecoveryKey(
+                    email: email,
+                    recoveryKey: recoveryKey,
+                    userEmailSalt: userEmailSalt
+                )
             } catch let error as APIError {
                 errorMessage = error.localizedDescription
                 AccessibilityAnnouncement.announce(error.localizedDescription)

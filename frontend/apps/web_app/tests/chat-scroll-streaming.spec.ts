@@ -29,12 +29,12 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Chat scroll & streaming behavior test:
@@ -91,7 +91,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible();
 	await headerLoginButton.click();
 
@@ -109,14 +109,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
 	await page.waitForURL(/chat/);
 	await page.waitForTimeout(5000);

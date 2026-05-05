@@ -3,8 +3,8 @@
 
 Payment Provider Routing Tests
 ===============================
-Tests that /v1/payments/config correctly routes to Stripe (EU IPs) or Polar (non-EU IPs),
-and that provider_override query parameter works correctly.
+Tests that /v1/payments/config correctly routes to Stripe (EU IPs) or Stripe Managed
+Payments (non-EU IPs), and that provider_override query parameter works correctly.
 
 Uses Webshare rotating residential proxies to simulate requests from different geographic
 regions, so results reflect the actual IP-based geo-detection logic on the server.
@@ -18,9 +18,6 @@ Prerequisites:
 
 Execution:
   /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_payment_provider_routing.py
-
-Note: Polar provider routes to Stripe as fallback until Polar Vault secrets are configured.
-      These tests verify routing intent (EU→stripe, non-EU→polar-or-stripe-fallback).
 
 Webshare credentials are fetched from HashiCorp Vault via `docker exec api python3`.
 This is required because .env contains IMPORTED_TO_VAULT placeholders, not real credentials.
@@ -221,7 +218,7 @@ def get_payment_config_via_docker(
 
     Args:
         proxy_url: Optional Webshare proxy URL to route the request through.
-        provider_override: Optional 'stripe' or 'polar' query param.
+        provider_override: Optional 'stripe' or 'managed' query param.
         timeout: Request timeout in seconds.
     Returns:
         Parsed JSON dict with at least 'provider' key.
@@ -318,7 +315,7 @@ def get_payment_config(
 
     Args:
         proxy_url: Optional Webshare proxy URL to route the request through.
-        provider_override: Optional 'stripe' or 'polar' to pass as query param.
+        provider_override: Optional 'stripe' or 'managed' to pass as query param.
         timeout: Request timeout in seconds.
     Returns:
         Parsed JSON dict with at least 'provider' key.
@@ -384,7 +381,7 @@ def direct_client(direct_headers):
 def test_config_returns_valid_provider(direct_client):
     """
     /v1/payments/config must return a valid provider name without any override.
-    Valid providers are 'stripe' and 'polar'.
+    Valid providers are 'stripe' and 'stripe_managed'.
     This also verifies the endpoint is reachable and authenticated.
     """
     response = direct_client.get("/v1/payments/config")
@@ -392,8 +389,8 @@ def test_config_returns_valid_provider(direct_client):
     data = response.json()
 
     assert "provider" in data, f"Response missing 'provider': {data}"
-    assert data["provider"] in ("stripe", "polar"), (
-        f"Unexpected provider '{data['provider']}' — expected 'stripe' or 'polar'"
+    assert data["provider"] in ("stripe", "stripe_managed"), (
+        f"Unexpected provider '{data['provider']}' — expected 'stripe' or 'stripe_managed'"
     )
     print(f"\n[CONFIG] Default provider (dev machine IP): {data['provider']}")
 
@@ -422,41 +419,6 @@ def test_config_stripe_override(direct_client):
 
 
 @pytest.mark.integration
-def test_config_polar_override(direct_client):
-    """
-    ?provider_override=polar must return Polar (or Stripe fallback if Polar is not yet
-    configured in Vault). Verifies the override query param is respected.
-
-    When Polar Vault secrets ARE configured:
-      - provider == 'polar'
-      - public_key == '' (Polar uses checkout URL, not a client-side key)
-
-    When Polar Vault secrets are NOT yet configured (expected during initial setup):
-      - provider == 'stripe' (graceful fallback)
-      - public_key is set
-    """
-    response = direct_client.get("/v1/payments/config?provider_override=polar")
-    assert response.status_code == 200, f"Config with polar override failed: {response.text}"
-    data = response.json()
-
-    assert data["provider"] in ("stripe", "polar"), (
-        f"Unexpected provider '{data['provider']}'"
-    )
-    if data["provider"] == "polar":
-        # Polar configured: no client-side key needed (embedded checkout uses URL)
-        assert data.get("public_key", "") == "", (
-            f"Polar config should return empty public_key, got: {data.get('public_key')}"
-        )
-        print("\n[CONFIG] Polar override: Polar is configured ✓")
-    else:
-        # Polar not yet configured: fallback to Stripe
-        print(
-            "\n[CONFIG] Polar override: Polar secrets not yet in Vault — "
-            f"fell back to '{data['provider']}' (expected until Polar is configured)"
-        )
-
-
-@pytest.mark.integration
 def test_config_invalid_override_falls_back(direct_client):
     """
     An invalid ?provider_override value should be ignored and fall back to
@@ -467,7 +429,7 @@ def test_config_invalid_override_falls_back(direct_client):
         f"Config with invalid override should still return 200: {response.text}"
     )
     data = response.json()
-    assert data["provider"] in ("stripe", "polar"), (
+    assert data["provider"] in ("stripe", "stripe_managed"), (
         f"Invalid override should fall back to a valid provider, got: {data['provider']}"
     )
     print(f"\n[CONFIG] Invalid override fell back to: {data['provider']}")
@@ -520,7 +482,7 @@ def test_proxy_request_returns_valid_provider():
     else:
         pytest.fail(f"All proxy attempts failed: {last_error}")
 
-    assert data["provider"] in ("stripe", "polar"), (
+    assert data["provider"] in ("stripe", "stripe_managed"), (
         f"Proxy request should return a valid provider, got: {data['provider']}"
     )
     print(f"[PROXY] Residential proxy exit IP → provider: {data['provider']} ✓")
@@ -561,40 +523,6 @@ def test_stripe_override_via_proxy():
 
 @pytest.mark.integration
 @pytest.mark.skipif(not HAS_WEBSHARE, reason="Webshare credentials not available from Vault via docker exec")
-def test_polar_override_via_proxy():
-    """
-    ?provider_override=polar via proxy must return Polar (or Stripe fallback
-    if Polar is not yet configured in Vault).
-    """
-    proxy_url = make_webshare_proxy_url()
-    print("\n[PROXY+OVERRIDE] Testing polar override via Webshare proxy (via docker exec)...")
-
-    last_error = None
-    for attempt in range(3):
-        try:
-            data = get_payment_config_via_docker(proxy_url=proxy_url, provider_override="polar")
-            break
-        except ProxyAuthError as e:
-            pytest.skip(str(e))
-        except Exception as e:
-            last_error = e
-            time.sleep(2)
-    else:
-        pytest.fail(f"All proxy attempts failed: {last_error}")
-
-    print(f"[PROXY+OVERRIDE] Proxy IP + polar override → provider: {data['provider']}")
-    if data["provider"] == "polar":
-        print("[PROXY+OVERRIDE] Polar override via proxy working ✓")
-    else:
-        print(
-            f"[PROXY+OVERRIDE] Fell back to '{data['provider']}' "
-            "(Polar not yet configured in Vault — add SECRET__POLAR__* keys)"
-        )
-    assert data["provider"] in ("stripe", "polar")
-
-
-@pytest.mark.integration
-@pytest.mark.skipif(not HAS_WEBSHARE, reason="Webshare credentials not available from Vault via docker exec")
 def test_multiple_proxy_calls_all_return_valid_provider():
     """
     5 consecutive proxy calls must each return a valid provider.
@@ -622,9 +550,9 @@ def test_multiple_proxy_calls_all_return_valid_provider():
         f"At least 3 of 5 proxy calls must succeed (connectivity test). Got: {results}"
     )
 
-    invalid_providers = [r for r in valid_results if r not in ("stripe", "polar")]
+    invalid_providers = [r for r in valid_results if r not in ("stripe", "stripe_managed")]
     assert not invalid_providers, (
-        f"All successful calls must return 'stripe' or 'polar', got: {invalid_providers}"
+        f"All successful calls must return 'stripe' or 'stripe_managed', got: {invalid_providers}"
     )
     print(f"[ROTATION] {len(valid_results)}/5 calls succeeded, all returned valid providers ✓")
 
@@ -720,10 +648,10 @@ def test_eu_gb_ip_routes_to_stripe():
 @pytest.mark.integration
 @pytest.mark.skipif(not HAS_WEBSHARE, reason="Webshare credentials not available from Vault via docker exec")
 @pytest.mark.skipif(not COUNTRY_TARGETING_ENABLED, reason="Set WEBSHARE_COUNTRY_TARGETING=1 and use Webshare Premium to run country-specific geo tests")
-def test_non_eu_us_ip_routes_to_polar_or_fallback():
-    """US IP (non-EU) must route to Polar (or Stripe fallback if Polar not configured)."""
+def test_non_eu_us_ip_routes_to_stripe_managed():
+    """US IP (non-EU) must route to Stripe Managed Payments."""
     proxy_url = make_webshare_proxy_url(country="us")
-    print("\n[GEO] Testing US IP → expecting Polar or Stripe fallback...")
+    print("\n[GEO] Testing US IP → expecting Stripe Managed Payments...")
 
     last_error = None
     for attempt in range(3):
@@ -739,20 +667,18 @@ def test_non_eu_us_ip_routes_to_polar_or_fallback():
         pytest.fail(f"All proxy attempts failed: {last_error}")
 
     print(f"[GEO] US IP → provider: {data['provider']}")
-    if data["provider"] == "polar":
-        print("[GEO] Polar routing non-EU (US) traffic ✓")
-    else:
-        print(f"[GEO] US IP fell back to '{data['provider']}' (Polar likely not in Vault yet)")
-    assert data["provider"] in ("stripe", "polar")
+    assert data["provider"] in ("stripe", "stripe_managed"), (
+        f"US IP must route to Stripe or Stripe Managed Payments, got '{data['provider']}'"
+    )
 
 
 @pytest.mark.integration
 @pytest.mark.skipif(not HAS_WEBSHARE, reason="Webshare credentials not available from Vault via docker exec")
 @pytest.mark.skipif(not COUNTRY_TARGETING_ENABLED, reason="Set WEBSHARE_COUNTRY_TARGETING=1 and use Webshare Premium to run country-specific geo tests")
-def test_non_eu_au_ip_routes_to_polar_or_fallback():
-    """Australian IP (non-EU) must route to Polar (or Stripe fallback)."""
+def test_non_eu_au_ip_routes_to_stripe_managed():
+    """Australian IP (non-EU) must route to Stripe Managed Payments."""
     proxy_url = make_webshare_proxy_url(country="au")
-    print("\n[GEO] Testing Australian IP (AU) → expecting Polar or Stripe fallback...")
+    print("\n[GEO] Testing Australian IP (AU) → expecting Stripe Managed Payments...")
 
     last_error = None
     for attempt in range(3):
@@ -768,39 +694,7 @@ def test_non_eu_au_ip_routes_to_polar_or_fallback():
         pytest.fail(f"All proxy attempts failed: {last_error}")
 
     print(f"[GEO] AU IP → provider: {data['provider']}")
-    assert data["provider"] in ("stripe", "polar")
-
-
-@pytest.mark.integration
-@pytest.mark.skipif(not HAS_WEBSHARE, reason="Webshare credentials not available from Vault via docker exec")
-@pytest.mark.skipif(not COUNTRY_TARGETING_ENABLED, reason="Set WEBSHARE_COUNTRY_TARGETING=1 and use Webshare Premium to run country-specific geo tests")
-def test_eu_de_with_polar_override():
-    """
-    EU IP (DE) + ?provider_override=polar must respect override.
-    Simulates an EU user clicking 'Pay with a non-EU card instead'.
-    """
-    proxy_url = make_webshare_proxy_url(country="de")
-    print("\n[GEO+OVERRIDE] EU IP (DE) + polar override → expecting Polar...")
-
-    last_error = None
-    for attempt in range(3):
-        try:
-            data = get_payment_config_via_docker(proxy_url=proxy_url, provider_override="polar")
-            break
-        except ProxyAuthError as e:
-            pytest.skip(str(e))
-        except Exception as e:
-            last_error = e
-            time.sleep(2)
-    else:
-        pytest.fail(f"All proxy attempts failed: {last_error}")
-
-    print(f"[GEO+OVERRIDE] DE + polar override → provider: {data['provider']}")
-    if data["provider"] == "polar":
-        print("[GEO+OVERRIDE] Override respected for EU IP ✓")
-    else:
-        print(f"[GEO+OVERRIDE] Fell back to '{data['provider']}' (Polar not in Vault yet)")
-    assert data["provider"] in ("stripe", "polar")
+    assert data["provider"] in ("stripe", "stripe_managed")
 
 
 @pytest.mark.integration

@@ -34,7 +34,7 @@ async def handle_ai_response_completed(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("ai_response_completed", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -114,16 +114,32 @@ async def handle_ai_response_completed(
 
             logger.info(f"Received completed AI response for storage: chat_id={chat_id}, message_id={message_id}, user_id={user_id}")
 
-            # Verify chat ownership
+            # Verify chat ownership.
+            # For new chats the persist_encrypted_chat_metadata Celery task may still be
+            # in flight, so the chat row won't be in Redis yet even if the user's cache is
+            # primed. check_chat_ownership short-circuits to False in that case.
+            # Fallback: if the chat doesn't exist in Directus at all, the user is almost
+            # certainly the creator and the task just hasn't written yet — allow it through.
+            # If the row exists but belongs to someone else, reject as usual.
             is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
             if not is_owner:
-                logger.warning(f"User {user_id} attempted to store AI response for chat {chat_id} they don't own. Rejecting.")
-                await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
-                    user_id,
-                    device_fingerprint_hash
-                )
-                return
+                import hashlib as _hashlib
+                existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                if existing_chat:
+                    chat_owner_hash = existing_chat.get("hashed_user_id", "")
+                    caller_hash = _hashlib.sha256(user_id.encode()).hexdigest()
+                    if chat_owner_hash != caller_hash:
+                        logger.warning(f"User {user_id} attempted to store AI response for chat {chat_id} they don't own. Rejecting.")
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"message": "You do not have permission to modify this chat."}},
+                            user_id,
+                            device_fingerprint_hash
+                        )
+                        return
+                    logger.info(f"AI response ownership confirmed via DB fallback for chat {chat_id} (cache not yet updated by persist task)")
+                else:
+                    # Chat row not written yet — persist_encrypted_chat_metadata task still in flight.
+                    logger.info(f"Chat {chat_id} not in Directus yet (persist task in flight), allowing ai_response_completed for user {user_id}")
 
             # CRITICAL: Check if this specific response ID was already processed or is being processed
             # This prevents duplicate confirmations and redundant Celery tasks

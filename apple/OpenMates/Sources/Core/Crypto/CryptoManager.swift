@@ -17,27 +17,29 @@ actor CryptoManager {
 
     /// Hash email for server lookup — mirrors web app's SHA-256 email hashing.
     func hashEmail(_ email: String) -> String {
-        let data = Data(email.lowercased().trimmingCharacters(in: .whitespaces).utf8)
+        let data = Data(email.utf8)
         let hash = SHA256.hash(data: data)
-        return hash.compactMap { String(format: "%02x", $0) }.joined()
+        return Data(hash).base64EncodedString()
     }
 
-    /// Derive email encryption key from email + salt.
-    /// Matches web: SHA256(email + user_email_salt)
-    func deriveEmailKey(email: String, salt: String) -> SymmetricKey {
-        let input = email.lowercased() + salt
-        let hash = SHA256.hash(data: Data(input.utf8))
-        return SymmetricKey(data: hash)
+    /// Derive email encryption key from email + user_email_salt.
+    /// Mirrors web cryptoService.deriveEmailEncryptionKey(email, salt): SHA256(email bytes + salt bytes).
+    func deriveEmailEncryptionKey(email: String, salt: Data) -> Data {
+        var input = Data(email.utf8)
+        input.append(salt)
+        let hash = SHA256.hash(data: input)
+        return Data(hash)
     }
 
     // MARK: - Password-based key derivation (PBKDF2)
 
-    /// Derive lookup hash from password for auth.
-    /// Mirrors web app's password hashing before sending to server.
-    func hashPassword(_ password: String, email: String) -> String {
-        let input = password + email.lowercased()
-        let hash = SHA256.hash(data: Data(input.utf8))
-        return hash.compactMap { String(format: "%02x", $0) }.joined()
+    /// Derive lookup hash from a login secret and user_email_salt.
+    /// Mirrors web cryptoService.hashKey(secret, salt): SHA256(secret bytes + salt bytes), base64 encoded.
+    func hashKey(_ key: String, salt: Data) -> String {
+        var input = Data(key.utf8)
+        input.append(salt)
+        let hash = SHA256.hash(data: input)
+        return Data(hash).base64EncodedString()
     }
 
     /// Derive wrapping key from password using PBKDF2-SHA256 with 100,000 iterations.

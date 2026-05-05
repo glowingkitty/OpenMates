@@ -35,9 +35,11 @@ struct AITypingIndicator: View {
                     .pulse(isActive: !reduceMotion)
                     .accessibilityHidden(true)
             } else {
-                Image.iconOpenmates
+                Image("openmates-brand")
+                    .renderingMode(.original)
                     .resizable()
                     .frame(width: 24, height: 24)
+                    .clipShape(Circle())
                     .pulse(isActive: !reduceMotion)
                     .accessibilityHidden(true)
             }

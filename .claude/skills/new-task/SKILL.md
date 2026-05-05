@@ -30,7 +30,7 @@ Analyze the user's input and determine:
    - `UI`, `Backend`, `DevOps`, `testing`, `docs`, `marketing`, `payment`
    - `cronjob`, `user-feedback`, `SEO`
 6. **Project**: Suggest Web App or CLI based on content
-7. **Milestone**: Suggest v0.9.1 alpha (stability/UI fixes) or v0.10.0 alpha (features) based on scope
+7. **Milestone**: Suggest v0.10.1 alpha (stability/UI fixes) or v0.11.0 alpha (features) based on scope
 
 ### Step 2: Present the Suggested Task
 
@@ -44,7 +44,7 @@ Show the user what will be created:
 **Priority:** High (2)
 **Labels:** Bug, UI
 **Project:** Web App
-**Milestone:** v0.9.1 alpha
+**Milestone:** v0.10.1 alpha
 
 ### Description
 The create reminder UI is broken — [expanded description based on user input].

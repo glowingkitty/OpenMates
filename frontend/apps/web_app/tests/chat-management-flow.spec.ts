@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -32,10 +31,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
@@ -355,6 +352,74 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 	log(`Download initiated: ${downloadStarted}`);
 
 	await assertNoMissingTranslations(page);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+	log('Test complete.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 4: Mobile touch actions keep context menu interactive
+// ---------------------------------------------------------------------------
+
+test('keeps chat context menu open when delete is tapped on touch devices', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('CHAT_MGMT_TOUCH_CONTEXT_MENU');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await page.setViewportSize({ width: 393, height: 417 });
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	log('Creating test chat for touch context menu test...');
+	await createTestChat(page, 'What is Touch ID?', log);
+	await screenshot(page, 'chat-created');
+
+	await ensureSidebarOpen(page);
+	const activeChatItem = page
+		.getByTestId('chat-item-wrapper')
+		.filter({ has: page.getByTestId('chat-title') })
+		.first();
+	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
+
+	await activeChatItem.click({ button: 'right' });
+	const menuContainer = page.getByTestId('context-menu');
+	await expect(menuContainer).toBeVisible({ timeout: 5000 });
+	await screenshot(page, 'context-menu-open');
+
+	const deleteButton = page.getByTestId('chat-context-delete');
+	await expect(deleteButton).toBeVisible({ timeout: 5000 });
+	await deleteButton.dispatchEvent('touchstart', {
+		bubbles: true,
+		cancelable: true,
+		touches: [{ identifier: 1, clientX: 200, clientY: 200 }],
+		targetTouches: [{ identifier: 1, clientX: 200, clientY: 200 }],
+		changedTouches: [{ identifier: 1, clientX: 200, clientY: 200 }]
+	});
+	await deleteButton.dispatchEvent('touchend', {
+		bubbles: true,
+		cancelable: true,
+		touches: [],
+		targetTouches: [],
+		changedTouches: [{ identifier: 1, clientX: 200, clientY: 200 }]
+	});
+
+	await expect(menuContainer).toBeVisible({ timeout: 5000 });
+	await expect(deleteButton).toContainText(/Confirm|Best\u00e4tigen/i, { timeout: 5000 });
+	await screenshot(page, 'delete-confirm-after-touch');
+
+	await page.keyboard.press('Escape');
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log('Test complete.');
 });

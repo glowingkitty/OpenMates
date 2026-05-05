@@ -1,0 +1,59 @@
+# Server-decryptable contact emails for mandatory account-lifecycle notices.
+account_contact_emails:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    user_id:
+      type: string
+      length: 128
+      unique: true
+      note: "Directus user id this contact email belongs to."
+
+    hashed_email:
+      type: string
+      length: 64
+      unique: true
+      note: "Frontend-compatible base64(SHA256(normalized email)) hash for matching without plaintext storage."
+
+    encrypted_email_address:
+      type: string
+      length: 512
+      note: "Email encrypted with the account contact email Vault key for server-side transactional notices."
+
+    purpose:
+      type: string
+      length: 80
+      default: "account_lifecycle"
+      note: "Allowed purpose for this contact email."
+
+    source:
+      type: string
+      length: 80
+      note: "How this server-decryptable contact email was obtained, e.g. brevo_backfill."
+
+    verified_at:
+      type: datetime
+      nullable: true
+      note: "Best-known time when this email was verified by an account email flow."
+
+    backfilled_at:
+      type: datetime
+      nullable: true
+      note: "When this record was created by a backfill job."
+
+    last_seen_brevo_at:
+      type: datetime
+      nullable: true
+      note: "Latest Brevo transactional event time seen for this address during backfill."
+
+    last_used_at:
+      type: datetime
+      nullable: true
+      note: "When OpenMates last used this contact email for an account-lifecycle notice."
+
+    metadata:
+      type: json
+      nullable: true

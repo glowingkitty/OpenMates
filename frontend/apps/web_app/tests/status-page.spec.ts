@@ -148,19 +148,26 @@ const MOCK_STATUS_RESPONSE = {
 			},
 			{
 				name: 'Signup',
-				total: 2,
-				passed: 2,
+				total: 3,
+				passed: 3,
 				failed: 0,
 				specs: [
 					{
-						name: 'signup-flow',
+						name: 'signup-flow-stripe-eu',
 						status: 'passed' as const,
 						error: null,
 						duration_s: 20,
 						timeline_30d: []
 					},
 					{
-						name: 'signup-flow-polar',
+						name: 'signup-flow-stripe-managed',
+						status: 'passed' as const,
+						error: null,
+						duration_s: 20,
+						timeline_30d: []
+					},
+					{
+						name: 'signup-flow-passkey',
 						status: 'passed' as const,
 						error: null,
 						duration_s: 18,
@@ -384,13 +391,13 @@ test.describe('Status page — E2E tests section', () => {
 
 		// "Signup" category has 0 failures — should be collapsed.
 		// Its individual spec names should NOT be visible.
-		await expect(page.getByText('signup-flow-polar')).not.toBeVisible();
+		await expect(page.getByText('signup-flow-passkey')).not.toBeVisible();
 
 		// Click the Signup category header to expand
 		await page.getByRole('button', { name: /Signup/ }).click();
 
 		// Now specs should be visible
-		await expect(page.getByText('signup-flow-polar')).toBeVisible();
+		await expect(page.getByText('signup-flow-passkey')).toBeVisible();
 	});
 
 	test('shows category-level pass/fail counts', async ({ page }: { page: any }) => {

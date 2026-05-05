@@ -8,6 +8,9 @@
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct RootView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -32,17 +35,61 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: authManager.state)
+        .modifier(MacWindowChromeModifier())
     }
 }
+
+private struct MacWindowChromeModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+            .background {
+                MacWindowChromeConfigurator()
+                    .frame(width: 0, height: 0)
+            }
+        #else
+        content
+        #endif
+    }
+}
+
+#if os(macOS)
+private struct MacWindowChromeConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            configure(window: view.window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            configure(window: nsView.window)
+        }
+    }
+
+    private func configure(window: NSWindow?) {
+        guard let window else { return }
+        window.styleMask.insert(.fullSizeContentView)
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.backgroundColor = NSColor(named: "grey-0", bundle: .main) ?? .black
+        window.isMovableByWindowBackground = true
+    }
+}
+#endif
 
 struct LaunchScreen: View {
     var body: some View {
         ZStack {
             Color.grey0.ignoresSafeArea()
             VStack(spacing: .spacing4) {
-                Image.iconOpenmates
+                Image("openmates-brand")
+                    .renderingMode(.original)
                     .resizable()
                     .frame(width: 64, height: 64)
+                    .clipShape(Circle())
                 ProgressView()
                     .tint(.fontSecondary)
             }

@@ -13,12 +13,21 @@
 import SwiftUI
 
 struct AuthFlowView: View {
+    let onBackToDemo: () -> Void
+
     @EnvironmentObject var authManager: AuthManager
     @State private var currentStep: AuthStep = .emailLookup
+    @State private var authMode: AuthMode = .signup
     @State private var email = ""
     @State private var availableMethods: [LoginMethod] = []
     @State private var tfaEnabled = false
     @State private var stayLoggedIn = false
+    @State private var userEmailSalt: String?
+
+    enum AuthMode {
+        case login
+        case signup
+    }
 
     enum AuthStep {
         case emailLookup
@@ -26,90 +35,147 @@ struct AuthFlowView: View {
         case passkeyLogin
         case recoveryKey
         case backupCode
+        case pairInitiate
     }
 
     var body: some View {
         ZStack {
-            Color.grey0.ignoresSafeArea()
+            Color.grey20.ignoresSafeArea()
+            AuthIconGridBackground()
+                .opacity(0.16)
+                .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                authHeader
+            ScrollView {
+                VStack(spacing: .spacing4) {
+                    demoBackButton
 
-                ScrollView {
-                    VStack(spacing: .spacing8) {
-                        switch currentStep {
-                        case .emailLookup:
-                            EmailLookupView(
-                                email: $email,
-                                onLookupComplete: handleLookupComplete
-                            )
+                    VStack(spacing: .spacing6) {
+                        authTabs
 
-                        case .passwordLogin:
-                            PasswordLoginView(
-                                email: email,
-                                tfaEnabled: tfaEnabled,
-                                stayLoggedIn: $stayLoggedIn,
-                                onRecoveryKey: { currentStep = .recoveryKey },
-                                onBackupCode: { currentStep = .backupCode }
-                            )
+                        if authMode == .login {
+                            Text(LocalizationManager.shared.text("login.login"))
+                                .font(.omH1)
+                                .fontWeight(.bold)
+                                .foregroundStyle(LinearGradient.primary)
 
-                        case .passkeyLogin:
-                            PasskeyLoginView(email: email)
+                            Text("\(LocalizationManager.shared.text("login.to_chat_to_your"))\n\(LocalizationManager.shared.text("login.digital_team_mates"))")
+                                .font(.omH3)
+                                .fontWeight(.bold)
+                                .multilineTextAlignment(.center)
+                                .foregroundStyle(Color.fontPrimary)
+                        }
 
-                        case .recoveryKey:
-                            RecoveryKeyView(email: email)
-
-                        case .backupCode:
-                            BackupCodeView(email: email)
+                        if authMode == .login {
+                            loginContent
+                        } else {
+                            SignupFlowView()
                         }
                     }
-                    .padding(.horizontal, .spacing8)
-                    .padding(.top, .spacing10)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing6)
+                    .frame(maxWidth: 430)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .shadow(color: .black.opacity(0.14), radius: 20, x: 0, y: 8)
                 }
-
-                signupFooter
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, .spacing5)
+                .padding(.top, .spacing6)
+                .padding(.bottom, .spacing10)
             }
         }
     }
 
     // MARK: - Subviews
 
-    private var authHeader: some View {
-        VStack(spacing: .spacing4) {
-            Image.iconOpenmates
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 48, height: 48)
-                .accessibilityHidden(true)
-
-            Text("OpenMates")
-                .font(.omH2)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.fontPrimary)
+    private var demoBackButton: some View {
+        HStack {
+            Button(action: onBackToDemo) {
+                HStack(spacing: .spacing2) {
+                    Icon("back", size: 18)
+                    Text(LocalizationManager.shared.text("login.demo"))
+                        .font(.omSmall)
+                        .fontWeight(.semibold)
+                }
+                .foregroundStyle(Color.fontSecondary)
+            }
+            .buttonStyle(.plain)
+            Spacer()
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("OpenMates")
-        .padding(.top, .spacing16)
-        .padding(.bottom, .spacing6)
+        .frame(maxWidth: 430)
+        .padding(.horizontal, .spacing2)
     }
 
-    private var signupFooter: some View {
-        VStack(spacing: .spacing4) {
-            Divider()
-            HStack(spacing: .spacing2) {
-                Text(LocalizationManager.shared.text("auth.dont_have_account"))
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontSecondary)
-                Button(AppStrings.signup) {
-                    openSignup()
-                }
-                .font(.omSmall)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.buttonPrimary)
-                .accessibleButton(AppStrings.signup, hint: LocalizationManager.shared.text("auth.opens_signup_in_browser"))
+    private var authTabs: some View {
+        HStack(spacing: .spacing2) {
+            authTab(LocalizationManager.shared.text("login.login"), mode: .login)
+            authTab(LocalizationManager.shared.text("signup.sign_up"), mode: .signup)
+        }
+        .padding(.spacing1)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+    }
+
+    private func authTab(_ title: String, mode: AuthMode) -> some View {
+        Button {
+            authMode = mode
+            if mode == .login {
+                currentStep = .emailLookup
             }
-            .accessibilityElement(children: .combine)
-            .padding(.vertical, .spacing4)
+        } label: {
+            Text(title)
+                .font(.omP)
+                .fontWeight(.semibold)
+                .foregroundStyle(authMode == mode ? Color.fontButton : Color.fontSecondary)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .frame(maxWidth: .infinity)
+                .background {
+                    if authMode == mode {
+                        LinearGradient.primary
+                    } else {
+                        Color.clear
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var loginContent: some View {
+        switch currentStep {
+        case .emailLookup:
+            EmailLookupView(
+                email: $email,
+                stayLoggedIn: $stayLoggedIn,
+                onPasskeyLogin: { currentStep = .passkeyLogin },
+                onPairLogin: { currentStep = .pairInitiate },
+                onLookupComplete: handleLookupComplete
+            )
+
+        case .passwordLogin:
+            PasswordLoginView(
+                email: email,
+                userEmailSalt: userEmailSalt,
+                tfaEnabled: tfaEnabled,
+                stayLoggedIn: $stayLoggedIn,
+                onRecoveryKey: { currentStep = .recoveryKey },
+                onBackupCode: { currentStep = .backupCode }
+            )
+
+        case .passkeyLogin:
+            PasskeyLoginView(email: email)
+
+        case .recoveryKey:
+            RecoveryKeyView(email: email, userEmailSalt: userEmailSalt)
+
+        case .backupCode:
+            BackupCodeView(email: email, userEmailSalt: userEmailSalt)
+
+        case .pairInitiate:
+            SettingsPairInitiateView()
         }
     }
 
@@ -121,9 +187,10 @@ struct AuthFlowView: View {
 
     // MARK: - Actions
 
-    private func handleLookupComplete(methods: [LoginMethod], tfa: Bool) {
+    private func handleLookupComplete(methods: [LoginMethod], tfa: Bool, userEmailSalt: String?) {
         availableMethods = methods
         tfaEnabled = tfa
+        self.userEmailSalt = userEmailSalt
 
         if methods.contains(.passkey) {
             currentStep = .passkeyLogin
@@ -134,14 +201,29 @@ struct AuthFlowView: View {
         }
     }
 
-    private func openSignup() {
-        Task {
-            let url = await APIClient.shared.webAppURL.appendingPathComponent("signup")
-            #if os(iOS)
-            await UIApplication.shared.open(url)
-            #elseif os(macOS)
-            NSWorkspace.shared.open(url)
-            #endif
+}
+
+private struct AuthIconGridBackground: View {
+    private let icons = ["ai", "coding", "web", "book", "money", "travel", "heart", "calendar", "maps"]
+
+    var body: some View {
+        GeometryReader { geo in
+            let columns = max(5, Int(geo.size.width / 52))
+            let rows = max(10, Int(geo.size.height / 52))
+            VStack(spacing: 2) {
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: 2) {
+                        ForEach(0..<columns, id: \.self) { column in
+                            Icon(icons[(row + column) % icons.count], size: 24)
+                                .foregroundStyle(LinearGradient.primary)
+                                .frame(width: 48, height: 48)
+                                .opacity((row + column).isMultiple(of: 3) ? 0.7 : 0.32)
+                        }
+                    }
+                    .offset(x: row.isMultiple(of: 2) ? 0 : 10)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

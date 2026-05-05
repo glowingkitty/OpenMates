@@ -662,15 +662,25 @@ async function _performPdfUpload(
     // background and the WebSocket embed_update event will push 'finished' later.
     const uploadedStatus = result.deduplicated ? "finished" : "processing";
 
+    // PDF dedup is disabled (see internal_api.py check-duplicate endpoint and
+    // upload_route.py). Every PDF upload triggers fresh OCR processing which
+    // delivers the full TOON via send_embed_data. Do NOT register a minimal
+    // TOON in EmbedStore here — it would be sent with the message and overwrite
+    // the full OCR cache on the server (causing "missing ocr_data_s3_key" errors).
+    const uploadEmbedId = result.embed_id;
+
     updateEmbedNode({
       status: uploadedStatus,
-      uploadEmbedId: result.embed_id,
+      uploadEmbedId: uploadEmbedId,
       // page_count is returned by the upload server for PDFs (see UploadFileResponse)
       pageCount: result.page_count ?? null,
       s3BaseUrl: result.s3_base_url,
       aesNonce: result.aes_nonce,
       vaultWrappedAesKey: result.vault_wrapped_aes_key,
       uploadError: null,
+      // Set contentRef so the serialiser emits a proper embed reference
+      // and handleSend skips re-registering (idempotent, same as images).
+      contentRef: `embed:${uploadEmbedId}`,
     });
 
     console.debug(
@@ -679,7 +689,7 @@ async function _performPdfUpload(
         : "[EmbedHandlers] PDF upload complete — processing in background:",
       {
         filename: file.name,
-        embed_id: result.embed_id,
+        embed_id: uploadEmbedId,
         deduplicated: result.deduplicated,
       },
     );

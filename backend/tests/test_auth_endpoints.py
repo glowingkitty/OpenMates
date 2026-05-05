@@ -23,7 +23,10 @@
 import pytest
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
+
+from starlette.datastructures import Headers
 
 # Add project root to Python path for imports (schemas use 'backend.core...' paths)
 project_root = Path(__file__).parent.parent.parent
@@ -186,6 +189,116 @@ class TestHashUsernameImport:
 
 
 # ─── Test: Login endpoint request validation ─────────────────────────────────
+
+class TestAuthClientVerification:
+    """Test native iOS auth client classification without weakening web origins."""
+
+    def make_request(self, headers: dict[str, str]):
+        request = MagicMock()
+        request.headers = Headers(headers)
+        request.app.state = SimpleNamespace(
+            allowed_origins=["https://app.dev.openmates.org"]
+        )
+        request.url.path = "/v1/auth/login"
+        request.method = "POST"
+        return request
+
+    @pytest.mark.asyncio
+    async def test_valid_web_origin_accepted_for_login_and_lookup(self):
+        from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
+
+        for path in ["/v1/auth/login", "/v1/auth/lookup"]:
+            request = self.make_request({"Origin": "https://app.dev.openmates.org"})
+            request.url.path = path
+
+            assert await verify_auth_client(request) is True
+
+    @pytest.mark.asyncio
+    async def test_invalid_web_origin_rejected(self):
+        from fastapi import HTTPException
+        from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
+
+        request = self.make_request({"Origin": "https://evil.example"})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await verify_auth_client(request)
+
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_missing_origin_without_native_headers_rejected(self):
+        from fastapi import HTTPException
+        from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
+
+        request = self.make_request({"User-Agent": "OpenMates-Apple/1.0"})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await verify_auth_client(request)
+
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_missing_origin_with_native_ios_headers_accepted(self):
+        from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
+
+        request = self.make_request({
+            "User-Agent": "OpenMates-Apple/1.0",
+            "X-OpenMates-Client": "ios",
+        })
+
+        assert await verify_auth_client(request) is True
+
+    @pytest.mark.asyncio
+    async def test_cli_pair_login_origin_still_accepted(self):
+        from core.api.app.routes.auth_routes.auth_utils import verify_auth_client
+
+        request = self.make_request({
+            "Origin": "https://app.dev.openmates.org",
+            "User-Agent": "OpenMates-CLI/0.1 (linux 6.0)",
+        })
+        request.url.path = "/v1/auth/login"
+
+        assert await verify_auth_client(request) is True
+
+    def test_ios_login_routes_use_auth_client_verifier(self):
+        import ast
+
+        repo_root = Path(__file__).parent.parent.parent
+        route_files = [
+            (
+                repo_root / "backend/core/api/app/routes/auth_routes/auth_login.py",
+                {"/login", "/lookup"},
+            ),
+            (
+                repo_root / "backend/core/api/app/routes/auth_routes/auth_passkey.py",
+                {"/passkey/assertion/initiate", "/passkey/assertion/verify"},
+            ),
+        ]
+
+        for file_path, expected_paths in route_files:
+            tree = ast.parse(file_path.read_text(), filename=str(file_path))
+            found_paths = set()
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.AsyncFunctionDef):
+                    continue
+                for decorator in node.decorator_list:
+                    if not isinstance(decorator, ast.Call):
+                        continue
+                    if not isinstance(decorator.func, ast.Attribute):
+                        continue
+                    if decorator.func.attr != "post" or not decorator.args:
+                        continue
+                    path_arg = decorator.args[0]
+                    if not isinstance(path_arg, ast.Constant):
+                        continue
+                    if path_arg.value not in expected_paths:
+                        continue
+                    decorator_source = ast.unparse(decorator)
+                    assert "Depends(verify_auth_client)" in decorator_source
+                    found_paths.add(path_arg.value)
+
+            assert found_paths == expected_paths
+
 
 class TestLoginRequestValidation:
     """Test that LoginRequest schema validates correctly.

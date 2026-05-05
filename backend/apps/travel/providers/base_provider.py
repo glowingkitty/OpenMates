@@ -79,6 +79,7 @@ class ConnectionResult(BaseModel):
     """A single connection option returned by a transport provider."""
 
     transport_method: str = Field(description="Transport type: 'airplane', 'train', 'bus', 'boat'")
+    source_provider: Optional[str] = Field(default=None, description="Provider that returned this result (e.g., 'google_flights', 'deutsche_bahn')")
     total_price: Optional[str] = Field(default=None, description="Total price as string (e.g., '245.50')")
     currency: Optional[str] = Field(default=None, description="Price currency code (e.g., 'EUR')")
     bookable_seats: Optional[int] = Field(default=None, description="Number of remaining bookable seats")

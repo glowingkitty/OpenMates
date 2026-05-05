@@ -26,6 +26,10 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import {
+  hasEncryptedChatKeyMismatch,
+  mergeServerChatWithLocal,
+} from "./chatSyncMerge";
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
@@ -538,6 +542,14 @@ async function storeRecentChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
+      const keyMismatch = hasEncryptedChatKeyMismatch(chat_details, existingChat);
+      if (keyMismatch) {
+        console.warn(
+          `[ChatSyncService] Phase 2 - chat key mismatch for ${chatId}; ` +
+            `server key will be used and local message content will be re-synced`,
+        );
+        chatKeyManager.removeKey(chatId);
+      }
 
       // Merge server data with local data, preserving higher versions
       const mergedChat = await mergeServerChatWithLocal(
@@ -565,7 +577,20 @@ async function storeRecentChats(
       if (!shouldSyncMessages) {
         await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
         chatListCache.upsertChat(mergedChat);
-        processedChatIds.add(chatId);
+        if (keyMismatch) {
+          serviceInstance.dispatchEvent(
+            new CustomEvent("chatDataInconsistency", {
+              detail: {
+                chatId,
+                localCount: await chatDB.getMessageCountForChat(chatId),
+                serverCount: _server_message_count ?? chat_details.messages_v ?? 0,
+                phase: "phase2-key-mismatch",
+              },
+            }),
+          );
+        } else {
+          processedChatIds.add(chatId);
+        }
         continue;
       }
 
@@ -689,6 +714,14 @@ async function storeAllChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
+      const keyMismatch = hasEncryptedChatKeyMismatch(chat_details, existingChat);
+      if (keyMismatch) {
+        console.warn(
+          `[ChatSyncService] Phase 3 - chat key mismatch for ${chatId}; ` +
+            `clearing cached key and forcing server message re-sync`,
+        );
+        chatKeyManager.removeKey(chatId);
+      }
 
       // Merge server data with local data, preserving higher versions
       let mergedChat = await mergeServerChatWithLocal(
@@ -765,9 +798,26 @@ async function storeAllChats(
         }
       }
 
+      if (keyMismatch && !shouldSyncMessages) {
+        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+        chatListCache.upsertChat(mergedChat);
+        serviceInstance.dispatchEvent(
+          new CustomEvent("chatDataInconsistency", {
+            detail: {
+              chatId,
+              localCount: await chatDB.getMessageCountForChat(chatId),
+              serverCount: server_message_count ?? serverMessagesV,
+              phase: "phase3-key-mismatch",
+            },
+          }),
+        );
+        continue;
+      }
+
       let shouldSkipMessageSync = false;
       if (
         existingChat &&
+        !keyMismatch &&
         serverMessagesV === localMessagesV &&
         shouldSyncMessages
       ) {
@@ -1005,210 +1055,6 @@ async function storeEmbedKeysBatch(
       error,
     );
   }
-}
-
-/**
- * Merge rejected suggestion hashes from local and server for cross-device sync.
- * Returns a union of both arrays with duplicates removed.
- * This ensures rejected suggestions stay rejected across all devices.
-
-
-/**
- * Merge server chat data with local chat data
- * Preserves local data when version numbers are higher or equal
- * This prevents phased sync from overwriting locally updated data that hasn't been synced yet
- *
- * @param serverChat - Server chat data with at least the 'id' field
- * @param localChat - Existing local chat data (or null if not exists locally)
- * @param currentUserId - Current user's ID (all synced chats belong to them - server filters by hashed_user_id)
- * @returns Merged chat data with required fields for Chat type
- */
-async function mergeServerChatWithLocal(
-  serverChat: Partial<Chat> & { id: string },
-  localChat: Chat | null,
-  currentUserId?: string,
-): Promise<Chat> {
-  const nowTimestamp = Math.floor(Date.now() / 1000);
-
-  // If no local chat exists, use server data with defaults
-  if (!localChat) {
-    console.debug(
-      `[ChatSyncService] No local chat found, using server data for chat ${serverChat.id}`,
-    );
-    return {
-      chat_id: serverChat.id,
-      encrypted_title: serverChat.encrypted_title ?? null,
-      messages_v: serverChat.messages_v ?? 0,
-      title_v: serverChat.title_v ?? 0,
-      draft_v: serverChat.draft_v ?? 0,
-      unread_count: serverChat.unread_count ?? 0,
-      created_at: serverChat.created_at ?? nowTimestamp,
-      updated_at: serverChat.updated_at ?? nowTimestamp,
-      last_edited_overall_timestamp:
-        serverChat.last_edited_overall_timestamp ??
-        serverChat.updated_at ??
-        nowTimestamp,
-      encrypted_draft_md: serverChat.encrypted_draft_md,
-      encrypted_draft_preview: serverChat.encrypted_draft_preview,
-      encrypted_chat_key: serverChat.encrypted_chat_key,
-      encrypted_icon: serverChat.encrypted_icon,
-      encrypted_category: serverChat.encrypted_category,
-      last_visible_message_id: serverChat.last_visible_message_id,
-      pinned: serverChat.pinned,
-      // CRITICAL: Include post-processing metadata fields
-      // These fields are populated after AI post-processing and should be preserved during sync
-      encrypted_follow_up_request_suggestions:
-        serverChat.encrypted_follow_up_request_suggestions,
-      encrypted_chat_summary: serverChat.encrypted_chat_summary,
-      encrypted_chat_tags: serverChat.encrypted_chat_tags,
-      encrypted_top_recommended_apps_for_chat:
-        serverChat.encrypted_top_recommended_apps_for_chat,
-
-      // Active focus mode for this chat
-      encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
-      // Include sharing fields from server sync
-      is_shared: serverChat.is_shared,
-      is_private: serverChat.is_private,
-      // Set user_id from current user (all synced chats belong to them - server filters by hashed_user_id)
-      user_id: currentUserId,
-    };
-  }
-
-  // Start with server data as base, using defaults from local chat where server data is missing
-  const merged: Chat = {
-    chat_id: serverChat.id,
-    // Preserve local user_id (ownership doesn't change)
-    user_id: localChat.user_id ?? currentUserId,
-    encrypted_title:
-      serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
-    messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
-    title_v: serverChat.title_v ?? localChat.title_v ?? 0,
-    draft_v: serverChat.draft_v ?? localChat.draft_v ?? 0,
-    unread_count: serverChat.unread_count ?? localChat.unread_count ?? 0,
-    created_at: serverChat.created_at ?? localChat.created_at ?? nowTimestamp,
-    updated_at: serverChat.updated_at ?? localChat.updated_at ?? nowTimestamp,
-    // IMPORTANT: Never fall back to nowTimestamp (current wall-clock time) unless all other
-    // options are exhausted. Falling through to nowTimestamp stamps the chat with "right now"
-    // and pushes it to the top of the sort order even when nothing meaningful changed
-    // (e.g. a key-mismatch-only sync update). Always prefer the chat's own updated_at /
-    // created_at timestamps over the current time.
-    last_edited_overall_timestamp:
-      serverChat.last_edited_overall_timestamp ??
-      localChat.last_edited_overall_timestamp ??
-      serverChat.updated_at ??
-      localChat.updated_at ??
-      serverChat.created_at ??
-      localChat.created_at ??
-      nowTimestamp,
-    encrypted_draft_md:
-      serverChat.encrypted_draft_md ?? localChat.encrypted_draft_md,
-    encrypted_draft_preview:
-      serverChat.encrypted_draft_preview ?? localChat.encrypted_draft_preview,
-    encrypted_chat_key:
-      serverChat.encrypted_chat_key ?? localChat.encrypted_chat_key,
-    encrypted_icon: serverChat.encrypted_icon ?? localChat.encrypted_icon,
-    encrypted_category:
-      serverChat.encrypted_category ?? localChat.encrypted_category,
-    last_visible_message_id:
-      serverChat.last_visible_message_id ?? localChat.last_visible_message_id,
-    pinned: serverChat.pinned ?? localChat.pinned,
-    // CRITICAL: Include post-processing metadata fields
-    // Server data takes precedence, but fall back to local if server data is missing
-    // This ensures suggestions synced from another device are preserved
-    encrypted_follow_up_request_suggestions:
-      serverChat.encrypted_follow_up_request_suggestions ??
-      localChat.encrypted_follow_up_request_suggestions,
-    encrypted_chat_summary:
-      serverChat.encrypted_chat_summary ?? localChat.encrypted_chat_summary,
-    encrypted_chat_tags:
-      serverChat.encrypted_chat_tags ?? localChat.encrypted_chat_tags,
-    encrypted_top_recommended_apps_for_chat:
-      serverChat.encrypted_top_recommended_apps_for_chat ??
-      localChat.encrypted_top_recommended_apps_for_chat,
-
-    // Active focus mode — server takes precedence (focus mode is activated/deactivated in real-time)
-    encrypted_active_focus_id:
-      serverChat.encrypted_active_focus_id ??
-      localChat.encrypted_active_focus_id,
-    // Include sharing fields from server sync, falling back to local if server data is missing
-    is_shared: serverChat.is_shared ?? localChat.is_shared,
-    is_private: serverChat.is_private ?? localChat.is_private,
-  };
-
-  // Preserve local encrypted_title if local title_v is higher or equal
-  const localTitleV = localChat.title_v || 0;
-  const serverTitleV = serverChat.title_v || 0;
-  if (localTitleV >= serverTitleV && localChat.encrypted_title) {
-    merged.encrypted_title = localChat.encrypted_title;
-    merged.title_v = localChat.title_v;
-    console.debug(
-      `[ChatSyncService] Preserving local title for chat ${merged.chat_id} (local v${localTitleV} >= server v${serverTitleV})`,
-    );
-  }
-
-  // Preserve local draft if local draft_v is higher or equal
-  const localDraftV = localChat.draft_v || 0;
-  const serverDraftV = serverChat.draft_v || 0;
-  if (localDraftV >= serverDraftV) {
-    if (localChat.encrypted_draft_md) {
-      merged.encrypted_draft_md = localChat.encrypted_draft_md;
-    }
-    if (localChat.encrypted_draft_preview) {
-      merged.encrypted_draft_preview = localChat.encrypted_draft_preview;
-    }
-    merged.draft_v = localChat.draft_v;
-    console.debug(
-      `[ChatSyncService] Preserving local draft for chat ${merged.chat_id} (local v${localDraftV} >= server v${serverDraftV})`,
-    );
-  }
-
-  // Use server's encrypted_chat_key if available, otherwise keep local.
-  // Server is the durable source of truth — when keys differ, we accept
-  // the server key and update ChatKeyManager so future encryptions use it.
-  if (serverChat.encrypted_chat_key) {
-    if (
-      localChat.encrypted_chat_key &&
-      localChat.encrypted_chat_key !== serverChat.encrypted_chat_key
-    ) {
-      console.warn(
-        `[ChatSyncService] ⚠️ Chat key mismatch for chat ${merged.chat_id}! ` +
-          `Local key differs from server key. Server wins as source of truth.`,
-      );
-      // Proactively load the server key into ChatKeyManager so subsequent
-      // operations (decryptMessageFields, validateAndHealEncryptedMetadata)
-      // use the correct key. receiveKeyFromServer will detect the conflict
-      // and replace the local key.
-      try {
-        await chatKeyManager.receiveKeyFromServer(
-          merged.chat_id,
-          serverChat.encrypted_chat_key,
-        );
-      } catch (error) {
-        console.error(
-          `[ChatSyncService] Failed to load server key for ${merged.chat_id}:`,
-          error,
-        );
-      }
-    }
-    merged.encrypted_chat_key = serverChat.encrypted_chat_key;
-  } else if (localChat.encrypted_chat_key) {
-    merged.encrypted_chat_key = localChat.encrypted_chat_key;
-    console.debug(
-      `[ChatSyncService] Preserving local encrypted_chat_key for chat ${merged.chat_id} (server key missing)`,
-    );
-  }
-
-  // Preserve local messages_v if higher
-  const localMessagesV = localChat.messages_v || 0;
-  const serverMessagesV = serverChat.messages_v || 0;
-  if (localMessagesV > serverMessagesV) {
-    merged.messages_v = localChat.messages_v;
-    console.debug(
-      `[ChatSyncService] Preserving local messages_v for chat ${merged.chat_id} (local v${localMessagesV} > server v${serverMessagesV})`,
-    );
-  }
-
-  return merged;
 }
 
 /**

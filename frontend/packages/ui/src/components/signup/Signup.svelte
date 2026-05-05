@@ -47,6 +47,7 @@
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
     import { createOnboardingChat, hasOnboardingChat, ONBOARDING_ENABLED } from '../../services/onboardingChatService'; // Import onboarding chat creation
+    import { getSignupStepSequence } from './signupFlow';
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -136,41 +137,13 @@
     let serverEdition = $state<string | null>(null); // Server edition for display
     let isSelfHosted = $state(false); // Self-hosted status from request-based validation
     
-    // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
-    // Base step sequences (will be filtered based on payment status)
-    const fullStepSequenceBase = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
-        STEP_ONE_TIME_CODES, STEP_SKIP_2FA_CONSENT, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
-    ];
-
-    const passkeyStepSequenceBase = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
-    ];
-    
-    // Filter out payment steps and email confirmation if self-hosted (use isSelfHosted from request-based validation)
-    // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
-    // But since backend now ensures payment_enabled = false when is_self_hosted = true, both work
-    // Email confirmation is also skipped in self-hosted mode since Brevo is not required
-    const fullStepSequence = $derived(
-        !isSelfHosted 
-            ? fullStepSequenceBase 
-            : fullStepSequenceBase.filter(step => ![STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
-    );
-    
-    const passkeyStepSequence = $derived(
-        !isSelfHosted
-            ? passkeyStepSequenceBase
-            : passkeyStepSequenceBase.filter(step => ![STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
-    );
-
-    // Determine step sequence based on login method
-    // Default to passkey sequence (assume passkey by default)
-    // Only use full sequence when user explicitly selects password + 2FA OTP
-    let stepSequence = $derived(
-        $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence
-    );
+    function getCurrentStepSequence(): string[] {
+        return getSignupStepSequence({
+            loginMethod: $signupStore.loginMethod,
+            isSelfHosted,
+            paymentEnabled
+        });
+    }
 
     let isImageProcessing = $state(false);
     let isImageUploading = $state(false);
@@ -589,6 +562,7 @@
             }
         }
         
+        const stepSequence = getCurrentStepSequence();
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(newStep);
         direction = newIndex > oldIndex ? 'forward' : 'backward';
@@ -750,6 +724,7 @@
         }
         const oldStep = currentStep; // Capture old step value
         
+        const stepSequence = getCurrentStepSequence();
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(step);
         direction = newIndex > oldIndex ? 'forward' : 'backward';
@@ -976,18 +951,7 @@
                 });
             }
 
-            // Polar does not support saved payment methods — they act as Merchant of Record
-            // and own the payment relationship. Auto top-up requires a stored card, so skip
-            // the auto top-up step entirely for Polar users and go straight to completion.
-            if (paymentProvider === 'polar') {
-                console.debug("[Signup] Polar payment — skipping save-payment-method and auto top-up step");
-                setTimeout(() => {
-                    goToStep(STEP_COMPLETION);
-                }, 500);
-                return;
-            }
-            
-            // Stripe flow: save payment method then show auto top-up step
+            // Save payment method then show auto top-up step
             // Save payment_intent_id for later subscription creation
             paymentIntentId = event.detail.payment_intent_id;
             
@@ -1546,9 +1510,10 @@
                                             purchasedCredits={isGiftCardRedemption ? selectedCreditsAmount : null}
                                             purchasedPrice={isGiftCardRedemption ? 0 : null}
                                             paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
-                                            oncomplete={undefined}
+                                            oncomplete={handleAutoTopUpComplete}
                                             onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:consentGiven={handleRefundConsent}
+                                            on:complete={handleAutoTopUpComplete}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}
                                             on:payment={handlePaymentSubmission}

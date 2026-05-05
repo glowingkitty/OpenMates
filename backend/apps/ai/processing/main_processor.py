@@ -1464,6 +1464,23 @@ async def handle_main_processing(
     # converts to interactive math-plot embeds rendered by function-plot on the frontend.
     if discovered_apps_metadata and "math" in discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_plot_code_block_instruction", ""))
+
+    # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
+    # This teaches the LLM to output unified diffs instead of regenerating full content.
+    _has_diffable_embeds = False
+    for _msg in request_data.message_history:
+        _msg_content = _msg.content if hasattr(_msg, "content") else (
+            _msg.get("content") if isinstance(_msg, dict) else None
+        )
+        if not isinstance(_msg_content, str):
+            continue
+        if ("type: code" in _msg_content or "type: document" in _msg_content or
+                "type: sheet" in _msg_content or "type: mail" in _msg_content):
+            _has_diffable_embeds = True
+            break
+    if _has_diffable_embeds:
+        prompt_parts.append(base_instructions.get("base_diff_editing_instruction", ""))
+        logger.debug(f"{log_prefix} [DIFF_PROMPT] Injected diff editing instruction (diffable embeds in history)")
     
     # DEBUG: Log the app_settings_memories content before adding to prompt
     # This helps diagnose issues where data is found in cache but not injected into prompt

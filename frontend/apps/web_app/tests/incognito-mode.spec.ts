@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -12,12 +11,12 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
+const { openSignupInterface, isSignupInterfaceVisible, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Incognito mode E2E test — single test, one login, all scenarios in sequence.
@@ -109,9 +108,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	});
 	await takeStepScreenshot(page, '01-home');
 
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
+	await openSignupInterface(page);
 
 	// Click Login tab to switch from signup to login view
 	const loginTab = page.getByTestId('tab-login');
@@ -156,31 +153,7 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	// Submit password first — OTP field appears after backend confirms 2FA required
-	const submitLoginButton = page.locator(SELECTORS.submitLoginButton);
-	await submitLoginButton.click();
-
-	const otpInput = page.locator(SELECTORS.otpInput);
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`OTP attempt ${attempt}.`);
-		await submitLoginButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-		} catch {
-			if (attempt < 3) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying...`);
-				await page.waitForTimeout(2000);
-			} else {
-				throw new Error('Login failed after 3 OTP attempts');
-			}
-		}
-	}
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
 	await page.waitForTimeout(3000);
 	const messageEditor = page.locator(SELECTORS.messageEditor);
@@ -332,10 +305,9 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 	await page.waitForTimeout(4000);
 
 	// Re-login if session was lost
-	const loginButtonAfterReload = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	if (await loginButtonAfterReload.isVisible({ timeout: 5000 }).catch(() => false)) {
+	if (await isSignupInterfaceVisible(page, 5000)) {
 		logCheckpoint('Session lost — re-logging in.');
-		await loginButtonAfterReload.click();
+		await openSignupInterface(page);
 
 		// Click Login tab to switch from signup to login view
 		const loginTabRelogin = page.getByTestId('tab-login');
@@ -349,23 +321,9 @@ test('incognito mode — full flow', async ({ page }: { page: any }) => {
 		const passwordInput2 = page.locator(SELECTORS.passwordInput);
 		await expect(passwordInput2).toBeVisible({ timeout: 15000 });
 		await passwordInput2.fill(TEST_PASSWORD);
-		// Submit password first — OTP field appears after backend confirms 2FA required
-		await page.locator(SELECTORS.submitLoginButton).click();
-		const otpInput2 = page.locator(SELECTORS.otpInput);
-		await expect(otpInput2).toBeVisible({ timeout: 15000 });
-		for (let attempt = 1; attempt <= 3; attempt++) {
-			const otpCode = generateTotp(TEST_OTP_KEY);
-			await otpInput2.fill(otpCode);
-			await page.locator(SELECTORS.submitLoginButton).click();
-			try {
-				await expect(otpInput2).not.toBeVisible({ timeout: 15000 });
-				logCheckpoint('Re-login successful.');
-				break;
-			} catch {
-				if (attempt === 3) throw new Error('Re-login failed after 3 attempts');
-				await page.waitForTimeout(2000);
-			}
-		}
+
+		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
+		logCheckpoint('Re-login successful.');
 		await page.waitForTimeout(3000);
 	}
 

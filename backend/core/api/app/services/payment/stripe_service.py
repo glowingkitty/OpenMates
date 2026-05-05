@@ -1,5 +1,6 @@
 import stripe
 import logging
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -91,48 +92,285 @@ class StripeService:
             logger.error(f"Unexpected error creating Stripe customer: {str(e)}", exc_info=True)
             return None
 
-    async def create_order(self, amount: int, currency: str, email: str, credits_amount: int, customer_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def create_checkout_session(
+        self,
+        price_id: str,
+        mode: str,
+        return_url: Optional[str] = None,
+        customer_id: Optional[str] = None,
+        metadata: Optional[Dict[str, str]] = None,
+        billing_cycle_anchor: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
         """
-        Creates a Stripe PaymentIntent using pre-created products.
+        Create a Stripe Checkout Session with Managed Payments enabled.
+
+        Uses ui_mode="embedded_page" so the checkout renders inside the page via
+        stripe.initEmbeddedCheckout() and fires onComplete when done — no redirect.
+        Note: "embedded" was renamed to "embedded_page" in the 2026-03-25.dahlia API.
 
         Args:
-            amount: Amount in the smallest currency unit (e.g., cents).
-            currency: 3-letter ISO currency code (e.g., "EUR").
-            email: Customer's email address.
-            credits_amount: Number of credits being purchased (for metadata).
-            customer_id: Optional Stripe customer ID. If not provided, a customer will be created.
+            price_id: Stripe Price ID for the line item.
+            mode: 'payment' for one-time or 'subscription' for recurring.
+            return_url: Unused for embedded mode; kept for signature compatibility.
+            customer_id: Existing Stripe customer ID. Stripe shows saved cards automatically.
+            metadata: Key/value pairs stored on the session and passed through to webhooks.
+            billing_cycle_anchor: Unix timestamp for subscription billing anchor (first_of_month).
 
         Returns:
-            A dictionary containing the PaymentIntent details, including 'id' and 'client_secret',
-            or None if an error occurred.
+            Dict with 'id' (session ID), 'client_secret', and 'customer_id', or None on error.
         """
         if not self.api_key:
             logger.error("Stripe API key not initialized.")
             return None
+        try:
+            params: Dict[str, Any] = {
+                "ui_mode": "embedded_page",
+                "redirect_on_completion": "never",
+                "line_items": [{"price": price_id, "quantity": 1}],
+                "mode": mode,
+                "managed_payments": {"enabled": True},
+                "metadata": metadata or {},
+            }
+            if customer_id:
+                params["customer"] = customer_id
+            # For one-time payments: show ALL existing saved cards (any allow_redisplay value)
+            # and offer to save the card used for this purchase.
+            if mode == "payment":
+                params["saved_payment_method_options"] = {
+                    "payment_method_save": "enabled",
+                    "allow_redisplay_filters": ["always", "limited", "unspecified"],
+                }
+            if mode == "subscription" and billing_cycle_anchor:
+                params["subscription_data"] = {"billing_cycle_anchor": billing_cycle_anchor}
+            session = stripe.checkout.Session.create(**params, stripe_version="2026-03-25.dahlia")
+            logger.info(f"Created Checkout Session {session.id} (mode={mode}, customer={customer_id})")
+            return {
+                "id": session.id,
+                "client_secret": session.client_secret,
+                "customer_id": customer_id,
+            }
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating Checkout Session: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating Checkout Session: {str(e)}", exc_info=True)
+            return None
+
+    async def get_total_stripe_revenue_eur_cents(self, current_year_only: bool = True) -> int:
+        """
+        Sum all EUR charge balance transactions from Stripe.
+
+        Used for the EU VAT OSS threshold check (9,900 EUR / calendar year).
+        Paginates through all matching transactions via auto_paging_iter — avoid
+        calling this on every request; callers should cache the result.
+
+        Args:
+            current_year_only: If True (default), only count transactions from
+                Jan 1 of the current calendar year. Pass False to get all-time total.
+
+        Returns:
+            Total gross EUR revenue in cents (>= 0).
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return 0
+        try:
+            from datetime import datetime, timezone as _tz
+            params: Dict[str, Any] = {"type": "charge", "currency": "eur", "limit": 100}
+            if current_year_only:
+                now = datetime.now(_tz.utc)
+                jan1 = int(datetime(now.year, 1, 1, tzinfo=_tz.utc).timestamp())
+                params["created"] = {"gte": jan1}
+
+            total = 0
+            for txn in stripe.BalanceTransaction.list(**params).auto_paging_iter():
+                total += txn.amount
+
+            logger.info(
+                f"Stripe EUR revenue ({'YTD' if current_year_only else 'all-time'}): "
+                f"EUR {total / 100:.2f}"
+            )
+            return total
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error fetching balance transactions: {e.user_message}", exc_info=True)
+            return 0
+        except Exception as e:
+            logger.error(f"Error fetching Stripe revenue: {str(e)}", exc_info=True)
+            return 0
+
+    async def get_stripe_revenue_summary_eur(self) -> Dict[str, Any]:
+        """Return authoritative EUR revenue totals from Stripe balance transactions.
+
+        Groups gross EUR charge balance transactions by calendar month. This is
+        intended for admin reporting; do not call on user-facing request paths.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return {"all_time_eur": 0.0, "ytd_eur": 0.0, "transactions": 0, "monthly": []}
 
         try:
-            # CRITICAL: Get or create Stripe customer BEFORE creating PaymentIntent
-            # Stripe requires a customer when using setup_future_usage to save payment methods
+            now = datetime.now(timezone.utc)
+            ytd_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+            monthly_cents: Dict[str, int] = {}
+            monthly_transactions: Dict[str, int] = {}
+            all_time_cents = 0
+            ytd_cents = 0
+            transaction_count = 0
+
+            params: Dict[str, Any] = {"type": "charge", "currency": "eur", "limit": 100}
+            for txn in stripe.BalanceTransaction.list(**params).auto_paging_iter():
+                amount = int(txn.amount or 0)
+                created_at = datetime.fromtimestamp(int(txn.created), tz=timezone.utc)
+                month = created_at.strftime("%Y-%m")
+                monthly_cents[month] = monthly_cents.get(month, 0) + amount
+                monthly_transactions[month] = monthly_transactions.get(month, 0) + 1
+                all_time_cents += amount
+                transaction_count += 1
+                if created_at >= ytd_start:
+                    ytd_cents += amount
+
+            monthly = [
+                {
+                    "month": month,
+                    "revenue_eur": monthly_cents[month] / 100.0,
+                    "transactions": monthly_transactions.get(month, 0),
+                }
+                for month in sorted(monthly_cents)
+            ]
+
+            return {
+                "all_time_eur": all_time_cents / 100.0,
+                "ytd_eur": ytd_cents / 100.0,
+                "transactions": transaction_count,
+                "monthly": monthly,
+            }
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error fetching revenue summary: {e.user_message}", exc_info=True)
+            return {"all_time_eur": 0.0, "ytd_eur": 0.0, "transactions": 0, "monthly": []}
+        except Exception as e:
+            logger.error(f"Error fetching Stripe revenue summary: {str(e)}", exc_info=True)
+            return {"all_time_eur": 0.0, "ytd_eur": 0.0, "transactions": 0, "monthly": []}
+
+    async def create_order_eu(
+        self,
+        amount: int,
+        currency: str,
+        email: str,
+        credits_amount: int,
+        customer_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a Stripe PaymentIntent for EU27 users (regular Stripe flow).
+
+        EU users pay at standard EUR prices with no VAT collected (Kleinunternehmer
+        exemption, valid while under the EU OSS 9,900 EUR cross-border threshold).
+        Uses the existing EU product prices from Stripe.
+
+        Args:
+            amount: Amount in cents (used as fallback if no Stripe price found).
+            currency: ISO currency code (e.g. "eur").
+            email: Customer email.
+            credits_amount: Credits being purchased.
+            customer_id: Optional existing Stripe customer ID.
+
+        Returns:
+            Dict with 'id', 'client_secret', 'status', 'customer_id', or None on error.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+        try:
             stripe_customer_id = await self.get_or_create_customer(email, customer_id)
             if not stripe_customer_id:
-                logger.error("Failed to get or create Stripe customer for PaymentIntent")
+                logger.error("Failed to get or create Stripe customer for EU PaymentIntent")
                 return None
-            
-            # First, try to find the product and price for this credit amount
+
             product_name = f"{credits_amount:,}".replace(",", ".") + " credits"
             price_id = await self._find_price_for_product(product_name, currency)
-            
+
             if price_id:
-                # Use the pre-created product/price
-                logger.info(f"✅ Using pre-created Stripe product for {credits_amount} credits in {currency} (Price ID: {price_id})")
-                return await self._create_payment_intent_with_price(price_id, email, credits_amount, stripe_customer_id)
+                result = await self._create_payment_intent_with_price(
+                    price_id, email, credits_amount, stripe_customer_id
+                )
             else:
-                # Fallback to dynamic PaymentIntent if product not found
-                logger.warning(f"⚠️ Pre-created product not found for {credits_amount} credits in {currency}, falling back to dynamic PaymentIntent")
-                return await self._create_dynamic_payment_intent(amount, currency, email, credits_amount, stripe_customer_id)
-                
+                logger.warning(
+                    f"No Stripe price found for '{product_name}' in {currency}, "
+                    "falling back to dynamic PaymentIntent"
+                )
+                result = await self._create_dynamic_payment_intent(
+                    amount, currency, email, credits_amount, stripe_customer_id
+                )
+
+            if result:
+                result["customer_id"] = stripe_customer_id
+            return result
         except Exception as e:
-            logger.error(f"Unexpected error creating Stripe PaymentIntent: {str(e)}", exc_info=True)
+            logger.error(f"Unexpected error creating EU PaymentIntent: {str(e)}", exc_info=True)
+            return None
+
+    async def create_order(
+        self,
+        amount: int,
+        currency: str,
+        email: str,
+        credits_amount: int,
+        customer_id: Optional[str] = None,
+        return_url: Optional[str] = None,
+        use_global_pricing: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Creates a Stripe Checkout Session (Managed Payments) for a credit purchase.
+
+        Args:
+            amount: Amount in the smallest currency unit (unused — price looked up from Stripe).
+            currency: 3-letter ISO currency code (e.g., "EUR").
+            email: Customer's email address.
+            credits_amount: Number of credits being purchased.
+            customer_id: Optional existing Stripe customer ID.
+            return_url: URL to redirect after checkout (required for Embedded Checkout).
+            use_global_pricing: If True, use global (non-EU) product names which carry
+                higher EUR prices to account for Stripe-collected VAT.
+
+        Returns:
+            Dict with 'id', 'client_secret', and 'customer_id', or None on error.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+        if not return_url:
+            logger.error("return_url is required for Checkout Session creation")
+            return None
+
+        try:
+            stripe_customer_id = await self.get_or_create_customer(email, customer_id)
+            if not stripe_customer_id:
+                logger.error("Failed to get or create Stripe customer for Checkout Session")
+                return None
+
+            base_name = f"{credits_amount:,}".replace(",", ".") + " credits"
+            product_name = base_name + " (global)" if use_global_pricing else base_name
+            price_id = await self._find_price_for_product(product_name, currency)
+
+            if not price_id:
+                logger.error(f"No Stripe price found for {credits_amount} credits in {currency}. "
+                             "Ensure products are synced via stripe_product_sync.")
+                return None
+
+            logger.info(f"✅ Using price {price_id} for {credits_amount} credits in {currency}")
+            return await self.create_checkout_session(
+                price_id=price_id,
+                mode="payment",
+                return_url=return_url,
+                customer_id=stripe_customer_id,
+                metadata={
+                    "credits_purchased": str(credits_amount),
+                    "purchase_type": "credits",
+                    "customer_email": email,
+                    "price_id": price_id,
+                },
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error creating Stripe order: {str(e)}", exc_info=True)
             return None
 
     async def refund_payment(self, payment_intent_id: str, amount: Optional[int] = None) -> Optional[Dict[str, Any]]:
@@ -378,10 +616,10 @@ class StripeService:
 
     async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieves a Stripe PaymentIntent by its ID.
+        Retrieves a Stripe PaymentIntent or Checkout Session by its ID.
 
         Args:
-            order_id: The ID of the PaymentIntent.
+            order_id: The ID of the PaymentIntent (pi_...) or Checkout Session (cs_...).
 
         Returns:
             A dictionary containing the PaymentIntent details, or None if not found or an error occurred.
@@ -391,13 +629,32 @@ class StripeService:
             return None
 
         try:
-            payment_intent = stripe.PaymentIntent.retrieve(order_id)
-            logger.info(f"Stripe PaymentIntent retrieved. ID: {payment_intent.id}, Status: {payment_intent.status}")
+            session = None
+            if order_id.startswith("cs_"):
+                session = stripe.checkout.Session.retrieve(
+                    order_id,
+                    expand=["payment_intent", "payment_intent.latest_charge"],
+                    stripe_version="2026-03-25.dahlia",
+                )
+                payment_intent = session.payment_intent
+                if not payment_intent:
+                    logger.warning(f"Stripe Checkout Session {order_id} has no PaymentIntent yet.")
+                    return None
+                logger.info(
+                    f"Stripe Checkout Session retrieved. ID: {session.id}, "
+                    f"PaymentIntent: {payment_intent.id}, Status: {payment_intent.status}"
+                )
+            else:
+                payment_intent = stripe.PaymentIntent.retrieve(order_id)
+                logger.info(f"Stripe PaymentIntent retrieved. ID: {payment_intent.id}, Status: {payment_intent.status}")
 
             charge_data = None
             if payment_intent.latest_charge:
                 try:
-                    charge = stripe.Charge.retrieve(payment_intent.latest_charge)
+                    if isinstance(payment_intent.latest_charge, str):
+                        charge = stripe.Charge.retrieve(payment_intent.latest_charge)
+                    else:
+                        charge = payment_intent.latest_charge
                     charge_data = charge
                     logger.info(f"Retrieved associated Stripe Charge: {charge.id}")
                 except stripe.error.StripeError as e:
@@ -423,6 +680,7 @@ class StripeService:
 
             return {
                 "id": payment_intent.id,
+                "checkout_session_id": session.id if session else None,
                 "status": payment_intent.status,
                 "client_secret": payment_intent.client_secret,
                 "metadata": payment_intent.metadata,
@@ -954,7 +1212,8 @@ class StripeService:
                             "brand": card.brand,
                             "last4": card.last4,
                             "exp_month": card.exp_month,
-                            "exp_year": card.exp_year
+                            "exp_year": card.exp_year,
+                            "country": card.country,
                         },
                         "created": pm.created
                     })

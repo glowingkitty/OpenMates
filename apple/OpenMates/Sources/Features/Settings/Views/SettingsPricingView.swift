@@ -15,17 +15,13 @@ import StoreKit
 
 struct SettingsPricingView: View {
     @StateObject private var storeManager = StoreManager.shared
+    var onOpenApps: () -> Void = {}
+    var onOpenAI: () -> Void = {}
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: .spacing6) {
-                Text(LocalizationManager.shared.text("settings.billing.credit_packages"))
-                    .font(.omH3).fontWeight(.bold)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-
+        OMSettingsPage(title: AppStrings.settingsPricing, showsHeader: false) {
+            OMSettingsSection(LocalizationManager.shared.text("settings.pricing.packages_heading"), icon: "coins") {
                 if storeManager.products.isEmpty {
-                    // Fallback: show hardcoded tiers while StoreKit loads
                     ForEach(fallbackTiers) { tier in
                         FallbackPricingCard(tier: tier)
                     }
@@ -34,42 +30,27 @@ struct SettingsPricingView: View {
                         StoreKitPricingCard(product: product)
                     }
                 }
-
-                Divider().padding(.vertical, .spacing4)
-
-                VStack(spacing: .spacing4) {
-                    Text(LocalizationManager.shared.text("settings.pricing.explore_before_signup"))
-                        .font(.omH4).fontWeight(.semibold)
-
-                    Text(LocalizationManager.shared.text("settings.pricing.browse_apps_models"))
-                        .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                        .multilineTextAlignment(.center)
-
-                    HStack(spacing: .spacing4) {
-                        NavigationLink {
-                            SettingsAppsFullView()
-                        } label: {
-                            Label(AppStrings.apps, systemImage: "square.grid.2x2")
-                                .font(.omSmall).fontWeight(.medium)
-                        }
-                        .buttonStyle(.bordered)
-
-                        NavigationLink {
-                            SettingsAIFullView()
-                        } label: {
-                            Label(LocalizationManager.shared.text("settings.pricing.ai_models"), systemImage: "brain")
-                                .font(.omSmall).fontWeight(.medium)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-                .padding(.horizontal)
-
-                Spacer(minLength: .spacing8)
             }
-            .padding(.vertical)
+
+            OMSettingsSection(LocalizationManager.shared.text("settings.pricing.explore_heading"), icon: "search") {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    OMSettingsRow(
+                        title: LocalizationManager.shared.text("settings.pricing.ai_models"),
+                        subtitle: LocalizationManager.shared.text("settings.pricing.ai_models_subtitle"),
+                        icon: "ai",
+                        action: onOpenAI
+                    )
+
+                    OMSettingsRow(
+                        title: LocalizationManager.shared.text("settings.pricing.browse_app_store"),
+                        subtitle: LocalizationManager.shared.text("settings.pricing.browse_app_store_subtitle"),
+                        icon: "app_store",
+                        action: onOpenApps
+                    )
+                }
+                .padding(.vertical, .spacing4)
+            }
         }
-        .navigationTitle(AppStrings.settingsPricing)
         .task { await storeManager.loadProducts() }
     }
 
@@ -106,7 +87,7 @@ struct StoreKitPricingCard: View {
                         .font(.omP).fontWeight(.semibold)
 
                     if product.isRecommended {
-                        Text(LocalizationManager.shared.text("settings.billing.best_value"))
+                        Text(LocalizationManager.shared.text("settings.pricing.recommended"))
                             .font(.omTiny).fontWeight(.bold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, .spacing2)
@@ -140,12 +121,12 @@ struct StoreKitPricingCard: View {
             case 10_000: 500; case 21_000: 1_000; case 54_000: 3_000; default: 0
             }
             var label = "\(product.formattedCredits) credits, \(product.displayPrice)"
-            if product.isRecommended { label += ", \(LocalizationManager.shared.text("settings.billing.best_value"))" }
+            if product.isRecommended { label += ", \(LocalizationManager.shared.text("settings.pricing.recommended"))" }
             if bonus > 0 { label += ", plus \(bonus) bonus credits with auto top-up" }
             return label
         }())
         .padding(.spacing4)
-        .background(product.isRecommended ? Color.buttonPrimary.opacity(0.05) : Color.grey10.opacity(0.5))
+        .background(product.isRecommended ? Color.buttonPrimary.opacity(0.08) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
         .overlay {
             if product.isRecommended {
@@ -153,7 +134,6 @@ struct StoreKitPricingCard: View {
                     .stroke(Color.buttonPrimary.opacity(0.3), lineWidth: 1)
             }
         }
-        .padding(.horizontal)
     }
 }
 
@@ -177,7 +157,7 @@ struct FallbackPricingCard: View {
                         .font(.omP).fontWeight(.semibold)
 
                     if tier.recommended {
-                        Text(LocalizationManager.shared.text("settings.billing.best_value"))
+                        Text(LocalizationManager.shared.text("settings.pricing.recommended"))
                             .font(.omTiny).fontWeight(.bold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, .spacing2)
@@ -202,12 +182,12 @@ struct FallbackPricingCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel({
             var label = "\(formattedCredits) credits, \(tier.priceDisplay)"
-            if tier.recommended { label += ", \(LocalizationManager.shared.text("settings.billing.best_value"))" }
+            if tier.recommended { label += ", \(LocalizationManager.shared.text("settings.pricing.recommended"))" }
             if let bonus = tier.bonusCredits { label += ", plus \(bonus) bonus credits with auto top-up" }
             return label
         }())
         .padding(.spacing4)
-        .background(tier.recommended ? Color.buttonPrimary.opacity(0.05) : Color.grey10.opacity(0.5))
+        .background(tier.recommended ? Color.buttonPrimary.opacity(0.08) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
         .overlay {
             if tier.recommended {
@@ -215,6 +195,5 @@ struct FallbackPricingCard: View {
                     .stroke(Color.buttonPrimary.opacity(0.3), lineWidth: 1)
             }
         }
-        .padding(.horizontal)
     }
 }

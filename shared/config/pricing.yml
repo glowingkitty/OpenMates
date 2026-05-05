@@ -1,33 +1,39 @@
-# All prices excluding VAT
+# EU prices (regular Stripe, no VAT collected — Kleinunternehmer exemption applies)
+# Global prices (Stripe Managed Payments, EUR only — Stripe collects + remits local VAT)
+# USD is not listed: Stripe Adaptive Pricing handles currency conversion automatically.
 
-# monthly_auto_top_up_extra_credits -> if user activates optional monthly auto top up, the user gets those extra credits for free each month (around 5% of the credits purchased)
+# monthly_auto_top_up_extra_credits -> bonus credits for monthly subscribers (~5% of base)
 
 pricingTiers:
   - credits: 1000
     price:
       eur: 2
-      usd: 3
+    price_global:
+      eur: 2.50
 
   - credits: 10000
     price:
       eur: 10
-      usd: 15
+    price_global:
+      eur: 13
     monthly_auto_top_up_extra_credits: 500
 
   - credits: 21000
     price:
       eur: 20
-      usd: 30
+    price_global:
+      eur: 25
     monthly_auto_top_up_extra_credits: 1000
     recommended: true
 
   - credits: 54000
     price:
       eur: 50
-      usd: 60
+    price_global:
+      eur: 60
     monthly_auto_top_up_extra_credits: 3000
 
-  # Bank-transfer-only tier: SEPA is EUR-only, so no USD price.
+  # Bank-transfer-only tier: SEPA is EU-only, no global pricing.
   - credits: 110000
     price:
       eur: 100

@@ -16,6 +16,14 @@ struct JSONRawBody: Encodable {
 actor APIClient {
     static let shared = APIClient()
 
+    static var nativeClientHeaders: [String: String] {
+        [
+            "User-Agent": "OpenMates-Apple/\(appVersion)",
+            "X-OpenMates-Client": platformClientIdentifier,
+            "X-OpenMates-Bundle-ID": bundleIdentifier,
+        ]
+    }
+
     private let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
@@ -40,7 +48,7 @@ actor APIClient {
 
     var baseURL: URL {
         #if DEBUG
-        URL(string: "https://dev.openmates.org/api")!
+        URL(string: "https://api.dev.openmates.org")!
         #else
         URL(string: "https://api.openmates.org")!
         #endif
@@ -48,9 +56,9 @@ actor APIClient {
 
     var webAppURL: URL {
         #if DEBUG
-        URL(string: "https://dev.openmates.org")!
+        URL(string: "https://app.dev.openmates.org")!
         #else
-        URL(string: "https://openmates.org")!
+        URL(string: "https://app.openmates.org")!
         #endif
     }
 
@@ -115,11 +123,19 @@ actor APIClient {
         path: String,
         headers: [String: String]?
     ) -> URLRequest {
-        let url = baseURL.appendingPathComponent(path)
+        let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1).map(String.init)
+        var url = baseURL.appendingPathComponent(pathAndQuery[0])
+        if pathAndQuery.count == 2, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            components.percentEncodedQuery = pathAndQuery[1]
+            url = components.url ?? url
+        }
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("OpenMates-Apple/1.0", forHTTPHeaderField: "User-Agent")
+        Self.nativeClientHeaders.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
 
         if let headers {
             for (key, value) in headers {
@@ -128,6 +144,24 @@ actor APIClient {
         }
 
         return request
+    }
+
+    private static var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+
+    private static var bundleIdentifier: String {
+        Bundle.main.bundleIdentifier ?? "org.openmates.app"
+    }
+
+    private static var platformClientIdentifier: String {
+        #if os(iOS)
+        return "ios"
+        #elseif os(macOS)
+        return "macos"
+        #else
+        return "apple"
+        #endif
     }
 
     private func execute(_ request: URLRequest) async throws -> Data {

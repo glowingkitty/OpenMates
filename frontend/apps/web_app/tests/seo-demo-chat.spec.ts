@@ -94,24 +94,25 @@ test.describe('SEO example chat pages', () => {
 	// 2. BROWSER REDIRECT (human users see this)
 	// =========================================================================
 
-	test('individual example chat page redirects browser to SPA and restores semantic URL', async ({
+	test('individual example chat page redirects browser to SPA with chat hash', async ({
 		page
 	}) => {
 		test.setTimeout(30000);
 
 		await page.goto(EXAMPLE_PATH, { waitUntil: 'commit' });
 
-		// The SSR page fires window.location.replace('/#chat-id=...') in onMount, then
-		// the SPA calls setActiveChat which uses replaceState to restore the semantic path.
-		// Wait for the final URL to settle at the semantic path (no hash).
+		// The SSR page fires window.location.replace('/#chat-id=...') in onMount.
+		// The SPA boots from that hash, loads the example chat, and stays on the root path
+		// with a chat-id hash. In-session navigation no longer restores the semantic path
+		// to avoid triggering SvelteKit's client router on prerendered (seo) routes.
 		await page.waitForURL(
-			(url: URL) => url.pathname === EXAMPLE_PATH && !url.hash,
+			(url: URL) => url.hash.includes('chat-id='),
 			{ timeout: 15000 }
 		);
 
 		const parsedUrl = new URL(page.url());
-		expect(parsedUrl.pathname).toBe(EXAMPLE_PATH);
-		expect(parsedUrl.hash).toBe('');
+		expect(parsedUrl.pathname).toBe('/');
+		expect(parsedUrl.hash).toMatch(/^#chat-id=.+/);
 	});
 
 	// =========================================================================

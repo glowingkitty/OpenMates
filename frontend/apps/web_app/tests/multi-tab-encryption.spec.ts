@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Multi-Tab Encryption Test (Same Browser, Shared Storage)
@@ -40,10 +39,11 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -109,43 +109,20 @@ function attachListeners(page: any, label: string, logs: SessionLogs) {
  * Only called ONCE per test (in tab A). Tab B shares the session via cookies.
  */
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	// Click Login tab to switch from signup to login view
-	const loginTab = page.getByTestId('tab-login');
-	await expect(loginTab).toBeVisible({ timeout: 10000 });
-	await loginTab.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logFn('Email submitted.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible();
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// OTP is time-sensitive -- generate immediately before entering
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(otpCode);
-	logFn(`OTP entered: ${otpCode}`);
-
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible();
-	await submitBtn.click();
-	logFn('Login submitted, waiting for redirect...');
-
-	await page.waitForURL(/chat/, { timeout: 30000 });
+	await loginToTestAccount(page, logFn);
 	logFn('Redirected to /chat -- login complete.');
+}
+
+async function navigateSharedTabToChatReady(
+	page: any,
+	logFn: (msg: string) => void,
+	timeoutMs: number = TAB_NAVIGATION_TIMEOUT_MS
+): Promise<void> {
+	await page.goto(getE2EDebugUrl('/'));
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: timeoutMs });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: timeoutMs });
+	await page.waitForTimeout(1500);
+	logFn('Shared tab chat surface ready: authenticated + editor visible.');
 }
 
 // ---- Start new chat ----
@@ -234,7 +211,8 @@ async function waitForChatInSidebarAndClick(
 	page: any,
 	expectedTitleFragment: string,
 	logFn: (msg: string) => void,
-	timeoutMs: number = SIDEBAR_SYNC_TIMEOUT_MS
+	timeoutMs: number = SIDEBAR_SYNC_TIMEOUT_MS,
+	chatId?: string
 ): Promise<void> {
 	// OPE-360: On viewports <=1440px (Playwright default 1280x720) the sidebar is
 	// closed by default and Chats.svelte is NOT mounted -- so chat-item-wrapper
@@ -261,11 +239,13 @@ async function waitForChatInSidebarAndClick(
 
 	logFn(`Waiting for chat with title containing "${expectedTitleFragment}" to appear in sidebar...`);
 
-	const chatItem = page.getByTestId('chat-item-wrapper').filter({
-		has: page.getByTestId('chat-title').filter({
-			hasText: new RegExp(expectedTitleFragment, 'i')
-		})
-	});
+	const chatItem = chatId
+		? page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`)
+		: page.getByTestId('chat-item-wrapper').filter({
+			has: page.getByTestId('chat-title').filter({
+				hasText: new RegExp(expectedTitleFragment, 'i')
+			})
+		});
 
 	await expect(chatItem.first()).toBeVisible({ timeout: timeoutMs });
 	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar -- clicking to open.`);
@@ -393,11 +373,9 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 		await screenshotA(tabA, 'logged-in');
 
 		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
-		// Authenticated users auto-redirect to /chat.
-		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
-		await tabB.goto(getE2EDebugUrl('/'));
-		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
-		logB('Tab B reached /chat -- authenticated via shared cookies.');
+		logB('Tab B navigating to / (shared session)...');
+		await navigateSharedTabToChatReady(tabB, logB);
+		logB('Tab B authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
 
 		// Wait for initial sync to complete on both tabs
@@ -421,7 +399,7 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 
 		// Step 5: Tab B discovers the chat via sidebar sync and opens it
 		await screenshotB(tabB, 'before-sidebar-check');
-		await waitForChatInSidebarAndClick(tabB, 'multi-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS);
+		await waitForChatInSidebarAndClick(tabB, 'multi-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS, chatId);
 		await screenshotB(tabB, 'chat-opened');
 
 		// Step 6: Assert both tabs have correct decryption
@@ -445,6 +423,8 @@ test('TEST-01: two tabs open same chat, send messages, both tabs decrypt correct
 			logsB,
 			logB
 		);
+		await assertChatKeyInvariants(tabA, chatId, 'TAB-A', logA);
+		await assertChatKeyInvariants(tabB, chatId, 'TAB-B', logB);
 
 		logA('TEST-01 PASSED: Both tabs decrypted the same chat correctly.');
 	} catch (error) {
@@ -508,10 +488,9 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 		await screenshotA(tabA, 'logged-in');
 
 		// Step 2: Tab B navigates to / (not /chat — Vercel SPA routing 404s on direct paths)
-		logB('Tab B navigating to / (shared session, auto-redirect to /chat)...');
-		await tabB.goto(getE2EDebugUrl('/'));
-		await tabB.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
-		logB('Tab B reached /chat.');
+		logB('Tab B navigating to / (shared session)...');
+		await navigateSharedTabToChatReady(tabB, logB);
+		logB('Tab B authenticated via shared cookies.');
 		await screenshotB(tabB, 'authenticated');
 
 		// Wait for initial sync
@@ -536,7 +515,7 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 		// This is the key assertion: tab B never created this chat. It discovers
 		// it via WebSocket sync and must decrypt using the shared chat key from
 		// IndexedDB (populated by tab A and visible to tab B via shared storage).
-		await waitForChatInSidebarAndClick(tabB, 'cross-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS);
+		await waitForChatInSidebarAndClick(tabB, 'cross-tab', logB, SIDEBAR_SYNC_TIMEOUT_MS, chatId);
 		await screenshotB(tabB, 'chat-opened');
 
 		// Step 6: Assert tab B decrypts correctly
@@ -550,6 +529,7 @@ test('TEST-02: create chat in tab A, open in tab B, content decrypts correctly',
 			logsB,
 			logB
 		);
+		await assertChatKeyInvariants(tabB, chatId, 'TAB-B-cross-tab', logB);
 
 		// Verify: zero decryption errors in tab B
 		if (logsB.decryptionErrors.length > 0) {
@@ -649,14 +629,12 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 		attachListeners(freshTab, 'FRESH-TAB', logsFresh);
 
 		logFresh('Fresh tab navigating to / (already authenticated via shared cookies)...');
-		await freshTab.goto(getE2EDebugUrl('/'));
-		// Wait for redirect to /chat (authenticated users are auto-redirected)
-		await freshTab.waitForURL(/chat/, { timeout: TAB_NAVIGATION_TIMEOUT_MS });
-		logFresh('Fresh tab reached /chat.');
+		await navigateSharedTabToChatReady(freshTab, logFresh);
+		logFresh('Fresh tab authenticated via shared cookies.');
 		await screenshotFresh(freshTab, 'loaded');
 
 		// Step 6: Find and open the test chat in sidebar
-		await waitForChatInSidebarAndClick(freshTab, 'fresh tab', logFresh, SIDEBAR_SYNC_TIMEOUT_MS);
+		await waitForChatInSidebarAndClick(freshTab, 'fresh tab', logFresh, SIDEBAR_SYNC_TIMEOUT_MS, chatId);
 		await screenshotFresh(freshTab, 'chat-opened');
 
 		// Step 7: Wait for key loading + decryption (OPE-314 retry mechanism).
@@ -674,6 +652,7 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 			logsFresh,
 			logFresh
 		);
+		await assertChatKeyInvariants(freshTab, chatId, 'FRESH-TAB', logFresh);
 
 		// Verify: zero decryption errors
 		if (logsFresh.decryptionErrors.length > 0) {

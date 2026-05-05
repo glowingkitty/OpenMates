@@ -23,7 +23,7 @@ invoice:
   verified_by_human: []
   he: חשבונית
 payment_confirmation:
-  context: Payment confirmation document title (used for Polar purchases where Polar as MoR issues the real tax invoice)
+  context: Payment confirmation document title (used for Stripe Managed Payments where Stripe as MoR issues the real tax invoice)
   en: Payment Confirmation
   de: Zahlungsbestätigung
   zh: 付款确认
@@ -46,102 +46,6 @@ payment_confirmation:
   sv: "Betalningsbekräftelse"
   verified_by_human: []
   he: אישור תשלום
-polar_mor_note:
-  context: Footer note in payment confirmation PDF explaining that Polar issued the official tax invoice (legally required)
-  en: "Your official tax invoice was issued by Polar (polar.sh) as Merchant of Record."
-  de: "Deine offizielle Steuerrechnung wurde von Polar (polar.sh) als Merchant of Record ausgestellt."
-  zh: "您的官方税务发票由 Polar（polar.sh）作为销售方（Merchant of Record）开具。"
-  es: "Tu factura fiscal oficial fue emitida por Polar (polar.sh) como Merchant of Record."
-  fr: "Votre facture fiscale officielle a été émise par Polar (polar.sh) en tant que Merchant of Record."
-  pt: "Sua fatura fiscal oficial foi emitida pela Polar (polar.sh) como Merchant of Record."
-  ru: "Ваш официальный налоговый счёт был выставлен компанией Polar (polar.sh) в качестве Merchant of Record."
-  ja: "公式の税務請求書は、Merchant of Recordとして Polar（polar.sh）により発行されました。"
-  ko: "귀하의 공식 세금 계산서는 Polar(polar.sh)가 Merchant of Record로서 발행했습니다."
-  it: "La tua fattura fiscale ufficiale è stata emessa da Polar (polar.sh) in qualità di Merchant of Record."
-  tr: "Resmi vergi faturanız, Merchant of Record olarak Polar (polar.sh) tarafından düzenlenmiştir."
-  vi: "Hóa đơn thuế chính thức của bạn được Polar (polar.sh) phát hành với tư cách là Merchant of Record."
-  id: "Faktur pajak resmi Anda diterbitkan oleh Polar (polar.sh) sebagai Merchant of Record."
-  pl: "Twoja oficjalna faktura podatkowa została wystawiona przez Polar (polar.sh) jako Merchant of Record."
-  nl: "Uw officiële belastingfactuur werd uitgegeven door Polar (polar.sh) als Merchant of Record."
-  ar: "تم إصدار فاتورتك الضريبية الرسمية من قِبل Polar (polar.sh) بصفتها Merchant of Record."
-  hi: "आपका आधिकारिक कर चालान Polar (polar.sh) द्वारा Merchant of Record के रूप में जारी किया गया था।"
-  th: "ใบกำกับภาษีอย่างเป็นทางการของคุณออกโดย Polar (polar.sh) ในฐานะ Merchant of Record"
-  cs: "Vaše oficiální daňová faktura byla vystavena společností Polar (polar.sh) jako Merchant of Record."
-  sv: "Din officiella skattefaktura utfärdades av Polar (polar.sh) som Merchant of Record."
-  verified_by_human: []
-  he: החשבונית המס הרשמית שלך הוצאה על ידי Polar (polar.sh) בתור Merchant of Record.
-polar_paid_via:
-  context: "Payment method line in PDF for Polar orders where card details are not available. {provider} is replaced with the provider name (e.g. 'Polar')."
-  en: "Paid via {provider}"
-  de: "Bezahlt über {provider}"
-  zh: "通过 {provider} 支付"
-  es: "Pagado a través de {provider}"
-  fr: "Payé via {provider}"
-  pt: "Pago via {provider}"
-  ru: "Оплачено через {provider}"
-  ja: "{provider}で支払い"
-  ko: "{provider}(으)로 결제됨"
-  it: "Pagato tramite {provider}"
-  tr: "{provider} aracılığıyla ödendi"
-  vi: "Đã thanh toán qua {provider}"
-  id: "Dibayar melalui {provider}"
-  pl: "Zapłacono przez {provider}"
-  nl: "Betaald via {provider}"
-  ar: "تم الدفع عبر {provider}"
-  hi: "{provider} के माध्यम से भुगतान किया"
-  th: "ชำระเงินผ่าน {provider}"
-  cs: "Zaplaceno přes {provider}"
-  sv: "Betalt via {provider}"
-  verified_by_human: []
-  he: שולם דרך {provider}
-polar_refunded_via:
-  context: "Refund method line in refund confirmation PDF for Polar orders where card details are not available. {provider} is replaced with the provider name (e.g. 'Polar')."
-  en: "Refunded via {provider}"
-  de: "Erstattet über {provider}"
-  zh: "通过 {provider} 退款"
-  es: "Reembolsado a través de {provider}"
-  fr: "Remboursé via {provider}"
-  pt: "Reembolsado via {provider}"
-  ru: "Возврат через {provider}"
-  ja: "{provider}で払い戻し"
-  ko: "{provider}(을)를 통해 환불됨"
-  it: "Rimborsato tramite {provider}"
-  tr: "{provider} aracılığıyla iade edildi"
-  vi: "Đã hoàn tiền qua {provider}"
-  id: "Dikembalikan melalui {provider}"
-  pl: "Zwrot przez {provider}"
-  nl: "Terugbetaald via {provider}"
-  ar: "تم الاسترداد عبر {provider}"
-  hi: "{provider} के माध्यम से वापस किया गया"
-  th: "คืนเงินผ่าน {provider}"
-  cs: "Vráceno přes {provider}"
-  sv: "Återbetalat via {provider}"
-  verified_by_human: []
-  he: הוחזר דרך {provider}
-polar_mor_note_refund:
-  context: "Footer note in refund confirmation PDF explaining that Polar issued the official credit note (legally required when Polar is Merchant of Record)."
-  en: "Your official credit note was issued by Polar (polar.sh) as Merchant of Record."
-  de: "Deine offizielle Gutschrift wurde von Polar (polar.sh) als Merchant of Record ausgestellt."
-  zh: "您的官方贷项通知单由 Polar（polar.sh）作为销售方（Merchant of Record）开具。"
-  es: "Tu nota de crédito oficial fue emitida por Polar (polar.sh) como Merchant of Record."
-  fr: "Votre note de crédit officielle a été émise par Polar (polar.sh) en tant que Merchant of Record."
-  pt: "Sua nota de crédito oficial foi emitida pela Polar (polar.sh) como Merchant of Record."
-  ru: "Ваш официальный кредитный документ был выставлен компанией Polar (polar.sh) в качестве Merchant of Record."
-  ja: "公式のクレジットノートは、Merchant of Recordとして Polar（polar.sh）により発行されました。"
-  ko: "귀하의 공식 신용 메모는 Polar(polar.sh)가 Merchant of Record로서 발행했습니다."
-  it: "La tua nota di credito ufficiale è stata emessa da Polar (polar.sh) in qualità di Merchant of Record."
-  tr: "Resmi kredi notunuz, Merchant of Record olarak Polar (polar.sh) tarafından düzenlenmiştir."
-  vi: "Ghi chú tín dụng chính thức của bạn được Polar (polar.sh) phát hành với tư cách là Merchant of Record."
-  id: "Nota kredit resmi Anda diterbitkan oleh Polar (polar.sh) sebagai Merchant of Record."
-  pl: "Twoja oficjalna nota kredytowa została wystawiona przez Polar (polar.sh) jako Merchant of Record."
-  nl: "Uw officiële creditnota werd uitgegeven door Polar (polar.sh) als Merchant of Record."
-  ar: "تم إصدار إشعار الائتمان الرسمي الخاص بك من قِبل Polar (polar.sh) بصفتها Merchant of Record."
-  hi: "आपकी आधिकारिक क्रेडिट नोट Polar (polar.sh) द्वारा Merchant of Record के रूप में जारी की गई थी।"
-  th: "บันทึกเครดิตอย่างเป็นทางการของคุณออกโดย Polar (polar.sh) ในฐานะ Merchant of Record"
-  cs: "Vaše oficiální dobropis byl vydán společností Polar (polar.sh) jako Merchant of Record."
-  sv: "Din officiella kreditnota utfärdades av Polar (polar.sh) som Merchant of Record."
-  verified_by_human: []
-  he: הזיכוי הרשמי שלך הוצא על ידי Polar (polar.sh) בתור Merchant of Record.
 invoice_number:
   context: Invoice number label
   en: Invoice number

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -40,6 +39,7 @@ const {
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /**
  * Passkey signup flow test (email verification + passkey registration + purchase).
@@ -180,11 +180,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Initialized passkey signup identity.', { signupEmail });
 
 		// Open the login/signup dialog from the header.
-		const headerLoginSignupButton = page.getByRole('button', {
-			name: /login.*sign up|sign up/i
-		});
-		await expect(headerLoginSignupButton).toBeVisible();
-		await headerLoginSignupButton.click();
+		await openSignupInterface(page);
 		await takeStepScreenshot(page, 'login-dialog');
 		logSignupCheckpoint('Opened login dialog.');
 
@@ -324,12 +320,12 @@ test('completes passkey signup flow with email + purchase', async ({
 		await setToggleChecked(consentToggle, true);
 		logSignupCheckpoint('Payment consent accepted.');
 
-		// GHA runners are in the US, so Polar is auto-selected (non-EU IP).
-		// Switch to Stripe for this test — it specifically tests the Stripe payment flow.
+		// GHA runners are in the US, so Stripe Managed Payments is auto-selected (non-EU IP).
+		// Switch to Stripe EU card mode for this test — it specifically tests the Stripe payment flow.
 		const switchToStripeBtn = page.getByTestId('switch-to-stripe');
 		if (await switchToStripeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await switchToStripeBtn.click();
-			logSignupCheckpoint('Switched from Polar to Stripe payment provider.');
+			logSignupCheckpoint('Switched from Managed Payments to Stripe EU card payment.');
 		}
 
 		// Wait for Stripe Payment Element iframe to load after provider switch.
@@ -358,7 +354,7 @@ test('completes passkey signup flow with email + purchase', async ({
 		logSignupCheckpoint('Purchase completed successfully.');
 
 		// Auto top-up step: finish setup and confirm redirect into the app.
-		await page.locator('#signup-finish-setup').click();
+		await page.getByTestId('signup-finish-setup').first().click();
 		await page.waitForURL(/chat/);
 		await takeStepScreenshot(page, 'chat');
 		logSignupCheckpoint('Arrived in chat after passkey signup.');

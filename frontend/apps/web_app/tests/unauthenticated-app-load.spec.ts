@@ -55,6 +55,7 @@ test.describe('Unauthenticated app load', () => {
 		page: any;
 	}) => {
 		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
 
 		// ─── Console + network logging for diagnostics ──────────────────────
 		page.on('console', (msg: any) => {
@@ -92,11 +93,11 @@ test.describe('Unauthenticated app load', () => {
 		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
 		console.log('[unauthenticated-load] Active chat container is visible');
 
-		// ─── 3. Click the new-chat button to open the new chat interface ────
-		const newChatButton = page.getByTestId('new-chat-button');
+		// ─── 3. Click the fullwidth new-chat CTA (replaces MessageInput on demo chats) ─
+		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 		await expect(newChatButton).toBeVisible({ timeout: 10000 });
 		await newChatButton.click();
-		console.log('[unauthenticated-load] Clicked new-chat button');
+		console.log('[unauthenticated-load] Clicked new-chat CTA (fullwidth)');
 
 		// Wait for the message editor to appear (indicates new chat view is open)
 		const messageEditor = page.getByTestId('message-editor');
@@ -119,6 +120,29 @@ test.describe('Unauthenticated app load', () => {
 		console.log(
 			`[unauthenticated-load] Banner text verified (${bannerText?.trim().length} chars)`
 		);
+
+		// Mobile regression check: horizontal swipe should navigate the carousel,
+		// not trigger the banner click that starts a chat.
+		const phrase = page.getByTestId('daily-inspiration-phrase');
+		const firstPhrase = (await phrase.textContent())?.trim();
+		await expect(page.getByTestId('daily-inspiration-next')).toBeVisible();
+		const box = await inspirationBanner.boundingBox();
+		expect(box, 'Daily inspiration banner must have bounds for swipe test').toBeTruthy();
+		await inspirationBanner.dispatchEvent('touchstart', {
+			touches: [{ identifier: 0, clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }],
+			changedTouches: [{ identifier: 0, clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }]
+		});
+		await inspirationBanner.dispatchEvent('touchmove', {
+			touches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }],
+			changedTouches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
+		});
+		await inspirationBanner.dispatchEvent('touchend', {
+			touches: [],
+			changedTouches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
+		});
+		await expect(phrase).not.toHaveText(firstPhrase ?? '', { timeout: 3000 });
+		expect(page.url(), 'Swipe navigation should not start a chat').not.toContain('chat-id=');
+		console.log('[unauthenticated-load] Mobile swipe navigation changed the banner phrase');
 
 		// Verify the /v1/default-inspirations endpoint was called and succeeded
 		const inspirationApiCalled = networkRequests.some(
@@ -424,6 +448,11 @@ test.describe('Unauthenticated app load', () => {
 			'Announcement chat should have message content'
 		).toBeGreaterThan(5);
 		console.log(`[unauthenticated-load] Announcement message rendered (${messageText?.trim().length} chars)`);
+
+		// Announcement chats are read-only public chats and should offer the same
+		// start-new-chat CTA as intro/legal chats.
+		await expect(page.getByTestId('new-chat-cta-fullwidth')).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Announcement new chat CTA visible');
 
 		// ─── 5. No missing translations ─────────────────────────────────
 		await assertNoMissingTranslations(page);

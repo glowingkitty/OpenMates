@@ -118,6 +118,25 @@
   touch-action: manipulation;
 }
 
+.message-input-wrapper.start-new-chat-only,
+.message-input-wrapper.start-new-chat-only .message-field,
+.message-input-wrapper.start-new-chat-only :global(.ProseMirror) {
+  cursor: pointer;
+}
+
+.start-new-chat-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
 /* Main message field container */
 .message-field {
   width: 100%;
@@ -154,6 +173,68 @@
 .message-field.compact {
   min-height: 60px;
   padding: 0 0 10px 0;
+}
+
+/* Draft preview mode: field has content but is not focused.
+   Truncate visible text to 3 lines with ellipsis, hide action buttons via JS. */
+.message-field.draft-preview {
+  min-height: unset;
+  padding-bottom: 10px;
+  cursor: pointer;
+}
+
+.message-field.draft-preview .scrollable-content {
+  max-height: calc(1.5em * 3 + 1em);
+  overflow: hidden;
+  padding-top: 0.75em;
+}
+
+.message-field.draft-preview :global(.ProseMirror) {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Inline compact mode: single-line height matching the new-chat CTA button (~48px).
+   Active when the input sits beside the new-chat button and is not focused/has no content. */
+.message-field.inline-compact {
+  min-height: 48px;
+  max-height: 48px;
+  padding: 0 0 0 0;
+  border-radius: var(--radius-full, 9999px);
+  /* No overflow:hidden — let the transition from pill→rounded happen smoothly.
+     The .message-field already transitions border-radius 0.3s ease-in-out. */
+}
+
+.message-field.inline-compact .scrollable-content {
+  padding-top: 0;
+}
+
+.message-field.inline-compact .content-wrapper {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+/* In inline-compact mode, strip internal padding so the 48px field
+   height is fully available for flex centering. */
+.message-field.inline-compact :global(.ProseMirror) {
+  padding: 0;
+  min-height: auto;
+}
+
+.message-field.inline-compact :global(.ProseMirror p) {
+  min-height: auto;
+  margin: 0;
+}
+
+/* Placeholder: positioned absolute relative to .editor-content (position:relative).
+   Use line-height matching the container for vertical centering, with top:0. */
+.message-field.inline-compact :global(.ProseMirror p.is-editor-empty:first-child::before) {
+  top: 0;
+  line-height: 48px;
+  height: auto;
 }
 
 /* Maps overlay open — field expands to show the map edge-to-edge.

@@ -24,6 +24,7 @@ Invoices Settings - View and download past invoices
         refunded_at?: string | null;  // ISO timestamp when refund was processed (null if not refunded)
         refund_status?: string | null;  // Status of refund: 'none', 'pending', 'completed', 'failed'
         currency?: string | null;  // ISO currency code lowercase (e.g. "usd", "eur"). Null for legacy invoices.
+        provider?: string | null;  // Payment provider/mode, e.g. stripe or stripe_managed.
     }
 
     let isLoading = $state(false);
@@ -105,6 +106,22 @@ Invoices Settings - View and download past invoices
             groups[monthYear].push(invoice);
             return groups;
         }, {} as Record<string, Invoice[]>);
+    }
+
+    function isManagedPaymentDocument(invoice: Invoice): boolean {
+        return invoice.provider === 'stripe_managed';
+    }
+
+    function invoiceDownloadLabel(invoice: Invoice): string {
+        return isManagedPaymentDocument(invoice)
+            ? $text('invoices_and_credit_notes.payment_confirmation')
+            : $text('settings.billing.invoices_download_invoice');
+    }
+
+    function creditNoteDownloadLabel(invoice: Invoice): string {
+        return isManagedPaymentDocument(invoice)
+            ? $text('invoices_and_credit_notes.refund_confirmation_title')
+            : $text('settings.billing.invoices_download_credit_note');
     }
 
     // Fetch invoices from API
@@ -654,20 +671,20 @@ Invoices Settings - View and download past invoices
                             <button
                                 class="download-button"
                                 onclick={() => downloadInvoice(invoice)}
-                                title={$text('settings.billing.invoices_download_invoice')}
+                                title={invoiceDownloadLabel(invoice)}
                             >
                                 <div class="download-icon"></div>
-                                <span>{$text('settings.billing.invoices_download_invoice')}</span>
+                                <span>{invoiceDownloadLabel(invoice)}</span>
                             </button>
                             {#if creditNoteReadyInvoices.has(invoice.id)}
                                 <!-- Only show download button when credit note PDF is ready -->
                                 <button
                                     class="download-button"
                                     onclick={() => downloadCreditNote(invoice)}
-                                    title={$text('settings.billing.invoices_download_credit_note')}
+                                    title={creditNoteDownloadLabel(invoice)}
                                 >
                                     <div class="download-icon"></div>
-                                    <span>{$text('settings.billing.invoices_download_credit_note')}</span>
+                                    <span>{creditNoteDownloadLabel(invoice)}</span>
                                 </button>
                             {:else}
                                 <!-- Show loading state while credit note PDF is being generated -->
@@ -696,10 +713,10 @@ Invoices Settings - View and download past invoices
                                 <button
                                     class="download-button"
                                     onclick={() => downloadInvoice(invoice)}
-                                    title={$text('settings.billing.invoices_download_invoice')}
+                                    title={invoiceDownloadLabel(invoice)}
                                 >
                                     <div class="download-icon"></div>
-                                    <span>{$text('common.download')}</span>
+                                    <span>{invoiceDownloadLabel(invoice)}</span>
                                 </button>
                             {/if}
                             {#if isInvoiceEligibleForRefund(invoice)}

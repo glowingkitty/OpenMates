@@ -1,8 +1,67 @@
 # Apple UI — Web Source of Truth
 
+@apple/CLAUDE.md
+@apple/AGENTS.md
+
 Every Swift UI file must visually match its web counterpart exactly.
 The web app (Svelte + CSS custom properties) is the design source of truth.
 Design tokens are pre-generated — never hardcode colors, spacing, or radii.
+
+---
+
+## Build & Run Workflow
+
+The Xcode project is at `apple/OpenMates.xcodeproj`.
+XcodeBuildMCP is configured with `simulator`, `ui-automation`, and `debugging` workflows.
+
+**Before your first build/run:** call `session_show_defaults` to verify project, scheme, and simulator.
+Use `build_run_sim` for build+run — it boots the simulator automatically.
+
+**Targets/Schemes:** `OpenMates_iOS` (iPhone/iPad), `OpenMates_macOS` (Mac). No shared schemes — Xcode auto-generates them from targets.
+
+**Manual fallback** (if MCP tools unavailable):
+```bash
+xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS \
+  -destination 'platform=iOS Simulator,name=iPhone 17' build
+xcrun simctl install booted <path-to-.app>
+xcrun simctl launch booted org.openmates.app
+```
+
+---
+
+## Design Token Pipeline (web → Xcode)
+
+All tokens are generated from the web app — **never duplicate or manually edit**.
+
+```
+frontend/packages/ui/src/tokens/
+       ↓  built by: cd frontend/packages/ui && npm run build:tokens
+frontend/packages/ui/src/tokens/generated/swift/
+  ├── ColorTokens.generated.swift
+  ├── SpacingTokens.generated.swift
+  ├── TypographyTokens.generated.swift
+  ├── GradientTokens.generated.swift
+  ├── ComponentTokens.generated.swift
+  ├── IconMapping.generated.swift
+  ├── Icons.xcassets/          ← all web SVG icons as Xcode imagesets
+  └── Assets.xcassets/         ← colors as named color assets
+```
+
+The Xcode project references these files **in-place** (not copied).
+`Icons.xcassets` has `template-rendering-intent: template` on all icons.
+For icons that need original colors (e.g. `openmates` favicon), use
+`.renderingMode(.original)` in Swift code to override.
+
+### Icon usage
+- `Icon("name", size: N)` — renders from `Icons.xcassets` as template (tints with foregroundStyle)
+- `Image("name").renderingMode(.original)` — renders with original SVG colors (rare, only for favicon-like icons)
+- `AppIconView(appId:, size:)` — gradient circle + template icon overlay for app categories
+- `AppIconView.iconName(forAppId:)` — maps app IDs to icon names (e.g. "openmates" → "ai")
+
+### Avatar rendering (from `styles/mates.css`)
+- `.mate-profile` = 60px circle on desktop, 25px on mobile (≤500px container)
+- `.mate-profile.openmates_official` = `favicon.svg` as `background-image`, no AI badge
+- Other categories = JPEG profile images or gradient+icon circles with AI badge overlay
 
 ---
 
@@ -123,8 +182,15 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 - Both: `shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)`.
 - `clipShape(RoundedRectangle(cornerRadius: 13))`.
 - Fade-in: `opacity(0→1)` + `offset(y: 10→0)` over 0.4s `.easeIn`. Respect `accessibilityReduceMotion`.
-- Assistant avatar: 60pt circle, same shadow. AI badge: 24pt white circle, 16pt gradient icon inside.
 - Max width: `Spacer(minLength: 100)` on iPhone, `Spacer(minLength: 100)` on iPad/Mac (content capped at 1000pt).
+
+### Assistant avatar (from `styles/mates.css`)
+- **Desktop (regular):** 60pt circle, AI badge 24pt white circle + 16pt gradient icon.
+- **Mobile (compact):** 25pt circle, AI badge 12pt white circle + 8pt gradient icon.
+  Matches `.mate-profile-small-mobile` (applied when container ≤500px).
+- **openmates_official:** `Image("openmates").renderingMode(.original)` — uses favicon SVG
+  with its built-in gradient. No AI badge. No gradient circle overlay.
+- **Other categories:** `Circle().fill(gradient)` + template `Icon()` overlay + AI badge.
 
 ### Input field (from `fields.css`)
 - Shape: `.clipShape(RoundedRectangle(cornerRadius: .radiusFull))`.
@@ -158,11 +224,59 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 
 ---
 
+## Forbidden Native Controls
+
+These controls inject native iOS visual chrome that conflicts with the web design system.
+
+| Forbidden | Replacement | Why |
+|---|---|---|
+| `Form { }` | `ScrollView` + `VStack` + `OMSettingsSection` | Renders iOS gray grouped background, inset separators, rounded section chrome |
+| `List { }` (product UI) | `ScrollView` + `LazyVStack` + `OMSettingsSection`/`OMSettingsRow` | Renders default row separators, system background, disclosure indicators |
+| `Toggle(_, isOn:)` | `OMToggle` (custom primitive) | Renders blue iOS switch; web uses custom SVG toggle |
+| `Picker(_, selection:)` | `OMDropdown` (custom primitive) | Renders iOS picker wheel/sheet; web uses `<select>` dropdown |
+| `.navigationTitle(_)` | Custom header in `OMSettingsPage` or inline `Text` + `OMIconButton` | Renders native iOS nav bar chrome |
+| `.toolbar { ToolbarItem }` | Inline `HStack` with `OMIconButton` | Renders system nav bar items |
+| `NavigationStack { }` | State-driven view switching (see `SettingsView.swift` `SettingsDestination` pattern) | Renders iOS back gesture chrome and system nav bar |
+| `NavigationLink { }` | `OMSettingsRow(showsChevron: true)` with action, or `Button` | Renders native disclosure indicator |
+| `.sheet(isPresented:)` | `OMSheet` (custom primitive) or `ZStack` overlay | Renders native detent/drag handle/dimming |
+| `.alert(_, isPresented:)` | `OMConfirmDialog` (custom primitive) | Renders system alert dialog |
+| `.confirmationDialog()` | `OMConfirmDialog` | Renders system action sheet |
+| `.contextMenu { }` | Custom popover overlay | Renders system context menu with blur/haptic |
+| `Menu { }` | `OMDropdown` or custom popover | Renders system cascading menu |
+| `TabView { }` | `OMSegmentedControl` or custom tab bar | Renders system tab bar |
+| `.font(.caption/.body/.title/etc)` | `.font(.omXs)`, `.font(.omP)`, `.font(.omH3)` etc | System fonts don't match Lexend Deca |
+
+---
+
+## Acceptable Native Controls
+
+These invoke OS-owned system dialogs and are correct to use natively:
+- `PhotosPicker` — system photo library
+- `UIDocumentPickerViewController` / `.fileImporter` — system file picker
+- Camera views — system camera
+- `UIActivityViewController` / share sheet — system sharing
+- `ASAuthorizationController` — passkey / Sign in with Apple
+- `DatePicker` — web also uses native date inputs
+- `ProgressView` — system spinner (no visual chrome leak)
+- System permission dialogs (notifications, location, etc.)
+
+---
+
+## Color.black/white Policy
+
+Acceptable:
+- `Color.black.opacity(N)` for overlay dimming and drop shadows only
+- `Color.white` on gradient backgrounds (verified matches web `color: white` on gradient)
+- `Color.white` for QR code backgrounds (needs pure white for scanning)
+
+Everything else: use `Color.grey0` (backgrounds), `Color.grey100` (text on dark), or semantic tokens.
+
+---
+
 ## What NOT to change
 - Business logic, networking, WebSocket, encryption (`Core/` directory).
 - Navigation flow or sheets.
 - Generated token files (`*.generated.swift`).
 - Siri Intents, Spotlight, Handoff, widget code.
-- Settings screen (separate task).
 - Accessibility labels and identifiers — preserve or update when view hierarchy changes.
 - `.task {}`, `.onReceive {}`, `.onChange {}`, `.sheet {}` modifiers in `MainAppView`.

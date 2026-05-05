@@ -82,11 +82,15 @@ class OrderCacheMixin:
         currency: str = None,
         is_auto_topup: bool = False,
         provider: str = None,
+        provider_order_id: str = None,
+        subscription_setup: bool = False,
+        bonus_credits: int = 0,
+        billing_day_preference: str = None,
     ) -> bool:
         """Cache order metadata and status.
 
         The `provider` field records which payment provider processed the order
-        ("stripe" or "polar"). It is used by the invoice email task
+        ("stripe" or "stripe_managed"). It is used by the invoice email task
         to determine the correct document type (Invoice vs. Payment Confirmation).
         """
         try:
@@ -118,10 +122,20 @@ class OrderCacheMixin:
             if is_auto_topup:
                 order_data["is_auto_topup"] = True
 
-            # Store the resolved payment provider ("stripe", "polar")
+            # Store the resolved payment provider ("stripe", "stripe_managed")
             # Used by the invoice task to select document type and Invoice Ninja handling
             if provider:
                 order_data["provider"] = provider
+            if provider_order_id:
+                order_data["provider_order_id"] = provider_order_id
+
+            # Subscription setup fields — present for Checkout Sessions with mode='subscription'
+            if subscription_setup:
+                order_data["subscription_setup"] = True
+            if bonus_credits:
+                order_data["bonus_credits"] = bonus_credits
+            if billing_day_preference:
+                order_data["billing_day_preference"] = billing_day_preference
 
             logger.debug(f"Setting order in cache: {order_data}")
             return await self.set(order_cache_key, order_data, ttl=ttl)

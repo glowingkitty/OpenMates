@@ -24,50 +24,40 @@ struct SignupFlowView: View {
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                SignupProgressBar(currentStep: viewModel.currentStep, totalSteps: viewModel.totalSteps)
-                    .accessibilityLabel("Step \(viewModel.currentStep.rawValue + 1) of \(viewModel.totalSteps)")
-                    .accessibilityValue(String(describing: viewModel.currentStep))
+        VStack(spacing: .spacing5) {
+            SignupProgressBar(currentStep: viewModel.currentStep, totalSteps: viewModel.totalSteps)
+                .accessibilityLabel("Step \(viewModel.currentStep.rawValue + 1) of \(viewModel.totalSteps)")
+                .accessibilityValue(String(describing: viewModel.currentStep))
 
-                Group {
-                    switch viewModel.currentStep {
-                    case .basics:
-                        SignupBasicsStep(viewModel: viewModel)
-                    case .confirmEmail:
-                        SignupConfirmEmailStep(viewModel: viewModel)
-                    case .password:
-                        SignupPasswordStep(viewModel: viewModel)
-                    case .passkey:
-                        SignupPasskeyStep(viewModel: viewModel)
-                    case .recoveryKey:
-                        SignupRecoveryKeyStep(viewModel: viewModel)
-                    case .backupCodes:
-                        SignupBackupCodesStep(viewModel: viewModel)
-                    case .payment:
-                        SignupPaymentStep(viewModel: viewModel)
-                    case .profilePicture:
-                        SignupProfilePictureStep(viewModel: viewModel)
-                    case .complete:
-                        SignupCompleteStep(onFinish: { dismiss() })
-                    }
-                }
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing),
-                    removal: .move(edge: .leading)
-                ))
-                .animation(.easeInOut(duration: 0.25), value: viewModel.currentStep)
-            }
-            .navigationTitle(LocalizationManager.shared.text("auth.create_account"))
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(AppStrings.cancel) { dismiss() }
-                        .accessibleButton(AppStrings.cancel, hint: LocalizationManager.shared.text("auth.cancel_signup"))
+            Group {
+                switch viewModel.currentStep {
+                case .alphaDisclaimer:
+                    SignupAlphaDisclaimerStep(viewModel: viewModel)
+                case .basics:
+                    SignupBasicsStep(viewModel: viewModel)
+                case .confirmEmail:
+                    SignupConfirmEmailStep(viewModel: viewModel)
+                case .password:
+                    SignupPasswordStep(viewModel: viewModel)
+                case .passkey:
+                    SignupPasskeyStep(viewModel: viewModel)
+                case .recoveryKey:
+                    SignupRecoveryKeyStep(viewModel: viewModel)
+                case .backupCodes:
+                    SignupBackupCodesStep(viewModel: viewModel)
+                case .payment:
+                    SignupPaymentStep(viewModel: viewModel)
+                case .profilePicture:
+                    SignupProfilePictureStep(viewModel: viewModel)
+                case .complete:
+                    SignupCompleteStep(onFinish: { dismiss() })
                 }
             }
+            .transition(.asymmetric(
+                insertion: .move(edge: .trailing),
+                removal: .move(edge: .leading)
+            ))
+            .animation(.easeInOut(duration: 0.25), value: viewModel.currentStep)
         }
     }
 }
@@ -76,7 +66,7 @@ struct SignupFlowView: View {
 
 @MainActor
 final class SignupViewModel: ObservableObject {
-    @Published var currentStep: SignupStep = .basics
+    @Published var currentStep: SignupStep = .alphaDisclaimer
     @Published var email = ""
     @Published var username = ""
     @Published var password = ""
@@ -88,7 +78,7 @@ final class SignupViewModel: ObservableObject {
     @Published var error: String?
 
     enum SignupStep: Int, CaseIterable {
-        case basics, confirmEmail, password, passkey, recoveryKey, backupCodes, payment, profilePicture, complete
+        case alphaDisclaimer, basics, confirmEmail, password, passkey, recoveryKey, backupCodes, payment, profilePicture, complete
     }
 
     var totalSteps: Int { SignupStep.allCases.count }
@@ -205,16 +195,71 @@ struct SignupProgressBar: View {
 
 // MARK: - Step views
 
+struct SignupAlphaDisclaimerStep: View {
+    @ObservedObject var viewModel: SignupViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            Text(AppStrings.signupVersionTitle)
+                .font(.custom("Lexend Deca", size: 40).weight(.bold))
+                .foregroundStyle(LinearGradient.primary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, .spacing2)
+
+            VStack(alignment: .leading, spacing: .spacing5) {
+                alphaRow(icon: "rocket", text: LocalizationManager.shared.text("signup.is_alpha_disclaimer"))
+                alphaRow(icon: "thumbs-up", text: LocalizationManager.shared.text("signup.decent_stable"))
+                alphaRow(icon: "check", text: LocalizationManager.shared.text("signup.not_all_core_features_implemented"))
+                alphaRow(icon: "bug", text: LocalizationManager.shared.text("signup.expect_bugs_and_missing_features"))
+                alphaRow(icon: "asset:github", text: LocalizationManager.shared.text("signup.view_on_github"))
+            }
+
+            Button {
+                viewModel.nextStep()
+            } label: {
+                Text(
+                    LocalizationManager.shared
+                        .text("signup.continue_with_alpha")
+                        .replacingOccurrences(of: "{version}", with: AppStrings.signupVersionTitle)
+                )
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(OMPrimaryButtonStyle())
+            .padding(.top, .spacing2)
+        }
+    }
+
+    private func alphaRow(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: .spacing4) {
+            if icon.hasPrefix("asset:") {
+                Icon(String(icon.dropFirst(6)), size: 22)
+                    .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 28, height: 28)
+            } else {
+                LucideNativeIcon(icon, size: 22)
+                    .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 28, height: 28)
+            }
+
+            Text(text)
+                .font(.omP)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 struct SignupBasicsStep: View {
     @ObservedObject var viewModel: SignupViewModel
 
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text(LocalizationManager.shared.text("auth.lets_get_started"))
+                Text(LocalizationManager.shared.text("signup.create_new_account"))
                     .font(.omH2).fontWeight(.bold)
 
-                TextField(LocalizationManager.shared.text("auth.email"), text: $viewModel.email)
+                TextField(LocalizationManager.shared.text("login.email_placeholder"), text: $viewModel.email)
                     #if os(iOS)
                     .keyboardType(.emailAddress)
                     #endif
@@ -223,16 +268,16 @@ struct SignupBasicsStep: View {
                     .textInputAutocapitalization(.never)
                     #endif
                     .textContentType(.emailAddress)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibleInput(LocalizationManager.shared.text("auth.email"), hint: LocalizationManager.shared.text("auth.enter_account_email"))
+                    .textFieldStyle(OMTextFieldStyle())
+                    .accessibleInput(LocalizationManager.shared.text("login.email_placeholder"), hint: LocalizationManager.shared.text("login.email_placeholder"))
 
                 TextField(AppStrings.username, text: $viewModel.username)
                     .autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     #endif
-                    .textFieldStyle(.roundedBorder)
-                    .accessibleInput(AppStrings.username, hint: LocalizationManager.shared.text("auth.choose_username_hint"))
+                    .textFieldStyle(OMTextFieldStyle())
+                    .accessibleInput(AppStrings.username, hint: LocalizationManager.shared.text("signup.enter_username"))
 
                 if let error = viewModel.error {
                     Text(error).font(.omSmall).foregroundStyle(Color.error)
@@ -248,10 +293,9 @@ struct SignupBasicsStep: View {
                         Spacer()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.buttonPrimary)
+                .buttonStyle(OMPrimaryButtonStyle())
                 .disabled(viewModel.email.isEmpty || viewModel.username.isEmpty || viewModel.isLoading)
-                .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("auth.create_account_hint"))
+                .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("signup.create_new_account"))
             }
             .padding(.spacing8)
         }
@@ -267,14 +311,14 @@ struct SignupConfirmEmailStep: View {
                 Image(systemName: "envelope.badge")
                     .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
 
-                Text(LocalizationManager.shared.text("auth.check_your_email"))
+                Text(LocalizationManager.shared.text("signup.you_received_a_one_time_code_via_email"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text("\(LocalizationManager.shared.text("auth.sent_verification_code")) \(viewModel.email)")
+                Text(viewModel.email)
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
-                TextField(LocalizationManager.shared.text("auth.verification_code"), text: $viewModel.verificationCode)
+                TextField(LocalizationManager.shared.text("signup.enter_one_time_code"), text: $viewModel.verificationCode)
                     #if os(iOS)
                     .keyboardType(.numberPad)
                     #endif
@@ -282,8 +326,8 @@ struct SignupConfirmEmailStep: View {
                     .multilineTextAlignment(.center)
                     .font(.system(.title2, design: .monospaced))
                     .accessibleInput(
-                        LocalizationManager.shared.text("auth.verification_code"),
-                        hint: LocalizationManager.shared.text("auth.enter_code_from_email")
+                        LocalizationManager.shared.text("signup.enter_one_time_code"),
+                        hint: LocalizationManager.shared.text("signup.you_received_a_one_time_code_via_email")
                     )
 
                 if let error = viewModel.error {
@@ -294,12 +338,11 @@ struct SignupConfirmEmailStep: View {
                 Button {
                     Task { await viewModel.confirmEmail() }
                 } label: {
-                    HStack { Spacer(); Text(LocalizationManager.shared.text("auth.verify")); Spacer() }
+                    HStack { Spacer(); Text(LocalizationManager.shared.text("common.continue")); Spacer() }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.buttonPrimary)
+                .buttonStyle(OMPrimaryButtonStyle())
                 .disabled(viewModel.verificationCode.isEmpty || viewModel.isLoading)
-                .accessibleButton(LocalizationManager.shared.text("auth.verify"), hint: LocalizationManager.shared.text("auth.verify_email_hint"))
+                .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("signup.enter_one_time_code"))
             }
             .padding(.spacing8)
         }
@@ -320,21 +363,21 @@ struct SignupPasswordStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Text(LocalizationManager.shared.text("auth.set_a_password"))
+                Text(LocalizationManager.shared.text("signup.create_password"))
                     .font(.omH2).fontWeight(.bold)
 
-                SecureField(LocalizationManager.shared.text("auth.password_min_chars"), text: $viewModel.password)
-                    .textContentType(.newPassword).textFieldStyle(.roundedBorder)
-                    .accessibleInput(LocalizationManager.shared.text("auth.password"), hint: LocalizationManager.shared.text("auth.password_min_chars_hint"))
+                SecureField(LocalizationManager.shared.text("signup.create_password"), text: $viewModel.password)
+                    .textContentType(.newPassword).textFieldStyle(OMTextFieldStyle())
+                    .accessibleInput(LocalizationManager.shared.text("signup.password"), hint: LocalizationManager.shared.text("signup.create_password"))
 
-                SecureField(LocalizationManager.shared.text("auth.confirm_password"), text: $viewModel.confirmPassword)
-                    .textContentType(.newPassword).textFieldStyle(.roundedBorder)
-                    .accessibleInput(LocalizationManager.shared.text("auth.confirm_password"), hint: LocalizationManager.shared.text("auth.retype_new_password"))
+                SecureField(LocalizationManager.shared.text("signup.confirm_password"), text: $viewModel.confirmPassword)
+                    .textContentType(.newPassword).textFieldStyle(OMTextFieldStyle())
+                    .accessibleInput(LocalizationManager.shared.text("signup.confirm_password"), hint: LocalizationManager.shared.text("signup.repeat_password"))
 
                 if !viewModel.confirmPassword.isEmpty && !passwordsMatch {
-                    Text(LocalizationManager.shared.text("auth.passwords_dont_match"))
+                    Text(LocalizationManager.shared.text("signup.passwords_do_not_match"))
                         .font(.omXs).foregroundStyle(Color.error)
-                        .accessibilityLabel(LocalizationManager.shared.text("auth.passwords_dont_match"))
+                        .accessibilityLabel(LocalizationManager.shared.text("signup.passwords_do_not_match"))
                 }
 
                 if let error = viewModel.error {
@@ -347,9 +390,9 @@ struct SignupPasswordStep: View {
                 } label: {
                     HStack { Spacer(); Text(LocalizationManager.shared.text("common.continue")); Spacer() }
                 }
-                .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                .buttonStyle(OMPrimaryButtonStyle())
                 .disabled(!isValid || viewModel.isLoading)
-                .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("auth.set_password_and_continue"))
+                .accessibleButton(LocalizationManager.shared.text("common.continue"), hint: LocalizationManager.shared.text("signup.create_password"))
             }
             .padding(.spacing8)
         }
@@ -362,31 +405,31 @@ struct SignupPasskeyStep: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                Image(systemName: "person.badge.key")
-                    .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
+                LucideNativeIcon("key-round", size: 48)
+                    .foregroundStyle(Color.buttonPrimary)
 
-                Text(LocalizationManager.shared.text("auth.add_a_passkey"))
+                Text(LocalizationManager.shared.text("signup.passkey_instruction_title"))
                     .font(.omH2).fontWeight(.bold)
 
-                Text(LocalizationManager.shared.text("auth.passkey_description"))
+                Text(LocalizationManager.shared.text("signup.passkey_instruction_text"))
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .multilineTextAlignment(.center)
 
-                Button(LocalizationManager.shared.text("auth.set_up_passkey")) {
+                Button(LocalizationManager.shared.text("signup.create_passkey")) {
                     // Passkey registration via ASAuthorizationController
                     viewModel.nextStep()
                 }
-                .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
+                .buttonStyle(OMPrimaryButtonStyle())
                 .accessibleButton(
-                    LocalizationManager.shared.text("auth.set_up_passkey"),
-                    hint: LocalizationManager.shared.text("auth.use_face_id_or_touch_id")
+                    LocalizationManager.shared.text("signup.create_passkey"),
+                    hint: LocalizationManager.shared.text("signup.passkey_instruction_text")
                 )
 
-                Button(LocalizationManager.shared.text("common.skip_for_now")) { viewModel.nextStep() }
+                Button(LocalizationManager.shared.text("signup.skip_for_now")) { viewModel.nextStep() }
                     .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     .accessibleButton(
-                        LocalizationManager.shared.text("common.skip_for_now"),
-                        hint: LocalizationManager.shared.text("auth.skip_passkey_hint")
+                        LocalizationManager.shared.text("signup.skip_for_now"),
+                        hint: LocalizationManager.shared.text("signup.skip_for_now")
                     )
             }
             .padding(.spacing8)

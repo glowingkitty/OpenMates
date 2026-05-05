@@ -11,6 +11,7 @@ enum AppStrings {
     static var settings: String { L("common.settings") }
     static var cancel: String { L("common.cancel") }
     static var save: String { L("common.save") }
+    static var saveDraft: String { L("common.save_draft") }
     static var done: String { L("common.done") }
     static var delete: String { L("common.delete") }
     static var close: String { L("common.close") }
@@ -35,28 +36,38 @@ enum AppStrings {
     static var no: String { L("common.no") }
     static var ok: String { L("common.ok") }
     static var copied: String { L("common.copied") }
-    static var version: String { L("common.version") }
+    static var version: String { L("settings.current_version") }
+    static var openMatesName: String { L("apps.openmates") }
+    static var guest: String { L("settings.guest") }
 
     // MARK: - Chat
-    static var newChat: String { L("activity.new_chat") }
+    static var newChat: String { L("chat.new_chat") }
     static var noChats: String { L("activity.no_chats") }
     static var loadingChats: String { L("activity.loading_chats") }
     static var syncing: String { L("activity.syncing") }
     static var syncComplete: String { L("activity.sync_complete") }
     static var incognito: String { L("activity.incognito") }
     static var sendMessage: String { L("context_menu.send") }
+    static var sendAction: String { L("enter_message.send") }
     static var copyMessage: String { L("context_menu.copy") }
     static var editMessage: String { L("context_menu.edit") }
     static var deleteMessage: String { L("context_menu.delete") }
     static var forkConversation: String { L("context_menu.fork") }
     static var chatMessageInput: String { L("chat.message_input") }
-    static var typeMessage: String { L("chat.type_message") }
+    static var typeMessage: String { L("enter_message.placeholder.touch") }
+    static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("chat.ai_responding") }
     static var stopResponse: String { L("chat.stop_response") }
     static var loadEarlierMessages: String { L("chat.load_earlier") }
     static var selectChatOrNew: String { L("chat.select_or_new") }
     static var whatToHelpWith: String { L("chat.what_to_help_with") }
+    static var whatDoYouNeedHelpWith: String { L("chat.welcome.what_do_you_need_help_with") }
+    static var resumeLastChatTitle: String { L("chats.resume_last_chat.title") }
+    static var exploreOpenMatesTitle: String { L("chats.explore_openmates.title") }
+    static var previousInspiration: String { L("daily_inspiration.previous") }
+    static var nextInspiration: String { L("daily_inspiration.next") }
+    static var signUp: String { L("signup.sign_up") }
     static var pinnedChats: String { L("chat.pinned") }
     static var recentChats: String { L("chat.recent") }
     static var hiddenChats: String { L("chat.hidden_chats") }
@@ -68,6 +79,15 @@ enum AppStrings {
     static var setReminder: String { L("chat.set_reminder") }
     static var chats: String { L("common.chats") }
     static var explore: String { L("common.explore") }
+    static var openChat: String { L("chat.open_chat") }
+    static var scrollToTop: String { L("chats.scroll_to_top") }
+    static var scrollToBottom: String { L("chats.scroll_to_bottom") }
+
+    static func welcomeHeyUser(_ username: String) -> String {
+        LocalizationManager.shared.text("chat.welcome.hey_user", replacements: ["username": username])
+    }
+
+    static var welcomeHeyGuest: String { L("chat.welcome.hey_guest") }
 
     // MARK: - Settings sections
     static var settingsAccount: String { L("settings.account") }
@@ -96,7 +116,7 @@ enum AppStrings {
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
     static var storage: String { L("settings.storage") }
-    static var importChats: String { L("settings.account.import_chats") }
+    static var importChats: String { L("settings.account.import_title") }
     static var exportData: String { L("settings.export_data") }
     static var deleteAccount: String { L("settings.delete_account") }
     static var deleteAccountWarning: String { L("settings.delete_account.warning") }
@@ -104,7 +124,7 @@ enum AppStrings {
     static var permanentlyDeleteAccount: String { L("settings.delete_account.confirm_button") }
 
     // MARK: - Settings - AI
-    static var aiModelProviders: String { L("settings.ai.ai_model_providers") }
+    static var aiModelProviders: String { L("settings.ai") }
     static var defaultModels: String { L("settings.ai_ask.ai_ask_settings.default_models") }
     static var autoSelectModel: String { L("settings.ai_ask.ai_ask_settings.auto_select_model") }
     static var autoSelectDescription: String { L("settings.ai_ask.ai_ask_settings.auto_select_description") }
@@ -136,7 +156,7 @@ enum AppStrings {
     static var twoFactorAuth: String { L("settings.two_factor_auth") }
     static var recoveryKey: String { L("settings.recovery_key") }
     static var activeSessions: String { L("settings.sessions") }
-    static var pairNewDevice: String { L("settings.pair_device") }
+    static var pairNewDevice: String { L("settings.sessions.pair_initiate_title") }
     static var logoutAllSessions: String { L("settings.logout_all") }
     static var addPasskey: String { L("settings.passkeys.add") }
     static var setup2FA: String { L("settings.two_factor_auth.setup") }
@@ -145,8 +165,8 @@ enum AppStrings {
 
     // MARK: - Settings - Privacy
     static var hidePersonalData: String { L("settings.hide_personal_data") }
-    static var autoDeleteChats: String { L("settings.auto_delete_chats") }
-    static var shareDebugLogs: String { L("settings.share_debug_logs") }
+    static var autoDeleteChats: String { L("settings.privacy.auto_deletion") }
+    static var shareDebugLogs: String { L("settings.privacy.debug_logging_title") }
     static var never: String { L("common.never") }
 
     // MARK: - Settings - Billing
@@ -159,28 +179,28 @@ enum AppStrings {
 
     // MARK: - Settings - Notifications
     static var pushNotifications: String { L("settings.notifications.push") }
-    static var chatMessages: String { L("settings.notifications.chat_messages") }
+    static var chatMessages: String { L("settings.notifications.chat") }
     static var emailNotifications: String { L("settings.notifications.email") }
-    static var backupReminders: String { L("settings.backup_reminders") }
+    static var backupReminders: String { L("settings.notifications.backup") }
 
     // MARK: - Settings - Interface
-    static var theme: String { L("settings.interface.theme") }
+    static var theme: String { L("settings.interface.dark_mode") }
     static var language: String { L("settings.interface.language") }
-    static var systemTheme: String { L("settings.interface.theme.system") }
-    static var lightTheme: String { L("settings.interface.theme.light") }
-    static var darkTheme: String { L("settings.interface.theme.dark") }
+    static var systemTheme: String { L("settings.interface.dark_mode.auto") }
+    static var lightTheme: String { L("settings.interface.dark_mode.light") }
+    static var darkTheme: String { L("settings.interface.dark_mode.dark") }
 
     // MARK: - Settings - Developers
     static var apiKeys: String { L("settings.api_keys") }
     static var devices: String { L("settings.devices") }
-    static var webhooks: String { L("settings.webhooks") }
+    static var webhooks: String { L("settings.developers_webhooks") }
 
     // MARK: - Settings - About
-    static var privacyPolicy: String { L("settings.privacy_policy") }
-    static var termsOfService: String { L("settings.terms_of_service") }
-    static var imprint: String { L("settings.imprint") }
-    static var openSource: String { L("settings.open_source") }
-    static var about: String { L("common.about") }
+    static var privacyPolicy: String { L("legal.privacy.title") }
+    static var termsOfService: String { L("legal.terms.title") }
+    static var imprint: String { L("legal.imprint.title") }
+    static var openSource: String { L("design_guidelines.maximum_good.open_source") }
+    static var about: String { L("settings.app_store.provider_detail.about") }
 
     // MARK: - Settings - Newsletter
     static var newsletterSubscribe: String { L("settings.newsletter.subscribe") }
@@ -188,11 +208,14 @@ enum AppStrings {
 
     // MARK: - Settings - Server (admin)
     static var serverAdmin: String { L("settings.server") }
-    static var logs: String { L("settings.logs") }
+    // Web hardcodes "Logs" for this admin-only entry (no i18n key exists)
+    static var logs: String { "Logs" }
 
     // MARK: - Auth
-    static var login: String { L("header.login") }
-    static var signup: String { L("header.signup") }
+    static var login: String { L("login.login") }
+    static var signup: String { L("signup.sign_up") }
+    static var loginSignup: String { "\(login) / \(signup)" }
+    static var signupVersionTitle: String { L("signup.version_title") }
     static var logout: String { L("settings.logout") }
     static var logOut: String { L("settings.logout") }
     static var enterPassword: String { L("auth.enter_password") }
@@ -229,7 +252,8 @@ enum AppStrings {
     static var incognitoDescription: String { L("settings.incognito.description") }
 
     // MARK: - Misc
-    static var dailyInspiration: String { L("common.daily_inspiration") }
+    static var dailyInspiration: String { L("daily_inspiration.label") }
+    static var dailyInspirationCTA: String { L("daily_inspiration.click_to_start_chat") }
     static var tapToExplore: String { L("common.tap_to_explore") }
     static var report: String { L("common.report") }
     static var send: String { L("common.send") }
@@ -243,6 +267,7 @@ enum AppStrings {
 
     // MARK: - Chat banner (ChatHeader.svelte)
     static var creatingNewChat: String { L("chat.creating_new_chat") }
+    static var exampleChatBadge: String { L("chat.header.example_chat") }
     static var chatHeaderJustNow: String { L("chat.header.just_now") }
     static var incognitoModeActive: String { L("settings.incognito_mode_active") }
 
@@ -259,9 +284,19 @@ enum AppStrings {
         "\(date), \(time)"
     }
 
+    // MARK: - Sidebar section headers
+    static var introSection: String { L("activity.intro") }
+    static var exampleChatsSection: String { L("activity.examples") }
+    static var announcementsSection: String { L("activity.announcements") }
+    static var legalSection: String { L("activity.legal") }
+    static var showHiddenChats: String { L("chats.hidden_chats.show_hidden_chats") }
+
     // MARK: - Demo chats — intro
     static var demoForEveryoneTitle: String { L("demo_chats.for_everyone.title") }
     static var demoForEveryoneDescription: String { L("demo_chats.for_everyone.description") }
+    static var teaserLine1: String { L("demo_chats.for_everyone.teaser_line1") }
+    static var teaserLine2: String { L("demo_chats.for_everyone.teaser_line2") }
+    static var teaserLine3: String { L("demo_chats.for_everyone.teaser_line3") }
     static var demoForDevelopersTitle: String { L("demo_chats.for_developers.title") }
     static var demoForDevelopersDescription: String { L("demo_chats.for_developers.description") }
     static var demoWhoDevTitle: String { L("demo_chats.who_develops_openmates.title") }
@@ -301,6 +336,10 @@ enum AppStrings {
     }
 
     // MARK: - Helper
+    static func localized(_ key: String) -> String {
+        L(key)
+    }
+
     private static func L(_ key: String) -> String {
         LocalizationManager.shared.text(key)
     }

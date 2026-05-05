@@ -49,6 +49,8 @@ async function loginToTestAccount(
 	page.on('response', on429);
 
 	await page.goto(getE2EDebugUrl('/'));
+	// Wait for all resources (scripts + hydration) to load before checking buttons.
+	await page.waitForLoadState('load');
 
 	// Clear any rate-limit flags from previous test runs that would hide the login form
 	await page.evaluate(() => {
@@ -59,13 +61,8 @@ async function loginToTestAccount(
 
 	await takeStepScreenshot(page, 'home');
 
-	// Header button now opens the signup interface (not login directly).
-	// Click it, then switch to the Login tab before entering credentials.
-	const headerSignupButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerSignupButton).toBeVisible({ timeout: 15000 });
-	await headerSignupButton.click();
+	// The intro banner on the home page hides the header login button and shows its own.
+	await openSignupInterface(page, 30000);
 	await takeStepScreenshot(page, 'signup-interface-opened');
 
 	// Click the "Login" tab in the login/signup tab bar to switch to the login form
@@ -118,9 +115,8 @@ async function loginToTestAccount(
 
 		// Reload the page to reset the EmailLookup component state
 		await page.goto(getE2EDebugUrl('/'));
-		const retrySignupBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
-		await expect(retrySignupBtn).toBeVisible({ timeout: 15000 });
-		await retrySignupBtn.click();
+		await page.waitForLoadState('load');
+		await openSignupInterface(page, 30000);
 		const retryLoginTab = page.getByTestId('tab-login');
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();
@@ -142,66 +138,83 @@ async function loginToTestAccount(
 	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
 	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
-	logCheckpoint('Submitted password — waiting for 2FA prompt.');
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	const errorMessage = page
-		.getByTestId('error-message')
-		.filter({ hasText: /wrong|invalid|incorrect/i });
-
-	// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
-	// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
-	// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
-	// we cover the current window and both adjacent windows.
-	const MAX_OTP_ATTEMPTS = 5;
-	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+	logCheckpoint('Submitted password — waiting for 2FA prompt or direct login.');
 
 	// Positive auth signal: ActiveChat.svelte sets data-authenticated="true" on the
 	// container div when authStore.isAuthenticated becomes true. This is the most
 	// reliable login success detector because it's driven directly by the canonical
 	// auth state, not by UI visibility heuristics (which can race with animations).
 	const authSignal = page.locator('[data-authenticated="true"]');
+	const otpInput = page.locator('#login-otp-input');
+
+	// Race: either OTP field appears (2FA required) or login succeeds immediately
+	// (2FA not configured for this account). Some test accounts may have lost their
+	// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
+	const otpOrAuth = await Promise.race([
+		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
+		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
+	]);
 
 	let loginSuccess = false;
-	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
-		// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
-		// wait for the next window so the generated code is valid long enough.
-		const nowSec = Math.floor(Date.now() / 1000);
-		const secondsIntoWindow = nowSec % 30;
-		if (secondsIntoWindow >= 25) {
-			const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
-			logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
-			await page.waitForTimeout(waitMs);
-		}
 
-		const windowOffset = WINDOW_OFFSETS[attempt - 1];
-		const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
-		await otpInput.fill(otpCode);
-		logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
-		if (attempt === 1) {
-			await takeStepScreenshot(page, 'otp-entered');
-		}
+	if (otpOrAuth === 'auth') {
+		// Login succeeded without 2FA — backend determined tfa_enabled=false
+		loginSuccess = true;
+		logCheckpoint('Login successful without 2FA — data-authenticated="true" detected.');
+	} else {
+		// OTP field appeared — proceed with TOTP entry
+		logCheckpoint('2FA prompt visible — entering OTP.');
 
-		await expect(submitLoginButton).toBeVisible();
-		await submitLoginButton.click();
-		logCheckpoint('Submitted login form.');
+		const errorMessage = page
+			.getByTestId('error-message')
+			.filter({ hasText: /wrong|invalid|incorrect/i });
 
-		try {
-			// Primary success signal: data-authenticated="true" appears on the DOM.
-			// This is set by ActiveChat.svelte when authStore.isAuthenticated becomes true,
-			// which happens after setAuthenticatedState() runs in the login success chain.
-			await expect(authSignal).toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-			logCheckpoint('Login successful — data-authenticated="true" detected.');
-		} catch {
-			const hasError = await errorMessage.isVisible().catch(() => false);
-			if (hasError && attempt < MAX_OTP_ATTEMPTS) {
-				logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
-				// Wait longer between retries to allow time window to advance.
-				await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
-			} else if (attempt === MAX_OTP_ATTEMPTS) {
-				throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+		// OTP retry strategy: try current window, then adjacent windows to handle GHA clock drift.
+		// GHA runners can have 1-2s clock skew from the server, causing the TOTP code to be
+		// rejected. By cycling through window offsets [0, -1, 1, 0, -1] across 5 attempts,
+		// we cover the current window and both adjacent windows.
+		const MAX_OTP_ATTEMPTS = 5;
+		const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+		for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS && !loginSuccess; attempt++) {
+			// Avoid TOTP window boundary race: if we're in the last 5s of a 30s window,
+			// wait for the next window so the generated code is valid long enough.
+			const nowSec = Math.floor(Date.now() / 1000);
+			const secondsIntoWindow = nowSec % 30;
+			if (secondsIntoWindow >= 25) {
+				const waitMs = (30 - secondsIntoWindow) * 1000 + 2000;
+				logCheckpoint(`Near TOTP window boundary (${secondsIntoWindow}s in), waiting ${waitMs}ms...`);
+				await page.waitForTimeout(waitMs);
+			}
+
+			const windowOffset = WINDOW_OFFSETS[attempt - 1];
+			const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
+			await otpInput.fill(otpCode);
+			logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
+			if (attempt === 1) {
+				await takeStepScreenshot(page, 'otp-entered');
+			}
+
+			await expect(submitLoginButton).toBeVisible();
+			await submitLoginButton.click();
+			logCheckpoint('Submitted login form.');
+
+			try {
+				// Primary success signal: data-authenticated="true" appears on the DOM.
+				// This is set by ActiveChat.svelte when authStore.isAuthenticated becomes true,
+				// which happens after setAuthenticatedState() runs in the login success chain.
+				await expect(authSignal).toBeVisible({ timeout: 15000 });
+				loginSuccess = true;
+				logCheckpoint('Login successful — data-authenticated="true" detected.');
+			} catch {
+				const hasError = await errorMessage.isVisible().catch(() => false);
+				if (hasError && attempt < MAX_OTP_ATTEMPTS) {
+					logCheckpoint(`OTP attempt ${attempt} failed, retrying with different window offset...`);
+					// Wait longer between retries to allow time window to advance.
+					await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+				} else if (attempt === MAX_OTP_ATTEMPTS) {
+					throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+				}
 			}
 		}
 	}
@@ -222,6 +235,77 @@ async function loginToTestAccount(
 	} else {
 		logCheckpoint('Login complete (skipping editor wait).');
 		await page.waitForTimeout(1000);
+	}
+}
+
+/**
+ * Submit password and handle OTP if required. For use by specs with inline login code.
+ *
+ * After filling the password input and calling this function, it will:
+ * 1. Click the submit button
+ * 2. Race: wait for either OTP field or data-authenticated="true"
+ * 3. If OTP field appears: fill OTP with TOTP retry logic and submit
+ * 4. If auth signal appears: login succeeded without 2FA
+ *
+ * @param page      - Playwright Page
+ * @param otpKey    - TOTP secret key for generating OTP codes
+ * @param log       - Optional log function
+ */
+async function submitPasswordAndHandleOtp(
+	page: any,
+	otpKey: string,
+	log: (msg: string) => void = () => {}
+): Promise<void> {
+	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	await expect(submitBtn).toBeVisible();
+	await submitBtn.click();
+	log('Submitted password — waiting for 2FA prompt or direct login.');
+
+	const authSignal = page.locator('[data-authenticated="true"]');
+	const otpInput = page.locator('#login-otp-input');
+
+	const otpOrAuth = await Promise.race([
+		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
+		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
+	]);
+
+	if (otpOrAuth === 'auth') {
+		log('Login successful without 2FA.');
+		// Brief settle for post-auth navigation (URL change, WebSocket connect).
+		// Auth signal fires before the router navigates to the chat view.
+		await page.waitForTimeout(2000);
+		return;
+	}
+
+	log('2FA prompt visible — entering OTP.');
+	const MAX_OTP_ATTEMPTS = 5;
+	const WINDOW_OFFSETS = [0, -1, 1, 0, -1];
+
+	for (let attempt = 1; attempt <= MAX_OTP_ATTEMPTS; attempt++) {
+		const nowSec = Math.floor(Date.now() / 1000);
+		const secondsIntoWindow = nowSec % 30;
+		if (secondsIntoWindow >= 25) {
+			await page.waitForTimeout((30 - secondsIntoWindow) * 1000 + 2000);
+		}
+
+		const otpCode = generateTotp(otpKey, WINDOW_OFFSETS[attempt - 1]);
+		await otpInput.fill(otpCode);
+		log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
+
+		await expect(submitBtn).toBeVisible();
+		await submitBtn.click();
+
+		try {
+			await expect(authSignal).toBeVisible({ timeout: 15000 });
+			log('Login successful — data-authenticated="true" detected.');
+			return;
+		} catch {
+			if (attempt === MAX_OTP_ATTEMPTS) {
+				throw new Error(`Login failed after ${MAX_OTP_ATTEMPTS} OTP attempts`);
+			}
+			log(`OTP attempt ${attempt} failed, retrying...`);
+			await page.waitForTimeout(attempt <= 2 ? 3000 : 5000);
+		}
 	}
 }
 
@@ -551,8 +635,46 @@ async function waitForAssistantMessage(
 	return target;
 }
 
+/**
+ * Returns true if the login/signup interface can be opened (either the banner button
+ * or the header button is visible). Use instead of checking `header-login-signup-btn`
+ * directly — that button is intentionally hidden while the intro banner is visible.
+ */
+async function isSignupInterfaceVisible(page: any, timeout = 5000): Promise<boolean> {
+	const bannerBtn = page.getByTestId('banner-signup-button');
+	const headerBtn = page.getByTestId('header-login-signup-btn');
+	const bannerVisible = await bannerBtn.isVisible({ timeout }).catch(() => false);
+	if (bannerVisible) return true;
+	return headerBtn.isVisible({ timeout: 1000 }).catch(() => false);
+}
+
+/**
+ * Open the login/signup dialog.
+ *
+ * When the intro banner is in the viewport (the app hides the header button to avoid
+ * a duplicate CTA), clicks the banner's own signup button instead. Falls back to the
+ * header button once the banner has scrolled out of view.
+ *
+ * Use this instead of `page.getByTestId('header-login-signup-btn')` + `toBeVisible()`
+ * directly — the header button is intentionally hidden while the banner is visible.
+ */
+async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
+	const bannerBtn = page.getByTestId('banner-signup-button');
+	const headerBtn = page.getByTestId('header-login-signup-btn');
+	const bannerVisible = await bannerBtn.isVisible({ timeout: 8000 }).catch(() => false);
+	if (bannerVisible) {
+		await bannerBtn.click();
+	} else {
+		await expect(headerBtn).toBeVisible({ timeout });
+		await headerBtn.click();
+	}
+}
+
 module.exports = {
 	loginToTestAccount,
+	submitPasswordAndHandleOtp,
+	openSignupInterface,
+	isSignupInterfaceVisible,
 	startNewChat,
 	sendMessage,
 	deleteActiveChat,

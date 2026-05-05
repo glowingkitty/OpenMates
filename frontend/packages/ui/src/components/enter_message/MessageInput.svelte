@@ -33,6 +33,7 @@
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
+    import { messageInputPlaceholderOverride } from './extensions/Placeholder';
 
     // Components
     import CameraView from './CameraView.svelte';
@@ -178,6 +179,12 @@
         isIncognitoMode?: boolean;
         /** Called when user clicks the toggle on the incognito pill to disable incognito mode. */
         onIncognitoPillDeactivate?: () => void;
+        /** Replaces the normal compose placeholder text when set. */
+        placeholderText?: string;
+        /** Treat the field as a CTA that starts a fresh chat instead of composing a reply. */
+        startNewChatOnClick?: boolean;
+        /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
+        inlineCompact?: boolean;
     }
     let { 
         currentChatId = undefined,
@@ -193,7 +200,10 @@
         onFocusPillDeepLink = undefined,
         onFocusPillDeactivate = undefined,
         isIncognitoMode = false,
-        onIncognitoPillDeactivate = undefined
+        onIncognitoPillDeactivate = undefined,
+        placeholderText = undefined,
+        startNewChatOnClick = false,
+        inlineCompact = false
     }: Props = $props();
 
     // --- Refs ---
@@ -330,6 +340,9 @@
     let panelHeightTransitionOverride = $state<string | null>(null);
     let suppressHeightChangeDispatch = $state(false);
     
+    // Draft preview mode: field has content but is not focused — show truncated text, hide buttons.
+    let isDraftPreview = $derived(hasContent && !isMessageFieldFocused && !isFullscreen);
+
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
     // In minimized mode: shows when prop is true OR when field is focused OR when recording is in progress.
@@ -338,11 +351,13 @@
     // removed from the DOM before they can fire (because the editor blur clears
     // isMessageFieldFocused after 150ms, hiding ActionButtons mid-interaction).
     let shouldShowActionButtons = $derived(
-        isFullscreen ||
-        showActionButtons ||
-        isMessageFieldFocused ||
-        $recordingState.isRecordButtonPressed ||
-        $recordingState.showRecordAudioUI
+        !startNewChatOnClick && !isDraftPreview && (
+            isFullscreen ||
+            showActionButtons ||
+            isMessageFieldFocused ||
+            $recordingState.isRecordButtonPressed ||
+            $recordingState.showRecordAudioUI
+        )
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -1335,6 +1350,7 @@
             element: editorElement,
             extensions: getEditorExtensions(),
             content: getInitialContent(),
+            editable: !startNewChatOnClick,
             onFocus: handleEditorFocus,
             onBlur: handleEditorBlur,
             onUpdate: handleEditorUpdate,
@@ -1484,7 +1500,7 @@
                         // and stored in EmbedStore (encrypted, synced to server)
                         const isMultiLine = normalizedPasteText.includes('\n');
                         const isAlreadyCodeBlock = normalizedPasteText.trim().startsWith('```');
-                        
+
                         if (isMultiLine && !isAlreadyCodeBlock) {
                             event.preventDefault();
                             event.stopPropagation();
@@ -1583,9 +1599,29 @@
                                     originalMarkdownLength: originalMarkdown.length
                                 });
                             }).catch((error) => {
-                                console.error('[MessageInput] Failed to create code embed:', error);
-                                // Fallback: insert as plain text if embed creation fails
-                                editor.commands.insertContent(normalizedPasteText);
+                                console.error('[MessageInput] Failed to create code embed, falling back to inline embed:', error);
+                                // EmbedStore write failed (e.g. encryption keys not ready).
+                                // Fall back to the demo-mode inline embed so the user still sees
+                                // their code in a preview instead of getting an empty field.
+                                const vsCodeLangFallback = detectLanguageFromVSCode(vsCodeEditorData);
+                                const languageFallback = vsCodeLangFallback || detectLanguageFromContent(normalizedPasteText) || 'text';
+                                const embedIdFallback = generateUUID();
+                                const lineCountFallback = normalizedPasteText.split('\n').length;
+                                editor.commands.insertContent({
+                                    type: 'embed',
+                                    attrs: {
+                                        id: embedIdFallback,
+                                        type: 'code-code',
+                                        status: 'finished',
+                                        contentRef: `preview:code:${embedIdFallback}`,
+                                        code: normalizedPasteText,
+                                        language: languageFallback,
+                                        lineCount: lineCountFallback,
+                                    }
+                                });
+                                editor.commands.insertContent(' ');
+                                editor.commands.focus('end');
+                                hasContent = !isContentEmptyExceptMention(editor);
                             }).finally(() => {
                                 pendingPasteEmbedCount = Math.max(0, pendingPasteEmbedCount - 1);
                                 // If the user pressed Enter while the embed was being created,
@@ -1808,6 +1844,12 @@
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
+        if (startNewChatOnClick) {
+            editor.commands.blur();
+            dispatch('startNewChat');
+            return;
+        }
+
         // Prevent auto-focus during initial mount phase
         // Only allow focus if it's user-initiated (not during initial mount)
         if (isInitialMount) {
@@ -2459,7 +2501,7 @@
                                         (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
                                 'enter_message.placeholder.touch' :
                                 'enter_message.placeholder.desktop';
-                            const newPlaceholderText = $text(key);
+                            const newPlaceholderText = placeholderText || $text(key);
                             
                             // Update the placeholder data attribute on the editor element
                             // TipTap's placeholder extension uses this attribute for display
@@ -3083,6 +3125,11 @@
      */
     function handleMessageWrapperMouseDown(event: MouseEvent) {
         const target = event.target as HTMLElement;
+
+        if (startNewChatOnClick) {
+            event.preventDefault();
+            return;
+        }
         
         // When MapsView is open, its overlay sits inside .message-field and contains
         // its own interactive elements (search input, buttons, map).
@@ -3126,6 +3173,13 @@
                 editor.commands.focus('end');
             }
         }
+    }
+
+    function handleStartNewChatPlaceholderClick(event: MouseEvent) {
+        if (!startNewChatOnClick) return;
+        event.preventDefault();
+        event.stopPropagation();
+        dispatch('startNewChat');
     }
 
     // --- UI Update Functions ---
@@ -4025,6 +4079,18 @@
             tick().then(updateHeight);
         }
     });
+
+    $effect(() => {
+        messageInputPlaceholderOverride.set(placeholderText ?? null);
+        if (editor && !editor.isDestroyed) {
+            editor.setEditable(!startNewChatOnClick);
+            editor.view.dispatch(editor.state.tr);
+        }
+
+        return () => {
+            messageInputPlaceholderOverride.set(null);
+        };
+    });
     
     // Track when action buttons visibility changes to update height
     $effect(() => {
@@ -4283,7 +4349,14 @@
 </script>
  
 <!-- Template -->
-<div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown} data-action="message-input">
+<div
+    bind:this={messageInputWrapper}
+    class="message-input-wrapper"
+    class:start-new-chat-only={startNewChatOnClick}
+    role="none"
+    onmousedown={handleMessageWrapperMouseDown}
+    data-action="message-input"
+>
     <!-- Edit mode banner — shown when user is editing a previous message -->
     {#if $editMessageStore && $editMessageStore.chatId === currentChatId}
         <div class="edit-banner">
@@ -4314,10 +4387,11 @@
     />
     
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill}
+        class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -4326,6 +4400,15 @@
         aria-multiline="true"
         tabindex="0"
     >
+        {#if startNewChatOnClick}
+            <button
+                class="start-new-chat-overlay"
+                type="button"
+                aria-label={placeholderText || 'Click to start a new chat'}
+                onclick={handleStartNewChatPlaceholderClick}
+            ></button>
+        {/if}
+
         <!-- Focus mode pill: shown when a focus mode is active.
              Absolutely positioned at the top of the message-field; the field gets extra
              padding-top (via .has-focus-pill) so text input does not collide with the pill.
@@ -4422,7 +4505,7 @@
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if (isFullscreen || hasContent || isMessageFieldFocused) && !showCamera && !showSketch && !showMaps}
+        {#if !startNewChatOnClick && (isFullscreen || hasContent || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}

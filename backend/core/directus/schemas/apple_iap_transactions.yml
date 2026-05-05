@@ -1,0 +1,41 @@
+# Durable Apple IAP fulfillment ledger for idempotency.
+apple_iap_transactions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    transaction_id:
+      type: string
+      length: 255
+      unique: true
+      note: "Apple transactionId. Unique durable idempotency key."
+
+    original_transaction_id:
+      type: string
+      length: 255
+      note: "Apple originalTransactionId for the purchase chain."
+
+    user_id:
+      type: string
+      length: 128
+      note: "Directus user ID credited for this transaction."
+
+    product_id:
+      type: string
+      length: 255
+      note: "Apple productId fulfilled."
+
+    credits:
+      type: integer
+      note: "Credits granted for this transaction."
+
+    environment:
+      type: string
+      length: 40
+      note: "Apple environment, e.g. Production or Sandbox."
+
+    processed_at:
+      type: datetime
+      note: "UTC timestamp when fulfillment was reserved for processing."

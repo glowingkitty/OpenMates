@@ -55,6 +55,53 @@ models:
       tool_use: true
       streaming: true
 
+  - id: "kimi-k2.6"
+    name: "Kimi K2.6"
+    description: "Kimi K2.6 is Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration. Features improved reasoning, 262K context window, and enhanced tool-calling capabilities over K2.5. Primary: Together AI; Fallback: OpenRouter."
+    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2026-04-28" # Model release date (Kimi K2.6)
+    allow_auto_select: true
+    reasoning: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      lmarena: "kimi-k2.6"
+      openrouter: "moonshotai/kimi-k2.6"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "together" # Default to Together AI for serverless inference
+    servers:
+      - id: "together"
+        name: "Together AI"
+        model_id: "moonshotai/Kimi-K2.6" # Together AI model identifier (primary)
+        region: "US" # Server region for UI display
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "moonshotai/kimi-k2.6" # OpenRouter's model identifier (fallback)
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 275 # Based on $1.20/M input (Together AI): 333.33 / 1.20 = 277.8, rounded to 275
+        output:
+          per_credit_unit: 75 # Based on $4.50/M output (Together AI): 333.33 / 4.50 = 74.1, rounded to 75
+    costs:
+      input_per_million_token:
+        price: 1.20
+        currency: USD
+        max_context: 262144
+      output_per_million_token:
+        price: 4.50
+        currency: USD
+        max_context: 262144
+    features:
+      knowledge_cutoff: "2026-03"
+      max_output_tokens: 262144
+      tool_use: true
+      streaming: true
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token

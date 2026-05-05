@@ -1,0 +1,99 @@
+# Unified email delivery ledger for idempotency and short-term auditability.
+#
+# Rows are reserved before sending via Brevo. The primary key is a deterministic
+# UUIDv5 derived from email_type/campaign/recipient/stage so repeated runs skip
+# instead of sending duplicate emails.
+email_deliveries:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    delivery_key:
+      type: string
+      length: 255
+      unique: true
+      note: "Deterministic idempotency key: email_type:campaign_key:recipient_kind:recipient_id:stage"
+
+    email_type:
+      type: string
+      length: 80
+      note: "Email family, e.g. newsletter or incomplete_signup_deletion"
+
+    campaign_key:
+      type: string
+      length: 160
+      nullable: true
+      note: "Campaign/issue/version key, e.g. newsletter slug or incomplete_signup_deletion_v1"
+
+    recipient_kind:
+      type: string
+      length: 50
+      note: "Recipient entity kind, e.g. directus_user or newsletter_subscriber"
+
+    recipient_id:
+      type: string
+      length: 128
+      note: "Recipient entity id. No plaintext email addresses are stored."
+
+    recipient_hash:
+      type: string
+      length: 64
+      nullable: true
+      note: "SHA-256 hash of normalized recipient email for debugging without storing plaintext email"
+
+    stage:
+      type: string
+      length: 40
+      nullable: true
+      note: "Stage within a campaign, e.g. 14d, 7d, 1d, deleted"
+
+    status:
+      type: string
+      length: 20
+      note: "processing, sent, failed, archived"
+
+    lang:
+      type: string
+      length: 10
+      nullable: true
+
+    provider:
+      type: string
+      length: 40
+      default: "brevo"
+
+    scheduled_for:
+      type: datetime
+      nullable: true
+
+    processing_started_at:
+      type: datetime
+      nullable: true
+
+    sent_at:
+      type: datetime
+      nullable: true
+
+    failed_at:
+      type: datetime
+      nullable: true
+
+    archived_at:
+      type: datetime
+      nullable: true
+
+    archive_key:
+      type: string
+      length: 512
+      nullable: true
+      note: "S3 object key written before deleting the row from Directus"
+
+    error:
+      type: text
+      nullable: true
+
+    metadata:
+      type: json
+      nullable: true

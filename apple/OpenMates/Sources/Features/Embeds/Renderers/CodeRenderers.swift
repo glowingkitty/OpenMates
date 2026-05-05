@@ -9,36 +9,37 @@ struct CodeRenderer: View {
     private var code: String { data?["code"]?.value as? String ?? "" }
     private var language: String { data?["language"]?.value as? String ?? "" }
     private var filename: String? { data?["filename"]?.value as? String }
-    private var lineCount: Int { data?["line_count"]?.value as? Int ?? code.components(separatedBy: "\n").count }
+    private var lineCount: Int {
+        data?["lineCount"]?.value as? Int
+            ?? data?["line_count"]?.value as? Int
+            ?? code.components(separatedBy: "\n").count
+    }
 
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing2) {
-                HStack {
-                    if let filename {
-                        Text(filename)
+            VStack(alignment: .leading, spacing: 0) {
+                if code.isEmpty {
+                    VStack(spacing: .spacing4) {
+                        Circle()
+                            .fill(LinearGradient.primary)
+                            .frame(width: 12, height: 12)
+                        Text(LocalizationManager.shared.text("common.processing"))
                             .font(.omXs)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.fontPrimary)
+                            .foregroundStyle(Color.fontSecondary)
                     }
-                    Spacer()
-                    Text(language)
-                        .font(.omTiny)
-                        .foregroundStyle(Color.fontTertiary)
-                        .padding(.horizontal, .spacing2)
-                        .padding(.vertical, 2)
-                        .background(Color.grey20)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Text(previewCode)
+                        .font(.system(size: 12, design: .monospaced))
+                        .lineSpacing(4)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(8)
+                        .truncationMode(.tail)
+                        .padding(.top, .spacing5)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-
-                Text(code)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(6)
             }
-            .padding(.spacing3)
-            .background(Color.grey10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
         case .fullscreen:
@@ -79,6 +80,10 @@ struct CodeRenderer: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(code, forType: .string)
         #endif
+    }
+
+    private var previewCode: String {
+        code.components(separatedBy: "\n").prefix(8).joined(separator: "\n")
     }
 }
 

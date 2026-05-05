@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -46,7 +45,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
 	await page.goto('/');
 
-	const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const headerLoginButton = page.getByTestId('header-login-signup-btn');
 	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
 	await headerLoginButton.click();
 
@@ -65,16 +64,10 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 	await expect(passwordInput).toBeVisible({ timeout: 10000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	// OTP is time-sensitive — generate immediately before entering
-	const otpCode = generateTotp(TEST_OTP_KEY);
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 10000 });
-	await otpInput.fill(otpCode);
-	logFn(`OTP entered: ${otpCode}`);
-
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible({ timeout: 10000 });
-	await submitBtn.click();
+	// Submit password first, then handle OTP if required.
+	// OTP field only appears after backend confirms 2FA is needed (anti-enumeration).
+	const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logFn);
 	logFn('Login submitted, waiting for redirect to /chat…');
 
 	await page.waitForURL(/chat/, { timeout: 30000 });
@@ -114,9 +107,9 @@ async function navigateToSessions(page: any, logFn: (msg: string) => void): Prom
 // Detect if the page is logged out (login button visible)
 // ---------------------------------------------------------------------------
 
-async function isLoggedOut(page: any): Promise<boolean> {
+async function _isLoggedOut(page: any): Promise<boolean> {
 	try {
-		const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+		const loginBtn = page.getByTestId('header-login-signup-btn');
 		return await loginBtn.isVisible({ timeout: 5000 });
 	} catch {
 		return false;
@@ -239,7 +232,7 @@ test('session revoke: revoking session B from session A does not log out session
 		// Session B's chatSyncService handler calls logout() and redirects
 		// to the login screen (Login / Sign up button appears).
 		logB('Session B: waiting to receive force_logout and be logged out…');
-		const loginBtnB = pageB.getByRole('button', { name: /login.*sign up|sign up/i });
+		const loginBtnB = pageB.getByTestId('header-login-signup-btn');
 		await expect(loginBtnB).toBeVisible({ timeout: 60000 });
 		logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
 		await screenshotB(pageB, '07-session-b-logged-out');
@@ -254,7 +247,7 @@ test('session revoke: revoking session B from session A does not log out session
 		await screenshotA(pageA, '08-session-a-after-revoke-wait');
 
 		// Session A must NOT show the Login / Sign Up button
-		const loginBtnA = pageA.getByRole('button', { name: /login.*sign up|sign up/i });
+		const loginBtnA = pageA.getByTestId('header-login-signup-btn');
 		const aIsLoggedOut = await loginBtnA.isVisible({ timeout: 3000 }).catch(() => false);
 
 		if (aIsLoggedOut) {

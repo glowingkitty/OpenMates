@@ -34,6 +34,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.services.email_delivery_guard import send_email_once
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
@@ -251,12 +252,22 @@ async def _send_digest_for_user(
             "total_hits": sum(row["hit_count"] for row in digest_rows),
         }
 
-        sent = await email_template_service.send_email(
+        sent, delivery_status = await send_email_once(
+            directus=directus_service,
+            email_template_service=email_template_service,
+            email_type="webhook_rate_limit_digest",
+            campaign_key="webhook_rate_limit_digest_v1",
+            recipient_kind="directus_user",
+            recipient_id=user_id,
+            stage=datetime.now(timezone.utc).date().isoformat(),
             template="webhook-rate-limit-digest",
             recipient_email=recipient_email,
             context=email_context,
             lang=language,
         )
+        if delivery_status == "already_reserved":
+            logger.info(f"[WEBHOOK_RL_DIGEST] Digest already reserved for user {user_id[:8]}...")
+            return True
         if sent:
             logger.info(
                 f"[WEBHOOK_RL_DIGEST] Sent digest to user {user_id[:8]}... "

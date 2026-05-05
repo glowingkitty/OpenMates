@@ -2240,6 +2240,28 @@ async def get_server_stats(
 
     result: Dict[str, Any] = {"success": True, "date": yesterday_str, "sections": {}}
 
+    # ── Authoritative Stripe Revenue ────────────────────────────────────
+    # Directus server_stats_global_daily only contains app-side incremental
+    # counters and may miss historical or previously-untracked payment paths.
+    # Stripe balance transactions are the source of truth for gross EUR revenue.
+    try:
+        payment_service = getattr(request.app.state, "payment_service", None)
+        stripe_provider = getattr(payment_service, "provider", None) if payment_service else None
+        if stripe_provider:
+            stripe_summary = await stripe_provider.get_stripe_revenue_summary_eur()
+            result["sections"]["stripe_revenue"] = {
+                "ytd_eur": stripe_summary.get("ytd_eur", 0.0),
+                "all_time_eur": stripe_summary.get("all_time_eur", 0.0),
+                "transactions": stripe_summary.get("transactions", 0),
+                "monthly": stripe_summary.get("monthly", []),
+                "source": "stripe_balance_transactions",
+            }
+        else:
+            result["sections"]["stripe_revenue"] = {"error": "PaymentService unavailable"}
+    except Exception as e:
+        logger.error(f"Stripe revenue query failed: {e}", exc_info=True)
+        result["sections"]["stripe_revenue"] = {"error": str(e)}
+
     # ── Server Stats — 14 day trend + yesterday snapshot ─────────────────
     try:
         trend_items = await directus_service.get_items(

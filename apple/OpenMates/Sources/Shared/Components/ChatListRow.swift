@@ -17,9 +17,56 @@ import SwiftUI
 struct ChatListRow: View {
     let chat: Chat
 
+    private struct PublicIconDescriptor {
+        let icon: String
+        let gradient: LinearGradient
+    }
+
+    private var publicIconDescriptor: PublicIconDescriptor? {
+        switch chat.id {
+        case "demo-for-everyone":
+            return .init(icon: "hand", gradient: CategoryMapping.gradient(for: "openmates_official"))
+        case "demo-for-developers":
+            return .init(icon: "code", gradient: CategoryMapping.gradient(for: "openmates_official"))
+        case "demo-who-develops-openmates":
+            return .init(icon: "user", gradient: CategoryMapping.gradient(for: "openmates_official"))
+        case "announcements-introducing-openmates-v09":
+            return .init(icon: "megaphone", gradient: CategoryMapping.gradient(for: "openmates_official"))
+        case "legal-privacy":
+            return .init(icon: "shield-check", gradient: CategoryMapping.gradient(for: "openmates_official"))
+        case "legal-terms":
+            return .init(icon: "file-text", gradient: CategoryMapping.gradient(for: "openmates_official"))
+        case "legal-imprint":
+            return .init(icon: "building", gradient: CategoryMapping.gradient(for: "openmates_official"))
+        case "example-gigantic-airplanes":
+            return .init(icon: "plane", gradient: CategoryMapping.gradient(for: "general_knowledge"))
+        case "example-artemis-ii-mission":
+            return .init(icon: "rocket", gradient: CategoryMapping.gradient(for: "science"))
+        case "example-beautiful-single-page-html":
+            return .init(icon: "code", gradient: CategoryMapping.gradient(for: "software_development"))
+        case "example-eu-chat-control-law":
+            return .init(icon: "shield", gradient: CategoryMapping.gradient(for: "legal_law"))
+        case "example-flights-berlin-bangkok":
+            return .init(icon: "plane", gradient: CategoryMapping.gradient(for: "general_knowledge"))
+        case "example-creativity-drawing-meetups-berlin":
+            return .init(icon: "pencil", gradient: CategoryMapping.gradient(for: "general_knowledge"))
+        default:
+            return nil
+        }
+    }
+
     var body: some View {
         HStack(spacing: .spacing4) {
-            if let appId = chat.appId {
+            if let descriptor = publicIconDescriptor {
+                Circle()
+                    .fill(descriptor.gradient)
+                    .frame(width: 28, height: 28)
+                    .overlay {
+                        LucideNativeIcon(descriptor.icon, size: 16)
+                            .foregroundStyle(.white)
+                    }
+                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
+            } else if let appId = chat.appId {
                 AppIconView(appId: appId, size: 28)
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
             } else {
@@ -42,7 +89,10 @@ struct ChatListRow: View {
                     .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
 
-                if let date = chat.lastMessageDate {
+                // Hide timestamps for demo/example/legal chats (static content)
+                if let date = chat.lastMessageDate, !chat.id.hasPrefix("demo-"),
+                   !chat.id.hasPrefix("example-"), !chat.id.hasPrefix("legal-"),
+                   !chat.id.hasPrefix("announcements-") {
                     Text(date, style: .relative)
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)

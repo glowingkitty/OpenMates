@@ -15,6 +15,12 @@ directus_users:
       default: false
       note: "Is the signup process fully completed?"
 
+    signup_started_at:
+      type: string
+      length: 256
+      nullable: true
+      note: "ISO timestamp when the signup account was created. Used for incomplete signup deletion reminder scheduling."
+
     last_online_timestamp:
       type: string
       length: 256

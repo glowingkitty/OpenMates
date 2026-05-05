@@ -74,7 +74,7 @@ export const INTRO_CHATS: DemoChat[] = [
   forEveryoneChat,
   forDevelopersChat,
   whoDevelopsOpenmatesChat,
-  // Privacy, Terms, Imprint are NOT intro chats - they're accessed via /privacy, /terms, /imprint routes
+  // Legal Privacy, Terms, and Imprint are not intro chats; they are accessed via /legal/* routes.
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Legacy alias for backwards compatibility - prefer using INTRO_CHATS

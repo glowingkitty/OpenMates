@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -25,12 +24,12 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	createEmailClient,
 	checkEmailQuota,
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -46,7 +45,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 		localStorage.removeItem('emailLookupRateLimit');
 	});
 
-	const loginBtn = page.getByRole('button', { name: /login.*sign up|sign up/i });
+	const loginBtn = page.getByTestId('header-login-signup-btn');
 	await expect(loginBtn).toBeVisible();
 	await loginBtn.click();
 
@@ -68,15 +67,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 	await expect(pwInput).toBeVisible();
 	await pwInput.fill(TEST_PASSWORD);
 
-	// Submit password first — OTP field appears after backend confirms 2FA required
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitBtn).toBeVisible();
-	await submitBtn.click();
-
-	const otpInput = page.locator('#login-otp-input');
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-	await otpInput.fill(generateTotp(TEST_OTP_KEY));
-	await submitBtn.click();
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
 	await page.waitForURL(/chat/);
 	log('Login successful.');

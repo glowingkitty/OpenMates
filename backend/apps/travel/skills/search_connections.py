@@ -1,10 +1,10 @@
 """
 Search Connections skill for the travel app.
 
-Searches for transport connections (flights, and in the future trains/buses/boats)
-between locations. Uses a provider abstraction layer where each transport method
-is handled by a dedicated provider (SerpApiProvider for flights via Google Flights,
-TransitousProvider for trains/buses).
+Searches for transport connections (flights and trains) between locations.
+Uses a provider abstraction layer where each transport method is handled
+by a dedicated provider (SerpApiProvider for flights via Google Flights,
+DeutscheBahnProvider for trains via the DB Navigator API).
 
 The skill follows the standard BaseSkill request/response pattern with the
 'requests' array convention used by all OpenMates skills.
@@ -24,7 +24,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
-from backend.apps.travel.providers.transitous_provider import TransitousProvider
+from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,8 @@ class SearchConnectionsRequestItem(BaseModel):
     )
     transport_methods: List[str] = Field(
         default=["airplane"],
-        description="Transport types to search. Currently supported: ['airplane']. "
-        "Future: 'train', 'bus', 'boat'.",
+        description="Transport types to search. Supported: 'airplane' (worldwide via Google Flights), "
+        "'train' (Germany + select European routes via Deutsche Bahn).",
     )
     passengers: int = Field(default=1, description="Number of adult passengers.")
     children: int = Field(
@@ -122,6 +122,26 @@ class SearchConnectionsRequest(BaseModel):
     )
 
 
+# Registry of known transport providers with display metadata.
+# Each provider that can return results should have an entry here.
+# icon_url is used as a favicon in the search preview (like web search favicons).
+PROVIDER_REGISTRY: Dict[str, Dict[str, str]] = {
+    "google_flights": {
+        "name": "Google Flights",
+        "icon_url": "https://www.gstatic.com/flights/airline_logos/70px/dark/multi.png",
+    },
+    "deutsche_bahn": {
+        "name": "Deutsche Bahn",
+        "icon_url": "https://www.bahn.de/favicon.ico",
+    },
+    # Add new providers here as they are integrated:
+    # "trainline": {
+    #     "name": "Trainline",
+    #     "icon_url": "https://www.thetrainline.com/favicon.ico",
+    # },
+}
+
+
 class SearchConnectionsResponse(BaseModel):
     """
     Response payload for the search_connections skill.
@@ -135,6 +155,10 @@ class SearchConnectionsResponse(BaseModel):
         description="List of result groups, each with 'id' and 'results' array",
     )
     provider: str = Field(default="Google")
+    providers: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="Providers that returned results, each with 'id', 'name', 'icon_url'",
+    )
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
     ignore_fields_for_inference: Optional[List[str]] = Field(
@@ -153,8 +177,8 @@ def _create_providers(
     Instantiate all available transport providers.
 
     SerpApiProvider handles flights via Google Flights (comprehensive coverage,
-    real-time pricing, booking links). TransitousProvider is a stub for future
-    train/bus support.
+    real-time pricing, booking links). DeutscheBahnProvider handles trains via
+    the DB Navigator API (German + select European routes, real-time pricing).
 
     Args:
         secrets_manager: Optional SecretsManager for providers that need
@@ -162,7 +186,7 @@ def _create_providers(
     """
     return [
         SerpApiProvider(secrets_manager=secrets_manager),
-        TransitousProvider(),
+        DeutscheBahnProvider(),
     ]
 
 
@@ -267,12 +291,35 @@ class SearchConnectionsSkill(BaseSkill):
             logger=logger,
         )
 
-        # 6. Build and return response
+        # 6. Determine provider attribution from actual results (not requested methods)
+        # Collect unique source_provider IDs from all result dicts across all groups
+        seen_provider_ids: set[str] = set()
+        for group in grouped_results:
+            for result in group.get("results", []):
+                sp = result.get("source_provider")
+                if sp:
+                    seen_provider_ids.add(sp)
+
+        # Build providers list with display metadata from the registry
+        providers_list: List[Dict[str, str]] = []
+        for pid in sorted(seen_provider_ids):
+            meta = PROVIDER_REGISTRY.get(pid)
+            if meta:
+                providers_list.append({"id": pid, **meta})
+            else:
+                # Unknown provider — use ID as fallback display name
+                providers_list.append({"id": pid, "name": pid, "icon_url": ""})
+
+        # Legacy provider string for backward compatibility
+        provider_name = ", ".join(p["name"] for p in providers_list) or "Google"
+
+        # 7. Build and return response
         return self._build_response_with_errors(
             response_class=SearchConnectionsResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="Google",
+            provider=provider_name,
+            providers=providers_list,
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
@@ -391,6 +438,7 @@ class SearchConnectionsSkill(BaseSkill):
             result_dict: Dict[str, Any] = {
                 "type": "connection",
                 "transport_method": connection.transport_method,
+                "source_provider": connection.source_provider,
                 "trip_type": trip_type,
                 "total_price": connection.total_price,
                 "currency": connection.currency,

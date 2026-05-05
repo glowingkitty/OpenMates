@@ -5,7 +5,7 @@
 // Svelte:  frontend/packages/ui/src/components/ChatHeader.svelte
 //          Inline navigation-bar variant (title + small app icon in HStack).
 //          The full gradient banner for new chats is implemented separately
-//          in NewChatBannerView.swift.
+//          in ChatBannerView.swift.
 // Tokens:  GradientTokens.generated.swift  (LinearGradient.appAi, .appWeb, etc.)
 //          ColorTokens.generated.swift
 //          TypographyTokens.generated.swift (Font.omSmall)

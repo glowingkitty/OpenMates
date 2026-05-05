@@ -19,6 +19,8 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
 from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
+from backend.core.api.app.utils.newsletter_utils import hash_email
+from backend.core.api.app.utils.invite_code import get_signup_requirements
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
@@ -2911,8 +2913,21 @@ async def report_issue(
             timestamp_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
             current_timestamp = datetime.now(timezone.utc)
             
+            # The production DB issues.title column is varchar(255) (schema YAML declares TEXT
+            # but setup_schemas.py does not update existing fields for custom collections).
+            # Truncate here so the Directus write never fails on long titles while the
+            # migration is pending. Apply `ALTER TABLE issues ALTER COLUMN title TYPE TEXT`
+            # on the production DB to remove this limit.
+            _DB_TITLE_MAX = 250
+            db_title = sanitized_title[:_DB_TITLE_MAX] if len(sanitized_title) > _DB_TITLE_MAX else sanitized_title
+            if len(sanitized_title) > _DB_TITLE_MAX:
+                logger.warning(
+                    f"[report_issue] Title truncated from {len(sanitized_title)} to {_DB_TITLE_MAX} chars "
+                    "for Directus storage (varchar(255) constraint not yet migrated to TEXT on prod)"
+                )
+
             issue_data_dict = {
-                "title": sanitized_title,
+                "title": db_title,
                 "description": sanitized_description,
                 "encrypted_chat_or_embed_url": encrypted_chat_or_embed_url,
                 "encrypted_contact_email": encrypted_contact_email,
@@ -2994,6 +3009,8 @@ async def report_issue(
                     # Pre-signed URL for the screenshot PNG (7-day validity). Included in the
                     # admin email and in inspect_issue.py so LLMs can view the screenshot directly.
                     "screenshot_presigned_url": screenshot_presigned_url,
+                    # Account stats are resolved in the email task for admin triage.
+                    "reported_by_user_id": reported_by_user_id,
                     # OTel trace IDs from frontend for trace-to-issue correlation in S3 YAML
                     "trace_ids": issue_data.trace_ids or []
                 },
@@ -3024,6 +3041,7 @@ async def report_issue(
                         "chat_or_embed_url": sanitized_url,
                         "is_from_admin": is_from_admin,
                         "contact_email": sanitized_email if sanitized_email else None,
+                        "reported_by_user_id": reported_by_user_id,
                         "ascii_smuggling_detected": ascii_smuggling_detected,
                     },
                     queue='email'
@@ -3196,6 +3214,132 @@ class VerifyActionCodeResponse(BaseModel):
     """Response model for action verification code check."""
     success: bool
     message: str
+
+
+class RequestEmailChangeCodeRequest(BaseModel):
+    """Request model for sending a verification code to a new email address."""
+    new_email: str = Field(..., min_length=3, max_length=254)
+
+
+class RequestEmailChangeCodeResponse(BaseModel):
+    """Response model for new-email verification requests."""
+    success: bool
+    message: str
+
+
+class VerifyEmailChangeCodeRequest(BaseModel):
+    """Request model for verifying the code sent to the new email address."""
+    new_email: str = Field(..., min_length=3, max_length=254)
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class VerifyEmailChangeCodeResponse(BaseModel):
+    """Response model for new-email code verification."""
+    success: bool
+    message: str
+
+
+class ConfirmEmailChangeRequest(BaseModel):
+    """Request model for committing a verified email change."""
+    new_email: str = Field(..., min_length=3, max_length=254)
+    hashed_email: str = Field(..., min_length=10)
+    encrypted_email_address: str = Field(..., min_length=10)
+    encrypted_email_with_master_key: str = Field(..., min_length=10)
+    auth_method: str = Field(..., description="passkey, password, 2fa_otp, or email_otp")
+    auth_code: Optional[str] = None
+
+
+class EmailChangeReauthRequest(BaseModel):
+    """Request model for server-verified recent email-change reauthentication."""
+    auth_method: str = Field(..., description="passkey, password, or 2fa_otp")
+    auth_code: Optional[str] = None
+    hashed_email: Optional[str] = None
+    lookup_hash: Optional[str] = None
+
+
+class ConfirmEmailChangeResponse(BaseModel):
+    """Response model for committing a verified email change."""
+    success: bool
+    message: str
+
+
+def _normalize_email_for_change(email: str) -> str:
+    """Normalize user-entered email for hashing and domain validation."""
+    return email.strip().lower()
+
+
+def _is_valid_email_for_change(email: str) -> bool:
+    """Minimal email syntax guard matching the app's privacy-preserving flow."""
+    import re
+
+    if len(email) > 254:
+        return False
+    return re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email) is not None
+
+
+def _email_change_code_key(user_id: str, hashed_new_email: str) -> str:
+    return f"email_change_code:{user_id}:{hashed_new_email}"
+
+
+def _email_change_verified_key(user_id: str, hashed_new_email: str) -> str:
+    return f"email_change_verified:{user_id}:{hashed_new_email}"
+
+
+def _email_change_reauth_key(user_id: str) -> str:
+    return f"reauth_verified:{user_id}:email_change"
+
+
+async def _require_email_change_reauth(user_id: str, cache_service: CacheService) -> None:
+    reauth_status = await cache_service.get(_email_change_reauth_key(user_id))
+    if reauth_status != "verified":
+        raise HTTPException(status_code=401, detail="Recent authentication required")
+
+
+async def _mark_email_change_reauth_verified(user_id: str, cache_service: CacheService) -> None:
+    await cache_service.set(_email_change_reauth_key(user_id), "verified", ttl=300)
+
+
+async def _validate_email_change_target(
+    new_email: str,
+    current_user_id: str,
+    directus_service: DirectusService,
+    cache_service: CacheService,
+    request: Request,
+) -> str:
+    """Validate email syntax, signup policy, and uniqueness for email changes."""
+    normalized_email = _normalize_email_for_change(new_email)
+
+    if not _is_valid_email_for_change(normalized_email):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+
+    _, require_domain_restriction, allowed_domains = await get_signup_requirements(
+        directus_service, cache_service
+    )
+    if require_domain_restriction and allowed_domains:
+        email_domain = normalized_email.split("@", 1)[1]
+        if email_domain not in allowed_domains:
+            logger.warning(f"Email change domain not allowed: {email_domain}")
+            raise HTTPException(status_code=400, detail="Email domain is not allowed")
+
+    domain_security_service = getattr(request.app.state, "domain_security_service", None)
+    if not domain_security_service or not domain_security_service.config_loaded:
+        logger.error("Domain security service unavailable for email change")
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+
+    is_allowed, error_message = domain_security_service.validate_email_domain(normalized_email)
+    if not is_allowed:
+        logger.warning(f"Email change restricted domain rejected: {error_message}")
+        raise HTTPException(status_code=400, detail=error_message or "Domain not supported")
+
+    hashed_new_email = hash_email(normalized_email)
+    exists, existing_user, error_msg = await directus_service.get_user_by_hashed_email(hashed_new_email)
+    if error_msg and error_msg not in ["User found", "User not found"]:
+        logger.error(f"Email change lookup failed: {error_msg}")
+        raise HTTPException(status_code=500, detail="Unable to verify email availability")
+    if exists and existing_user and existing_user.get("id") != current_user_id:
+        raise HTTPException(status_code=409, detail="This email is already registered")
+
+    return normalized_email
 
 
 class DeleteAccountRequest(BaseModel):
@@ -3473,6 +3617,194 @@ async def verify_action_code(
 
     logger.info(f"Action verification code accepted for user {user_id}, action={body.action}")
     return VerifyActionCodeResponse(success=True, message="Code verified")
+
+
+@router.post("/user/email/request-change-code", response_model=RequestEmailChangeCodeResponse, include_in_schema=False)
+@limiter.limit("3/minute")
+async def request_email_change_code(
+    request: Request,
+    body: RequestEmailChangeCodeRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Send a 6-digit verification code to the requested new email address."""
+    normalized_email = await _validate_email_change_target(
+        new_email=body.new_email,
+        current_user_id=current_user.id,
+        directus_service=directus_service,
+        cache_service=cache_service,
+        request=request,
+    )
+    hashed_new_email = hash_email(normalized_email)
+
+    success, user_profile, _ = await directus_service.get_user_profile(current_user.id)
+    if not success or not user_profile:
+        raise HTTPException(status_code=404, detail="User profile not found")
+
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+    celery_app.send_task(
+        name="app.tasks.email_tasks.email_change_verification_task.generate_and_send_email_change_verification_email",
+        kwargs={
+            "user_id": current_user.id,
+            "hashed_new_email": hashed_new_email,
+            "email": normalized_email,
+            "language": user_profile.get("language", "en"),
+            "darkmode": user_profile.get("darkmode", False),
+        },
+        queue="email",
+    )
+
+    logger.info(f"Email change verification dispatched for user {current_user.id}")
+    return RequestEmailChangeCodeResponse(success=True, message="Verification code sent")
+
+
+@router.post("/user/email/verify-change-code", response_model=VerifyEmailChangeCodeResponse, include_in_schema=False)
+@limiter.limit("5/minute")
+async def verify_email_change_code(
+    request: Request,
+    body: VerifyEmailChangeCodeRequest,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Verify the code sent to the new email and store a short-lived token."""
+    normalized_email = _normalize_email_for_change(body.new_email)
+    hashed_new_email = hash_email(normalized_email)
+    cache_key = _email_change_code_key(current_user.id, hashed_new_email)
+    stored_code = await cache_service.get(cache_key)
+
+    if not stored_code:
+        raise HTTPException(status_code=400, detail="Code expired or not requested")
+    if str(stored_code) != str(body.code):
+        logger.warning(f"Invalid email change code for user {current_user.id}")
+        raise HTTPException(status_code=401, detail="Invalid verification code")
+
+    await cache_service.delete(cache_key)
+    await cache_service.set(_email_change_verified_key(current_user.id, hashed_new_email), "verified", ttl=600)
+
+    logger.info(f"Email change code accepted for user {current_user.id}")
+    return VerifyEmailChangeCodeResponse(success=True, message="Code verified")
+
+
+@router.post("/user/email/reauth", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("5/minute")
+async def verify_email_change_reauth(
+    request: Request,
+    body: EmailChangeReauthRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """Verify recent auth server-side and cache a short-lived email-change proof."""
+    user_id = current_user.id
+
+    if body.auth_method == "password":
+        if not body.hashed_email or not body.lookup_hash:
+            raise HTTPException(status_code=400, detail="Password verification data is required")
+        auth_success, auth_data, _ = await directus_service.login_user_with_lookup_hash(
+            hashed_email=body.hashed_email,
+            lookup_hash=body.lookup_hash,
+        )
+        auth_user = auth_data.get("user", {}) if auth_data else {}
+        if not auth_success or not auth_data or auth_user.get("id") != user_id:
+            logger.warning(f"Invalid password reauth for email change: user {user_id}")
+            raise HTTPException(status_code=401, detail="Invalid password authentication")
+    elif body.auth_method == "passkey":
+        if not body.auth_code:
+            raise HTTPException(status_code=400, detail="Passkey credential ID is required")
+        passkey = await directus_service.get_passkey_by_credential_id(body.auth_code)
+        recent_passkey = await cache_service.get(f"reauth_recent_passkey:{user_id}")
+        if not passkey or passkey.get("user_id") != user_id or recent_passkey != body.auth_code:
+            logger.warning(f"Invalid passkey reauth for email change: user {user_id}")
+            raise HTTPException(status_code=401, detail="Invalid passkey authentication")
+    elif body.auth_method == "2fa_otp":
+        if not body.auth_code:
+            raise HTTPException(status_code=400, detail="2FA code is required")
+        from backend.core.api.app.routes.auth_routes.auth_2fa_verify import verify_device_2fa
+        from backend.core.api.app.schemas.auth_2fa import VerifyDevice2FARequest
+
+        verify_response = await verify_device_2fa(
+            request=request,
+            verify_request=VerifyDevice2FARequest(tfa_code=body.auth_code),
+            directus_service=directus_service,
+            cache_service=cache_service,
+            compliance_service=compliance_service,
+            encryption_service=encryption_service,
+        )
+        if not verify_response.success:
+            raise HTTPException(status_code=401, detail="Invalid 2FA code")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid authentication method")
+
+    await _mark_email_change_reauth_verified(user_id, cache_service)
+    logger.info(f"Email change reauth verified for user {user_id}")
+    return SimpleSuccessResponse(success=True, message="Authentication verified")
+
+
+@router.post("/user/email/confirm-change", response_model=ConfirmEmailChangeResponse, include_in_schema=False)
+@limiter.limit("3/minute")
+async def confirm_email_change(
+    request: Request,
+    body: ConfirmEmailChangeRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """Commit a verified email change without rotating the user's email salt."""
+    normalized_email = await _validate_email_change_target(
+        new_email=body.new_email,
+        current_user_id=current_user.id,
+        directus_service=directus_service,
+        cache_service=cache_service,
+        request=request,
+    )
+    hashed_new_email = hash_email(normalized_email)
+    if body.hashed_email != hashed_new_email:
+        raise HTTPException(status_code=400, detail="Email hash does not match requested email")
+
+    verified_key = _email_change_verified_key(current_user.id, hashed_new_email)
+    verified_status = await cache_service.get(verified_key)
+    if verified_status != "verified":
+        raise HTTPException(status_code=401, detail="New email verification required")
+
+    await _require_email_change_reauth(current_user.id, cache_service)
+
+    if body.auth_method == "passkey":
+        pass
+    elif body.auth_method == "2fa_otp":
+        pass
+    elif body.auth_method == "password":
+        pass
+    elif body.auth_method == "email_otp":
+        raise HTTPException(status_code=400, detail="Current email OTP is not supported for email changes")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid authentication method")
+
+    directus_email = f"{hashed_new_email[:64]}@example.com"
+    directus_password = await directus_service.encryption_service.hash_email(directus_email)
+    update_data = {
+        "email": directus_email,
+        "password": directus_password,
+        "hashed_email": hashed_new_email,
+        "encrypted_email_address": body.encrypted_email_address,
+        "encrypted_email_with_master_key": body.encrypted_email_with_master_key,
+    }
+
+    update_success = await directus_service.update_user(current_user.id, update_data)
+    if not update_success:
+        raise HTTPException(status_code=500, detail="Failed to update email")
+
+    await cache_service.delete(verified_key)
+    await cache_service.delete(_email_change_reauth_key(current_user.id))
+    await cache_service.delete(f"login_methods:{current_user.id}")
+    await cache_service.delete(f"user_profile:{current_user.id}")
+
+    logger.info(f"Email changed successfully for user {current_user.id}")
+    return ConfirmEmailChangeResponse(success=True, message="Email changed successfully")
 
 
 @router.get("/delete-account-preview", response_model=DeleteAccountPreviewResponse, include_in_schema=False)

@@ -438,3 +438,45 @@ jupyter.dev.openmates.org {
 		header_up Upgrade {http.request.header.Upgrade}
 	}
 }
+
+code.dev.openmates.org {
+	# Enable structured logging (JSON format)
+	log {
+		output file /var/log/caddy/code.dev.openmates.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Enable compression
+	encode gzip zstd
+
+	# Defense in depth: OpenCode's web server must never be exposed directly on
+	# a public dev domain. Provide OPENCODE_BASIC_AUTH_USER and a Caddy-compatible
+	# hashed password in OPENCODE_BASIC_AUTH_HASH; if missing, Caddy fails closed.
+	basic_auth {
+		{$OPENCODE_BASIC_AUTH_USER} {$OPENCODE_BASIC_AUTH_HASH}
+	}
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Reverse proxy to OpenCode web UI on port 4096
+	reverse_proxy localhost:4096 {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote}
+
+		# WebSocket support for the web UI
+		header_up Connection {http.request.header.Connection}
+		header_up Upgrade {http.request.header.Upgrade}
+	}
+}

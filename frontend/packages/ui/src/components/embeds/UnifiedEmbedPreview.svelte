@@ -143,8 +143,14 @@
   // genuinely slow skills.
   const STALE_CHECK_MS = 5_000;
   const STALE_CHECK_FINAL_MS = 15_000;
+  const CONTENT_RETRY_MS = 2_000;
+  const CONTENT_RETRY_FINAL_MS = 8_000;
   let staleTimer1: ReturnType<typeof setTimeout> | null = null;
   let staleTimer2: ReturnType<typeof setTimeout> | null = null;
+  let contentRetryTimer1: ReturnType<typeof setTimeout> | null = null;
+  let contentRetryTimer2: ReturnType<typeof setTimeout> | null = null;
+  /** Set to true when refetchFromStore finds a finished embed with no TOON content */
+  let needsContentRecovery = false;
   
   /**
    * Handle embed updates from chatSyncService
@@ -234,10 +240,27 @@
         if (onEmbedDataUpdated && embedData.content) {
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
+            needsContentRecovery = false; // Content delivered — cancel pending retries
             onEmbedDataUpdated({
               status: embedData.status || localStatus,
               decodedContent
             });
+          }
+        } else if (onEmbedDataUpdated && embedData.status === 'finished' && !embedData.content) {
+          // TOON plaintext content missing for a finished embed — request from server.
+          // This recovers from relogin scenarios where Phase 1b delivers encrypted
+          // embed metadata but not the plaintext TOON needed for filename/page count.
+          // Also handles the editor→read mode transition where the in-memory cache
+          // may have been replaced with an encrypted IDB entry that hasn't decrypted yet.
+          needsContentRecovery = true;
+          try {
+            const { webSocketService } = await import('../../services/websocketService');
+            console.info(
+              `[UnifiedEmbedPreview] Embed ${id} finished but TOON content missing, requesting from server`
+            );
+            await webSocketService.sendMessage('request_embed', { embed_id: id });
+          } catch (err) {
+            console.debug(`[UnifiedEmbedPreview] TOON recovery request failed for ${id}:`, err);
           }
         }
       }
@@ -285,14 +308,22 @@
     staleTimer1 = setTimeout(requestStaleEmbedUpdate, STALE_CHECK_MS);
     staleTimer2 = setTimeout(requestStaleEmbedUpdate, STALE_CHECK_FINAL_MS);
 
+    // Content recovery timers: if a finished embed has no TOON content after initial
+    // refetchFromStore (e.g. embed key decryption was pending, or IDB read raced with
+    // the send_embed_data handler), retry refetchFromStore after a delay.
+    contentRetryTimer1 = setTimeout(() => { if (needsContentRecovery) refetchFromStore(); }, CONTENT_RETRY_MS);
+    contentRetryTimer2 = setTimeout(() => { if (needsContentRecovery) refetchFromStore(); }, CONTENT_RETRY_FINAL_MS);
+
     // Enable scroll-driven pseudo tilt on coarse-pointer devices.
     viewportListenerCleanup = setupScrollTiltListeners();
   });
   
   onDestroy(() => {
-    // Clean up stale-embed recovery timers
+    // Clean up recovery timers
     if (staleTimer1) { clearTimeout(staleTimer1); staleTimer1 = null; }
     if (staleTimer2) { clearTimeout(staleTimer2); staleTimer2 = null; }
+    if (contentRetryTimer1) { clearTimeout(contentRetryTimer1); contentRetryTimer1 = null; }
+    if (contentRetryTimer2) { clearTimeout(contentRetryTimer2); contentRetryTimer2 = null; }
 
     // Clean up event listener
     if (embedUpdateListener) {

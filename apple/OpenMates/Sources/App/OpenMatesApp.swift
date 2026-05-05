@@ -52,6 +52,7 @@ struct OpenMatesApp: App {
                 }
         }
         #if os(macOS)
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -130,4 +131,5 @@ extension Notification.Name {
     static let newChat = Notification.Name("openmates.newChat")
     static let toggleIncognito = Notification.Name("openmates.toggleIncognito")
     static let embedRefreshNeeded = Notification.Name("openmates.embedRefreshNeeded")
+    static let openAuth = Notification.Name("openmates.openAuth")
 }

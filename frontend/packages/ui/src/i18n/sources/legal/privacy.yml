@@ -1246,101 +1246,29 @@ groq.privacy_policy_link:
   sv: Groqs integritetspolicy
   verified_by_human: []
   he: מדיניות פרטיות של Groq
-polar.heading:
-  context: Section heading for Polar payment processing service
-  en: 3.15 Polar (Payment Processing)
-  de: 3.15 Polar (Zahlungsabwicklung)
-  zh: 3.15 Polar（支付处理）
-  es: 3.15 Polar (Procesamiento de Pagos)
-  fr: 3.15 Polar (Traitement des paiements)
-  pt: 3.15 Polar (Processamento de Pagamentos)
-  ru: 3.15 Polar (Обработка платежей)
-  ja: 3.15 Polar（決済処理）
-  ko: 3.15 Polar(결제 처리)
-  it: 3.15 Polar (Elaborazione dei Pagamenti)
-  tr: 3.15 Polar (Ödeme İşleme)
-  vi: 3.15 Polar (Xử lý Thanh toán)
-  id: 3.15 Polar (Pemrosesan Pembayaran)
-  pl: 3.15 Polar (Przetwarzanie Płatności)
-  nl: 3.15 Polar (Betalingsverwerking)
-  ar: 3.15 Polar (معالجة المدفوعات)
-  hi: 3.15 Polar (भुगतान प्रसंस्करण)
-  th: 3.15 Polar (การประมวลผลการชำระเงิน)
-  cs: 3.15 Polar (Zpracování plateb)
-  sv: 3.15 Polar (Betalningshantering)
-  verified_by_human: []
-  he: 3.15 Polar (עיבוד תשלומים)
-polar.description:
-  context: Description of Polar payment processing service
-  en: We use Polar (US company) for payment processing for purchases made through the Polar Storefront in the web application. When you make a purchase, your payment card type, last 4 digits of your payment card, billing address, phone number, and email address are processed by Polar to complete the transaction securely.
-  de: Wir verwenden Polar (US-Unternehmen) für die Zahlungsabwicklung von Käufen im Polar Storefront der Webanwendung. Wenn Sie einen Kauf tätigen, werden Ihr Kartentyp, die letzten 4 Ziffern Ihrer Zahlungskarte, Ihre Rechnungsadresse, Telefonnummer und E-Mail-Adresse von Polar zur sicheren Abwicklung der Transaktion verarbeitet.
-  zh: 我们使用 Polar（美国公司）处理通过 Web 应用程序中 Polar 商店进行的购买付款。当您进行购买时，Polar 会处理您的支付卡类型、支付卡末四位数字、账单地址、电话号码和电子邮件地址，以安全完成交易。
-  es: Utilizamos Polar (empresa estadounidense) para el procesamiento de pagos de compras realizadas a través de la Polar Storefront en la aplicación web. Cuando realiza una compra, Polar procesa el tipo de tarjeta de pago, los últimos 4 dígitos de su tarjeta, la dirección de facturación, el número de teléfono y el correo electrónico para completar la transacción de forma segura.
-  fr: Nous utilisons Polar (entreprise américaine) pour le traitement des paiements des achats effectués via la Polar Storefront dans l'application web. Lors d'un achat, Polar traite le type de carte de paiement, les 4 derniers chiffres de votre carte, l'adresse de facturation, le numéro de téléphone et l'adresse e-mail pour finaliser la transaction en toute sécurité.
-  pt: Usamos Polar (empresa dos EUA) para processamento de pagamentos de compras feitas através da Polar Storefront no aplicativo web. Quando você realiza uma compra, a Polar processa o tipo do cartão de pagamento, os últimos 4 dígitos do seu cartão, endereço de cobrança, número de telefone e endereço de e-mail para concluir a transação com segurança.
-  ru: Мы используем Polar (американская компания) для обработки платежей за покупки, совершенные через Polar Storefront в веб-приложении. При совершении покупки Polar обрабатывает тип платежной карты, последние 4 цифры карты, платежный адрес, номер телефона и адрес электронной почты для безопасного завершения транзакции.
-  ja: 当社は、ウェブアプリケーションのPolar Storefrontを通じた購入の決済処理にPolar（米国企業）を使用しています。購入時に、Polarはお客様の支払いカードの種類、カード番号の下4桁、請求先住所、電話番号、メールアドレスを処理して取引を安全に完了します。
-  ko: 웹 애플리케이션의 Polar Storefront를 통한 구매에 대한 결제 처리를 위해 Polar(미국 회사)를 사용합니다. 구매 시 Polar는 결제 카드 유형, 카드 마지막 4자리, 청구 주소, 전화번호 및 이메일 주소를 처리하여 거래를 안전하게 완료합니다.
-  it: Utilizziamo Polar (azienda statunitense) per l'elaborazione dei pagamenti per gli acquisti effettuati tramite Polar Storefront nell'applicazione web. Quando effettui un acquisto, Polar elabora il tipo di carta di pagamento, le ultime 4 cifre della tua carta, l'indirizzo di fatturazione, il numero di telefono e l'indirizzo e-mail per completare la transazione in modo sicuro.
-  tr: Web uygulamasında Polar Storefront üzerinden yapılan satın alımlar için ödeme işleme amacıyla Polar (ABD şirketi) kullanıyoruz. Bir satın alma işlemi gerçekleştirdiğinizde, Polar işlemi güvenli bir şekilde tamamlamak için ödeme kartı türünüzü, kartınızın son 4 hanesini, fatura adresinizi, telefon numaranızı ve e-posta adresinizi işler.
-  vi: Chúng tôi sử dụng Polar (công ty Hoa Kỳ) để xử lý thanh toán cho các giao dịch mua hàng thực hiện qua Polar Storefront trong ứng dụng web. Khi bạn thực hiện giao dịch mua hàng, Polar xử lý loại thẻ thanh toán, 4 chữ số cuối của thẻ, địa chỉ thanh toán, số điện thoại và địa chỉ email để hoàn tất giao dịch một cách an toàn.
-  id: Kami menggunakan Polar (perusahaan AS) untuk pemrosesan pembayaran untuk pembelian yang dilakukan melalui Polar Storefront di aplikasi web. Saat Anda melakukan pembelian, Polar memproses jenis kartu pembayaran, 4 digit terakhir kartu Anda, alamat penagihan, nomor telepon, dan alamat email untuk menyelesaikan transaksi dengan aman.
-  pl: Używamy Polar (firma amerykańska) do przetwarzania płatności za zakupy dokonane przez Polar Storefront w aplikacji internetowej. Podczas zakupu Polar przetwarza typ karty płatniczej, ostatnie 4 cyfry karty, adres rozliczeniowy, numer telefonu i adres e-mail w celu bezpiecznego sfinalizowania transakcji.
-  nl: We gebruiken Polar (Amerikaans bedrijf) voor de verwerking van betalingen voor aankopen die via de Polar Storefront in de webapplicatie worden gedaan. Wanneer u een aankoop doet, verwerkt Polar het type betaalkaart, de laatste 4 cijfers van uw kaart, het factuuradres, het telefoonnummer en het e-mailadres om de transactie veilig te voltooien.
-  ar: نستخدم Polar (شركة أمريكية) لمعالجة المدفوعات للمشتريات التي تتم من خلال Polar Storefront في تطبيق الويب. عند إجراء عملية شراء، تعالج Polar نوع بطاقة الدفع، والأرقام الأربعة الأخيرة من بطاقتك، وعنوان إرسال الفواتير، ورقم الهاتف، وعنوان البريد الإلكتروني لإتمام المعاملة بأمان.
-  hi: हम वेब एप्लिकेशन में Polar Storefront के माध्यम से की गई खरीदारी के लिए भुगतान प्रसंस्करण के लिए Polar (अमेरिकी कंपनी) का उपयोग करते हैं। जब आप खरीदारी करते हैं, तो Polar लेनदेन को सुरक्षित रूप से पूरा करने के लिए आपके भुगतान कार्ड का प्रकार, कार्ड के अंतिम 4 अंक, बिलिंग पता, फोन नंबर और ईमेल पता संसाधित करता है।
-  th: เราใช้ Polar (บริษัทสหรัฐอเมริกา) สำหรับการประมวลผลการชำระเงินสำหรับการซื้อที่ทำผ่าน Polar Storefront ในแอปพลิเคชันเว็บ เมื่อคุณทำการซื้อ Polar จะประมวลผลประเภทบัตรชำระเงิน 4 หลักสุดท้ายของบัตร ที่อยู่สำหรับวางบิล หมายเลขโทรศัพท์ และที่อยู่อีเมลเพื่อดำเนินการธุรกรรมอย่างปลอดภัย
-  cs: Používáme Polar (americká společnost) pro zpracování plateb za nákupy provedené prostřednictvím Polar Storefront v webové aplikaci. Při nákupu Polar zpracovává typ platební karty, poslední 4 číslice vaší karty, fakturační adresu, telefonní číslo a e-mailovou adresu pro bezpečné dokončení transakce.
-  sv: Vi använder Polar (amerikanskt företag) för betalningshantering för köp som görs via Polar Storefront i webbapplikationen. När du gör ett köp bearbetar Polar betalkortstyp, de sista 4 siffrorna på ditt kort, faktureringsadress, telefonnummer och e-postadress för att slutföra transaktionen på ett säkert sätt.
-  verified_by_human: []
-  he: אנו משתמשים ב-Polar (חברה אמריקאית) לעיבוד תשלומים עבור רכישות שבוצעו דרך חנות Polar. פרטי תשלום ומידע חיוב נשלחים ל-Polar.
-polar.privacy_policy_link:
-  context: Link text for Polar's privacy policy
-  en: Polar Privacy Policy
-  de: Polar Datenschutzerklärung
-  zh: Polar 隐私政策
-  es: Política de privacidad de Polar
-  fr: Politique de confidentialité de Polar
-  pt: Política de Privacidade do Polar
-  ru: Политика конфиденциальности Polar
-  ja: Polarプライバシーポリシー
-  ko: Polar 개인정보 보호정책
-  it: Informativa sulla Privacy di Polar
-  tr: Polar Gizlilik Politikası
-  vi: Chính sách Bảo mật của Polar
-  id: Kebijakan Privasi Polar
-  pl: Polityka Prywatności Polar
-  nl: Privacybeleid van Polar
-  ar: سياسة خصوصية Polar
-  hi: Polar गोपनीयता नीति
-  th: นโยบายความเป็นส่วนตัวของ Polar
-  cs: Zásady ochrany osobních údajů Polar
-  sv: Polars integritetspolicy
-  verified_by_human: []
-  he: מדיניות פרטיות של Polar
 revolut_business.heading:
   context: Section heading for Revolut Bank UAB as a payment provider in the privacy policy
-  en: "3.16 Revolut Business (SEPA Bank Transfer)"
-  de: "3.16 Revolut Business (SEPA-Banküberweisung)"
-  zh: "3.16 Revolut Business（SEPA银行转账）"
-  es: "3.16 Revolut Business (Transferencia bancaria SEPA)"
-  fr: "3.16 Revolut Business (Virement bancaire SEPA)"
-  pt: "3.16 Revolut Business (Transferência bancária SEPA)"
-  ru: "3.16 Revolut Business (SEPA банковский перевод)"
-  ja: "3.16 Revolut Business（SEPA銀行振込）"
-  ko: "3.16 Revolut Business (SEPA 은행 송금)"
-  it: "3.16 Revolut Business (Bonifico bancario SEPA)"
-  tr: "3.16 Revolut Business (SEPA Banka Havalesi)"
-  vi: "3.16 Revolut Business (Chuyển khoản ngân hàng SEPA)"
-  id: "3.16 Revolut Business (Transfer bank SEPA)"
-  pl: "3.16 Revolut Business (Przelew bankowy SEPA)"
-  nl: "3.16 Revolut Business (SEPA-bankoverschrijving)"
-  ar: "3.16 Revolut Business (التحويل البنكي SEPA)"
-  hi: "3.16 Revolut Business (SEPA बैंक ट्रांसफर)"
-  th: "3.16 Revolut Business (โอนเงินผ่านธนาคาร SEPA)"
-  cs: "3.16 Revolut Business (Bankovní převod SEPA)"
-  sv: "3.16 Revolut Business (SEPA-banköverföring)"
-  he: "3.16 Revolut Business (העברה בנקאית SEPA)"
+  en: "3.15 Revolut Business (SEPA Bank Transfer)"
+  de: "3.15 Revolut Business (SEPA-Banküberweisung)"
+  zh: "3.15 Revolut Business（SEPA银行转账）"
+  es: "3.15 Revolut Business (Transferencia bancaria SEPA)"
+  fr: "3.15 Revolut Business (Virement bancaire SEPA)"
+  pt: "3.15 Revolut Business (Transferência bancária SEPA)"
+  ru: "3.15 Revolut Business (SEPA банковский перевод)"
+  ja: "3.15 Revolut Business（SEPA銀行振込）"
+  ko: "3.15 Revolut Business (SEPA 은행 송금)"
+  it: "3.15 Revolut Business (Bonifico bancario SEPA)"
+  tr: "3.15 Revolut Business (SEPA Banka Havalesi)"
+  vi: "3.15 Revolut Business (Chuyển khoản ngân hàng SEPA)"
+  id: "3.15 Revolut Business (Transfer bank SEPA)"
+  pl: "3.15 Revolut Business (Przelew bankowy SEPA)"
+  nl: "3.15 Revolut Business (SEPA-bankoverschrijving)"
+  ar: "3.15 Revolut Business (التحويل البنكي SEPA)"
+  hi: "3.15 Revolut Business (SEPA बैंक ट्रांसफर)"
+  th: "3.15 Revolut Business (โอนเงินผ่านธนาคาร SEPA)"
+  cs: "3.15 Revolut Business (Bankovní převod SEPA)"
+  sv: "3.15 Revolut Business (SEPA-banköverföring)"
+  he: "3.15 Revolut Business (העברה בנקאית SEPA)"
   verified_by_human: []
 revolut_business.description:
   context: Description of Revolut Bank UAB as a receiving bank for SEPA transfers — clarifies minimal data sharing
@@ -1656,7 +1584,7 @@ data_categories.intro:
   he: 'אנו אוספים ומעבדים את קטגוריות הנתונים הבאות להפעלה ואבטחה של שירותינו:'
 data_categories.account:
   context: Account data category
-  en: "Account: Email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Passwords are stored as salted hashes."
+  en: "Account: Email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Email and username are encrypted with your key before storage. We also keep a separate server-side Vault-encrypted copy of your verified email address for mandatory account lifecycle notices, such as account verification, security alerts, and deletion reminders. Passwords are stored as salted hashes."
   de: "Konto: E-Mail-Adresse, Benutzername/Anzeigename, Profilbild, Gebietsschema und Sicherheitseinstellungen (z. B. 2FA aktiviert). Passwörter werden als gesalzene Hashes gespeichert."
   zh: "帐户：电子邮件地址、用户名/显示名称、个人资料图片、区域设置和安全设置（例如，启用 2FA）。密码以加盐哈希值的形式存储。"
   es: "Cuenta: Dirección de correo electrónico, nombre de usuario/nombre para mostrar, imagen de perfil, configuración regional y configuración de seguridad (por ejemplo, 2FA habilitado). Las contraseñas se almacenan como hashes con sal."

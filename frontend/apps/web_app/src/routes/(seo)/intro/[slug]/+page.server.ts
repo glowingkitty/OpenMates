@@ -32,7 +32,7 @@ interface IntroChatContent {
 }
 
 /**
- * Resolved English content for all 3 intro chats.
+ * Resolved English content for all intro chats.
  *
  * Content sourced from:
  *   frontend/packages/ui/src/i18n/locales/en.json → demo_chats.{section}.*

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -21,10 +20,10 @@ export {};
  * - Verifies the success confirmation screen appears.
  *
  * ARCHITECTURE NOTES:
- * - Support payments use POST /v1/payments/create-support-order (Stripe always,
- *   no Polar fallback). The Payment.svelte component handles the Stripe element.
- * - geo-detection: GHA runners have US IPs → API returns provider=polar by default.
- *   We use page.route() to force provider=stripe so the Stripe form loads.
+ * - Support payments use POST /v1/payments/create-support-order (Stripe always).
+ *   The Payment.svelte component handles the Stripe element.
+ * - geo-detection: GHA runners have US IPs → API may return managed payments by default.
+ *   We use page.route() to force provider=stripe so the EU Stripe form loads.
  * - No credits are granted (credits_amount=0), no invoice PDF generated.
  *   A receipt email is sent to the support_email address.
  *
@@ -45,7 +44,6 @@ const {
 	createStepScreenshotter,
 	fillStripeCardDetails,
 	getTestAccount,
-	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -103,7 +101,7 @@ test('settings support: completes one-time donation via Stripe card', async ({
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'support-stripe' });
 	await archiveExistingScreenshots(log);
 
-	// ─── Force Stripe provider (GHA has US IPs → defaults to Polar) ──────────
+	// ─── Force Stripe EU provider (GHA has US IPs → defaults to Managed Payments) ────
 	// Hardcoded response to avoid route.fetch() HTML error from GHA's IP.
 	// The Stripe publishable key is intentionally public (pk_test_* prefix).
 	await page.route('**/v1/payments/config', async (route: any) => {

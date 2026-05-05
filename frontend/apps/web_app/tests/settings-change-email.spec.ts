@@ -1,0 +1,230 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+export {};
+
+const { test, expect } = require('./helpers/cookie-audit');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
+const {
+	archiveExistingScreenshots,
+	checkEmailQuota,
+	createEmailClient,
+	createSignupLogger,
+	createStepScreenshotter,
+	generateTotp,
+	getE2EDebugUrl,
+	getTestAccount
+} = require('./signup-flow-helpers');
+const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
+
+async function openLoginDialog(page: any): Promise<void> {
+	const headerButton = page.getByTestId('header-login-signup-btn');
+	try {
+		await expect(headerButton).toBeVisible({ timeout: 5000 });
+		await headerButton.click({ timeout: 5000 });
+	} catch {
+		await page
+			.getByRole('button', { name: /sign up\s*\/\s*login|login\s*\/\s*sign up/i })
+			.first()
+			.click({ timeout: 15000 });
+	}
+
+	await expect(page.getByTestId('login-tabs')).toBeVisible({ timeout: 10000 });
+}
+
+function getGmailAlias(label: string): string | null {
+	const base = process.env.GMAIL_TEST_ADDRESS;
+	if (!base || !base.includes('@')) return null;
+	const [localPart, domain] = base.split('@');
+	const slot = process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT || process.env.PLAYWRIGHT_WORKER_SLOT || '1';
+	return `${localPart}+${label}-slot${slot}@${domain}`;
+}
+
+async function login(page: any, email: string, log: any): Promise<void> {
+	await page.goto(getE2EDebugUrl('/'));
+	await page.evaluate(() => localStorage.removeItem('emailLookupRateLimit'));
+
+	await openLoginDialog(page);
+
+	const loginTab = page.getByTestId('tab-login');
+	await expect(loginTab).toBeVisible({ timeout: 10000 });
+	await loginTab.click();
+
+	const emailInput = page.locator('#login-email-input');
+	await expect(emailInput).toBeVisible({ timeout: 15000 });
+	await emailInput.fill(email);
+	await page.locator('#login-continue-button').click();
+
+	const passwordInput = page.locator('#login-password-input');
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
+	await passwordInput.fill(TEST_PASSWORD);
+
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
+
+	await expect(page.getByTestId('profile-picture')).toBeVisible({ timeout: 30000 });
+	await page.waitForTimeout(5000);
+	log('Logged in.', { email });
+}
+
+async function openSettingsMenuAtMain(page: any): Promise<any> {
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	const closeButton = page.getByTestId('icon-button-close');
+
+	if ((await settingsMenu.count()) > 0) {
+		const activeView = await settingsMenu.first().getAttribute('data-active-view');
+		if (activeView !== 'main') {
+			await closeButton.click({ timeout: 10000 });
+			await expect(settingsMenu).toBeHidden({ timeout: 10000 });
+		}
+	}
+
+	if ((await settingsMenu.count()) === 0) {
+		const profileContainer = page.getByTestId('profile-container');
+		await expect(profileContainer).toBeVisible({ timeout: 10000 });
+		await profileContainer.click();
+	}
+
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	return settingsMenu;
+}
+
+async function loginWithMigrationFallback(page: any, migrationEmail: string | null, log: any): Promise<string> {
+	const fallbackEmails = [
+		migrationEmail,
+		...RECOVERY_GMAIL_ALIAS_LABELS.map((label) => getGmailAlias(label))
+	].filter(Boolean) as string[];
+
+	try {
+		await login(page, TEST_EMAIL, log);
+		return TEST_EMAIL;
+	} catch (error) {
+		if (!TEST_EMAIL?.endsWith('.mailosaur.net') || fallbackEmails.length === 0) throw error;
+
+		let lastError = error;
+		for (const fallbackEmail of fallbackEmails) {
+			try {
+				log('Mailosaur login failed; trying Gmail fallback alias.', { fallbackEmail });
+				await page.goto(getE2EDebugUrl('/'));
+				await login(page, fallbackEmail, log);
+				return fallbackEmail;
+			} catch (fallbackError) {
+				lastError = fallbackError;
+			}
+		}
+
+		throw lastError;
+	}
+}
+
+async function resetBrowserAuth(page: any, context: any): Promise<void> {
+	await context.clearCookies();
+	await page.evaluate(() => {
+		localStorage.clear();
+		sessionStorage.clear();
+	});
+}
+
+async function openEmailSettings(page: any, log: any): Promise<void> {
+	const settingsMenu = await openSettingsMenuAtMain(page);
+
+	const accountItem = settingsMenu.getByRole('menuitem', { name: /^account$/i }).first();
+	await expect(accountItem).toBeVisible({ timeout: 10000 });
+	await accountItem.click();
+
+	const emailItem = settingsMenu.getByRole('menuitem', { name: /e-?mail|email/i }).first();
+	await expect(emailItem).toBeVisible({ timeout: 10000 });
+	await emailItem.click();
+
+	await expect(page.getByTestId('email-change-new-email')).toBeVisible({ timeout: 15000 });
+	log('Opened email settings.');
+}
+
+async function changeEmail(page: any, targetEmail: string, log: any): Promise<void> {
+	const emailClient = createEmailClient(targetEmail);
+	if (!emailClient) throw new Error('Email client unavailable');
+
+	const requestedAt = new Date().toISOString();
+	await page.getByTestId('email-change-new-email').fill(targetEmail);
+	await page.getByTestId('email-change-request-code').click();
+	log('Requested email change code.', { targetEmail });
+
+	const message = await emailClient.waitForMailosaurMessage({
+		sentTo: targetEmail,
+		receivedAfter: requestedAt,
+		timeoutMs: 120000
+	});
+	const code = emailClient.extractSixDigitCode(message);
+	expect(code, 'Expected a six-digit email-change code.').toBeTruthy();
+
+	await page.getByTestId('email-change-code').fill(code);
+	await page.getByTestId('email-change-verify-code').click();
+	await expect(page.getByText(/new e-mail verified|new email verified/i)).toBeVisible({ timeout: 15000 });
+
+	await page.getByTestId('email-change-confirm').click();
+	const authModal = page.getByTestId('auth-modal');
+	await expect(authModal).toBeVisible({ timeout: 15000 });
+
+	const passwordInput = authModal.locator('input[type="password"]');
+	await expect(passwordInput).toBeVisible({ timeout: 15000 });
+	await passwordInput.fill(TEST_PASSWORD);
+	await authModal.getByTestId('auth-btn').click();
+
+	const tfaInput = authModal.getByTestId('tfa-input');
+	await expect(tfaInput).toBeVisible({ timeout: 15000 });
+	await tfaInput.fill(generateTotp(TEST_OTP_KEY));
+
+	await expect(page.getByText(/e-mail address changed successfully|email address changed successfully/i)).toBeVisible({
+		timeout: 30000
+	});
+	await expect(page.getByText(targetEmail)).toBeVisible({ timeout: 15000 });
+	log('Email changed.', { targetEmail });
+}
+
+test('changes account email and verifies login with the new address', async ({ page, context }: { page: any; context: any }) => {
+	test.slow();
+	test.setTimeout(420000);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	test.skip(!process.env.GMAIL_TEST_ADDRESS, 'GMAIL_TEST_ADDRESS is required for email-change migration.');
+
+	const isCurrentMailosaur = TEST_EMAIL?.endsWith('.mailosaur.net');
+	const migrationEmail = getGmailAlias('testacct');
+	const temporaryEmail = getGmailAlias('roundtrip');
+	test.skip(!migrationEmail || !temporaryEmail, 'Could not build Gmail test aliases.');
+
+	const quota = await checkEmailQuota(isCurrentMailosaur ? migrationEmail! : temporaryEmail!);
+	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
+
+	const log = createSignupLogger('SETTINGS_CHANGE_EMAIL');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'settings-change-email' });
+	await archiveExistingScreenshots(log);
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+	const currentEmail = await loginWithMigrationFallback(page, migrationEmail, log);
+	await openEmailSettings(page, log);
+	await screenshot(page, 'email-settings-open');
+
+	if (isCurrentMailosaur && currentEmail !== migrationEmail) {
+		if (currentEmail === TEST_EMAIL) {
+			await changeEmail(page, migrationEmail!, log);
+			await screenshot(page, 'mailosaur-migrated-to-gmail');
+			await resetBrowserAuth(page, context);
+			await login(page, migrationEmail!, log);
+			log('Migration login with Gmail alias succeeded.', { migrationEmail });
+			return;
+		}
+	}
+
+	const finalEmail = isCurrentMailosaur ? migrationEmail! : currentEmail;
+	await changeEmail(page, temporaryEmail!, log);
+	await screenshot(page, 'changed-to-temporary-gmail');
+	await resetBrowserAuth(page, context);
+	await login(page, temporaryEmail!, log);
+	await openEmailSettings(page, log);
+	await changeEmail(page, finalEmail, log);
+	await screenshot(page, 'changed-back-to-original-gmail');
+	await resetBrowserAuth(page, context);
+	await login(page, finalEmail, log);
+	log('Roundtrip login with original Gmail alias succeeded.', { email: finalEmail });
+});

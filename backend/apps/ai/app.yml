@@ -201,8 +201,9 @@ skills:
         main_processing_complex: alibaba/qwen3-235b-a22b-2507
         main_processing_complex_name: Qwen3
         content_sanitization_model: openai/gpt-oss-safeguard-20b
-        # Chat import uses OpenRouter (not Groq) to avoid the shared 200k token/day Groq daily cap
-        chat_import_sanitization_model: openai/gpt-oss-safeguard-20b-openrouter
+        # Chat import uses the same model via Groq (primary), with OpenRouter as automatic fallback
+        # when Groq hits its daily cap or returns the "json" tool-name quirk error (see llm_utils.py).
+        chat_import_sanitization_model: openai/gpt-oss-safeguard-20b
       preprocessing_thresholds:
         harmful_content_score: 7
         misuse_risk_score: 8

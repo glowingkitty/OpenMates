@@ -425,7 +425,11 @@ export async function decryptWithEmbedKey(
     const embedId = context?.embedId ?? "unknown";
     const chatId = context?.chatId ?? "unknown";
     const fieldName = context?.fieldName ?? "unknown";
-    console.error(
+    // Embed decryption can fail transiently during the chat-key race window
+    // (key not yet in cache → wrong key used, or embed stored without key wrapper).
+    // The renderer's _decryptionFailed recovery path re-requests from the server,
+    // so this is a warning, not an error.
+    console.warn(
       `[CryptoService] Embed decryption failed: embed_id=${embedId} chat_id=${chatId} field=${fieldName}`,
       error,
     );

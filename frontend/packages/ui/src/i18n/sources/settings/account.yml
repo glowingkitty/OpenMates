@@ -480,6 +480,236 @@ email.copied:
   cs: E-mailová adresa zkopírována do schránky
   sv: E-postadress kopierad till urklipp
   he: כתובת האימייל הועתקה ללוח
+email.copy_button:
+  context: Button label to copy the current email address
+  en: Copy e-mail
+  de: E-Mail kopieren
+  zh: 复制电子邮件
+  es: Copiar e-mail
+  fr: Copier l'e-mail
+  pt: Copiar e-mail
+  ru: Скопировать e-mail
+  ja: メールをコピー
+  ko: 이메일 복사
+  it: Copia e-mail
+  tr: E-postayı kopyala
+  vi: Sao chép email
+  id: Salin e-mail
+  pl: Kopiuj e-mail
+  nl: E-mail kopiëren
+  ar: نسخ البريد الإلكتروني
+  hi: ईमेल कॉपी करें
+  th: คัดลอกอีเมล
+  cs: Kopírovat e-mail
+  sv: Kopiera e-post
+  he: העתק אימייל
+email.new_email_placeholder:
+  context: Placeholder for the new account email input
+  en: New e-mail address
+  de: Neue E-Mail-Adresse
+  zh: 新电子邮件地址
+  es: Nueva dirección de e-mail
+  fr: Nouvelle adresse e-mail
+  pt: Novo endereço de e-mail
+  ru: Новый адрес e-mail
+  ja: 新しいメールアドレス
+  ko: 새 이메일 주소
+  it: Nuovo indirizzo e-mail
+  tr: Yeni e-posta adresi
+  vi: Địa chỉ email mới
+  id: Alamat e-mail baru
+  pl: Nowy adres e-mail
+  nl: Nieuw e-mailadres
+  ar: عنوان البريد الإلكتروني الجديد
+  hi: नया ईमेल पता
+  th: ที่อยู่อีเมลใหม่
+  cs: Nová e-mailová adresa
+  sv: Ny e-postadress
+  he: כתובת אימייל חדשה
+email.send_change_code:
+  context: Button label to send an email-change verification code
+  en: Send verification code
+  de: Bestätigungscode senden
+  zh: 发送验证码
+  es: Enviar código de verificación
+  fr: Envoyer le code de vérification
+  pt: Enviar código de verificação
+  ru: Отправить код подтверждения
+  ja: 確認コードを送信
+  ko: 인증 코드 보내기
+  it: Invia codice di verifica
+  tr: Doğrulama kodu gönder
+  vi: Gửi mã xác minh
+  id: Kirim kode verifikasi
+  pl: Wyślij kod weryfikacyjny
+  nl: Verificatiecode verzenden
+  ar: إرسال رمز التحقق
+  hi: सत्यापन कोड भेजें
+  th: ส่งรหัสยืนยัน
+  cs: Odeslat ověřovací kód
+  sv: Skicka verifieringskod
+  he: שלח קוד אימות
+email.verify_change_code:
+  context: Button label to verify the email-change code
+  en: Verify code
+  de: Code bestätigen
+  zh: 验证代码
+  es: Verificar código
+  fr: Vérifier le code
+  pt: Verificar código
+  ru: Проверить код
+  ja: コードを確認
+  ko: 코드 확인
+  it: Verifica codice
+  tr: Kodu doğrula
+  vi: Xác minh mã
+  id: Verifikasi kode
+  pl: Zweryfikuj kod
+  nl: Code verifiëren
+  ar: تحقق من الرمز
+  hi: कोड सत्यापित करें
+  th: ยืนยันรหัส
+  cs: Ověřit kód
+  sv: Verifiera kod
+  he: אמת קוד
+email.confirm_change:
+  context: Button label to confirm an account email change
+  en: Change e-mail
+  de: E-Mail ändern
+  zh: 更改电子邮件
+  es: Cambiar e-mail
+  fr: Changer l'e-mail
+  pt: Alterar e-mail
+  ru: Изменить e-mail
+  ja: メールを変更
+  ko: 이메일 변경
+  it: Cambia e-mail
+  tr: E-postayı değiştir
+  vi: Đổi email
+  id: Ubah e-mail
+  pl: Zmień e-mail
+  nl: E-mail wijzigen
+  ar: تغيير البريد الإلكتروني
+  hi: ईमेल बदलें
+  th: เปลี่ยนอีเมล
+  cs: Změnit e-mail
+  sv: Ändra e-post
+  he: שנה אימייל
+email.change_code_sent:
+  context: Success message after sending an email-change verification code
+  en: Verification code sent to your new e-mail address.
+  de: Bestätigungscode wurde an Ihre neue E-Mail-Adresse gesendet.
+  zh: 验证码已发送到您的新电子邮件地址。
+  es: Código de verificación enviado a tu nueva dirección de e-mail.
+  fr: Code de vérification envoyé à votre nouvelle adresse e-mail.
+  pt: Código de verificação enviado para seu novo endereço de e-mail.
+  ru: Код подтверждения отправлен на новый адрес e-mail.
+  ja: 確認コードを新しいメールアドレスに送信しました。
+  ko: 인증 코드가 새 이메일 주소로 전송되었습니다.
+  it: Codice di verifica inviato al tuo nuovo indirizzo e-mail.
+  tr: Doğrulama kodu yeni e-posta adresinize gönderildi.
+  vi: Mã xác minh đã được gửi đến địa chỉ email mới của bạn.
+  id: Kode verifikasi dikirim ke alamat e-mail baru Anda.
+  pl: Kod weryfikacyjny wysłano na nowy adres e-mail.
+  nl: Verificatiecode verzonden naar uw nieuwe e-mailadres.
+  ar: تم إرسال رمز التحقق إلى عنوان بريدك الإلكتروني الجديد.
+  hi: सत्यापन कोड आपके नए ईमेल पते पर भेजा गया।
+  th: ส่งรหัสยืนยันไปยังที่อยู่อีเมลใหม่ของคุณแล้ว
+  cs: Ověřovací kód byl odeslán na vaši novou e-mailovou adresu.
+  sv: Verifieringskod skickad till din nya e-postadress.
+  he: קוד האימות נשלח לכתובת האימייל החדשה שלך.
+email.change_code_verified:
+  context: Success message after verifying an email-change code
+  en: New e-mail verified. Confirm your identity to finish the change.
+  de: Neue E-Mail bestätigt. Bestätigen Sie Ihre Identität, um die Änderung abzuschließen.
+  zh: 新电子邮件已验证。请确认身份以完成更改。
+  es: Nuevo e-mail verificado. Confirma tu identidad para finalizar el cambio.
+  fr: Nouvel e-mail vérifié. Confirmez votre identité pour terminer le changement.
+  pt: Novo e-mail verificado. Confirme sua identidade para concluir a alteração.
+  ru: Новый e-mail подтвержден. Подтвердите личность, чтобы завершить изменение.
+  ja: 新しいメールを確認しました。変更を完了するには本人確認してください。
+  ko: 새 이메일이 확인되었습니다. 변경을 완료하려면 본인 확인을 하세요.
+  it: Nuova e-mail verificata. Conferma la tua identità per completare la modifica.
+  tr: Yeni e-posta doğrulandı. Değişikliği tamamlamak için kimliğinizi doğrulayın.
+  vi: Email mới đã được xác minh. Xác nhận danh tính để hoàn tất thay đổi.
+  id: E-mail baru terverifikasi. Konfirmasi identitas Anda untuk menyelesaikan perubahan.
+  pl: Nowy e-mail zweryfikowany. Potwierdź swoją tożsamość, aby zakończyć zmianę.
+  nl: Nieuw e-mailadres geverifieerd. Bevestig uw identiteit om de wijziging te voltooien.
+  ar: تم التحقق من البريد الإلكتروني الجديد. أكد هويتك لإنهاء التغيير.
+  hi: नया ईमेल सत्यापित हो गया। परिवर्तन पूरा करने के लिए अपनी पहचान की पुष्टि करें।
+  th: ยืนยันอีเมลใหม่แล้ว โปรดยืนยันตัวตนเพื่อเปลี่ยนให้เสร็จ
+  cs: Nový e-mail ověřen. Potvrďte svou identitu pro dokončení změny.
+  sv: Ny e-post verifierad. Bekräfta din identitet för att slutföra ändringen.
+  he: האימייל החדש אומת. אשר את זהותך כדי לסיים את השינוי.
+email.change_success:
+  context: Success message after account email change completes
+  en: E-mail address changed successfully.
+  de: E-Mail-Adresse erfolgreich geändert.
+  zh: 电子邮件地址已成功更改。
+  es: Dirección de e-mail cambiada correctamente.
+  fr: Adresse e-mail modifiée avec succès.
+  pt: Endereço de e-mail alterado com sucesso.
+  ru: Адрес e-mail успешно изменен.
+  ja: メールアドレスを変更しました。
+  ko: 이메일 주소가 성공적으로 변경되었습니다.
+  it: Indirizzo e-mail modificato con successo.
+  tr: E-posta adresi başarıyla değiştirildi.
+  vi: Địa chỉ email đã được đổi thành công.
+  id: Alamat e-mail berhasil diubah.
+  pl: Adres e-mail został zmieniony.
+  nl: E-mailadres succesvol gewijzigd.
+  ar: تم تغيير عنوان البريد الإلكتروني بنجاح.
+  hi: ईमेल पता सफलतापूर्वक बदल गया।
+  th: เปลี่ยนที่อยู่อีเมลสำเร็จแล้ว
+  cs: E-mailová adresa byla úspěšně změněna.
+  sv: E-postadress ändrad.
+  he: כתובת האימייל שונתה בהצלחה.
+email.auth_title:
+  context: Authentication modal title before changing account email
+  en: Confirm e-mail change
+  de: E-Mail-Änderung bestätigen
+  zh: 确认电子邮件更改
+  es: Confirmar cambio de e-mail
+  fr: Confirmer le changement d'e-mail
+  pt: Confirmar alteração de e-mail
+  ru: Подтвердить изменение e-mail
+  ja: メール変更を確認
+  ko: 이메일 변경 확인
+  it: Conferma modifica e-mail
+  tr: E-posta değişikliğini onayla
+  vi: Xác nhận đổi email
+  id: Konfirmasi perubahan e-mail
+  pl: Potwierdź zmianę e-maila
+  nl: E-mailwijziging bevestigen
+  ar: تأكيد تغيير البريد الإلكتروني
+  hi: ईमेल परिवर्तन की पुष्टि करें
+  th: ยืนยันการเปลี่ยนอีเมล
+  cs: Potvrdit změnu e-mailu
+  sv: Bekräfta e-poständring
+  he: אשר שינוי אימייל
+email.auth_description:
+  context: Authentication modal description before changing account email
+  en: Confirm your identity before changing the e-mail address used to sign in.
+  de: Bestätigen Sie Ihre Identität, bevor Sie die E-Mail-Adresse für die Anmeldung ändern.
+  zh: 更改用于登录的电子邮件地址前，请确认您的身份。
+  es: Confirma tu identidad antes de cambiar la dirección de e-mail usada para iniciar sesión.
+  fr: Confirmez votre identité avant de changer l'adresse e-mail utilisée pour vous connecter.
+  pt: Confirme sua identidade antes de alterar o endereço de e-mail usado para entrar.
+  ru: Подтвердите личность перед изменением адреса e-mail для входа.
+  ja: サインインに使用するメールアドレスを変更する前に本人確認してください。
+  ko: 로그인에 사용하는 이메일 주소를 변경하기 전에 본인 확인을 하세요.
+  it: Conferma la tua identità prima di cambiare l'indirizzo e-mail usato per accedere.
+  tr: Oturum açmak için kullanılan e-posta adresini değiştirmeden önce kimliğinizi doğrulayın.
+  vi: Xác nhận danh tính trước khi đổi địa chỉ email dùng để đăng nhập.
+  id: Konfirmasi identitas Anda sebelum mengubah alamat e-mail untuk masuk.
+  pl: Potwierdź swoją tożsamość przed zmianą adresu e-mail używanego do logowania.
+  nl: Bevestig uw identiteit voordat u het e-mailadres wijzigt waarmee u inlogt.
+  ar: أكد هويتك قبل تغيير عنوان البريد الإلكتروني المستخدم لتسجيل الدخول.
+  hi: साइन इन के लिए उपयोग किए जाने वाले ईमेल पते को बदलने से पहले अपनी पहचान की पुष्टि करें।
+  th: ยืนยันตัวตนก่อนเปลี่ยนที่อยู่อีเมลที่ใช้เข้าสู่ระบบ
+  cs: Potvrďte svou identitu před změnou e-mailové adresy používané k přihlášení.
+  sv: Bekräfta din identitet innan du ändrar e-postadressen som används för inloggning.
+  he: אשר את זהותך לפני שינוי כתובת האימייל המשמשת להתחברות.
 email.error_decrypting:
   context: Error message when email decryption fails
   en: Failed to decrypt e-mail address.

@@ -8,11 +8,12 @@ struct EmbedFullscreenContainer: View {
     let embeds: [EmbedRecord]
     let initialEmbedId: String
     let allEmbedRecords: [String: EmbedRecord]
-    @Environment(\.dismiss) var dismiss
+    var onClose: () -> Void = {}
 
     @State private var currentIndex: Int = 0
     @State private var selectedChildEmbed: EmbedRecord?
     @State private var showChildFullscreen = false
+    @State private var isPresented = false
 
     private var currentEmbed: EmbedRecord? {
         guard currentIndex >= 0 && currentIndex < embeds.count else { return nil }
@@ -25,77 +26,77 @@ struct EmbedFullscreenContainer: View {
     }
 
     var body: some View {
-        NavigationStack {
-            if let embed = currentEmbed {
-                ZStack {
+        return GeometryReader { proxy in
+            ZStack(alignment: .top) {
+                if let embed = currentEmbed {
                     ScrollView {
                         VStack(spacing: 0) {
-                            EmbedFullscreenHeader(embed: embed)
-                            EmbedContentView(embed: embed, mode: .fullscreen)
-                                .padding(.spacing6)
+                            EmbedFullscreenHeader(
+                                embed: embed,
+                                hasPreviousEmbed: currentIndex > 0,
+                                hasNextEmbed: currentIndex < embeds.count - 1,
+                                onNavigatePrevious: { withAnimation { currentIndex -= 1 } },
+                                onNavigateNext: { withAnimation { currentIndex += 1 } }
+                            )
+                            EmbedContentView(
+                                embed: embed,
+                                mode: .fullscreen,
+                                allEmbedRecords: allEmbedRecords,
+                                onOpenEmbed: { child in
+                                    selectedChildEmbed = child
+                                    showChildFullscreen = true
+                                }
+                            )
+                                .padding(.horizontal, .spacing8)
+                                .padding(.vertical, .spacing10)
 
-                            if !childEmbeds.isEmpty {
+                            if !embed.isAppSkillUse && !childEmbeds.isEmpty {
                                 childEmbedSection
                             }
                         }
                     }
-                    .background(Color.grey0)
+                    .background(Color.grey20)
+                    .containerRelativeFrame([.horizontal, .vertical])
 
-                    if embeds.count > 1 {
-                        navigationArrows
-                    }
+                    EmbedFullscreenTopBar(
+                        embed: embed,
+                        showCopy: false,
+                        onClose: closeWithAnimation,
+                        onShare: { shareEmbed(embed) },
+                        onCopy: { copyEmbedContent(embed) },
+                        onReportIssue: { reportIssue(embed) }
+                    )
                 }
-                #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-                #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button { dismiss() } label: { Icon("close", size: 20) }
-                    }
-                    ToolbarItem(placement: .principal) {
-                        if embeds.count > 1 {
-                            Text("\(currentIndex + 1) / \(embeds.count)")
-                                .font(.omXs).foregroundStyle(Color.fontTertiary)
+
+                if showChildFullscreen, let child = selectedChildEmbed {
+                    EmbedFullscreenContainer(
+                        embeds: [child],
+                        initialEmbedId: child.id,
+                        allEmbedRecords: allEmbedRecords,
+                        onClose: {
+                            showChildFullscreen = false
+                            selectedChildEmbed = nil
                         }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        shareMenu(embed: embed)
-                    }
+                    )
                 }
             }
+            .offset(y: isPresented ? 0 : proxy.size.height)
+            .animation(.easeOut(duration: 0.28), value: isPresented)
         }
+        .ignoresSafeArea()
         .onAppear {
             currentIndex = embeds.firstIndex(where: { $0.id == initialEmbedId }) ?? 0
-        }
-        .sheet(isPresented: $showChildFullscreen) {
-            if let child = selectedChildEmbed {
-                EmbedFullscreenView(embed: child, childEmbeds: [])
-            }
+            isPresented = true
         }
     }
 
-    // MARK: - Navigation arrows
-
-    private var navigationArrows: some View {
-        HStack {
-            if currentIndex > 0 {
-                Button { withAnimation { currentIndex -= 1 } } label: {
-                    Icon("back", size: 36)
-                        .foregroundStyle(.white)
-                        .shadow(radius: 4)
-                }
-            }
-            Spacer()
-            if currentIndex < embeds.count - 1 {
-                Button { withAnimation { currentIndex += 1 } } label: {
-                    Icon("back", size: 36)
-                        .scaleEffect(x: -1, y: 1)
-                        .foregroundStyle(.white)
-                        .shadow(radius: 4)
-                }
-            }
+    private func closeWithAnimation() {
+        withAnimation(.easeIn(duration: 0.22)) {
+            isPresented = false
         }
-        .padding(.horizontal, .spacing4)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            onClose()
+        }
     }
 
     // MARK: - Child embeds
@@ -111,7 +112,7 @@ struct EmbedFullscreenContainer: View {
 
             let groups = EmbedGrouper.group(childEmbeds)
             ForEach(groups) { group in
-                GroupedEmbedView(group: group) { embed in
+                GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
                     selectedChildEmbed = embed
                     showChildFullscreen = true
                 }
@@ -119,21 +120,6 @@ struct EmbedFullscreenContainer: View {
             }
         }
         .padding(.bottom, .spacing8)
-    }
-
-    // MARK: - Share
-
-    private func shareMenu(embed: EmbedRecord) -> some View {
-        Menu {
-            Button { shareEmbed(embed) } label: {
-                Label { Text("Share") } icon: { Icon("share", size: 16) }
-            }
-            Button { copyEmbedContent(embed) } label: {
-                Label("Copy", systemImage: "doc.on.doc")
-            }
-        } label: {
-            Icon("more", size: 22)
-        }
     }
 
     private func shareEmbed(_ embed: EmbedRecord) {
@@ -162,43 +148,194 @@ struct EmbedFullscreenContainer: View {
         NSPasteboard.general.setString(text, forType: .string)
         #endif
     }
+
+    private func reportIssue(_ embed: EmbedRecord) {
+        ToastManager.shared.show("Report issue", type: .info)
+    }
+}
+
+// MARK: - Embed top bar
+
+private struct EmbedFullscreenTopBar: View {
+    let embed: EmbedRecord
+    let showCopy: Bool
+    let onClose: () -> Void
+    let onShare: () -> Void
+    let onCopy: () -> Void
+    let onReportIssue: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center) {
+            HStack(spacing: .spacing3) {
+                topButton(icon: "share", label: AppStrings.share, action: onShare)
+                if showCopy {
+                    topButton(icon: "copy", label: AppStrings.copy, action: onCopy)
+                }
+                topButton(icon: "bug", label: LocalizationManager.shared.text("header.report_issue"), action: onReportIssue)
+            }
+
+            Spacer()
+
+            topButton(icon: "minimize", label: "Minimize", action: onClose)
+                .accessibilityIdentifier("embed-minimize")
+        }
+        .padding(.horizontal, .spacing10)
+        .padding(.top, .spacing6)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .allowsHitTesting(true)
+    }
+
+    private func topButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(icon, size: 24)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 34, height: 34)
+                .padding(3)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: 40))
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
 }
 
 // MARK: - Fullscreen header
 
 struct EmbedFullscreenHeader: View {
     let embed: EmbedRecord
+    var hasPreviousEmbed = false
+    var hasNextEmbed = false
+    var onNavigatePrevious: () -> Void = {}
+    var onNavigateNext: () -> Void = {}
+
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var animateHeader = false
 
     private var embedType: EmbedType? { EmbedType(rawValue: embed.type) }
+    private var appId: String { embed.appId ?? embedType?.appId ?? "web" }
+    private var headerHeight: CGFloat { horizontalSizeClass == .compact ? 190 : 240 }
+    private var skillIconName: String {
+        switch embed.skillId {
+        case "search": return "search"
+        case "read": return "visible"
+        default:
+            return AppIconView.iconName(forAppId: appId)
+        }
+    }
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            if let appId = embedType?.appId {
-                AppGradientBackground(appId: appId)
-            } else {
-                LinearGradient.primary
-            }
+        ZStack {
+            AppGradientBackground(appId: appId)
 
-            VStack(alignment: .leading, spacing: .spacing2) {
-                Text(embedType?.displayName ?? embed.type)
-                    .font(.omH3).fontWeight(.bold).foregroundStyle(.white)
+            livingOrb(color: .white.opacity(0.22), size: 220)
+                .offset(x: animateHeader ? -86 : -148, y: animateHeader ? -52 : -94)
+                .animation(.easeInOut(duration: 19).repeatForever(autoreverses: true), value: animateHeader)
+            livingOrb(color: .white.opacity(0.16), size: 220)
+                .offset(x: animateHeader ? 154 : 92, y: animateHeader ? 72 : 116)
+                .animation(.easeInOut(duration: 23).repeatForever(autoreverses: true), value: animateHeader)
+            livingOrb(color: .white.opacity(0.18), size: 190)
+                .offset(x: animateHeader ? 48 : 110, y: animateHeader ? -10 : 32)
+                .animation(.easeInOut(duration: 29).repeatForever(autoreverses: true), value: animateHeader)
 
-                if let subtitle = headerSubtitle {
+            decorativeIcon(alignment: .leading)
+                .offset(x: animateHeader ? -165 : -185, y: animateHeader ? 62 : 78)
+                .rotationEffect(.degrees(animateHeader ? -8 : -16))
+                .animation(.linear(duration: 16).repeatForever(autoreverses: true), value: animateHeader)
+            decorativeIcon(alignment: .trailing)
+                .offset(x: animateHeader ? 165 : 185, y: animateHeader ? 78 : 62)
+                .rotationEffect(.degrees(animateHeader ? 8 : 16))
+                .animation(.linear(duration: 16).repeatForever(autoreverses: true), value: animateHeader)
+
+            VStack(spacing: .spacing2) {
+                Icon(skillIconName, size: 38)
+                    .foregroundStyle(.white)
+
+                Text(headerTitle)
+                    .font(.omH3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+
+                if let subtitle = headerSubtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.omSmall).foregroundStyle(.white.opacity(0.8))
+                        .font(.omSmall)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
                         .lineLimit(2)
                 }
             }
-            .padding(.horizontal, .spacing6)
-            .padding(.bottom, .spacing4)
+            .padding(.horizontal, .spacing12)
+
+            if hasNextEmbed {
+                headerNavigationButton(direction: .left, action: onNavigateNext)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, .spacing4)
+            }
+
+            if hasPreviousEmbed {
+                headerNavigationButton(direction: .right, action: onNavigatePrevious)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, .spacing4)
+            }
         }
-        .frame(height: 120)
+        .frame(height: headerHeight)
+        .clipShape(.rect(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
+        .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 10)
+        .onAppear { animateHeader = true }
+    }
+
+    private func decorativeIcon(alignment: Alignment) -> some View {
+        Icon(skillIconName, size: horizontalSizeClass == .compact ? 90 : 126)
+            .foregroundStyle(.white.opacity(0.4))
+            .frame(maxWidth: .infinity, alignment: alignment)
+    }
+
+    private func livingOrb(color: Color, size: CGFloat) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .blur(radius: 28)
+    }
+
+    private enum HeaderNavDirection {
+        case left
+        case right
+    }
+
+    private func headerNavigationButton(direction: HeaderNavDirection, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon("back", size: 18)
+                .foregroundStyle(.white.opacity(0.85))
+                .rotationEffect(direction == .left ? .degrees(0) : .degrees(180))
+                .frame(width: 36, height: 36)
+                .background(Color.grey50.opacity(0.5))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var headerTitle: String {
+        guard let data = embed.data, case .raw(let dict) = data else {
+            return embedType?.displayName ?? embed.type
+        }
+        return (dict["query"]?.value as? String)
+            ?? (dict["title"]?.value as? String)
+            ?? (dict["name"]?.value as? String)
+            ?? embedType?.displayName
+            ?? embed.type
     }
 
     private var headerSubtitle: String? {
         guard let data = embed.data, case .raw(let dict) = data else { return nil }
-        return (dict["query"]?.value as? String)
-            ?? (dict["title"]?.value as? String)
-            ?? (dict["url"]?.value as? String)
+        if let provider = dict["provider"]?.value as? String {
+            return "via \(provider == "Brave" ? "Brave Search" : provider)"
+        }
+        if let pageAge = dict["page_age"]?.value as? String {
+            return pageAge
+        }
+        return dict["url"]?.value as? String
     }
 }

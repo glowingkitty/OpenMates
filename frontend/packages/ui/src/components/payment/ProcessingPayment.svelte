@@ -9,8 +9,7 @@
         isGift = false,
         isGiftCard = false,
         showDelayedMessage = false,
-        // provider: 'stripe' | 'polar' — controls post-purchase confirmation text.
-        // Polar uses "Payment Confirmation" (MoR model), Stripe uses "Invoice".
+        // provider: 'stripe' — controls post-purchase confirmation text (Invoice).
         provider = 'stripe',
         // compact: when true, uses a smaller layout for embedded contexts (e.g., settings panel)
         compact = false
@@ -46,7 +45,7 @@
                 {#if provider === 'bank_transfer'}
                     SEPA Bank Transfer
                 {:else}
-                    Powered by {provider === 'polar' ? 'Polar' : 'Stripe'}
+                    Powered by Stripe
                 {/if}
             </p>
         </div>
@@ -60,14 +59,11 @@
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html $text(isGift ? 'signup.enjoy_your_gift' : 'signup.purchase_successful')}
             </p>
-            <!-- Only show confirmation email text for actual purchases.
-                 Polar sends a "Payment Confirmation" (not Invoice) per MoR rules. -->
+            <!-- Only show confirmation email text for actual purchases. -->
             {#if !isGift}
                 <p class="confirmation-text color-grey-60">
                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                    {@html $text(provider === 'polar'
-                        ? 'signup.you_will_receive_payment_confirmation_soon'
-                        : 'signup.you_will_receive_confirmation_soon')}
+                    {@html $text('signup.you_will_receive_confirmation_soon')}
                 </p>
             {/if}
         </div>

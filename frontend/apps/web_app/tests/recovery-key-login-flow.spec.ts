@@ -39,6 +39,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Recovery key setup and login flow test against a deployed web app.
@@ -112,11 +113,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'home');
 
 	// Open login dialog
-	const headerLoginButton = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(headerLoginButton).toBeVisible();
-	await headerLoginButton.click();
+	await openSignupInterface(page);
 	await takeStepScreenshot(page, 'login-dialog');
 
 	// Click Login tab to switch from signup to login view
@@ -139,21 +136,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
-	// Submit password first to trigger 2FA prompt
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-	await expect(submitLoginButton).toBeVisible();
-	await submitLoginButton.click();
-
-	// Handle 2FA - enter OTP code (appears after backend confirms 2FA required)
-	const tfaInput = page.locator('#login-otp-input');
-	await expect(tfaInput.first()).toBeVisible({ timeout: 15000 });
-	const otpCode = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-	await tfaInput.first().fill(otpCode);
-	await takeStepScreenshot(page, 'otp-entered');
-	logCheckpoint('Entered OTP code.');
-
-	// Submit login with OTP
-	await submitLoginButton.click();
+	await submitPasswordAndHandleOtp(page, OPENMATES_TEST_ACCOUNT_OTP_KEY, (msg: string) => logCheckpoint(msg));
 
 	// Wait for successful login - redirect to chat
 	await page.waitForURL(/chat|demo/, { timeout: 60000 });
@@ -304,11 +287,7 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	// ========================================================================
 
 	// Open login dialog
-	const loginButtonAfterLogout = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
-	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
-	await loginButtonAfterLogout.click();
+	await openSignupInterface(page);
 
 	// Click Login tab to switch from signup to login view
 	const loginTabRelogin = page.getByTestId('tab-login');

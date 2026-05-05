@@ -928,12 +928,28 @@
       }
     }
 
+    // Normalize text for highlight matching — mirrors backend _normalize_for_quote_comparison.
+    // Converts typographic variants (ellipsis, smart quotes, dashes) to ASCII equivalents
+    // so quotes that passed backend verification also match the rendered snippet text.
+    function normalizeForSearch(text: string): string {
+      return text
+        .replace(/…/g, '...')             // … → ...
+        .replace(/[‘’]/g, "'")        // smart single quotes → '
+        .replace(/[“”]/g, '"')        // smart double quotes → "
+        .replace(/[–—]/g, '-')        // en/em dash → -
+        .replace(/\u00A0/g, ' ')         // NBSP → space
+        .replace(/\s{2,}/g, ' ')               // multiple spaces → single
+        .toLowerCase()
+        .trim();
+    }
+
     function applyHighlights(el: HTMLElement, q: string) {
       if (!el.isConnected) return;
       removeExistingMarks(el);
       if (!q || !q.trim()) return;
 
-      const lowerQuery = q.toLowerCase().trim();
+      const lowerQuery = normalizeForSearch(q);
+      if (!lowerQuery) return;
 
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
       const textNodes: Text[] = [];
@@ -951,6 +967,8 @@
 
       for (const textNode of textNodes) {
         const textContent = textNode.textContent || '';
+        // Use plain lowercase for content — web search snippets are ASCII so no normalization
+        // needed. Normalizing content would shift character positions when … → ... expands.
         const lowerContent = textContent.toLowerCase();
         if (lowerContent.indexOf(lowerQuery) === -1) continue;
 

@@ -74,12 +74,12 @@ final class AuthManager: ObservableObject {
 
     // MARK: - Email lookup
 
-    func lookup(email: String) async throws -> LookupResponse {
+    func lookup(email: String, stayLoggedIn: Bool = false) async throws -> LookupResponse {
         let hashedEmail = await crypto.hashEmail(email)
         return try await api.request(
             .post,
             path: "/v1/auth/lookup",
-            body: LookupRequest(hashedEmail: hashedEmail)
+            body: LookupRequest(hashedEmail: hashedEmail, stayLoggedIn: stayLoggedIn)
         )
     }
 
@@ -88,11 +88,22 @@ final class AuthManager: ObservableObject {
     func loginWithPassword(
         email: String,
         password: String,
+        userEmailSalt: String?,
         tfaCode: String? = nil,
         stayLoggedIn: Bool = false
     ) async throws {
+        guard let userEmailSalt,
+              let saltData = Data(base64Encoded: userEmailSalt) else {
+            print("[Auth] Missing user_email_salt from lookup; cannot compute web-compatible lookup_hash")
+            throw AuthError.missingAuthData
+        }
+
         let hashedEmail = await crypto.hashEmail(email)
-        let lookupHash = await crypto.hashPassword(password, email: email)
+        let lookupHash = await crypto.hashKey(password, salt: saltData)
+        let emailEncryptionKey = await crypto.deriveEmailEncryptionKey(
+            email: email,
+            salt: saltData
+        ).base64EncodedString()
 
         // Store password temporarily for PBKDF2 master key derivation after login
         pendingPassword = password
@@ -103,14 +114,17 @@ final class AuthManager: ObservableObject {
             lookupHash: lookupHash,
             loginMethod: "password",
             tfaCode: tfaCode,
+            codeType: tfaCode == nil ? nil : "otp",
+            emailEncryptionKey: emailEncryptionKey,
             stayLoggedIn: stayLoggedIn,
-            sessionId: nil,
+            sessionId: Self.sessionId,
             deviceInfo: makeDeviceInfo()
         )
 
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
+        print("[Auth] Password login response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)")
 
-        if response.tfaRequired == true {
+        if response.success, response.tfaRequired == true, tfaCode == nil {
             throw AuthError.tfaRequired
         }
 
@@ -122,53 +136,97 @@ final class AuthManager: ObservableObject {
 
         if response.success, let user = response.user {
             await handleSuccessfulLogin(user: user, password: password)
+            return
         }
+
+        if tfaCode != nil {
+            throw AuthError.invalidTwoFactorCode
+        }
+
+        throw AuthError.invalidCredentials
     }
 
     // MARK: - Recovery key login
 
-    func loginWithRecoveryKey(email: String, recoveryKey: String) async throws {
+    func loginWithRecoveryKey(email: String, recoveryKey: String, userEmailSalt: String?) async throws {
+        guard let userEmailSalt,
+              let saltData = Data(base64Encoded: userEmailSalt) else {
+            print("[Auth] Missing user_email_salt from lookup; cannot compute recovery-key lookup_hash")
+            throw AuthError.missingAuthData
+        }
+
         let hashedEmail = await crypto.hashEmail(email)
+        let lookupHash = await crypto.hashKey(recoveryKey, salt: saltData)
+        let emailEncryptionKey = await crypto.deriveEmailEncryptionKey(
+            email: email,
+            salt: saltData
+        ).base64EncodedString()
 
         let request = LoginRequest(
             hashedEmail: hashedEmail,
-            lookupHash: recoveryKey,
+            lookupHash: lookupHash,
             loginMethod: "recovery_key",
             tfaCode: nil,
+            codeType: nil,
+            emailEncryptionKey: emailEncryptionKey,
             stayLoggedIn: false,
-            sessionId: nil,
+            sessionId: Self.sessionId,
             deviceInfo: makeDeviceInfo()
         )
 
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
+        print("[Auth] Recovery login response success=\(response.success) hasUser=\(response.user != nil)")
 
         if response.success, let user = response.user {
             // Recovery key uses same PBKDF2 derivation as password
             await handleSuccessfulLogin(user: user, password: recoveryKey)
+            return
         }
+
+        throw AuthError.invalidCredentials
     }
 
     // MARK: - Backup code login
 
-    func loginWithBackupCode(email: String, password: String, backupCode: String) async throws {
+    func loginWithBackupCode(
+        email: String,
+        password: String,
+        backupCode: String,
+        userEmailSalt: String?
+    ) async throws {
         let hashedEmail = await crypto.hashEmail(email)
-        let lookupHash = await crypto.hashPassword(password, email: email)
+        guard let userEmailSalt,
+              let saltData = Data(base64Encoded: userEmailSalt) else {
+            print("[Auth] Missing user_email_salt from lookup; cannot compute backup-code lookup_hash")
+            throw AuthError.missingAuthData
+        }
+        let lookupHash = await crypto.hashKey(password, salt: saltData)
+        let emailEncryptionKey = await crypto.deriveEmailEncryptionKey(
+            email: email,
+            salt: saltData
+        ).base64EncodedString()
 
         let request = LoginRequest(
             hashedEmail: hashedEmail,
             lookupHash: lookupHash,
             loginMethod: "backup_code",
             tfaCode: backupCode,
+            codeType: "backup",
+            emailEncryptionKey: emailEncryptionKey,
             stayLoggedIn: false,
-            sessionId: nil,
+            sessionId: Self.sessionId,
             deviceInfo: makeDeviceInfo()
         )
 
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
+        print("[Auth] Backup-code login response success=\(response.success) hasUser=\(response.user != nil)")
 
         if response.success, let user = response.user {
             await handleSuccessfulLogin(user: user, password: password)
+            return
         }
+
+        throw AuthError.invalidCredentials
     }
 
     // MARK: - Device verification
@@ -264,18 +322,32 @@ final class AuthManager: ObservableObject {
         return String(cString: model)
         #endif
     }
+
+    private static var sessionId: String {
+        let key = "openmates.apple.auth.session_id"
+        if let existing = UserDefaults.standard.string(forKey: key) {
+            return existing
+        }
+        let newValue = UUID().uuidString
+        UserDefaults.standard.set(newValue, forKey: key)
+        return newValue
+    }
 }
 
 enum AuthError: LocalizedError {
     case tfaRequired
     case invalidCredentials
     case deviceVerificationRequired
+    case missingAuthData
+    case invalidTwoFactorCode
 
     var errorDescription: String? {
         switch self {
         case .tfaRequired: return "Two-factor authentication required"
         case .invalidCredentials: return "Invalid email or password"
         case .deviceVerificationRequired: return "Device verification required"
+        case .missingAuthData: return "Authentication data not found. Please try logging in again."
+        case .invalidTwoFactorCode: return "The two-factor code is wrong or expired"
         }
     }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Modal/dialog ARIA verification tests.
@@ -16,9 +15,9 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	getTestAccount,
-	generateTotp,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 /**
  * Verify ARIA attributes on a dialog element.
@@ -122,9 +121,7 @@ test.describe('Modal ARIA — unauthenticated', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-		await expect(loginButton).toBeVisible({ timeout: 15000 });
-		await loginButton.click();
+		await openSignupInterface(page);
 		await page.waitForTimeout(1000);
 
 		const dialog = page.locator('[role="dialog"]');
@@ -172,9 +169,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('networkidle');
 
-		const headerLoginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-		await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-		await headerLoginButton.click();
+		await openSignupInterface(page);
 
 		// Click Login tab to switch from signup to login view
 		const loginTab = page.getByTestId('tab-login');
@@ -190,16 +185,7 @@ test.describe('Modal ARIA — authenticated', () => {
 		await expect(passwordInput).toBeVisible({ timeout: 15000 });
 		await passwordInput.fill(TEST_PASSWORD);
 
-		// Submit password first — OTP field appears after backend confirms 2FA required
-		const submitButton = page.locator('#login-submit-button');
-		await expect(submitButton).toBeVisible();
-		await submitButton.click();
-
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		const otpInput = page.locator('#login-otp-input');
-		await expect(otpInput).toBeVisible({ timeout: 15000 });
-		await otpInput.fill(otpCode);
-		await submitButton.click();
+		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY);
 
 		await page.waitForURL(/chat/, { timeout: 30000 });
 		await page.waitForTimeout(5000);

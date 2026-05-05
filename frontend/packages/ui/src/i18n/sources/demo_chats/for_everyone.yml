@@ -2402,3 +2402,75 @@ follow_up_3:
   sv: Berätta mer om integritet
   he: ספר לי עוד על פרטיות
   verified_by_human: []
+
+# Teaser copy lines shown in ChatHeader when the for-everyone intro chat is active.
+# These are the 3 rotating headline phrases in the header banner split layout.
+teaser_line1:
+  context: First teaser headline in the for-everyone chat header banner
+  en: AI team mates.
+  de: KI Team-Mates.
+  zh: AI 团队伴侣。
+  es: Compañeros de equipo IA.
+  fr: Coéquipiers IA.
+  pt: Companheiros de equipe IA.
+  ru: ИИ-напарники.
+  ja: AIチームメイト。
+  ko: AI 팀 메이트.
+  it: Compagni di squadra AI.
+  tr: Yapay zeka takım arkadaşları.
+  vi: Đồng đội AI.
+  id: Rekan tim AI.
+  pl: Współpracownicy AI.
+  nl: AI-teamleden.
+  ar: رفاق الفريق من الذكاء الاصطناعي.
+  hi: AI टीम मेट्स.
+  th: เพื่อนร่วมทีม AI
+  cs: AI kolegové.
+  sv: AI-lagkamrater.
+  he: חברי צוות בינה מלאכותית.
+teaser_line2:
+  context: Second teaser headline in the for-everyone chat header banner
+  en: "For everyday tasks & learning."
+  de: "Für alltägliche Aufgaben & Lernen."
+  zh: 用于日常任务和学习。
+  es: "Para tareas cotidianas y aprendizaje."
+  fr: "Pour les tâches quotidiennes & l'apprentissage."
+  pt: "Para tarefas diárias e aprendizado."
+  ru: Для ежедневных задач и обучения.
+  ja: 日常タスクと学習に。
+  ko: 일상적인 작업 및 학습을 위해.
+  it: "Per le attività quotidiane e l'apprendimento."
+  tr: "Günlük görevler ve öğrenme için."
+  vi: Cho các nhiệm vụ hàng ngày và học tập.
+  id: Untuk tugas sehari-hari & belajar.
+  pl: Do codziennych zadań i nauki.
+  nl: Voor dagelijkse taken en leren.
+  ar: للمهام اليومية والتعلم.
+  hi: रोज़मर्रा के काम और सीखने के लिए।
+  th: สำหรับงานประจำวันและการเรียนรู้
+  cs: Pro každodenní úkoly a učení.
+  sv: "För vardagliga uppgifter & lärande."
+  he: למשימות יומיומיות ולמידה.
+teaser_line3:
+  context: Third teaser headline in the for-everyone chat header banner
+  en: "With privacy & safety by design."
+  de: "Mit Datenschutz & Sicherheit by design."
+  zh: 隐私与安全，设计于内。
+  es: "Con privacidad y seguridad por diseño."
+  fr: "Avec confidentialité et sécurité by design."
+  pt: "Com privacidade e segurança by design."
+  ru: С конфиденциальностью и безопасностью by design.
+  ja: プライバシーとセキュリティをデザインに組み込んで。
+  ko: 프라이버시와 보안이 기본 설계에 포함됩니다.
+  it: "Con privacy e sicurezza by design."
+  tr: "Gizlilik ve güvenlik tasarım gereği."
+  vi: "Với quyền riêng tư & bảo mật theo thiết kế."
+  id: "Dengan privasi & keamanan by design."
+  pl: "Z prywatnością i bezpieczeństwem by design."
+  nl: "Met privacy & veiligheid by design."
+  ar: مع الخصوصية والأمان في التصميم.
+  hi: "गोपनीयता और सुरक्षा डिज़ाइन में।"
+  th: "ด้วยความเป็นส่วนตัวและความปลอดภัยโดยการออกแบบ"
+  cs: "S ochranou soukromí a bezpečností by design."
+  sv: "Med integritet & säkerhet by design."
+  he: "עם פרטיות ואבטחה בתכנון."

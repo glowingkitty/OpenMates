@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Accessibility page scan tests — WCAG 2.1 AA compliance via axe-core.
@@ -22,7 +21,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test-helpers');
 
 /** Default options applied to all page scans — excludes third-party iframes. */
 const DEFAULT_SCAN_OPTIONS = {
@@ -51,9 +50,7 @@ test.describe('Accessibility — unauthenticated pages', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Open the login dialog
-		const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-		await expect(loginButton).toBeVisible({ timeout: 15000 });
-		await loginButton.click();
+		await openSignupInterface(page);
 		await page.waitForTimeout(1000);
 
 		// Scan the dialog specifically

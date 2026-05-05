@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -38,6 +37,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
+const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 // ---------------------------------------------------------------------------
 // Environment variables
@@ -198,9 +198,7 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 		.catch(() => log('WARNING: networkidle timeout — continuing anyway.'));
 	await takeScreenshot(page, '01-home');
 
-	const loginButton = page.getByRole('button', { name: /login.*sign up|sign up/i });
-	await expect(loginButton).toBeVisible({ timeout: 15000 });
-	await loginButton.click();
+	await openSignupInterface(page);
 
 	// Click Login tab to switch from signup to login view
 	const loginTab = page.getByTestId('tab-login');
@@ -220,32 +218,10 @@ test('language settings — change to Deutsch, verify client + server, reset to 
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 
-	// Submit password first — OTP field appears after backend confirms 2FA required
-	const submitButton = page.locator(SELECTORS.submitLoginButton);
-	await submitButton.click();
-
-	const otpInput = page.locator(SELECTORS.otpInput);
-	await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-	// Allow up to 3 TOTP attempts (30s window per attempt)
-	let loginSuccess = false;
-	for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-		const otpCode = generateTotp(TEST_OTP_KEY);
-		await otpInput.fill(otpCode);
-		log(`OTP attempt ${attempt}: ${otpCode}`);
-		await submitButton.click();
-		try {
-			await expect(otpInput).not.toBeVisible({ timeout: 15000 });
-			loginSuccess = true;
-		} catch {
-			if (attempt < 3) {
-				log(`OTP attempt ${attempt} failed, retrying...`);
-				await page.waitForTimeout(2000);
-			} else {
-				throw new Error('Login failed after 3 OTP attempts.');
-			}
-		}
-	}
+	// Submit password first, then handle OTP if required.
+	// OTP field only appears after backend confirms 2FA is needed (anti-enumeration).
+	const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
 	// Wait for the chat interface to appear (confirms successful login)
 	await page.waitForTimeout(3000);

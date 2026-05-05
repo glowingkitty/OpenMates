@@ -15,7 +15,7 @@
    * Interaction model:
    *   - Click on the video thumbnail → opens the video in fullscreen (via onEmbedFullscreen)
    *   - Click anywhere else → creates a local-only chat from this inspiration (via onStartChat)
-   *   - Left/right arrow buttons → navigate the carousel
+   *   - Left/right arrow buttons or horizontal touch swipes → navigate the carousel
    *
    * Layout:
    *   - Banner is fixed-height: 240px on desktop, 190px on mobile (≤730px)
@@ -42,6 +42,10 @@
   const BookOpen = getLucideIcon('book-open');
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
+
+  const MOBILE_EMBED_ROTATION_INTERVAL_MS = 5000;
+  const TOUCH_SWIPE_DISTANCE_PX = 56;
+  const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -81,6 +85,16 @@
   // Whether the banner wrapper is currently intersecting the viewport.
   // Set by the IntersectionObserver mounted in onMount.
   let isBannerVisible = $state(false);
+
+  // On mobile, alternate between the assistant message and video preview instead
+  // of squeezing both into the narrow banner width.
+  let showMobileEmbed = $state(false);
+
+  // Touch gesture state for mobile carousel swipes.
+  let touchStartX = $state(0);
+  let touchStartY = $state(0);
+  let touchSwipeHandled = $state(false);
+  let suppressNextClick = $state(false);
 
   // Reference to the outer wrapper element — used as the IntersectionObserver target.
   let bannerWrapperEl = $state<HTMLElement | null>(null);
@@ -187,6 +201,24 @@
     sendViewedEvent(id);
   });
 
+  // Mobile video loop: start on the assistant message, then alternate message ↔ embed.
+  $effect(() => {
+    if (!shouldCycleMobileEmbed) {
+      showMobileEmbed = false;
+      return;
+    }
+
+    void currentIndex;
+    void embedPreviewId;
+    showMobileEmbed = false;
+
+    const interval = window.setInterval(() => {
+      showMobileEmbed = !showMobileEmbed;
+    }, MOBILE_EMBED_ROTATION_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  });
+
   // ─── Derived values ─────────────────────────────────────────────────────────
 
   /** Currently displayed inspiration. */
@@ -225,7 +257,15 @@
    * When containerWidth is 0 (unknown) we default to hiding the embed to avoid
    * a layout flash.
    */
-  let hasVideo = $derived(!!current?.video?.youtube_id && containerWidth >= 520);
+  let hasAttachedVideo = $derived(!!current?.video?.youtube_id);
+
+  /** Whether the banner is rendered in the narrow mobile layout. */
+  let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
+
+  /** Whether mobile should alternate between the assistant message and embed. */
+  let shouldCycleMobileEmbed = $derived(hasAttachedVideo && isMobileBannerLayout);
+
+  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileEmbed));
 
   /**
    * The embed_id to use for VideoEmbedPreview.
@@ -280,11 +320,66 @@
     dailyInspirationStore.next();
   }
 
+  function handleTouchStart(e: TouchEvent) {
+    if (!hasMultiple || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchSwipeHandled = false;
+  }
+
+  function handleTouchMove(e: TouchEvent) {
+    if (!hasMultiple || touchSwipeHandled || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    const absDeltaY = Math.abs(deltaY);
+    const isMostlyHorizontal = Math.abs(deltaX) > absDeltaY * 1.2;
+
+    if (absDeltaY > TOUCH_SWIPE_VERTICAL_CANCEL_PX && !isMostlyHorizontal) {
+      touchSwipeHandled = true;
+      return;
+    }
+
+    if (!isMostlyHorizontal || Math.abs(deltaX) < TOUCH_SWIPE_DISTANCE_PX) return;
+
+    e.preventDefault();
+    touchSwipeHandled = true;
+    suppressNextClick = true;
+
+    if (deltaX < 0) {
+      dailyInspirationStore.next();
+    } else {
+      dailyInspirationStore.previous();
+    }
+  }
+
+  function handleTouchEnd() {
+    touchStartX = 0;
+    touchStartY = 0;
+    touchSwipeHandled = false;
+
+    if (suppressNextClick) {
+      window.setTimeout(() => {
+        suppressNextClick = false;
+      }, 400);
+    }
+  }
+
   /**
    * Handle clicking on the banner body — start a chat from this inspiration.
    * Also marks the inspiration as viewed via WebSocket.
    */
   function handleStartChat(_e: MouseEvent) {
+    if (suppressNextClick) {
+      _e.stopPropagation();
+      _e.preventDefault();
+      suppressNextClick = false;
+      return;
+    }
+
     if (!current) return;
 
     // Send viewed event if not already sent
@@ -372,6 +467,10 @@
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
+      ontouchstart={handleTouchStart}
+      ontouchmove={handleTouchMove}
+      ontouchend={handleTouchEnd}
+      ontouchcancel={handleTouchEnd}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
       role="button"
       tabindex="0"
@@ -410,7 +509,11 @@
         </div>
 
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
-        <div class="banner-content">
+        <div
+          class="banner-content"
+          class:mobile-embed-loop={shouldCycleMobileEmbed}
+          class:show-mobile-embed={shouldCycleMobileEmbed && showMobileEmbed}
+        >
 
           <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
           <div class="banner-left">
@@ -420,7 +523,7 @@
               <div class="mate-profile banner-mate-profile {current.category}"></div>
 
               <!-- Inspiration phrase -->
-              <p class="banner-phrase">{current.phrase}</p>
+              <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
             </div>
 
             <!-- CTA: plain text + create icon — pinned to bottom of banner-left.
@@ -476,6 +579,7 @@
       {#if hasMultiple}
         <button
           class="carousel-arrow carousel-arrow-left"
+          data-testid="daily-inspiration-previous"
           onclick={handlePrevious}
           aria-label={$text('daily_inspiration.previous')}
           type="button"
@@ -485,6 +589,7 @@
 
         <button
           class="carousel-arrow carousel-arrow-right"
+          data-testid="daily-inspiration-next"
           onclick={handleNext}
           aria-label={$text('daily_inspiration.next')}
           type="button"
@@ -534,13 +639,23 @@
     min-height: 240px;
     cursor: pointer;
     overflow: hidden;
-    transition: filter 0.15s ease, transform 0.1s ease;
+    transition: filter 0.15s ease, transform 0.1s ease, height 0.3s ease, min-height 0.3s ease;
     box-shadow: var(--shadow-xl);
     /* Reset browser button defaults */
     font: inherit;
     color: white;
     display: flex;
     align-items: stretch;
+    touch-action: pan-y;
+  }
+
+  /* When settings panel is open or embed fullscreen is side-by-side, revert to
+     fixed height so the banner matches the settings/embed header height.
+     Mirrors the identical rule in ChatHeader.svelte. */
+  :global(.menu-open) .daily-inspiration-banner,
+  :global(.side-by-side-active) .daily-inspiration-banner {
+    height: 240px;
+    min-height: unset;
   }
 
   .daily-inspiration-banner:hover {
@@ -896,6 +1011,12 @@
       height: 190px;
     }
 
+    :global(.menu-open) .daily-inspiration-banner,
+    :global(.side-by-side-active) .daily-inspiration-banner {
+      height: 190px;
+      min-height: unset;
+    }
+
     .banner-inner {
       padding: 12px 38px 10px;
     }
@@ -906,8 +1027,63 @@
       line-clamp: 4;
     }
 
+    .banner-content.mobile-embed-loop {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .banner-content.mobile-embed-loop .banner-left,
+    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      transition:
+        opacity 420ms ease,
+        transform 420ms ease;
+    }
+
+    .banner-content.mobile-embed-loop .banner-left {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .banner-content.mobile-embed-loop.show-mobile-embed .banner-left {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+    }
+
     .banner-embed-wrapper {
       width: 140px;
+    }
+
+    .banner-content.mobile-embed-loop .banner-embed-wrapper {
+      margin: 0;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      justify-content: center;
+    }
+
+    .banner-content.mobile-embed-loop.show-mobile-embed .banner-embed-wrapper {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.embed-preview-container) {
+      width: min(100%, 220px);
+      height: 100%;
+      max-width: 220px;
+      margin: 0 auto;
+    }
+
+    .banner-content.mobile-embed-loop .banner-embed-wrapper :global(.unified-embed-preview.desktop) {
+      width: 100% !important;
+      min-width: unset !important;
+      max-width: unset !important;
+      height: 100% !important;
+      max-height: unset !important;
     }
 
     .banner-mate-profile {
@@ -932,4 +1108,5 @@
 
   /* Note: embed visibility at narrow widths is handled in JS via the containerWidth prop
      (hasVideo derived value), so no CSS media query is needed here. */
+
 </style>

@@ -1146,6 +1146,7 @@ async def check_upload_duplicate(
 
         record = items[0]
         embed_id = record.get("embed_id")
+
         # page_count IS stored on upload_files records (for PDFs) and returned
         # on dedup hits so the frontend can display the correct page count.
         # Stale detection applies to all uploads with an embed_id regardless of file type.

@@ -678,7 +678,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "created_at": int(datetime.now(timezone.utc).timestamp()),
                         "updated_at": int(datetime.now(timezone.utc).timestamp())
                     }
-                    
+
                     # Store in cache
                     # Note: embed_data is already vault-encrypted above
                     await cache_service.set_embed_in_cache(
@@ -686,10 +686,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         embed_data=embed_cache_data,
                         chat_id=chat_id
                     )
-                    
+
                     # Add to chat embed index
                     await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
-                    
+
                     logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
                     
                 except Exception as e_embed:

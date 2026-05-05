@@ -23,6 +23,8 @@ OpenMates/
 ├── docs/
 │   ├── architecture/           # Architecture decision docs
 │   └── contributing/           # Coding standards, guides (loaded by rules via @import)
+├── vaults/
+│   └── memory/                 # Obsidian vault for notes, research, memory, and attachments
 └── scripts/                    # sessions.py, lint_changed.sh, test runners
 ```
 
@@ -49,6 +51,12 @@ OpenMates/
 | `settings/elements/`                   | Settings UI components (29 canonical)      |
 
 Architecture decisions: write once in `docs/architecture/`, reference in code.
+
+## Obsidian Vault
+
+- The Obsidian vault lives at `vaults/memory/`.
+- Create user-requested notes in that vault, using the existing folders such as `Resources/research/`, `Areas/`, or `Projects/`.
+- Put PDFs, images, and other attachments in `vaults/memory/assets/` unless the user asks for a different location.
 
 ---
 
@@ -88,7 +96,7 @@ The user attaches via `zellij attach <name>` or the web UI at localhost:8082.
 ## Research Before New Integrations
 
 Before any new app, skill, API integration, or significant feature:
-1. Search for official docs (never rely on training data for APIs/pricing).
-2. Check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research.
-3. Ask clarifying questions before writing code. Wait for confirmation.
-
+1. **Check Linear for existing tasks** — search `mcp__linear__list_issues` for related tasks in Todo/Backlog/In Progress. Link your work to an existing task or confirm with the user before creating a new one.
+2. Search for official docs (never rely on training data for APIs/pricing).
+3. Check `docs/architecture/apps/`, `docs/architecture/`, and `docs/user-guide/apps/` for existing research.
+4. Ask clarifying questions before writing code. Wait for confirmation.

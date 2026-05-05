@@ -278,18 +278,18 @@ class AppleIAPService:
                 error=str(e),
             )
 
-    async def check_transaction_not_already_processed(
-        self, transaction_id: str, cache_service
-    ) -> bool:
-        """Check if this Apple transaction was already fulfilled (idempotency)."""
+    async def check_transaction_not_already_processed(self, transaction_id: str, cache_service) -> bool:
+        """Fast cache check for Apple transaction idempotency.
+
+        Durable Directus storage is the source of truth; this cache only avoids
+        a database read for recent replays.
+        """
         cache_key = f"apple_iap_tx:{transaction_id}"
         existing = await cache_service.get(cache_key)
         return existing is None
 
-    async def mark_transaction_processed(
-        self, transaction_id: str, user_id: str, credits: int, cache_service
-    ) -> None:
-        """Mark an Apple transaction as processed to prevent double-fulfillment."""
+    async def mark_transaction_processed(self, transaction_id: str, user_id: str, credits: int, cache_service) -> None:
+        """Mark a transaction in the optional fast cache after durable storage."""
         cache_key = f"apple_iap_tx:{transaction_id}"
         await cache_service.set(
             cache_key,

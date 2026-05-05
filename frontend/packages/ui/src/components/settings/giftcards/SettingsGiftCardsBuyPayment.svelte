@@ -75,11 +75,9 @@ Supports both saved payment methods and new payment form
     let stripe: any = $state(null);
     let isProcessingPayment = $state(false);
 
-    // Dual-provider state — mirrors SettingsBuyCreditsPayment.
-    // Tracks the detected provider from /config and any explicit user override
-    // (e.g. clicking "Pay with a non-EU card" to switch from Stripe to Polar).
-    let detectedProvider: 'stripe' | 'polar' | null = $state(null);
-    let savedMethodProviderOverride: 'stripe' | 'polar' | null = $state(null);
+    // Provider state — tracks the detected provider from /config and any explicit user override.
+    let detectedProvider: 'stripe' | null = $state(null);
+    let savedMethodProviderOverride: 'stripe' | null = $state(null);
 
     // Skip the gift card refund consent screen if user already accepted it (at signup or a previous purchase).
     // Derived from the user profile field set by the backend after successful payment webhook.
@@ -121,33 +119,19 @@ Supports both saved payment methods and new payment form
     });
 
     /**
-     * Detect the active payment provider from /config, then load saved payment methods
-     * if on Stripe. Polar does not support saved payment methods (Stripe-only feature).
+     * Detect the active payment provider from /config, then load saved payment methods.
      * Mirrors SettingsBuyCreditsPayment.detectProviderAndLoadMethods().
      */
     async function detectProviderAndLoadMethods() {
         isLoadingPaymentMethods = true;
         try {
-            // Append provider_override if the user explicitly switched provider
-            let configUrl = getApiEndpoint(apiEndpoints.payments.config);
-            if (savedMethodProviderOverride) {
-                configUrl += `?provider_override=${savedMethodProviderOverride}`;
-            }
-
-            const configResponse = await fetch(configUrl, { credentials: 'include' });
+            const configResponse = await fetch(getApiEndpoint(apiEndpoints.payments.config), { credentials: 'include' });
             if (configResponse.ok) {
                 const config = await configResponse.json();
-                detectedProvider = (config.provider as 'stripe' | 'polar') || 'stripe';
+                detectedProvider = (config.provider as 'stripe') || 'stripe';
             } else {
                 // If config fails, assume Stripe (safe default)
                 detectedProvider = 'stripe';
-            }
-
-            // Saved payment methods are Stripe-only — if Polar, go straight to payment form
-            if (detectedProvider === 'polar') {
-                hasSavedPaymentMethods = false;
-                showPaymentForm = true;
-                return;
             }
 
             await checkPaymentMethods();
@@ -158,21 +142,6 @@ Supports both saved payment methods and new payment form
         } finally {
             isLoadingPaymentMethods = false;
         }
-    }
-
-    /**
-     * Switch from the Stripe saved-method view to Polar (non-EU card) or back.
-     * Resets state and re-detects provider with the new override.
-     */
-    async function switchToProvider(newProvider: 'stripe' | 'polar') {
-        savedMethodProviderOverride = newProvider;
-        showPaymentForm = false;
-        hasSavedPaymentMethods = false;
-        paymentMethods = [];
-        selectedPaymentMethodId = null;
-        detectedProvider = null;
-        isLoadingPaymentMethods = true;
-        await detectProviderAndLoadMethods();
     }
 
     async function checkPaymentMethods() {
@@ -461,12 +430,7 @@ Supports both saved payment methods and new payment form
             {isProcessingPayment ? $text('common.processing') : $text('settings.billing.buy_now')}
         </button>
 
-        <!-- Switch to Polar for non-EU cards — mirrors credits purchase flow -->
-        <div class="provider-switch-container">
-            <button class="provider-switch-btn" onclick={() => switchToProvider('polar')}>
-                {$text('signup.switch_to_non_eu_card')}
-            </button>
-        </div>
+
     </div>
 
     {#if showAuthModal && authMethods}
@@ -478,10 +442,9 @@ Supports both saved payment methods and new payment form
         />
     {/if}
 {:else}
-    <!-- Show payment form for new payment method or Polar provider.
+    <!-- Show payment form for new payment method.
          Pass savedMethodProviderOverride as initialProviderOverride so the Payment component
-         immediately requests the correct provider (e.g. 'polar' when user clicked non-EU card),
-         instead of re-detecting from geo which could fall back to Stripe. -->
+         immediately requests the correct provider, instead of re-detecting from geo. -->
     <div class="payment-container">
         <Payment
             purchasePrice={selectedPrice()}
@@ -604,8 +567,7 @@ Supports both saved payment methods and new payment form
     }
 
     .payment-container {
-        /* Full width — Polar iframe needs to fill the entire panel.
-           The Payment component handles its own internal layout. */
+        /* Full width — the Payment component handles its own internal layout. */
         width: 100%;
         padding: 0;
     }
@@ -616,25 +578,4 @@ Supports both saved payment methods and new payment form
         }
     }
 
-    /* Provider switch button — shown below saved-method list to switch to Polar */
-    .provider-switch-container {
-        display: flex;
-        justify-content: center;
-        margin-top: var(--spacing-6);
-    }
-
-    .provider-switch-btn {
-        background: none;
-        border: none;
-        padding: 0;
-        font-size: var(--font-size-xs);
-        color: var(--color-grey-60);
-        cursor: pointer;
-        text-decoration: underline;
-        transition: color var(--duration-fast);
-    }
-
-    .provider-switch-btn:hover {
-        color: var(--color-grey-80);
-    }
 </style>

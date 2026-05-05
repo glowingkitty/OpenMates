@@ -20,7 +20,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, get_cookie_domain
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_auth_client, get_cookie_domain
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 # Import backup code verification and hashing utilities
@@ -48,7 +48,7 @@ since the decryption keys are never stored on the server.
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_allowed_origin)])
+@router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("120/minute")
 async def login(
     request: Request,
@@ -1406,7 +1406,7 @@ async def finalize_login_session(
     return refresh_token  # Return refresh token for WebSocket auth (Safari iOS compatibility)
 
 
-@router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_allowed_origin)])
+@router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_auth_client)])
 @limiter.limit("120/minute")
 async def lookup_user(
     request: Request,

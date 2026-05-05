@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 // NOTE:
@@ -37,8 +36,7 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -270,9 +268,7 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	// ========================================================================
 
 	// Open login dialog again
-	const loginButtonAfterLogout = page.getByRole('button', {
-		name: /login.*sign up|sign up/i
-	});
+	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
 	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
 	await loginButtonAfterLogout.click();
 
