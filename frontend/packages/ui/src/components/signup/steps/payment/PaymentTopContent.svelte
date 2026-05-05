@@ -209,9 +209,8 @@ step_10_top_content_svelte:
     function handleAutoTopUpComplete(event: CustomEvent) {
         if (oncomplete) {
             oncomplete(event);
-        } else {
-            dispatch('complete', event.detail);
         }
+        dispatch('complete', event.detail);
     }
 
     function openGiftCardInput() {

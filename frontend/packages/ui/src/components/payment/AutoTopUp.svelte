@@ -338,9 +338,8 @@ Matches the design from the signup flow screenshot.
             };
             if (oncomplete) {
                 oncomplete(new CustomEvent('complete', { detail: completionDetail }));
-            } else {
-                _dispatch('complete', completionDetail);
             }
+            _dispatch('complete', completionDetail);
         } catch (error) {
             console.error('Error finishing setup:', error);
             isProcessing = false;
@@ -353,9 +352,8 @@ Matches the design from the signup flow screenshot.
                 };
                 if (oncomplete) {
                     oncomplete(new CustomEvent('complete', { detail: completionDetail }));
-                } else {
-                    _dispatch('complete', completionDetail);
                 }
+                _dispatch('complete', completionDetail);
             }
         }
     }
