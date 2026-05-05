@@ -12,13 +12,10 @@
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
 			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-		<!-- theme-color: two variants so iOS Safari colors the status bar + bottom indicator
-		     to match the app background (--color-grey-0) in both light and dark mode.
-		     Without media queries, a single hardcoded value causes a mismatch when the OS
-		     theme differs from the value — e.g. dark #171717 tag in light mode shows dark
-		     chrome around a white app, and vice-versa. -->
-		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-		<meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
+		<!-- iOS Safari uses theme-color for the status bar and overscroll area.
+		     Keep this app-theme-driven instead of OS-media-driven so manual dark/light
+		     mode matches Safari chrome even when it differs from iOS appearance. -->
+		<meta name="theme-color" content="#ffffff" />
 
 		<!-- Anti-flicker: apply data-theme before first paint so --color-grey-0 resolves
 		     to the correct value immediately. Without this, dark-mode users see a white
@@ -36,12 +33,30 @@
 							theme = 'dark';
 						}
 					}
+					var backgroundColor = theme === 'dark' ? '#171717' : '#ffffff';
 					document.documentElement.setAttribute('data-theme', theme);
+					document.documentElement.style.backgroundColor = backgroundColor;
+					document.documentElement.style.colorScheme = theme;
+					var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+					if (themeColorMeta) themeColorMeta.setAttribute('content', backgroundColor);
 				} catch (e) {
 					// localStorage may be blocked (private browsing / security policy); safe to ignore
 				}
 			})();
 		</script>
+		<style>
+			html,
+			body {
+				background-color: #ffffff;
+				color-scheme: light;
+			}
+
+			html[data-theme='dark'],
+			html[data-theme='dark'] body {
+				background-color: #171717;
+				color-scheme: dark;
+			}
+		</style>
 
 		<!-- Safari-specific cache control meta tags to prevent aggressive HTML caching -->
 		<!-- These ensure Safari always checks for new versions of the app -->

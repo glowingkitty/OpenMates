@@ -44,12 +44,14 @@
 
 		const backgroundColor = themeName === 'dark' ? '#171717' : '#ffffff';
 		const rootElement = document.documentElement;
-		const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 
 		rootElement.style.backgroundColor = backgroundColor;
 		rootElement.style.colorScheme = themeName;
 		document.body.style.backgroundColor = backgroundColor;
-		themeColorMeta?.setAttribute('content', backgroundColor);
+		document.querySelectorAll('meta[name="theme-color"]').forEach((themeColorMeta) => {
+			themeColorMeta.setAttribute('content', backgroundColor);
+			themeColorMeta.removeAttribute('media');
+		});
 	}
 
 	/**
