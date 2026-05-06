@@ -43,6 +43,10 @@ const path = require('path');
 // Output dir relative to the Playwright cwd (frontend/apps/web_app).
 // run_tests.py copies this back to repo-root test-results/ after the run.
 const AUDIT_DIR = path.resolve(process.cwd(), 'test-results', 'storage-audits');
+const STRICTLY_NECESSARY_THIRD_PARTY_COOKIES = [
+	{ name: 'm', domain: 'm.stripe.com' },
+	{ name: 'hmt_id', domain: 'api.hcaptcha.com' }
+];
 
 interface CookieRecord {
 	name: string;
@@ -198,6 +202,13 @@ export async function assertNoThirdPartyCookies(context: any): Promise<void> {
 	const offenders = cookies.filter((c: any) => {
 		const dom = (c.domain || '').replace(/^\./, '').toLowerCase();
 		if (!dom) return false;
+		if (
+			STRICTLY_NECESSARY_THIRD_PARTY_COOKIES.some(
+				(ok) => c.name === ok.name && dom === ok.domain
+			)
+		) {
+			return false;
+		}
 		return !FIRST_PARTY_DOMAINS.some((ok) => dom === ok || dom.endsWith('.' + ok));
 	});
 	if (offenders.length > 0) {
