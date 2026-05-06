@@ -16,7 +16,11 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const {
+	openSignupInterface,
+	submitPasswordAndHandleOtp,
+	waitForChatReady
+} = require('./helpers/chat-test-helpers');
 
 // ─── Unauthenticated keyboard tests ────────────────────────────────────────
 
@@ -165,8 +169,7 @@ test.describe('Keyboard navigation — authenticated', () => {
 
 		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY);
 
-		await page.waitForURL(/chat/, { timeout: 30000 });
-		await page.waitForTimeout(5000);
+		await waitForChatReady(page);
 	}
 
 	test('message input is reachable via Tab', async ({ page }: { page: any }) => {

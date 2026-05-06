@@ -35,7 +35,12 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { waitForAssistantMessage, openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const {
+	waitForAssistantMessage,
+	openSignupInterface,
+	submitPasswordAndHandleOtp,
+	waitForChatReady
+} = require('./helpers/chat-test-helpers');
 
 /**
  * Fork Conversation test: login, send two messages, fork after the first,
@@ -110,10 +115,9 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	// ── 5-6. Submit password and handle 2FA OTP ─────────────────────────────
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
-	// ── 7. Wait for redirect and open a fresh chat ───────────────────────────
-	await page.waitForURL(/chat/);
-	log('Redirected to chat. Waiting 5s for initial load...');
-	await page.waitForTimeout(5000);
+	// ── 7. Wait for authenticated chat UI and open a fresh chat ──────────────
+	await waitForChatReady(page, log);
+	log('Authenticated chat UI ready.');
 
 	// Click the new-chat icon to get a clean slate
 	const newChatIcon = page.getByTestId('new-chat-button');

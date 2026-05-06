@@ -322,6 +322,13 @@ async function startNewChat(
 	const currentUrl = page.url();
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
+	// If the editor has focus, the adjacent new-chat CTA is intentionally hidden.
+	// Blur before probing selectors so we do not create fake draft state just to
+	// reveal the button.
+	await page.keyboard.press('Escape').catch(() => undefined);
+	await page.locator('body').click({ position: { x: 1, y: 1 }, timeout: 1000 }).catch(() => undefined);
+	await page.waitForTimeout(300);
+
 	// Try stable selectors in priority order
 	const newChatButton = page.getByTestId('new-chat-button');
 	let clicked = false;
@@ -356,34 +363,12 @@ async function startNewChat(
 	}
 
 	if (!clicked) {
-		logCheckpoint('New Chat button not initially visible, trying to trigger it...');
 		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await messageEditor.click();
-			await page.keyboard.type(' ');
-			await page.waitForTimeout(500);
-
-			const retryButton = page.getByTestId('new-chat-button');
-			if (await retryButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-				logCheckpoint('Found New Chat button after typing');
-				await retryButton.click();
-				clicked = true;
-				await page.waitForTimeout(2000);
-			}
-
-			if (clicked) {
-				const newEditor = page.getByTestId('message-editor');
-				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
-					await newEditor.click();
-					await page.keyboard.press('Control+A');
-					await page.keyboard.press('Backspace');
-				}
-			}
+			logCheckpoint('New Chat button not visible; editor is already ready, treating page as new chat.');
+		} else {
+			logCheckpoint('WARNING: Could not find New Chat button or ready message editor.');
 		}
-	}
-
-	if (!clicked) {
-		logCheckpoint('WARNING: Could not find New Chat button with any selector.');
 	}
 
 	const newUrl = page.url();
