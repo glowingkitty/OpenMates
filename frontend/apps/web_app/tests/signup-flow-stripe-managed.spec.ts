@@ -446,7 +446,7 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 		logSignupCheckpoint('Handled Stripe Link interstitial.');
 	}
 
-	await expect(page.getByText(/purchase successful/i)).toBeVisible({ timeout: 120000 });
+	await expect(page.getByText(/purchase successful/i).first()).toBeVisible({ timeout: 120000 });
 	await takeStepScreenshot(page, 'payment-success');
 	logSignupCheckpoint('Purchase completed successfully.');
 

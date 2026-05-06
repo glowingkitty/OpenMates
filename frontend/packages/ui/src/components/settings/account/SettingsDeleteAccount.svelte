@@ -437,6 +437,7 @@ Uses SecurityAuth component for passkey/2FA verification.
         title={$text('settings.account.delete_account_auth_title')}
         description={$text('settings.account.delete_account_auth_description')}
         autoStart={true}
+        verify2FAOnSubmit={false}
         onSuccess={handleAuthSuccess}
         onFailed={handleAuthFailed}
         onCancel={handleAuthCancel}

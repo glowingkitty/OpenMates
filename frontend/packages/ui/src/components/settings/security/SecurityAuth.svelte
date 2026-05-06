@@ -37,6 +37,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         title = '',
         description = '',
         autoStart = true, // Auto-start passkey auth if available
+        verify2FAOnSubmit = true,
         // Callback props for Svelte 5 (replaces event dispatcher)
         onSuccess,
         onFailed,
@@ -50,6 +51,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         title?: string;
         description?: string;
         autoStart?: boolean;
+        verify2FAOnSubmit?: boolean;
         /** Called when authentication succeeds - REQUIRED */
         onSuccess: (data: AuthSuccessData) => void;
         /** Called when authentication fails - REQUIRED */
@@ -386,7 +388,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         errorMessage = null;
 
         try {
-            if (passwordVerifiedFor2FA) {
+            if (passwordVerifiedFor2FA || !verify2FAOnSubmit) {
                 console.log('[SecurityAuth] Password + 2FA authentication collected');
                 onSuccess({ method: '2fa', tfaCode });
                 return;
