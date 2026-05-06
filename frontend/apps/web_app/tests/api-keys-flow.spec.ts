@@ -30,9 +30,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -48,14 +46,20 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
  * Navigate to Settings > Developers > API Keys.
  * Returns when the API Keys container is visible (data-testid="api-keys-container").
  */
-async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const profileContainer = page.locator('#settings-menu-toggle');
-	await expect(profileContainer).toBeVisible({ timeout: 10000 });
-	await profileContainer.click();
-	logCheckpoint('Opened settings menu.');
-
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) => void): Promise<any> {
+	const settingsMenu = page.getByTestId('settings-menu');
+	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
+		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+		await openSettingsButton.click();
+		logCheckpoint('Opened settings menu.');
+	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	return settingsMenu;
+}
+
+async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
 
 	const developersItem = settingsMenu.getByRole('menuitem', { name: /developers/i }).first();
 	await expect(developersItem).toBeVisible({ timeout: 10000 });
@@ -394,18 +398,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
-	const settingsToggle = page.locator('#settings-menu-toggle');
-	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	const closeIcon = page.locator('#settings-menu-toggle [data-testid="close-icon-container"].visible').first();
-	if (await closeIcon.isVisible().catch(() => false)) {
-		await closeIcon.click();
-		await page.waitForTimeout(500);
-	}
-	await settingsToggle.click();
-	await page.waitForTimeout(500);
-
-	const settingsMenu2 = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu2).toBeVisible({ timeout: 8000 });
+	const settingsMenu2 = await ensureSettingsMenuOpen(page, log);
 
 	const developersItem2 = settingsMenu2
 		.getByRole('menuitem')
@@ -414,8 +407,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	await expect(developersItem2).toBeVisible({ timeout: 8000 });
 	await developersItem2.click();
 
-	const devicesItem = page
-		.locator('[data-testid="settings-menu"].visible')
+	const devicesItem = settingsMenu2
 		.getByRole('menuitem')
 		.filter({ hasText: /^devices$/i })
 		.first();

@@ -269,9 +269,8 @@ test('completes full account recovery flow with same password', async ({
 	await takeStepScreenshot(page, 'password-filled');
 
 	// Submit password - button text depends on whether 2FA setup is needed
-	const continueOrCompleteButton = page.locator('[data-testid="step-content"] button:not(.back-button)').filter({
-		hasText: /continue|complete.*reset/i
-	});
+	const continueOrCompleteButton = page.getByRole('button', { name: /^(continue|complete reset)$/i });
+	await expect(continueOrCompleteButton).toBeVisible({ timeout: 10000 });
 	await continueOrCompleteButton.click();
 	logRecoveryCheckpoint('Submitted password.');
 
