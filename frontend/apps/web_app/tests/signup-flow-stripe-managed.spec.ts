@@ -502,6 +502,11 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	// Confirm credits reflect the purchase (should be non-zero after payment).
 	const creditsAmount = page.getByTestId('credits-amount');
 	await expect(creditsAmount).toBeVisible({ timeout: 10000 });
+	await page.waitForFunction(() => {
+		const creditsElement = document.querySelector('[data-testid="credits-amount"]');
+		const creditsText = creditsElement?.textContent || '';
+		return Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10) > 0;
+	}, null, { timeout: 30000 });
 	const creditsText = (await creditsAmount.textContent()) || '';
 	const creditsValue = Number.parseInt(creditsText.replace(/[^\d]/g, ''), 10);
 	expect(creditsValue, 'Expected purchased credits to be visible in settings.').toBeGreaterThan(0);
