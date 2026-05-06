@@ -377,7 +377,7 @@ test('completes full account recovery flow with same password', async ({
 
 	// Wait for successful login. The app now keeps chat state in the hash, so URL
 	// path assertions are stale; authenticated chat readiness is the stable signal.
-	await waitForChatReady(page, { timeoutMs: 60000 });
+	await waitForChatReady(page, (msg: string) => logRecoveryCheckpoint(msg), 60000);
 	await takeStepScreenshot(page, 'login-success');
 	logRecoveryCheckpoint('Login successful after account recovery! Test complete.');
 
