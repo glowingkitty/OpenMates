@@ -89,6 +89,16 @@ class PaymentConfigResponse(BaseModel):
 EU_REVENUE_THRESHOLD_EUR_CENTS = 990_000
 EU_REVENUE_CACHE_KEY = "stripe_eu_revenue_eur_cents_ytd"
 EU_REVENUE_CACHE_TTL = 3600  # refresh from Stripe every hour
+PAID_SIGNUP_COMPLETION_LAST_OPENED = "/chat/new"
+
+
+def _paid_signup_completion_update_payload(**extra_fields: Any) -> Dict[str, Any]:
+    """Fields that make any successful paid credit source durable for cleanup."""
+    return {
+        **extra_fields,
+        "last_opened": PAID_SIGNUP_COMPLETION_LAST_OPENED,
+        "signup_completed": True,
+    }
 
 class CreateOrderRequest(BaseModel):
     currency: str
@@ -1768,7 +1778,9 @@ async def payment_webhook(
                     new_total_credits_calculated = current_credits + credits_purchased
                     new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(str(new_total_credits_calculated), vault_key_id)
 
-                    update_payload = {"encrypted_credit_balance": new_encrypted_credits, "last_opened": "/chat/new"}
+                    update_payload = _paid_signup_completion_update_payload(
+                        encrypted_credit_balance=new_encrypted_credits
+                    )
                     directus_update_success = await directus_service.update_user(user_id, update_payload)
                 
                 # Update tier system: monthly spending counter and tier progression
@@ -2129,7 +2141,8 @@ async def payment_webhook(
                     if not is_gift_card:
                         # Only update credits in cache for regular purchases
                         final_cache_data["credits"] = new_total_credits_calculated
-                    final_cache_data["last_opened"] = "/chat/new"
+                    final_cache_data["last_opened"] = PAID_SIGNUP_COMPLETION_LAST_OPENED
+                    final_cache_data["signup_completed"] = True
                     final_order_status = "completed"
                 else:
                     if is_gift_card:
@@ -4013,6 +4026,7 @@ async def redeem_gift_card(
             current_credits = 0
         
         # 5. Calculate new credit balance
+        was_signup_completed = bool(user_cache_data.get('signup_completed'))
         new_total_credits = current_credits + credits_value
         
         # 6. Encrypt new credit balance for Directus
@@ -4030,7 +4044,7 @@ async def redeem_gift_card(
         # 7. Update Directus with new credit balance
         update_success = await directus_service.update_user(
             user_id,
-            {"encrypted_credit_balance": encrypted_new_credits}
+            _paid_signup_completion_update_payload(encrypted_credit_balance=encrypted_new_credits)
         )
         
         if not update_success:
@@ -4039,6 +4053,8 @@ async def redeem_gift_card(
         
         # 8. Update cache with new credit balance
         user_cache_data["credits"] = new_total_credits
+        user_cache_data["last_opened"] = PAID_SIGNUP_COMPLETION_LAST_OPENED
+        user_cache_data["signup_completed"] = True
         await cache_service.set_user(user_cache_data, user_id=user_id)
         
         # Update Global Stats for Gift Card
@@ -4046,7 +4062,7 @@ async def redeem_gift_card(
             # Gift cards increase liability and count as a 'finished signup' if it's the first one
             await cache_service.increment_stat("credits_sold", int(credits_value))
             await cache_service.update_liability(int(credits_value))
-            if not user_cache_data.get('signup_completed'):
+            if not was_signup_completed:
                 await cache_service.increment_stat("new_users_finished_signup", 1)
             # Track gift card redemption for financial analytics
             await cache_service.increment_stat("gift_cards_redeemed")
@@ -5930,10 +5946,9 @@ async def _handle_revolut_business_webhook(
         new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(
             str(new_total_credits), vault_key_id
         )
-        update_payload = {
-            "encrypted_credit_balance": new_encrypted_credits,
-            "last_opened": "/chat/new",
-        }
+        update_payload = _paid_signup_completion_update_payload(
+            encrypted_credit_balance=new_encrypted_credits
+        )
         directus_update_success = await directus_service.update_user(user_id, update_payload)
 
         if not directus_update_success:
@@ -6089,5 +6104,6 @@ async def _handle_revolut_business_webhook(
             final_cache_data.pop("pending_order_id", None)
         if directus_update_success:
             final_cache_data["credits"] = new_total_credits
-            final_cache_data["last_opened"] = "/chat/new"
+            final_cache_data["last_opened"] = PAID_SIGNUP_COMPLETION_LAST_OPENED
+            final_cache_data["signup_completed"] = True
         await cache_service.set_user(final_cache_data, user_id=user_id)

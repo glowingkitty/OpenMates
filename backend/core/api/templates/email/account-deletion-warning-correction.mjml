@@ -1,0 +1,75 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ subject }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section padding-bottom="10px">
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/warning.png" align="center" alt="Warning icon" css-class="email-icon-50" />
+
+          <mj-text font-size="30px" padding-bottom="20px">
+            <mark>{{ t.email.account_deletion_warning_correction.headline.text }}</mark>
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.account_deletion_warning_correction.greeting.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.account_deletion_warning_correction.intro.text }}
+          </mj-text>
+
+          <mj-text align="left" font-size="18px" padding-bottom="18px">
+            <strong>{{ t.email.account_deletion_warning_correction.safe_account_message.text }}</strong>
+          </mj-text>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.account_deletion_warning_correction.apology.text }}
+          </mj-text>
+
+          <mj-text align="left" font-size="14px" color="#808080" padding-bottom="8px">
+            {{ t.email.account_deletion_warning_correction.gift_label.text }}
+          </mj-text>
+
+          <mj-wrapper css-class="code-container-large" padding="0" border-radius="24px">
+            <mj-section padding="16px">
+              <mj-column>
+                <mj-text align="center" font-size="24px" letter-spacing="2px" padding="0">
+                  {{ gift_card_code }}
+                </mj-text>
+              </mj-column>
+            </mj-section>
+          </mj-wrapper>
+
+          <mj-button href="{{ redeem_link }}" background-color="#4867CD" color="#ffffff" border-radius="999px" font-size="16px" font-weight="bold" padding="18px 0" inner-padding="13px 22px">
+            {{ t.email.account_deletion_warning_correction.redeem_button.text }}
+          </mj-button>
+
+          <mj-text align="left" padding-bottom="12px">
+            {{ t.email.account_deletion_warning_correction.redeem_instructions.text }}
+          </mj-text>
+
+          <mj-text align="left" padding-top="16px" padding-bottom="0">
+            {{ t.email.account_deletion_warning_correction.signoff.text }}<br />
+            Marco<br />
+            <span style="font-size: 14px; color: #808080;">{{ t.email.incomplete_signup_deletion_reminder.creator_title.text }}</span>
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

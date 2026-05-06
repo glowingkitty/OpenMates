@@ -382,6 +382,56 @@ incomplete_signup_deletion_reminder.creator_title:
   en: Creator of OpenMates
   de: Gründer von OpenMates
   verified_by_human: []
+account_deletion_warning_correction.subject:
+  context: Subject for correction email after mistaken incomplete-signup deletion warning
+  en: "Correction: your OpenMates account will not be deleted"
+  de: "Korrektur: Dein OpenMates-Konto wird nicht gelöscht"
+  verified_by_human: []
+account_deletion_warning_correction.headline:
+  context: Headline for correction email after mistaken incomplete-signup deletion warning
+  en: Your account will not be deleted
+  de: Dein Konto wird nicht gelöscht
+  verified_by_human: []
+account_deletion_warning_correction.greeting:
+  context: Greeting for correction email after mistaken incomplete-signup deletion warning
+  en: Hey{greeting_name},
+  de: Hallo{greeting_name},
+  verified_by_human: []
+account_deletion_warning_correction.intro:
+  context: Intro paragraph for correction email after mistaken incomplete-signup deletion warning
+  en: You may have received an incorrect email saying your OpenMates account would be deleted. That warning was sent by mistake.
+  de: Du hast möglicherweise eine falsche E-Mail erhalten, in der stand, dass dein OpenMates-Konto gelöscht wird. Diese Warnung wurde versehentlich verschickt.
+  verified_by_human: []
+account_deletion_warning_correction.safe_account_message:
+  context: Bold safety message for correction email after mistaken incomplete-signup deletion warning
+  en: No deletion action is scheduled because your signup was already completed.
+  de: Es ist keine Löschung geplant, da deine Registrierung bereits abgeschlossen war.
+  verified_by_human: []
+account_deletion_warning_correction.apology:
+  context: Apology and gift-card intro for correction email after mistaken incomplete-signup deletion warning
+  en: Sorry for the confusion. As an apology, here is a one-time gift card for {credits} credits.
+  de: Entschuldige bitte die Verwirrung. Als kleine Entschuldigung erhältst du hier einen einmalig einlösbaren Gutschein über {credits} Credits.
+  verified_by_human: []
+account_deletion_warning_correction.gift_label:
+  context: Label above gift-card code in correction email
+  en: Your {credits}-credit gift card
+  de: Dein Gutschein über {credits} Credits
+  verified_by_human: []
+account_deletion_warning_correction.redeem_button:
+  context: Button text for redeeming correction gift card
+  en: Redeem gift card
+  de: Gutschein einlösen
+  verified_by_human: []
+account_deletion_warning_correction.redeem_instructions:
+  context: Instructions for redeeming correction gift card
+  en: You can redeem it in OpenMates under Settings > Billing > Redeem gift card.
+  de: Du kannst ihn in OpenMates unter Einstellungen > Abrechnung > Gutschein einlösen einlösen.
+  verified_by_human: []
+account_deletion_warning_correction.signoff:
+  context: Signoff for correction email after mistaken incomplete-signup deletion warning
+  en: Sorry again for the confusion,
+  de: Nochmals Entschuldigung für die Verwirrung,
+  verified_by_human: []
 incomplete_signup_account_deleted.subject:
   context: Subject for incomplete signup account deleted confirmation email
   en: Your incomplete OpenMates account has been deleted

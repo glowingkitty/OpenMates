@@ -33,6 +33,11 @@ _force_stub_leaf_module(
 )
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 class _DomainSecurityService:
     config_loaded = True
 
@@ -40,7 +45,7 @@ class _DomainSecurityService:
         return True, None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_confirm_email_change_rejects_without_recent_reauth(monkeypatch):
     from backend.core.api.app.routes import settings
     from backend.core.api.app.models.user import User
@@ -91,7 +96,7 @@ async def test_confirm_email_change_rejects_without_recent_reauth(monkeypatch):
     directus_service.update_user.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_apple_iap_transaction_reservation_reports_existing_duplicate():
     from backend.core.api.app.services.directus.apple_iap_transaction_methods import (
         AppleIAPTransactionMethods,
@@ -115,7 +120,9 @@ async def test_apple_iap_transaction_reservation_reports_existing_duplicate():
     assert reserved is False
     assert row == existing
     directus.create_item.assert_called_once()
-@pytest.mark.asyncio
+
+
+@pytest.mark.anyio
 async def test_store_account_lifecycle_contact_email_uses_vault_encryption():
     from backend.core.api.app.routes.auth_routes.auth_utils import store_account_lifecycle_contact_email
 
@@ -147,7 +154,7 @@ async def test_store_account_lifecycle_contact_email_uses_vault_encryption():
     assert directus_service.create_item.call_args.kwargs["admin_required"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_incomplete_signup_deletion_requires_account_contact_email():
     from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _decrypt_email_and_username
 
@@ -172,7 +179,7 @@ async def test_incomplete_signup_deletion_requires_account_contact_email():
     task.encryption_service.decrypt_with_user_key.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_incomplete_signup_completion_requires_invoice_or_gift_card():
     from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _has_completed_credit_source
 
@@ -190,7 +197,7 @@ async def test_incomplete_signup_completion_requires_invoice_or_gift_card():
     assert gift_card_call.kwargs["params"]["filter"] == {"user_id_hash": {"_eq": user_id_hash}}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_incomplete_signup_completion_accepts_redeemed_gift_card():
     from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _has_completed_credit_source
 
@@ -198,3 +205,15 @@ async def test_incomplete_signup_completion_accepts_redeemed_gift_card():
     task.directus_service.get_items = AsyncMock(side_effect=[[], [{"id": "redemption-1"}]])
 
     assert await _has_completed_credit_source(task, "user-1") is True
+
+
+def test_paid_credit_update_marks_signup_complete():
+    from backend.core.api.app.routes.payments import _paid_signup_completion_update_payload
+
+    payload = _paid_signup_completion_update_payload(encrypted_credit_balance="encrypted-credits")
+
+    assert payload == {
+        "encrypted_credit_balance": "encrypted-credits",
+        "last_opened": "/chat/new",
+        "signup_completed": True,
+    }

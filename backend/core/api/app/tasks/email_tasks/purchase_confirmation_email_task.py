@@ -44,6 +44,7 @@ def process_invoice_and_send_email(
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
     provider: Optional[str] = None,  # Payment provider/mode — controls PDF document type
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
+    send_email: bool = True,  # Backfills can generate records/PDFs without notifying users
 ) -> bool:
     """
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
@@ -61,7 +62,8 @@ def process_invoice_and_send_email(
                 sender_addressline1, sender_addressline2, sender_addressline3,
                 sender_country, sender_email, sender_vat,
                 email_encryption_key, is_gift_card, is_auto_topup, provider,
-                provider_order_id
+                provider_order_id,
+                send_email,
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -88,6 +90,7 @@ async def _async_process_invoice_and_send_email(
     is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
     provider: Optional[str] = None,  # Payment provider/mode
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
+    send_email: bool = True,
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -312,9 +315,12 @@ async def _async_process_invoice_and_send_email(
                     except Exception as fallback_err:
                         logger.warning(f"Bank transfer invoice {order_id}: server-side fallback failed: {fallback_err}")
 
-        if not decrypted_email:
+        if not decrypted_email and send_email:
             logger.error(f"Failed to decrypt email for invoice task {order_id}. Auto top-up: {is_auto_topup}")
             raise Exception("Failed to decrypt user email")
+        if not decrypted_email:
+            logger.info("Continuing invoice backfill for %s without decrypted email", order_id)
+            decrypted_email = ""
 
         # TODO For consumers, we only show the email address of the receiver.
         # For future "teams" functionality, we would show full name, address, and VAT.
@@ -733,7 +739,7 @@ async def _async_process_invoice_and_send_email(
         }
         logger.info("Prepared email context for invoice")
 
-        # 12. Send Purchase Confirmation Email with Attachment(s)
+        # 12. Optionally send Purchase Confirmation Email with Attachment(s)
         attachments = []
         # Add English attachment (using the filename with date)
         attachments.append({
@@ -749,22 +755,25 @@ async def _async_process_invoice_and_send_email(
             })
         logger.info(f"Preparing to send email with {len(attachments)} attachment(s) for invoice")
 
-        # Use task.email_template_service here
-        email_success = await task.email_template_service.send_email(
-            template="purchase-confirmation",
-            recipient_email=decrypted_email,
-            context=email_context,
-            lang=user_language,
-            attachments=attachments # Pass the list of attachments
-        )
+        if send_email:
+            # Use task.email_template_service here
+            email_success = await task.email_template_service.send_email(
+                template="purchase-confirmation",
+                recipient_email=decrypted_email,
+                context=email_context,
+                lang=user_language,
+                attachments=attachments # Pass the list of attachments
+            )
 
-        if not email_success:
-            logger.error(f"Failed to send purchase confirmation email for invoice to {decrypted_email[:2]}***")
-            # Don't fail the whole task if email fails, but log it.
-            # The invoice exists in S3 and Directus.
-            return False # Indicate email sending failed
+            if not email_success:
+                logger.error(f"Failed to send purchase confirmation email for invoice to {decrypted_email[:2]}***")
+                # Don't fail the whole task if email fails, but log it.
+                # The invoice exists in S3 and Directus.
+                return False # Indicate email sending failed
 
-        logger.info("Successfully sent purchase confirmation email with invoice attached.")
+            logger.info("Successfully sent purchase confirmation email with invoice attached.")
+        else:
+            logger.info("Skipping purchase confirmation email for backfilled invoice %s", invoice_number)
 
         # 13. Notify user via WebSocket that payment is completed (credits updated and invoice sent)
         # This notification is ONLY sent for regular credit purchases, NOT for gift card purchases
