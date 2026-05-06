@@ -23,6 +23,7 @@ struct EmailLookupView: View {
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var didAttemptImmediatePasskey = false
     @FocusState private var emailFocused: Bool
 
     var body: some View {
@@ -75,6 +76,11 @@ struct EmailLookupView: View {
             .accessibilityHint(LocalizationManager.shared.text("auth.lookup_login_methods"))
         }
         .frame(maxWidth: .infinity)
+        .task {
+            guard !didAttemptImmediatePasskey else { return }
+            didAttemptImmediatePasskey = true
+            await attemptImmediatePasskeyLogin()
+        }
     }
 
     private var stayLoggedInControl: some View {
@@ -186,6 +192,21 @@ struct EmailLookupView: View {
                 errorMessage = LocalizationManager.shared.text("login.cant_connect_to_server")
             }
             isLoading = false
+        }
+    }
+
+    @MainActor
+    private func attemptImmediatePasskeyLogin() async {
+        do {
+            try await PasskeyLoginCoordinator.login(
+                authManager: authManager,
+                stayLoggedIn: stayLoggedIn,
+                preferImmediatelyAvailableCredentials: true
+            )
+        } catch PasskeyError.cancelled {
+            // No immediately available passkey or user dismissed the OS prompt.
+        } catch {
+            print("[Auth] Immediate passkey login skipped: \(error)")
         }
     }
 }

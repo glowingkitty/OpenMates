@@ -24,6 +24,8 @@ import AppKit
 #endif
 
 struct MainAppView: View {
+    let launchCommand: AppWindowLaunchCommand?
+
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var pushManager: PushNotificationManager
@@ -55,6 +57,12 @@ struct MainAppView: View {
     @State private var showAuthSheet = false
     @State private var actionChat: Chat?
     @State private var didBootstrapAuthenticatedSession = false
+    @State private var didApplyLaunchCommand = false
+    @State private var shellDragOffset: CGFloat = 0
+
+    init(launchCommand: AppWindowLaunchCommand? = nil) {
+        self.launchCommand = launchCommand
+    }
 
     /// Whether the user is currently authenticated
     private var isAuthenticated: Bool {
@@ -96,6 +104,15 @@ struct MainAppView: View {
         dailyInspirations.first
     }
 
+    private var currentWindowTitle: String {
+        if let selectedChatId,
+           let chatTitle = chatStore.chat(for: selectedChatId)?.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+           !chatTitle.isEmpty {
+            return chatTitle
+        }
+        return selectedChatId == nil || showNewChat ? AppStrings.newChat : AppStrings.openMatesName
+    }
+
     private enum PublicChatGroup {
         case intro
         case examples
@@ -123,16 +140,19 @@ struct MainAppView: View {
         GeometryReader { geo in
             let viewportWidth = geo.size.width
             let compactPanelWidth = min(viewportWidth - 10, 390)
+            let chatsPanelOffset = isCompactShell
+                ? (isChatsPanelOpen ? max(0, compactPanelWidth + shellDragOffset) : max(0, shellDragOffset))
+                : 0
 
             ZStack(alignment: .leading) {
                 activeAppChrome(viewportWidth: viewportWidth)
-                    .offset(x: isCompactShell && isChatsPanelOpen ? compactPanelWidth : 0)
+                    .offset(x: chatsPanelOffset)
 
                 if isCompactShell {
                     chatsPanel
                         .frame(width: compactPanelWidth)
-                        .offset(x: isChatsPanelOpen ? 0 : -compactPanelWidth)
-                        .allowsHitTesting(isChatsPanelOpen)
+                        .offset(x: isChatsPanelOpen ? min(0, shellDragOffset) : -compactPanelWidth + max(0, shellDragOffset))
+                        .allowsHitTesting(isChatsPanelOpen || shellDragOffset > 0)
                         .accessibilityHidden(!isChatsPanelOpen)
                         .zIndex(1)
                 }
@@ -143,6 +163,15 @@ struct MainAppView: View {
             .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
         }
         .background(Color.grey0)
+        #if os(macOS)
+        .focusedSceneValue(\.newChatCommand) {
+            openNewChatScreen()
+        }
+        .background {
+            MacWindowTitleUpdater(title: currentWindowTitle)
+                .frame(width: 0, height: 0)
+        }
+        #endif
         .overlay {
             ToastOverlay()
         }
@@ -181,7 +210,7 @@ struct MainAppView: View {
         }
         // Global keyboard shortcuts (iPad + Mac)
         .appKeyboardShortcuts(
-            onNewChat: { selectedChatId = nil; showNewChat = true },
+            onNewChat: openNewChatScreen,
             onSearch: { showSearch = true },
             onSettings: { showSettings = true }
         )
@@ -206,8 +235,7 @@ struct MainAppView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
-            selectedChatId = nil
-            showNewChat = true
+            openNewChatScreen()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleIncognito)) { _ in
             incognitoManager.toggle()
@@ -235,6 +263,7 @@ struct MainAppView: View {
                 // Fetch default daily inspirations (public endpoint, no auth required)
                 await syncInspirationToWidget()
             }
+            applyLaunchCommandIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
             handleChatUpdate(notification)
@@ -259,16 +288,59 @@ struct MainAppView: View {
         }
     }
 
+    private func openNewChatScreen() {
+        selectedChatId = nil
+        showNewChat = true
+        showAuthSheet = false
+    }
+
+    private func applyLaunchCommandIfNeeded() {
+        guard !didApplyLaunchCommand else { return }
+        didApplyLaunchCommand = true
+
+        if launchCommand?.action == .newChat {
+            openNewChatScreen()
+        }
+    }
+
     private func shellSwipeGesture(viewportWidth: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 45)
+            .onChanged { value in
+                updateShellSwipeProgress(value, viewportWidth: viewportWidth)
+            }
             .onEnded { value in
                 handleShellSwipe(value, viewportWidth: viewportWidth)
             }
     }
 
+    private func updateShellSwipeProgress(_ value: DragGesture.Value, viewportWidth: CGFloat) {
+        let dx = value.translation.width
+        let dy = value.translation.height
+        guard abs(dx) > abs(dy) * 1.2 else {
+            shellDragOffset = 0
+            return
+        }
+
+        let startedNearLeftEdge = value.startLocation.x <= 42
+        let startedNearRightEdge = value.startLocation.x >= viewportWidth - 42
+
+        if isCompactShell, !isChatsPanelOpen, !showSettings, startedNearLeftEdge, dx > 0 {
+            shellDragOffset = min(dx, min(viewportWidth - 10, 390))
+        } else if isCompactShell, isChatsPanelOpen, dx < 0 {
+            shellDragOffset = min(0, dx)
+        } else if !showSettings, startedNearRightEdge, dx < 0 {
+            shellDragOffset = max(dx, -min(viewportWidth - 40, 323))
+        } else if showSettings, dx > 0 {
+            shellDragOffset = min(dx, min(viewportWidth - 40, 323))
+        } else {
+            shellDragOffset = 0
+        }
+    }
+
     private func handleShellSwipe(_ value: DragGesture.Value, viewportWidth: CGFloat) {
         let dx = value.translation.width
         let dy = value.translation.height
+        defer { shellDragOffset = 0 }
         guard abs(dx) > 70, abs(dx) > abs(dy) * 1.35 else { return }
 
         let startedNearLeftEdge = value.startLocation.x <= 42
@@ -278,13 +350,13 @@ struct MainAppView: View {
             if dx < 0 {
                 if isChatsPanelOpen {
                     isChatsPanelOpen = false
-                } else if !showSettings, startedNearRightEdge || !isCompactShell {
+                } else if !showSettings, startedNearRightEdge {
                     showSettings = true
                 }
             } else {
                 if showSettings {
                     showSettings = false
-                } else if !isChatsPanelOpen, startedNearLeftEdge || !isCompactShell {
+                } else if !isChatsPanelOpen, startedNearLeftEdge {
                     isChatsPanelOpen = true
                 }
             }
@@ -423,10 +495,13 @@ struct MainAppView: View {
             }
 
             // Settings panel — web: 323px, fixed right, translateX slide
-            if showSettings {
+            let panelWidth = min(viewportWidth - 40, 323)
+            let dragReveal = !showSettings ? max(0, -shellDragOffset) : max(0, panelWidth - shellDragOffset)
+            if showSettings || dragReveal > 0 {
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    settingsPanel(width: min(viewportWidth - 40, 323))
+                    settingsPanel(width: panelWidth)
+                        .offset(x: showSettings ? max(0, shellDragOffset) : max(0, panelWidth + shellDragOffset))
                 }
                 .transition(.move(edge: .trailing))
             }
@@ -572,7 +647,8 @@ struct MainAppView: View {
                 isSettingsOpen: showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
-                onOpenPublicChat: openPublicChat
+                onOpenPublicChat: openPublicChat,
+                onNewChat: openNewChatScreen
             )
         } else if !isAuthenticated, let chatId = selectedChatId {
             ChatView(
@@ -582,7 +658,8 @@ struct MainAppView: View {
                 isSettingsOpen: showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
-                onOpenPublicChat: openPublicChat
+                onOpenPublicChat: openPublicChat,
+                onNewChat: openNewChatScreen
             )
         } else {
             NewChatWelcomeView(
@@ -1435,6 +1512,31 @@ struct OpenMatesWebHeader: View {
     }
 }
 
+#if os(macOS)
+private struct MacWindowTitleUpdater: NSViewRepresentable {
+    let title: String
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            updateWindowTitle(for: view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            updateWindowTitle(for: nsView)
+        }
+    }
+
+    private func updateWindowTitle(for view: NSView) {
+        guard let window = view.window, window.title != title else { return }
+        window.title = title
+    }
+}
+#endif
+
 private struct WebHamburgerIcon: View {
     let isOpen: Bool
 
@@ -1646,6 +1748,7 @@ struct NewChatWelcomeView: View {
     @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var inspirationIndex = 0
     @State private var viewedInspirationIds = Set<String>()
+    @State private var isComposerExpanded = false
     @FocusState private var isFocused: Bool
 
     private var activeInspiration: DailyInspirationBanner.DailyInspiration? {
@@ -1686,6 +1789,10 @@ struct NewChatWelcomeView: View {
         isAuthenticated ? recentChatCards : nonAuthChatCards
     }
 
+    private var isComposerActive: Bool {
+        isFocused || isComposerExpanded || WelcomeScreenState.shouldShowInFieldSendButton(inputText: messageText)
+    }
+
     private var overflowCount: Int {
         guard isAuthenticated, totalChatCount > shownChatCards.count else { return 0 }
         return totalChatCount - shownChatCards.count
@@ -1703,14 +1810,14 @@ struct NewChatWelcomeView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let composerReserve: CGFloat = isFocused ? 156 : 100
+            let composerReserve: CGFloat = isComposerActive ? 156 : 100
 
             ZStack(alignment: .bottom) {
                 Color.clear
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    if let activeInspiration, !isFocused {
+                    if let activeInspiration, !isComposerActive {
                         inspirationCarousel(activeInspiration)
                             .padding(.top, 0)
                             .transition(.opacity)
@@ -1720,7 +1827,7 @@ struct NewChatWelcomeView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                if !isFocused {
+                if !isComposerActive {
                     VStack(spacing: .spacing4) {
                         welcomeHeader
 
@@ -1736,7 +1843,7 @@ struct NewChatWelcomeView: View {
                     .transition(.opacity)
                 }
 
-                if !suggestions.isEmpty && (shownChatCards.isEmpty || isFocused) {
+                if !suggestions.isEmpty && (shownChatCards.isEmpty || isComposerActive) {
                     suggestionsCarousel
                         .frame(maxWidth: .infinity)
                         .padding(.bottom, composerReserve)
@@ -1745,13 +1852,14 @@ struct NewChatWelcomeView: View {
 
                 WelcomeComposer(
                     text: $messageText,
+                    isExpanded: $isComposerExpanded,
                     isFocused: $isFocused,
                     isAuthenticated: isAuthenticated,
                     onSend: { createChatWith(message: messageText) },
                     onOpenAuth: onOpenAuth
                 )
             }
-            .animation(.easeInOut(duration: 0.2), value: isFocused)
+            .animation(.easeInOut(duration: 0.2), value: isComposerActive)
         }
         .background(Color.clear)
         .task { await loadSuggestions() }
@@ -2115,6 +2223,7 @@ private struct OverflowCard: View {
 
 private struct WelcomeComposer: View {
     @Binding var text: String
+    @Binding var isExpanded: Bool
     @FocusState.Binding var isFocused: Bool
     let isAuthenticated: Bool
     let onSend: () -> Void
@@ -2122,6 +2231,10 @@ private struct WelcomeComposer: View {
 
     private var hasContent: Bool {
         WelcomeScreenState.shouldShowInFieldSendButton(inputText: text)
+    }
+
+    private var isOpen: Bool {
+        hasContent || isFocused || isExpanded
     }
 
     var body: some View {
@@ -2134,15 +2247,26 @@ private struct WelcomeComposer: View {
                     .tint(Color.buttonPrimary)
                     .focused($isFocused)
                     .padding(.horizontal, .spacing8)
-                    .padding(.top, hasContent || isFocused ? .spacing6 : .spacing8)
-                    .padding(.bottom, hasContent || isFocused ? .spacing32 : .spacing5)
-                    .fontWeight(hasContent || isFocused ? .regular : .semibold)
-                    .multilineTextAlignment(hasContent || isFocused ? .leading : .center)
-                    .frame(maxWidth: .infinity, minHeight: hasContent || isFocused ? 112 : 68, alignment: hasContent || isFocused ? .topLeading : .center)
+                    .padding(.top, isOpen ? .spacing6 : .spacing8)
+                    .padding(.bottom, isOpen ? .spacing32 : .spacing5)
+                    .fontWeight(isOpen ? .regular : .semibold)
+                    .multilineTextAlignment(isOpen ? .leading : .center)
+                    .frame(maxWidth: .infinity, minHeight: isOpen ? 112 : 68, alignment: isOpen ? .topLeading : .center)
+                    .onTapGesture {
+                        isExpanded = true
+                        DispatchQueue.main.async {
+                            isFocused = true
+                        }
+                    }
+                    .onChange(of: isFocused) { _, newValue in
+                        if newValue {
+                            isExpanded = true
+                        }
+                    }
                     .accessibilityIdentifier("welcome-message-input")
                     .accessibilityLabel(AppStrings.typeMessage)
 
-                if hasContent || isFocused {
+                if isOpen {
                     HStack(spacing: .spacing5) {
                         Icon("files", size: 22)
                             .foregroundStyle(Color.fontSecondary)
@@ -2181,13 +2305,14 @@ private struct WelcomeComposer: View {
             .clipShape(RoundedRectangle(cornerRadius: 24))
             .overlay(
                 RoundedRectangle(cornerRadius: 24)
-                    .stroke(isFocused ? Color.buttonPrimary.opacity(0.7) : Color.clear, lineWidth: 2)
+                    .stroke(isOpen ? Color.buttonPrimary.opacity(0.7) : Color.clear, lineWidth: 2)
             )
             .shadow(color: .black.opacity(0.10), radius: 16, x: 0, y: 8)
 
-            if isFocused {
+            if isOpen {
                 Button {
                     isFocused = false
+                    isExpanded = false
                 } label: {
                     Text(hasContent ? AppStrings.save : AppStrings.cancel)
                         .font(.omSmall)
@@ -2209,7 +2334,7 @@ private struct WelcomeComposer: View {
         }
         .padding(.horizontal, .spacing5)
         .padding(.bottom, .spacing10)
-        .animation(.easeInOut(duration: 0.2), value: isFocused)
+        .animation(.easeInOut(duration: 0.2), value: isOpen)
         .animation(.easeInOut(duration: 0.2), value: hasContent)
     }
 }

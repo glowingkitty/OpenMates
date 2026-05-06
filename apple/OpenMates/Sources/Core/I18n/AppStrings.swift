@@ -39,6 +39,7 @@ enum AppStrings {
     static var version: String { L("settings.current_version") }
     static var openMatesName: String { L("apps.openmates") }
     static var guest: String { L("settings.guest") }
+    static var newWindow: String { L("common.new_window") }
 
     // MARK: - Chat
     static var newChat: String { L("chat.new_chat") }
@@ -49,10 +50,10 @@ enum AppStrings {
     static var incognito: String { L("activity.incognito") }
     static var sendMessage: String { L("context_menu.send") }
     static var sendAction: String { L("enter_message.send") }
-    static var copyMessage: String { L("context_menu.copy") }
-    static var editMessage: String { L("context_menu.edit") }
-    static var deleteMessage: String { L("context_menu.delete") }
-    static var forkConversation: String { L("context_menu.fork") }
+    static var copyMessage: String { L("chats.context_menu.copy.text") }
+    static var editMessage: String { L("chats.context_menu.edit.text") }
+    static var deleteMessage: String { L("chats.context_menu.delete_message.text") }
+    static var forkConversation: String { L("chats.context_menu.fork.text") }
     static var chatMessageInput: String { L("chat.message_input") }
     static var typeMessage: String { L("enter_message.placeholder.touch") }
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
@@ -242,7 +243,24 @@ enum AppStrings {
     static var openInBrowser: String { L("embed.open_in_browser") }
     static var loadPDF: String { L("embed.load_pdf") }
     static var decryptingPDF: String { L("embed.decrypting_pdf") }
+    static var snippets: String { L("embeds.snippets") }
+    static var viaBraveSearch: String { L("embeds.via_brave_search") }
     static var copy: String { L("common.copy") }
+    static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
+    static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
+    static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
+
+    static func openOnProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.open_on_provider", replacements: ["provider": provider])
+    }
+
+    static func dataFrom(_ date: String) -> String {
+        LocalizationManager.shared.text("embeds.data_from", replacements: ["date": date])
+    }
+
+    static func generatedBy(_ model: String) -> String {
+        LocalizationManager.shared.text("chat.generated_by", replacements: ["model": model])
+    }
 
     // MARK: - Notifications
     static var offline: String { L("notifications.offline") }

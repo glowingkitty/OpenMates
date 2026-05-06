@@ -88,6 +88,7 @@ enum EmbedType: String, CaseIterable {
     case webSearch = "app:web:search"
     case webWebsite = "web-website"
     case webRead = "app:web:read"
+    case wiki
 
     // App skill use embeds
     case codeGetDocs = "app:code:get_docs"
@@ -140,6 +141,7 @@ enum EmbedType: String, CaseIterable {
             case .pdf: return "pdf"
             case .sheetsSheet: return "sheets"
             case .webWebsite: return "web"
+            case .wiki: return "study"
             case .videosVideo: return "videos"
             case .eventsEvent: return "events"
             case .healthAppointment: return "health"
@@ -159,6 +161,7 @@ enum EmbedType: String, CaseIterable {
         case .webSearch, .newsSearch: return "Search"
         case .webRead: return "Read"
         case .webWebsite: return "Website"
+        case .wiki: return "Wikipedia"
         case .codeCode: return "Code"
         case .codeGetDocs: return "Docs"
         case .docsDoc: return "Document"

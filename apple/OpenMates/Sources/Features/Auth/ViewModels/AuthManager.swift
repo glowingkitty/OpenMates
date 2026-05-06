@@ -5,6 +5,7 @@
 import Foundation
 import SwiftUI
 import AuthenticationServices
+import CryptoKit
 
 @MainActor
 final class AuthManager: ObservableObject {
@@ -240,6 +241,22 @@ final class AuthManager: ObservableObject {
         state = .authenticated
     }
 
+    func completePasskeyLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
+        if response.needsDeviceVerification == true,
+           let type = response.deviceVerificationType {
+            state = .needsDeviceVerification(type: type)
+            return
+        }
+
+        guard response.success, let user = response.user else {
+            throw AuthError.invalidCredentials
+        }
+
+        currentUser = user
+        try await crypto.saveMasterKey(masterKey, for: user.id)
+        state = .authenticated
+    }
+
     // MARK: - Logout
 
     func logout() async {
@@ -295,7 +312,11 @@ final class AuthManager: ObservableObject {
         state = .authenticated
     }
 
-    private func makeDeviceInfo() -> DeviceInfo {
+    static var nativeSessionId: String {
+        sessionId
+    }
+
+    static func makeNativeDeviceInfo() -> DeviceInfo {
         #if os(iOS)
         let os = "iOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
         #elseif os(macOS)
@@ -306,12 +327,16 @@ final class AuthManager: ObservableObject {
 
         return DeviceInfo(
             os: os,
-            deviceModel: getDeviceModel(),
+            deviceModel: getNativeDeviceModel(),
             appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         )
     }
 
-    private func getDeviceModel() -> String {
+    private func makeDeviceInfo() -> DeviceInfo {
+        Self.makeNativeDeviceInfo()
+    }
+
+    private static func getNativeDeviceModel() -> String {
         #if os(iOS)
         return UIDevice.current.model
         #else

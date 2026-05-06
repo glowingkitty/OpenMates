@@ -100,6 +100,15 @@ actor CryptoManager {
         return derived
     }
 
+    /// Lookup hash for passkey authentication.
+    /// Mirrors web cryptoService.hashKeyFromPRF(): SHA256(PRF_signature + user_email_salt), base64.
+    func hashKeyFromPRF(prfSignature: Data, emailSalt: Data) -> String {
+        var input = prfSignature
+        input.append(emailSalt)
+        let hash = SHA256.hash(data: input)
+        return Data(hash).base64EncodedString()
+    }
+
     // MARK: - Per-chat key operations
 
     /// Unwrap a per-chat key from the encrypted_chat_key blob using the master key.

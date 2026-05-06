@@ -37,6 +37,81 @@ struct Message: Identifiable, Decodable, Sendable {
     let appId: String?
     let isStreaming: Bool?
     let embedRefs: [EmbedRef]?
+    let modelName: String?
+
+    init(
+        id: String,
+        chatId: String,
+        role: MessageRole,
+        content: String?,
+        encryptedContent: String?,
+        createdAt: String,
+        updatedAt: String?,
+        appId: String?,
+        isStreaming: Bool?,
+        embedRefs: [EmbedRef]?,
+        modelName: String? = nil
+    ) {
+        self.id = id
+        self.chatId = chatId
+        self.role = role
+        self.content = content
+        self.encryptedContent = encryptedContent
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.appId = appId
+        self.isStreaming = isStreaming
+        self.embedRefs = embedRefs
+        self.modelName = modelName
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+            ?? container.decode(String.self, forKey: .messageId)
+        chatId = try container.decodeIfPresent(String.self, forKey: .chatId)
+            ?? container.decode(String.self, forKey: .chatIdSnake)
+        role = try container.decode(MessageRole.self, forKey: .role)
+        content = try container.decodeIfPresent(String.self, forKey: .content)
+        encryptedContent = try container.decodeIfPresent(String.self, forKey: .encryptedContent)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedContentSnake)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+            ?? container.decodeIfPresent(String.self, forKey: .createdAtSnake)
+            ?? ""
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+            ?? container.decodeIfPresent(String.self, forKey: .updatedAtSnake)
+        appId = try container.decodeIfPresent(String.self, forKey: .appId)
+            ?? container.decodeIfPresent(String.self, forKey: .appIdSnake)
+        isStreaming = try container.decodeIfPresent(Bool.self, forKey: .isStreaming)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isStreamingSnake)
+        embedRefs = try container.decodeIfPresent([EmbedRef].self, forKey: .embedRefs)
+            ?? container.decodeIfPresent([EmbedRef].self, forKey: .embedRefsSnake)
+        modelName = try container.decodeIfPresent(String.self, forKey: .modelName)
+            ?? container.decodeIfPresent(String.self, forKey: .modelNameSnake)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case messageId = "message_id"
+        case chatId
+        case chatIdSnake = "chat_id"
+        case role
+        case content
+        case encryptedContent
+        case encryptedContentSnake = "encrypted_content"
+        case createdAt
+        case createdAtSnake = "created_at"
+        case updatedAt
+        case updatedAtSnake = "updated_at"
+        case appId
+        case appIdSnake = "app_id"
+        case isStreaming
+        case isStreamingSnake = "is_streaming"
+        case embedRefs
+        case embedRefsSnake = "embed_refs"
+        case modelName
+        case modelNameSnake = "model_name"
+    }
 }
 
 enum MessageRole: String, Decodable, Sendable {
