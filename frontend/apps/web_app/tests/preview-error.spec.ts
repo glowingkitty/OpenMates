@@ -10,7 +10,7 @@ import { expect, test } from './helpers/cookie-audit';
 test('shows render error for component without preview props', async ({ page }) => {
 	// BaseAppCard uses required snippet props ({@render top()}, etc.)
 	// and will crash during mount without them.
-	await page.goto('/dev/preview/cards/BaseAppCard', { waitUntil: 'networkidle' });
+	await page.goto('/dev/preview/cards/BaseAppCard', { waitUntil: 'domcontentloaded' });
 
 	// Wait for the component to attempt to mount and fail.
 	// The error may be caught synchronously or asynchronously (within 500ms).
@@ -36,7 +36,7 @@ test('shows render error for component without preview props', async ({ page }) 
 });
 
 test('retry button re-attempts render after error', async ({ page }) => {
-	await page.goto('/dev/preview/cards/BaseAppCard', { waitUntil: 'networkidle' });
+	await page.goto('/dev/preview/cards/BaseAppCard', { waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2000);
 
 	// Should show render error

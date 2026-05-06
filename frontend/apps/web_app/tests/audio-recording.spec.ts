@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Audio recording flow E2E tests.
  *
@@ -60,6 +58,15 @@ async function setupAndFocusMessageField(page: any) {
 
 	// Wait for the page to fully load — demo chats need time to initialize
 	await page.waitForTimeout(3000);
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 15000
+	});
+
+	// Public demo chats show a CTA instead of the editable composer.
+	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+	if (await newChatButton.isVisible({ timeout: 10000 }).catch(() => false)) {
+		await newChatButton.click();
+	}
 
 	// The message field should be visible for unauthenticated users (demo chat)
 	const messageField = page.getByTestId('message-field');
