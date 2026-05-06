@@ -13,6 +13,11 @@ import {
 	EMBED_FULLSCREEN_COMPONENTS,
 	normalizeEmbedType
 } from '../data/embedRegistry.generated';
+import {
+	forcePageReload,
+	isChunkLoadError,
+	logChunkLoadError
+} from '../utils/chunkErrorHandler';
 
 /**
  * Resolve an embed type + decoded content to a registry key.
@@ -90,6 +95,10 @@ export async function loadFullscreenComponent(
 			`[embedFullscreenResolver] Failed to load fullscreen component for key="${key}", path="${importPath}"`,
 			error
 		);
+		if (isChunkLoadError(error)) {
+			logChunkLoadError('embedFullscreenResolver', error);
+			forcePageReload();
+		}
 		return null;
 	}
 }

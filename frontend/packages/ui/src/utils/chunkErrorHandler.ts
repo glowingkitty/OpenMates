@@ -49,6 +49,7 @@ export function isChunkLoadError(error: unknown): boolean {
   const chunkErrorPatterns = [
     // SvelteKit/Vite dynamic import failures
     "Failed to fetch dynamically imported module",
+    "error loading dynamically imported module",
     // Webpack chunk loading failures
     "Loading chunk",
     "ChunkLoadError",
