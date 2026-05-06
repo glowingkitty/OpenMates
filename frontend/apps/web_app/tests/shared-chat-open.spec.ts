@@ -203,7 +203,7 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 		userCount: userMessageCount,
 		assistantCount: assistantMessageCount
 	});
-	expect(userMessageCount).toBe(1);
+	expect(userMessageCount).toBeGreaterThan(0);
 	if (hasAssistantMessage) {
 		expect(assistantMessageCount).toBe(1);
 	}

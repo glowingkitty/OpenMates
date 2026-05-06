@@ -369,9 +369,9 @@ test.describe('CLI PDF Skills', () => {
 		// Matches the proven pattern from pdf-flow.spec.ts.
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(300);
-		await messageEditor.click();
+		await messageEditor.click({ force: true });
 		await messageEditor.press('End');
-		await page.keyboard.type('Please read this document and tell me what it contains on page 1.');
+		await page.keyboard.insertText('Please read this document and tell me what it contains on page 1.');
 
 		const sendBtn = page.locator('[data-action="send-message"]');
 		await expect(sendBtn).toBeVisible({ timeout: 15000 });

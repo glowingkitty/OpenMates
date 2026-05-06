@@ -290,7 +290,7 @@ test.describe('CLI Memories', () => {
 		]);
 		consoleLogs.push(`[types stdout] ${typesResult.stdout}`);
 		expect(typesResult.code).toBe(0);
-		const types = JSON.parse(typesResult.stdout);
+		const types = parseJsonOutput(typesResult.stdout, 'memory types list');
 		expect(Array.isArray(types)).toBe(true);
 		expect(types.length).toBeGreaterThan(0);
 		const preferredTechType = types.find((t: any) => t.item_type === 'preferred_tech');
@@ -409,7 +409,7 @@ test.describe('CLI Memories', () => {
 			],
 			30_000
 		);
-		const memoriesAfterUpdate = JSON.parse(listAfterUpdate.stdout);
+		const memoriesAfterUpdate = parseJsonOutput(listAfterUpdate.stdout, 'memories list after update');
 		const updatedEntry = memoriesAfterUpdate.find((m: any) => m.id === entryId);
 		expect(updatedEntry).toBeTruthy();
 		expect(updatedEntry.data.name).toBe('TestLang-E2E-Updated');
@@ -428,7 +428,7 @@ test.describe('CLI Memories', () => {
 		consoleLogs.push(`[delete stdout] ${deleteResult.stdout}`);
 		consoleLogs.push(`[delete stderr] ${deleteResult.stderr}`);
 		expect(deleteResult.code).toBe(0);
-		const deleteData = JSON.parse(deleteResult.stdout);
+		const deleteData = parseJsonOutput(deleteResult.stdout, 'memories delete');
 		expect(deleteData.success).toBe(true);
 		logCheckpoint('Entry deleted.');
 
@@ -447,7 +447,7 @@ test.describe('CLI Memories', () => {
 			],
 			30_000
 		);
-		const memoriesAfterDelete = JSON.parse(listAfterDelete.stdout);
+		const memoriesAfterDelete = parseJsonOutput(listAfterDelete.stdout, 'memories list after delete');
 		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
 		expect(deletedEntry).toBeUndefined();
 		logCheckpoint('Deletion verified — entry no longer in list.');
@@ -549,7 +549,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		);
 		consoleLogs.push(`[travel create] ${createResult.stdout}`);
 		expect(createResult.code).toBe(0);
-		const createData = JSON.parse(createResult.stdout);
+		const createData = parseJsonOutput(createResult.stdout, 'memories create');
 		expect(createData.success).toBe(true);
 		expect(typeof createData.id).toBe('string');
 		const entryId = createData.id;
@@ -565,7 +565,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			30_000
 		);
 		expect(listResult.code).toBe(0);
-		const memories = JSON.parse(listResult.stdout);
+		const memories = parseJsonOutput(listResult.stdout, 'memories list');
 		expect(Array.isArray(memories)).toBe(true);
 
 		const ourEntry = memories.find((m: any) => m.id === entryId);
@@ -609,7 +609,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			30_000
 		);
 		expect(updateResult.code).toBe(0);
-		const updateData = JSON.parse(updateResult.stdout);
+		const updateData = parseJsonOutput(updateResult.stdout, 'memories update');
 		expect(updateData.success).toBe(true);
 
 		// Verify update
@@ -642,7 +642,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
 			30_000
 		);
-		const memoriesAfterDelete = JSON.parse(listAfterDelete.stdout);
+		const memoriesAfterDelete = parseJsonOutput(listAfterDelete.stdout, 'memories list after delete');
 		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
 		expect(deletedEntry).toBeUndefined();
 		logCheckpoint('Deletion verified — entry no longer in list.');
@@ -684,7 +684,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		// --json must produce valid parseable JSON
 		let types: any[];
 		try {
-			types = JSON.parse(typesResult.stdout);
+			types = parseJsonOutput(typesResult.stdout, 'memory types list');
 		} catch (_e) {
 			throw new Error(
 				`Expected JSON from memories types --json, got:\n${typesResult.stdout}\nstderr:\n${typesResult.stderr}`
@@ -725,7 +725,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		consoleLogs.push(`[ai create] ${createResult.stdout}`);
 		consoleLogs.push(`[ai create stderr] ${createResult.stderr}`);
 		expect(createResult.code).toBe(0);
-		const createData = JSON.parse(createResult.stdout);
+		const createData = parseJsonOutput(createResult.stdout, 'memories create');
 		expect(createData.success).toBe(true);
 		expect(typeof createData.id).toBe('string');
 		const entryId = createData.id;
@@ -750,7 +750,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			30_000
 		);
 		expect(listResult.code).toBe(0);
-		const memories = JSON.parse(listResult.stdout);
+		const memories = parseJsonOutput(listResult.stdout, 'memories list');
 		expect(Array.isArray(memories)).toBe(true);
 
 		const ourEntry = memories.find((m: any) => m.id === entryId);
@@ -793,7 +793,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			30_000
 		);
 		expect(updateResult.code).toBe(0);
-		const updateData = JSON.parse(updateResult.stdout);
+		const updateData = parseJsonOutput(updateResult.stdout, 'memories update');
 		expect(updateData.success).toBe(true);
 
 		// Verify update
@@ -811,7 +811,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			],
 			30_000
 		);
-		const updatedMemories = JSON.parse(listAfterUpdate.stdout);
+		const updatedMemories = parseJsonOutput(listAfterUpdate.stdout, 'memories list after update');
 		const updatedEntry = updatedMemories.find((m: any) => m.id === entryId);
 		expect(updatedEntry).toBeTruthy();
 		expect(updatedEntry.data.tone).toBe('casual');
@@ -828,7 +828,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			30_000
 		);
 		expect(deleteResult.code).toBe(0);
-		const deleteData = JSON.parse(deleteResult.stdout);
+		const deleteData = parseJsonOutput(deleteResult.stdout, 'memories delete');
 		expect(deleteData.success).toBe(true);
 		logCheckpoint('Entry deleted.');
 
@@ -847,7 +847,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			],
 			30_000
 		);
-		const memoriesAfterDelete = JSON.parse(listAfterDelete.stdout);
+		const memoriesAfterDelete = parseJsonOutput(listAfterDelete.stdout, 'memories list after delete');
 		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
 		expect(deletedEntry).toBeUndefined();
 		logCheckpoint('Deletion verified — entry gone from list.');
