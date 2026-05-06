@@ -106,6 +106,14 @@ async def _async_process_invoice_and_send_email(
 
         # 2. Fetch User Details (Email, Vault Key, Preferences) - Cache First
         user_profile = await cache_service.get_user_by_id(user_id)
+        if not user_profile:
+            logger.info(f"User profile cache miss for invoice task {order_id}; fetching user {user_id} from Directus.")
+            profile_success, user_profile, profile_message = await task.directus_service.get_user_profile(user_id)
+            if not profile_success or not user_profile:
+                logger.error(
+                    f"Failed to fetch user profile for invoice task {order_id}: {profile_message}"
+                )
+                raise Exception("Failed to fetch user profile")
 
         # --- Extract user details from profile (same as before) ---
         encrypted_email = user_profile.get("encrypted_email_address")
@@ -293,8 +301,9 @@ async def _async_process_invoice_and_send_email(
             if email_encryption_key:
                 logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
                 decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
-            elif provider != "bank_transfer":
-                # Non-bank-transfer orders always require the client key
+            elif send_email and provider != "bank_transfer":
+                # Non-bank-transfer email sends require the client key. No-email
+                # backfills can still create the Directus row/PDF without it.
                 logger.error(f"Missing email_encryption_key for invoice task {order_id}. Cannot decrypt user email.")
                 raise Exception("Missing email encryption key")
 
