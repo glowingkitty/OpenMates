@@ -418,24 +418,30 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
-	const settingsMenu2 = await ensureSettingsMenuOpen(page, log);
+	const reviewDeviceButton = page.getByRole('button', { name: /review in developer settings/i }).first();
+	if (await reviewDeviceButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await reviewDeviceButton.click();
+		log('Opened Devices from pending-device notification.');
+	} else {
+		const settingsMenu2 = await ensureSettingsMenuOpen(page, log);
 
-	const developersItem2 = settingsMenu2
-		.getByRole('menuitem')
-		.filter({ hasText: /^developers$/i })
-		.first();
-	await developersItem2.scrollIntoViewIfNeeded();
-	await expect(developersItem2).toBeVisible({ timeout: 8000 });
-	await developersItem2.click();
+		const developersItem2 = settingsMenu2
+			.getByRole('menuitem')
+			.filter({ hasText: /^developers$/i })
+			.first();
+		await developersItem2.scrollIntoViewIfNeeded();
+		await expect(developersItem2).toBeVisible({ timeout: 8000 });
+		await developersItem2.click();
 
-	const devicesItem = settingsMenu2
-		.getByRole('menuitem')
-		.filter({ hasText: /^devices$/i })
-		.first();
-	await devicesItem.scrollIntoViewIfNeeded();
-	await expect(devicesItem).toBeVisible({ timeout: 8000 });
-	await devicesItem.click();
-	log('Navigated to Devices page.');
+		const devicesItem = settingsMenu2
+			.getByRole('menuitem')
+			.filter({ hasText: /^devices$/i })
+			.first();
+		await devicesItem.scrollIntoViewIfNeeded();
+		await expect(devicesItem).toBeVisible({ timeout: 8000 });
+		await devicesItem.click();
+		log('Navigated to Devices page.');
+	}
 	await screenshot(page, 'devices-page');
 
 	const devicesContainer = page.getByTestId('devices-container');
