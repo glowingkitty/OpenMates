@@ -23,6 +23,14 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
+const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
+
+function expectNoFullscreenChunkErrors(consoleErrors: string[]) {
+	const chunkErrors = consoleErrors.filter((error) =>
+		/dynamically imported module|chunk loading error|corrupted_content|fullscreen component/i.test(error)
+	);
+	expect(chunkErrors, `Unexpected fullscreen chunk error(s): ${chunkErrors.join('\n')}`).toEqual([]);
+}
 
 test.describe('Unauthenticated app load', () => {
 	const consoleLogs: string[] = [];
@@ -162,12 +170,12 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] All checks passed');
 	});
 
-	test('example chat loads with Wikipedia inline links', async ({
+	test('example chat loads and fullscreen wiki, website, and image embeds open for unauthenticated users', async ({
 		page
 	}: {
 		page: any;
 	}) => {
-		test.setTimeout(60000);
+		test.setTimeout(90000);
 
 		page.on('console', (msg: any) => {
 			const text = `[${msg.type()}] ${msg.text()}`;
@@ -231,7 +239,25 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForTimeout(3000);
 		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
 
-		// ─── 5. Verify Wikipedia inline links are rendered ──────────────
+		// ─── 5. Verify image and website embeds open in fullscreen ──────
+		const imageEmbed = page.locator('[data-testid="embed-preview"][data-embed-id="dad76448-66cf-4cf3-bed6-d6ac0366ff1b"]').first();
+		await imageEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
+		await expect(imageEmbed).toBeVisible({ timeout: 10000 });
+		const imageFullscreen = await openFullscreen(page, imageEmbed);
+		await expect(imageFullscreen).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Image embed fullscreen opened');
+		await closeFullscreen(page, imageFullscreen);
+
+		const websiteEmbed = page.locator('[data-testid="embed-preview"][data-embed-id="7d12fc4c-06e2-4d41-949f-6441b9ae4bac"]').first();
+		await websiteEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
+		await expect(websiteEmbed).toBeVisible({ timeout: 10000 });
+		const websiteFullscreen = await openFullscreen(page, websiteEmbed);
+		await expect(websiteFullscreen).toBeVisible({ timeout: 10000 });
+		await expect(websiteFullscreen).toContainText(/Artemis II Launch Day Updates/i, { timeout: 10000 });
+		console.log('[unauthenticated-load] Website embed fullscreen opened');
+		await closeFullscreen(page, websiteFullscreen);
+
+		// ─── 6. Verify Wikipedia inline links are rendered ──────────────
 		// The Artemis II example chat has wikipedia_topics defined (10 topics).
 		// convertWikiTopicLinksOnDoc applies wiki links to the TipTap JSON doc,
 		// rendering as WikiInlineLink.svelte with data-testid="wiki-inline-link".
@@ -257,7 +283,7 @@ test.describe('Unauthenticated app load', () => {
 			`[unauthenticated-load] First wiki link text: "${linkText}"`
 		);
 
-		// ─── 5. Click a wiki link to verify fullscreen opens ────────────
+		// ─── 7. Click two wiki links to verify fullscreen opens repeatedly ─
 		await firstLink.click();
 
 		// WikipediaFullscreen should appear (it fetches data from Wikipedia API on mount)
@@ -278,10 +304,29 @@ test.describe('Unauthenticated app load', () => {
 		console.log(
 			`[unauthenticated-load] Wikipedia article title: "${titleText}"`
 		);
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay'));
 
-		// ─── 6. No missing translations ─────────────────────────────────
+		const secondLink = wikiLinks.nth(1);
+		await expect(secondLink).toBeVisible({ timeout: 10000 });
+		const secondLinkText = await secondLink.textContent();
+		await secondLink.click();
+		await expect(wikiFullscreen).toBeVisible({ timeout: 15000 });
+		await expect(wikiTitle).toBeVisible({ timeout: 10000 });
+		const secondTitleText = await wikiTitle.textContent();
+		expect(
+			secondTitleText && secondTitleText.length > 0,
+			'Second Wikipedia fullscreen should show an article title'
+		).toBe(true);
+		console.log(
+			`[unauthenticated-load] Second wiki link "${secondLinkText}" opened article: "${secondTitleText}"`
+		);
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay'));
+
+		expectNoFullscreenChunkErrors(consoleErrors);
+
+		// ─── 8. No missing translations ─────────────────────────────────
 		await assertNoMissingTranslations(page);
-		console.log('[unauthenticated-load] Wikipedia inline links test passed');
+		console.log('[unauthenticated-load] Example fullscreen embeds test passed');
 	});
 
 	test('AI model card in for-everyone chat opens settings deep link', async ({

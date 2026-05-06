@@ -38,32 +38,37 @@
  * @returns true if this is a chunk loading error, false otherwise
  */
 export function isChunkLoadError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const message = error.message || "";
+  const errorLike = error as { message?: unknown; name?: unknown; stack?: unknown };
+  const messageParts = [
+    typeof error === "string" ? error : "",
+    typeof errorLike?.message === "string" ? errorLike.message : "",
+    typeof errorLike?.name === "string" ? errorLike.name : "",
+    typeof errorLike?.stack === "string" ? errorLike.stack : "",
+    String(error),
+  ];
+  const message = messageParts.join("\n").toLowerCase();
 
   // Check for common chunk loading error patterns
   // These patterns cover various browsers and bundlers
   const chunkErrorPatterns = [
     // SvelteKit/Vite dynamic import failures
-    "Failed to fetch dynamically imported module",
+    "failed to fetch dynamically imported module",
     "error loading dynamically imported module",
+    "dynamically imported module",
+    "ns_error_corrupted_content",
+    "corrupted content",
     // Webpack chunk loading failures
-    "Loading chunk",
-    "ChunkLoadError",
+    "loading chunk",
+    "chunkloaderror",
     // Generic module loading failures
-    "Failed to load module script",
+    "failed to load module script",
     // Network errors during chunk loading
-    "NetworkError when attempting to fetch resource",
+    "networkerror when attempting to fetch resource",
     // Safari-specific pattern
-    "Importing a module script failed",
+    "importing a module script failed",
   ];
 
-  return chunkErrorPatterns.some(
-    (pattern) => message.includes(pattern) || error.name?.includes(pattern),
-  );
+  return chunkErrorPatterns.some((pattern) => message.includes(pattern));
 }
 
 /**
