@@ -55,6 +55,21 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 		logCheckpoint('Opened settings menu.');
 	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+
+	for (let i = 0; i < 5; i++) {
+		const activeView = await settingsMenu.getAttribute('data-active-view');
+		if (!activeView || activeView === 'main') {
+			return settingsMenu;
+		}
+
+		const backButton = page.locator('#settings-back-button');
+		await expect(backButton).toBeVisible({ timeout: 5000 });
+		await backButton.click();
+		logCheckpoint('Returned to root settings menu.');
+		await expect(settingsMenu).toHaveAttribute('data-active-view', /^(main|developers)$/i, { timeout: 5000 });
+	}
+
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'main');
 	return settingsMenu;
 }
 
