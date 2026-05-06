@@ -174,6 +174,14 @@ async function runCli(
 	});
 }
 
+function parseJsonOutput(stdout: string, label: string): any {
+	const trimmed = stdout.trim();
+	if (!trimmed) {
+		throw new Error(`${label} returned empty stdout`);
+	}
+	return JSON.parse(trimmed);
+}
+
 async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: string) => void) {
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 
@@ -313,7 +321,7 @@ test.describe('CLI Memories', () => {
 		consoleLogs.push(`[create stdout] ${createResult.stdout}`);
 		consoleLogs.push(`[create stderr] ${createResult.stderr}`);
 		expect(createResult.code).toBe(0);
-		const createData = JSON.parse(createResult.stdout);
+		const createData = parseJsonOutput(createResult.stdout, 'memories create');
 		expect(createData.success).toBe(true);
 		expect(typeof createData.id).toBe('string');
 		const entryId = createData.id;
@@ -339,7 +347,7 @@ test.describe('CLI Memories', () => {
 		);
 		consoleLogs.push(`[list stdout] ${listResult.stdout}`);
 		expect(listResult.code).toBe(0);
-		const memories = JSON.parse(listResult.stdout);
+		const memories = parseJsonOutput(listResult.stdout, 'memories list');
 		expect(Array.isArray(memories)).toBe(true);
 
 		const ourEntry = memories.find((m: any) => m.id === entryId);
@@ -382,7 +390,7 @@ test.describe('CLI Memories', () => {
 		);
 		consoleLogs.push(`[update stdout] ${updateResult.stdout}`);
 		expect(updateResult.code).toBe(0);
-		const updateData = JSON.parse(updateResult.stdout);
+		const updateData = parseJsonOutput(updateResult.stdout, 'memories update');
 		expect(updateData.success).toBe(true);
 		logCheckpoint('Entry updated.');
 
@@ -610,7 +618,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
 			30_000
 		);
-		const updatedMemories = JSON.parse(listAfterUpdate.stdout);
+		const updatedMemories = parseJsonOutput(listAfterUpdate.stdout, 'memories list after update');
 		const updatedEntry = updatedMemories.find((m: any) => m.id === entryId);
 		expect(updatedEntry).toBeTruthy();
 		expect(updatedEntry.data.start_date).toBe('2026-05-01');
@@ -626,7 +634,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 			30_000
 		);
 		expect(deleteResult.code).toBe(0);
-		const deleteData = JSON.parse(deleteResult.stdout);
+		const deleteData = parseJsonOutput(deleteResult.stdout, 'memories delete');
 		expect(deleteData.success).toBe(true);
 
 		const listAfterDelete = await runCli(

@@ -79,6 +79,8 @@ async function setupAndFocusMessageField(page: any) {
 	const editorContent = page.getByTestId('message-editor');
 	if (await editorContent.isVisible()) {
 		await editorContent.click();
+		await page.keyboard.type(' ');
+		await page.keyboard.press('Backspace');
 	} else {
 		// Fallback: click the message field itself
 		await messageField.click();
