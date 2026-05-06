@@ -62,7 +62,10 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 			return settingsMenu;
 		}
 
-		const backButton = page.locator('#settings-back-button');
+		const bannerBackButton = page.getByTestId('banner-back-button').first();
+		const backButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+			? bannerBackButton
+			: page.locator('#settings-back-button');
 		await expect(backButton).toBeVisible({ timeout: 5000 });
 		await backButton.click();
 		logCheckpoint('Returned to root settings menu.');
