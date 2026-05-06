@@ -87,7 +87,8 @@ final class ChatStore: ObservableObject {
             content: content, encryptedContent: old.encryptedContent,
             createdAt: old.createdAt,
             updatedAt: ISO8601DateFormatter().string(from: Date()),
-            appId: old.appId, isStreaming: false, embedRefs: old.embedRefs
+            appId: old.appId, isStreaming: false, embedRefs: old.embedRefs,
+            modelName: old.modelName
         )
         msgs[index] = updated
         messagesByChat[chatId] = msgs

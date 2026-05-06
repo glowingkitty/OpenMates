@@ -47,19 +47,11 @@ actor APIClient {
     // MARK: - Configuration
 
     var baseURL: URL {
-        #if DEBUG
-        URL(string: "https://api.dev.openmates.org")!
-        #else
-        URL(string: "https://api.openmates.org")!
-        #endif
+        ServerConfiguration.current.apiBaseURL
     }
 
     var webAppURL: URL {
-        #if DEBUG
-        URL(string: "https://app.dev.openmates.org")!
-        #else
-        URL(string: "https://app.openmates.org")!
-        #endif
+        ServerConfiguration.current.webAppURL
     }
 
     // MARK: - Encodable body
@@ -133,6 +125,7 @@ actor APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(webAppURL.absoluteString, forHTTPHeaderField: "Origin")
         Self.nativeClientHeaders.forEach { key, value in
             request.setValue(value, forHTTPHeaderField: key)
         }

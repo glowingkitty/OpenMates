@@ -166,7 +166,7 @@ struct AuthFlowView: View {
             )
 
         case .passkeyLogin:
-            PasskeyLoginView(email: email)
+            PasskeyLoginView(email: email, stayLoggedIn: $stayLoggedIn)
 
         case .recoveryKey:
             RecoveryKeyView(email: email, userEmailSalt: userEmailSalt)

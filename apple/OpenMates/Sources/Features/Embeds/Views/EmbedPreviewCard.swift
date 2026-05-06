@@ -4,14 +4,40 @@
 
 import SwiftUI
 
+enum EmbedPreviewCardVariant {
+    case compact
+    case large
+}
+
 struct EmbedPreviewCard: View {
+    private enum Constants {
+        static let compactWidth: CGFloat = 300
+        static let compactHeight: CGFloat = 200
+        static let expandedHeight: CGFloat = 400
+        static let expandedInfoBarWidth: CGFloat = 300
+        static let expandedInfoBarOffset: CGFloat = 15
+        static let expandedBottomOutset: CGFloat = 30
+        static let cornerRadius: CGFloat = 30
+        static let faviconSize: CGFloat = 20
+    }
+
     let embed: EmbedRecord
     let allEmbedRecords: [String: EmbedRecord]
+    let variant: EmbedPreviewCardVariant
     let onTap: () -> Void
+    @State private var isHovering = false
+    @State private var hoverX: CGFloat = 0
+    @State private var hoverY: CGFloat = 0
 
-    init(embed: EmbedRecord, allEmbedRecords: [String: EmbedRecord] = [:], onTap: @escaping () -> Void) {
+    init(
+        embed: EmbedRecord,
+        allEmbedRecords: [String: EmbedRecord] = [:],
+        variant: EmbedPreviewCardVariant = .compact,
+        onTap: @escaping () -> Void
+    ) {
         self.embed = embed
         self.allEmbedRecords = allEmbedRecords
+        self.variant = variant
         self.onTap = onTap
     }
 
@@ -21,24 +47,28 @@ struct EmbedPreviewCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            Group {
-                if hasFullWidthDetails {
-                    ZStack(alignment: .bottom) {
-                        contentArea
-                        statusBar
-                    }
-                } else {
-                    VStack(spacing: 0) {
-                        contentArea
-                        statusBar
-                    }
-                }
-            }
-            .frame(width: 300, height: 200)
+            previewLayout
+            .frame(width: cardWidth, height: cardHeight)
             .background(Color.grey25)
-            .clipShape(RoundedRectangle(cornerRadius: 30))
+            .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
             .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
             .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+            .overlay(alignment: .bottom) {
+                if variant == .large {
+                    statusBar
+                        .frame(width: Constants.expandedInfoBarWidth)
+                        .offset(y: Constants.expandedInfoBarOffset)
+                        .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: 8)
+                        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
+                }
+            }
+            .padding(.top, variant == .large ? .spacing5 : 0)
+            .padding(.bottom, variant == .large ? Constants.expandedBottomOutset : 0)
+            .rotation3DEffect(.degrees(isHovering ? -hoverY * tiltMaxAngle : 0), axis: (x: 1, y: 0, z: 0), perspective: 1 / tiltPerspective)
+            .rotation3DEffect(.degrees(isHovering ? hoverX * tiltMaxAngle : 0), axis: (x: 0, y: 1, z: 0), perspective: 1 / tiltPerspective)
+            .scaleEffect(isHovering ? 1.02 : 1)
+            .background(hoverTracker)
+            .animation(.easeOut(duration: 0.15), value: isHovering)
         }
         .buttonStyle(EmbedPreviewButtonStyle())
         .disabled(embed.status == .processing)
@@ -48,6 +78,64 @@ struct EmbedPreviewCard: View {
             title: embedType?.displayName
         )
         .accessibilityValue(embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready")
+    }
+
+    private var cardWidth: CGFloat? {
+        variant == .large ? nil : Constants.compactWidth
+    }
+
+    private var cardHeight: CGFloat {
+        variant == .large ? Constants.expandedHeight : Constants.compactHeight
+    }
+
+    private var tiltMaxAngle: CGFloat {
+        variant == .large ? 1 : 3
+    }
+
+    private var tiltPerspective: CGFloat {
+        variant == .large ? 1200 : 800
+    }
+
+    private var hoverTracker: some View {
+        GeometryReader { proxy in
+            Color.clear
+                #if os(macOS)
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let location):
+                        let width = max(proxy.size.width, 1)
+                        let height = max(proxy.size.height, 1)
+                        hoverX = ((location.x / width) - 0.5) * 2
+                        hoverY = ((location.y / height) - 0.5) * 2
+                        isHovering = true
+                    case .ended:
+                        isHovering = false
+                        hoverX = 0
+                        hoverY = 0
+                    }
+                }
+                #endif
+        }
+    }
+
+    @ViewBuilder
+    private var previewLayout: some View {
+        if hasFullWidthDetails {
+            contentArea
+                .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
+                .overlay(alignment: .bottom) {
+                    if variant == .compact {
+                        statusBar
+                    }
+                }
+        } else {
+            VStack(spacing: 0) {
+                contentArea
+                if variant == .compact {
+                    statusBar
+                }
+            }
+        }
     }
 
     // MARK: - Content area
@@ -108,7 +196,21 @@ struct EmbedPreviewCard: View {
             AppIconView(appId: appId, size: 61)
                 .accessibilityHidden(true)
 
-            if showsSkillIcon {
+            if let faviconURL, let url = URL(string: faviconURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    default:
+                        Color.clear
+                    }
+                }
+                .frame(width: Constants.faviconSize, height: Constants.faviconSize)
+                .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                .accessibilityHidden(true)
+            } else if showsSkillIcon {
                 Icon(skillIconName, size: 29)
                     .foregroundStyle(Color.grey70)
                     .accessibilityHidden(true)
@@ -136,7 +238,7 @@ struct EmbedPreviewCard: View {
         .frame(height: 61)
         .padding(.trailing, .spacing5)
         .background(Color.grey30)
-        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
     }
 
     private var appId: String {
@@ -165,17 +267,28 @@ struct EmbedPreviewCard: View {
     }
 
     private var showsSkillIcon: Bool {
-        if embedType == .codeCode || embedType == .webWebsite || embedType == .videosVideo {
+        if embedType == .codeCode || embedType == .webWebsite || embedType == .videosVideo || embedType == .imagesImageResult {
             return false
         }
         return true
     }
 
     private var hasFullWidthDetails: Bool {
-        embedType == .image || embedType == .imagesImageResult || (embed.isAppSkillUse && appId == "images")
+        if embedType == .webWebsite {
+            return websiteUsesFullWidthImage
+        }
+        return embedType == .image || embedType == .imagesImageResult || (embed.isAppSkillUse && appId == "images")
     }
 
     private var statusTitle: String {
+        if embedType == .webWebsite {
+            return firstString(in: embed.rawData ?? [:], keys: ["title", "site_name"])
+                ?? host(from: firstString(in: embed.rawData ?? [:], keys: ["url"]))
+                ?? EmbedType.webWebsite.displayName
+        }
+        if embedType == .imagesImageResult {
+            return sourceDomain ?? embedType?.displayName ?? embed.type
+        }
         if embed.isAppSkillUse {
             return skillDisplayName
         }
@@ -216,6 +329,25 @@ struct EmbedPreviewCard: View {
         return nil
     }
 
+    private var faviconURL: String? {
+        firstString(in: embed.rawData ?? [:], keys: ["favicon_url", "favicon", "meta_url_favicon"])
+    }
+
+    private var websiteUsesFullWidthImage: Bool {
+        guard embedType == .webWebsite else { return false }
+        let raw = embed.rawData ?? [:]
+        let description = firstString(in: raw, keys: ["description", "meta_description", "summary"])?
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let image = firstString(in: raw, keys: ["image", "image_url", "thumbnail_url", "meta_image", "og_image"])
+        return (description?.isEmpty ?? true) && image != nil && variant == .large
+    }
+
+    private var sourceDomain: String? {
+        firstString(in: embed.rawData ?? [:], keys: ["source", "source_domain"])
+            ?? host(from: firstString(in: embed.rawData ?? [:], keys: ["source_page_url", "url"]))
+    }
+
     private var skillDisplayName: String {
         let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? "web"
         let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? "search"
@@ -240,6 +372,26 @@ struct EmbedPreviewCard: View {
         default:
             return language.prefix(1).uppercased() + language.dropFirst()
         }
+    }
+
+    private func firstString(in raw: [String: AnyCodable], keys: [String]) -> String? {
+        for key in keys {
+            if let value = raw[key]?.value as? String, !value.isEmpty {
+                return value
+            }
+            if key == "meta_url_favicon",
+               let metaURL = raw["meta_url"]?.value as? [String: Any],
+               let favicon = metaURL["favicon"] as? String,
+               !favicon.isEmpty {
+                return favicon
+            }
+        }
+        return nil
+    }
+
+    private func host(from value: String?) -> String? {
+        guard let value, let url = URL(string: value), let host = url.host else { return nil }
+        return host.replacingOccurrences(of: "www.", with: "")
     }
 }
 

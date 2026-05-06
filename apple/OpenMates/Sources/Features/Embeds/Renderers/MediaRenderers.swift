@@ -4,6 +4,11 @@
 import SwiftUI
 #if os(iOS)
 import PDFKit
+import UIKit
+import QuickLook
+#elseif os(macOS)
+import AppKit
+import QuickLookUI
 #endif
 import AVFoundation
 
@@ -39,6 +44,159 @@ struct EncryptedImageView: View {
             }
         }
         .task { await loadImage() }
+    }
+
+    private func loadImage() async {
+        guard let s3Url, let aesKey, let aesNonce else {
+            error = "Missing encryption keys"
+            isLoading = false
+            return
+        }
+        do {
+            imageData = try await S3MediaClient.shared.fetchAndDecrypt(
+                s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce
+            )
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    #if os(iOS)
+    private func platformImage(from data: Data) -> CGImage? {
+        UIImage(data: data)?.cgImage
+    }
+    #elseif os(macOS)
+    private func platformImage(from data: Data) -> CGImage? {
+        NSImage(data: data)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    }
+    #endif
+}
+
+@MainActor
+private final class NativeImagePreviewer: NSObject {
+    static let shared = NativeImagePreviewer()
+
+    private var previewURL: URL?
+
+    func previewRemoteImage(_ url: URL, suggestedFilename: String? = nil) {
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                previewImageData(data, suggestedFilename: suggestedFilename ?? url.lastPathComponent)
+            } catch {
+                ToastManager.shared.show(error.localizedDescription, type: .error)
+            }
+        }
+    }
+
+    func previewImageData(_ data: Data, suggestedFilename: String? = nil) {
+        do {
+            let fileURL = try writeTemporaryImage(data, suggestedFilename: suggestedFilename)
+            previewURL = fileURL
+            openPreview()
+        } catch {
+            ToastManager.shared.show(error.localizedDescription, type: .error)
+        }
+    }
+
+    private func writeTemporaryImage(_ data: Data, suggestedFilename: String?) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("openmates-image-preview", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let sanitizedName = (suggestedFilename?.isEmpty == false ? suggestedFilename! : "image")
+            .replacingOccurrences(of: "/", with: "-")
+        let hasExtension = URL(fileURLWithPath: sanitizedName).pathExtension.isEmpty == false
+        let filename = hasExtension ? sanitizedName : "\(sanitizedName).jpg"
+        let fileURL = directory.appendingPathComponent("\(UUID().uuidString)-\(filename)")
+        try data.write(to: fileURL, options: .atomic)
+        return fileURL
+    }
+
+    private func openPreview() {
+        #if os(iOS)
+        let controller = QLPreviewController()
+        controller.dataSource = self
+        controller.modalPresentationStyle = .fullScreen
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+            var presenter = root
+            while let presented = presenter.presentedViewController {
+                presenter = presented
+            }
+            presenter.present(controller, animated: true)
+        }
+        #elseif os(macOS)
+        if let panel = QLPreviewPanel.shared() {
+            panel.dataSource = self
+            panel.delegate = self
+            panel.reloadData()
+            panel.makeKeyAndOrderFront(nil)
+        } else if let previewURL {
+            NSWorkspace.shared.open(previewURL)
+        }
+        #endif
+    }
+}
+
+#if os(iOS)
+extension NativeImagePreviewer: QLPreviewControllerDataSource {
+    nonisolated func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+        MainActor.assumeIsolated { previewURL == nil ? 0 : 1 }
+    }
+
+    nonisolated func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        MainActor.assumeIsolated { previewURL! as NSURL }
+    }
+}
+#elseif os(macOS)
+extension NativeImagePreviewer: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+    nonisolated func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
+        MainActor.assumeIsolated { previewURL == nil ? 0 : 1 }
+    }
+
+    nonisolated func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        MainActor.assumeIsolated { previewURL! as NSURL }
+    }
+}
+#endif
+
+private struct TappableEncryptedImageView: View {
+    let s3Url: String?
+    let aesKey: String?
+    let aesNonce: String?
+    let filename: String?
+
+    @State private var imageData: Data?
+    @State private var isLoading = true
+    @State private var error: String?
+
+    var body: some View {
+        Group {
+            if let imageData, let image = platformImage(from: imageData) {
+                Image(decorative: image, scale: 1.0)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        NativeImagePreviewer.shared.previewImageData(imageData, suggestedFilename: filename)
+                    }
+            } else if isLoading {
+                Color.grey20.overlay(ProgressView())
+            } else if let error {
+                Color.grey20.overlay(
+                    VStack(spacing: .spacing2) {
+                        Icon("image", size: 24)
+                            .foregroundStyle(Color.error)
+                        Text(error)
+                            .font(.omTiny).foregroundStyle(Color.error)
+                    }
+                )
+            }
+        }
+        .task { await loadImage() }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(LocalizationManager.shared.text("embeds.image_search.open_image"))
     }
 
     private func loadImage() async {
@@ -192,11 +350,12 @@ struct ImageRenderer: View {
                     Text(filename).font(.omP).foregroundStyle(Color.fontPrimary)
                 }
                 if s3Url != nil && aesKey != nil {
-                    EncryptedImageView(
-                        s3Url: s3Url, aesKey: aesKey, aesNonce: aesNonce,
-                        contentMode: .fit
+                    TappableEncryptedImageView(
+                        s3Url: s3Url,
+                        aesKey: aesKey,
+                        aesNonce: aesNonce,
+                        filename: filename
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
                 }
             }
         }
@@ -228,10 +387,35 @@ struct ImageResultRenderer: View {
         switch mode {
         case .preview:
             if let url, let imgURL = URL(string: url) {
-                AsyncImage(url: imgURL) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: { Color.grey20.overlay(ProgressView()) }
+                ZStack(alignment: .topLeading) {
+                    AsyncImage(url: imgURL) { image in
+                        image.resizable().aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        Color.grey20.overlay(ProgressView())
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    if let title, !title.isEmpty {
+                        Text(title)
+                            .font(.omXxs)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.white.opacity(0.95))
+                            .lineLimit(2)
+                            .padding(.horizontal, 14)
+                            .padding(.top, 12)
+                            .padding(.bottom, 32)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                LinearGradient(
+                                    colors: [.black.opacity(0.5), .clear],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    }
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.grey20)
             }
 
         case .fullscreen:
@@ -256,6 +440,10 @@ struct ImageResultRenderer: View {
                                 ProgressView()
                             }
                         }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        NativeImagePreviewer.shared.previewRemoteImage(imgURL, suggestedFilename: title)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.spacing8)

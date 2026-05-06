@@ -42,11 +42,30 @@ targets:
       - path: ../frontend/packages/ui/src/tokens/generated/swift
         name: DesignTokens
         type: group
+      - path: ../frontend/packages/ui/static/images/mates
+        buildPhase: resources
+        name: Mates
+        type: folder
+      - path: ../frontend/packages/ui/src/i18n/locales
+        buildPhase: resources
+        name: i18n
+        type: folder
+      - path: ../frontend/packages/ui/src/demo_chats/data/example_chats
+        buildPhase: resources
+        name: example_chats
+        type: folder
+      - path: OpenMates/Resources/Videos
+        buildPhase: resources
+        name: Videos
+        type: folder
+      - path: OpenMates/Resources/Fonts
+        buildPhase: resources
+        name: Fonts
+        type: folder
     resources:
       # Xcode asset catalogs with theme-aware colors and custom icons
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Icons.xcassets
-      - path: OpenMates/Resources
     settings:
       base:
         INFOPLIST_FILE: OpenMates/Resources/Info.plist
@@ -56,13 +75,19 @@ targets:
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org?mode=developer
           # StoreKit testing configuration for sandbox purchases
           STOREKIT_CONFIGURATION: OpenMates/Resources/OpenMates.storekit
         Release:
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
+          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
     entitlements:
       path: OpenMates/Resources/OpenMates.entitlements
       properties:
+        com.apple.developer.associated-domains:
+          - webcredentials:openmates.org
+          - $(OPENMATES_DEV_WEBCREDENTIALS)
+          - webcredentials:app.openmates.org
         keychain-access-groups:
           - $(AppIdentifierPrefix)org.openmates.app
     info:

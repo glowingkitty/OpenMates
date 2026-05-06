@@ -646,7 +646,8 @@ private enum PublicChatContent {
             updatedAt: nil,
             appId: appId,
             isStreaming: false,
-            embedRefs: embedRefs
+            embedRefs: embedRefs,
+            modelName: role == .assistant ? "Gemini 3 Flash" : nil
         )
     }
 
@@ -668,7 +669,8 @@ private enum PublicChatContent {
                 updatedAt: original.updatedAt,
                 appId: original.appId,
                 isStreaming: original.isStreaming,
-                embedRefs: extracted.refs.isEmpty ? nil : extracted.refs
+                embedRefs: extracted.refs.isEmpty ? nil : extracted.refs,
+                modelName: original.modelName
             )
         }
         return (updatedMessages, records)
@@ -763,30 +765,10 @@ private enum PublicChatContent {
                   let fullRange = Range(match.range(at: 0), in: cleaned) else { continue }
 
             let ref = String(cleaned[refRange])
-            let record = markerEmbedRecord(ref: ref, fallbackAppId: fallbackAppId)
-            records.insert(record, at: 0)
-            refs.insert(embedRef(for: record), at: 0)
-            cleaned.replaceSubrange(fullRange, with: "\n[[embed:\(record.id)]]\n")
+            cleaned.replaceSubrange(fullRange, with: "\n[[embedref:\(ref)]]\n")
         }
 
         return (sanitize(cleaned), refs, records)
-    }
-
-    private static func markerEmbedRecord(ref: String, fallbackAppId: String?) -> EmbedRecord {
-        let type = "web-website"
-
-        let title = ref
-            .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "_", with: " ")
-        let host = ref.split(separator: "-").first.map(String.init) ?? ref
-        let data: [String: Any] = [
-            "title": title,
-            "url": "https://\(host)",
-            "description": "Referenced result from the example chat.",
-            "thumbnail_url": ""
-        ]
-
-        return embedRecord(id: "static-\(ref)", type: type, appId: EmbedType(rawValue: type)?.appId ?? fallbackAppId, skillId: nil, data: data, parentEmbedId: nil, embedIds: nil)
     }
 
     private static func embedRef(for record: EmbedRecord) -> EmbedRef {
@@ -943,6 +925,9 @@ private enum PublicChatContent {
     }
 
     private static func normalizedEmbedType(from type: String, appId: String?, skillId: String?) -> String {
+        if type == "code" {
+            return "code-code"
+        }
         if type == "website" || type == "web_result" || type == "search_result" {
             return "web-website"
         }
@@ -1052,7 +1037,7 @@ private enum PublicChatContent {
             "[[for_developers_embed]]"
         ]
         var cleaned = content
-        let embedPlaceholderPattern = #"\[\[embed:[^\]]+\]\]"#
+        let embedPlaceholderPattern = #"\[\[embed(?:ref)?:[^\]]+\]\]"#
         let embedPlaceholderMatches = regexMatches(embedPlaceholderPattern, in: cleaned)
             .compactMap { match -> String? in
                 guard let range = Range(match.range(at: 0), in: cleaned) else { return nil }

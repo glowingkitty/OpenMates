@@ -61,6 +61,7 @@ final class PersistedMessage {
     var createdAt: String
     var updatedAt: String?
     var appId: String?
+    var modelName: String?
 
     var chat: PersistedChat?
 
@@ -73,6 +74,7 @@ final class PersistedMessage {
         self.createdAt = message.createdAt
         self.updatedAt = message.updatedAt
         self.appId = message.appId
+        self.modelName = message.modelName
     }
 
     func toMessage() -> Message {
@@ -82,7 +84,8 @@ final class PersistedMessage {
             content: content, encryptedContent: encryptedContent,
             createdAt: createdAt,
             updatedAt: updatedAt, appId: appId,
-            isStreaming: false, embedRefs: nil
+            isStreaming: false, embedRefs: nil,
+            modelName: modelName
         )
     }
 }

@@ -9,6 +9,7 @@ struct EmbedFullscreenView: View {
     let childEmbeds: [EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
     @Environment(\.dismiss) var dismiss
+    @Environment(\.openURL) private var openURL
 
     init(embed: EmbedRecord, childEmbeds: [EmbedRecord], allEmbedRecords: [String: EmbedRecord] = [:]) {
         self.embed = embed
@@ -74,7 +75,16 @@ struct EmbedFullscreenView: View {
 
     // MARK: - Header banner with gradient
 
+    @ViewBuilder
     private var headerBanner: some View {
+        if embedType == .webWebsite {
+            websiteHeaderBanner
+        } else {
+            standardHeaderBanner
+        }
+    }
+
+    private var standardHeaderBanner: some View {
         ZStack(alignment: .bottomLeading) {
             if let appId = embedType?.appId {
                 AppGradientBackground(appId: appId)
@@ -106,6 +116,93 @@ struct EmbedFullscreenView: View {
         .accessibilityLabel("\(embedType?.displayName ?? embed.type)\(headerSubtitle.map { ": \($0)" } ?? "")")
     }
 
+    private var websiteHeaderBanner: some View {
+        ZStack(alignment: .center) {
+            AppGradientBackground(appId: "web")
+                .frame(height: 238)
+                .accessibilityHidden(true)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+
+            HStack {
+                Icon("web", size: 130)
+                    .foregroundStyle(.white.opacity(0.22))
+                    .rotationEffect(.degrees(-12))
+                    .offset(x: -50, y: 45)
+                    .accessibilityHidden(true)
+
+                Spacer()
+
+                Icon("web", size: 110)
+                    .foregroundStyle(.white.opacity(0.22))
+                    .rotationEffect(.degrees(14))
+                    .offset(x: 40, y: 38)
+                    .accessibilityHidden(true)
+            }
+            .clipped()
+
+            VStack(spacing: .spacing4) {
+                Icon("web", size: 42)
+                    .foregroundStyle(Color.fontButton)
+                    .accessibilityHidden(true)
+
+                HStack(spacing: .spacing2) {
+                    if let faviconURL = websiteFaviconURL, let url = URL(string: faviconURL) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            default:
+                                Color.clear
+                            }
+                        }
+                        .frame(width: 19, height: 19)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                    }
+
+                    Text(websiteTitle)
+                        .font(.omH3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontButton)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                }
+
+                if let date = websiteDataDate {
+                    Text(AppStrings.dataFrom(date))
+                        .font(.omP)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontButton.opacity(0.85))
+                }
+
+                Button {
+                    if let url = URL(string: websiteURL) {
+                        openURL(url)
+                    }
+                } label: {
+                    Text(AppStrings.openOnProvider(websiteHost))
+                        .font(.omP)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, .spacing10)
+                        .padding(.vertical, .spacing5)
+                        .background(Color.buttonPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                .offset(y: 18)
+            }
+            .padding(.horizontal, .spacing20)
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.top, 68)
+        .padding(.bottom, .spacing12)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(websiteTitle)\(websiteDataDate.map { ", \(AppStrings.dataFrom($0))" } ?? "")")
+    }
+
     private var headerSubtitle: String? {
         guard let data = embed.data, case .raw(let dict) = data else { return nil }
         if let query = dict["query"]?.value as? String { return query }
@@ -120,7 +217,115 @@ struct EmbedFullscreenView: View {
         VStack(alignment: .leading, spacing: .spacing4) {
             EmbedContentView(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords)
         }
-        .padding(.spacing6)
+        .padding(embedType == .webWebsite ? 0 : .spacing6)
+    }
+
+    private var websiteRawData: [String: AnyCodable] {
+        guard let data = embed.data, case .raw(let dict) = data else { return [:] }
+        return dict
+    }
+
+    private var websiteURL: String {
+        websiteRawData["url"]?.value as? String ?? ""
+    }
+
+    private var websiteTitle: String {
+        firstWebsiteString(["title", "site_name"]) ?? websiteHost
+    }
+
+    private var websiteHost: String {
+        guard let host = URL(string: websiteURL)?.host else { return websiteURL }
+        let parts = host.replacingOccurrences(of: "www.", with: "").split(separator: ".")
+        guard parts.count > 2 else { return parts.joined(separator: ".") }
+        let lastTwo = parts.suffix(2).joined(separator: ".")
+        let twoPartTLDs = ["co.uk", "com.au", "co.nz", "org.uk", "com.br", "co.jp", "co.kr", "co.in", "com.mx", "com.cn"]
+        if twoPartTLDs.contains(lastTwo), parts.count >= 3 {
+            return parts.suffix(3).joined(separator: ".")
+        }
+        return lastTwo
+    }
+
+    private var websiteFaviconURL: String? {
+        if let favicon = firstWebsiteString(["meta_url_favicon", "favicon_url", "favicon"]) {
+            return proxiedImageURL(favicon, maxWidth: 38)
+        }
+        return proxiedFaviconURL(websiteURL)
+    }
+
+    private var websiteDataDate: String? {
+        guard let raw = firstWebsiteString(["page_age", "data_date", "date", "published_date"]) else { return nil }
+        if let date = parseWebsiteRelativeDate(raw) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy/MM/dd"
+            return formatter.string(from: date)
+        }
+        return raw.replacingOccurrences(of: "-", with: "/")
+    }
+
+    private func firstWebsiteString(_ keys: [String]) -> String? {
+        for key in keys {
+            if let value = websiteRawData[key]?.value as? String, !value.isEmpty {
+                return value
+            }
+            if key == "meta_url_favicon",
+               let metaURL = websiteRawData["meta_url"]?.value as? [String: Any],
+               let favicon = metaURL["favicon"] as? String,
+               !favicon.isEmpty {
+                return favicon
+            }
+        }
+        return nil
+    }
+
+    private func proxiedImageURL(_ rawURL: String, maxWidth: Int) -> String? {
+        if rawURL.hasPrefix("https://preview.openmates.org/api/v1/image") || rawURL.hasPrefix("data:") || rawURL.hasPrefix("/") {
+            return rawURL
+        }
+        var components = URLComponents(string: "https://preview.openmates.org/api/v1/image")
+        components?.queryItems = [
+            URLQueryItem(name: "url", value: rawURL),
+            URLQueryItem(name: "max_width", value: "\(maxWidth)")
+        ]
+        return components?.url?.absoluteString ?? rawURL
+    }
+
+    private func proxiedFaviconURL(_ pageURL: String) -> String? {
+        guard !pageURL.isEmpty else { return nil }
+        var components = URLComponents(string: "https://preview.openmates.org/api/v1/favicon")
+        components?.queryItems = [URLQueryItem(name: "url", value: pageURL)]
+        return components?.url?.absoluteString
+    }
+
+    private func parseWebsiteRelativeDate(_ value: String) -> Date? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let date = ISO8601DateFormatter().date(from: value) {
+            return date
+        }
+        if trimmed == "today" || trimmed == "just now" {
+            return Date()
+        }
+        if trimmed == "yesterday" {
+            return Calendar.current.date(byAdding: .day, value: -1, to: Date())
+        }
+        let pattern = #"^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+              let amountRange = Range(match.range(at: 1), in: trimmed),
+              let unitRange = Range(match.range(at: 2), in: trimmed),
+              let amount = Int(trimmed[amountRange]) else {
+            return nil
+        }
+        let unit = String(trimmed[unitRange])
+        switch unit {
+        case "second": return Calendar.current.date(byAdding: .second, value: -amount, to: Date())
+        case "minute": return Calendar.current.date(byAdding: .minute, value: -amount, to: Date())
+        case "hour": return Calendar.current.date(byAdding: .hour, value: -amount, to: Date())
+        case "day": return Calendar.current.date(byAdding: .day, value: -amount, to: Date())
+        case "week": return Calendar.current.date(byAdding: .day, value: -(amount * 7), to: Date())
+        case "month": return Calendar.current.date(byAdding: .month, value: -amount, to: Date())
+        case "year": return Calendar.current.date(byAdding: .year, value: -amount, to: Date())
+        default: return nil
+        }
     }
 
     // MARK: - Child embeds (for composite types)
