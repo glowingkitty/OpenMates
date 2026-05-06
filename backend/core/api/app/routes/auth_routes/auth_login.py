@@ -1455,17 +1455,27 @@ async def lookup_user(
         # Step 4: Get user profile to access tfa_app_name (leverages existing cache)
         user_id = user_data.get("id")
         tfa_app_name = None
+        cached_user_profile = None
         
         if user_id:
-            # Check if user profile is already cached
             cached_user_profile = await cache_service.get_user_by_id(user_id)
-            if cached_user_profile:
+            required_profile_fields = ("username", "vault_key_id", "hashed_email", "user_email_salt")
+            if cached_user_profile and all(cached_user_profile.get(field) for field in required_profile_fields):
                 tfa_app_name = cached_user_profile.get("tfa_app_name")
                 logger.info(f"Using cached user profile for tfa_app_name lookup: {user_id}")
             else:
-                # Fetch user profile if not cached (will be cached by get_user_profile)
+                if cached_user_profile:
+                    missing_fields = [field for field in required_profile_fields if not cached_user_profile.get(field)]
+                    logger.warning(
+                        f"Cached user profile for {user_id} is missing {missing_fields} during lookup. "
+                        "Evicting and re-fetching before login."
+                    )
+                    await cache_service.delete(f"user_profile:{user_id}")
+
+                # Fetch a validated profile if not cached or if cache was incomplete.
                 profile_success, user_profile, _ = await directus_service.get_user_profile(user_id)
                 if profile_success and user_profile:
+                    cached_user_profile = user_profile
                     tfa_app_name = user_profile.get("tfa_app_name")
                     logger.info(f"Fetched user profile for tfa_app_name lookup: {user_id}")
         
