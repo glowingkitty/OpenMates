@@ -21,6 +21,7 @@
         isLoading = $bindable(false),
         loginFailedWarning = $bindable(false),
         stayLoggedIn = $bindable(false),
+        emailInputElement = $bindable<HTMLInputElement | undefined>(undefined),
         isPasskeyLoading = false,
         onPasskeyClick = () => {},
         onCancelPasskey = () => {},
@@ -30,6 +31,7 @@
         isLoading?: boolean;
         loginFailedWarning?: boolean;
         stayLoggedIn?: boolean;
+        emailInputElement?: HTMLInputElement;
         isPasskeyLoading?: boolean;
         onPasskeyClick?: () => void;
         onCancelPasskey?: () => void;
@@ -42,8 +44,6 @@
 
     // Form data
     let emailInputValue = $state(''); // Separate variable for the input field value
-    let emailInput: HTMLInputElement = $state();
-
     // Email validation state
     let emailError = $state('');
     let showEmailWarning = $state(false);
@@ -55,7 +55,7 @@
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
     // Add debounce helper
-    function debounce<T extends (...args: any[]) => void>(
+    function debounce<T extends (...args: unknown[]) => void>(
         fn: T,
         delay: number
     ): (...args: Parameters<T>) => void {
@@ -273,17 +273,9 @@
 
     // Focus input when component mounts (if not touch device)
     import { onMount } from 'svelte';
-    let isTouchDevice = false;
-
     onMount(() => {
-        isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        
         // Clear the input field value when component mounts
         emailInputValue = '';
-        
-        if (emailInput && !isTouchDevice) {
-            emailInput.focus();
-        }
         
         // Check if we're still rate limited on mount
         const rateLimitTimestamp = localStorage.getItem('emailLookupRateLimit');
@@ -365,7 +357,7 @@
                         type="email"
                         name="username"
                         bind:value={emailInputValue}
-                        bind:this={emailInput}
+                        bind:this={emailInputElement}
                         placeholder={$text('login.email_placeholder')}
                         required
                         autocomplete="username webauthn"
