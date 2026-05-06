@@ -227,7 +227,25 @@ test.describe('Unauthenticated app load', () => {
 		await expect(assistantMessage).toBeVisible({ timeout: 10000 });
 		console.log('[unauthenticated-load] Assistant message content visible');
 
-		// ─── 4. Scroll down to reveal the prose text (below embed preview cards) ──
+		// ─── 4. Verify image and website embeds open in fullscreen ──────
+		const imageEmbed = page.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="search"]').first();
+		await imageEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
+		await expect(imageEmbed).toBeVisible({ timeout: 10000 });
+		const imageFullscreen = await openFullscreen(page, imageEmbed);
+		await expect(imageFullscreen).toBeVisible({ timeout: 10000 });
+		console.log('[unauthenticated-load] Image embed fullscreen opened');
+		await closeFullscreen(page, imageFullscreen);
+
+		const websiteEmbed = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="website"]').first();
+		await websiteEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
+		await expect(websiteEmbed).toBeVisible({ timeout: 10000 });
+		const websiteFullscreen = await openFullscreen(page, websiteEmbed);
+		await expect(websiteFullscreen).toBeVisible({ timeout: 10000 });
+		await expect(websiteFullscreen).toContainText(/Artemis|NASA|Launch/i, { timeout: 10000 });
+		console.log('[unauthenticated-load] Website embed fullscreen opened');
+		await closeFullscreen(page, websiteFullscreen);
+
+		// ─── 5. Scroll down to reveal the prose text (below embed preview cards) ──
 		// The assistant message starts with large embed previews (search cards).
 		// The prose text with wiki-linkable topics is below them.
 		// The TipTap editor is lazy-initialized via IntersectionObserver, so the
@@ -238,24 +256,6 @@ test.describe('Unauthenticated app load', () => {
 		// Give the IntersectionObserver + TipTap editor time to initialize
 		await page.waitForTimeout(3000);
 		console.log('[unauthenticated-load] Scrolled to bottom of assistant message');
-
-		// ─── 5. Verify image and website embeds open in fullscreen ──────
-		const imageEmbed = page.locator('[data-testid="embed-preview"][data-embed-id="dad76448-66cf-4cf3-bed6-d6ac0366ff1b"]').first();
-		await imageEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
-		await expect(imageEmbed).toBeVisible({ timeout: 10000 });
-		const imageFullscreen = await openFullscreen(page, imageEmbed);
-		await expect(imageFullscreen).toBeVisible({ timeout: 10000 });
-		console.log('[unauthenticated-load] Image embed fullscreen opened');
-		await closeFullscreen(page, imageFullscreen);
-
-		const websiteEmbed = page.locator('[data-testid="embed-preview"][data-embed-id="7d12fc4c-06e2-4d41-949f-6441b9ae4bac"]').first();
-		await websiteEmbed.scrollIntoViewIfNeeded({ timeout: 15000 });
-		await expect(websiteEmbed).toBeVisible({ timeout: 10000 });
-		const websiteFullscreen = await openFullscreen(page, websiteEmbed);
-		await expect(websiteFullscreen).toBeVisible({ timeout: 10000 });
-		await expect(websiteFullscreen).toContainText(/Artemis II Launch Day Updates/i, { timeout: 10000 });
-		console.log('[unauthenticated-load] Website embed fullscreen opened');
-		await closeFullscreen(page, websiteFullscreen);
 
 		// ─── 6. Verify Wikipedia inline links are rendered ──────────────
 		// The Artemis II example chat has wikipedia_topics defined (10 topics).
