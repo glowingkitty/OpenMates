@@ -121,24 +121,10 @@ final class ExternalDisplayCoordinator: ObservableObject {
         hasExternalDisplay && UIDevice.current.userInterfaceIdiom == .phone
     }
 
-    private init() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(displayConfigurationChanged),
-            name: UIScreen.didConnectNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(displayConfigurationChanged),
-            name: UIScreen.didDisconnectNotification,
-            object: nil
-        )
-        refreshConnectedDisplays()
-    }
+    private init() {}
 
     func attachExternalDisplayScene(_ windowScene: UIWindowScene) {
-        refreshConnectedDisplays()
+        hasExternalDisplay = true
 
         let window = UIWindow(windowScene: windowScene)
         window.rootViewController = UIHostingController(
@@ -156,7 +142,10 @@ final class ExternalDisplayCoordinator: ObservableObject {
     }
 
     func refreshConnectedDisplays() {
-        hasExternalDisplay = UIScreen.screens.contains { $0 !== UIScreen.main }
+        hasExternalDisplay = UIApplication.shared.connectedScenes.contains { scene in
+            guard let windowScene = scene as? UIWindowScene else { return false }
+            return windowScene.session.role == .windowExternalDisplayNonInteractive
+        }
     }
 
     func updatePointer(from location: CGPoint, in size: CGSize) {
@@ -171,9 +160,6 @@ final class ExternalDisplayCoordinator: ObservableObject {
         clickCount += 1
     }
 
-    @objc private func displayConfigurationChanged() {
-        refreshConnectedDisplays()
-    }
 }
 
 private struct ExternalDisplayStageView: View {
