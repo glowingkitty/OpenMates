@@ -40,7 +40,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 /**
  * Account recovery flow test against a deployed web app.
@@ -376,8 +376,9 @@ test('completes full account recovery flow with same password', async ({
 	// freshly generated secret from the 2FA setup step above).
 	await submitPasswordAndHandleOtp(page, activeTfaSecret, (msg: string) => logRecoveryCheckpoint(msg));
 
-	// Wait for successful login - should redirect to chat
-	await page.waitForURL(/chat|demo/, { timeout: 60000 });
+	// Wait for successful login. The app now keeps chat state in the hash, so URL
+	// path assertions are stale; authenticated chat readiness is the stable signal.
+	await waitForChatReady(page, { timeoutMs: 60000 });
 	await takeStepScreenshot(page, 'login-success');
 	logRecoveryCheckpoint('Login successful after account recovery! Test complete.');
 

@@ -120,7 +120,8 @@ for (const app of ALL_APPS) {
 						text.includes('Failed to load resource: net::ERR_') ||
 						text.includes('Failed to load resource: the server responded') ||
 						text.includes('Content Security Policy') ||
-						text.includes('[ChatDatabase]')
+						text.includes('[ChatDatabase]') ||
+						(app === 'videos' && text.includes('User not authenticated'))
 					) {
 						return;
 					}

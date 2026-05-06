@@ -534,6 +534,10 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	const deleteOtpInput = authModal.getByTestId('tfa-input');
 	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 	await deleteOtpInput.fill(generateTotp(tfaSecret));
+	const deleteAuthButton = authModal.getByTestId('auth-btn');
+	if (await deleteAuthButton.isEnabled({ timeout: 3000 }).catch(() => false)) {
+		await deleteAuthButton.click();
+	}
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
 	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({

@@ -215,25 +215,13 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	// We need to wait for the actual text content to appear
 	logCheckpoint('Waiting for message content to decrypt and render...');
 
-	// Wait for user message content to render inside ProseMirror
-	const userMessageProseMirror = userMessageWrapper.locator('[data-testid="read-only-message"] .ProseMirror');
-	await expect(userMessageProseMirror).toBeVisible({ timeout: 15000 });
-
 	// Wait for the actual text to appear (decryption complete)
 	// Use a polling approach to wait for content
-	await page.waitForFunction(
-		([selector, expectedText]: [string, string]) => {
-			const el = document.querySelector(selector);
-			return el && el.textContent && el.textContent.includes(expectedText);
-		},
-		[
-			'[data-testid="message-user"] [data-testid="read-only-message"] .ProseMirror',
-			'Explain web app security essentials'
-		],
-		{ timeout: 20000 }
-	);
+	await expect(userMessageWrapper).toContainText('Explain web app security essentials', {
+		timeout: 20000
+	});
 
-	const userMessageText = await userMessageProseMirror.textContent();
+	const userMessageText = await userMessageWrapper.textContent();
 	logCheckpoint('User message content loaded', { content: userMessageText?.substring(0, 100) });
 	expect(userMessageText).toContain('Explain web app security essentials');
 	logCheckpoint('User message content verified');

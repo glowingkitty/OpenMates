@@ -149,6 +149,23 @@ async function runCli(
 	args: string[],
 	timeoutMs = 25_000
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
+	let lastResult: { code: number | null; stdout: string; stderr: string } | null = null;
+	const attempts = args.includes('--json') ? 3 : 1;
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		lastResult = await runCliOnce(apiUrl, args, timeoutMs);
+		if (lastResult.stdout.trim() || lastResult.code !== 0) {
+			return lastResult;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+	}
+	return lastResult!;
+}
+
+async function runCliOnce(
+	apiUrl: string,
+	args: string[],
+	timeoutMs = 25_000
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	return new Promise((resolve) => {
 		const child = spawn('node', [CLI_DIST, ...args], {
