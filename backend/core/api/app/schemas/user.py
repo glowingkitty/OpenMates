@@ -3,7 +3,7 @@ from typing import Optional
 
 class UserResponse(BaseModel):
     id: Optional[str] = None # User's primary key (UUID)
-    username: str
+    username: Optional[str] = None
     is_admin: bool
     credits: int
     profile_image_url: Optional[str] = None
