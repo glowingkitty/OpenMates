@@ -80,6 +80,7 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
 
 	const developersItem = settingsMenu.getByRole('menuitem', { name: /developers/i }).first();
+	await developersItem.scrollIntoViewIfNeeded();
 	await expect(developersItem).toBeVisible({ timeout: 10000 });
 	await developersItem.click();
 	logCheckpoint('Navigated to Developers.');
@@ -95,6 +96,7 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 		.first();
 	const apiKeysVisible = await apiKeysItem.isVisible({ timeout: 5000 }).catch(() => false);
 	const targetItem = apiKeysVisible ? apiKeysItem : apiKeysItemFallback;
+	await targetItem.scrollIntoViewIfNeeded();
 	await expect(targetItem).toBeVisible({ timeout: 10000 });
 	await targetItem.click();
 	logCheckpoint('Navigated to API Keys.');
@@ -422,6 +424,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 		.getByRole('menuitem')
 		.filter({ hasText: /^developers$/i })
 		.first();
+	await developersItem2.scrollIntoViewIfNeeded();
 	await expect(developersItem2).toBeVisible({ timeout: 8000 });
 	await developersItem2.click();
 
@@ -429,6 +432,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 		.getByRole('menuitem')
 		.filter({ hasText: /^devices$/i })
 		.first();
+	await devicesItem.scrollIntoViewIfNeeded();
 	await expect(devicesItem).toBeVisible({ timeout: 8000 });
 	await devicesItem.click();
 	log('Navigated to Devices page.');
