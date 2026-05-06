@@ -76,6 +76,27 @@
 	let passwordInput = $state('');
 	let passwordError = $state<string | null>(null);
 
+	type ShareChatServerMessage = {
+		id?: string;
+		message_id?: string;
+		client_message_id?: string;
+		chat_id?: string;
+		role?: string;
+		created_at?: number;
+		encrypted_content?: string;
+		encrypted_sender_name?: string;
+		encrypted_category?: string;
+		encrypted_model_name?: string;
+		user_message_id?: string;
+	};
+
+	type ShareChatEmbedKey = {
+		key_type?: string;
+		hashed_chat_id?: string;
+		hashed_embed_id?: string;
+		encrypted_embed_key?: string;
+	};
+
 	/**
 	 * Extract the encryption key and message ID from the URL fragment
 	 * Format: #key={encrypted_blob} or #key={encrypted_blob}&messageid={messageId}
@@ -123,7 +144,12 @@
 	 */
 	async function fetchChatFromServer(
 		chatId: string
-	): Promise<{ chat: Chat | null; messages: Message[]; embeds: any[]; embed_keys: any[] }> {
+	): Promise<{
+		chat: Chat | null;
+		messages: Message[];
+		embeds: ShareChatEmbedLike[];
+		embed_keys: ShareChatEmbedKey[];
+	}> {
 		try {
 			const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}`));
 			if (!response.ok) {
@@ -144,12 +170,12 @@
 			});
 
 			// Parse messages first (backend returns JSON strings when decrypt_content=False)
-			const rawMessages = data.messages || [];
+			const rawMessages = (data.messages || []) as Array<string | ShareChatServerMessage>;
 			const parsedMessages = rawMessages
-				.map((msg: any) => {
+				.map((msg): ShareChatServerMessage | null => {
 					if (typeof msg === 'string') {
 						try {
-							return JSON.parse(msg);
+							return JSON.parse(msg) as ShareChatServerMessage;
 						} catch (e) {
 							console.warn('[ShareChat] Failed to parse message JSON:', e);
 							return null;
@@ -157,11 +183,11 @@
 					}
 					return msg;
 				})
-				.filter((msg: any) => msg !== null);
+				.filter((msg): msg is ShareChatServerMessage => msg !== null);
 
 			// Calculate last_edited_overall_timestamp from parsed messages
 			const messageTimestamps = parsedMessages
-				.map((m: any) => m.created_at || 0)
+				.map((m) => m.created_at || 0)
 				.filter((ts: number) => ts > 0);
 			const lastMessageTimestamp =
 				messageTimestamps.length > 0
@@ -169,7 +195,9 @@
 					: Math.floor(Date.now() / 1000);
 
 			// Convert parsed messages to Message format
-			const messages: Message[] = parsedMessages.map((messageObj: any) => {
+			const messages: Message[] = parsedMessages.map((messageObj) => {
+				const role =
+					messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user';
 				// Prefer client_message_id as the IDB key so that batchSaveMessages() can
 				// find the already-stored entry when the owner opens their own share link.
 				// The owner's IDB keyed the message by client_message_id at creation time;
@@ -180,7 +208,7 @@
 				return {
 					message_id: messageObj.client_message_id || messageObj.message_id || messageObj.id,
 					chat_id: data.chat_id,
-					role: messageObj.role || 'user',
+					role,
 					created_at: messageObj.created_at || Math.floor(Date.now() / 1000),
 					status: 'synced' as const,
 					encrypted_content: messageObj.encrypted_content || '',
@@ -195,8 +223,6 @@
 			// Get current user ID to check ownership
 			// For authenticated users, we need to determine if they own this chat
 			// If they don't own it, set user_id to a placeholder to mark it as read-only
-			let chatUserId: string | undefined = undefined;
-			let isCurrentUserOwner = false;
 			const { authStore } = await import('@repo/ui');
 			const { get } = await import('svelte/store');
 			const { userDB } = await import('@repo/ui');
@@ -205,8 +231,7 @@
 			if (isAuthenticated) {
 				try {
 					// Try to get current user ID
-					const profile = await userDB.getUserProfile();
-					const currentUserId = (profile as any)?.user_id;
+					await userDB.getUserProfile();
 
 					// For now, we'll check ownership on the backend when sending messages
 					// Here we set user_id to a placeholder if we can't verify ownership
@@ -217,7 +242,6 @@
 
 					// For shared chats, we assume the current user is NOT the owner
 					// (if they were, they wouldn't need to access via share link)
-					isCurrentUserOwner = false;
 				} catch (error) {
 					console.warn('[ShareChat] Could not determine user ownership:', error);
 				}
@@ -251,8 +275,8 @@
 			return {
 				chat,
 				messages,
-				embeds: data.embeds || [],
-				embed_keys: data.embed_keys || []
+				embeds: (data.embeds || []) as ShareChatEmbedLike[],
+				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[]
 			};
 		} catch (error) {
 			console.error('[ShareChat] Error fetching chat from server:', error);
@@ -383,6 +407,27 @@
 			// Convert the chat encryption key from base64 string to Uint8Array
 			// The key is stored as base64 in the blob, but chatDB expects Uint8Array
 			const keyBytes = Uint8Array.from(atob(result.chatEncryptionKey), (c) => c.charCodeAt(0));
+
+			// The API deliberately returns deterministic dummy ciphertext for missing/unshared
+			// chats to prevent ID enumeration. Validate that the URL key can decrypt at
+			// least one returned field before storing anything locally; otherwise stale
+			// links become dummy chats that render "[Content decryption failed]".
+			const validationCiphertext =
+				fetchedMessages.find((message) => !!message.encrypted_content)?.encrypted_content ||
+				fetchedChat.encrypted_title ||
+				fetchedChat.encrypted_chat_summary;
+			if (validationCiphertext) {
+				const { decryptWithChatKey } = await import('@repo/ui');
+				const validationPlaintext = await decryptWithChatKey(validationCiphertext, keyBytes, {
+					chatId,
+					fieldName: 'share_chat_validation'
+				});
+				if (validationPlaintext === null) {
+					error = 'This shared chat is no longer available or the link is invalid.';
+					isLoading = false;
+					return;
+				}
+			}
 
 			// Set the chat encryption key in the database cache BEFORE storing chat
 			// This allows the chat to be decrypted when stored.
@@ -516,7 +561,7 @@
 								embed_ids: Array.isArray(embed.embed_ids) ? embed.embed_ids : undefined,
 								parent_embed_id: embed.parent_embed_id || derivedParentByChild.get(embed.embed_id)
 							},
-							(embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as any
+							embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use'
 						);
 					} catch (embedError) {
 						console.warn(`[ShareChat] Error storing embed ${embed.embed_id}:`, embedError);

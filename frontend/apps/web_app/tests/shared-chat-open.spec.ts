@@ -51,7 +51,11 @@ test.afterEach(async ({}, testInfo: any) => {
  * 4. Decrypts and stores the chat in IndexedDB
  * 5. Redirects to the main app with the chat loaded
  */
-test('opens shared chat and loads content correctly', async ({ page }: { page: any }) => {
+test('stale shared chat link shows invalid-link error instead of decrypted dummy content', async ({
+	page
+}: {
+	page: any;
+}) => {
 	// Listen for console logs - helpful for debugging decryption issues
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -82,8 +86,10 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 
 	await archiveExistingScreenshots(logCheckpoint);
 
-	// The shared chat URL with encryption key in the fragment
-	// This is a test chat with known content about web app security
+	// This legacy shared-chat fixture points at a chat that no longer exists in
+	// Directus. The API intentionally returns dummy ciphertext for missing chats;
+	// the share page must reject that payload instead of importing dummy messages
+	// that later render "[Content decryption failed]".
 	const sharedChatUrl =
 		'https://app.dev.openmates.org/share/chat/87f1da2f-1814-4a36-a375-c718fa946922#key=X4Tz9wamfp_uPngBF3Z_imlm7t9eelWvSwPauIpcAy8z8qHi9A0Nu4uS-ZhfKBdF2462Qc0gJQZFHINe0L_iqwCUfvtjsY7eDrAAVsEuQUaCmUo-KZK1PslohdOMfg_xRvKUbGW-lh1mi6NrCz7pOur8ojLhxuT-lfsHIoHMEQPHuFb6AsDW5s-ZGSdHcTsQp3ue&messageid=ffcc180d-a0aa-4fc0-9c44-be39064122b8';
 	const expectedChatId = '87f1da2f-1814-4a36-a375-c718fa946922';
@@ -94,178 +100,20 @@ test('opens shared chat and loads content correctly', async ({ page }: { page: a
 	logCheckpoint('Navigating to shared chat URL...');
 	await page.goto(sharedChatUrl);
 
-	// Step 2: Wait for redirect to main app (should redirect to /#chat-id=...)
-	// The shared chat page will redirect to the main app once loaded
-	// The redirect happens very fast, so we don't take a screenshot until after
-	try {
-		await page.waitForURL(
-			(url: URL) => {
-				return url.hash.includes(`chat-id=${expectedChatId}`);
-			},
-			{ timeout: 60000 }
-		);
-		logCheckpoint('Successfully redirected to main app (via waitForURL)');
-	} catch {
-		// Sometimes the redirect happens before waitForURL starts monitoring
-		// Check if we're already on the main app
-		const currentUrl = page.url();
-		if (currentUrl.includes(`chat-id=${expectedChatId}`)) {
-			logCheckpoint('Already redirected to main app (redirect was fast)');
-		} else {
-			// Wait for URL to contain the chat ID using a poll
-			await expect(async () => {
-				const url = page.url();
-				expect(url).toContain(`chat-id=${expectedChatId}`);
-			}).toPass({ timeout: 30000 });
-			logCheckpoint('Successfully redirected to main app (via polling)');
-		}
-	}
-
-	await takeStepScreenshot(page, 'redirected-to-main-app');
-
-	// Step 3: Wait for the chat history container to be visible
-	await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 30000 });
-	logCheckpoint('Chat history container visible');
-	await takeStepScreenshot(page, 'chat-history-visible');
-
-	// OPE-360: Open the sidebar before looking up chat-title.
-	// On Playwright's default 1280x720 viewport (<=1440px) the sidebar is closed
-	// by default and Chats.svelte is NOT mounted, so data-testid="chat-title"
-	// (which lives in Chat.svelte chat-list items) doesn't exist in the DOM.
-	// ChatHeader.svelte uses data-testid="chat-header-title" instead, so the
-	// spec's chat-title locator only matches the sidebar list item.
-	try {
-		const sidebarToggle = page.getByTestId('sidebar-toggle');
-		if (await sidebarToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
-			const sidebarAlreadyOpen = await page
-				.getByTestId('chat-item-wrapper')
-				.first()
-				.isVisible({ timeout: 200 })
-				.catch(() => false);
-			if (!sidebarAlreadyOpen) {
-				logCheckpoint('Opening sidebar so chat-item-wrapper and chat-title elements mount…');
-				await sidebarToggle.click();
-				await page.waitForTimeout(500);
-			}
-		}
-	} catch (err) {
-		logCheckpoint(`Sidebar toggle probe failed (continuing anyway): ${err}`);
-	}
-
-	// Step 4: Best-effort sidebar metadata probe. Shared public chats can render
-	// their decrypted message content without a mounted sidebar row, especially at
-	// the default Playwright viewport where the sidebar starts closed.
-	const chatTitle = page
-		.getByTestId('chat-title')
-		.filter({ hasText: 'Explain web app security essentials' })
-		.first();
-	if (await chatTitle.isVisible({ timeout: 5000 }).catch(() => false)) {
-		logCheckpoint('Chat title verified', { title: 'Explain web app security essentials' });
-		await takeStepScreenshot(page, 'chat-title-visible');
-	} else {
-		logCheckpoint('Shared chat sidebar title not mounted; continuing with message-content assertions.');
-	}
-
-	// Step 5: If the sidebar row is mounted, verify its category icon and circle.
-	const chatItem = page
-		.getByTestId('chat-with-profile')
-		.filter({ hasText: 'Explain web app security essentials' })
-		.first();
-	if (await chatItem.isVisible({ timeout: 2000 }).catch(() => false)) {
-		const categoryIcon = chatItem.getByTestId('category-icon');
-		await expect(categoryIcon).toBeVisible();
-		const iconSvg = categoryIcon.locator('svg');
-		await expect(iconSvg).toBeVisible();
-		const iconPath = iconSvg.locator('path');
-		await expect(iconPath).toBeVisible();
-		logCheckpoint('Security category shield icon verified');
-
-		const categoryCircle = chatItem.getByTestId('category-circle');
-		await expect(categoryCircle).toBeVisible();
-		const circleStyle = await categoryCircle.getAttribute('style');
-		expect(circleStyle).toMatch(/linear-gradient.*rgb\(21.*93.*145\).*rgb\(66.*171.*244\)/);
-		logCheckpoint('Security category gradient colors verified');
-		await takeStepScreenshot(page, 'category-icon-verified');
-	}
-
-	// Step 6: Wait for messages to be present and decrypt
-	// Messages are rendered in .message-wrapper elements
-	const userMessageWrapper = page.getByTestId('message-user').first();
-	const assistantMessageWrapper = page.getByTestId('message-assistant').first();
-
-	await expect(userMessageWrapper).toBeVisible({ timeout: 20000 });
-	const hasAssistantMessage = await assistantMessageWrapper.isVisible({ timeout: 5000 }).catch(() => false);
-
-	const userMessageCount = await page.getByTestId('message-user').count();
-	const assistantMessageCount = await page.getByTestId('message-assistant').count();
-
-	logCheckpoint('Messages loaded', {
-		userCount: userMessageCount,
-		assistantCount: assistantMessageCount
+	// Step 2: The stale link should be rejected on the share page, before the
+	// dummy encrypted payload is persisted to IndexedDB or rendered as messages.
+	await expect(page.getByText(/shared chat is no longer available|link is invalid/i)).toBeVisible({
+		timeout: 30000
 	});
-	expect(userMessageCount).toBeGreaterThan(0);
-	if (hasAssistantMessage) {
-		expect(assistantMessageCount).toBe(1);
-	}
+	await expect(page.getByText('[Content decryption failed]')).not.toBeVisible();
+	await expect(page).not.toHaveURL(new RegExp(`chat-id=${expectedChatId}`));
+	await takeStepScreenshot(page, 'invalid-link-error');
 
-	await takeStepScreenshot(page, 'messages-loaded');
-
-	// Step 7: Wait for message decryption to complete
-	// The content is rendered via TipTap's ProseMirror editor inside .read-only-message
-	// We need to wait for the actual text content to appear
-	logCheckpoint('Waiting for message content to decrypt and render...');
-
-	// Wait for the actual text to appear (decryption complete)
-	// Use a polling approach to wait for content
-	await expect(userMessageWrapper).toContainText('Explain web app security essentials', {
-		timeout: 20000
-	});
-
-	const userMessageText = await userMessageWrapper.textContent();
-	logCheckpoint('User message content loaded', { content: userMessageText?.substring(0, 100) });
-	expect(userMessageText).toContain('Explain web app security essentials');
-	logCheckpoint('User message content verified');
-
-	await takeStepScreenshot(page, 'user-message-decrypted');
-
-	// Step 8: Wait for assistant message content to render
-	const assistantMessageProseMirror = assistantMessageWrapper.locator(
-		'[data-testid="read-only-message"] .ProseMirror'
-	);
-	if (!hasAssistantMessage) {
-		logCheckpoint('Shared chat has no assistant message; user message content verified.');
-		await assertNoMissingTranslations(page);
-		return;
-	}
-	await expect(assistantMessageProseMirror).toBeVisible({ timeout: 15000 });
-
-	// Wait for the actual text to appear (decryption complete)
-	await page.waitForFunction(
-		([selector, expectedText]: [string, string]) => {
-			const el = document.querySelector(selector);
-			return el && el.textContent && el.textContent.includes(expectedText);
-		},
-		[
-			'[data-testid="message-assistant"] [data-testid="read-only-message"] .ProseMirror',
-			'Web application security is crucial'
-		],
-		{ timeout: 20000 }
-	);
-
-	const assistantMessageText = await assistantMessageProseMirror.textContent();
-	logCheckpoint('Assistant message content loaded', {
-		contentLength: assistantMessageText?.length
-	});
-	expect(assistantMessageText).toContain('Web application security is crucial');
-	logCheckpoint('Assistant response content verified');
-
-	await takeStepScreenshot(page, 'assistant-message-decrypted');
-
-	// Step 9: Verify no missing translations on the shared chat page
+	// Step 3: Verify no missing translations on the shared chat page
 	await assertNoMissingTranslations(page);
 	logCheckpoint('No missing translations detected.');
 
-	// Step 10: Final verification and screenshot
+	// Step 4: Final verification and screenshot
 	await takeStepScreenshot(page, 'test-complete');
-	logCheckpoint('Shared chat test completed successfully');
+	logCheckpoint('Stale shared chat link rejected successfully');
 });
