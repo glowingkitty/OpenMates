@@ -540,16 +540,13 @@ test('completes full signup flow: email + 2FA + Managed Payments (Stripe Embedde
 	}
 	logSignupCheckpoint('Submitted 2FA code to confirm account deletion.');
 
-	await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
+	// Confirm logout redirect to demo chat after deletion. The deletion flow can
+	// clear authenticated UI before the transient in-settings success message is visible.
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 		timeout: 30000
 	});
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
-
-	// Confirm logout redirect to demo chat after deletion.
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 10000
-	});
 	logSignupCheckpoint('Returned to demo chat after account deletion.');
 
 	// Privacy promise check: after a full signup + purchase + deletion flow,
