@@ -287,6 +287,13 @@ final class WebSocketManager: ObservableObject {
         case "payment_completed":
             NotificationCenter.default.post(name: .paymentCompleted, object: nil)
 
+        case "force_logout":
+            let reason = msg.stringField("reason") ?? "session_revoked"
+            NotificationCenter.default.post(
+                name: .wsForceLogout, object: nil,
+                userInfo: ["reason": reason]
+            )
+
         default:
             print("[WS] Unhandled: \(msg.type)")
         }
@@ -418,5 +425,6 @@ extension Notification.Name {
     static let wsMessageReceived = Notification.Name("openmates.wsMessageReceived")
     static let wsSyncEvent = Notification.Name("openmates.wsSyncEvent")
     static let wsEmbedUpdate = Notification.Name("openmates.wsEmbedUpdate")
+    static let wsForceLogout = Notification.Name("openmates.wsForceLogout")
     static let paymentCompleted = Notification.Name("openmates.paymentCompleted")
 }

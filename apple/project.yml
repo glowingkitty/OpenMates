@@ -88,8 +88,6 @@ targets:
           - webcredentials:openmates.org
           - $(OPENMATES_DEV_WEBCREDENTIALS)
           - webcredentials:app.openmates.org
-        keychain-access-groups:
-          - $(AppIdentifierPrefix)org.openmates.app
     info:
       path: OpenMates/Resources/Info.plist
       properties:

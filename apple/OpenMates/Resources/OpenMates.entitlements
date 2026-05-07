@@ -8,9 +8,5 @@
 		<string>$(OPENMATES_DEV_WEBCREDENTIALS)</string>
 		<string>webcredentials:app.openmates.org</string>
 	</array>
-	<key>keychain-access-groups</key>
-	<array>
-		<string>$(AppIdentifierPrefix)org.openmates.app</string>
-	</array>
 </dict>
 </plist>

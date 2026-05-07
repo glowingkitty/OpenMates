@@ -298,13 +298,18 @@ struct MainAppView: View {
         .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { notification in
             handleSyncEvent(notification)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .wsForceLogout)) { notification in
+            let reason = notification.userInfo?["reason"] as? String ?? "session_revoked"
+            Task {
+                await authManager.forceLocalLogout(reason: reason)
+            }
+        }
         .onChange(of: authManager.state) { _, newState in
             if newState == .authenticated {
                 showAuthSheet = false
                 Task { await bootstrapAuthenticatedSession() }
             } else if newState == .unauthenticated {
-                didBootstrapAuthenticatedSession = false
-                wsManager.disconnect()
+                resetToUnauthenticatedSession()
             }
         }
         .onChange(of: pushManager.pendingChatId) { _, chatId in
@@ -320,6 +325,19 @@ struct MainAppView: View {
         selectedChatId = nil
         showNewChat = true
         showAuthSheet = false
+    }
+
+    private func resetToUnauthenticatedSession() {
+        didBootstrapAuthenticatedSession = false
+        syncProcessingTask?.cancel()
+        syncProcessingTask = nil
+        wsManager.disconnect()
+        chatStore.clearInMemory()
+        totalChatCount = 0
+        selectedChatId = nil
+        showNewChat = false
+        visibleUserChatLimit = Self.initialUserChatLimit
+        loadDemoChats(selectDefault: false)
     }
 
     private func applyLaunchCommandIfNeeded() {
@@ -397,6 +415,7 @@ struct MainAppView: View {
                 isAuthenticated: isAuthenticated || showAuthSheet,
                 isChatsPanelOpen: isChatsPanelOpen,
                 isSettingsOpen: showSettings,
+                profileUserId: authManager.currentUser?.id,
                 profileImageUrl: authManager.currentUser?.profileImageUrl,
                 onToggleChats: { withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen.toggle() } },
                 onNewChat: { selectedChatId = nil; showNewChat = true },
@@ -1843,6 +1862,7 @@ struct OpenMatesWebHeader: View {
     let isAuthenticated: Bool
     let isChatsPanelOpen: Bool
     let isSettingsOpen: Bool
+    let profileUserId: String?
     let profileImageUrl: String?
     let onToggleChats: () -> Void
     let onNewChat: () -> Void
@@ -1925,19 +1945,12 @@ struct OpenMatesWebHeader: View {
             Icon("close", size: 25)
                 .foregroundStyle(LinearGradient.primary)
                 .frame(width: 38, height: 38)
-        } else if isAuthenticated, let url = resolvedProfileImageURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                default:
-                    Icon("settings", size: 22)
-                        .foregroundStyle(LinearGradient.primary)
-                        .frame(width: 38, height: 38)
-                        .background(Color.grey10)
-                }
+        } else if isAuthenticated, let profileImageUrl = effectiveProfileImageUrl {
+            AuthenticatedProfileImage(urlString: profileImageUrl) {
+                Icon("settings", size: 22)
+                    .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 38, height: 38)
+                    .background(Color.grey10)
             }
             .frame(width: 38, height: 38)
             .clipShape(Circle())
@@ -1950,12 +1963,76 @@ struct OpenMatesWebHeader: View {
         }
     }
 
-    private var resolvedProfileImageURL: URL? {
-        guard let profileImageUrl, !profileImageUrl.isEmpty else { return nil }
-        if let absolute = URL(string: profileImageUrl), absolute.scheme != nil {
-            return absolute
+    private var effectiveProfileImageUrl: String? {
+        if let profileImageUrl,
+           !profileImageUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return profileImageUrl
         }
-        return ServerConfiguration.current.webAppURL.appendingPathComponent(profileImageUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+        guard let profileUserId,
+              !profileUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let encodedUserId = profileUserId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            return nil
+        }
+        return "/v1/users/\(encodedUserId)/profile-image"
+    }
+}
+
+private struct AuthenticatedProfileImage<Fallback: View>: View {
+    let urlString: String
+    @ViewBuilder let fallback: () -> Fallback
+
+    @State private var imageData: Data?
+
+    var body: some View {
+        Group {
+            if let image = platformImage {
+                image
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                fallback()
+            }
+        }
+        .task(id: urlString) {
+            await loadImage()
+        }
+    }
+
+    private var platformImage: Image? {
+        guard let imageData else { return nil }
+        #if os(iOS)
+        guard let image = UIImage(data: imageData) else { return nil }
+        return Image(uiImage: image)
+        #elseif os(macOS)
+        guard let image = NSImage(data: imageData) else { return nil }
+        return Image(nsImage: image)
+        #else
+        return nil
+        #endif
+    }
+
+    private func loadImage() async {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            imageData = nil
+            return
+        }
+
+        do {
+            if let absoluteURL = URL(string: trimmed), absoluteURL.scheme != nil {
+                let (data, response) = try await URLSession.shared.data(from: absoluteURL)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode) else {
+                    throw APIError.invalidResponse
+                }
+                imageData = data
+            } else {
+                imageData = try await APIClient.shared.request(.get, path: trimmed)
+            }
+        } catch {
+            imageData = nil
+            print("[ProfileImage] failed to load profile image url=\(trimmed) error=\(error.localizedDescription)")
+        }
     }
 }
 

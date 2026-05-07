@@ -131,6 +131,11 @@ struct ChatView: View {
                     }
 
                     messageList
+                        .simultaneousGesture(
+                            TapGesture().onEnded {
+                                dismissInputIfNeeded()
+                            }
+                        )
 
                     FocusModePill(focusModeManager: focusModeManager)
 
@@ -467,7 +472,7 @@ struct ChatView: View {
                     .coordinateSpace(name: "chat-scroll")
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        dismissExampleInputIfNeeded()
+                        dismissInputIfNeeded()
                     }
                     .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
                         updateScrollNavState(values: values, viewportHeight: scrollGeo.size.height)
@@ -858,7 +863,7 @@ struct ChatView: View {
 
     private var inputDismissButton: some View {
         Button {
-            dismissExampleInputIfNeeded()
+            dismissInputIfNeeded()
         } label: {
             Text(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft)
                 .font(.omSmall)
@@ -887,8 +892,8 @@ struct ChatView: View {
         .accessibilityLabel(label)
     }
 
-    private func dismissExampleInputIfNeeded() {
-        guard isExampleChat, isInputFocused else { return }
+    private func dismissInputIfNeeded() {
+        guard isInputFocused else { return }
         isInputFocused = false
         showAttachmentMenu = false
     }

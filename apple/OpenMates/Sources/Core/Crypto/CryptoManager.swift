@@ -2,7 +2,7 @@
 // Handles the full key lifecycle: password → PBKDF2 → wrapping key → master key,
 // master key → per-chat key unwrap, chat key → message/title decryption.
 // Uses CryptoKit for AES-GCM and CommonCrypto for PBKDF2.
-// Master key stored in Keychain with iCloud Keychain sync for multi-device.
+// Master key stored only in the local Apple Keychain for this app install.
 
 import Foundation
 import CryptoKit
@@ -195,8 +195,7 @@ actor CryptoManager {
     func saveMasterKey(_ key: SymmetricKey, for userId: String) throws {
         try KeychainHelper.save(
             key: "openmates.masterKey.\(userId)",
-            data: key.withUnsafeBytes { Data($0) },
-            synchronizable: true
+            data: key.withUnsafeBytes { Data($0) }
         )
     }
 

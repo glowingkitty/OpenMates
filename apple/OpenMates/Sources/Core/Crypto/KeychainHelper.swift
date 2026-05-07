@@ -1,5 +1,5 @@
-// Keychain wrapper for secure storage of E2EE keys and auth tokens.
-// Supports iCloud Keychain sync (kSecAttrSynchronizable) for multi-device key access.
+// Keychain wrapper for secure local storage of E2EE keys and auth tokens.
+// OpenMates never stores or syncs encryption keys through Apple cloud services.
 // All keys use kSecClassGenericPassword with the OpenMates service prefix.
 
 import Foundation
@@ -8,20 +8,16 @@ import Security
 enum KeychainHelper {
     private static let service = "org.openmates.app"
 
-    static func save(key: String, data: Data, synchronizable: Bool = false) throws {
+    static func save(key: String, data: Data) throws {
         try delete(key: key)
 
-        var query: [CFString: Any] = [
+        let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: key,
             kSecValueData: data,
             kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock,
         ]
-
-        if synchronizable {
-            query[kSecAttrSynchronizable] = kCFBooleanTrue
-        }
 
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
@@ -34,7 +30,6 @@ enum KeychainHelper {
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: key,
-            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
             kSecReturnData: kCFBooleanTrue!,
             kSecMatchLimit: kSecMatchLimitOne,
         ]
@@ -57,7 +52,6 @@ enum KeychainHelper {
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: key,
-            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
         ]
 
         let status = SecItemDelete(query as CFDictionary)
@@ -70,7 +64,6 @@ enum KeychainHelper {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
-            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
         ]
 
         let status = SecItemDelete(query as CFDictionary)

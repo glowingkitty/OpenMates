@@ -43,7 +43,7 @@ Traditional E2E encryption systems (Signal, Matrix) need device-to-device key ex
 | Approach | How key reaches new device | Complexity |
 |----------|---------------------------|------------|
 | Signal-style | QR code scan, device verification, key backup | High |
-| iCloud Keychain | Cloud-stored keys, device trust chain | Medium |
+| Vendor cloud keychain | Cloud-stored keys, device trust chain | Medium |
 | **OpenMates** | Derive from password + server blob | **Low** |
 
 The tradeoff: OpenMates ties master key security to password strength (or passkey PRF output). This is acceptable for the product's threat model -- the server never sees the master key in plaintext, and PBKDF2 with 100k iterations provides adequate brute-force resistance.

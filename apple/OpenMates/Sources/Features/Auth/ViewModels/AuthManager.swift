@@ -63,6 +63,11 @@ final class AuthManager: ObservableObject {
             )
 
             if response.isAuthenticated, let user = response.user {
+                if response.needsDeviceVerification != true,
+                   (try? await crypto.loadMasterKey(for: user.id)) == nil {
+                    await forceLocalLogout(reason: "missing_master_key")
+                    return
+                }
                 currentUser = user
                 webSocketToken = response.wsToken
                 if response.needsDeviceVerification == true,
@@ -72,7 +77,7 @@ final class AuthManager: ObservableObject {
                     state = .authenticated
                 }
             } else {
-                state = .unauthenticated
+                await forceLocalLogout(reason: response.reAuthReason ?? response.reAuthRequired ?? "session_invalid")
             }
         } catch {
             webSocketToken = nil
@@ -300,7 +305,24 @@ final class AuthManager: ObservableObject {
         ChatKeyManager.shared.clearAll()
         EmbedKeyManager.shared.clearAll()
         SpotlightIndexer.shared.removeAllItems()
+        Self.resetNativeSessionId()
 
+        webSocketToken = nil
+        currentUser = nil
+        state = .unauthenticated
+    }
+
+    func forceLocalLogout(reason: String) async {
+        print("[Auth] Forced local logout reason=\(reason)")
+        if let userId = currentUser?.id {
+            try? await crypto.deleteMasterKey(for: userId)
+        } else {
+            try? KeychainHelper.deleteAll()
+        }
+        ChatKeyManager.shared.clearAll()
+        EmbedKeyManager.shared.clearAll()
+        SpotlightIndexer.shared.removeAllItems()
+        Self.resetNativeSessionId()
         webSocketToken = nil
         currentUser = nil
         state = .unauthenticated
@@ -380,13 +402,18 @@ final class AuthManager: ObservableObject {
     }
 
     private static var sessionId: String {
-        let key = "openmates.apple.auth.session_id"
-        if let existing = UserDefaults.standard.string(forKey: key) {
+        if let existing = UserDefaults.standard.string(forKey: sessionIdDefaultsKey) {
             return existing
         }
         let newValue = UUID().uuidString
-        UserDefaults.standard.set(newValue, forKey: key)
+        UserDefaults.standard.set(newValue, forKey: sessionIdDefaultsKey)
         return newValue
+    }
+
+    private static let sessionIdDefaultsKey = "openmates.apple.auth.session_id"
+
+    private static func resetNativeSessionId() {
+        UserDefaults.standard.removeObject(forKey: sessionIdDefaultsKey)
     }
 }
 
