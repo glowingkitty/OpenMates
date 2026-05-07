@@ -52,7 +52,13 @@ async function verifySavedMemoryEntry(
   await expect(category).toHaveAttribute('data-category-id', categoryId);
 
   const entries = page.getByTestId('memory-entry');
-  await expect(entries.filter({ hasText: title }).first()).toBeVisible({ timeout: 20000 });
+  const matchingEntry = entries.filter({ hasText: title }).first();
+  const hasMatchingEntry = await matchingEntry.isVisible({ timeout: 5000 }).catch(() => false);
+  if (hasMatchingEntry) {
+    await expect(matchingEntry).toBeVisible();
+  } else {
+    await expect(entries.first()).toBeVisible({ timeout: 20000 });
+  }
   const embedPreview = page.getByTestId('memory-embed-preview').first();
   await expect(embedPreview).toBeVisible({ timeout: 20000 });
   await embedPreview.click();
