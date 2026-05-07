@@ -21,6 +21,8 @@ final class WebSocketManager: ObservableObject {
     }
 
     private var sessionId: String?
+    private var authToken: String?
+    private var shouldReconnect = false
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
 
@@ -32,43 +34,105 @@ final class WebSocketManager: ObservableObject {
         self.session = URLSession(configuration: config)
     }
 
-    func connect(sessionId: String) {
+    func connect(sessionId: String, token: String?) {
+        pingTimer?.invalidate()
+        pingTimer = nil
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+
         self.sessionId = sessionId
+        self.authToken = token
+        shouldReconnect = true
         connectionState = .connecting
 
         Task {
             let baseURL = await APIClient.shared.baseURL
+            let origin = await APIClient.shared.webAppURL.absoluteString
             guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
             components.scheme = components.scheme == "https" ? "wss" : "ws"
             components.path = "/v1/ws"
-            components.queryItems = [URLQueryItem(name: "sessionId", value: sessionId)]
+            var queryItems = [URLQueryItem(name: "sessionId", value: sessionId)]
+            if let token, !token.isEmpty {
+                queryItems.append(URLQueryItem(name: "token", value: token))
+            }
+            components.queryItems = queryItems
 
             guard let url = components.url else { return }
 
-            webSocketTask = session.webSocketTask(with: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 30
+            request.setValue(origin, forHTTPHeaderField: "Origin")
+            APIClient.nativeClientHeaders.forEach { key, value in
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+
+            webSocketTask = session.webSocketTask(with: request)
             webSocketTask?.resume()
+
+            guard await waitForOpenSocket() else {
+                print("[WS] Connection probe failed before sync request")
+                handleDisconnect()
+                return
+            }
+
             connectionState = .connected
             reconnectDelay = 1.0
-
             startPingTimer()
             receiveMessages()
-
-            // Request initial sync
-            try? await send(WSOutboundMessage(type: "phased_sync_request", data: ["phase": "all"]))
+            try? await requestPhasedSync()
         }
     }
 
     func disconnect() {
+        shouldReconnect = false
         pingTimer?.invalidate()
         pingTimer = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
+        authToken = nil
         connectionState = .disconnected
     }
 
     func send(_ message: WSOutboundMessage) async throws {
+        guard let webSocketTask else { throw WebSocketError.notConnected }
         let data = try JSONEncoder().encode(message)
-        try await webSocketTask?.send(.data(data))
+        guard let json = String(data: data, encoding: .utf8) else {
+            throw WebSocketError.encodingFailed
+        }
+        try await webSocketTask.send(.string(json))
+    }
+
+    func requestPhasedSync(
+        clientChatVersions: [String: [String: Int]] = [:],
+        clientChatIds: [String] = [],
+        clientSuggestionsCount: Int = 0,
+        clientEmbedIds: [String] = []
+    ) async throws {
+        try await send(WSOutboundMessage(
+            type: "phased_sync_request",
+            payload: [
+                "phase": "all",
+                "client_chat_versions": clientChatVersions,
+                "client_chat_ids": clientChatIds,
+                "client_suggestions_count": clientSuggestionsCount,
+                "client_embed_ids": clientEmbedIds
+            ]
+        ))
+    }
+
+    private func waitForOpenSocket() async -> Bool {
+        try? await Task.sleep(for: .milliseconds(650))
+        guard let task = webSocketTask else { return false }
+        return await withCheckedContinuation { continuation in
+            task.sendPing { error in
+                if let error {
+                    print("[WS] Open probe ping failed: \(error.localizedDescription)")
+                    continuation.resume(returning: false)
+                } else {
+                    continuation.resume(returning: true)
+                }
+            }
+        }
     }
 
     // MARK: - Receive loop
@@ -244,6 +308,14 @@ final class WebSocketManager: ObservableObject {
     // MARK: - Reconnect
 
     private func handleDisconnect() {
+        pingTimer?.invalidate()
+        pingTimer = nil
+        webSocketTask = nil
+        guard shouldReconnect else {
+            connectionState = .disconnected
+            return
+        }
+
         let currentAttempt: Int
         if case .reconnecting(let a) = connectionState { currentAttempt = a + 1 }
         else { currentAttempt = 1 }
@@ -259,7 +331,7 @@ final class WebSocketManager: ObservableObject {
             try? await Task.sleep(for: .seconds(reconnectDelay))
             reconnectDelay = min(reconnectDelay * 2, 30)
             if let sessionId {
-                connect(sessionId: sessionId)
+                connect(sessionId: sessionId, token: authToken)
             }
         }
     }
@@ -270,6 +342,7 @@ final class WebSocketManager: ObservableObject {
 private struct WSInboundParsed: Decodable {
     let type: String
     let data: [String: AnyCodable]?
+    let payload: [String: AnyCodable]?
 
     // Nested fields might be at root level or inside data
     private let rootFields: [String: AnyCodable]?
@@ -278,6 +351,7 @@ private struct WSInboundParsed: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(String.self, forKey: .type)
         data = try container.decodeIfPresent([String: AnyCodable].self, forKey: .data)
+        payload = try container.decodeIfPresent([String: AnyCodable].self, forKey: .payload)
 
         // Capture all fields at root level for flat message formats
         let allContainer = try decoder.singleValueContainer()
@@ -285,23 +359,26 @@ private struct WSInboundParsed: Decodable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case type, data
+        case type, data, payload
     }
 
     func stringField(_ key: String) -> String? {
         if let v = data?[key]?.value as? String { return v }
+        if let v = payload?[key]?.value as? String { return v }
         if let v = rootFields?[key]?.value as? String { return v }
         return nil
     }
 
     func intField(_ key: String) -> Int? {
         if let v = data?[key]?.value as? Int { return v }
+        if let v = payload?[key]?.value as? Int { return v }
         if let v = rootFields?[key]?.value as? Int { return v }
         return nil
     }
 
     func boolField(_ key: String) -> Bool? {
         if let v = data?[key]?.value as? Bool { return v }
+        if let v = payload?[key]?.value as? Bool { return v }
         if let v = rootFields?[key]?.value as? Bool { return v }
         return nil
     }
@@ -311,13 +388,27 @@ private struct WSInboundParsed: Decodable {
 
 struct WSOutboundMessage: Encodable {
     let type: String
-    let data: [String: String]?
-    let payload: [String: String]?
+    let data: [String: AnyCodable]?
+    let payload: [String: AnyCodable]?
 
-    init(type: String, data: [String: String]? = nil, payload: [String: String]? = nil) {
+    init(type: String, data: [String: Any]? = nil, payload: [String: Any]? = nil) {
         self.type = type
-        self.data = data
-        self.payload = payload
+        self.data = data?.mapValues { AnyCodable($0) }
+        self.payload = payload?.mapValues { AnyCodable($0) }
+    }
+}
+
+private enum WebSocketError: LocalizedError {
+    case notConnected
+    case encodingFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .notConnected:
+            return "WebSocket is not connected"
+        case .encodingFailed:
+            return "Failed to encode WebSocket message"
+        }
     }
 }
 

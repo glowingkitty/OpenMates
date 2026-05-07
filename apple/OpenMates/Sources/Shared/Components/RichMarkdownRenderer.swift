@@ -331,7 +331,12 @@ struct RichMarkdownView: View {
             CodeBlockView(language: language, code: code)
 
         case .blockquote(let text):
-            BlockquoteView(text: text, isUserMessage: isUserMessage)
+            BlockquoteView(
+                text: text,
+                isUserMessage: isUserMessage,
+                allEmbedRecords: allEmbedRecords,
+                onEmbedTap: onEmbedTap
+            )
 
         case .header(let level, let text):
             HeaderView(level: level, text: text, isUserMessage: isUserMessage)
@@ -1343,17 +1348,120 @@ struct CodeBlockView: View {
 struct BlockquoteView: View {
     let text: String
     let isUserMessage: Bool
+    let allEmbedRecords: [String: EmbedRecord]
+    let onEmbedTap: ((EmbedRecord) -> Void)?
+
+    private var sourceQuote: (quote: String, embed: EmbedRecord)? {
+        let pattern = #"\[([^\]]+)\]\(embed:([^)]+)\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let quoteRange = Range(match.range(at: 1), in: text),
+              let refRange = Range(match.range(at: 2), in: text) else { return nil }
+        let ref = normalizedEmbedRef(String(text[refRange]))
+        guard let embed = resolveSourceEmbed(ref) else { return nil }
+        return (String(text[quoteRange]), embed)
+    }
 
     var body: some View {
-        HStack(spacing: .spacing3) {
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(Color.buttonPrimary.opacity(0.5))
-                .frame(width: 3)
+        if let sourceQuote {
+            Button {
+                onEmbedTap?(sourceQuote.embed)
+            } label: {
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    Text("\"\(sourceQuote.quote)\"")
+                        .font(.omSmall)
+                        .fontWeight(.medium)
+                        .italic()
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(5)
+                        .multilineTextAlignment(.leading)
 
-            InlineMarkdownText(content: text, isUserMessage: isUserMessage)
-                .opacity(0.85)
+                    HStack(spacing: .spacing3) {
+                        AppIconView(appId: sourceQuote.embed.appId ?? EmbedType(rawValue: sourceQuote.embed.type)?.appId ?? "web", size: 18)
+                        Text(sourceLabel(for: sourceQuote.embed))
+                            .font(.omMicro)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.grey60)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing6)
+                .background(Color.grey25)
+                .overlay(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.buttonPrimary)
+                        .frame(width: 3)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: .spacing3) {
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(Color.buttonPrimary.opacity(0.5))
+                    .frame(width: 3)
+
+                InlineMarkdownText(content: text, isUserMessage: isUserMessage)
+                    .opacity(0.85)
+            }
+            .padding(.vertical, .spacing1)
         }
-        .padding(.vertical, .spacing1)
+    }
+
+    private func sourceLabel(for embed: EmbedRecord) -> String {
+        let raw = embed.rawData ?? [:]
+        if let source = firstString(in: raw, keys: ["source", "source_domain"]) {
+            return source
+        }
+        if let host = host(from: firstString(in: raw, keys: ["source_page_url", "url"])) {
+            return host
+        }
+        return EmbedType(rawValue: embed.type)?.displayName ?? embed.type
+    }
+
+    private func resolveSourceEmbed(_ ref: String) -> EmbedRecord? {
+        if let exact = allEmbedRecords[ref] {
+            return exact
+        }
+        return allEmbedRecords.values.first { record in
+            if record.id == ref || record.id.hasSuffix(ref) {
+                return true
+            }
+            let raw = record.rawData ?? [:]
+            let refs = [
+                firstString(in: raw, keys: ["embed_ref", "content_ref", "contentRef", "ref"]),
+                firstString(in: raw, keys: ["source_ref", "sourceRef"])
+            ].compactMap { $0?.replacingOccurrences(of: "embed:", with: "") }
+            return refs.contains(ref)
+        }
+    }
+
+    private func normalizedEmbedRef(_ ref: String) -> String {
+        var cleaned = ref.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.hasPrefix("embed:") {
+            cleaned = String(cleaned.dropFirst(6))
+        }
+        return cleaned
+    }
+
+    private func firstString(in data: [String: AnyCodable], keys: [String]) -> String? {
+        for key in keys {
+            if let value = data[key]?.value as? String, !value.isEmpty { return value }
+            if key == "meta_url_favicon",
+               let metaURL = data["meta_url"]?.value as? [String: Any],
+               let favicon = metaURL["favicon"] as? String,
+               !favicon.isEmpty {
+                return favicon
+            }
+        }
+        return nil
+    }
+
+    private func host(from value: String?) -> String? {
+        guard let value, let url = URL(string: value), let host = url.host else { return nil }
+        return host.replacingOccurrences(of: "www.", with: "")
     }
 }
 

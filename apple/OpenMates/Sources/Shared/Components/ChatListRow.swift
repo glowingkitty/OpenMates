@@ -66,17 +66,25 @@ struct ChatListRow: View {
                             .foregroundStyle(.white)
                     }
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
-            } else if let appId = chat.appId {
-                AppIconView(appId: appId, size: 28)
+            } else if let category = chat.category, !category.isEmpty {
+                Circle()
+                    .fill(CategoryMapping.gradient(for: category))
+                    .frame(width: 28, height: 28)
+                    .overlay {
+                        LucideNativeIcon(chat.icon ?? CategoryMapping.lucideIconName(for: category), size: 16)
+                            .foregroundStyle(.white)
+                    }
+                    .overlay {
+                        Circle()
+                            .stroke(Color.grey0, lineWidth: 2)
+                    }
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
             } else {
                 Circle()
-                    .fill(LinearGradient.primary)
+                    .fill(Color.grey40)
                     .frame(width: 28, height: 28)
                     .overlay {
-                        Image.iconChat
-                            .resizable()
-                            .frame(width: 16, height: 16)
+                        LucideNativeIcon("help-circle", size: 16)
                             .foregroundStyle(.white)
                     }
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)

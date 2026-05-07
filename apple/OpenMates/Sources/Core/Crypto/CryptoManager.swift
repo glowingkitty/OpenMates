@@ -69,6 +69,12 @@ actor CryptoManager {
         return SymmetricKey(data: derivedKey)
     }
 
+    /// Derive the pair-login bundle key from PIN + token.
+    /// Mirrors SettingsSessionsPairInitiate.svelte: PBKDF2-SHA256(PIN, upperToken, 100k) → AES-256-GCM.
+    func derivePairLoginKey(pin: String, token: String) -> SymmetricKey {
+        deriveWrappingKeyFromPassword(password: pin, salt: Data(token.uppercased().utf8))
+    }
+
     // MARK: - Master key operations
 
     /// Unwrap master key using AES-GCM with the PBKDF2-derived wrapping key.

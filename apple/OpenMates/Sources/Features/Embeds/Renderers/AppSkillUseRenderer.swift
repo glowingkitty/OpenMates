@@ -40,11 +40,17 @@ struct AppSkillUseRenderer: View {
     }
 
     private var appId: String {
-        embed.appId ?? data["app_id"]?.value as? String ?? "web"
+        embed.appId ?? data["app_id"]?.value as? String ?? EmbedType(rawValue: embed.type)?.appId ?? "web"
     }
 
     private var skillId: String {
-        embed.skillId ?? data["skill_id"]?.value as? String ?? "search"
+        embed.skillId ?? data["skill_id"]?.value as? String ?? skillIdFromType ?? "search"
+    }
+
+    private var skillIdFromType: String? {
+        let parts = embed.type.split(separator: ":")
+        guard parts.count >= 3, parts[0] == "app" else { return nil }
+        return String(parts[2])
     }
 
     private var skillTitle: String {

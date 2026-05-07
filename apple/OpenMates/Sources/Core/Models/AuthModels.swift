@@ -54,13 +54,68 @@ struct LoginResponse: Decodable {
     let wsToken: String?
 }
 
+// MARK: - Phone / PC pair login
+
+struct PairInitiateRequest: Encodable {
+    let deviceHint: String?
+
+    init(deviceHint: String? = nil) {
+        self.deviceHint = deviceHint
+    }
+}
+
+struct PairInitiateResponse: Decodable {
+    let token: String
+    let expiresIn: Int
+}
+
+struct PairPollResponse: Decodable {
+    let status: String
+    let authorizerDeviceName: String?
+}
+
+struct PairCompleteRequest: Encodable {
+    let pin: String
+}
+
+struct PairCompleteResponse: Decodable {
+    let success: Bool
+    let encryptedBundle: String?
+    let iv: String?
+    let autoLogoutMinutes: Int?
+    let authorizerDeviceName: String?
+    let message: String?
+}
+
+struct PairLoginBundle: Decodable {
+    let lookupHash: String
+    let hashedEmail: String
+    let userEmailSalt: String
+    let masterKeyExported: String
+}
+
 // MARK: - Session check
 
+struct SessionRequest: Encodable {
+    let sessionId: String
+    let deviceInfo: DeviceInfo?
+}
+
 struct SessionResponse: Decodable {
-    let isAuthenticated: Bool
+    let success: Bool
+    let message: String?
     let user: UserProfile?
+    let tokenRefreshNeeded: Bool?
+    let reAuthRequired: String?
+    let reAuthReason: String?
+    let requireInviteCode: Bool?
+    let wsToken: String?
     let needsDeviceVerification: Bool?
     let deviceVerificationType: String?
+
+    var isAuthenticated: Bool {
+        success && user != nil
+    }
 }
 
 // MARK: - User

@@ -20,6 +20,9 @@ struct RootView: View {
 
     @EnvironmentObject var authManager: AuthManager
     #if os(iOS)
+    @Environment(\.isExternalDisplayScene) private var isExternalDisplayScene
+    #endif
+    #if os(iOS)
     @StateObject private var externalDisplayCoordinator = ExternalDisplayCoordinator.shared
     #endif
     #if DEBUG
@@ -44,7 +47,7 @@ struct RootView: View {
         }
         #if os(iOS)
         .overlay {
-            if externalDisplayCoordinator.shouldShowPhoneController {
+            if !isExternalDisplayScene && externalDisplayCoordinator.shouldShowPhoneController {
                 ExternalDisplayControllerView()
                     .environmentObject(externalDisplayCoordinator)
                     .transition(.opacity)
@@ -85,6 +88,19 @@ struct RootView: View {
         }
     }
 }
+
+#if os(iOS)
+private struct ExternalDisplaySceneKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var isExternalDisplayScene: Bool {
+        get { self[ExternalDisplaySceneKey.self] }
+        set { self[ExternalDisplaySceneKey.self] = newValue }
+    }
+}
+#endif
 
 private struct MacWindowChromeModifier: ViewModifier {
     func body(content: Content) -> some View {

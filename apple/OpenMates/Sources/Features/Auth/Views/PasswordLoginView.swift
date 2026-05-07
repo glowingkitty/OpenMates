@@ -19,11 +19,13 @@ struct PasswordLoginView: View {
     let tfaEnabled: Bool
     @Binding var stayLoggedIn: Bool
     let onRecoveryKey: () -> Void
-    let onBackupCode: () -> Void
+    let onAnotherAccount: () -> Void
+    let onAccountRecovery: () -> Void
 
     @State private var password = ""
     @State private var tfaCode = ""
     @State private var showTfaField = false
+    @State private var isBackupMode = false
     @State private var isLoading = false
     @State private var errorMessage: String?
     @FocusState private var focusedField: Field?
@@ -32,16 +34,18 @@ struct PasswordLoginView: View {
         case password, tfa
     }
 
+    private var isFormValid: Bool {
+        guard !password.isEmpty else { return false }
+        guard showTfaField else { return true }
+        return isBackupMode ? tfaCode.count == 14 : tfaCode.count == 6
+    }
+
     var body: some View {
         VStack(spacing: .spacing6) {
-            Text(AppStrings.enterPassword)
-                .font(.omH3)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.fontPrimary)
-
             Text(email)
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
+                .textSelection(.enabled)
 
             VStack(spacing: .spacing4) {
                 SecureField(AppStrings.password, text: $password)
@@ -53,22 +57,38 @@ struct PasswordLoginView: View {
                         else { performLogin() }
                     }
                     .accessibilityIdentifier("password-input")
-                        .accessibleInput(AppStrings.password, hint: LocalizationManager.shared.text("login.password_placeholder"))
+                    .accessibleInput(AppStrings.password, hint: AppStrings.passwordPlaceholder)
 
                 if showTfaField {
-                    TextField(LocalizationManager.shared.text("login.2fa_code_placeholder"), text: $tfaCode)
-                        .textFieldStyle(OMTextFieldStyle())
-                        #if os(iOS)
-                        .keyboardType(.numberPad)
-                        #endif
-                        .focused($focusedField, equals: .tfa)
-                        .onSubmit { performLogin() }
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .accessibilityIdentifier("tfa-code-input")
-                        .accessibleInput(
-                            LocalizationManager.shared.text("login.2fa_code_placeholder"),
-                            hint: LocalizationManager.shared.text("login.check_your_2fa_app")
-                        )
+                    VStack(spacing: .spacing3) {
+                        if !isBackupMode {
+                            Text(AppStrings.checkYourTfaApp)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                                .multilineTextAlignment(.center)
+                        } else {
+                            Text(AppStrings.backupCodeIsSingleUse)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        TextField(tfaPlaceholder, text: $tfaCode)
+                            .textFieldStyle(OMTextFieldStyle())
+                            #if os(iOS)
+                            .keyboardType(isBackupMode ? .asciiCapable : .numberPad)
+                            .textInputAutocapitalization(.characters)
+                            #endif
+                            .autocorrectionDisabled(true)
+                            .focused($focusedField, equals: .tfa)
+                            .onChange(of: tfaCode) { _, newValue in
+                                sanitizeTfaCode(newValue)
+                            }
+                            .onSubmit { performLogin() }
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .accessibilityIdentifier("tfa-code-input")
+                            .accessibleInput(tfaPlaceholder, hint: isBackupMode ? AppStrings.backupCodeIsSingleUse : AppStrings.checkYourTfaApp)
+                    }
                 }
 
                 if let errorMessage {
@@ -79,54 +99,73 @@ struct PasswordLoginView: View {
                 }
             }
 
-            Toggle(LocalizationManager.shared.text("login.stay_logged_in"), isOn: $stayLoggedIn)
-                .font(.omSmall)
-                .foregroundStyle(Color.fontSecondary)
-                .tint(Color.buttonPrimary)
-                .accessibleToggle(LocalizationManager.shared.text("login.stay_logged_in"), isOn: stayLoggedIn)
-
             Button(action: performLogin) {
                 Group {
                     if isLoading {
                         ProgressView()
                             .tint(.fontButton)
                     } else {
-                        Text(AppStrings.login)
+                        Text(AppStrings.loginButton)
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(OMPrimaryButtonStyle())
-            .disabled(password.isEmpty || isLoading)
+            .disabled(!isFormValid || isLoading)
             .accessibilityIdentifier("login-button")
             .accessibleButton(AppStrings.login, hint: LocalizationManager.shared.text("login.login_button"))
 
-            // Recovery options
-            VStack(spacing: .spacing3) {
-                Button(AppStrings.loginWithRecoveryKey) {
-                    onRecoveryKey()
-                }
-                .font(.omSmall)
-                .foregroundStyle(Color.fontSecondary)
-                .accessibleButton(AppStrings.loginWithRecoveryKey, hint: LocalizationManager.shared.text("login.login_with_recovery_key"))
-
-                if showTfaField {
-                    Button(LocalizationManager.shared.text("login.login_with_backup_code")) {
-                        onBackupCode()
-                    }
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontSecondary)
-                    .accessibleButton(
-                        LocalizationManager.shared.text("login.login_with_backup_code"),
-                        hint: LocalizationManager.shared.text("login.backup_code_is_single_use")
-                    )
-                }
-            }
-            .padding(.top, .spacing2)
+            loginOptionsContainer
+                .padding(.top, .spacing3)
         }
         .onAppear {
             focusedField = .password
         }
+    }
+
+    private var loginOptionsContainer: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            loginOption(icon: "user", title: AppStrings.loginWithAnotherAccount, action: onAnotherAccount)
+
+            if showTfaField {
+                loginOption(
+                    icon: isBackupMode ? "2fa" : "text",
+                    title: isBackupMode ? AppStrings.loginWithTfaApp : AppStrings.loginWithBackupCode
+                ) {
+                    isBackupMode.toggle()
+                    tfaCode = ""
+                    focusedField = .tfa
+                }
+            }
+
+            loginOption(icon: "warning", title: AppStrings.loginWithRecoveryKey, action: onRecoveryKey)
+
+            Rectangle()
+                .fill(Color.grey30)
+                .frame(height: 1)
+                .padding(.top, .spacing2)
+                .padding(.bottom, .spacing2)
+
+            loginOption(icon: "warning", title: AppStrings.cantLogin, action: onAccountRecovery)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func loginOption(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: .spacing4) {
+                Icon(icon, size: 22)
+                    .foregroundStyle(LinearGradient.primary)
+                Text(title)
+                    .font(.omP)
+                    .fontWeight(.medium)
+                    .foregroundStyle(LinearGradient.primary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibleButton(title, hint: title)
     }
 
     private func performLogin() {
@@ -141,25 +180,59 @@ struct PasswordLoginView: View {
                     password: password,
                     userEmailSalt: userEmailSalt,
                     tfaCode: showTfaField ? tfaCode : nil,
+                    codeType: showTfaField ? (isBackupMode ? "backup" : "otp") : nil,
                     stayLoggedIn: stayLoggedIn
                 )
             } catch AuthError.tfaRequired {
-                withAnimation {
-                    showTfaField = true
-                    focusedField = .tfa
-                }
-                AccessibilityAnnouncement.announce(LocalizationManager.shared.text("login.check_your_2fa_app"))
+                revealTfaField(passwordError: nil)
             } catch AuthError.invalidTwoFactorCode {
-                errorMessage = AuthError.invalidTwoFactorCode.localizedDescription
+                errorMessage = AppStrings.codeWrong
                 tfaCode = ""
                 focusedField = .tfa
-                AccessibilityAnnouncement.announce(AuthError.invalidTwoFactorCode.localizedDescription)
+                AccessibilityAnnouncement.announce(AppStrings.codeWrong)
+            } catch AuthError.invalidCredentials {
+                handlePasswordAuthFailure()
             } catch let error as APIError {
-                errorMessage = error.localizedDescription
+                handlePasswordAuthFailure(fallback: error.localizedDescription)
             } catch {
-                errorMessage = LocalizationManager.shared.text("login.login_failed")
+                handlePasswordAuthFailure(fallback: AppStrings.loginFailed)
             }
             isLoading = false
         }
+    }
+
+    private var tfaPlaceholder: String {
+        isBackupMode ? AppStrings.enterBackupCode : AppStrings.enterOneTimeCode
+    }
+
+    private func sanitizeTfaCode(_ rawValue: String) {
+        let filtered: String
+        if isBackupMode {
+            filtered = String(rawValue.uppercased().filter { $0.isLetter || $0.isNumber }.prefix(32))
+        } else {
+            filtered = String(rawValue.filter { $0.isNumber }.prefix(6))
+        }
+        if filtered != rawValue {
+            tfaCode = filtered
+        }
+    }
+
+    private func handlePasswordAuthFailure(fallback: String = AppStrings.emailOrPasswordWrong) {
+        if showTfaField || tfaEnabled {
+            // Mirrors PasswordAndTfaOtp.svelte anti-enumeration branch:
+            // failed auth with/after a 2FA-required response keeps the OTP field visible.
+            revealTfaField(passwordError: AppStrings.emailOrPasswordWrong)
+        } else {
+            errorMessage = fallback
+        }
+    }
+
+    private func revealTfaField(passwordError: String?) {
+        withAnimation {
+            showTfaField = true
+            errorMessage = passwordError
+            focusedField = .tfa
+        }
+        AccessibilityAnnouncement.announce(AppStrings.checkYourTfaApp)
     }
 }

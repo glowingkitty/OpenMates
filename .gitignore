@@ -202,6 +202,11 @@ _backup
 .vercel
 .env*.local
 
+# Apple/Xcode build artifacts
+.derivedData/
+apple/.derivedData/
+DerivedData/
+
 # Deployment configuration
 # Allow template/example files, but ignore environment-specific overrides
 *.tf

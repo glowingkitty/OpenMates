@@ -6,6 +6,9 @@
 import SwiftUI
 import CryptoKit
 import CoreImage.CIFilterBuiltins
+#if os(iOS)
+import UIKit
+#endif
 
 // MARK: - Pair Initiate (start pairing from this device to add a new one)
 
@@ -95,7 +98,7 @@ struct SettingsPairInitiateView: View {
             do {
                 let response: [String: AnyCodable] = try await APIClient.shared.request(
                     .post, path: "/v1/auth/pair/initiate",
-                    body: ["device_hint": "ios_app"] as [String: String]
+                    body: ["device_hint": officialAppDeviceHint] as [String: String]
                 )
                 pairingCode = response["token"]?.value as? String
                 expiresIn = response["expires_in"]?.value as? Int ?? 300
@@ -139,6 +142,19 @@ struct SettingsPairInitiateView: View {
         return Image(uiImage: UIImage(cgImage: cgImage))
         #elseif os(macOS)
         return Image(nsImage: NSImage(cgImage: cgImage, size: NSSize(width: 200, height: 200)))
+        #endif
+    }
+
+    private var officialAppDeviceHint: String {
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return "OpenMates iPadOS app"
+        }
+        return "OpenMates iOS app"
+        #elseif os(macOS)
+        return "OpenMates macOS app"
+        #else
+        return "OpenMates Apple app"
         #endif
     }
 }

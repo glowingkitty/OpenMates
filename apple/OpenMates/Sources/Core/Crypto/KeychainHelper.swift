@@ -34,6 +34,7 @@ enum KeychainHelper {
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: key,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
             kSecReturnData: kCFBooleanTrue!,
             kSecMatchLimit: kSecMatchLimitOne,
         ]
@@ -56,6 +57,7 @@ enum KeychainHelper {
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: key,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
         ]
 
         let status = SecItemDelete(query as CFDictionary)
@@ -68,6 +70,7 @@ enum KeychainHelper {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
         ]
 
         let status = SecItemDelete(query as CFDictionary)

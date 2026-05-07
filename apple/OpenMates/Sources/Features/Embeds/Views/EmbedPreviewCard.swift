@@ -67,7 +67,9 @@ struct EmbedPreviewCard: View {
             .rotation3DEffect(.degrees(isHovering ? -hoverY * tiltMaxAngle : 0), axis: (x: 1, y: 0, z: 0), perspective: 1 / tiltPerspective)
             .rotation3DEffect(.degrees(isHovering ? hoverX * tiltMaxAngle : 0), axis: (x: 0, y: 1, z: 0), perspective: 1 / tiltPerspective)
             .scaleEffect(isHovering ? 1.02 : 1)
+            #if os(macOS)
             .background(hoverTracker)
+            #endif
             .animation(.easeOut(duration: 0.15), value: isHovering)
         }
         .buttonStyle(EmbedPreviewButtonStyle())
@@ -99,7 +101,6 @@ struct EmbedPreviewCard: View {
     private var hoverTracker: some View {
         GeometryReader { proxy in
             Color.clear
-                #if os(macOS)
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let location):
@@ -114,7 +115,6 @@ struct EmbedPreviewCard: View {
                         hoverY = 0
                     }
                 }
-                #endif
         }
     }
 
@@ -277,7 +277,10 @@ struct EmbedPreviewCard: View {
         if embedType == .webWebsite {
             return websiteUsesFullWidthImage
         }
-        return embedType == .image || embedType == .imagesImageResult || (embed.isAppSkillUse && appId == "images")
+        return embedType == .image
+            || embedType == .imagesImageResult
+            || embedType?.isComposite == true
+            || (embed.isAppSkillUse && appId == "images")
     }
 
     private var statusTitle: String {

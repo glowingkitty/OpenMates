@@ -40,6 +40,10 @@ struct EmbedContentView: View {
         EmbedType(rawValue: embed.type)
     }
 
+    private var shouldUseCompositeRenderer: Bool {
+        embed.isAppSkillUse || embedType?.isComposite == true
+    }
+
     private var rawData: [String: AnyCodable]? {
         guard let data = embed.data, case .raw(let dict) = data else { return nil }
         return dict
@@ -47,7 +51,7 @@ struct EmbedContentView: View {
 
     var body: some View {
         Group {
-            if embed.isAppSkillUse {
+            if shouldUseCompositeRenderer {
                 AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
             } else {
             switch embedType {

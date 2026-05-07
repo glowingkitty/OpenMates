@@ -142,10 +142,12 @@
 		658D774FB8809076F5ED74B0 /* InputActionButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = E640EBE9FE24537A95BE7B66 /* InputActionButtons.swift */; };
 		66248975C4C88B3868EDF310 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
 		6779D548F8C01F7DFBC973E1 /* GradientTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8091075B043B717B7D8BC5A8 /* GradientTokens.generated.swift */; };
+		677A0D87271C38E2325EFD3C /* PhonePairLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4741D15CF964E6F41887535 /* PhonePairLoginView.swift */; };
 		67FDFBCE2C4AB26B5A20DEC0 /* Mates in Resources */ = {isa = PBXBuildFile; fileRef = C70E7324702AC5C35EC225DD /* Mates */; };
 		68A0B9A636A25189B86ED156 /* MentionDropdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A31A97FBD9511AB31FB452 /* MentionDropdownView.swift */; };
 		68BB48027B70916FD087A263 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0EF7DDBA6C719D8C80D36CD /* AuthManager.swift */; };
 		690A5F50D36BFFBBCC4F5C97 /* HiddenChatsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5117D449244BC59D5C79B93 /* HiddenChatsListView.swift */; };
+		692C9FE704C04B998DA9F3FE /* PhonePairLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4741D15CF964E6F41887535 /* PhonePairLoginView.swift */; };
 		697D8B3F1127D5F4C9E04423 /* S3MediaClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3098424CAA7116A6667AD61D /* S3MediaClient.swift */; };
 		69BA6A5A13B52BF3784FA5AC /* StreamingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229E73CA38CF97C82078BF88 /* StreamingClient.swift */; };
 		69EFBB3B1D25DFFBBEC984FC /* FocusModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB56BB8CA933CEC26CCA7E2 /* FocusModeView.swift */; };
@@ -615,6 +617,7 @@
 		E2FA6BB9E7044F16952CD975 /* UnreadMessagesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnreadMessagesStore.swift; sourceTree = "<group>"; };
 		E303763A004973B5957ACBAB /* MathCalculateIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathCalculateIntent.swift; sourceTree = "<group>"; };
 		E3E5B4C637AE20A63F92E6E1 /* LocalizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationManager.swift; sourceTree = "<group>"; };
+		E4741D15CF964E6F41887535 /* PhonePairLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhonePairLoginView.swift; sourceTree = "<group>"; };
 		E640EBE9FE24537A95BE7B66 /* InputActionButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputActionButtons.swift; sourceTree = "<group>"; };
 		E6ADC016BD1FE05BCDD3944F /* Icons.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Icons.xcassets; sourceTree = "<group>"; };
 		E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpSuggestions.swift; sourceTree = "<group>"; };
@@ -1170,6 +1173,7 @@
 				9ECAAD62BF757669C20AD38B /* EmailLookupView.swift */,
 				DB03275320AE573452F949A0 /* PasskeyLoginView.swift */,
 				151F47FC0A1C13A3A3FC3ABF /* PasswordLoginView.swift */,
+				E4741D15CF964E6F41887535 /* PhonePairLoginView.swift */,
 				6741A45B494755343B591447 /* RecoveryKeyView.swift */,
 				F88FAB07DECD954240DE2747 /* SignupFlowView.swift */,
 			);
@@ -1523,6 +1527,7 @@
 				59DD0732D299428231A643A8 /* PasskeyLoginView.swift in Sources */,
 				8A9CD76DA9BF3ACEA778391B /* PasswordLoginView.swift in Sources */,
 				F6DE62F6F1D2182D45EA54C5 /* PendingUploadStore.swift in Sources */,
+				677A0D87271C38E2325EFD3C /* PhonePairLoginView.swift in Sources */,
 				83585089C2171EE4B8BAE3FF /* PlaceRenderers.swift in Sources */,
 				8B12CFC6DF07725998702B1E /* ProcessingDetailsView.swift in Sources */,
 				132FEF0688553EA3CD679776 /* PublicChatListView.swift in Sources */,
@@ -1704,6 +1709,7 @@
 				25630A2D3A70904E005658BA /* PasskeyLoginView.swift in Sources */,
 				3398B7B19BD308C8153A4993 /* PasswordLoginView.swift in Sources */,
 				108F8895B111DF344117BC9D /* PendingUploadStore.swift in Sources */,
+				692C9FE704C04B998DA9F3FE /* PhonePairLoginView.swift in Sources */,
 				7F1A6A39B55A491B36E3C371 /* PlaceRenderers.swift in Sources */,
 				A563DA4027B2C894CBC3CD82 /* ProcessingDetailsView.swift in Sources */,
 				6F34B8EA05D193BFFB5FFAEC /* PublicChatListView.swift in Sources */,
