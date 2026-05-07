@@ -40,6 +40,10 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+const {
+	saveCurrentFullscreenEmbed,
+	verifySavedMemoryEntry
+} = require('./helpers/saved-memory-test-helpers');
 
 /** Get a date 14 days from now in YYYY-MM-DD format */
 function futureDate(daysAhead = 14): string {
@@ -193,6 +197,8 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const detailsCard = page.getByTestId('flight-details-card');
 		await expect(detailsCard).toBeVisible({ timeout: 15000 });
 
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, routeText?.trim() || undefined);
+
 		// At least one segment card
 		const segmentCards = detailsCard.getByTestId('segment-card');
 		await expect(segmentCards.first()).toBeVisible({ timeout: 5000 });
@@ -217,6 +223,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		await page.waitForTimeout(500);
 
 		await closeFullscreen(page, fullscreenOverlay);
+		await verifySavedMemoryEntry(page, 'travel', 'saved_connections', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-train');
 	});
 });

@@ -30,6 +30,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
+  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Segment data within a leg */
@@ -169,7 +170,7 @@
   // Store example flag — set by SkillExamplesSection when browsing app-store examples.
   // When true, interactive actions like booking link lookup are disabled with a notification.
   let isStoreExample = $derived(dc.is_store_example === true);
-  let connection: ConnectionData = {
+  let connection: ConnectionData = $derived.by(() => ({
     embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
     type: typeof dc.type === 'string' ? dc.type : undefined,
     transport_method: typeof dc.transport_method === 'string' ? dc.transport_method : undefined,
@@ -199,7 +200,7 @@
     co2_typical_kg: typeof dc.co2_typical_kg === 'number' ? dc.co2_typical_kg : undefined,
     co2_difference_percent: typeof dc.co2_difference_percent === 'number' ? dc.co2_difference_percent : undefined,
     flight_track: (typeof dc.flight_track === 'object' && dc.flight_track !== null) ? dc.flight_track as ConnectionData['flight_track'] : undefined,
-  };
+  }));
 
   // Defensive: connection may be undefined during async component loading in dev preview
   type MaybeConnection = ConnectionData | undefined;
@@ -674,6 +675,7 @@
    */
   function handleOpenGoogleFlights() {
     window.open(buildGoogleFlightsUrl(), '_blank', 'noopener,noreferrer');
+    promptToSaveEmbedMemory(buildSaveConfig());
   }
   
   /**
@@ -758,6 +760,37 @@
     if (resolvedBookingUrl) {
       window.open(resolvedBookingUrl, '_blank', 'noopener,noreferrer');
     }
+    promptToSaveEmbedMemory(buildSaveConfig());
+  }
+
+  function buildSaveConfig() {
+    const title = routeDisplay || routeHeaderWithFlags || 'Travel connection';
+    const bookingUrl = resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl();
+    return {
+      kind: 'travel_connection' as const,
+      appId: 'travel',
+      itemType: 'saved_connections',
+      itemKey: `saved_connections.${connection.hash || bookingUrl || title}`,
+      title,
+      reminderDateTime: connection.departure || connection.legs?.[0]?.departure || null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId || connection.embed_id || '',
+        title,
+        transport_method: connection.transport_method || '',
+        origin: connection.origin || connection.legs?.[0]?.origin || '',
+        destination: connection.destination || connection.legs?.at(-1)?.destination || '',
+        departure: connection.departure || connection.legs?.[0]?.departure || '',
+        arrival: connection.arrival || connection.legs?.at(-1)?.arrival || '',
+        booking_url: bookingUrl,
+        provider: resolvedBookingProvider || connection.booking_provider || primaryCarrier || '',
+        notes: [tripTypeLabel, formattedPrice, connection.duration].filter(Boolean).join(' · '),
+      },
+    };
+  }
+
+  function handleSaveConnection() {
+    saveEmbedMemory(buildSaveConfig());
   }
   
   /**
@@ -1372,15 +1405,18 @@
         {/each}
       </div>
     {/if}
-    {#if bookingState === 'loaded' && resolvedBookingUrl}
-      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
-    {:else if bookingState === 'loading'}
-      <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
-    {:else if bookingState === 'error'}
-      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
-    {:else if connection.booking_token && bookingState === 'idle'}
-      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
-    {/if}
+    <div class="embed-header-cta-group">
+      <EmbedHeaderCtaButton testId="save-embed-cta" label="Save" variant="secondary" onclick={handleSaveConnection} />
+      {#if bookingState === 'loaded' && resolvedBookingUrl}
+        <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
+      {:else if bookingState === 'loading'}
+        <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
+      {:else if bookingState === 'error'}
+        <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
+      {:else if connection.booking_token && bookingState === 'idle'}
+        <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet detailContent(_childContext)}

@@ -21,6 +21,7 @@
   import MarkdownContent from '../MarkdownContent.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
+  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface NearbyPlace {
@@ -84,8 +85,9 @@
 
   // Build the stay object from data.decodedContent
   let dc = $derived(data.decodedContent);
-  let rawGps = $derived(dc.gps_coordinates as Record<string, unknown> | undefined);
-  let stay: StayData = {
+  let stay: StayData = $derived.by(() => {
+    const rawGps = dc.gps_coordinates as Record<string, unknown> | undefined;
+    return {
     type: typeof dc.type === 'string' ? dc.type : undefined,
     name: typeof dc.name === 'string' ? dc.name : undefined,
     description: typeof dc.description === 'string' ? dc.description : undefined,
@@ -111,7 +113,9 @@
     nearby_places: Array.isArray(dc.nearby_places) ? dc.nearby_places as NearbyPlace[] : undefined,
     eco_certified: typeof dc.eco_certified === 'boolean' ? dc.eco_certified : undefined,
     free_cancellation: typeof dc.free_cancellation === 'boolean' ? dc.free_cancellation : undefined,
-  };
+    hash: typeof dc.hash === 'string' ? dc.hash : undefined,
+    };
+  });
 
   // Defensive: stay may be undefined during async component loading in dev preview
   type MaybeStay = StayData | undefined;
@@ -171,6 +175,34 @@
   
   function handleBooking() {
     if (bookingUrl) window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+    promptToSaveEmbedMemory(buildSaveConfig());
+  }
+
+  function buildSaveConfig() {
+    const title = name || 'Stay';
+    return {
+      kind: 'travel_stay' as const,
+      appId: 'travel',
+      itemType: 'saved_stays',
+      itemKey: `saved_stays.${stay.hash || bookingUrl || title}`,
+      title,
+      reminderDateTime: null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId || '',
+        name: title,
+        property_type: propertyType,
+        url: bookingUrl,
+        price: totalPrice != null ? `${currency} ${totalPrice}` : (pricePerNight != null ? `${currency} ${pricePerNight}/night` : ''),
+        rating: stay.overall_rating || undefined,
+        location: nearbyPlaces.map((place) => place.name).filter(Boolean).join(', '),
+        notes: amenities.slice(0, 8).join(', '),
+      },
+    };
+  }
+
+  function handleSaveStay() {
+    saveEmbedMemory(buildSaveConfig());
   }
 </script>
 
@@ -191,15 +223,18 @@
   currentEmbedId={embedId}
 >
   {#snippet embedHeaderCta()}
-    {#if bookingUrl}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} />
-    {/if}
+    <div class="embed-header-cta-group">
+      <EmbedHeaderCtaButton label="Save" variant="secondary" onclick={handleSaveStay} testId="save-embed-cta" />
+      {#if bookingUrl}
+        <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} testId="external-provider-cta" />
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet detailContent(_ctx)}
     <!-- Header: Name + Stars + Rating -->
     <div class="stay-header">
-      <h1 class="stay-name">{name}</h1>
+      <h1 class="stay-name" data-testid="stay-name">{name}</h1>
       {#if stars || propertyType}
         <div class="stay-sub-header">
           {#if stars}<span class="stay-stars">{stars}</span>{/if}

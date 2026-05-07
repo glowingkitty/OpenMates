@@ -21,6 +21,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /**
@@ -152,6 +153,45 @@
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
+    promptToSaveEmbedMemory(buildSaveConfig());
+  }
+
+  function parseAvailableFromDate(value: string | undefined): string | null {
+    if (!value) return null;
+    const germanDateMatch = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (germanDateMatch) {
+      const [, day, month, year] = germanDateMatch;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T09:00:00`;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+
+  function buildSaveConfig() {
+    const saveTitle = displayTitle || 'Listing';
+    return {
+      kind: 'home_listing' as const,
+      appId: 'home',
+      itemType: 'saved_listings',
+      itemKey: `saved_listings.${url || saveTitle}`,
+      title: saveTitle,
+      reminderDateTime: parseAvailableFromDate(available_from),
+      reminderPromptTitle: saveTitle,
+      itemValue: {
+        embed_id: embedId || '',
+        title: saveTitle,
+        url,
+        provider: provider || hostname,
+        price_label: price_label || '',
+        address: address || '',
+        available_from: available_from || '',
+        notes: [sizeDisplay, roomsDisplay, typeDisplay].filter(Boolean).join(' · '),
+      },
+    };
+  }
+
+  function handleSaveListing() {
+    saveEmbedMemory(buildSaveConfig());
   }
 </script>
 
@@ -176,7 +216,12 @@
   {mapMarkers}
 >
   {#snippet embedHeaderCta()}
-    <EmbedHeaderCtaButton label="Open on {hostname}" onclick={handleOpenOnPlatform} />
+    <div class="embed-header-cta-group">
+      <EmbedHeaderCtaButton label="Save" variant="secondary" onclick={handleSaveListing} testId="save-embed-cta" />
+      {#if url}
+        <EmbedHeaderCtaButton label="Open on {hostname}" onclick={handleOpenOnPlatform} testId="external-provider-cta" />
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet detailContent(_ctx)}

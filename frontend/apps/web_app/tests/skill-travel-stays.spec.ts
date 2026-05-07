@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for travel/search_stays skill.
@@ -34,6 +33,10 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+const {
+	saveCurrentFullscreenEmbed,
+	verifySavedMemoryEntry
+} = require('./helpers/saved-memory-test-helpers');
 
 /** Get a date N days from now in YYYY-MM-DD format */
 function futureDate(daysAhead = 14): string {
@@ -127,7 +130,13 @@ test.describe('App: Travel / Skill: search_stays', () => {
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
 		logCheckpoint(`Found ${await resultCards.count()} hotel result(s).`);
 
+		await resultCards.first().click();
+		const stayTitle = (await page.getByTestId('stay-name').textContent())?.trim() || '';
+		expect(stayTitle).toBeTruthy();
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, stayTitle);
+
 		await closeFullscreen(page, fullscreenOverlay);
+		await verifySavedMemoryEntry(page, 'travel', 'saved_stays', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-stays');
 	});
 });

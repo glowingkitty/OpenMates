@@ -1,3 +1,31 @@
+saved_connections:
+  context: Settings/memory name for saved travel connections
+  en: Saved connections
+  de: Gespeicherte Verbindungen
+  verified_by_human:
+    - en
+    - de
+saved_connections.description:
+  context: Description for saved travel connections settings/memory
+  en: Flights and train connections you saved from search results.
+  de: Flüge und Zugverbindungen, die du aus Suchergebnissen gespeichert hast.
+  verified_by_human:
+    - en
+    - de
+saved_stays:
+  context: Settings/memory name for saved travel stays
+  en: Saved stays
+  de: Gespeicherte Unterkünfte
+  verified_by_human:
+    - en
+    - de
+saved_stays.description:
+  context: Description for saved travel stays settings/memory
+  en: Hotels and stays you saved from search results.
+  de: Hotels und Unterkünfte, die du aus Suchergebnissen gespeichert hast.
+  verified_by_human:
+    - en
+    - de
 trips:
   context: Settings/memory name for trips
   en: Trips

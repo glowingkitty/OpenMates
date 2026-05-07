@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for events/search skill.
@@ -34,6 +33,10 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+const {
+	saveCurrentFullscreenEmbed,
+	verifySavedMemoryEntry
+} = require('./helpers/saved-memory-test-helpers');
 
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -137,8 +140,12 @@ test.describe('App: Events / Skill: search', () => {
 		const count = await resultCards.count();
 		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
 
+		await resultCards.first().click();
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
+
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
+		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);
 
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'events-search');
 	});

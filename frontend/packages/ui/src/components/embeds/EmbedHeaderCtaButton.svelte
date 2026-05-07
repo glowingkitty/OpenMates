@@ -16,8 +16,8 @@
     href?: string;
     /** If set (and no href), renders as <button> with this click handler */
     onclick?: () => void;
-    /** Visual variant: 'primary' (default), 'loading' (spinner), 'fallback' (grey) */
-    variant?: 'primary' | 'loading' | 'fallback';
+    /** Visual variant: 'primary' (default), 'secondary', 'loading' (spinner), 'fallback' (grey) */
+    variant?: 'primary' | 'secondary' | 'loading' | 'fallback';
     /** Optional data-testid for E2E targeting */
     testId?: string;
   }
@@ -38,6 +38,7 @@
     {href}
     target="_blank"
     rel="noopener noreferrer"
+    onclick={onclick}
   >
     {label}
   </a>
@@ -79,6 +80,25 @@
   .embed-header-cta:active {
     background-color: var(--color-button-primary-pressed);
     transform: translateY(0);
+  }
+
+  .embed-header-cta.secondary {
+    min-width: 120px;
+    background-color: var(--color-grey-20);
+    color: var(--color-font-primary);
+    border: 1px solid var(--color-grey-35);
+  }
+
+  .embed-header-cta.secondary:hover {
+    background-color: var(--color-grey-30);
+  }
+
+  :global(.embed-header-cta-group) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
   }
 
   /* Fallback variant (grey) for error states */

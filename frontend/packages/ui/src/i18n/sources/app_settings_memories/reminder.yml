@@ -1,0 +1,14 @@
+saved_item_reminder_defaults:
+  context: Settings/memory name for saved item reminder defaults
+  en: Saved item reminders
+  de: Erinnerungen für gespeicherte Einträge
+  verified_by_human:
+    - en
+    - de
+saved_item_reminder_defaults.description:
+  context: Description for saved item reminder defaults settings/memory
+  en: Customize default reminder offsets for saved events, trips, listings, stays, and appointments.
+  de: Passe Standard-Erinnerungen für gespeicherte Events, Reisen, Anzeigen, Aufenthalte und Termine an.
+  verified_by_human:
+    - en
+    - de

@@ -42,6 +42,7 @@ export type NotificationType =
  * - avatarUrl: For chat_message notifications, the avatar image URL
  * - onAction: Optional callback for an action button (e.g., "Tap to reconnect")
  * - actionLabel: Label text for the action button
+ * - onSecondaryAction/actionSecondaryLabel: Optional rejection/secondary action
  */
 export interface Notification {
   id: string;
@@ -55,6 +56,8 @@ export interface Notification {
   // Action button support (e.g., "Tap to reconnect" on connection notifications)
   onAction?: () => void; // Callback when action button is clicked
   actionLabel?: string; // Label text for the action button
+  onSecondaryAction?: () => void; // Callback when secondary action button is clicked
+  secondaryActionLabel?: string; // Label text for the secondary action button
 
   // Chat message notification specific fields
   chatId?: string; // The chat ID for reply functionality
@@ -74,6 +77,8 @@ export interface NotificationOptions {
   dismissible?: boolean;
   onAction?: () => void; // Optional callback for action button
   actionLabel?: string; // Label text for the action button
+  onSecondaryAction?: () => void;
+  secondaryActionLabel?: string;
   chatId?: string;
   chatTitle?: string;
   avatarUrl?: string;
@@ -311,7 +316,7 @@ export const notificationStore = {
   backupReminder: (
     message: string,
     onExport: () => void,
-    onDismiss?: () => void,
+    _onDismiss?: () => void,
   ) =>
     notificationStore.addNotificationWithOptions("backup_reminder", {
       title: "Back up your data",

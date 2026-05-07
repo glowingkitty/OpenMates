@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for travel/search_connections skill.
@@ -38,6 +37,10 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+const {
+	saveCurrentFullscreenEmbed,
+	verifySavedMemoryEntry
+} = require('./helpers/saved-memory-test-helpers');
 
 /** Get a date 14 days from now in YYYY-MM-DD format */
 function futureDate(daysAhead = 14): string {
@@ -176,6 +179,8 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		expect(routeHeaderText).toContain('→');
 		logCheckpoint(`Flight card route: ${routeHeaderText}`);
 
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, routeText?.trim() || routeHeaderText?.trim() || undefined);
+
 		// At least one segment card should be present
 		const segmentCards = flightCard.getByTestId('segment-card');
 		await expect(segmentCards.first()).toBeVisible({ timeout: 5000 });
@@ -285,6 +290,7 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		await page.waitForTimeout(500);
 
 		await closeFullscreen(page, fullscreenOverlay);
+		await verifySavedMemoryEntry(page, 'travel', 'saved_connections', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-connections');
 	});
 });

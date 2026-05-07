@@ -244,7 +244,7 @@
               onerror={hideFavicon}
             />
           {/if}
-          <span class="header-title-text">{title}</span>
+          <span class="header-title-text" data-testid="embed-header-title">{title}</span>
         </div>
       {/if}
 

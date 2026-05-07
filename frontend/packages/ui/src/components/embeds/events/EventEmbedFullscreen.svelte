@@ -16,6 +16,7 @@
   import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface EventResult {
@@ -357,6 +358,34 @@
 
   function handleOpenEvent() {
     if (event.url) window.open(event.url, '_blank', 'noopener,noreferrer');
+    promptToSaveEmbedMemory(buildSaveConfig());
+  }
+
+  function buildSaveConfig() {
+    const title = event.title || 'Event';
+    return {
+      kind: 'event' as const,
+      appId: 'events',
+      itemType: 'saved_events',
+      itemKey: `saved_events.${event.id || event.url || title}`,
+      title,
+      reminderDateTime: event.date_start || null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId || event.embed_id || '',
+        title,
+        provider: providerLabel || event.provider || '',
+        url: event.url || '',
+        date_start: event.date_start || '',
+        date_end: event.date_end || '',
+        location: isOnline ? 'Online event' : venueAddress,
+        notes: '',
+      },
+    };
+  }
+
+  function handleSaveEvent() {
+    saveEmbedMemory(buildSaveConfig());
   }
 </script>
 
@@ -378,9 +407,12 @@
   currentEmbedId={embedId}
 >
   {#snippet embedHeaderCta()}
-    {#if event.url && openButtonText}
-      <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} />
-    {/if}
+    <div class="embed-header-cta-group">
+      <EmbedHeaderCtaButton label="Save" variant="secondary" onclick={handleSaveEvent} testId="save-embed-cta" />
+      {#if event.url && openButtonText}
+        <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} testId="external-provider-cta" />
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet detailContent(_ctx)}
