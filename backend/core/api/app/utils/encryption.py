@@ -376,19 +376,27 @@ class EncryptionService:
         """
         import asyncio as _asyncio
         renewal_interval_seconds = renewal_interval_days * 86400
+        retry_delay_seconds = 300
+        max_retry_delay_seconds = 3600
         logger.info(
             f"Starting Vault token auto-renewal loop. "
             f"Will renew every {renewal_interval_days:.0f} days."
         )
         while True:
             await _asyncio.sleep(renewal_interval_seconds)
-            success = await self.renew_token()
-            if not success:
+            while True:
+                success = await self.renew_token()
+                if success:
+                    retry_delay_seconds = 300
+                    break
+
                 logger.warning(
-                    "Vault token renewal failed. Will retry in "
-                    f"{renewal_interval_days:.0f} days. "
-                    "If this keeps failing, logins will break when the token expires."
+                    "Vault token renewal failed. Retrying in "
+                    f"{retry_delay_seconds // 60} minutes. "
+                    "If this keeps failing, logins and encryption-backed features will break."
                 )
+                await _asyncio.sleep(retry_delay_seconds)
+                retry_delay_seconds = min(retry_delay_seconds * 2, max_retry_delay_seconds)
 
     async def ensure_keys_exist(self):
         """Ensure encryption engine is enabled in Vault with improved error handling"""

@@ -226,6 +226,8 @@ services:
         condition: service_healthy
       cms:
         condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
@@ -325,7 +327,7 @@ services:
       cms:
         condition: service_healthy
       vault-setup:
-        condition: service_started
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
@@ -386,7 +388,7 @@ services:
       cms:
         condition: service_healthy
       vault-setup:
-        condition: service_started
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
@@ -443,7 +445,7 @@ services:
       cms:
         condition: service_healthy
       vault-setup:
-        condition: service_started
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 

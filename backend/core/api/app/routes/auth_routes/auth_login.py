@@ -29,6 +29,10 @@ from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
 from backend.core.api.app.utils.ws_token import create_ws_token
+from backend.core.api.app.utils.directus_cookies import (
+    extract_directus_refresh_token,
+    normalize_directus_cookie,
+)
 
 """
 Zero-Knowledge Authentication System
@@ -1165,12 +1169,9 @@ async def finalize_login_session(
     # Set authentication cookies
     if "cookies" in auth_data:
         logger.info(f"Setting {len(auth_data['cookies'])} cookies")
+        refresh_token = extract_directus_refresh_token(auth_data["cookies"])
         for name, value in auth_data["cookies"].items():
-            if name == "directus_refresh_token":
-                refresh_token = value
-            cookie_name = name
-            if name.startswith("directus_"):
-                cookie_name = "auth_" + name[9:]
+            cookie_name = normalize_directus_cookie(name)
 
             # Build cookie parameters
             # - Secure=True requires HTTPS (both dev and prod use HTTPS)
