@@ -134,6 +134,7 @@ HEALTH_CHECK_FAILURE_THRESHOLD = 3
 # The external-services Celery task fires every 5 min; without this guard we
 # would send ~576 image-POST requests/day (2 servers × 288 checks).
 SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
+SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 
 # Minimal 8×8 white JPEG (631 bytes) used as the health check probe image for Sightengine.
 #
@@ -1461,9 +1462,21 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
                     last_error = None
                     logger.info(f"Health check: Sightengine API is healthy ({response_time_ms:.1f}ms)")
                 else:
-                    status = "unhealthy"
-                    last_error = _sanitize_error_message(f"HTTP {response.status_code}")
-                    logger.error(f"Health check: Sightengine API returned {response.status_code}")
+                    response_text = response.text[:300]
+                    if response.status_code == 400 and SIGHTENGINE_USAGE_LIMIT_ERROR in response_text.lower():
+                        status = "skipped"
+                        last_error = SIGHTENGINE_USAGE_LIMIT_ERROR
+                        logger.warning(
+                            "Health check: Sightengine API quota exhausted; "
+                            "moderation health probe skipped until quota resets or plan is upgraded"
+                        )
+                    else:
+                        status = "unhealthy"
+                        last_error = _sanitize_error_message(f"HTTP {response.status_code}")
+                        logger.error(
+                            f"Health check: Sightengine API returned {response.status_code}: "
+                            f"{_sanitize_error_message(response_text)}"
+                        )
 
         except httpx.TimeoutException:
             response_time_ms = (time.time() - start_time) * 1000
@@ -1484,14 +1497,16 @@ async def _check_sightengine_health(secrets_manager: SecretsManager) -> Dict[str
 
     current_timestamp = int(time.time())
 
-    # Record health event if status changed (for historical tracking)
-    await _record_health_event_if_changed(
-        service_type="external",
-        service_id="sightengine",
-        new_status=status,
-        error_message=last_error,
-        response_time_ms=response_time_ms
-    )
+    # Quota exhaustion means the configured free-plan moderation probe is skipped;
+    # do not record it as an outage event for the public status history.
+    if status != "skipped":
+        await _record_health_event_if_changed(
+            service_type="external",
+            service_id="sightengine",
+            new_status=status,
+            error_message=last_error,
+            response_time_ms=response_time_ms
+        )
 
     # Store result in cache (TTL matches the throttle interval so the entry is
     # always present for the next 5-minute check to read back)
