@@ -275,7 +275,7 @@
       reminderDateTime: effectiveSlotDatetime,
       reminderPromptTitle: `${title}${effectiveSlotDatetime ? ` at ${formatSlot(effectiveSlotDatetime)}` : ''}`,
       itemValue: {
-        embed_id: embedId || activeAppointment?.embed_id || '',
+        embed_id: embedId || data.focusChildEmbedId || activeAppointment?.embed_id || '',
         title: headerTitle,
         appointment_type: 'doctor_visit',
         where: [activeAppointment?.name, activeAppointment?.speciality].filter(Boolean).join(' · '),

@@ -178,7 +178,7 @@
       reminderDateTime: parseAvailableFromDate(available_from),
       reminderPromptTitle: saveTitle,
       itemValue: {
-        embed_id: embedId || '',
+        embed_id: embedId || data.focusChildEmbedId || '',
         title: saveTitle,
         url,
         provider: provider || hostname,

@@ -189,7 +189,7 @@
       reminderDateTime: null,
       reminderPromptTitle: title,
       itemValue: {
-        embed_id: embedId || '',
+        embed_id: embedId || data.focusChildEmbedId || '',
         name: title,
         property_type: propertyType,
         url: bookingUrl,

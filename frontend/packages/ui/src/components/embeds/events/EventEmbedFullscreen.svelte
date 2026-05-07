@@ -372,7 +372,7 @@
       reminderDateTime: event.date_start || null,
       reminderPromptTitle: title,
       itemValue: {
-        embed_id: embedId || event.embed_id || '',
+        embed_id: embedId || data.focusChildEmbedId || event.embed_id || '',
         title,
         provider: providerLabel || event.provider || '',
         url: event.url || '',

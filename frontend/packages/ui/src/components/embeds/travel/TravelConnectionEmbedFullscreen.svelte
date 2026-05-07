@@ -775,7 +775,7 @@
       reminderDateTime: connection.departure || connection.legs?.[0]?.departure || null,
       reminderPromptTitle: title,
       itemValue: {
-        embed_id: embedId || connection.embed_id || '',
+        embed_id: embedId || data.focusChildEmbedId || connection.embed_id || '',
         title,
         transport_method: connection.transport_method || '',
         origin: connection.origin || connection.legs?.[0]?.origin || '',
