@@ -70,9 +70,15 @@ struct ChatView: View {
     /// omit (nil) for regular user chats where no banner should appear.
     var bannerState: ChatBannerState? = nil
     var bannerCreatedAt: Date? = nil
+    /// Synced user chat data from the app shell. Public/example chats still load
+    /// from PublicChatContent, so both paths share this one ChatView + ViewModel.
+    var initialChat: Chat? = nil
+    var initialMessages: [Message] = []
+    var initialEmbeds: [EmbedRecord] = []
     /// Mirrors web `.chat-container.menu-open`; used by the banner header to
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
+    var onShareChat: (() -> Void)? = nil
     /// Navigation callbacks for prev/next chat arrows on the banner.
     var onPreviousChat: (() -> Void)? = nil
     var onNextChat: (() -> Void)? = nil
@@ -119,7 +125,9 @@ struct ChatView: View {
             ZStack {
                 VStack(spacing: 0) {
                     if bannerState == nil {
-                        chatTopBar
+                        if effectiveBannerState == nil {
+                            chatTopBar
+                        }
                     }
 
                     messageList
@@ -133,7 +141,7 @@ struct ChatView: View {
                     // Web: intro/legal chats show a full-width "New chat" CTA instead of the input field
                     if isDemoOrLegalChat {
                         newChatCTA
-                    } else if isExampleChat {
+                    } else if isExampleChat || !viewModel.messages.isEmpty {
                         exampleChatInputRow
                     } else {
                         inputBar
@@ -176,7 +184,7 @@ struct ChatView: View {
             }
         )
         .task(id: chatId) {
-            await viewModel.loadChat(id: chatId)
+            await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
             // Advertise this chat for Handoff to other Apple devices
             handoffManager.advertiseChatViewing(
                 chatId: chatId,
@@ -198,6 +206,72 @@ struct ChatView: View {
             )
             viewModel.forkedChatId = nil
         }
+        .onChange(of: initialMessages.map(\.id)) { _, _ in
+            Task {
+                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+            }
+        }
+        .onChange(of: initialChat?.updatedAt) { _, _ in
+            Task {
+                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+            }
+        }
+        .onChange(of: initialChat?.displayTitle) { _, _ in
+            Task {
+                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+            }
+        }
+        .onChange(of: initialChat?.category) { _, _ in
+            Task {
+                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+            }
+        }
+        .onChange(of: initialChat?.icon) { _, _ in
+            Task {
+                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+            }
+        }
+        .onChange(of: initialChat?.chatSummary) { _, _ in
+            Task {
+                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+            }
+        }
+        .onChange(of: initialEmbedSyncSignature) { _, _ in
+            Task {
+                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
+            }
+        }
+    }
+
+    private var initialEmbedSyncSignature: String {
+        initialEmbeds
+            .map { embed in
+                [
+                    embed.id,
+                    embed.status.rawValue,
+                    embed.parentEmbedId ?? "",
+                    embed.embedIds ?? "",
+                    embed.rawData?["updated_at"]?.value as? String ?? "",
+                    embed.rawData?["updatedAt"]?.value as? String ?? "",
+                    String(embed.rawData?.count ?? 0)
+                ].joined(separator: ":")
+            }
+            .sorted()
+            .joined(separator: "|")
+    }
+
+    private var effectiveBannerState: ChatBannerState? {
+        if let bannerState { return bannerState }
+        guard let chat = viewModel.chat,
+              let title = chat.title,
+              let category = chat.category,
+              !title.isEmpty,
+              !category.isEmpty else { return nil }
+        return .loaded(title: title, appId: category, summary: chat.chatSummary)
+    }
+
+    private var effectiveBannerCreatedAt: Date? {
+        bannerCreatedAt ?? viewModel.chat?.createdDate ?? viewModel.chat?.updatedDate
     }
 
     // MARK: - Embed fullscreen helper
@@ -207,31 +281,6 @@ struct ChatView: View {
             ChatHeaderView(chat: viewModel.chat, isLoading: viewModel.isLoading)
 
             Spacer()
-
-            if let appId = viewModel.chat?.appId {
-                Text(appId)
-                    .font(.omTiny)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontSecondary)
-                    .padding(.horizontal, .spacing3)
-                    .padding(.vertical, .spacing2)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-            }
-
-            OMIconButton(icon: "reminder", label: AppStrings.setReminder, size: 34, iconSize: 17) {
-                showReminder = true
-            }
-
-            OMIconButton(
-                icon: showPIIPlaceholders ? "anonym" : "visible",
-                label: AppStrings.hidePersonalData,
-                size: 34,
-                iconSize: 17,
-                isProminent: showPIIPlaceholders
-            ) {
-                showPIIPlaceholders.toggle()
-            }
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
@@ -320,10 +369,10 @@ struct ChatView: View {
                             scrollSentinel(id: "scroll-top", edge: .top)
 
                             // Gradient banner — shown for demo/example chats (ChatHeader.svelte equivalent)
-                            if let banner = bannerState {
+                            if let banner = effectiveBannerState {
                                 ChatBannerView(
                                     state: banner,
-                                    createdAt: bannerCreatedAt,
+                                    createdAt: effectiveBannerCreatedAt,
                                     isExampleChat: chatId.hasPrefix("example-"),
                                     isIntroChat: chatId == "demo-for-everyone",
                                     teaserVideoURL: chatId == "demo-for-everyone"
@@ -332,7 +381,7 @@ struct ChatView: View {
                                     fullVideoURL: chatId == "demo-for-everyone"
                                         ? URL(string: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4")
                                         : nil,
-                                    iconName: publicChatIconName(for: chatId),
+                                    iconName: publicChatIconName(for: chatId) ?? viewModel.chat?.icon,
                                     isSettingsOpen: isSettingsOpen,
                                     viewportHeight: chatViewportHeight,
                                     onPrevious: onPreviousChat,
@@ -374,7 +423,7 @@ struct ChatView: View {
                                     MessageBubble(
                                         message: message,
                                         chatId: chatId,
-                                        appId: viewModel.chat?.appId,
+                                        appId: viewModel.chat?.category ?? viewModel.chat?.appId,
                                         embeds: viewModel.embeds(for: message),
                                         allEmbedRecords: viewModel.embedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
@@ -396,7 +445,7 @@ struct ChatView: View {
                                         .id("streaming")
                                 }
 
-                                if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming && bannerState == nil {
+                                if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(suggestions: viewModel.followUpSuggestions) { suggestion in
                                         messageText = suggestion
                                     }
@@ -441,6 +490,13 @@ struct ChatView: View {
                             }
                         }
                         .frame(maxHeight: .infinity, alignment: .bottom)
+                    }
+
+                    if effectiveBannerState != nil {
+                        chatFloatingActions
+                            .padding(.top, .spacing4)
+                            .padding(.leading, .spacing6)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     }
                 }
                 .onChange(of: viewModel.messages.count) { _, _ in
@@ -497,6 +553,33 @@ struct ChatView: View {
         .opacity(0.7)
         .accessibilityLabel(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom)
         .accessibilityIdentifier(isTop ? "scroll-to-top-button" : "scroll-to-bottom-button")
+    }
+
+    private var chatFloatingActions: some View {
+        HStack(spacing: .spacing2) {
+            chatFloatingAction(icon: "share", label: AppStrings.share) {
+                onShareChat?()
+            }
+            chatFloatingAction(icon: "bug", label: AppStrings.report) {
+                ToastManager.shared.show(AppStrings.report, type: .info)
+            }
+            chatFloatingAction(icon: "reminder", label: AppStrings.setReminder) {
+                showReminder = true
+            }
+        }
+    }
+
+    private func chatFloatingAction(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(icon, size: 22)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 44, height: 44)
+                .background(Color.grey0.opacity(0.92))
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     // MARK: - Streaming banner
@@ -662,108 +745,76 @@ struct ChatView: View {
     }
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
-        let fieldHeight = compact ? 48 : expandedMinHeight
-
-        return ZStack(alignment: .bottom) {
-            TextField("", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.omP)
-                    .lineLimit(compact ? 1...1 : 1...6)
-                    .tint(Color.buttonPrimary)
-                    .focused($isInputFocused)
-                    .onSubmit { sendMessage() }
-                    .accessibilityLabel(AppStrings.chatMessageInput)
-                    .accessibilityHint(placeholder)
-                    .padding(.horizontal, .spacing6)
-                    .padding(.top, compact ? 0 : .spacing6)
-                    .padding(.bottom, compact ? 0 : .spacing32)
-                    .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
-
-            if messageText.isEmpty && !isInputFocused {
-                Text(placeholder)
-                    .font(.omP)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontTertiary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .allowsHitTesting(false)
-                    .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: fieldHeight, alignment: .center)
-                    .padding(.horizontal, .spacing8)
-            }
-
-            if !compact {
-                HStack(spacing: .spacing6) {
-                    AttachmentPicker(
-                        isPresented: $showAttachmentMenu,
-                        onImageSelected: { data, filename in
-                            Task { await viewModel.uploadAttachment(data: data, filename: filename) }
-                        },
-                        onFileSelected: { url in
-                            Task { await viewModel.uploadFile(url: url) }
-                        }
-                    )
-                    .accessibilityLabel(AppStrings.attachFiles)
-
-                    inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
-                        ToastManager.shared.show(AppStrings.shareLocation, type: .info)
+        OMMessageInputField(
+            text: $messageText,
+            isFocused: $isInputFocused,
+            compact: compact,
+            placeholder: placeholder,
+            expandedMinHeight: expandedMinHeight,
+            accessibilityHint: AppStrings.typeMessage,
+            onSubmit: sendMessage
+        ) {
+            HStack(spacing: .spacing6) {
+                AttachmentPicker(
+                    isPresented: $showAttachmentMenu,
+                    onImageSelected: { data, filename in
+                        Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                    },
+                    onFileSelected: { url in
+                        Task { await viewModel.uploadFile(url: url) }
                     }
+                )
+                .accessibilityLabel(AppStrings.attachFiles)
 
-                    inputActionButton(icon: "whiteboard", label: AppStrings.sketchAction) {
-                        ToastManager.shared.show(AppStrings.sketchAction, type: .info)
-                    }
+                inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
+                    ToastManager.shared.show(AppStrings.shareLocation, type: .info)
+                }
 
-                    Spacer()
+                inputActionButton(icon: "whiteboard", label: AppStrings.sketchAction) {
+                    ToastManager.shared.show(AppStrings.sketchAction, type: .info)
+                }
 
-                    #if os(iOS)
-                    inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
-                        ToastManager.shared.show(AppStrings.takePhoto, type: .info)
-                    }
-                    #endif
+                Spacer()
 
-                    if messageText.isEmpty && !viewModel.isStreaming {
-                        VoiceRecordingButton { url in
-                            Task {
-                                if let data = try? Data(contentsOf: url) {
-                                    await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent)
-                                }
+                #if os(iOS)
+                inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
+                    ToastManager.shared.show(AppStrings.takePhoto, type: .info)
+                }
+                #endif
+
+                if messageText.isEmpty && !viewModel.isStreaming {
+                    VoiceRecordingButton { url in
+                        Task {
+                            if let data = try? Data(contentsOf: url) {
+                                await viewModel.uploadAttachment(data: data, filename: url.lastPathComponent)
                             }
                         }
-                    } else {
-                        Button(action: sendMessage) {
-                            Text(AppStrings.sendAction)
-                                .font(.omP)
-                                .fontWeight(.medium)
-                                .foregroundStyle(Color.fontButton)
-                                .padding(.horizontal, .spacing8)
-                                .padding(.vertical, .spacing4)
-                                .frame(height: 40)
-                                .background(Color.buttonPrimary)
-                                .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(messageText.isEmpty || viewModel.isStreaming)
-                        .opacity(messageText.isEmpty ? 0.6 : 1.0)
-                        .accessibilityLabel(AppStrings.sendMessage)
-                        .accessibilityHint(AppStrings.typeMessage)
-                        #if os(macOS)
-                        .keyboardShortcut(.return, modifiers: .command)
-                        #endif
                     }
+                } else {
+                    Button(action: sendMessage) {
+                        Text(AppStrings.sendAction)
+                            .font(.omP)
+                            .fontWeight(.medium)
+                            .foregroundStyle(Color.fontButton)
+                            .padding(.horizontal, .spacing8)
+                            .padding(.vertical, .spacing4)
+                            .frame(height: 40)
+                            .background(Color.buttonPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(messageText.isEmpty || viewModel.isStreaming)
+                    .opacity(messageText.isEmpty ? 0.6 : 1.0)
+                    .accessibilityLabel(AppStrings.sendMessage)
+                    .accessibilityHint(AppStrings.typeMessage)
+                    #if os(macOS)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    #endif
                 }
-                .padding(.horizontal, .spacing5)
-                .padding(.bottom, .spacing6)
             }
+            .padding(.horizontal, .spacing5)
+            .padding(.bottom, .spacing6)
         }
-        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: compact ? fieldHeight : nil)
-        .background(Color.greyBlue)
-        .clipShape(RoundedRectangle(cornerRadius: compact ? .radiusFull : 24))
-        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        .contentShape(RoundedRectangle(cornerRadius: compact ? .radiusFull : 24))
-        .onTapGesture {
-            isInputFocused = true
-        }
-        .animation(.easeInOut(duration: 0.25), value: compact)
     }
 
     private var newChatInlineButton: some View {

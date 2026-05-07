@@ -29,11 +29,17 @@ final class ChatViewModel: ObservableObject {
     private var streamTask: Task<Void, Never>?
     nonisolated(unsafe) private var embedRefreshObserver: Any?
 
-    func loadChat(id: String) async {
+    func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
         isLoading = true
         error = nil
 
         if loadPublicChat(id: id) {
+            isLoading = false
+            return
+        }
+
+        if let initialChat {
+            await loadSyncedChat(initialChat, messages: initialMessages, embeds: initialEmbeds)
             isLoading = false
             return
         }
@@ -44,19 +50,18 @@ final class ChatViewModel: ObservableObject {
             // Ensure chat key is loaded (may not be if chat was opened via deep link)
             await ensureChatKey(for: loadedChat)
 
-            // Decrypt chat title
-            if let encTitle = loadedChat.encryptedTitle,
-               let decrypted = await ChatKeyManager.shared.decryptTitle(
-                   for: id, encryptedTitle: encTitle
-               ) {
-                loadedChat.title = decrypted
-            }
+            loadedChat = await decryptMetadata(for: loadedChat)
             chat = loadedChat
 
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
 
-            // Decrypt all message content
-            allMessages = await decryptMessages(messagesResponse, chatId: id)
+            // Decrypt and normalize all message content, including inline embed
+            // JSON blocks that the web app turns into embed placeholders.
+            let decryptedMessages = await decryptMessages(messagesResponse, chatId: id)
+            let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
+            embedRecords = embedded.records
+            allMessages = embedded.messages
+            followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
 
             // Show only the most recent page initially for fast rendering
             if allMessages.count > messagesPageSize {
@@ -80,6 +85,106 @@ final class ChatViewModel: ObservableObject {
         isLoading = false
     }
 
+    func applySynced(chat syncedChat: Chat?, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord] = []) async {
+        guard let currentId = chat?.id else { return }
+        if let syncedChat, syncedChat.id != currentId { return }
+        if !syncedMessages.isEmpty && syncedMessages.allSatisfy({ $0.chatId != currentId }) { return }
+        let nextChat = syncedChat ?? chat
+        guard let nextChat else { return }
+        await loadSyncedChat(nextChat, messages: syncedMessages.isEmpty ? allMessages : syncedMessages, embeds: syncedEmbeds)
+    }
+
+    private func loadSyncedChat(_ syncedChat: Chat, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord]) async {
+        var loadedChat = syncedChat
+        print("[ChatViewModel][loadSynced] chat=\(syncedChat.id.prefix(8)) inputMessages=\(syncedMessages.count) inputEmbeds=\(syncedEmbeds.count) title=\(syncedChat.title != nil) category=\(syncedChat.category != nil) icon=\(syncedChat.icon != nil) summary=\(syncedChat.chatSummary != nil) encTitle=\(syncedChat.encryptedTitle != nil)")
+        await ensureChatKey(for: loadedChat)
+        loadedChat = await decryptMetadata(for: loadedChat)
+        print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) afterMetadata title=\(loadedChat.title != nil) category=\(loadedChat.category != nil) icon=\(loadedChat.icon != nil) summary=\(loadedChat.chatSummary != nil) hasKey=\(ChatKeyManager.shared.hasKey(for: loadedChat.id))")
+
+        chat = loadedChat
+        let decryptedMessages = await decryptMessages(syncedMessages, chatId: loadedChat.id)
+        let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
+        let existingRecords = embedRecords
+        let decryptedSyncedEmbeds = await decryptEmbeds(syncedEmbeds, chatId: loadedChat.id, existingRecords: existingRecords.merging(embedded.records) { _, new in new })
+        embedRecords = decryptedSyncedEmbeds.reduce(into: existingRecords.merging(embedded.records) { _, new in new }) { records, embed in
+            records[embed.id] = embed
+        }
+        let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
+        let decryptedEmbedCount = decryptedSyncedEmbeds.filter { $0.rawData != nil }.count
+        print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) decryptedMessages=\(decryptedMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) decryptedEmbeds=\(decryptedEmbedCount) totalRecords=\(embedRecords.count)")
+        allMessages = embedded.messages
+        followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
+
+        if allMessages.count > messagesPageSize {
+            messages = Array(allMessages.suffix(messagesPageSize))
+            hasOlderMessages = true
+        } else {
+            messages = allMessages
+            hasOlderMessages = false
+        }
+
+        await loadEmbeds(for: messages.map(\.id))
+        subscribeToStream(chatId: loadedChat.id)
+        subscribeToEmbedUpdates(chatId: loadedChat.id)
+    }
+
+    private func decryptMetadata(for chat: Chat) async -> Chat {
+        var decrypted = chat
+        guard ChatKeyManager.shared.hasKey(for: decrypted.id) else {
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encTitle=\(decrypted.encryptedTitle != nil) encCategory=\(decrypted.encryptedCategory != nil) encIcon=\(decrypted.encryptedIcon != nil) encSummary=\(decrypted.encryptedChatSummary != nil)")
+            return decrypted
+        }
+        if decrypted.title == nil,
+           let encryptedTitle = decrypted.encryptedTitle,
+           let title = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedTitle,
+               fieldName: "encrypted_title"
+           ) {
+            decrypted.title = title
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
+        } else if decrypted.title == nil, decrypted.encryptedTitle != nil {
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
+        }
+        if decrypted.category == nil,
+           let encryptedCategory = decrypted.encryptedCategory,
+           let category = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedCategory,
+               fieldName: "encrypted_category"
+           ) {
+            decrypted.category = category
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
+        } else if decrypted.category == nil, decrypted.encryptedCategory != nil {
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
+        }
+        if decrypted.icon == nil,
+           let encryptedIcon = decrypted.encryptedIcon,
+           let icon = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedIcon,
+               fieldName: "encrypted_icon"
+           ) {
+            decrypted.icon = icon
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
+        } else if decrypted.icon == nil, decrypted.encryptedIcon != nil {
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
+        }
+        if decrypted.chatSummary == nil,
+           let encryptedSummary = decrypted.encryptedChatSummary,
+           let summary = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedSummary,
+               fieldName: "encrypted_chat_summary"
+           ) {
+            decrypted.chatSummary = summary
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
+        } else if decrypted.chatSummary == nil, decrypted.encryptedChatSummary != nil {
+            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
+        }
+        return decrypted
+    }
+
     // MARK: - Public bundled chats
 
     private func loadPublicChat(id: String) -> Bool {
@@ -96,6 +201,10 @@ final class ChatViewModel: ObservableObject {
         streamingContent = ""
         streamingMessageId = nil
         streamTask?.cancel()
+        if let observer = embedRefreshObserver {
+            NotificationCenter.default.removeObserver(observer)
+            embedRefreshObserver = nil
+        }
         return true
     }
 
@@ -119,6 +228,10 @@ final class ChatViewModel: ObservableObject {
 
     /// Decrypt encrypted_content for a batch of messages using the per-chat key.
     private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+        let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
+        if encryptedCount > 0, !ChatKeyManager.shared.hasKey(for: chatId) {
+            print("[ChatViewModel][decrypt] messages skipped chat=\(chatId.prefix(8)) encrypted=\(encryptedCount) reason=missingChatKey")
+        }
         var result: [Message] = []
         for var msg in messages {
             if msg.content == nil || msg.content?.isEmpty == true,
@@ -132,6 +245,67 @@ final class ChatViewModel: ObservableObject {
             result.append(msg)
         }
         return result
+    }
+
+    private func decryptEmbeds(
+        _ embeds: [EmbedRecord],
+        chatId: String,
+        existingRecords: [String: EmbedRecord] = [:]
+    ) async -> [EmbedRecord] {
+        guard !embeds.isEmpty else { return [] }
+        let encryptedCount = embeds.filter { $0.encryptedContent != nil || $0.encryptedType != nil }.count
+        var allRecords = existingRecords
+        for embed in embeds {
+            allRecords[embed.id] = embed
+        }
+        print("[ChatViewModel][embeds][decrypt] start chat=\(chatId.prefix(8)) embeds=\(embeds.count) encrypted=\(encryptedCount) existing=\(existingRecords.count)")
+
+        var decryptedEmbeds: [EmbedRecord] = []
+        for embed in embeds {
+            guard embed.rawData == nil || embed.encryptedType != nil else {
+                decryptedEmbeds.append(embed)
+                continue
+            }
+            guard embed.encryptedContent != nil || embed.encryptedType != nil else {
+                decryptedEmbeds.append(embed)
+                continue
+            }
+            guard let embedKey = await EmbedKeyManager.shared.key(for: embed, chatId: chatId, allEmbeds: allRecords) else {
+                print("[ChatViewModel][embeds][decrypt] key missing chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) parent=\(embed.parentEmbedId?.prefix(8) ?? "nil") hasEncryptedContent=\(embed.encryptedContent != nil)")
+                decryptedEmbeds.append(embed)
+                continue
+            }
+
+            var decryptedContent: String?
+            if let encryptedContent = embed.encryptedContent {
+                do {
+                    decryptedContent = try await CryptoManager.shared.decryptContent(
+                        base64String: encryptedContent.trimmingCharacters(in: .whitespacesAndNewlines),
+                        key: embedKey
+                    )
+                } catch {
+                    print("[ChatViewModel][embeds][decrypt] content failed chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) error=\(error.localizedDescription)")
+                }
+            }
+
+            var decryptedType: String?
+            if let encryptedType = embed.encryptedType {
+                do {
+                    decryptedType = try await CryptoManager.shared.decryptContent(
+                        base64String: encryptedType.trimmingCharacters(in: .whitespacesAndNewlines),
+                        key: embedKey
+                    )
+                } catch {
+                    print("[ChatViewModel][embeds][decrypt] type failed chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) error=\(error.localizedDescription)")
+                }
+            }
+
+            let decrypted = embed.decryptedCopy(content: decryptedContent, type: decryptedType)
+            allRecords[decrypted.id] = decrypted
+            decryptedEmbeds.append(decrypted)
+            print("[ChatViewModel][embeds][decrypt] ok chat=\(chatId.prefix(8)) embed=\(decrypted.id.prefix(8)) type=\(decrypted.type) children=\(decrypted.childEmbedIds.count) parent=\(decrypted.parentEmbedId?.prefix(8) ?? "nil") raw=\(decrypted.rawData != nil)")
+        }
+        return decryptedEmbeds
     }
 
     /// Load the next page of older messages above the current window.
@@ -234,14 +408,20 @@ final class ChatViewModel: ObservableObject {
             streamingContent = content
 
             if isFinal {
-                let assistantMessage = Message(
+                let rawAssistantMessage = Message(
                     id: messageId, chatId: chat?.id ?? "", role: .assistant,
                     content: content, encryptedContent: nil,
                     createdAt: ISO8601DateFormatter().string(from: Date()),
-                    updatedAt: nil, appId: chat?.appId, isStreaming: false, embedRefs: nil
+                    updatedAt: nil, appId: chat?.category ?? chat?.appId, isStreaming: false, embedRefs: nil
                 )
+                let embedded = PublicChatContent.attachEmbeds(to: [rawAssistantMessage])
+                for (id, record) in embedded.records {
+                    embedRecords[id] = record
+                }
+                let assistantMessage = embedded.messages.first ?? rawAssistantMessage
                 allMessages.append(assistantMessage)
                 messages.append(assistantMessage)
+                followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
                 isStreaming = false
                 streamingContent = ""
                 streamingMessageId = nil
@@ -269,6 +449,10 @@ final class ChatViewModel: ObservableObject {
 
     /// Listen for WebSocket embed updates and reload embeds for this chat.
     private func subscribeToEmbedUpdates(chatId: String) {
+        if let observer = embedRefreshObserver {
+            NotificationCenter.default.removeObserver(observer)
+            embedRefreshObserver = nil
+        }
         embedRefreshObserver = NotificationCenter.default.addObserver(
             forName: .embedRefreshNeeded, object: nil, queue: .main
         ) { [weak self] _ in
@@ -323,22 +507,119 @@ final class ChatViewModel: ObservableObject {
 
     func loadEmbeds(for messageIds: [String]) async {
         guard let chatId = chat?.id else { return }
+        let requestedMessageIds = Set(messageIds)
+        let visibleReferencedEmbedIds = Set(messages
+            .filter { requestedMessageIds.contains($0.id) }
+            .flatMap { $0.embedRefs?.map(\.id) ?? [] })
+        let referencedEmbedIds = visibleReferencedEmbedIds.union(
+            allMessages
+                .filter { requestedMessageIds.contains($0.id) }
+                .flatMap { $0.embedRefs?.map(\.id) ?? [] }
+        )
+        let loadedEmbedIds = Set(embedRecords.keys)
+        let referencedRecords = referencedEmbedIds.compactMap { embedRecords[$0] }
+        let referencedChildIds = childIdsReachable(from: referencedEmbedIds)
+        let requiredEmbedIds = referencedEmbedIds.union(referencedChildIds)
+        let hasUnresolvedCompositeParent = referencedRecords.contains { record in
+            record.isAppSkillUse &&
+                record.childEmbedIds.isEmpty &&
+                !embedRecords.values.contains { $0.parentEmbedId == record.id }
+        }
+        let hasEncryptedUndecryptedRecord = referencedRecords.contains { record in
+            record.rawData == nil && (record.encryptedContent != nil || record.encryptedType != nil)
+        }
+        print("[ChatViewModel][embeds] chat=\(chatId.prefix(8)) requestedMessages=\(requestedMessageIds.count) referenced=\(referencedEmbedIds.count) children=\(referencedChildIds.count) loaded=\(loadedEmbedIds.count) unresolvedComposite=\(hasUnresolvedCompositeParent) encryptedUndecrypted=\(hasEncryptedUndecryptedRecord)")
+        if !hasUnresolvedCompositeParent,
+           !hasEncryptedUndecryptedRecord,
+           !requiredEmbedIds.isEmpty,
+           requiredEmbedIds.isSubset(of: loadedEmbedIds) {
+            print("[ChatViewModel][embeds] chat=\(chatId.prefix(8)) skip fetch; required already loaded=\(requiredEmbedIds.count)")
+            return
+        }
         do {
-            let response: [EmbedRecord] = try await api.request(
+            let data: Data = try await api.request(
                 .get, path: "/v1/chats/\(chatId)/embeds"
             )
-            for embed in response {
+            let response = try decodeChatEmbedsResponse(data)
+            guard chat?.id == chatId else { return }
+            EmbedKeyManager.shared.store(response.embedKeys, source: "chatEmbeds:\(chatId.prefix(8))")
+            let decrypted = await decryptEmbeds(response.embeds, chatId: chatId, existingRecords: embedRecords)
+            for embed in decrypted {
                 embedRecords[embed.id] = embed
             }
+            let childLinked = decrypted.filter { $0.parentEmbedId != nil || !$0.childEmbedIds.isEmpty }.count
+            let rawCount = decrypted.filter { $0.rawData != nil }.count
+            print("[ChatViewModel][embeds] chat=\(chatId.prefix(8)) fetched=\(response.embeds.count) keys=\(response.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)")
         } catch {
             print("[Chat] Failed to load embeds: \(error)")
         }
+    }
+
+    private func decodeChatEmbedsResponse(_ data: Data) throws -> ChatEmbedsResponse {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        if let object = try? decoder.decode(ChatEmbedsResponse.self, from: data) {
+            return object
+        }
+        let embeds = try decoder.decode([EmbedRecord].self, from: data)
+        return ChatEmbedsResponse(embeds: embeds, embedKeys: [])
     }
 
     func embeds(for message: Message) -> [EmbedRecord] {
         message.embedRefs?.compactMap { ref in
             embedRecords[ref.id]
         } ?? []
+    }
+
+    private func childIdsReachable(from parentIds: Set<String>) -> Set<String> {
+        var result = Set<String>()
+        var pending = Array(parentIds)
+        var visited = Set<String>()
+
+        while let id = pending.popLast() {
+            guard visited.insert(id).inserted, let record = embedRecords[id] else { continue }
+            for childId in record.childEmbedIds where result.insert(childId).inserted {
+                pending.append(childId)
+            }
+            for child in embedRecords.values where child.parentEmbedId == id && result.insert(child.id).inserted {
+                pending.append(child.id)
+            }
+        }
+
+        return result
+    }
+
+    private func extractFollowUpSuggestions(from messages: [Message]) -> [String] {
+        guard let content = messages.last(where: { $0.role == .assistant })?.content else { return [] }
+        let lines = content.components(separatedBy: .newlines)
+        guard let start = lines.lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveContains("next steps") }) else {
+            return []
+        }
+        return lines[(start + 1)...]
+            .compactMap { line -> String? in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "-*• "))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let cleaned = cleanFollowUpSuggestion(trimmed)
+                return cleaned.isEmpty ? nil : cleaned
+            }
+            .prefix(6)
+            .map { String($0) }
+    }
+
+    private func cleanFollowUpSuggestion(_ suggestion: String) -> String {
+        var cleaned = suggestion
+        cleaned = cleaned.replacingOccurrences(
+            of: #"\[\[[^\]|]+(?:\|([^\]]+))?\]\]"#,
+            with: "$1",
+            options: .regularExpression
+        )
+        cleaned = cleaned.replacingOccurrences(
+            of: #"\[([^\]]+)\]\([^)]+\)"#,
+            with: "$1",
+            options: .regularExpression
+        )
+        return cleaned.trimmingCharacters(in: CharacterSet(charactersIn: ". \n\t"))
     }
 
     func childEmbeds(for embed: EmbedRecord) -> [EmbedRecord] {
@@ -392,8 +673,23 @@ final class ChatViewModel: ObservableObject {
     }
 }
 
+private struct ChatEmbedsResponse: Decodable {
+    let embeds: [EmbedRecord]
+    let embedKeys: [EmbedKeyRecord]
+
+    init(embeds: [EmbedRecord], embedKeys: [EmbedKeyRecord]) {
+        self.embeds = embeds
+        self.embedKeys = embedKeys
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case embeds
+        case embedKeys
+    }
+}
+
 @MainActor
-private enum PublicChatContent {
+fileprivate enum PublicChatContent {
     struct PublicChat {
         let chat: Chat
         let messages: [Message]
@@ -651,7 +947,7 @@ private enum PublicChatContent {
         )
     }
 
-    private static func attachEmbeds(to messages: [Message]) -> (messages: [Message], records: [String: EmbedRecord]) {
+    static func attachEmbeds(to messages: [Message]) -> (messages: [Message], records: [String: EmbedRecord]) {
         var records: [String: EmbedRecord] = [:]
         let updatedMessages = messages.map { original in
             let extracted = extractEmbeds(from: original.content ?? "", fallbackAppId: original.appId)

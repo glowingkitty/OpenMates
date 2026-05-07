@@ -43,6 +43,80 @@ extension EnvironmentValues {
     }
 }
 
+// MARK: - OMMessageInputField
+// Web source: MessageInput.svelte / MessageInput.styles.css —
+// `.message-field`, `.message-field.inline-compact`, and ActionButtons slot.
+
+struct OMMessageInputField<ActionButtons: View>: View {
+    @Binding var text: String
+    let isFocused: FocusState<Bool>.Binding
+    let compact: Bool
+    let placeholder: String
+    var expandedMinHeight: CGFloat = 100
+    var accessibilityHint: String
+    var onSubmit: () -> Void
+    @ViewBuilder var actionButtons: () -> ActionButtons
+
+    private var fieldHeight: CGFloat {
+        compact ? 48 : expandedMinHeight
+    }
+
+    private var cornerRadius: CGFloat {
+        compact ? .radiusFull : 24
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            TextField("", text: $text, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.omP)
+                .lineLimit(compact ? 1...1 : 1...6)
+                .tint(Color.buttonPrimary)
+                .focused(isFocused)
+                .onSubmit(onSubmit)
+                .accessibilityLabel(AppStrings.chatMessageInput)
+                .accessibilityHint(accessibilityHint)
+                .padding(.horizontal, .spacing6)
+                .padding(.top, compact ? 0 : .spacing6)
+                .padding(.bottom, compact ? 0 : .spacing32)
+                .fontWeight(compact ? .semibold : .regular)
+                .multilineTextAlignment(compact ? .center : .leading)
+                .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
+
+            if text.isEmpty && !isFocused.wrappedValue {
+                Text(placeholder)
+                    .font(.omP)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontTertiary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .allowsHitTesting(false)
+                    .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: fieldHeight, alignment: .center)
+                    .padding(.horizontal, .spacing8)
+            }
+
+            if !compact {
+                actionButtons()
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: compact ? fieldHeight : nil)
+        .background(Color.greyBlue)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(isFocused.wrappedValue ? Color.buttonPrimary : Color.grey0, lineWidth: 2)
+        }
+        .shadow(color: isFocused.wrappedValue ? Color.buttonPrimary.opacity(0.22) : .clear, radius: 3, x: 0, y: 0)
+        .shadow(color: .black.opacity(isFocused.wrappedValue ? 0.08 : 0.05), radius: isFocused.wrappedValue ? 12 : 8, x: 0, y: isFocused.wrappedValue ? 4 : 2)
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .onTapGesture {
+            isFocused.wrappedValue = true
+        }
+        .animation(.easeInOut(duration: 0.25), value: compact)
+    }
+}
+
 // MARK: - OMToggle
 // Web source: Toggle.svelte — 52x32 pill track, 24px white circle thumb
 // OFF = grey-30 track, ON = primary gradient (#4867cd->#5a85eb), 0.3s animation
