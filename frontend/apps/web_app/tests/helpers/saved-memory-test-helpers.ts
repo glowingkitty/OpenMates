@@ -14,12 +14,12 @@ async function saveCurrentFullscreenEmbed(
   logCheckpoint: (message: string) => void,
   expectedMemoryTitle?: string,
 ): Promise<string> {
-  const headerTitle = page.getByTestId('embed-header-title').first();
+  const headerTitle = page.getByTestId('embed-header-title').last();
   await expect(headerTitle).toBeVisible({ timeout: 10000 });
   const savedTitle = (await headerTitle.textContent())?.trim() || '';
   expect(savedTitle).toBeTruthy();
 
-  const saveButton = page.getByTestId('save-embed-cta').first();
+  const saveButton = page.getByTestId('save-embed-cta').last();
   await expect(saveButton).toBeVisible({ timeout: 10000 });
   const savedEventPromise = page.evaluate(() => new Promise((resolve) => {
     window.addEventListener('savedEmbedMemorySaved', (event) => {
