@@ -414,17 +414,18 @@
                         {@const entryTitle = getEntryTitle(entry.item_value)}
                         {@const entrySubtitle = getEntrySubtitle(entry.item_value, entry.updated_at)}
                         {@const entryEmbedId = getEntryEmbedId(entry.item_value)}
-                        <SettingsItem
-                            data-testid="memory-entry"
-                            type="submenu"
-                            icon={getCategoryIconName(category?.icon_image)}
-                            iconColor="var(--icon-memory-background)"
-                            title={entryTitle}
-                            subtitleBottom={entrySubtitle}
-                            hasModifyButton={true}
-                            onClick={() => handleEntryClick(entry.id, entryTitle)}
-                            onModifyClick={() => handleEntryEditClick(entry.id, entryTitle)}
-                        />
+                        <div class="memory-entry-wrapper" data-testid="memory-entry">
+                            <SettingsItem
+                                type="submenu"
+                                icon={getCategoryIconName(category?.icon_image)}
+                                iconColor="var(--icon-memory-background)"
+                                title={entryTitle}
+                                subtitleBottom={entrySubtitle}
+                                hasModifyButton={true}
+                                onClick={() => handleEntryClick(entry.id, entryTitle)}
+                                onModifyClick={() => handleEntryEditClick(entry.id, entryTitle)}
+                            />
+                        </div>
                         {#if entryEmbedId}
                             <AppSettingsMemoryEmbedPreview appId={appId} embedId={entryEmbedId} />
                         {/if}
