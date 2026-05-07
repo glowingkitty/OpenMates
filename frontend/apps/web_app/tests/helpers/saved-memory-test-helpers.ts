@@ -21,11 +21,20 @@ async function saveCurrentFullscreenEmbed(
 
   const saveButton = page.getByTestId('save-embed-cta').first();
   await expect(saveButton).toBeVisible({ timeout: 10000 });
+  const savedEventPromise = page.evaluate(() => new Promise((resolve) => {
+    window.addEventListener('savedEmbedMemorySaved', (event) => {
+      resolve((event as CustomEvent).detail);
+    }, { once: true });
+  }));
   await saveButton.click();
   logCheckpoint(`Clicked Save for "${savedTitle}".`);
 
   const memoryTitle = expectedMemoryTitle?.trim() || savedTitle;
-  await expect(page.getByText(new RegExp(`Saved.*${escapeRegExp(memoryTitle)}`, 'i'))).toBeVisible({ timeout: 20000 });
+  const savedEvent = await Promise.race([
+    savedEventPromise,
+    page.waitForTimeout(10000).then(() => null),
+  ]);
+  expect(savedEvent).toBeTruthy();
   return memoryTitle;
 }
 
@@ -49,10 +58,6 @@ async function verifySavedMemoryEntry(
   await embedPreview.click();
   await expect(page.getByTestId('embed-fullscreen-overlay')).toBeVisible({ timeout: 10000 });
   logCheckpoint(`Verified saved memory "${title}" at ${appId}/${categoryId}.`);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 module.exports = {

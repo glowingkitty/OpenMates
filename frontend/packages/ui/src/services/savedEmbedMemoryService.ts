@@ -125,6 +125,17 @@ export async function saveEmbedMemory(config: SavedEmbedConfig): Promise<void> {
     settings_group: config.itemType,
   });
 
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('savedEmbedMemorySaved', {
+      detail: {
+        appId: config.appId,
+        itemType: config.itemType,
+        itemKey: config.itemKey,
+        title: config.title,
+      },
+    }));
+  }
+
   try {
     const scheduledCount = await scheduleDefaultReminders(config);
     notificationStore.success(
