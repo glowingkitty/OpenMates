@@ -30,9 +30,10 @@ Runs in `app-ai-worker` Celery container:
 2. **Brave Video Search** -- appends "educational independent creator" to bias toward independents; safesearch=strict, 20 results per slot
 3. **YouTube-only + family-friendly filter** -- rejects non-YouTube and `family_friendly=False`
 4. **Anti-corporate filter** -- seed blocklist (119 patterns in `corporate_channel_patterns.yml`) + Mistral Small LLM classifier for remaining channels (fails open)
-5. **YouTube Data API enrichment** -- view count, duration, published_at
-6. **Sort by view count** -- top 20 candidates per slot
-7. **Main LLM call** -- single Mistral Small call per user for all slots; selects best video, writes phrase/title/assistant_response/category/follow_up_suggestions
+5. **YouTube Data API enrichment** -- view count, duration, published_at, made-for-kids status
+6. **Made-for-kids filter** -- rejects videos YouTube marks as Made for Kids before ranking or LLM selection
+7. **Sort by view count** -- top 20 candidates per slot
+8. **Main LLM call** -- single Mistral Small call per user for all slots; selects best video, writes phrase/title/assistant_response/category/follow_up_suggestions
 
 ### Generation Triggers
 
