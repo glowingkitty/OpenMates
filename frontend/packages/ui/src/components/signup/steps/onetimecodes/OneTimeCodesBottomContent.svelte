@@ -199,7 +199,7 @@ step_4_bottom_content_svelte:
     }
 </script>
 
-{#if !$userProfile.tfa_enabled}
+{#if !$userProfile.tfa_enabled || setupComplete}
 <div class="bottom-content">
     
     
@@ -233,7 +233,7 @@ step_4_bottom_content_svelte:
 
     <!-- Always show the 2FA apps information -->
     <div class="resend-section">
-        <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app')}</span>
+        <span class="color-grey-60">{$text('signup.dont_have_2fa_app')}</span>
         <!-- <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button"> -->
         <a href={getAppStoreUrl()} target="_blank" class="text-button">
             {$text('signup.click_here_to_show_free_2fa_apps')}

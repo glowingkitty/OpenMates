@@ -366,7 +366,7 @@ step_4_top_content_svelte:
     {/if} <!-- End of {#if !setupComplete}{:else} block -->
 
     <!-- Separate block for action/reset buttons -->
-    {#if $userProfile.tfa_enabled}
+    {#if $userProfile.tfa_enabled && !setupComplete}
         <!-- Reset View: Reset Button -->
         <div class="action-buttons">
              <div class="button-row">
@@ -378,7 +378,7 @@ step_4_top_content_svelte:
         </div>
     {/if} 
 
-    {#if !$userProfile.tfa_enabled && setupComplete}
+    {#if (!$userProfile.tfa_enabled || setupComplete) && setupComplete}
         <!-- Standard Actions (only if NOT resetting AND setup is complete) -->
         {#if showQrCode}
         <div class="qr-code" data-testid="qr-code" transition:fade>
