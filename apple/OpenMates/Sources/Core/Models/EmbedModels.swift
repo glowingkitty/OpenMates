@@ -20,18 +20,19 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     let type: String
     let status: EmbedStatus
     let data: EmbedData?
+    let encryptedContent: String?
+    let encryptedType: String?
+    let encryptedTextPreview: String?
     let parentEmbedId: String?
     let appId: String?
     let skillId: String?
     let embedIds: String?
+    let hashedChatId: String?
+    let hashedUserId: String?
     let createdAt: String?
 
     var childEmbedIds: [String] {
-        guard let embedIds else { return [] }
-        return embedIds
-            .split { $0 == "|" || $0 == "," }
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        Self.normalizeEmbedIds(embedIds)
     }
 
     var rawData: [String: AnyCodable]? {
@@ -40,7 +41,378 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     }
 
     var isAppSkillUse: Bool {
-        rawData?["type"]?.value as? String == "app_skill_use"
+        let rawType = rawData?["type"]?.value as? String
+        return rawType == "app_skill_use" || rawType == "app-skill-use" || type == "app-skill-use"
+    }
+
+    init(
+        id: String,
+        type: String,
+        status: EmbedStatus,
+        data: EmbedData?,
+        encryptedContent: String? = nil,
+        encryptedType: String? = nil,
+        encryptedTextPreview: String? = nil,
+        parentEmbedId: String?,
+        appId: String?,
+        skillId: String?,
+        embedIds: String?,
+        hashedChatId: String? = nil,
+        hashedUserId: String? = nil,
+        createdAt: String?
+    ) {
+        self.id = id
+        self.type = type
+        self.status = status
+        self.data = data
+        self.encryptedContent = encryptedContent
+        self.encryptedType = encryptedType
+        self.encryptedTextPreview = encryptedTextPreview
+        self.parentEmbedId = parentEmbedId
+        self.appId = appId
+        self.skillId = skillId
+        self.embedIds = embedIds
+        self.hashedChatId = hashedChatId
+        self.hashedUserId = hashedUserId
+        self.createdAt = createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
+        let decodedId = try container.decodeIfPresent(String.self, forKey: .id)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .embedId))
+            ?? (try container.decode(String.self, forKey: .embedId))
+        let decodedParentEmbedId = try container.decodeIfPresent(String.self, forKey: .parentEmbedId)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .parentEmbedId))
+        let decodedAppId = try container.decodeIfPresent(String.self, forKey: .appId)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .appId))
+        let decodedSkillId = try container.decodeIfPresent(String.self, forKey: .skillId)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .skillId))
+        let decodedStatus = (try? container.decodeIfPresent(EmbedStatus.self, forKey: .status)) ?? .finished
+        let decodedType = try container.decodeIfPresent(String.self, forKey: .type)
+            ?? (try container.decodeIfPresent(String.self, forKey: .embedType))
+        encryptedContent = try container.decodeIfPresent(String.self, forKey: .encryptedContent)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .encryptedContent))
+        encryptedType = try container.decodeIfPresent(String.self, forKey: .encryptedType)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .encryptedType))
+        encryptedTextPreview = try container.decodeIfPresent(String.self, forKey: .encryptedTextPreview)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .encryptedTextPreview))
+        hashedChatId = try container.decodeIfPresent(String.self, forKey: .hashedChatId)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .hashedChatId))
+        hashedUserId = try container.decodeIfPresent(String.self, forKey: .hashedUserId)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .hashedUserId))
+        var decodedEmbedIds: String?
+        if let ids = try container.decodeIfPresent([String].self, forKey: .embedIds) {
+            decodedEmbedIds = ids.joined(separator: "|")
+        } else if let ids = try legacyContainer.decodeIfPresent([String].self, forKey: .embedIds) {
+            decodedEmbedIds = ids.joined(separator: "|")
+        } else {
+            decodedEmbedIds = try container.decodeIfPresent(String.self, forKey: .embedIds)
+                ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .embedIds))
+        }
+        createdAt = Self.decodeStringOrNumber(container, forKey: .createdAt)
+            ?? Self.decodeStringOrNumber(legacyContainer, forKey: .createdAt)
+        id = decodedId
+        status = decodedStatus
+        parentEmbedId = decodedParentEmbedId
+        appId = decodedAppId
+        skillId = decodedSkillId
+
+        if let decodedData = try container.decodeIfPresent(EmbedData.self, forKey: .data) {
+            data = decodedData
+            type = decodedType ?? decodedData.rawType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            if decodedEmbedIds == nil, case .raw(let raw) = decodedData {
+                decodedEmbedIds = Self.embedIdsString(from: raw["embed_ids"]?.value)
+                    ?? Self.embedIdsString(from: raw["embedIds"]?.value)
+            }
+        } else if let content = try container.decodeIfPresent(String.self, forKey: .content) {
+            var raw = Self.parseToonContent(content)
+            let contentType = raw["type"] as? String
+            type = decodedType ?? contentType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            decodedEmbedIds = decodedEmbedIds
+                ?? Self.embedIdsString(from: raw["embed_ids"])
+                ?? Self.embedIdsString(from: raw["embedIds"])
+            raw["embed_id"] = raw["embed_id"] ?? id
+            raw["type"] = raw["type"] ?? type
+            raw["app_id"] = raw["app_id"] ?? appId
+            raw["skill_id"] = raw["skill_id"] ?? skillId
+            raw["parent_embed_id"] = raw["parent_embed_id"] ?? parentEmbedId
+            raw["embed_ids"] = raw["embed_ids"] ?? Self.normalizeEmbedIds(decodedEmbedIds)
+            data = .raw(raw.mapValues { AnyCodable($0) })
+        } else {
+            type = decodedType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            data = nil
+        }
+        embedIds = decodedEmbedIds
+    }
+
+    func decryptedCopy(content: String?, type decryptedType: String?) -> EmbedRecord {
+        var raw: [String: Any]?
+        if let content {
+            raw = Self.parseContent(content)
+        }
+
+        let resolvedType = Self.normalizedType(
+            decryptedType
+            ?? raw?["type"] as? String
+            ?? type,
+            appId: appId ?? raw?["app_id"] as? String,
+            skillId: skillId ?? raw?["skill_id"] as? String
+        )
+        let resolvedEmbedIds = embedIds
+            ?? Self.embedIdsString(from: raw?["embed_ids"])
+            ?? Self.embedIdsString(from: raw?["embedIds"])
+        var resolvedRaw = raw ?? [:]
+        if !resolvedRaw.isEmpty {
+            resolvedRaw["embed_id"] = resolvedRaw["embed_id"] ?? id
+            resolvedRaw["type"] = resolvedRaw["type"] ?? resolvedType
+            resolvedRaw["app_id"] = resolvedRaw["app_id"] ?? appId
+            resolvedRaw["skill_id"] = resolvedRaw["skill_id"] ?? skillId
+            resolvedRaw["parent_embed_id"] = resolvedRaw["parent_embed_id"] ?? parentEmbedId
+            resolvedRaw["embed_ids"] = resolvedRaw["embed_ids"] ?? Self.normalizeEmbedIds(resolvedEmbedIds)
+        }
+
+        return EmbedRecord(
+            id: id,
+            type: resolvedType,
+            status: status,
+            data: resolvedRaw.isEmpty ? data : .raw(resolvedRaw.mapValues { AnyCodable($0) }),
+            encryptedContent: encryptedContent,
+            encryptedType: encryptedType,
+            encryptedTextPreview: encryptedTextPreview,
+            parentEmbedId: parentEmbedId,
+            appId: appId ?? resolvedRaw["app_id"] as? String,
+            skillId: skillId ?? resolvedRaw["skill_id"] as? String,
+            embedIds: resolvedEmbedIds,
+            hashedChatId: hashedChatId,
+            hashedUserId: hashedUserId,
+            createdAt: createdAt
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case embedId = "embed_id"
+        case type
+        case embedType = "embed_type"
+        case status
+        case data
+        case content
+        case encryptedContent = "encrypted_content"
+        case encryptedType = "encrypted_type"
+        case encryptedTextPreview = "encrypted_text_preview"
+        case parentEmbedId = "parent_embed_id"
+        case appId = "app_id"
+        case skillId = "skill_id"
+        case embedIds = "embed_ids"
+        case hashedChatId = "hashed_chat_id"
+        case hashedUserId = "hashed_user_id"
+        case createdAt = "created_at"
+    }
+
+    private enum LegacyCodingKeys: String, CodingKey {
+        case embedId
+        case encryptedContent
+        case encryptedType
+        case encryptedTextPreview
+        case parentEmbedId
+        case appId
+        case skillId
+        case embedIds
+        case hashedChatId
+        case hashedUserId
+        case createdAt
+    }
+
+    private static func parseContent(_ content: String) -> [String: Any] {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let data = trimmed.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data),
+           let object = json as? [String: Any] {
+            return object
+        }
+        return parseToonContent(content)
+    }
+
+    private static func normalizedType(_ rawType: String, appId: String?, skillId: String?) -> String {
+        switch rawType {
+        case "image_result":
+            return EmbedType.imagesImageResult.rawValue
+        case "website", "web_result", "search_result":
+            return EmbedType.webWebsite.rawValue
+        default:
+            break
+        }
+
+        if appId == "images", skillId == "image_result" {
+            return EmbedType.imagesImageResult.rawValue
+        }
+        if (appId == "web" || appId == "news"), skillId == "website" || skillId == "web_result" {
+            return EmbedType.webWebsite.rawValue
+        }
+        return rawType
+    }
+
+    private static func decodeStringOrNumber<Key: CodingKey>(
+        _ container: KeyedDecodingContainer<Key>,
+        forKey key: Key
+    ) -> String? {
+        if let string = try? container.decodeIfPresent(String.self, forKey: key) {
+            return string
+        }
+        if let int = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return String(int)
+        }
+        if let double = try? container.decodeIfPresent(Double.self, forKey: key) {
+            return String(double)
+        }
+        return nil
+    }
+
+    private static func parseToonContent(_ content: String) -> [String: Any] {
+        var result: [String: Any] = [:]
+        let lines = content.components(separatedBy: .newlines)
+        var index = 0
+
+        while index < lines.count {
+            let rawLine = lines[index]
+            let indentation = rawLine.prefix { $0 == " " || $0 == "\t" }.count
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, let separator = trimmed.firstIndex(of: ":") else {
+                index += 1
+                continue
+            }
+            let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !key.isEmpty {
+                if value.isEmpty, index + 1 < lines.count {
+                    let nested = parseNestedObject(lines: lines, start: index + 1, parentIndentation: indentation)
+                    if !nested.values.isEmpty {
+                        result[key] = nested.values
+                        index = nested.nextIndex
+                        continue
+                    }
+                }
+                result[key] = parseScalarOrArray(value)
+            }
+            index += 1
+        }
+        return result
+    }
+
+    private static func parseNestedObject(
+        lines: [String],
+        start: Int,
+        parentIndentation: Int
+    ) -> (values: [String: Any], nextIndex: Int) {
+        var values: [String: Any] = [:]
+        var index = start
+
+        while index < lines.count {
+            let rawLine = lines[index]
+            let indentation = rawLine.prefix { $0 == " " || $0 == "\t" }.count
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                index += 1
+                continue
+            }
+            guard indentation > parentIndentation else { break }
+            if trimmed.hasPrefix("- ") {
+                let value = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespacesAndNewlines)
+                let key = String(values.count)
+                values[key] = parseScalarOrArray(value)
+                index += 1
+                continue
+            }
+            guard let separator = trimmed.firstIndex(of: ":") else { break }
+            let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = String(trimmed[trimmed.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            values[key] = parseScalarOrArray(value)
+            index += 1
+        }
+
+        return (values, index)
+    }
+
+    private static func parseScalarOrArray(_ rawValue: String) -> Any {
+        var value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 {
+            value.removeFirst()
+            value.removeLast()
+            return value
+        }
+        if value.hasPrefix("["), value.hasSuffix("]") {
+            let inner = value.dropFirst().dropLast()
+            return inner
+                .split(separator: ",")
+                .map { cleanScalar(String($0)) }
+                .filter { !$0.isEmpty }
+        }
+        if value.contains("|"), value.range(of: #"\s"#, options: .regularExpression) == nil {
+            return value
+                .split(separator: "|")
+                .map { cleanScalar(String($0)) }
+                .filter { !$0.isEmpty }
+        }
+        return cleanScalar(value)
+    }
+
+    private static func cleanScalar(_ value: String) -> String {
+        var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.hasPrefix("\""), cleaned.hasSuffix("\""), cleaned.count >= 2 {
+            cleaned.removeFirst()
+            cleaned.removeLast()
+        }
+        return cleaned
+    }
+
+    private static func embedIdsString(from value: Any?) -> String? {
+        let normalized = normalizeEmbedIds(value)
+        return normalized.isEmpty ? nil : normalized.joined(separator: "|")
+    }
+
+    private static func normalizeEmbedIds(_ value: Any?) -> [String] {
+        switch value {
+        case let ids as [String]:
+            return ids.map(cleanScalar).filter { !$0.isEmpty }
+        case let ids as [Any]:
+            return ids.compactMap { $0 as? String }.map(cleanScalar).filter { !$0.isEmpty }
+        case let ids as String:
+            return ids
+                .split { $0 == "|" || $0 == "," }
+                .map { cleanScalar(String($0)) }
+                .filter { !$0.isEmpty }
+        default:
+            return []
+        }
+    }
+
+    private static func inferredType(appId: String?, skillId: String?) -> String {
+        guard let appId, !appId.isEmpty else { return "unknown" }
+        guard let skillId, !skillId.isEmpty else { return appId }
+        return "app:\(appId):\(skillId)"
+    }
+}
+
+struct EmbedKeyRecord: Decodable, Sendable {
+    let hashedEmbedId: String
+    let keyType: String
+    let hashedChatId: String?
+    let encryptedEmbedKey: String
+
+    private enum CodingKeys: String, CodingKey {
+        case hashedEmbedId
+        case keyType
+        case hashedChatId
+        case encryptedEmbedKey
+    }
+}
+
+private extension EmbedData {
+    var rawType: String? {
+        guard case .raw(let dict) = self else { return nil }
+        return dict["type"]?.value as? String
     }
 }
 

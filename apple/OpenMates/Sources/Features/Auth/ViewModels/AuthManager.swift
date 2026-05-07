@@ -12,6 +12,7 @@ final class AuthManager: ObservableObject {
     @Published var state: AuthState = .initializing
     @Published var currentUser: UserProfile?
     @Published var error: String?
+    @Published private(set) var webSocketToken: String?
 
     private let api = APIClient.shared
     private let crypto = CryptoManager.shared
@@ -55,10 +56,15 @@ final class AuthManager: ObservableObject {
     func checkSession() async {
         Self._shared = self
         do {
-            let response: SessionResponse = try await api.request(.get, path: "/v1/auth/session")
+            let response: SessionResponse = try await api.request(
+                .post,
+                path: "/v1/auth/session",
+                body: SessionRequest(sessionId: Self.sessionId, deviceInfo: makeDeviceInfo())
+            )
 
             if response.isAuthenticated, let user = response.user {
                 currentUser = user
+                webSocketToken = response.wsToken
                 if response.needsDeviceVerification == true,
                    let type = response.deviceVerificationType {
                     state = .needsDeviceVerification(type: type)
@@ -69,6 +75,7 @@ final class AuthManager: ObservableObject {
                 state = .unauthenticated
             }
         } catch {
+            webSocketToken = nil
             state = .unauthenticated
         }
     }
@@ -91,6 +98,7 @@ final class AuthManager: ObservableObject {
         password: String,
         userEmailSalt: String?,
         tfaCode: String? = nil,
+        codeType: String? = nil,
         stayLoggedIn: Bool = false
     ) async throws {
         guard let userEmailSalt,
@@ -115,7 +123,7 @@ final class AuthManager: ObservableObject {
             lookupHash: lookupHash,
             loginMethod: "password",
             tfaCode: tfaCode,
-            codeType: tfaCode == nil ? nil : "otp",
+            codeType: tfaCode == nil ? nil : (codeType ?? "otp"),
             emailEncryptionKey: emailEncryptionKey,
             stayLoggedIn: stayLoggedIn,
             sessionId: Self.sessionId,
@@ -125,7 +133,7 @@ final class AuthManager: ObservableObject {
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
         print("[Auth] Password login response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)")
 
-        if response.success, response.tfaRequired == true, tfaCode == nil {
+        if response.tfaRequired == true, tfaCode == nil {
             throw AuthError.tfaRequired
         }
 
@@ -135,8 +143,8 @@ final class AuthManager: ObservableObject {
             return
         }
 
-        if response.success, let user = response.user {
-            await handleSuccessfulLogin(user: user, password: password)
+        if response.success, response.user != nil {
+            try await handleSuccessfulLogin(response: response, password: password)
             return
         }
 
@@ -178,9 +186,9 @@ final class AuthManager: ObservableObject {
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
         print("[Auth] Recovery login response success=\(response.success) hasUser=\(response.user != nil)")
 
-        if response.success, let user = response.user {
+        if response.success, response.user != nil {
             // Recovery key uses same PBKDF2 derivation as password
-            await handleSuccessfulLogin(user: user, password: recoveryKey)
+            try await handleSuccessfulLogin(response: response, password: recoveryKey)
             return
         }
 
@@ -222,8 +230,8 @@ final class AuthManager: ObservableObject {
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
         print("[Auth] Backup-code login response success=\(response.success) hasUser=\(response.user != nil)")
 
-        if response.success, let user = response.user {
-            await handleSuccessfulLogin(user: user, password: password)
+        if response.success, response.user != nil {
+            try await handleSuccessfulLogin(response: response, password: password)
             return
         }
 
@@ -252,8 +260,26 @@ final class AuthManager: ObservableObject {
             throw AuthError.invalidCredentials
         }
 
+        webSocketToken = response.wsToken
         currentUser = user
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        state = .authenticated
+    }
+
+    func completePairLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
+        if response.needsDeviceVerification == true,
+           let type = response.deviceVerificationType {
+            state = .needsDeviceVerification(type: type)
+            return
+        }
+
+        guard response.success, let user = response.user else {
+            throw AuthError.invalidCredentials
+        }
+
+        try await crypto.saveMasterKey(masterKey, for: user.id)
+        webSocketToken = response.wsToken
+        currentUser = user
         state = .authenticated
     }
 
@@ -272,38 +298,43 @@ final class AuthManager: ObservableObject {
 
         // Clear decryption key caches and Spotlight index on logout
         ChatKeyManager.shared.clearAll()
+        EmbedKeyManager.shared.clearAll()
         SpotlightIndexer.shared.removeAllItems()
 
+        webSocketToken = nil
         currentUser = nil
         state = .unauthenticated
     }
 
     // MARK: - Private
 
-    private func handleSuccessfulLogin(user: UserProfile, password: String) async {
-        currentUser = user
+    private func handleSuccessfulLogin(response: LoginResponse, password: String) async throws {
+        guard let user = response.user else {
+            throw AuthError.invalidCredentials
+        }
 
         // Derive PBKDF2 wrapping key from password + salt, then unwrap master key.
         // Mirrors web: deriveKeyFromPassword(password, salt) → decryptKey(encrypted_key, key_iv, wrappingKey)
-        if let encryptedKeyB64 = user.encryptedKey,
-           let keyIvB64 = user.keyIv,
-           let saltB64 = user.salt,
-           let saltData = Data(base64Encoded: saltB64) {
-            do {
-                let wrappingKey = await crypto.deriveWrappingKeyFromPassword(
-                    password: password, salt: saltData
-                )
-                let masterKey = try await crypto.unwrapMasterKey(
-                    wrappedKeyBase64: encryptedKeyB64,
-                    ivBase64: keyIvB64,
-                    wrappingKey: wrappingKey
-                )
-                try await crypto.saveMasterKey(masterKey, for: user.id)
-                print("[Auth] Master key derived and saved to Keychain")
-            } catch {
-                print("[Auth] Failed to derive/store master key: \(error)")
-            }
+        guard let encryptedKeyB64 = user.encryptedKey,
+              let keyIvB64 = user.keyIv,
+              let saltB64 = user.salt,
+              let saltData = Data(base64Encoded: saltB64) else {
+            throw AuthError.missingAuthData
         }
+
+        let wrappingKey = await crypto.deriveWrappingKeyFromPassword(
+            password: password, salt: saltData
+        )
+        let masterKey = try await crypto.unwrapMasterKey(
+            wrappedKeyBase64: encryptedKeyB64,
+            ivBase64: keyIvB64,
+            wrappingKey: wrappingKey
+        )
+        try await crypto.saveMasterKey(masterKey, for: user.id)
+        print("[Auth] Master key derived and saved to Keychain")
+
+        webSocketToken = response.wsToken
+        currentUser = user
 
         // Clear sensitive data
         pendingPassword = nil

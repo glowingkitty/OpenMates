@@ -17,6 +17,7 @@ import SwiftUI
 import WidgetKit
 import CoreSpotlight
 import LucideIcons
+import CryptoKit
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -49,6 +50,7 @@ struct MainAppView: View {
     @State private var pairToken: String?
     @State private var searchText = ""
     @State private var dailyInspirations: [DailyInspirationBanner.DailyInspiration] = []
+    @State private var syncedNewChatSuggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var totalChatCount = 0
     @State private var isLoadingMore = false
     @State private var showRenameAlert = false
@@ -59,6 +61,8 @@ struct MainAppView: View {
     @State private var didBootstrapAuthenticatedSession = false
     @State private var didApplyLaunchCommand = false
     @State private var shellDragOffset: CGFloat = 0
+    @State private var visibleUserChatLimit = Self.initialUserChatLimit
+    @State private var syncProcessingTask: Task<Void, Never>?
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
@@ -81,6 +85,20 @@ struct MainAppView: View {
         return unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
     }
 
+    private var visibleFilteredUnpinnedChats: [Chat] {
+        guard isAuthenticated, searchText.isEmpty else { return filteredUnpinnedChats }
+        return Array(filteredUnpinnedChats.prefix(visibleUserChatLimit))
+    }
+
+    private var userChatCountForDisplayLimit: Int {
+        filteredUnpinnedChats.count
+    }
+
+    private var shouldShowMoreUserChats: Bool {
+        guard isAuthenticated, searchText.isEmpty else { return false }
+        return userChatCountForDisplayLimit > visibleUserChatLimit || totalChatCount > (filteredPinnedChats.count + filteredUnpinnedChats.count)
+    }
+
     private var isCompactShell: Bool {
         horizontalSizeClass == .compact
     }
@@ -99,6 +117,8 @@ struct MainAppView: View {
 
     // Web `.active-chat-container`: border-radius: 17px.
     private let activeChatContainerRadius: CGFloat = 17
+    private static let initialUserChatLimit = 11
+    private static let showMoreUserChatIncrement = 20
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -196,6 +216,7 @@ struct MainAppView: View {
         .onContinueUserActivity(HandoffManager.viewChatActivityType) { activity in
             if let chatId = activity.userInfo?["chatId"] as? String {
                 selectedChatId = chatId
+                showNewChat = false
             }
         }
         .onContinueUserActivity(HandoffManager.browseChatsActivityType) { _ in
@@ -206,6 +227,7 @@ struct MainAppView: View {
             if let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
                identifier.hasPrefix("chat-") {
                 selectedChatId = String(identifier.dropFirst("chat-".count))
+                showNewChat = false
             }
         }
         // Global keyboard shortcuts (iPad + Mac)
@@ -217,6 +239,7 @@ struct MainAppView: View {
         .onChange(of: deepLinkHandler.pendingChatId) { _, chatId in
             if let chatId {
                 selectedChatId = chatId
+                showNewChat = false
                 deepLinkHandler.clearPending()
             }
         }
@@ -251,6 +274,7 @@ struct MainAppView: View {
         .onReceive(NotificationCenter.default.publisher(for: .handoffChatReceived)) { notification in
             if let chatId = notification.userInfo?["chatId"] as? String {
                 selectedChatId = chatId
+                showNewChat = false
             }
         }
         #endif
@@ -271,6 +295,9 @@ struct MainAppView: View {
         .onReceive(NotificationCenter.default.publisher(for: .wsEmbedUpdate)) { notification in
             handleEmbedUpdate(notification)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { notification in
+            handleSyncEvent(notification)
+        }
         .onChange(of: authManager.state) { _, newState in
             if newState == .authenticated {
                 showAuthSheet = false
@@ -283,6 +310,7 @@ struct MainAppView: View {
         .onChange(of: pushManager.pendingChatId) { _, chatId in
             if let chatId {
                 selectedChatId = chatId
+                showNewChat = false
                 pushManager.pendingChatId = nil
             }
         }
@@ -369,6 +397,7 @@ struct MainAppView: View {
                 isAuthenticated: isAuthenticated || showAuthSheet,
                 isChatsPanelOpen: isChatsPanelOpen,
                 isSettingsOpen: showSettings,
+                profileImageUrl: authManager.currentUser?.profileImageUrl,
                 onToggleChats: { withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen.toggle() } },
                 onNewChat: { selectedChatId = nil; showNewChat = true },
                 onShareChat: { showShareChat = true },
@@ -641,39 +670,21 @@ struct MainAppView: View {
 
     @ViewBuilder
     private var detailContent: some View {
-        if isAuthenticated, let chatId = selectedChatId {
-            ChatView(
-                chatId: chatId,
-                isSettingsOpen: showSettings,
-                onPreviousChat: previousChatAction(for: chatId),
-                onNextChat: nextChatAction(for: chatId),
-                onOpenPublicChat: openPublicChat,
-                onNewChat: openNewChatScreen
-            )
-        } else if !isAuthenticated, let chatId = selectedChatId {
-            ChatView(
-                chatId: chatId,
-                bannerState: demoBannerState(for: chatId),
-                bannerCreatedAt: nil,
-                isSettingsOpen: showSettings,
-                onPreviousChat: previousChatAction(for: chatId),
-                onNextChat: nextChatAction(for: chatId),
-                onOpenPublicChat: openPublicChat,
-                onNewChat: openNewChatScreen
-            )
-        } else {
+        if showNewChat || selectedChatId == nil {
             NewChatWelcomeView(
                 inspirations: dailyInspirations,
                 isAuthenticated: isAuthenticated,
                 currentUser: authManager.currentUser,
                 chats: chatStore.chats,
                 totalChatCount: totalChatCount,
+                serverSuggestions: syncedNewChatSuggestions,
                 onChatCreated: { chatId in
                     selectedChatId = chatId
                     showNewChat = false
                 },
                 onOpenChat: { chatId in
                     selectedChatId = chatId
+                    showNewChat = false
                 },
                 onInspirationViewed: { inspirationId in
                     guard isAuthenticated else { return }
@@ -691,6 +702,33 @@ struct MainAppView: View {
                     }
                 },
                 onOpenAuth: { showAuthSheet = true }
+            )
+        } else if isAuthenticated, let chatId = selectedChatId {
+            let isPublic = publicChatGroup(for: chatId) != nil
+            ChatView(
+                chatId: chatId,
+                bannerState: isPublic ? demoBannerState(for: chatId) : nil,
+                bannerCreatedAt: nil,
+                initialChat: isPublic ? nil : chatStore.chat(for: chatId),
+                initialMessages: isPublic ? [] : chatStore.messages(for: chatId),
+                initialEmbeds: isPublic ? [] : chatStore.embeds(for: chatId),
+                isSettingsOpen: showSettings,
+                onShareChat: { showShareChat = true },
+                onPreviousChat: previousChatAction(for: chatId),
+                onNextChat: nextChatAction(for: chatId),
+                onOpenPublicChat: openPublicChat,
+                onNewChat: openNewChatScreen
+            )
+        } else if !isAuthenticated, let chatId = selectedChatId {
+            ChatView(
+                chatId: chatId,
+                bannerState: demoBannerState(for: chatId),
+                bannerCreatedAt: nil,
+                isSettingsOpen: showSettings,
+                onPreviousChat: previousChatAction(for: chatId),
+                onNextChat: nextChatAction(for: chatId),
+                onOpenPublicChat: openPublicChat,
+                onNewChat: openNewChatScreen
             )
         }
     }
@@ -743,10 +781,10 @@ struct MainAppView: View {
                         }
                     }
 
-                    if !filteredUnpinnedChats.isEmpty {
+                    if !visibleFilteredUnpinnedChats.isEmpty {
                         let header = filteredPinnedChats.isEmpty ? AppStrings.chats : AppStrings.recentChats
                         chatSectionHeader(header)
-                        ForEach(filteredUnpinnedChats) { chat in
+                        ForEach(visibleFilteredUnpinnedChats) { chat in
                             chatRow(chat)
                         }
                     } else if filteredPinnedChats.isEmpty && isAuthenticated && self.publicChats(in: .intro).isEmpty {
@@ -757,16 +795,14 @@ struct MainAppView: View {
                             .padding(.top, .spacing10)
                     }
 
-                    if isAuthenticated {
-                        if chatStore.chats.count < totalChatCount {
-                            ShowMoreChatsButton(
-                                totalCount: totalChatCount,
-                                loadedCount: chatStore.chats.count,
-                                isLoading: isLoadingMore,
-                                onLoadMore: { loadMoreChats() }
-                            )
-                            .padding(.horizontal, .spacing5)
-                        }
+                    if shouldShowMoreUserChats {
+                        ShowMoreChatsButton(
+                            totalCount: max(totalChatCount, userChatCountForDisplayLimit),
+                            loadedCount: min(visibleUserChatLimit, userChatCountForDisplayLimit),
+                            isLoading: isLoadingMore,
+                            onLoadMore: { showMoreUserChats() }
+                        )
+                        .padding(.horizontal, .spacing5)
                     }
 
                     chatPublicSection(.intro, title: AppStrings.introSection)
@@ -1009,9 +1045,8 @@ struct MainAppView: View {
     // MARK: - Demo chats for unauthenticated users
 
     /// Populates the sidebar with all public chats matching the web app's cold-boot landing page.
-    /// Opens demo-for-everyone by default — same as +page.svelte cold-boot behaviour.
     /// Mirrors: INTRO_CHATS + LEGAL_CHATS + announcements + example chats from demo_chats/index.ts
-    private func loadDemoChats() {
+    private func loadDemoChats(selectDefault: Bool = true) {
         let now = ISO8601DateFormatter().string(from: Date())
         // All strings via AppStrings → LocalizationManager → i18n JSON (never hardcoded English)
         let demoChats: [Chat] = [
@@ -1073,8 +1108,10 @@ struct MainAppView: View {
                  appId: "openmates", encryptedTitle: nil, encryptedChatKey: nil),
         ]
         chatStore.upsertChats(demoChats)
-        // Open the for-everyone chat by default — matches web app's cold-boot behaviour
-        selectedChatId = "demo-for-everyone"
+        if selectDefault {
+            // Open the for-everyone chat by default — matches web app's cold-boot behaviour
+            selectedChatId = "demo-for-everyone"
+        }
     }
 
     /// Returns the gradient banner state for a given demo/legal/example chat ID.
@@ -1137,11 +1174,15 @@ struct MainAppView: View {
 
         print("[MainApp] Bootstrapping authenticated session")
 
-        // Clear unauthenticated/demo content before loading real user data.
+        // Clear stale in-memory content before loading real user data, then
+        // immediately re-add public sections. Web always keeps intro/example/
+        // announcement/legal groups visible outside the user-chat display cap.
         chatStore.clearInMemory()
         totalChatCount = 0
         selectedChatId = nil
         showNewChat = false
+        visibleUserChatLimit = Self.initialUserChatLimit
+        loadDemoChats(selectDefault: false)
 
         let bridge = syncBridge ?? OfflineSyncBridge(chatStore: chatStore)
         chatStore.setBridge(bridge)
@@ -1165,12 +1206,7 @@ struct MainAppView: View {
             // Decrypt chat titles and upsert into store
             var decryptedChats: [Chat] = []
             for var chat in response.chats {
-                if let encTitle = chat.encryptedTitle,
-                   let title = await ChatKeyManager.shared.decryptTitle(
-                       for: chat.id, encryptedTitle: encTitle
-                   ) {
-                    chat.title = title
-                }
+                chat = await decryptChatMetadata(chat)
                 chatStore.upsertChat(chat)
                 decryptedChats.append(chat)
             }
@@ -1184,9 +1220,6 @@ struct MainAppView: View {
 
     /// Load master key from Keychain, then bulk-unwrap all per-chat encryption keys.
     private func loadChatKeys(chats: [Chat], userId: String) async {
-        // Skip if keys are already loaded
-        guard !ChatKeyManager.shared.isReady else { return }
-
         do {
             guard let masterKey = try await CryptoManager.shared.loadMasterKey(for: userId) else {
                 print("[MainApp] No master key in Keychain — encrypted content will not be decryptable")
@@ -1194,9 +1227,12 @@ struct MainAppView: View {
             }
 
             let chatKeysToLoad = chats.compactMap { chat -> (chatId: String, encryptedChatKey: String)? in
+                guard !ChatKeyManager.shared.hasKey(for: chat.id) else { return nil }
                 guard let eck = chat.encryptedChatKey else { return nil }
                 return (chatId: chat.id, encryptedChatKey: eck)
             }
+
+            guard !chatKeysToLoad.isEmpty else { return }
 
             await ChatKeyManager.shared.loadChatKeys(from: chatKeysToLoad, masterKey: masterKey)
             print("[MainApp] Loaded \(chatKeysToLoad.count) chat keys")
@@ -1339,14 +1375,21 @@ struct MainAppView: View {
                 let response: ChatListResponse = try await APIClient.shared.request(
                     .get, path: "/v1/chats?offset=\(offset)&limit=20"
                 )
-                for chat in response.chats {
-                    chatStore.upsertChat(chat)
-                }
+                await upsertSyncedChats(response.chats)
             } catch {
                 print("[MainApp] Failed to load more chats: \(error)")
             }
             isLoadingMore = false
         }
+    }
+
+    private func showMoreUserChats() {
+        if visibleUserChatLimit < userChatCountForDisplayLimit {
+            visibleUserChatLimit += Self.showMoreUserChatIncrement
+            return
+        }
+        loadMoreChats()
+        visibleUserChatLimit += Self.showMoreUserChatIncrement
     }
 
     private func pinChat(_ chat: Chat) {
@@ -1410,12 +1453,45 @@ struct MainAppView: View {
     // MARK: - WebSocket
 
     private func connectWebSocket() {
-        guard let sessionId = authManager.currentUser?.id else { return }
-        wsManager.connect(sessionId: sessionId)
+        wsManager.connect(
+            sessionId: AuthManager.nativeSessionId,
+            token: authManager.webSocketToken
+        )
     }
 
     private func handleChatUpdate(_ notification: Notification) {
         Task { await loadInitialData() }
+    }
+
+    private func handleSyncEvent(_ notification: Notification) {
+        guard let type = notification.userInfo?["type"] as? String else { return }
+        print("[MainApp][sync] event type=\(type)")
+        guard let raw = notification.userInfo?["raw"] as? Data else {
+            print("[MainApp][sync] event type=\(type) missing raw payload; falling back to full load")
+            Task { await loadInitialData() }
+            return
+        }
+        print("[MainApp][sync] event type=\(type) rawBytes=\(raw.count)")
+        if isContentSyncEvent(type) {
+            print("[MainApp][sync] processing begin type=\(type)")
+            Task { @MainActor in
+                await processSyncEvent(type: type, raw: raw)
+                print("[MainApp][sync] processing end type=\(type)")
+            }
+            return
+        }
+
+        let previousTask = syncProcessingTask
+        syncProcessingTask = Task { @MainActor in
+            await previousTask?.value
+            print("[MainApp][sync] processing begin type=\(type)")
+            await processSyncEvent(type: type, raw: raw)
+            print("[MainApp][sync] processing end type=\(type)")
+        }
+    }
+
+    private func isContentSyncEvent(_ type: String) -> Bool {
+        type == "phase_1b_chat_content_ready" || type == "background_message_sync"
     }
 
     private func handleEmbedUpdate(_ notification: Notification) {
@@ -1423,6 +1499,341 @@ struct MainAppView: View {
         // The notification carries the raw WS data; ChatViewModel listens for
         // embed refresh signals via NotificationCenter.
         NotificationCenter.default.post(name: .embedRefreshNeeded, object: nil, userInfo: notification.userInfo)
+    }
+
+    private func processSyncEvent(type: String, raw: Data) async {
+        do {
+            switch type {
+            case "phase_1_last_chat_ready":
+                let envelope = try syncDecoder.decode(WSEnvelope<Phase1SyncPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                print("[MainApp][sync] phase1 chatDetails=\(payload.chatDetails != nil) recent=\(payload.recentChatMetadata?.count ?? 0) suggestions=\(payload.newChatSuggestions?.count ?? 0)")
+                await upsertSyncedChats(([payload.chatDetails].compactMap { $0 }) + (payload.recentChatMetadata ?? []))
+                await updateSyncedSuggestions(payload.newChatSuggestions ?? [])
+
+            case "phase_1b_chat_content_ready", "background_message_sync":
+                let envelope = try syncDecoder.decode(WSEnvelope<PhaseContentSyncPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                print("[MainApp][sync] content chats=\(payload.chats?.count ?? 0) embeds=\(payload.embeds?.count ?? 0) embedKeys=\(payload.embedKeys?.count ?? 0)")
+                if let embedKeys = payload.embedKeys, !embedKeys.isEmpty {
+                    EmbedKeyManager.shared.store(embedKeys, source: type)
+                    OfflineStore.shared.persistEmbedKeys(embedKeys)
+                }
+                var messagesByChat: [String: [Message]] = [:]
+                for item in payload.chats ?? [] {
+                    guard let messages = item.messages, !messages.isEmpty else { continue }
+                    messagesByChat[item.chatId] = messages
+                    chatStore.setMessages(for: item.chatId, messages: messages)
+                    let embedRefCount = messages.flatMap { $0.embedRefs ?? [] }.count
+                    let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
+                    print("[MainApp][sync] content chat=\(item.chatId.prefix(8)) messages=\(messages.count) embedRefs=\(embedRefCount) encryptedMessages=\(encryptedCount) decrypt=deferredUntilOpen")
+                }
+                if let embeds = payload.embeds, !embeds.isEmpty {
+                    let chatIdsByHash = Dictionary(uniqueKeysWithValues: (payload.chats ?? []).map { item in
+                        (sha256Hex(item.chatId), item.chatId)
+                    })
+                    let grouped = Dictionary(grouping: embeds) { embed in
+                        embed.rawData?["chat_id"]?.value as? String
+                            ?? embed.rawData?["chatId"]?.value as? String
+                            ?? chatIdsByHash[embed.hashedChatId ?? ""]
+                            ?? ""
+                    }
+                    for (chatId, chatEmbeds) in grouped where !chatId.isEmpty {
+                        print("[MainApp][sync] direct embeds chat=\(chatId.prefix(8)) count=\(chatEmbeds.count)")
+                        chatStore.upsertEmbeds(chatEmbeds, for: chatId)
+                    }
+                    for item in payload.chats ?? [] {
+                        let messages = messagesByChat[item.chatId] ?? chatStore.messages(for: item.chatId)
+                        let relatedEmbeds = embedsForChat(item.chatId, messages: messages, from: embeds)
+                        print("[MainApp][sync] related embeds chat=\(item.chatId.prefix(8)) count=\(relatedEmbeds.count) totalPayload=\(embeds.count)")
+                        chatStore.upsertEmbeds(relatedEmbeds, for: item.chatId)
+                    }
+                }
+
+            case "phase_2_last_20_chats_ready", "phase_3_last_100_chats_ready", "sync_metadata_chats_response":
+                let envelope = try syncDecoder.decode(WSEnvelope<PhaseBulkSyncPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                totalChatCount = payload.totalChatCount ?? totalChatCount
+                print("[MainApp][sync] metadata chats=\(payload.chats?.count ?? 0) total=\(totalChatCount) suggestions=\(payload.newChatSuggestions?.count ?? 0)")
+                await upsertSyncedChats((payload.chats ?? []).compactMap(\.chatDetails))
+                await updateSyncedSuggestions(payload.newChatSuggestions ?? [])
+
+            case "phased_sync_complete":
+                break
+
+            default:
+                await loadInitialData()
+            }
+        } catch {
+            print("[MainApp] Failed to process sync event \(type): \(error)")
+        }
+    }
+
+    private func ensureStoredChatKeyLoaded(chatId: String) async {
+        guard !ChatKeyManager.shared.hasKey(for: chatId) else { return }
+        guard let chat = chatStore.chat(for: chatId) else {
+            print("[MainApp][sync] key warmup skipped chat=\(chatId.prefix(8)) reason=noStoredMetadata")
+            return
+        }
+        guard let userId = authManager.currentUser?.id else {
+            print("[MainApp][sync] key warmup skipped chat=\(chatId.prefix(8)) reason=noUser")
+            return
+        }
+        print("[MainApp][sync] key warmup chat=\(chatId.prefix(8)) hasEncryptedKey=\(chat.encryptedChatKey != nil)")
+        await loadChatKeys(chats: [chat], userId: userId)
+    }
+
+    private func embedsForChat(_ chatId: String, messages: [Message]? = nil, from embeds: [EmbedRecord]) -> [EmbedRecord] {
+        let messages = messages ?? chatStore.messages(for: chatId)
+        let referencedIds = Set(messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
+        guard !referencedIds.isEmpty else {
+            let hashedChatId = sha256Hex(chatId)
+            let hashedEmbeds = embeds.filter { $0.hashedChatId == hashedChatId }
+            return hashedEmbeds.isEmpty ? embeds : hashedEmbeds
+        }
+        var includedIds = referencedIds
+        var changed = true
+        while changed {
+            changed = false
+            for embed in embeds {
+                let referencesIncludedParent = embed.parentEmbedId.map { includedIds.contains($0) } ?? false
+                let referencesIncludedChild = !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
+                if (referencesIncludedParent || referencesIncludedChild), includedIds.insert(embed.id).inserted {
+                    changed = true
+                }
+            }
+        }
+        return embeds.filter { embed in
+            includedIds.contains(embed.id) ||
+            (embed.parentEmbedId.map { includedIds.contains($0) } ?? false) ||
+            !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
+        }
+    }
+
+    private func sha256Hex(_ value: String) -> String {
+        let digest = SHA256.hash(data: Data(value.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private var syncDecoder: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
+    }
+
+    private func upsertSyncedChats(_ chats: [Chat]) async {
+        guard !chats.isEmpty else { return }
+        print("[MainApp][metadata] upsert start count=\(chats.count)")
+        if let userId = authManager.currentUser?.id {
+            await loadChatKeys(chats: chats, userId: userId)
+        }
+
+        var indexedChats: [Chat] = []
+        for var chat in chats {
+            let before = metadataDebugSummary(chat)
+            chat = await decryptChatMetadata(chat)
+            let after = metadataDebugSummary(chat)
+            print("[MainApp][metadata] chat=\(chat.id.prefix(8)) before{\(before)} after{\(after)} hasKey=\(ChatKeyManager.shared.hasKey(for: chat.id))")
+            chatStore.upsertChat(chat)
+            indexedChats.append(chat)
+        }
+        SpotlightIndexer.shared.indexChats(indexedChats)
+    }
+
+    private func decryptChatMetadata(_ chat: Chat) async -> Chat {
+        var decrypted = chat
+        guard ChatKeyManager.shared.hasKey(for: decrypted.id) else {
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encryptedTitle=\(decrypted.encryptedTitle != nil) encryptedCategory=\(decrypted.encryptedCategory != nil) encryptedIcon=\(decrypted.encryptedIcon != nil) encryptedSummary=\(decrypted.encryptedChatSummary != nil)")
+            return decrypted
+        }
+        if decrypted.title == nil,
+           let encryptedTitle = decrypted.encryptedTitle,
+           let title = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedTitle,
+               fieldName: "encrypted_title"
+           ) {
+            decrypted.title = title
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
+        } else if decrypted.title == nil, decrypted.encryptedTitle != nil {
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
+        }
+        if decrypted.category == nil,
+           let encryptedCategory = decrypted.encryptedCategory,
+           let category = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedCategory,
+               fieldName: "encrypted_category"
+           ) {
+            decrypted.category = category
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
+        } else if decrypted.category == nil, decrypted.encryptedCategory != nil {
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
+        }
+        if decrypted.icon == nil,
+           let encryptedIcon = decrypted.encryptedIcon,
+           let icon = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedIcon,
+               fieldName: "encrypted_icon"
+           ) {
+            decrypted.icon = icon
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
+        } else if decrypted.icon == nil, decrypted.encryptedIcon != nil {
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
+        }
+        if decrypted.chatSummary == nil,
+           let encryptedSummary = decrypted.encryptedChatSummary,
+           let summary = await ChatKeyManager.shared.decryptChatField(
+               chatId: decrypted.id,
+               encryptedValue: encryptedSummary,
+               fieldName: "encrypted_chat_summary"
+           ) {
+            decrypted.chatSummary = summary
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
+        } else if decrypted.chatSummary == nil, decrypted.encryptedChatSummary != nil {
+            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
+        }
+        return decrypted
+    }
+
+    private func metadataDebugSummary(_ chat: Chat) -> String {
+        "title=\(chat.title != nil),category=\(chat.category != nil),icon=\(chat.icon != nil),summary=\(chat.chatSummary != nil),encTitle=\(chat.encryptedTitle != nil),encCategory=\(chat.encryptedCategory != nil),encIcon=\(chat.encryptedIcon != nil),encSummary=\(chat.encryptedChatSummary != nil)"
+    }
+
+    private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+        let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
+        if encryptedCount > 0, !ChatKeyManager.shared.hasKey(for: chatId) {
+            print("[MainApp][decrypt] messages skipped chat=\(chatId.prefix(8)) encrypted=\(encryptedCount) reason=missingChatKey")
+        }
+        var decryptedMessages: [Message] = []
+        for var message in messages {
+            if let encryptedContent = message.encryptedContent,
+               let content = await ChatKeyManager.shared.decryptMessageContent(chatId: chatId, encryptedContent: encryptedContent) {
+                message.content = content
+            }
+            decryptedMessages.append(message)
+        }
+        return decryptedMessages
+    }
+
+    private func updateSyncedSuggestions(_ suggestions: [SyncedNewChatSuggestion]) async {
+        guard !suggestions.isEmpty, let userId = authManager.currentUser?.id else { return }
+        guard let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else { return }
+
+        var decrypted: [NewChatSuggestionsView.ChatSuggestion] = []
+        for suggestion in suggestions {
+            if let text = suggestion.text {
+                decrypted.append(suggestion.chatSuggestion(text: text))
+                continue
+            }
+            guard let encrypted = suggestion.encryptedSuggestion,
+                  let text = try? await CryptoManager.shared.decryptContent(base64String: encrypted, key: masterKey) else {
+                continue
+            }
+            decrypted.append(suggestion.chatSuggestion(text: text))
+        }
+
+        if !decrypted.isEmpty {
+            syncedNewChatSuggestions = decrypted
+        }
+    }
+}
+
+private struct WSEnvelope<Payload: Decodable>: Decodable {
+    let payload: Payload?
+    let data: Payload?
+}
+
+private struct Phase1SyncPayload: Decodable {
+    let chatDetails: Chat?
+    let recentChatMetadata: [Chat]?
+    let newChatSuggestions: [SyncedNewChatSuggestion]?
+}
+
+private struct PhaseBulkSyncPayload: Decodable {
+    let chats: [PhaseChatItem]?
+    let totalChatCount: Int?
+    let newChatSuggestions: [SyncedNewChatSuggestion]?
+}
+
+private struct PhaseContentSyncPayload: Decodable {
+    let chats: [PhaseChatContentItem]?
+    let embeds: [EmbedRecord]?
+    let embedKeys: [EmbedKeyRecord]?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        chats = try container.decodeIfPresent([PhaseChatContentItem].self, forKey: .chats)
+        do {
+            embeds = try container.decodeIfPresent([EmbedRecord].self, forKey: .embeds) ?? []
+        } catch {
+            print("[MainApp][sync][decode] embeds failed: \(error)")
+            embeds = []
+        }
+        do {
+            embedKeys = try container.decodeIfPresent([EmbedKeyRecord].self, forKey: .embedKeys) ?? []
+        } catch {
+            print("[MainApp][sync][decode] embed_keys failed: \(error)")
+            embedKeys = []
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case chats
+        case embeds
+        case embedKeys
+    }
+}
+
+private struct PhaseChatItem: Decodable {
+    let chatDetails: Chat?
+}
+
+private struct PhaseChatContentItem: Decodable {
+    let chatId: String
+    let messages: [Message]?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        chatId = try container.decode(String.self, forKey: .chatId)
+
+        if let decodedMessages = try? container.decodeIfPresent([Message].self, forKey: .messages) {
+            messages = decodedMessages
+            return
+        }
+
+        let rawMessages = (try? container.decodeIfPresent([String].self, forKey: .messages)) ?? []
+        let messageDecoder = JSONDecoder()
+        messageDecoder.keyDecodingStrategy = .convertFromSnakeCase
+        messages = rawMessages.compactMap { raw in
+            guard let data = raw.data(using: .utf8) else { return nil }
+            return try? messageDecoder.decode(Message.self, from: data)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case chatId
+        case messages
+    }
+}
+
+private struct SyncedNewChatSuggestion: Decodable {
+    let id: String?
+    let text: String?
+    let encryptedSuggestion: String?
+    let appId: String?
+    let category: String?
+    let icon: String?
+
+    func chatSuggestion(text: String) -> NewChatSuggestionsView.ChatSuggestion {
+        NewChatSuggestionsView.ChatSuggestion(
+            id: id ?? encryptedSuggestion ?? text,
+            text: text,
+            appId: appId,
+            category: category,
+            icon: icon
+        )
     }
 }
 
@@ -1432,6 +1843,7 @@ struct OpenMatesWebHeader: View {
     let isAuthenticated: Bool
     let isChatsPanelOpen: Bool
     let isSettingsOpen: Bool
+    let profileImageUrl: String?
     let onToggleChats: () -> Void
     let onNewChat: () -> Void
     let onShareChat: () -> Void
@@ -1495,11 +1907,7 @@ struct OpenMatesWebHeader: View {
 
             Button(action: onOpenSettings) {
                 // Web: settings affordance changes into the close affordance while the panel is open.
-                Icon(isSettingsOpen ? "close" : "settings", size: isSettingsOpen ? 25 : 22)
-                    .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 38, height: 38)
-                    .background(isSettingsOpen ? Color.clear : Color.grey10)
-                    .clipShape(Circle())
+                headerSettingsIcon
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("settings-button")
@@ -1509,6 +1917,45 @@ struct OpenMatesWebHeader: View {
         .padding(.top, .spacing5)
         .padding(.bottom, .spacing3)
         .background(Color.grey0)
+    }
+
+    @ViewBuilder
+    private var headerSettingsIcon: some View {
+        if isSettingsOpen {
+            Icon("close", size: 25)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 38, height: 38)
+        } else if isAuthenticated, let url = resolvedProfileImageURL {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                default:
+                    Icon("settings", size: 22)
+                        .foregroundStyle(LinearGradient.primary)
+                        .frame(width: 38, height: 38)
+                        .background(Color.grey10)
+                }
+            }
+            .frame(width: 38, height: 38)
+            .clipShape(Circle())
+        } else {
+            Icon("settings", size: 22)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 38, height: 38)
+                .background(Color.grey10)
+                .clipShape(Circle())
+        }
+    }
+
+    private var resolvedProfileImageURL: URL? {
+        guard let profileImageUrl, !profileImageUrl.isEmpty else { return nil }
+        if let absolute = URL(string: profileImageUrl), absolute.scheme != nil {
+            return absolute
+        }
+        return ServerConfiguration.current.webAppURL.appendingPathComponent(profileImageUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
     }
 }
 
@@ -1649,12 +2096,13 @@ enum WelcomeScreenState {
     }
 
     static func cardData(for chat: Chat) -> WelcomeChatCardData {
-        WelcomeChatCardData(
+        let category = chat.category ?? category(for: chat)
+        return WelcomeChatCardData(
             id: chat.id,
             title: chat.displayTitle,
-            summary: summary(for: chat.id),
-            category: category(for: chat),
-            iconName: cardIconName(for: chat),
+            summary: chat.chatSummary ?? summary(for: chat.id),
+            category: category,
+            iconName: chat.icon ?? cardIconName(for: chat),
             isPinned: chat.isPinned == true && !isPublicChat(chat.id)
         )
     }
@@ -1740,6 +2188,7 @@ struct NewChatWelcomeView: View {
     let currentUser: UserProfile?
     let chats: [Chat]
     let totalChatCount: Int
+    let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let onChatCreated: (String) -> Void
     let onOpenChat: (String) -> Void
     let onInspirationViewed: (String) -> Void
@@ -1863,6 +2312,11 @@ struct NewChatWelcomeView: View {
         }
         .background(Color.clear)
         .task { await loadSuggestions() }
+        .onChange(of: serverSuggestions.map(\.id)) { _, _ in
+            if !serverSuggestions.isEmpty {
+                suggestions = serverSuggestions
+            }
+        }
     }
 
     private var welcomeHeader: some View {
@@ -1983,6 +2437,11 @@ struct NewChatWelcomeView: View {
     }
 
     private func loadSuggestions() async {
+        if !serverSuggestions.isEmpty {
+            suggestions = serverSuggestions
+            return
+        }
+
         do {
             suggestions = try await APIClient.shared.request(
                 .get, path: "/v1/chat/suggestions"
@@ -2180,7 +2639,7 @@ struct LucideNativeIcon: View {
 
     var body: some View {
         #if os(iOS)
-        if let image = UIImage(lucideId: name) {
+        if let image = UIImage(lucideId: name) ?? UIImage(lucideId: "message-square") {
             Image(uiImage: image)
                 .renderingMode(.template)
                 .resizable()
@@ -2190,7 +2649,7 @@ struct LucideNativeIcon: View {
             EmptyView()
         }
         #elseif os(macOS)
-        if let image = NSImage.image(lucideId: name) {
+        if let image = NSImage.image(lucideId: name) ?? NSImage.image(lucideId: "message-square") {
             Image(nsImage: image)
                 .renderingMode(.template)
                 .resizable()
@@ -2239,75 +2698,54 @@ private struct WelcomeComposer: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .bottom) {
-                TextField(AppStrings.typeMessage, text: $text, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.omP)
-                    .lineLimit(1...5)
-                    .tint(Color.buttonPrimary)
-                    .focused($isFocused)
-                    .padding(.horizontal, .spacing8)
-                    .padding(.top, isOpen ? .spacing6 : .spacing8)
-                    .padding(.bottom, isOpen ? .spacing32 : .spacing5)
-                    .fontWeight(isOpen ? .regular : .semibold)
-                    .multilineTextAlignment(isOpen ? .leading : .center)
-                    .frame(maxWidth: .infinity, minHeight: isOpen ? 112 : 68, alignment: isOpen ? .topLeading : .center)
-                    .onTapGesture {
-                        isExpanded = true
-                        DispatchQueue.main.async {
-                            isFocused = true
+            OMMessageInputField(
+                text: $text,
+                isFocused: $isFocused,
+                compact: !isOpen,
+                placeholder: AppStrings.typeMessage,
+                expandedMinHeight: 112,
+                accessibilityHint: AppStrings.typeMessage,
+                onSubmit: { isAuthenticated ? onSend() : onOpenAuth() }
+            ) {
+                HStack(spacing: .spacing5) {
+                    Icon("files", size: 22)
+                        .foregroundStyle(Color.fontSecondary)
+                    Icon("maps", size: 22)
+                        .foregroundStyle(Color.fontSecondary)
+                    Icon("modify", size: 22)
+                        .foregroundStyle(Color.fontSecondary)
+                    Spacer()
+                    Icon("take_photo", size: 22)
+                        .foregroundStyle(Color.fontSecondary)
+                    Icon("recordaudio", size: 22)
+                        .foregroundStyle(Color.fontSecondary)
+                    if hasContent {
+                        Button {
+                            isAuthenticated ? onSend() : onOpenAuth()
+                        } label: {
+                            Text(isAuthenticated ? AppStrings.sendAction : AppStrings.signUp)
+                                .font(.omSmall)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontButton)
+                                .padding(.horizontal, .spacing8)
+                                .frame(height: 40)
+                                .background(Color.buttonPrimary)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius8))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("welcome-send-button")
                     }
-                    .onChange(of: isFocused) { _, newValue in
-                        if newValue {
-                            isExpanded = true
-                        }
-                    }
-                    .accessibilityIdentifier("welcome-message-input")
-                    .accessibilityLabel(AppStrings.typeMessage)
-
-                if isOpen {
-                    HStack(spacing: .spacing5) {
-                        Icon("files", size: 22)
-                            .foregroundStyle(Color.fontSecondary)
-                        Icon("maps", size: 22)
-                            .foregroundStyle(Color.fontSecondary)
-                        Icon("modify", size: 22)
-                            .foregroundStyle(Color.fontSecondary)
-                        Spacer()
-                        Icon("take_photo", size: 22)
-                            .foregroundStyle(Color.fontSecondary)
-                        Icon("recordaudio", size: 22)
-                            .foregroundStyle(Color.fontSecondary)
-                        if hasContent {
-                            Button {
-                                isAuthenticated ? onSend() : onOpenAuth()
-                            } label: {
-                                Text(isAuthenticated ? AppStrings.sendAction : AppStrings.signUp)
-                                    .font(.omSmall)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(Color.fontButton)
-                                    .padding(.horizontal, .spacing8)
-                                    .frame(height: 40)
-                                    .background(Color.buttonPrimary)
-                                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("welcome-send-button")
-                        }
-                    }
-                    .padding(.horizontal, .spacing5)
-                    .padding(.bottom, .spacing4)
-                    .transition(.opacity)
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing4)
+                .transition(.opacity)
+            }
+            .onChange(of: isFocused) { _, newValue in
+                if newValue {
+                    isExpanded = true
                 }
             }
-            .background(Color.greyBlue)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(isOpen ? Color.buttonPrimary.opacity(0.7) : Color.clear, lineWidth: 2)
-            )
-            .shadow(color: .black.opacity(0.10), radius: 16, x: 0, y: 8)
+            .accessibilityIdentifier("welcome-message-input")
 
             if isOpen {
                 Button {
