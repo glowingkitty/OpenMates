@@ -16,7 +16,7 @@
   import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
-  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface EventResult {
@@ -372,7 +372,7 @@
       reminderDateTime: event.date_start || null,
       reminderPromptTitle: title,
       itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || event.embed_id || '',
+        embed_id: embedId || data.focusChildEmbedId || event.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
         title,
         provider: providerLabel || event.provider || '',
         url: event.url || '',

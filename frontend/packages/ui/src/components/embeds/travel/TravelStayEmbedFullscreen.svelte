@@ -21,7 +21,7 @@
   import MarkdownContent from '../MarkdownContent.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
-  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface NearbyPlace {
@@ -189,7 +189,7 @@
       reminderDateTime: null,
       reminderPromptTitle: title,
       itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || '',
+        embed_id: embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef),
         name: title,
         property_type: propertyType,
         url: bookingUrl,

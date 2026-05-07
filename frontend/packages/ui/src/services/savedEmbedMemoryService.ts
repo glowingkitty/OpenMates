@@ -20,6 +20,12 @@ export type SavedEmbedKind =
   | 'home_listing'
   | 'health_appointment';
 
+export function getEmbedIdFromContentRef(contentRef: unknown): string {
+  return typeof contentRef === 'string' && contentRef.startsWith('embed:')
+    ? contentRef.slice('embed:'.length)
+    : '';
+}
+
 interface SavedEmbedConfig {
   kind: SavedEmbedKind;
   appId: string;

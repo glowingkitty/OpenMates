@@ -20,7 +20,7 @@
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
-  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface GoogleReview {
@@ -275,7 +275,7 @@
       reminderDateTime: effectiveSlotDatetime,
       reminderPromptTitle: `${title}${effectiveSlotDatetime ? ` at ${formatSlot(effectiveSlotDatetime)}` : ''}`,
       itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || activeAppointment?.embed_id || '',
+        embed_id: embedId || data.focusChildEmbedId || activeAppointment?.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
         title: headerTitle,
         appointment_type: 'doctor_visit',
         where: [activeAppointment?.name, activeAppointment?.speciality].filter(Boolean).join(' · '),

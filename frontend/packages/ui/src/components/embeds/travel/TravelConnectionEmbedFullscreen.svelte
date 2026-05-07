@@ -30,7 +30,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
-  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Segment data within a leg */
@@ -775,7 +775,7 @@
       reminderDateTime: connection.departure || connection.legs?.[0]?.departure || null,
       reminderPromptTitle: title,
       itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || connection.embed_id || '',
+        embed_id: embedId || data.focusChildEmbedId || connection.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
         title,
         transport_method: connection.transport_method || '',
         origin: connection.origin || connection.legs?.[0]?.origin || '',

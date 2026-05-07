@@ -21,7 +21,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /**
@@ -178,7 +178,7 @@
       reminderDateTime: parseAvailableFromDate(available_from),
       reminderPromptTitle: saveTitle,
       itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || '',
+        embed_id: embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef),
         title: saveTitle,
         url,
         provider: provider || hostname,
