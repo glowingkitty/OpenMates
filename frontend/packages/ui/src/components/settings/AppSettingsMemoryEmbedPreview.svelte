@@ -30,10 +30,9 @@
     async function loadPreview(): Promise<void> {
         isLoading = true;
         try {
-            const embedEntry = await getEmbedEntry();
             const embedData = await resolveEmbed(embedId);
 
-            if (!embedEntry || !embedData || typeof embedData !== 'object') {
+            if (!embedData || typeof embedData !== 'object') {
                 previewComponent = null;
                 return;
             }
@@ -43,6 +42,14 @@
                 previewComponent = null;
                 return;
             }
+
+            const indexedEmbedEntry = await getEmbedEntry();
+            const embedEntry = indexedEmbedEntry ?? {
+                contentRef: `embed:${embedId}`,
+                app_id: decodedContent.app_id || appId,
+                skill_id: decodedContent.skill_id,
+                type: decodedContent.type,
+            } as EmbedStoreEntry;
 
             const embedAppId = embedEntry.app_id || decodedContent.app_id || appId;
             if (embedAppId !== appId) {
