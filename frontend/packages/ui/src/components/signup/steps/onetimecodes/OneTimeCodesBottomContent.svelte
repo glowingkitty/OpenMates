@@ -211,6 +211,7 @@ step_4_bottom_content_svelte:
                 bind:this={otpInput}
                 type="text"
                 id="otp-code-input"
+                data-testid="signup-2fa-otp-input"
                 name="otp-code"
                 bind:value={otpCode}
                 oninput={handleInput}
