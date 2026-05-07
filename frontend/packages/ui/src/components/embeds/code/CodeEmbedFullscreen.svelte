@@ -410,7 +410,7 @@
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, content) => {
+        onVersionSelect={(version, _content) => {
           // TODO: Request versioned content from server and display
           console.log('[CodeEmbedFullscreen] Version selected:', version);
         }}
@@ -543,6 +543,8 @@
     font-size: var(--font-size-small);
     line-height: 1.6;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* Each line row: gutter number on the left, code text on the right. */
@@ -551,6 +553,8 @@
     align-items: baseline;
     min-width: max-content; /* prevents line from wrapping when container scrolls */
     position: relative;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* GitHub-style line highlight — full-width yellow background bar.
@@ -588,6 +592,14 @@
     font-family: inherit;
     user-select: text;
     -webkit-user-select: text;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  .code-line-text :global(span) {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
   }
 
   /* Syntax highlighting colors — delegated to highlight.js github-dark theme spans */
