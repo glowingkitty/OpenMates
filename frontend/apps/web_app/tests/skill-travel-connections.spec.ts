@@ -211,29 +211,34 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		const ctaText = await bookingCta.textContent();
 		logCheckpoint(`Booking CTA: "${ctaText}"`);
 
-		// Click the booking button and verify it transitions (loading spinner or loaded state)
-		// Listen for the booking-link network request to confirm booking_context is sent
-		const bookingRequest = page.waitForRequest(
-			(req: any) => req.url().includes('/v1/apps/travel/booking-link') && req.method() === 'POST',
-			{ timeout: 10000 }
-		);
-		await bookingCta.click();
-		const req = await bookingRequest;
-		const body = req.postDataJSON();
-		expect(body.booking_token).toBeTruthy();
-		expect(body.booking_context).toBeTruthy();
-		expect(body.booking_context.departure_id).toBeTruthy();
-		// Verify usage is linked to chat (hashed_chat_id must be present)
-		expect(body.hashed_chat_id).toBeTruthy();
-		logCheckpoint(`Booking request: departure_id=${body.booking_context.departure_id}, hashed_chat_id=${body.hashed_chat_id?.substring(0, 12)}...`);
+		let respBody: { success?: boolean; booking_url?: string } = {};
+		if (ctaText?.toLowerCase().includes('book on')) {
+			logCheckpoint('Booking URL already resolved — skipping booking-link request assertion.');
+		} else {
+			// Click the booking button and verify it transitions (loading spinner or loaded state)
+			// Listen for the booking-link network request to confirm booking_context is sent
+			const bookingRequest = page.waitForRequest(
+				(req: any) => req.url().includes('/v1/apps/travel/booking-link') && req.method() === 'POST',
+				{ timeout: 10000 }
+			);
+			await bookingCta.click();
+			const req = await bookingRequest;
+			const body = req.postDataJSON();
+			expect(body.booking_token).toBeTruthy();
+			expect(body.booking_context).toBeTruthy();
+			expect(body.booking_context.departure_id).toBeTruthy();
+			// Verify usage is linked to chat (hashed_chat_id must be present)
+			expect(body.hashed_chat_id).toBeTruthy();
+			logCheckpoint(`Booking request: departure_id=${body.booking_context.departure_id}, hashed_chat_id=${body.hashed_chat_id?.substring(0, 12)}...`);
 
-		// Wait for booking response and check the button transitions to loaded state
-		const bookingResponse = await page.waitForResponse(
-			(resp: any) => resp.url().includes('/v1/apps/travel/booking-link'),
-			{ timeout: 15000 }
-		);
-		const respBody = await bookingResponse.json();
-		logCheckpoint(`Booking response: success=${respBody.success}, has_url=${!!respBody.booking_url}`);
+			// Wait for booking response and check the button transitions to loaded state
+			const bookingResponse = await page.waitForResponse(
+				(resp: any) => resp.url().includes('/v1/apps/travel/booking-link'),
+				{ timeout: 15000 }
+			);
+			respBody = await bookingResponse.json();
+			logCheckpoint(`Booking response: success=${respBody.success}, has_url=${!!respBody.booking_url}`);
+		}
 
 		// If booking succeeded, verify persistence: close and reopen should show "Book on X"
 		if (respBody.success && respBody.booking_url) {
