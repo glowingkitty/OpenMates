@@ -1480,51 +1480,51 @@ pair_enter_pin_title:
 
 pair_enter_pin_description:
   context: Description for the PIN entry step
-  en: Enter the 6-digit PIN shown on your other device.
-  de: Gib den 6-stelligen PIN ein, der auf deinem anderen Gerät angezeigt wird.
-  zh: 输入另一台设备上显示的 6 位 PIN。
-  es: Introduce el PIN de 6 dígitos que se muestra en tu otro dispositivo.
-  fr: Entrez le code PIN à 6 chiffres affiché sur votre autre appareil.
-  pt: Insira o PIN de 6 dígitos exibido no seu outro dispositivo.
-  ru: Введите 6-значный PIN, отображаемый на другом устройстве.
-  ja: 他のデバイスに表示されている6桁のPINを入力してください。
-  ko: 다른 기기에 표시된 6자리 PIN을 입력하세요.
-  it: Inserisci il PIN a 6 cifre mostrato sull'altro dispositivo.
-  tr: Diğer cihazınızda gösterilen 6 haneli PIN'i girin.
-  vi: Nhập mã PIN 6 chữ số được hiển thị trên thiết bị kia của bạn.
-  id: Masukkan PIN 6 digit yang ditampilkan di perangkat lain Anda.
-  pl: Wprowadź 6-cyfrowy PIN wyświetlany na innym urządzeniu.
-  nl: Voer de 6-cijferige PIN in die op uw andere apparaat wordt weergegeven.
-  ar: أدخل رمز PIN المكون من 6 أرقام المعروض على جهازك الآخر.
-  hi: अपने दूसरे डिवाइस पर दिखाई देने वाला 6 अंकों का PIN दर्ज करें।
-  th: ป้อน PIN 6 หลักที่แสดงบนอุปกรณ์อื่นของคุณ
-  cs: Zadejte 6místný PIN zobrazený na vašem druhém zařízení.
-  sv: Ange den 6-siffriga PIN som visas på din andra enhet.
-  he: הזן את ה-PIN בן 6 הספרות המוצג במכשיר האחר שלך.
+  en: Enter the 6-character PIN shown on your other device.
+  de: Gib den 6-Zeichen-PIN ein, der auf deinem anderen Gerät angezeigt wird.
+  zh: 输入另一台设备上显示的 6 个字符 PIN。
+  es: Introduce el PIN de 6 caracteres que se muestra en tu otro dispositivo.
+  fr: Entrez le code PIN à 6 caractères affiché sur votre autre appareil.
+  pt: Insira o PIN de 6 caracteres exibido no seu outro dispositivo.
+  ru: Введите 6-символьный PIN, отображаемый на другом устройстве.
+  ja: 他のデバイスに表示されている6文字のPINを入力してください。
+  ko: 다른 기기에 표시된 6자 PIN을 입력하세요.
+  it: Inserisci il PIN di 6 caratteri mostrato sull'altro dispositivo.
+  tr: Diğer cihazınızda gösterilen 6 karakterli PIN'i girin.
+  vi: Nhập mã PIN 6 ký tự được hiển thị trên thiết bị kia của bạn.
+  id: Masukkan PIN 6 karakter yang ditampilkan di perangkat lain Anda.
+  pl: Wprowadź 6-znakowy PIN wyświetlany na innym urządzeniu.
+  nl: Voer de PIN van 6 tekens in die op uw andere apparaat wordt weergegeven.
+  ar: أدخل رمز PIN المكون من 6 أحرف المعروض على جهازك الآخر.
+  hi: अपने दूसरे डिवाइस पर दिखाई देने वाला 6-अक्षर का PIN दर्ज करें।
+  th: ป้อน PIN 6 อักขระที่แสดงบนอุปกรณ์อื่นของคุณ
+  cs: Zadejte 6znakový PIN zobrazený na vašem druhém zařízení.
+  sv: Ange den 6-teckens PIN som visas på din andra enhet.
+  he: הזן את ה-PIN בן 6 התווים המוצג במכשיר האחר שלך.
 
 pair_pin_placeholder:
   context: Placeholder for the PIN input field
-  en: "000000"
-  de: "000000"
-  zh: "000000"
-  es: "000000"
-  fr: "000000"
-  pt: "000000"
-  ru: "000000"
-  ja: "000000"
-  ko: "000000"
-  it: "000000"
-  tr: "000000"
-  vi: "000000"
-  id: "000000"
-  pl: "000000"
-  nl: "000000"
-  ar: "000000"
-  hi: "000000"
-  th: "000000"
-  cs: "000000"
-  sv: "000000"
-  he: "000000"
+  en: "ABC123"
+  de: "ABC123"
+  zh: "ABC123"
+  es: "ABC123"
+  fr: "ABC123"
+  pt: "ABC123"
+  ru: "ABC123"
+  ja: "ABC123"
+  ko: "ABC123"
+  it: "ABC123"
+  tr: "ABC123"
+  vi: "ABC123"
+  id: "ABC123"
+  pl: "ABC123"
+  nl: "ABC123"
+  ar: "ABC123"
+  hi: "ABC123"
+  th: "ABC123"
+  cs: "ABC123"
+  sv: "ABC123"
+  he: "ABC123"
 
 pair_login:
   context: Button to complete login after entering PIN

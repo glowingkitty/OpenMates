@@ -2,7 +2,7 @@
 SettingsSessionsPairInitiate — Initiating device UI for magic pair login.
 
 Generates a 6-char token, displays QR code + URL + styled pair code, polls for
-authorization, then prompts for the 6-digit PIN to decrypt the session bundle and
+authorization, then prompts for the 6-character PIN to decrypt the session bundle and
 complete login via the standard auth flow.
 
 Architecture: docs/architecture/device-sessions.md
