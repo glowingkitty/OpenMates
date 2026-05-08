@@ -51,6 +51,40 @@ After each code change:
 3. Compare against the web app (use `firecrawl_scrape` with `screenshot` format on the equivalent page)
 4. If mismatch: re-read the CSS, fix the Swift code, repeat
 
+### Physical iPhone deploys with a personal Apple team
+
+Apple personal development teams cannot provision the Associated Domains
+capability. The normal `OpenMates.entitlements` file must keep
+`com.apple.developer.associated-domains` because passkeys/shared web credentials
+need it. Do not remove that entitlement from the source-of-truth file just to
+test on a phone.
+
+For local iPhone smoke testing with a personal team, build with the reduced
+entitlements file instead:
+
+```bash
+xcodebuild -project apple/OpenMates.xcodeproj \
+  -scheme OpenMates_iOS \
+  -configuration Debug \
+  -destination id=<DEVICE_ID> \
+  -derivedDataPath .derivedData/iphone-device-build \
+  -allowProvisioningUpdates \
+  CODE_SIGN_ENTITLEMENTS=OpenMates/Resources/OpenMatesPersonalTeam.entitlements \
+  build
+
+xcrun devicectl device install app \
+  --device <DEVICE_ID> \
+  .derivedData/iphone-device-build/Build/Products/Debug-iphoneos/OpenMates.app
+
+xcrun devicectl device process launch \
+  --device <DEVICE_ID> \
+  org.openmates.app
+```
+
+This build intentionally has no Associated Domains entitlement, so passkeys and
+shared web credentials are not expected to work. Use it only for native UI,
+networking, chat rendering, and general device smoke tests.
+
 ### Reminders
 
 - **Always read the web CSS before writing Swift.** The CSS is the spec.
