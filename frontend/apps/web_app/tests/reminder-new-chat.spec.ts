@@ -78,7 +78,7 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
 
-	await page.waitForURL(/chat/);
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	log('Login successful.');
 	await page.waitForTimeout(5000);
 }
