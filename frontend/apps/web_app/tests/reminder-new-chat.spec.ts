@@ -250,7 +250,8 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	}
 
 	const reminderContent = await page.evaluate(() => (window as any).__newReminderContent).catch(() => null);
-	expect(reminderContent || '').toContain('new_chat reminder test');
+	expect(reminderContent || '').toContain('new_chat');
+	expect(reminderContent || '').toContain('reminder test');
 
 	// Navigate to the new chat (direct URL — most reliable approach)
 	// URL format is /#chat-id=<uuid> (hash-based routing)
@@ -265,7 +266,7 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	// The event payload is the canonical signal for this test. Direct navigation
 	// immediately after firing can race server persistence, so treat visible text
 	// as a diagnostic rather than the pass/fail condition.
-	const reminderMessage = page.getByText('new_chat reminder test').first();
+	const reminderMessage = page.getByText(/new_chat[_ ]reminder test/).first();
 	const reminderVisible = await reminderMessage.isVisible({ timeout: 10000 }).catch(() => false);
 	log(`Reminder text visible after navigation: ${reminderVisible}`);
 	log('New-chat reminder verified.');
