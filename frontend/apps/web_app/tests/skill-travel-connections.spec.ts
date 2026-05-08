@@ -221,6 +221,10 @@ test.describe('App: Travel / Skill: search_connections', () => {
 				(req: any) => req.url().includes('/v1/apps/travel/booking-link') && req.method() === 'POST',
 				{ timeout: 10000 }
 			);
+			const bookingResponsePromise = page.waitForResponse(
+				(resp: any) => resp.url().includes('/v1/apps/travel/booking-link'),
+				{ timeout: 15000 }
+			);
 			await bookingCta.click();
 			const req = await bookingRequest;
 			const body = req.postDataJSON();
@@ -232,10 +236,7 @@ test.describe('App: Travel / Skill: search_connections', () => {
 			logCheckpoint(`Booking request: departure_id=${body.booking_context.departure_id}, hashed_chat_id=${body.hashed_chat_id?.substring(0, 12)}...`);
 
 			// Wait for booking response and check the button transitions to loaded state
-			const bookingResponse = await page.waitForResponse(
-				(resp: any) => resp.url().includes('/v1/apps/travel/booking-link'),
-				{ timeout: 15000 }
-			);
+			const bookingResponse = await bookingResponsePromise;
 			respBody = await bookingResponse.json();
 			logCheckpoint(`Booking response: success=${respBody.success}, has_url=${!!respBody.booking_url}`);
 		}

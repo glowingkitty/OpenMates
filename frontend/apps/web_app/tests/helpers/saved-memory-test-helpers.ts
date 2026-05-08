@@ -21,7 +21,12 @@ async function saveCurrentFullscreenEmbed(
 
   const saveButton = page.getByTestId('save-embed-cta').last();
   await expect(saveButton).toBeVisible({ timeout: 10000 });
-  await expect(saveButton).toContainText('Add memory');
+  const initialButtonText = ((await saveButton.textContent()) || '').trim();
+  if (initialButtonText.includes('Forget')) {
+    logCheckpoint(`Memory for "${savedTitle}" was already saved.`);
+    return expectedMemoryTitle?.trim() || savedTitle;
+  }
+  expect(initialButtonText).toContain('Add memory');
   const savedEventPromise = page.evaluate(() => new Promise((resolve) => {
     window.addEventListener('savedEmbedMemorySaved', (event) => {
       resolve((event as CustomEvent).detail);
