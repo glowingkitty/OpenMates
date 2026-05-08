@@ -65,7 +65,7 @@ async function saveCurrentFullscreenEmbed(
     expect(reminderResponse.ok()).toBe(true);
     const reminderBody = await reminderResponse.json();
     const reminderData = reminderBody.data || reminderBody;
-    expect(reminderData.success).toBe(true);
+    expect(reminderData.success, JSON.stringify(reminderBody)).toBe(true);
     expect(reminderData.target_type).toBe('embed');
     logCheckpoint(`Verified saved-memory reminder creation: ${reminderData.reminder_id || 'created'}.`);
   }

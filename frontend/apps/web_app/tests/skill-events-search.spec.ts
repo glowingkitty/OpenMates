@@ -39,6 +39,15 @@ const {
 } = require('./helpers/saved-memory-test-helpers');
 
 async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
+	const dismissButtons = page.getByTestId('notification-dismiss');
+	const dismissCount = await dismissButtons.count();
+	for (let i = 0; i < dismissCount; i += 1) {
+		await dismissButtons.nth(i).click().catch(() => undefined);
+	}
+	if (dismissCount > 0) {
+		logCheckpoint(`Dismissed ${dismissCount} notification(s) before calendar download.`);
+	}
+
 	const calendarButton = page.getByTestId('embed-calendar-button');
 	await expect(calendarButton).toBeVisible({ timeout: 5000 });
 
