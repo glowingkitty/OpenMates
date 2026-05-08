@@ -52,6 +52,7 @@
     currentEmbedId?: string;
     showShare?: boolean;
     onCopy?: () => void;
+    onCalendar?: () => void;
     hasPreviousEmbed?: boolean;
     hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void;
@@ -106,6 +107,7 @@
     currentEmbedId,
     showShare,
     onCopy,
+    onCalendar,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
@@ -159,6 +161,7 @@
   {currentEmbedId}
   {showShare}
   {onCopy}
+  {onCalendar}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

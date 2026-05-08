@@ -38,6 +38,19 @@ const {
 	verifySavedMemoryEntry
 } = require('./helpers/saved-memory-test-helpers');
 
+async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
+	const calendarButton = page.getByTestId('embed-calendar-button');
+	await expect(calendarButton).toBeVisible({ timeout: 5000 });
+
+	const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+	await calendarButton.click();
+	const download = await downloadPromise;
+	const suggestedFilename = download.suggestedFilename();
+	expect(suggestedFilename).toMatch(/\.ics$/);
+	expect(await download.failure()).toBeNull();
+	logCheckpoint(`Calendar download started: ${suggestedFilename}`);
+}
+
 test.describe('App: Events / Skill: search', () => {
 	test.setTimeout(120_000);
 
@@ -141,6 +154,7 @@ test.describe('App: Events / Skill: search', () => {
 		logCheckpoint(`Found ${count} event result(s) in fullscreen grid.`);
 
 		await resultCards.first().click();
+		await expectCalendarDownload(page, logCheckpoint);
 		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
 
 		await closeFullscreen(page, fullscreenOverlay);

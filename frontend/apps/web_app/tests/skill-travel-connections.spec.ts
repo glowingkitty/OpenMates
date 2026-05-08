@@ -42,6 +42,19 @@ const {
 	verifySavedMemoryEntry
 } = require('./helpers/saved-memory-test-helpers');
 
+async function expectCalendarDownload(page: any, logCheckpoint: (message: string) => void): Promise<void> {
+	const calendarButton = page.getByTestId('embed-calendar-button');
+	await expect(calendarButton).toBeVisible({ timeout: 5000 });
+
+	const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+	await calendarButton.click();
+	const download = await downloadPromise;
+	const suggestedFilename = download.suggestedFilename();
+	expect(suggestedFilename).toMatch(/\.ics$/);
+	expect(await download.failure()).toBeNull();
+	logCheckpoint(`Calendar download started: ${suggestedFilename}`);
+}
+
 /** Get a date 14 days from now in YYYY-MM-DD format */
 function futureDate(daysAhead = 14): string {
 	const d = new Date();
@@ -178,6 +191,7 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		const routeHeaderText = await routeHeader.textContent();
 		expect(routeHeaderText).toContain('→');
 		logCheckpoint(`Flight card route: ${routeHeaderText}`);
+		await expectCalendarDownload(page, logCheckpoint);
 
 		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, routeText?.trim() || routeHeaderText?.trim() || undefined);
 

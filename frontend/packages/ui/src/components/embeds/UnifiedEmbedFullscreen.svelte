@@ -85,6 +85,8 @@
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
     onDownload?: () => void;
+    /** Optional calendar handler - downloads an .ics calendar file for scheduled embeds */
+    onCalendar?: () => void;
     /** Optional share handler - opens share menu for the embed */
     onShare?: () => void;
     /**
@@ -293,6 +295,7 @@
     onClose,
     onCopy,
     onDownload,
+    onCalendar,
     onShare,
     showShare = true,
     content,
@@ -691,6 +694,14 @@
       onDownload();
     } else {
       console.debug('[UnifiedEmbedFullscreen] Download action (no handler provided)');
+    }
+  }
+
+  function handleCalendar() {
+    if (onCalendar) {
+      onCalendar();
+    } else {
+      console.debug('[UnifiedEmbedFullscreen] Calendar action (no handler provided)');
     }
   }
 
@@ -1108,6 +1119,7 @@
       {showShare}
       showCopy={!!onCopy}
       showDownload={!!onDownload}
+      showCalendar={!!onCalendar}
       {showPreview}
       {previewActive}
       {showPIIToggle}
@@ -1116,6 +1128,7 @@
       onShare={handleShare}
       onCopy={handleCopy}
       onDownload={handleDownload}
+      onCalendar={handleCalendar}
       onReportIssue={handleReportIssue}
       onShowChat={handleShowChatClick}
       {onTogglePII}
