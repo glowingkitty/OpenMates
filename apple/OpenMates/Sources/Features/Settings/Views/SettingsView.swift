@@ -629,7 +629,10 @@ private struct SettingsMainBanner: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if isAuthenticated, let profileImageUrl, let url = URL(string: profileImageUrl) {
+        if isAuthenticated,
+           let profileImageUrl,
+           let url = URL(string: profileImageUrl),
+           url.scheme != nil {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):

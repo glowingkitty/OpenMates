@@ -63,6 +63,9 @@ struct MainAppView: View {
     @State private var shellDragOffset: CGFloat = 0
     @State private var visibleUserChatLimit = Self.initialUserChatLimit
     @State private var syncProcessingTask: Task<Void, Never>?
+    @State private var backgroundSyncFlushTask: Task<Void, Never>?
+    @State private var isBackgroundSyncFlushInProgress = false
+    @State private var pendingBackgroundSyncContent = PendingSyncedContent()
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
@@ -119,6 +122,9 @@ struct MainAppView: View {
     private let activeChatContainerRadius: CGFloat = 17
     private static let initialUserChatLimit = 11
     private static let showMoreUserChatIncrement = 20
+    private static let backgroundSyncFlushDelayNs: UInt64 = 450_000_000
+    private static let backgroundSyncFlushChunkSize = 1
+    private static let backgroundSyncInterChunkPauseNs: UInt64 = 60_000_000
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -331,6 +337,10 @@ struct MainAppView: View {
         didBootstrapAuthenticatedSession = false
         syncProcessingTask?.cancel()
         syncProcessingTask = nil
+        backgroundSyncFlushTask?.cancel()
+        backgroundSyncFlushTask = nil
+        isBackgroundSyncFlushInProgress = false
+        pendingBackgroundSyncContent = PendingSyncedContent()
         wsManager.disconnect()
         chatStore.clearInMemory()
         totalChatCount = 0
@@ -731,7 +741,7 @@ struct MainAppView: View {
                 initialChat: isPublic ? nil : chatStore.chat(for: chatId),
                 initialMessages: isPublic ? [] : chatStore.messages(for: chatId),
                 initialEmbeds: isPublic ? [] : chatStore.embeds(for: chatId),
-                isSettingsOpen: showSettings,
+                isSettingsOpen: !isCompactShell && showSettings,
                 onShareChat: { showShareChat = true },
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
@@ -743,7 +753,7 @@ struct MainAppView: View {
                 chatId: chatId,
                 bannerState: demoBannerState(for: chatId),
                 bannerCreatedAt: nil,
-                isSettingsOpen: showSettings,
+                isSettingsOpen: !isCompactShell && showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
@@ -1588,10 +1598,17 @@ struct MainAppView: View {
                         "phase=embedDedup context=sync.\(type) chatsWithDuplicates=\(duplicateEmbedIdsByChat["chatsWithDuplicates"] ?? 0) duplicateIds=\(duplicateEmbedIdsByChat["duplicateIds"] ?? 0) duplicateEntries=\(duplicateEmbedIdsByChat["duplicateEntries"] ?? 0)"
                     )
                 }
-                chatStore.applySyncedContent(
-                    messagesByChat: messagesByChat,
-                    embedsByChat: dedupedEmbedsByChat
-                )
+                if type == "background_message_sync" {
+                    enqueueBackgroundSyncedContent(
+                        messagesByChat: messagesByChat,
+                        embedsByChat: dedupedEmbedsByChat
+                    )
+                } else {
+                    chatStore.applySyncedContent(
+                        messagesByChat: messagesByChat,
+                        embedsByChat: dedupedEmbedsByChat
+                    )
+                }
                 NativeSyncPerfLog.info(
                     "phase=phase1bContent chats=\(payload.chats?.count ?? 0) messages=\(messagesByChat.values.reduce(0) { $0 + $1.count }) embeds=\(payload.embeds?.count ?? 0) relatedEmbedChats=\(dedupedEmbedsByChat.count) embedKeys=\(payload.embedKeys?.count ?? 0) decrypt=deferred processMs=\(NativeSyncPerfLog.ms(since: start))"
                 )
@@ -1608,13 +1625,73 @@ struct MainAppView: View {
                 )
 
             case "phased_sync_complete":
-                break
+                if !isBackgroundSyncFlushInProgress {
+                    backgroundSyncFlushTask?.cancel()
+                    backgroundSyncFlushTask = nil
+                    await flushBackgroundSyncedContent(reason: "syncComplete")
+                }
 
             default:
                 await loadInitialData()
             }
         } catch {
             print("[MainApp] Failed to process sync event \(type): \(error)")
+        }
+    }
+
+    private func enqueueBackgroundSyncedContent(
+        messagesByChat: [String: [Message]],
+        embedsByChat: [String: [EmbedRecord]]
+    ) {
+        pendingBackgroundSyncContent.merge(
+            messagesByChat: messagesByChat,
+            embedsByChat: embedsByChat
+        )
+        backgroundSyncFlushTask?.cancel()
+        NativeSyncPerfLog.info(
+            "phase=backgroundSyncBuffered chats=\(messagesByChat.count) messages=\(messagesByChat.values.reduce(0) { $0 + $1.count }) embedChats=\(embedsByChat.count) embeds=\(embedsByChat.values.reduce(0) { $0 + $1.count }) pendingChats=\(pendingBackgroundSyncContent.chatCount)"
+        )
+        if !isBackgroundSyncFlushInProgress {
+            scheduleBackgroundSyncFlush(delay: Self.backgroundSyncFlushDelayNs, reason: "debounced")
+        }
+    }
+
+    private func scheduleBackgroundSyncFlush(delay: UInt64, reason: String) {
+        backgroundSyncFlushTask?.cancel()
+        backgroundSyncFlushTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            await flushBackgroundSyncedContent(reason: reason)
+        }
+    }
+
+    private func flushBackgroundSyncedContent(reason: String) async {
+        guard !pendingBackgroundSyncContent.isEmpty, !isBackgroundSyncFlushInProgress else { return }
+        isBackgroundSyncFlushInProgress = true
+        let start = NativeSyncPerfLog.now()
+        let (messagesByChat, embedsByChat) = pendingBackgroundSyncContent.drain()
+        let chatIds = Array(Set(messagesByChat.keys).union(embedsByChat.keys))
+        for chunk in chatIds.chunked(into: Self.backgroundSyncFlushChunkSize) {
+            guard isAuthenticated else {
+                isBackgroundSyncFlushInProgress = false
+                return
+            }
+            let chunkMessages = messagesByChat.filter { chunk.contains($0.key) }
+            let chunkEmbeds = embedsByChat.filter { chunk.contains($0.key) }
+            chatStore.applySyncedContent(
+                messagesByChat: chunkMessages,
+                embedsByChat: chunkEmbeds
+            )
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: Self.backgroundSyncInterChunkPauseNs)
+        }
+        NativeSyncPerfLog.info(
+            "phase=backgroundSyncFlush reason=\(reason) chats=\(messagesByChat.count) messages=\(messagesByChat.values.reduce(0) { $0 + $1.count }) embedChats=\(embedsByChat.count) embeds=\(embedsByChat.values.reduce(0) { $0 + $1.count }) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
+        isBackgroundSyncFlushInProgress = false
+        backgroundSyncFlushTask = nil
+        if !pendingBackgroundSyncContent.isEmpty {
+            scheduleBackgroundSyncFlush(delay: Self.backgroundSyncInterChunkPauseNs, reason: "followUp")
         }
     }
 
@@ -1770,6 +1847,60 @@ struct MainAppView: View {
 
         if !decrypted.isEmpty {
             syncedNewChatSuggestions = decrypted
+        }
+    }
+}
+
+private struct PendingSyncedContent {
+    private(set) var messagesByChat: [String: [Message]] = [:]
+    private var embedsByChat: [String: [String: EmbedRecord]] = [:]
+
+    var isEmpty: Bool {
+        messagesByChat.isEmpty && embedsByChat.isEmpty
+    }
+
+    var chatCount: Int {
+        Set(messagesByChat.keys).union(embedsByChat.keys).count
+    }
+
+    mutating func merge(
+        messagesByChat incomingMessages: [String: [Message]],
+        embedsByChat incomingEmbeds: [String: [EmbedRecord]]
+    ) {
+        for (chatId, messages) in incomingMessages where !messages.isEmpty {
+            var mergedById: [String: Message] = [:]
+            for message in messagesByChat[chatId] ?? [] {
+                mergedById[message.id] = message
+            }
+            for message in messages {
+                mergedById[message.id] = message
+            }
+            messagesByChat[chatId] = mergedById.values.sorted { $0.createdAt < $1.createdAt }
+        }
+
+        for (chatId, embeds) in incomingEmbeds where !embeds.isEmpty {
+            var mergedById = embedsByChat[chatId] ?? [:]
+            for embed in embeds {
+                mergedById[embed.id] = embed
+            }
+            embedsByChat[chatId] = mergedById
+        }
+    }
+
+    mutating func drain() -> (messagesByChat: [String: [Message]], embedsByChat: [String: [EmbedRecord]]) {
+        let drainedMessages = messagesByChat
+        let drainedEmbeds = embedsByChat.mapValues { Array($0.values) }
+        messagesByChat = [:]
+        embedsByChat = [:]
+        return (drainedMessages, drainedEmbeds)
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [self] }
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
         }
     }
 }
@@ -2032,22 +2163,60 @@ private struct AuthenticatedProfileImage<Fallback: View>: View {
             imageData = nil
             return
         }
+        if let cachedData = await ProfileImageRequestCache.shared.cachedData(for: trimmed) {
+            imageData = cachedData
+            return
+        }
+        guard await ProfileImageRequestCache.shared.shouldAttempt(trimmed) else {
+            imageData = nil
+            return
+        }
 
         do {
+            let data: Data
             if let absoluteURL = URL(string: trimmed), absoluteURL.scheme != nil {
-                let (data, response) = try await URLSession.shared.data(from: absoluteURL)
+                let (downloadedData, response) = try await URLSession.shared.data(from: absoluteURL)
                 guard let httpResponse = response as? HTTPURLResponse,
                       (200...299).contains(httpResponse.statusCode) else {
                     throw APIError.invalidResponse
                 }
-                imageData = data
+                data = downloadedData
             } else {
-                imageData = try await APIClient.shared.request(.get, path: trimmed)
+                data = try await APIClient.shared.request(.get, path: trimmed)
             }
+            imageData = data
+            await ProfileImageRequestCache.shared.recordSuccess(data, for: trimmed)
         } catch {
             imageData = nil
+            await ProfileImageRequestCache.shared.recordFailure(for: trimmed)
             print("[ProfileImage] failed to load profile image url=\(trimmed) error=\(error.localizedDescription)")
         }
+    }
+}
+
+private actor ProfileImageRequestCache {
+    static let shared = ProfileImageRequestCache()
+
+    private let failedRetryDelay: TimeInterval = 300
+    private var cachedDataByUrl: [String: Data] = [:]
+    private var lastFailureByUrl: [String: Date] = [:]
+
+    func cachedData(for url: String) -> Data? {
+        cachedDataByUrl[url]
+    }
+
+    func shouldAttempt(_ url: String) -> Bool {
+        guard let lastFailure = lastFailureByUrl[url] else { return true }
+        return Date().timeIntervalSince(lastFailure) > failedRetryDelay
+    }
+
+    func recordSuccess(_ data: Data, for url: String) {
+        cachedDataByUrl[url] = data
+        lastFailureByUrl[url] = nil
+    }
+
+    func recordFailure(for url: String) {
+        lastFailureByUrl[url] = Date()
     }
 }
 

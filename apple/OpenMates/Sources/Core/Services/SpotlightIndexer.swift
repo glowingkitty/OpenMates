@@ -15,6 +15,8 @@ final class SpotlightIndexer {
     private let index = CSSearchableIndex.default()
     private var pendingIndexTask: Task<Void, Never>?
     private let maxIndexedUserChats = 100
+    private let initialIndexDelayNs: UInt64 = 45_000_000_000
+    private let perChatPauseNs: UInt64 = 90_000_000
 
     private init() {}
 
@@ -55,8 +57,9 @@ final class SpotlightIndexer {
         let snapshot = Array(chats.prefix(maxIndexedUserChats))
         guard !snapshot.isEmpty else { return }
         pendingIndexTask?.cancel()
+        let delay = initialIndexDelayNs
         pendingIndexTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            try? await Task.sleep(nanoseconds: delay)
             guard !Task.isCancelled, let self else { return }
             let start = NativeSyncPerfLog.now()
             await self.indexChatsWithStoredMessages(snapshot)
@@ -71,6 +74,7 @@ final class SpotlightIndexer {
         items.reserveCapacity(chats.count)
 
         for chat in chats {
+            if Task.isCancelled { return }
             guard let title = chat.title, !title.isEmpty else { continue }
             let messages = OfflineStore.shared.loadMessages(chatId: chat.id)
             let messageText = await searchableText(from: messages, chatId: chat.id)
@@ -97,7 +101,8 @@ final class SpotlightIndexer {
                     attributeSet: attributes
                 )
             )
-            try? await Task.sleep(nanoseconds: 30_000_000)
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: perChatPauseNs)
         }
 
         guard !items.isEmpty else { return }
@@ -113,6 +118,7 @@ final class SpotlightIndexer {
         snippets.reserveCapacity(min(messages.count, 80))
 
         for message in messages.suffix(80) {
+            if Task.isCancelled { break }
             if let content = message.content, !content.isEmpty {
                 snippets.append(content)
             } else if let encryptedContent = message.encryptedContent,
@@ -124,6 +130,7 @@ final class SpotlightIndexer {
                 snippets.append(decrypted)
             }
             if snippets.count >= 80 { break }
+            await Task.yield()
         }
 
         return snippets.joined(separator: "\n")
