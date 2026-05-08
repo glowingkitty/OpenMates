@@ -50,14 +50,16 @@ final class ChatKeyManager: ObservableObject {
                     masterKey: masterKey
                 )
                 chatKeys[chatId] = chatKey
-                print("[ChatKeyManager] loaded key chat=\(chatId.prefix(8))")
+                if NativeSyncPerfLog.verboseCrypto {
+                    print("[ChatKeyManager] loaded key chat=\(chatId.prefix(8))")
+                }
             } catch {
                 print("[ChatKeyManager] Failed to unwrap key for chat \(chatId.prefix(8)): \(error)")
             }
         }
 
         isReady = true
-        print("[ChatKeyManager] bulk load complete requested=\(chats.count) cached=\(chatKeys.count)")
+        NativeSyncPerfLog.info("phase=chatKeyBulkLoad requested=\(chats.count) cached=\(chatKeys.count)")
     }
 
     /// Unwrap and cache a single chat key (for newly loaded chats).
@@ -69,7 +71,9 @@ final class ChatKeyManager: ObservableObject {
                 masterKey: masterKey
             )
             chatKeys[chatId] = chatKey
-            print("[ChatKeyManager] loaded single key chat=\(chatId.prefix(8)) cached=\(chatKeys.count)")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatKeyManager] loaded single key chat=\(chatId.prefix(8)) cached=\(chatKeys.count)")
+            }
         } catch {
             print("[ChatKeyManager] Failed to unwrap key for chat \(chatId.prefix(8)): \(error)")
         }
@@ -85,14 +89,18 @@ final class ChatKeyManager: ObservableObject {
     /// Decrypt any chat metadata field encrypted with the per-chat key.
     func decryptChatField(chatId: String, encryptedValue: String, fieldName: String) async -> String? {
         guard let chatKey = chatKeys[chatId] else {
-            print("[ChatKeyManager] \(fieldName) decrypt skipped missing key chat=\(chatId.prefix(8))")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatKeyManager] \(fieldName) decrypt skipped missing key chat=\(chatId.prefix(8))")
+            }
             return nil
         }
         do {
             let value = try await CryptoManager.shared.decryptContent(
                 base64String: encryptedValue, key: chatKey
             )
-            print("[ChatKeyManager] \(fieldName) decrypt ok chat=\(chatId.prefix(8)) empty=\(value.isEmpty)")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatKeyManager] \(fieldName) decrypt ok chat=\(chatId.prefix(8)) empty=\(value.isEmpty)")
+            }
             return value
         } catch {
             print("[ChatKeyManager] \(fieldName) decrypt failed for \(chatId.prefix(8)): \(error)")
@@ -179,7 +187,9 @@ final class EmbedKeyManager {
 
         let hashedEmbedId = sha256Hex(embed.id)
         guard let entries = entriesByHashedEmbedId[hashedEmbedId], !entries.isEmpty else {
-            print("[EmbedKeyManager] missing key entries embed=\(embed.id.prefix(8)) hash=\(hashedEmbedId.prefix(12))")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[EmbedKeyManager] missing key entries embed=\(embed.id.prefix(8)) hash=\(hashedEmbedId.prefix(12))")
+            }
             return nil
         }
 
@@ -187,7 +197,9 @@ final class EmbedKeyManager {
            let masterKey = await currentMasterKey(),
            let embedKey = await decryptWrappedKey(masterEntry.encryptedEmbedKey, wrappingKey: masterKey) {
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
-            print("[EmbedKeyManager] unwrapped master embed=\(embed.id.prefix(8))")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[EmbedKeyManager] unwrapped master embed=\(embed.id.prefix(8))")
+            }
             return embedKey
         }
 
@@ -201,11 +213,15 @@ final class EmbedKeyManager {
                 continue
             }
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
-            print("[EmbedKeyManager] unwrapped chat embed=\(embed.id.prefix(8)) chat=\(chatId.prefix(8))")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[EmbedKeyManager] unwrapped chat embed=\(embed.id.prefix(8)) chat=\(chatId.prefix(8))")
+            }
             return embedKey
         }
 
-        print("[EmbedKeyManager] unwrap failed embed=\(embed.id.prefix(8)) entries=\(entries.count) hasChatKey=\(ChatKeyManager.shared.hasKey(for: chatId))")
+        if NativeSyncPerfLog.verboseCrypto {
+            print("[EmbedKeyManager] unwrap failed embed=\(embed.id.prefix(8)) entries=\(entries.count) hasChatKey=\(ChatKeyManager.shared.hasKey(for: chatId))")
+        }
         return nil
     }
 

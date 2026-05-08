@@ -45,6 +45,51 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         return rawType == "app_skill_use" || rawType == "app-skill-use" || type == "app-skill-use"
     }
 
+    static func dictionaryById(
+        _ embeds: [EmbedRecord],
+        context: String,
+        duplicateReporter: (([String: Int]) -> Void)? = nil
+    ) -> [String: EmbedRecord] {
+        var records: [String: EmbedRecord] = [:]
+        var duplicateIds: [String: Int] = [:]
+        for embed in embeds {
+            if records[embed.id] != nil {
+                duplicateIds[embed.id, default: 1] += 1
+            }
+            records[embed.id] = embed
+        }
+        if let duplicateReporter {
+            duplicateReporter(duplicateIds)
+        } else {
+            logDuplicateIds(duplicateIds, context: context)
+        }
+        return records
+    }
+
+    static func deduplicatedById(
+        _ embeds: [EmbedRecord],
+        context: String,
+        duplicateReporter: (([String: Int]) -> Void)? = nil
+    ) -> [EmbedRecord] {
+        var orderedIds: [String] = []
+        var records: [String: EmbedRecord] = [:]
+        var duplicateIds: [String: Int] = [:]
+        for embed in embeds {
+            if records[embed.id] == nil {
+                orderedIds.append(embed.id)
+            } else {
+                duplicateIds[embed.id, default: 1] += 1
+            }
+            records[embed.id] = embed
+        }
+        if let duplicateReporter {
+            duplicateReporter(duplicateIds)
+        } else {
+            logDuplicateIds(duplicateIds, context: context)
+        }
+        return orderedIds.compactMap { records[$0] }
+    }
+
     init(
         id: String,
         type: String,
@@ -299,6 +344,15 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             index += 1
         }
         return result
+    }
+
+    private static func logDuplicateIds(_ duplicateIds: [String: Int], context: String) {
+        guard !duplicateIds.isEmpty else { return }
+        let sample = duplicateIds.keys.sorted().prefix(6).joined(separator: ",")
+        let duplicateEntries = duplicateIds.values.reduce(0) { $0 + $1 - 1 }
+        NativeSyncPerfLog.warning(
+            "phase=embedDedup context=\(context) duplicateIds=\(duplicateIds.count) duplicateEntries=\(duplicateEntries) sample=\(sample)"
+        )
     }
 
     private static func parseNestedObject(

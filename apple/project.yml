@@ -96,6 +96,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
+        OpenMatesKeychainAccessGroup: $(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)
         NSUserActivityTypes:
           - org.openmates.app.viewChat
           - org.openmates.app.composeChat

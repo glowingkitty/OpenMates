@@ -1208,14 +1208,27 @@ struct MainAppView: View {
         syncBridge = bridge
         bridge.loadFromDisk()
 
-        await loadInitialData()
-        await syncInspirationToWidget()
         connectWebSocket()
+        scheduleInitialDataFallback()
+        await syncInspirationToWidget()
     }
 
-    private func loadInitialData() async {
+    private func scheduleInitialDataFallback() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+            let userChats = chatStore.chats.filter { publicChatGroup(for: $0.id) == nil }
+            if userChats.isEmpty {
+                await loadInitialData(limit: Self.initialUserChatLimit)
+            }
+        }
+    }
+
+    private func loadInitialData(limit: Int? = nil) async {
         do {
-            let response: ChatListResponse = try await APIClient.shared.request(.get, path: "/v1/chats")
+            let start = NativeSyncPerfLog.now()
+            let path = limit.map { "/v1/chats?limit=\($0)" } ?? "/v1/chats"
+            let response: ChatListResponse = try await APIClient.shared.request(.get, path: path)
 
             // Load master key from Keychain and unwrap per-chat keys
             if let userId = authManager.currentUser?.id {
@@ -1226,12 +1239,15 @@ struct MainAppView: View {
             var decryptedChats: [Chat] = []
             for var chat in response.chats {
                 chat = await decryptChatMetadata(chat)
-                chatStore.upsertChat(chat)
                 decryptedChats.append(chat)
             }
+            chatStore.upsertChats(decryptedChats)
 
-            // Index decrypted chats into Core Spotlight
-            SpotlightIndexer.shared.indexChats(decryptedChats)
+            // Defer full-text Spotlight indexing so login remains responsive.
+            SpotlightIndexer.shared.scheduleIndexChats(decryptedChats, reason: "restFallback")
+            NativeSyncPerfLog.info(
+                "phase=restInitialLoad chats=\(response.chats.count) limit=\(limit ?? 0) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+            )
         } catch {
             print("[MainApp] Failed to load chats: \(error)")
         }
@@ -1484,33 +1500,20 @@ struct MainAppView: View {
 
     private func handleSyncEvent(_ notification: Notification) {
         guard let type = notification.userInfo?["type"] as? String else { return }
-        print("[MainApp][sync] event type=\(type)")
         guard let raw = notification.userInfo?["raw"] as? Data else {
             print("[MainApp][sync] event type=\(type) missing raw payload; falling back to full load")
             Task { await loadInitialData() }
             return
         }
-        print("[MainApp][sync] event type=\(type) rawBytes=\(raw.count)")
-        if isContentSyncEvent(type) {
-            print("[MainApp][sync] processing begin type=\(type)")
-            Task { @MainActor in
-                await processSyncEvent(type: type, raw: raw)
-                print("[MainApp][sync] processing end type=\(type)")
-            }
-            return
-        }
-
         let previousTask = syncProcessingTask
         syncProcessingTask = Task { @MainActor in
             await previousTask?.value
-            print("[MainApp][sync] processing begin type=\(type)")
+            let start = NativeSyncPerfLog.now()
             await processSyncEvent(type: type, raw: raw)
-            print("[MainApp][sync] processing end type=\(type)")
+            NativeSyncPerfLog.info(
+                "phase=wsSyncEvent type=\(type) rawBytes=\(raw.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+            )
         }
-    }
-
-    private func isContentSyncEvent(_ type: String) -> Bool {
-        type == "phase_1b_chat_content_ready" || type == "background_message_sync"
     }
 
     private func handleEmbedUpdate(_ notification: Notification) {
@@ -1524,16 +1527,19 @@ struct MainAppView: View {
         do {
             switch type {
             case "phase_1_last_chat_ready":
+                let start = NativeSyncPerfLog.now()
                 let envelope = try syncDecoder.decode(WSEnvelope<Phase1SyncPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
-                print("[MainApp][sync] phase1 chatDetails=\(payload.chatDetails != nil) recent=\(payload.recentChatMetadata?.count ?? 0) suggestions=\(payload.newChatSuggestions?.count ?? 0)")
                 await upsertSyncedChats(([payload.chatDetails].compactMap { $0 }) + (payload.recentChatMetadata ?? []))
                 await updateSyncedSuggestions(payload.newChatSuggestions ?? [])
+                NativeSyncPerfLog.info(
+                    "phase=phase1a recent=\(payload.recentChatMetadata?.count ?? 0) suggestions=\(payload.newChatSuggestions?.count ?? 0) processMs=\(NativeSyncPerfLog.ms(since: start))"
+                )
 
             case "phase_1b_chat_content_ready", "background_message_sync":
+                let start = NativeSyncPerfLog.now()
                 let envelope = try syncDecoder.decode(WSEnvelope<PhaseContentSyncPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
-                print("[MainApp][sync] content chats=\(payload.chats?.count ?? 0) embeds=\(payload.embeds?.count ?? 0) embedKeys=\(payload.embedKeys?.count ?? 0)")
                 if let embedKeys = payload.embedKeys, !embedKeys.isEmpty {
                     EmbedKeyManager.shared.store(embedKeys, source: type)
                     OfflineStore.shared.persistEmbedKeys(embedKeys)
@@ -1542,15 +1548,14 @@ struct MainAppView: View {
                 for item in payload.chats ?? [] {
                     guard let messages = item.messages, !messages.isEmpty else { continue }
                     messagesByChat[item.chatId] = messages
-                    chatStore.setMessages(for: item.chatId, messages: messages)
-                    let embedRefCount = messages.flatMap { $0.embedRefs ?? [] }.count
-                    let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
-                    print("[MainApp][sync] content chat=\(item.chatId.prefix(8)) messages=\(messages.count) embedRefs=\(embedRefCount) encryptedMessages=\(encryptedCount) decrypt=deferredUntilOpen")
                 }
+                var embedsByChat: [String: [EmbedRecord]] = [:]
+                var duplicateEmbedIdsByChat: [String: Int] = [:]
                 if let embeds = payload.embeds, !embeds.isEmpty {
-                    let chatIdsByHash = Dictionary(uniqueKeysWithValues: (payload.chats ?? []).map { item in
-                        (sha256Hex(item.chatId), item.chatId)
-                    })
+                    var chatIdsByHash: [String: String] = [:]
+                    for item in payload.chats ?? [] {
+                        chatIdsByHash[sha256Hex(item.chatId)] = item.chatId
+                    }
                     let grouped = Dictionary(grouping: embeds) { embed in
                         embed.rawData?["chat_id"]?.value as? String
                             ?? embed.rawData?["chatId"]?.value as? String
@@ -1558,24 +1563,49 @@ struct MainAppView: View {
                             ?? ""
                     }
                     for (chatId, chatEmbeds) in grouped where !chatId.isEmpty {
-                        print("[MainApp][sync] direct embeds chat=\(chatId.prefix(8)) count=\(chatEmbeds.count)")
-                        chatStore.upsertEmbeds(chatEmbeds, for: chatId)
+                        embedsByChat[chatId, default: []].append(contentsOf: chatEmbeds)
                     }
                     for item in payload.chats ?? [] {
                         let messages = messagesByChat[item.chatId] ?? chatStore.messages(for: item.chatId)
                         let relatedEmbeds = embedsForChat(item.chatId, messages: messages, from: embeds)
-                        print("[MainApp][sync] related embeds chat=\(item.chatId.prefix(8)) count=\(relatedEmbeds.count) totalPayload=\(embeds.count)")
-                        chatStore.upsertEmbeds(relatedEmbeds, for: item.chatId)
+                        embedsByChat[item.chatId, default: []].append(contentsOf: relatedEmbeds)
                     }
                 }
+                let dedupedEmbedsByChat = embedsByChat.mapValues { embeds in
+                    EmbedRecord.deduplicatedById(
+                        embeds,
+                        context: "sync.\(type)",
+                        duplicateReporter: { duplicateIds in
+                            guard !duplicateIds.isEmpty else { return }
+                            duplicateEmbedIdsByChat["chatsWithDuplicates", default: 0] += 1
+                            duplicateEmbedIdsByChat["duplicateIds", default: 0] += duplicateIds.count
+                            duplicateEmbedIdsByChat["duplicateEntries", default: 0] += duplicateIds.values.reduce(0) { $0 + $1 - 1 }
+                        }
+                    )
+                }
+                if !duplicateEmbedIdsByChat.isEmpty {
+                    NativeSyncPerfLog.warning(
+                        "phase=embedDedup context=sync.\(type) chatsWithDuplicates=\(duplicateEmbedIdsByChat["chatsWithDuplicates"] ?? 0) duplicateIds=\(duplicateEmbedIdsByChat["duplicateIds"] ?? 0) duplicateEntries=\(duplicateEmbedIdsByChat["duplicateEntries"] ?? 0)"
+                    )
+                }
+                chatStore.applySyncedContent(
+                    messagesByChat: messagesByChat,
+                    embedsByChat: dedupedEmbedsByChat
+                )
+                NativeSyncPerfLog.info(
+                    "phase=phase1bContent chats=\(payload.chats?.count ?? 0) messages=\(messagesByChat.values.reduce(0) { $0 + $1.count }) embeds=\(payload.embeds?.count ?? 0) relatedEmbedChats=\(dedupedEmbedsByChat.count) embedKeys=\(payload.embedKeys?.count ?? 0) decrypt=deferred processMs=\(NativeSyncPerfLog.ms(since: start))"
+                )
 
             case "phase_2_last_20_chats_ready", "phase_3_last_100_chats_ready", "sync_metadata_chats_response":
+                let start = NativeSyncPerfLog.now()
                 let envelope = try syncDecoder.decode(WSEnvelope<PhaseBulkSyncPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 totalChatCount = payload.totalChatCount ?? totalChatCount
-                print("[MainApp][sync] metadata chats=\(payload.chats?.count ?? 0) total=\(totalChatCount) suggestions=\(payload.newChatSuggestions?.count ?? 0)")
                 await upsertSyncedChats((payload.chats ?? []).compactMap(\.chatDetails))
                 await updateSyncedSuggestions(payload.newChatSuggestions ?? [])
+                NativeSyncPerfLog.info(
+                    "phase=metadataSync type=\(type) chats=\(payload.chats?.count ?? 0) total=\(totalChatCount) processMs=\(NativeSyncPerfLog.ms(since: start))"
+                )
 
             case "phased_sync_complete":
                 break
@@ -1586,20 +1616,6 @@ struct MainAppView: View {
         } catch {
             print("[MainApp] Failed to process sync event \(type): \(error)")
         }
-    }
-
-    private func ensureStoredChatKeyLoaded(chatId: String) async {
-        guard !ChatKeyManager.shared.hasKey(for: chatId) else { return }
-        guard let chat = chatStore.chat(for: chatId) else {
-            print("[MainApp][sync] key warmup skipped chat=\(chatId.prefix(8)) reason=noStoredMetadata")
-            return
-        }
-        guard let userId = authManager.currentUser?.id else {
-            print("[MainApp][sync] key warmup skipped chat=\(chatId.prefix(8)) reason=noUser")
-            return
-        }
-        print("[MainApp][sync] key warmup chat=\(chatId.prefix(8)) hasEncryptedKey=\(chat.encryptedChatKey != nil)")
-        await loadChatKeys(chats: [chat], userId: userId)
     }
 
     private func embedsForChat(_ chatId: String, messages: [Message]? = nil, from embeds: [EmbedRecord]) -> [EmbedRecord] {
@@ -1642,27 +1658,30 @@ struct MainAppView: View {
 
     private func upsertSyncedChats(_ chats: [Chat]) async {
         guard !chats.isEmpty else { return }
-        print("[MainApp][metadata] upsert start count=\(chats.count)")
+        let start = NativeSyncPerfLog.now()
         if let userId = authManager.currentUser?.id {
             await loadChatKeys(chats: chats, userId: userId)
         }
 
         var indexedChats: [Chat] = []
         for var chat in chats {
-            let before = metadataDebugSummary(chat)
             chat = await decryptChatMetadata(chat)
-            let after = metadataDebugSummary(chat)
-            print("[MainApp][metadata] chat=\(chat.id.prefix(8)) before{\(before)} after{\(after)} hasKey=\(ChatKeyManager.shared.hasKey(for: chat.id))")
-            chatStore.upsertChat(chat)
             indexedChats.append(chat)
         }
-        SpotlightIndexer.shared.indexChats(indexedChats)
+        chatStore.upsertChats(indexedChats)
+        let searchableUserChats = chatStore.sortedChats.filter { publicChatGroup(for: $0.id) == nil }
+        SpotlightIndexer.shared.scheduleIndexChats(searchableUserChats, reason: "syncMetadata")
+        NativeSyncPerfLog.info(
+            "phase=upsertSyncedChats chats=\(chats.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
     }
 
     private func decryptChatMetadata(_ chat: Chat) async -> Chat {
         var decrypted = chat
         guard ChatKeyManager.shared.hasKey(for: decrypted.id) else {
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encryptedTitle=\(decrypted.encryptedTitle != nil) encryptedCategory=\(decrypted.encryptedCategory != nil) encryptedIcon=\(decrypted.encryptedIcon != nil) encryptedSummary=\(decrypted.encryptedChatSummary != nil)")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encryptedTitle=\(decrypted.encryptedTitle != nil) encryptedCategory=\(decrypted.encryptedCategory != nil) encryptedIcon=\(decrypted.encryptedIcon != nil) encryptedSummary=\(decrypted.encryptedChatSummary != nil)")
+            }
             return decrypted
         }
         if decrypted.title == nil,
@@ -1671,11 +1690,15 @@ struct MainAppView: View {
                chatId: decrypted.id,
                encryptedValue: encryptedTitle,
                fieldName: "encrypted_title"
-           ) {
+        ) {
             decrypted.title = title
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
+            }
         } else if decrypted.title == nil, decrypted.encryptedTitle != nil {
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
+            }
         }
         if decrypted.category == nil,
            let encryptedCategory = decrypted.encryptedCategory,
@@ -1683,11 +1706,15 @@ struct MainAppView: View {
                chatId: decrypted.id,
                encryptedValue: encryptedCategory,
                fieldName: "encrypted_category"
-           ) {
+        ) {
             decrypted.category = category
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
+            }
         } else if decrypted.category == nil, decrypted.encryptedCategory != nil {
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
+            }
         }
         if decrypted.icon == nil,
            let encryptedIcon = decrypted.encryptedIcon,
@@ -1695,11 +1722,15 @@ struct MainAppView: View {
                chatId: decrypted.id,
                encryptedValue: encryptedIcon,
                fieldName: "encrypted_icon"
-           ) {
+        ) {
             decrypted.icon = icon
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
+            }
         } else if decrypted.icon == nil, decrypted.encryptedIcon != nil {
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
+            }
         }
         if decrypted.chatSummary == nil,
            let encryptedSummary = decrypted.encryptedChatSummary,
@@ -1707,33 +1738,17 @@ struct MainAppView: View {
                chatId: decrypted.id,
                encryptedValue: encryptedSummary,
                fieldName: "encrypted_chat_summary"
-           ) {
+        ) {
             decrypted.chatSummary = summary
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
+            }
         } else if decrypted.chatSummary == nil, decrypted.encryptedChatSummary != nil {
-            print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
+            }
         }
         return decrypted
-    }
-
-    private func metadataDebugSummary(_ chat: Chat) -> String {
-        "title=\(chat.title != nil),category=\(chat.category != nil),icon=\(chat.icon != nil),summary=\(chat.chatSummary != nil),encTitle=\(chat.encryptedTitle != nil),encCategory=\(chat.encryptedCategory != nil),encIcon=\(chat.encryptedIcon != nil),encSummary=\(chat.encryptedChatSummary != nil)"
-    }
-
-    private func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
-        let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
-        if encryptedCount > 0, !ChatKeyManager.shared.hasKey(for: chatId) {
-            print("[MainApp][decrypt] messages skipped chat=\(chatId.prefix(8)) encrypted=\(encryptedCount) reason=missingChatKey")
-        }
-        var decryptedMessages: [Message] = []
-        for var message in messages {
-            if let encryptedContent = message.encryptedContent,
-               let content = await ChatKeyManager.shared.decryptMessageContent(chatId: chatId, encryptedContent: encryptedContent) {
-                message.content = content
-            }
-            decryptedMessages.append(message)
-        }
-        return decryptedMessages
     }
 
     private func updateSyncedSuggestions(_ suggestions: [SyncedNewChatSuggestion]) async {

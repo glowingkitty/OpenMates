@@ -211,58 +211,26 @@ struct ChatView: View {
             )
             viewModel.forkedChatId = nil
         }
-        .onChange(of: initialMessages.map(\.id)) { _, _ in
-            Task {
-                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
-            }
-        }
-        .onChange(of: initialChat?.updatedAt) { _, _ in
-            Task {
-                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
-            }
-        }
-        .onChange(of: initialChat?.displayTitle) { _, _ in
-            Task {
-                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
-            }
-        }
-        .onChange(of: initialChat?.category) { _, _ in
-            Task {
-                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
-            }
-        }
-        .onChange(of: initialChat?.icon) { _, _ in
-            Task {
-                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
-            }
-        }
-        .onChange(of: initialChat?.chatSummary) { _, _ in
-            Task {
-                await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
-            }
-        }
-        .onChange(of: initialEmbedSyncSignature) { _, _ in
+        .onChange(of: initialSyncSignature) { _, _ in
             Task {
                 await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
             }
         }
     }
 
-    private var initialEmbedSyncSignature: String {
-        initialEmbeds
-            .map { embed in
-                [
-                    embed.id,
-                    embed.status.rawValue,
-                    embed.parentEmbedId ?? "",
-                    embed.embedIds ?? "",
-                    embed.rawData?["updated_at"]?.value as? String ?? "",
-                    embed.rawData?["updatedAt"]?.value as? String ?? "",
-                    String(embed.rawData?.count ?? 0)
-                ].joined(separator: ":")
-            }
-            .sorted()
-            .joined(separator: "|")
+    private var initialSyncSignature: String {
+        [
+            initialChat?.id ?? "",
+            initialChat?.updatedAt ?? "",
+            initialChat?.displayTitle ?? "",
+            initialChat?.category ?? "",
+            initialChat?.icon ?? "",
+            initialChat?.chatSummary ?? "",
+            String(initialMessages.count),
+            initialMessages.last?.id ?? "",
+            String(initialEmbeds.count),
+            initialEmbeds.map(\.id).max() ?? ""
+        ].joined(separator: "|")
     }
 
     private var effectiveBannerState: ChatBannerState? {
@@ -1111,7 +1079,7 @@ struct MessageBubble: View {
                             content: displayContent,
                             isUserMessage: false,
                             onOpenPublicChat: onOpenPublicChat,
-                            embedLookup: Dictionary(uniqueKeysWithValues: embeds.map { ($0.id, $0) }),
+                            embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
                             allEmbedRecords: allEmbedRecords,
                             onEmbedTap: onEmbedTap
                         )

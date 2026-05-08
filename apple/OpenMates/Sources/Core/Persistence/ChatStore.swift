@@ -12,9 +12,16 @@ final class ChatStore: ObservableObject {
     @Published private var embedsByChat: [String: [String: EmbedRecord]] = [:]
 
     private var bridge: OfflineSyncBridge?
+    private var persistenceSuppressionDepth = 0
 
     func setBridge(_ bridge: OfflineSyncBridge) {
         self.bridge = bridge
+    }
+
+    func performWithoutPersistence(_ updates: () -> Void) {
+        persistenceSuppressionDepth += 1
+        updates()
+        persistenceSuppressionDepth = max(0, persistenceSuppressionDepth - 1)
     }
 
     // MARK: - Chat operations
@@ -25,10 +32,12 @@ final class ChatStore: ObservableObject {
             chats[index] = chats[index].merged(with: chat)
         } else {
             chats.append(chat)
-            print("[ChatStore] insert chat id=\(chat.id.prefix(8)) title=\(chat.title != nil) category=\(chat.category != nil) icon=\(chat.icon != nil) summary=\(chat.chatSummary != nil) encryptedTitle=\(chat.encryptedTitle != nil)")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatStore] insert chat id=\(chat.id.prefix(8)) title=\(chat.title != nil) category=\(chat.category != nil) icon=\(chat.icon != nil) summary=\(chat.chatSummary != nil) encryptedTitle=\(chat.encryptedTitle != nil)")
+            }
         }
         sortChats()
-        bridge?.onChatsReceived([chat])
+        persistIfAllowed { $0.onChatsReceived([chat]) }
     }
 
     func upsertChats(_ newChats: [Chat]) {
@@ -38,17 +47,19 @@ final class ChatStore: ObservableObject {
                 chats[index] = chats[index].merged(with: chat)
             } else {
                 chats.append(chat)
-                print("[ChatStore] insert chat id=\(chat.id.prefix(8)) title=\(chat.title != nil) category=\(chat.category != nil) icon=\(chat.icon != nil) summary=\(chat.chatSummary != nil) encryptedTitle=\(chat.encryptedTitle != nil)")
+                if NativeSyncPerfLog.verboseCrypto {
+                    print("[ChatStore] insert chat id=\(chat.id.prefix(8)) title=\(chat.title != nil) category=\(chat.category != nil) icon=\(chat.icon != nil) summary=\(chat.chatSummary != nil) encryptedTitle=\(chat.encryptedTitle != nil)")
+                }
             }
         }
         sortChats()
-        bridge?.onChatsReceived(newChats)
+        persistIfAllowed { $0.onChatsReceived(newChats) }
     }
 
     func removeChat(_ chatId: String) {
         chats.removeAll { $0.id == chatId }
         messagesByChat.removeValue(forKey: chatId)
-        bridge?.onChatDeleted(chatId)
+        persistIfAllowed { $0.onChatDeleted(chatId) }
     }
 
     func clearInMemory() {
@@ -74,7 +85,7 @@ final class ChatStore: ObservableObject {
     func setMessages(for chatId: String, messages: [Message]) {
         let sorted = messages.sorted { a, b in a.createdAt < b.createdAt }
         messagesByChat[chatId] = sorted
-        bridge?.onMessagesReceived(sorted, chatId: chatId)
+        persistIfAllowed { $0.onMessagesReceived(sorted, chatId: chatId) }
     }
 
     func appendMessage(_ message: Message, to chatId: String) {
@@ -85,7 +96,7 @@ final class ChatStore: ObservableObject {
             msgs.append(message)
         }
         messagesByChat[chatId] = msgs
-        bridge?.onMessagesReceived([message], chatId: chatId)
+        persistIfAllowed { $0.onMessagesReceived([message], chatId: chatId) }
     }
 
     func upsertEmbeds(_ embeds: [EmbedRecord], for chatId: String) {
@@ -95,7 +106,45 @@ final class ChatStore: ObservableObject {
             current[embed.id] = embed
         }
         embedsByChat[chatId] = current
-        bridge?.onEmbedsReceived(embeds, chatId: chatId)
+        persistIfAllowed { $0.onEmbedsReceived(embeds, chatId: chatId) }
+    }
+
+    func applySyncedContent(
+        messagesByChat incomingMessages: [String: [Message]],
+        embedsByChat incomingEmbeds: [String: [EmbedRecord]]
+    ) {
+        let start = NativeSyncPerfLog.now()
+        var nextMessages = messagesByChat
+        for (chatId, messages) in incomingMessages {
+            nextMessages[chatId] = messages.sorted { $0.createdAt < $1.createdAt }
+        }
+        if !incomingMessages.isEmpty {
+            messagesByChat = nextMessages
+        }
+
+        var nextEmbeds = embedsByChat
+        for (chatId, embeds) in incomingEmbeds where !embeds.isEmpty {
+            var current = nextEmbeds[chatId] ?? [:]
+            for embed in embeds {
+                current[embed.id] = embed
+            }
+            nextEmbeds[chatId] = current
+        }
+        if !incomingEmbeds.isEmpty {
+            embedsByChat = nextEmbeds
+        }
+
+        persistIfAllowed {
+            $0.onSyncContentReceived(
+                messagesByChat: incomingMessages,
+                embedsByChat: incomingEmbeds
+            )
+        }
+        let messageCount = incomingMessages.values.reduce(0) { $0 + $1.count }
+        let embedCount = incomingEmbeds.values.reduce(0) { $0 + $1.count }
+        NativeSyncPerfLog.info(
+            "phase=chatStoreApplySyncedContent chats=\(incomingMessages.count) messages=\(messageCount) embedChats=\(incomingEmbeds.count) embeds=\(embedCount) publishMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
     }
 
     func updateMessage(id: String, in chatId: String, content: String) {
@@ -112,7 +161,7 @@ final class ChatStore: ObservableObject {
         )
         msgs[index] = updated
         messagesByChat[chatId] = msgs
-        bridge?.onMessagesReceived([updated], chatId: chatId)
+        persistIfAllowed { $0.onMessagesReceived([updated], chatId: chatId) }
     }
 
     // MARK: - Sorting
@@ -142,7 +191,14 @@ final class ChatStore: ObservableObject {
         let preservedCategory = existing.category != nil && incoming.category == nil
         let preservedIcon = existing.icon != nil && incoming.icon == nil
         let preservedSummary = existing.chatSummary != nil && incoming.chatSummary == nil
-        print("[ChatStore] merge chat id=\(existing.id.prefix(8)) incomingTitle=\(incoming.title != nil) existingTitle=\(existing.title != nil) preserveTitle=\(preservedTitle) preserveCategory=\(preservedCategory) preserveIcon=\(preservedIcon) preserveSummary=\(preservedSummary)")
+        if NativeSyncPerfLog.verboseCrypto {
+            print("[ChatStore] merge chat id=\(existing.id.prefix(8)) incomingTitle=\(incoming.title != nil) existingTitle=\(existing.title != nil) preserveTitle=\(preservedTitle) preserveCategory=\(preservedCategory) preserveIcon=\(preservedIcon) preserveSummary=\(preservedSummary)")
+        }
+    }
+
+    private func persistIfAllowed(_ action: (OfflineSyncBridge) -> Void) {
+        guard persistenceSuppressionDepth == 0, let bridge else { return }
+        action(bridge)
     }
 }
 

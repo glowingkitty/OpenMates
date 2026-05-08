@@ -3,6 +3,28 @@
 // E2EE fields (encrypted_*) are decrypted client-side using per-chat keys.
 
 import Foundation
+import OSLog
+
+enum NativeSyncPerfLog {
+    static let logger = Logger(subsystem: "org.openmates.app", category: "NativeSyncPerf")
+    static let verboseCrypto = false
+
+    static func now() -> CFAbsoluteTime {
+        CFAbsoluteTimeGetCurrent()
+    }
+
+    static func ms(since start: CFAbsoluteTime) -> Int {
+        Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+    }
+
+    static func info(_ message: String) {
+        logger.info("\(message, privacy: .public)")
+    }
+
+    static func warning(_ message: String) {
+        logger.warning("\(message, privacy: .public)")
+    }
+}
 
 struct Chat: Identifiable, Decodable, Sendable {
     let id: String
@@ -277,7 +299,7 @@ enum MessageRole: String, Decodable, Sendable {
     case system
 }
 
-struct EmbedRef: Decodable, Identifiable, @unchecked Sendable {
+struct EmbedRef: Codable, Identifiable, @unchecked Sendable {
     let id: String
     let type: String
     let status: String?

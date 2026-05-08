@@ -12,6 +12,9 @@ final class PersistedChat {
     @Attribute(.unique) var id: String
     var title: String?
     var encryptedTitle: String?
+    var encryptedCategory: String?
+    var encryptedIcon: String?
+    var encryptedChatSummary: String?
     var encryptedChatKey: String?
     var icon: String?
     var category: String?
@@ -31,6 +34,9 @@ final class PersistedChat {
         self.id = chat.id
         self.title = chat.title
         self.encryptedTitle = chat.encryptedTitle
+        self.encryptedCategory = chat.encryptedCategory
+        self.encryptedIcon = chat.encryptedIcon
+        self.encryptedChatSummary = chat.encryptedChatSummary
         self.encryptedChatKey = chat.encryptedChatKey
         self.icon = chat.icon
         self.category = chat.category
@@ -51,6 +57,9 @@ final class PersistedChat {
             isArchived: isArchived, isPinned: isPinned,
             appId: appId, category: category, icon: icon, chatSummary: chatSummary,
             encryptedTitle: encryptedTitle,
+            encryptedCategory: encryptedCategory,
+            encryptedIcon: encryptedIcon,
+            encryptedChatSummary: encryptedChatSummary,
             encryptedChatKey: encryptedChatKey
         )
     }
@@ -67,6 +76,7 @@ final class PersistedMessage {
     var updatedAt: String?
     var appId: String?
     var modelName: String?
+    var embedRefsJSON: Data?
 
     var chat: PersistedChat?
 
@@ -80,16 +90,18 @@ final class PersistedMessage {
         self.updatedAt = message.updatedAt
         self.appId = message.appId
         self.modelName = message.modelName
+        self.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
     }
 
     func toMessage() -> Message {
-        Message(
+        let embedRefs = embedRefsJSON.flatMap { try? JSONDecoder().decode([EmbedRef].self, from: $0) }
+        return Message(
             id: id, chatId: chatId,
             role: MessageRole(rawValue: role) ?? .user,
             content: content, encryptedContent: encryptedContent,
             createdAt: createdAt,
             updatedAt: updatedAt, appId: appId,
-            isStreaming: false, embedRefs: nil,
+            isStreaming: false, embedRefs: embedRefs,
             modelName: modelName
         )
     }
@@ -289,6 +301,9 @@ final class OfflineStore: ObservableObject {
             if let existing = try? context.fetch(descriptor).first {
                 existing.title = chat.title
                 existing.encryptedTitle = chat.encryptedTitle
+                existing.encryptedCategory = chat.encryptedCategory
+                existing.encryptedIcon = chat.encryptedIcon
+                existing.encryptedChatSummary = chat.encryptedChatSummary
                 existing.icon = chat.icon
                 existing.category = chat.category
                 existing.chatSummary = chat.chatSummary
@@ -318,16 +333,55 @@ final class OfflineStore: ObservableObject {
             let descriptor = FetchDescriptor<PersistedMessage>(
                 predicate: #Predicate { $0.id == targetId }
             )
-            if let existing = try? context.fetch(descriptor).first {
-                existing.content = message.content
-                existing.updatedAt = message.updatedAt
-            } else {
+                if let existing = try? context.fetch(descriptor).first {
+                    existing.content = message.content
+                    existing.updatedAt = message.updatedAt
+                    existing.encryptedContent = message.encryptedContent
+                    existing.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
+                } else {
                 let persisted = PersistedMessage(from: message)
                 persisted.chat = persistedChat
                 context.insert(persisted)
             }
         }
         try? context.save()
+    }
+
+    func persistMessagesBatch(_ messagesByChat: [String: [Message]]) {
+        guard let context = modelContext else { return }
+        let start = NativeSyncPerfLog.now()
+        var savedMessages = 0
+
+        for (chatId, messages) in messagesByChat {
+            let targetChatId = chatId
+            let chatDescriptor = FetchDescriptor<PersistedChat>(
+                predicate: #Predicate { $0.id == targetChatId }
+            )
+            let persistedChat = try? context.fetch(chatDescriptor).first
+
+            for message in messages {
+                let targetId = message.id
+                let descriptor = FetchDescriptor<PersistedMessage>(
+                    predicate: #Predicate { $0.id == targetId }
+                )
+                if let existing = try? context.fetch(descriptor).first {
+                    existing.content = message.content
+                    existing.encryptedContent = message.encryptedContent
+                    existing.updatedAt = message.updatedAt
+                    existing.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
+                } else {
+                    let persisted = PersistedMessage(from: message)
+                    persisted.chat = persistedChat
+                    context.insert(persisted)
+                }
+                savedMessages += 1
+            }
+        }
+
+        try? context.save()
+        NativeSyncPerfLog.info(
+            "phase=offlinePersistMessagesBatch chats=\(messagesByChat.count) messages=\(savedMessages) persistMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
     }
 
     func persistEmbeds(_ embeds: [EmbedRecord], chatId: String) {
@@ -344,6 +398,32 @@ final class OfflineStore: ObservableObject {
             }
         }
         try? context.save()
+    }
+
+    func persistEmbedsBatch(_ embedsByChat: [String: [EmbedRecord]]) {
+        guard let context = modelContext else { return }
+        let start = NativeSyncPerfLog.now()
+        var savedEmbeds = 0
+
+        for (chatId, embeds) in embedsByChat {
+            for embed in embeds {
+                let targetId = embed.id
+                let descriptor = FetchDescriptor<PersistedEmbed>(
+                    predicate: #Predicate { $0.id == targetId }
+                )
+                if let existing = try? context.fetch(descriptor).first {
+                    existing.update(from: embed, chatId: chatId)
+                } else {
+                    context.insert(PersistedEmbed(from: embed, chatId: chatId))
+                }
+                savedEmbeds += 1
+            }
+        }
+
+        try? context.save()
+        NativeSyncPerfLog.info(
+            "phase=offlinePersistEmbedsBatch chats=\(embedsByChat.count) embeds=\(savedEmbeds) persistMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
     }
 
     func persistEmbedKeys(_ keys: [EmbedKeyRecord]) {

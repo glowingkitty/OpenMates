@@ -56,6 +56,12 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Cold boot: load from disk before network is available
 
     func loadFromDisk() {
+        chatStore.performWithoutPersistence {
+            loadPersistedDataIntoStore()
+        }
+    }
+
+    private func loadPersistedDataIntoStore() {
         let embedKeys = offlineStore.loadEmbedKeys()
         if !embedKeys.isEmpty {
             EmbedKeyManager.shared.store(embedKeys, source: "offline")
@@ -90,6 +96,18 @@ final class OfflineSyncBridge: ObservableObject {
 
     func onEmbedsReceived(_ embeds: [EmbedRecord], chatId: String) {
         offlineStore.persistEmbeds(embeds, chatId: chatId)
+    }
+
+    func onSyncContentReceived(
+        messagesByChat: [String: [Message]],
+        embedsByChat: [String: [EmbedRecord]]
+    ) {
+        if !messagesByChat.isEmpty {
+            offlineStore.persistMessagesBatch(messagesByChat)
+        }
+        if !embedsByChat.isEmpty {
+            offlineStore.persistEmbedsBatch(embedsByChat)
+        }
     }
 
     func onChatDeleted(_ chatId: String) {

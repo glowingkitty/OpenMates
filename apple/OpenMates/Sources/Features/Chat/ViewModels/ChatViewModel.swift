@@ -55,20 +55,19 @@ final class ChatViewModel: ObservableObject {
 
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
 
-            // Decrypt and normalize all message content, including inline embed
-            // JSON blocks that the web app turns into embed placeholders.
-            let decryptedMessages = await decryptMessages(messagesResponse, chatId: id)
+            allMessages = messagesResponse.sorted { $0.createdAt < $1.createdAt }
+            let visibleRawMessages = visibleWindow(from: allMessages)
+            let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: id)
             let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
             embedRecords = embedded.records
-            allMessages = embedded.messages
-            followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
+            followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
 
             // Show only the most recent page initially for fast rendering
             if allMessages.count > messagesPageSize {
-                messages = Array(allMessages.suffix(messagesPageSize))
+                messages = embedded.messages
                 hasOlderMessages = true
             } else {
-                messages = allMessages
+                messages = embedded.messages
                 hasOlderMessages = false
             }
 
@@ -96,42 +95,55 @@ final class ChatViewModel: ObservableObject {
 
     private func loadSyncedChat(_ syncedChat: Chat, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord]) async {
         var loadedChat = syncedChat
-        print("[ChatViewModel][loadSynced] chat=\(syncedChat.id.prefix(8)) inputMessages=\(syncedMessages.count) inputEmbeds=\(syncedEmbeds.count) title=\(syncedChat.title != nil) category=\(syncedChat.category != nil) icon=\(syncedChat.icon != nil) summary=\(syncedChat.chatSummary != nil) encTitle=\(syncedChat.encryptedTitle != nil)")
+        let start = NativeSyncPerfLog.now()
         await ensureChatKey(for: loadedChat)
         loadedChat = await decryptMetadata(for: loadedChat)
-        print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) afterMetadata title=\(loadedChat.title != nil) category=\(loadedChat.category != nil) icon=\(loadedChat.icon != nil) summary=\(loadedChat.chatSummary != nil) hasKey=\(ChatKeyManager.shared.hasKey(for: loadedChat.id))")
+        if NativeSyncPerfLog.verboseCrypto {
+            print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) afterMetadata title=\(loadedChat.title != nil) category=\(loadedChat.category != nil) icon=\(loadedChat.icon != nil) summary=\(loadedChat.chatSummary != nil) hasKey=\(ChatKeyManager.shared.hasKey(for: loadedChat.id))")
+        }
 
         chat = loadedChat
-        let decryptedMessages = await decryptMessages(syncedMessages, chatId: loadedChat.id)
+        let rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        allMessages = rawMessages
+        let visibleRawMessages = visibleWindow(from: rawMessages)
+        let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
         let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
         let existingRecords = embedRecords
-        let decryptedSyncedEmbeds = await decryptEmbeds(syncedEmbeds, chatId: loadedChat.id, existingRecords: existingRecords.merging(embedded.records) { _, new in new })
+        let referencedIds = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
+        let relatedSyncedEmbeds = relatedEmbeds(referencedIds: referencedIds, from: syncedEmbeds)
+        let decryptedSyncedEmbeds = await decryptEmbeds(relatedSyncedEmbeds, chatId: loadedChat.id, existingRecords: existingRecords.merging(embedded.records) { _, new in new })
         embedRecords = decryptedSyncedEmbeds.reduce(into: existingRecords.merging(embedded.records) { _, new in new }) { records, embed in
             records[embed.id] = embed
         }
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
         let decryptedEmbedCount = decryptedSyncedEmbeds.filter { $0.rawData != nil }.count
-        print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) decryptedMessages=\(decryptedMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) decryptedEmbeds=\(decryptedEmbedCount) totalRecords=\(embedRecords.count)")
-        allMessages = embedded.messages
-        followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
+        NativeSyncPerfLog.info(
+            "phase=loadSyncedChat chat=\(loadedChat.id.prefix(8)) visibleMessages=\(decryptedMessages.count) totalMessages=\(rawMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) relatedEmbeds=\(relatedSyncedEmbeds.count) decryptedEmbeds=\(decryptedEmbedCount) totalRecords=\(embedRecords.count)"
+        )
+        followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
 
         if allMessages.count > messagesPageSize {
-            messages = Array(allMessages.suffix(messagesPageSize))
+            messages = embedded.messages
             hasOlderMessages = true
         } else {
-            messages = allMessages
+            messages = embedded.messages
             hasOlderMessages = false
         }
 
         await loadEmbeds(for: messages.map(\.id))
         subscribeToStream(chatId: loadedChat.id)
         subscribeToEmbedUpdates(chatId: loadedChat.id)
+        NativeSyncPerfLog.info(
+            "phase=loadSyncedChatComplete chat=\(loadedChat.id.prefix(8)) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
     }
 
     private func decryptMetadata(for chat: Chat) async -> Chat {
         var decrypted = chat
         guard ChatKeyManager.shared.hasKey(for: decrypted.id) else {
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encTitle=\(decrypted.encryptedTitle != nil) encCategory=\(decrypted.encryptedCategory != nil) encIcon=\(decrypted.encryptedIcon != nil) encSummary=\(decrypted.encryptedChatSummary != nil)")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) missing chat key; encTitle=\(decrypted.encryptedTitle != nil) encCategory=\(decrypted.encryptedCategory != nil) encIcon=\(decrypted.encryptedIcon != nil) encSummary=\(decrypted.encryptedChatSummary != nil)")
+            }
             return decrypted
         }
         if decrypted.title == nil,
@@ -140,11 +152,15 @@ final class ChatViewModel: ObservableObject {
                chatId: decrypted.id,
                encryptedValue: encryptedTitle,
                fieldName: "encrypted_title"
-           ) {
+        ) {
             decrypted.title = title
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title ok")
+            }
         } else if decrypted.title == nil, decrypted.encryptedTitle != nil {
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) title missing after decrypt attempt")
+            }
         }
         if decrypted.category == nil,
            let encryptedCategory = decrypted.encryptedCategory,
@@ -152,11 +168,15 @@ final class ChatViewModel: ObservableObject {
                chatId: decrypted.id,
                encryptedValue: encryptedCategory,
                fieldName: "encrypted_category"
-           ) {
+        ) {
             decrypted.category = category
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category ok")
+            }
         } else if decrypted.category == nil, decrypted.encryptedCategory != nil {
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) category missing after decrypt attempt")
+            }
         }
         if decrypted.icon == nil,
            let encryptedIcon = decrypted.encryptedIcon,
@@ -164,11 +184,15 @@ final class ChatViewModel: ObservableObject {
                chatId: decrypted.id,
                encryptedValue: encryptedIcon,
                fieldName: "encrypted_icon"
-           ) {
+        ) {
             decrypted.icon = icon
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon ok")
+            }
         } else if decrypted.icon == nil, decrypted.encryptedIcon != nil {
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) icon missing after decrypt attempt")
+            }
         }
         if decrypted.chatSummary == nil,
            let encryptedSummary = decrypted.encryptedChatSummary,
@@ -176,11 +200,15 @@ final class ChatViewModel: ObservableObject {
                chatId: decrypted.id,
                encryptedValue: encryptedSummary,
                fieldName: "encrypted_chat_summary"
-           ) {
+        ) {
             decrypted.chatSummary = summary
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary ok")
+            }
         } else if decrypted.chatSummary == nil, decrypted.encryptedChatSummary != nil {
-            print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
+            }
         }
         return decrypted
     }
@@ -258,7 +286,7 @@ final class ChatViewModel: ObservableObject {
         for embed in embeds {
             allRecords[embed.id] = embed
         }
-        print("[ChatViewModel][embeds][decrypt] start chat=\(chatId.prefix(8)) embeds=\(embeds.count) encrypted=\(encryptedCount) existing=\(existingRecords.count)")
+        let start = NativeSyncPerfLog.now()
 
         var decryptedEmbeds: [EmbedRecord] = []
         for embed in embeds {
@@ -271,7 +299,9 @@ final class ChatViewModel: ObservableObject {
                 continue
             }
             guard let embedKey = await EmbedKeyManager.shared.key(for: embed, chatId: chatId, allEmbeds: allRecords) else {
-                print("[ChatViewModel][embeds][decrypt] key missing chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) parent=\(embed.parentEmbedId?.prefix(8) ?? "nil") hasEncryptedContent=\(embed.encryptedContent != nil)")
+                if NativeSyncPerfLog.verboseCrypto {
+                    print("[ChatViewModel][embeds][decrypt] key missing chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) parent=\(embed.parentEmbedId?.prefix(8) ?? "nil") hasEncryptedContent=\(embed.encryptedContent != nil)")
+                }
                 decryptedEmbeds.append(embed)
                 continue
             }
@@ -284,7 +314,9 @@ final class ChatViewModel: ObservableObject {
                         key: embedKey
                     )
                 } catch {
-                    print("[ChatViewModel][embeds][decrypt] content failed chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) error=\(error.localizedDescription)")
+                    if NativeSyncPerfLog.verboseCrypto {
+                        print("[ChatViewModel][embeds][decrypt] content failed chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) error=\(error.localizedDescription)")
+                    }
                 }
             }
 
@@ -296,15 +328,19 @@ final class ChatViewModel: ObservableObject {
                         key: embedKey
                     )
                 } catch {
-                    print("[ChatViewModel][embeds][decrypt] type failed chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) error=\(error.localizedDescription)")
+                    if NativeSyncPerfLog.verboseCrypto {
+                        print("[ChatViewModel][embeds][decrypt] type failed chat=\(chatId.prefix(8)) embed=\(embed.id.prefix(8)) error=\(error.localizedDescription)")
+                    }
                 }
             }
 
             let decrypted = embed.decryptedCopy(content: decryptedContent, type: decryptedType)
             allRecords[decrypted.id] = decrypted
             decryptedEmbeds.append(decrypted)
-            print("[ChatViewModel][embeds][decrypt] ok chat=\(chatId.prefix(8)) embed=\(decrypted.id.prefix(8)) type=\(decrypted.type) children=\(decrypted.childEmbedIds.count) parent=\(decrypted.parentEmbedId?.prefix(8) ?? "nil") raw=\(decrypted.rawData != nil)")
         }
+        NativeSyncPerfLog.info(
+            "phase=decryptEmbeds chat=\(chatId.prefix(8)) embeds=\(embeds.count) encrypted=\(encryptedCount) raw=\(decryptedEmbeds.filter { $0.rawData != nil }.count) decryptMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
         return decryptedEmbeds
     }
 
@@ -321,18 +357,25 @@ final class ChatViewModel: ObservableObject {
             let nextPageSize = min(messagesPageSize, remaining)
             let startIndex = remaining - nextPageSize
             let olderBatch = Array(allMessages[startIndex..<remaining])
-            messages.insert(contentsOf: olderBatch, at: 0)
-            hasOlderMessages = startIndex > 0
-
-            // Load embeds for newly visible messages
-            Task {
-                await loadEmbeds(for: olderBatch.map(\.id))
+            Task { @MainActor in
+                guard let chatId = chat?.id else {
+                    isLoadingOlder = false
+                    return
+                }
+                let decrypted = await decryptMessages(olderBatch, chatId: chatId)
+                let embedded = PublicChatContent.attachEmbeds(to: decrypted)
+                for (id, record) in embedded.records {
+                    embedRecords[id] = record
+                }
+                messages.insert(contentsOf: embedded.messages, at: 0)
+                hasOlderMessages = startIndex > 0
+                await loadEmbeds(for: embedded.messages.map(\.id))
+                isLoadingOlder = false
             }
         } else {
             hasOlderMessages = false
+            isLoadingOlder = false
         }
-
-        isLoadingOlder = false
     }
 
     // MARK: - Send message
@@ -516,6 +559,7 @@ final class ChatViewModel: ObservableObject {
                 .filter { requestedMessageIds.contains($0.id) }
                 .flatMap { $0.embedRefs?.map(\.id) ?? [] }
         )
+        guard !referencedEmbedIds.isEmpty else { return }
         let loadedEmbedIds = Set(embedRecords.keys)
         let referencedRecords = referencedEmbedIds.compactMap { embedRecords[$0] }
         let referencedChildIds = childIdsReachable(from: referencedEmbedIds)
@@ -528,7 +572,9 @@ final class ChatViewModel: ObservableObject {
         let hasEncryptedUndecryptedRecord = referencedRecords.contains { record in
             record.rawData == nil && (record.encryptedContent != nil || record.encryptedType != nil)
         }
-        print("[ChatViewModel][embeds] chat=\(chatId.prefix(8)) requestedMessages=\(requestedMessageIds.count) referenced=\(referencedEmbedIds.count) children=\(referencedChildIds.count) loaded=\(loadedEmbedIds.count) unresolvedComposite=\(hasUnresolvedCompositeParent) encryptedUndecrypted=\(hasEncryptedUndecryptedRecord)")
+        NativeSyncPerfLog.info(
+            "phase=loadEmbedsStart chat=\(chatId.prefix(8)) requestedMessages=\(requestedMessageIds.count) referenced=\(referencedEmbedIds.count) children=\(referencedChildIds.count) loaded=\(loadedEmbedIds.count) unresolvedComposite=\(hasUnresolvedCompositeParent) encryptedUndecrypted=\(hasEncryptedUndecryptedRecord)"
+        )
         if !hasUnresolvedCompositeParent,
            !hasEncryptedUndecryptedRecord,
            !requiredEmbedIds.isEmpty,
@@ -543,13 +589,16 @@ final class ChatViewModel: ObservableObject {
             let response = try decodeChatEmbedsResponse(data)
             guard chat?.id == chatId else { return }
             EmbedKeyManager.shared.store(response.embedKeys, source: "chatEmbeds:\(chatId.prefix(8))")
-            let decrypted = await decryptEmbeds(response.embeds, chatId: chatId, existingRecords: embedRecords)
+            let relatedEmbeds = relatedEmbeds(referencedIds: referencedEmbedIds, from: response.embeds)
+            let decrypted = await decryptEmbeds(relatedEmbeds, chatId: chatId, existingRecords: embedRecords)
             for embed in decrypted {
                 embedRecords[embed.id] = embed
             }
             let childLinked = decrypted.filter { $0.parentEmbedId != nil || !$0.childEmbedIds.isEmpty }.count
             let rawCount = decrypted.filter { $0.rawData != nil }.count
-            print("[ChatViewModel][embeds] chat=\(chatId.prefix(8)) fetched=\(response.embeds.count) keys=\(response.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)")
+            NativeSyncPerfLog.info(
+                "phase=loadEmbedsFetched chat=\(chatId.prefix(8)) fetched=\(response.embeds.count) related=\(relatedEmbeds.count) keys=\(response.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)"
+            )
         } catch {
             print("[Chat] Failed to load embeds: \(error)")
         }
@@ -587,6 +636,36 @@ final class ChatViewModel: ObservableObject {
         }
 
         return result
+    }
+
+    private func visibleWindow(from rawMessages: [Message]) -> [Message] {
+        rawMessages.count > messagesPageSize ? Array(rawMessages.suffix(messagesPageSize)) : rawMessages
+    }
+
+    private func relatedEmbeds(referencedIds: Set<String>, from embeds: [EmbedRecord]) -> [EmbedRecord] {
+        guard !referencedIds.isEmpty, !embeds.isEmpty else { return [] }
+        let recordsById = EmbedRecord.dictionaryById(embeds, context: "chatViewModel.relatedEmbeds")
+        var childIdsByParent: [String: Set<String>] = [:]
+        for embed in embeds {
+            if let parentId = embed.parentEmbedId {
+                childIdsByParent[parentId, default: []].insert(embed.id)
+            }
+            for childId in embed.childEmbedIds {
+                childIdsByParent[embed.id, default: []].insert(childId)
+            }
+        }
+
+        var included = referencedIds
+        var pending = Array(referencedIds)
+        while let id = pending.popLast() {
+            if let record = recordsById[id], let parentId = record.parentEmbedId, included.insert(parentId).inserted {
+                pending.append(parentId)
+            }
+            for childId in childIdsByParent[id] ?? [] where included.insert(childId).inserted {
+                pending.append(childId)
+            }
+        }
+        return embeds.filter { included.contains($0.id) }
     }
 
     private func extractFollowUpSuggestions(from messages: [Message]) -> [String] {

@@ -61,6 +61,11 @@ struct OpenMatesApp: App {
                 .preferredColorScheme(themeManager.resolvedScheme)
                 .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
                 .task {
+                    #if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("--openmates-keychain-self-test") {
+                        KeychainHelper.debugSelfTest()
+                    }
+                    #endif
                     await locManager.restoreSavedLanguage()
                     await authManager.checkSession()
                 }
