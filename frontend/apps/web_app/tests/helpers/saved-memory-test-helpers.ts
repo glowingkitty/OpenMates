@@ -13,6 +13,7 @@ async function saveCurrentFullscreenEmbed(
   page: any,
   logCheckpoint: (message: string) => void,
   expectedMemoryTitle?: string,
+  options: { expectReminder?: boolean } = {},
 ): Promise<string> {
   const headerTitle = page.getByTestId('embed-header-title').last();
   await expect(headerTitle).toBeVisible({ timeout: 10000 });
@@ -23,10 +24,25 @@ async function saveCurrentFullscreenEmbed(
   await expect(saveButton).toBeVisible({ timeout: 10000 });
   const initialButtonText = ((await saveButton.textContent()) || '').trim();
   if (initialButtonText.includes('Forget')) {
-    logCheckpoint(`Memory for "${savedTitle}" was already saved.`);
-    return expectedMemoryTitle?.trim() || savedTitle;
+    if (!options.expectReminder) {
+      logCheckpoint(`Memory for "${savedTitle}" was already saved.`);
+      return expectedMemoryTitle?.trim() || savedTitle;
+    }
+
+    await saveButton.click();
+    await expect(saveButton).toContainText('Add memory', { timeout: 10000 });
+    logCheckpoint(`Forgot existing memory for "${savedTitle}" before resaving.`);
   }
-  expect(initialButtonText).toContain('Add memory');
+  const buttonTextBeforeSave = ((await saveButton.textContent()) || '').trim();
+  expect(buttonTextBeforeSave).toContain('Add memory');
+
+  const reminderResponsePromise = options.expectReminder
+    ? page.waitForResponse(
+      (resp: any) => resp.url().includes('/v1/apps/reminder/skills/set-reminder') && resp.request().method() === 'POST',
+      { timeout: 20000 },
+    ).catch(() => null)
+    : Promise.resolve(null);
+
   const savedEventPromise = page.evaluate(() => new Promise((resolve) => {
     window.addEventListener('savedEmbedMemorySaved', (event) => {
       resolve((event as CustomEvent).detail);
@@ -42,6 +58,18 @@ async function saveCurrentFullscreenEmbed(
     page.waitForTimeout(10000).then(() => null),
   ]);
   expect(savedEvent).toBeTruthy();
+
+  if (options.expectReminder) {
+    const reminderResponse = await reminderResponsePromise;
+    expect(reminderResponse).toBeTruthy();
+    expect(reminderResponse.ok()).toBe(true);
+    const reminderBody = await reminderResponse.json();
+    const reminderData = reminderBody.data || reminderBody;
+    expect(reminderData.success).toBe(true);
+    expect(reminderData.target_type).toBe('embed');
+    logCheckpoint(`Verified saved-memory reminder creation: ${reminderData.reminder_id || 'created'}.`);
+  }
+
   return memoryTitle;
 }
 

@@ -155,7 +155,7 @@ test.describe('App: Events / Skill: search', () => {
 
 		await resultCards.first().click();
 		await expectCalendarDownload(page, logCheckpoint);
-		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
 
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
