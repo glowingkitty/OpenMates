@@ -44,6 +44,10 @@
     duration?: string;
     /** Number of stops */
     stops?: number;
+    /** Realtime arrival delay in minutes; negative means early */
+    arrivalDelayMinutes?: number;
+    /** True if the route contains a cancellation notice */
+    hasCancellation?: boolean;
     /** Carrier names */
     carriers?: string[];
     /** IATA carrier codes (e.g., ['LH', 'BA']) for airline logos */
@@ -72,6 +76,8 @@
     arrival: _arrival,
     duration,
     stops = 0,
+    arrivalDelayMinutes,
+    hasCancellation = false,
     carriers: carriersProp = [],
     carrierCodes: carrierCodesProp = [],
     bookableSeats,
@@ -145,6 +151,20 @@
     if (stops === 0) return 'Direct';
     if (stops === 1) return '1 stop';
     return `${stops} stops`;
+  });
+
+  let realtimeStatus = $derived.by(() => {
+    if (hasCancellation) return 'Cancellation on route';
+    if (arrivalDelayMinutes == null) return '';
+    if (arrivalDelayMinutes === 0) return 'On time';
+    if (arrivalDelayMinutes > 0) return `+${arrivalDelayMinutes} min arrival`;
+    return `${arrivalDelayMinutes} min arrival`;
+  });
+
+  let realtimeStatusTone = $derived.by(() => {
+    if (hasCancellation) return 'cancelled';
+    if (arrivalDelayMinutes == null || arrivalDelayMinutes === 0) return 'ontime';
+    return arrivalDelayMinutes > 0 ? 'late' : 'early';
   });
   
   // Carriers array is used for props but display is now in the meta line
@@ -226,6 +246,12 @@
 
       <!-- Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" -->
       <div class="connection-meta" data-testid="connection-meta">{metaLine}</div>
+
+      {#if realtimeStatus}
+        <div class="realtime-status" class:late={realtimeStatusTone === 'late'} class:early={realtimeStatusTone === 'early'} class:ontime={realtimeStatusTone === 'ontime'} class:cancelled={realtimeStatusTone === 'cancelled'} data-testid="connection-realtime-status">
+          {realtimeStatus}
+        </div>
+      {/if}
 
       <!-- Seats remaining warning -->
       {#if bookableSeats !== undefined && bookableSeats > 0 && bookableSeats <= 4}
@@ -332,6 +358,27 @@
     font-size: 0.875rem;
     color: var(--color-grey-60);
     line-height: 1.3;
+  }
+
+  .realtime-status {
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .realtime-status.late,
+  .realtime-status.cancelled {
+    color: #991b1b;
+    background: #fee2e2;
+  }
+
+  .realtime-status.early,
+  .realtime-status.ontime {
+    color: #166534;
+    background: #dcfce7;
   }
 
   /* Seats warning */

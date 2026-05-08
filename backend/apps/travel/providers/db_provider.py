@@ -120,6 +120,49 @@ def _format_duration(seconds: int) -> str:
     return f"{m}m"
 
 
+def _delay_minutes(actual_time: Optional[str], scheduled_time: Optional[str]) -> Optional[int]:
+    """Return realtime delay in minutes, where negative values mean early."""
+    if not actual_time or not scheduled_time:
+        return None
+    try:
+        actual_dt = datetime.fromisoformat(actual_time)
+        scheduled_dt = datetime.fromisoformat(scheduled_time)
+        return int((actual_dt - scheduled_dt).total_seconds() / 60)
+    except (ValueError, TypeError):
+        return None
+
+
+def _stop_platform(stop: Dict[str, Any]) -> Optional[str]:
+    """Extract the most useful platform/track value from a DB stop object."""
+    return stop.get("gleis") or stop.get("plattform")
+
+
+def _stop_is_cancelled(stop: Dict[str, Any]) -> bool:
+    """Return whether DB marks this stop as cancelled."""
+    replacement_note = stop.get("ersatzhaltNotiz") or {}
+    if replacement_note.get("typ") == "GECANCELT":
+        return True
+    return any(
+        "cancel" in str(note.get("text", "")).lower() or "entfällt" in str(note.get("text", "")).lower()
+        for note in stop.get("echtzeitNotizen", [])
+    )
+
+
+def _stop_notes(stop: Dict[str, Any]) -> List[str]:
+    """Collect human-readable realtime notes from a DB stop object."""
+    notes: List[str] = []
+    for key in ("echtzeitNotizen", "himNotizen", "attributNotizen"):
+        for note in stop.get(key, []) or []:
+            text = note.get("text")
+            if text and text not in notes:
+                notes.append(text)
+    replacement_note = stop.get("ersatzhaltNotiz") or {}
+    replacement_text = replacement_note.get("text")
+    if replacement_text and replacement_text not in notes:
+        notes.append(replacement_text)
+    return notes
+
+
 def _is_daytime(iso_time: str, latitude: Optional[float], longitude: Optional[float]) -> Optional[bool]:
     """
     Determine if a time is between sunrise and sunset at a location.
@@ -198,8 +241,23 @@ def _parse_connection(
         dep_pos = dep_ort.get("position", {})
         arr_pos = arr_ort.get("position", {})
 
-        dep_time = seg.get("abgangsDatum", "")
-        arr_time = seg.get("ankunftsDatum", "")
+        stops = seg.get("halte", []) or []
+        dep_stop = stops[0] if stops else {}
+        arr_stop = stops[-1] if stops else {}
+
+        scheduled_dep_time = dep_stop.get("abgangsDatum") or seg.get("abgangsDatum", "")
+        actual_dep_time = dep_stop.get("ezAbgangsDatum") or scheduled_dep_time
+        scheduled_arr_time = arr_stop.get("ankunftsDatum") or seg.get("ankunftsDatum", "")
+        actual_arr_time = arr_stop.get("ezAnkunftsDatum") or scheduled_arr_time
+
+        dep_platform = _stop_platform(dep_stop)
+        arr_platform = _stop_platform(arr_stop)
+        cancelled = any(_stop_is_cancelled(stop) for stop in stops) or bool(seg.get("isAusfall"))
+        realtime_notes = []
+        for stop in stops:
+            for note in _stop_notes(stop):
+                if note not in realtime_notes:
+                    realtime_notes.append(note)
         dep_lat = dep_pos.get("latitude")
         dep_lng = dep_pos.get("longitude")
         arr_lat = arr_pos.get("latitude")
@@ -210,16 +268,28 @@ def _parse_connection(
             carrier_code=None,
             number=seg.get("mitteltext", seg.get("kurztext")),
             departure_station=dep_ort.get("name", "?"),
-            departure_time=dep_time,
+            departure_time=scheduled_dep_time,
+            scheduled_departure_time=scheduled_dep_time,
+            actual_departure_time=actual_dep_time,
+            departure_delay_minutes=_delay_minutes(actual_dep_time, scheduled_dep_time),
+            departure_platform=dep_platform,
+            departure_platform_changed=None,
             departure_latitude=dep_lat,
             departure_longitude=dep_lng,
             arrival_station=arr_ort.get("name", "?"),
-            arrival_time=arr_time,
+            arrival_time=scheduled_arr_time,
+            scheduled_arrival_time=scheduled_arr_time,
+            actual_arrival_time=actual_arr_time,
+            arrival_delay_minutes=_delay_minutes(actual_arr_time, scheduled_arr_time),
+            arrival_platform=arr_platform,
+            arrival_platform_changed=None,
             arrival_latitude=arr_lat,
             arrival_longitude=arr_lng,
             duration=_format_duration(seg.get("abschnittsDauer", 0)),
-            departure_is_daytime=_is_daytime(dep_time, dep_lat, dep_lng),
-            arrival_is_daytime=_is_daytime(arr_time, arr_lat, arr_lng),
+            cancelled=cancelled if cancelled else None,
+            realtime_notes=realtime_notes or None,
+            departure_is_daytime=_is_daytime(actual_dep_time, dep_lat, dep_lng),
+            arrival_is_daytime=_is_daytime(actual_arr_time, arr_lat, arr_lng),
         ))
 
     if not segments:
@@ -273,7 +343,13 @@ def _parse_connection(
         origin=first_seg.departure_station,
         destination=last_seg.arrival_station,
         departure=first_seg.departure_time,
+        scheduled_departure=first_seg.scheduled_departure_time,
+        actual_departure=first_seg.actual_departure_time,
+        departure_delay_minutes=first_seg.departure_delay_minutes,
         arrival=last_seg.arrival_time,
+        scheduled_arrival=last_seg.scheduled_arrival_time,
+        actual_arrival=last_seg.actual_arrival_time,
+        arrival_delay_minutes=last_seg.arrival_delay_minutes,
         duration=_format_duration(verbindung.get("reiseDauer", 0)),
         stops=verbindung.get("umstiegeAnzahl", 0),
         segments=segments,

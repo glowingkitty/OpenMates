@@ -40,13 +40,25 @@
     number?: string;
     departure_station: string;
     departure_time: string;
+    scheduled_departure_time?: string;
+    actual_departure_time?: string;
+    departure_delay_minutes?: number;
+    departure_platform?: string;
+    departure_platform_changed?: boolean;
     departure_latitude?: number;
     departure_longitude?: number;
     arrival_station: string;
     arrival_time: string;
+    scheduled_arrival_time?: string;
+    actual_arrival_time?: string;
+    arrival_delay_minutes?: number;
+    arrival_platform?: string;
+    arrival_platform_changed?: boolean;
     arrival_latitude?: number;
     arrival_longitude?: number;
     duration: string;
+    cancelled?: boolean;
+    realtime_notes?: string[];
     /** Country codes (ISO 3166-1 alpha-2) for flag emoji display */
     departure_country_code?: string;
     arrival_country_code?: string;
@@ -77,7 +89,13 @@
     origin: string;
     destination: string;
     departure: string;
+    scheduled_departure?: string;
+    actual_departure?: string;
+    departure_delay_minutes?: number;
     arrival: string;
+    scheduled_arrival?: string;
+    actual_arrival?: string;
+    arrival_delay_minutes?: number;
     duration: string;
     stops: number;
     segments: SegmentData[];
@@ -251,6 +269,28 @@
     } catch {
       return isoString;
     }
+  }
+
+  function displayTime(scheduledTime: string, actualTime?: string): string {
+    return formatTime(actualTime || scheduledTime);
+  }
+
+  function hasRealtimeChange(scheduledTime: string, actualTime?: string): boolean {
+    return Boolean(actualTime && scheduledTime && actualTime !== scheduledTime);
+  }
+
+  function formatDelay(delayMinutes?: number): string {
+    if (delayMinutes == null) return '';
+    if (delayMinutes === 0) return 'On time';
+    if (delayMinutes > 0) return `+${delayMinutes} min`;
+    return `${delayMinutes} min`;
+  }
+
+  function delayClass(delayMinutes?: number): 'early' | 'late' | 'ontime' | '' {
+    if (delayMinutes == null) return '';
+    if (delayMinutes > 0) return 'late';
+    if (delayMinutes < 0) return 'early';
+    return 'ontime';
   }
   
   // Format date from ISO string
@@ -1439,22 +1479,45 @@
       {#if connection.legs && connection.legs.length > 0}
         {#each connection.legs as leg}
           {#each leg.segments as segment, segIdx}
+            {@const depChanged = hasRealtimeChange(segment.departure_time, segment.actual_departure_time)}
+            {@const arrChanged = hasRealtimeChange(segment.arrival_time, segment.actual_arrival_time)}
+            {@const depDelayClass = delayClass(segment.departure_delay_minutes)}
+            {@const arrDelayClass = delayClass(segment.arrival_delay_minutes)}
             <div class="segment-card" data-testid="segment-card">
               <div class="segment-left">
                 <div class="time-badge" class:daytime={segment.departure_is_daytime === true} class:nighttime={segment.departure_is_daytime !== true}>
                   <span class="time-icon">{segment.departure_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text">{formatTime(segment.departure_time)}</span>
+                  <span class="time-text" class:changed={depChanged}>{displayTime(segment.departure_time, segment.actual_departure_time)}</span>
                 </div>
+                {#if depChanged}
+                  <div class="scheduled-time">was {formatTime(segment.departure_time)}</div>
+                {/if}
+                {#if segment.departure_delay_minutes != null}
+                  <div class="delay-badge" class:late={depDelayClass === 'late'} class:early={depDelayClass === 'early'} class:ontime={depDelayClass === 'ontime'}>
+                    {formatDelay(segment.departure_delay_minutes)}
+                  </div>
+                {/if}
                 <div class="segment-duration-text">{segment.duration}</div>
                 <div class="time-badge" class:daytime={segment.arrival_is_daytime === true} class:nighttime={segment.arrival_is_daytime !== true}>
                   <span class="time-icon">{segment.arrival_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text">{formatTime(segment.arrival_time)}</span>
+                  <span class="time-text" class:changed={arrChanged}>{displayTime(segment.arrival_time, segment.actual_arrival_time)}</span>
                 </div>
+                {#if arrChanged}
+                  <div class="scheduled-time">was {formatTime(segment.arrival_time)}</div>
+                {/if}
+                {#if segment.arrival_delay_minutes != null}
+                  <div class="delay-badge" class:late={arrDelayClass === 'late'} class:early={arrDelayClass === 'early'} class:ontime={arrDelayClass === 'ontime'}>
+                    {formatDelay(segment.arrival_delay_minutes)}
+                  </div>
+                {/if}
               </div>
 
               <div class="segment-center">
                 <div class="segment-airport-code" data-testid="departure-code">
                   {#if segment.departure_country_code}{countryCodeToFlag(segment.departure_country_code)} {/if}{segment.departure_station}
+                  {#if segment.departure_platform}
+                    <span class="platform-pill" class:changed={segment.departure_platform_changed === true}>Platform {segment.departure_platform}</span>
+                  {/if}
                 </div>
                 <div class="segment-carrier-row">
                   {#if segment.airline_logo}
@@ -1465,10 +1528,19 @@
                     {#if segment.airplane}
                       <span class="carrier-aircraft">via {segment.airplane}</span>
                     {/if}
+                    {#if segment.cancelled}
+                      <span class="status-pill cancelled">Cancellation on route</span>
+                    {/if}
+                    {#if segment.realtime_notes && segment.realtime_notes.length > 0}
+                      <span class="carrier-aircraft">{segment.realtime_notes.slice(0, 2).join(' · ')}</span>
+                    {/if}
                   </div>
                 </div>
                 <div class="segment-airport-code" data-testid="arrival-code">
                   {#if segment.arrival_country_code}{countryCodeToFlag(segment.arrival_country_code)} {/if}{segment.arrival_station}
+                  {#if segment.arrival_platform}
+                    <span class="platform-pill" class:changed={segment.arrival_platform_changed === true}>Platform {segment.arrival_platform}</span>
+                  {/if}
                 </div>
               </div>
             </div>
@@ -1555,15 +1627,25 @@
   .time-badge.daytime { background: linear-gradient(to right, #f5bb12, #e79600); }
   .time-icon { font-size: 0.75rem; line-height: 1; }
   .time-text { line-height: 1; }
+  .time-text.changed { color: #fff; }
+  .scheduled-time { margin-top: -8px; margin-left: 10px; font-size: 0.688rem; font-weight: 700; color: var(--color-grey-50); text-decoration: line-through; }
+  .delay-badge { margin-top: -8px; padding: 2px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; color: var(--color-grey-60); background: var(--color-grey-20); white-space: nowrap; }
+  .delay-badge.late { color: #991b1b; background: #fee2e2; }
+  .delay-badge.early { color: #166534; background: #dcfce7; }
+  .delay-badge.ontime { color: #166534; background: #dcfce7; }
   .segment-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; padding: 2px 0; }
 
   .segment-center { display: flex; flex-direction: column; gap: var(--spacing-4); flex: 1; min-width: 0; justify-content: space-between; }
   .segment-airport-code { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); }
+  .platform-pill { display: inline-flex; align-items: center; margin-left: 8px; padding: 2px 7px; border-radius: 999px; background: var(--color-grey-20); color: var(--color-grey-70); font-size: 0.688rem; font-weight: 800; vertical-align: middle; }
+  .platform-pill.changed { color: #92400e; background: #fef3c7; }
   .segment-carrier-row { display: flex; align-items: center; gap: var(--spacing-4); }
   .segment-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 1.5px solid var(--color-grey-20); flex-shrink: 0; }
   .segment-carrier-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .carrier-flight { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
   .carrier-aircraft { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
+  .status-pill { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; }
+  .status-pill.cancelled { color: #991b1b; background: #fee2e2; }
 
   .layover-section { display: flex; flex-direction: column; gap: var(--spacing-2); padding: 8px 14px; }
   .layover-overnight-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }
