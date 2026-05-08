@@ -188,9 +188,27 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     prompt=prompt, created_date=created_date
                 )
 
-                # Determine target chat_id
+                target_embed_id = None
+
+                # Determine target chat_id or embed_id
                 if target_type == "new_chat":
                     target_chat_id = str(uuid.uuid4())
+                elif target_type == "embed":
+                    target_chat_id = None
+                    target_embed_id = reminder.get("target_chat_id")
+                    if not target_embed_id:
+                        encrypted_target = reminder.get("encrypted_target_chat_id")
+                        if encrypted_target and vault_key_id:
+                            try:
+                                target_embed_id = await encryption_service.decrypt_with_user_key(
+                                    ciphertext=encrypted_target, key_id=vault_key_id
+                                )
+                            except Exception as e:
+                                logger.error(f"Failed to decrypt target_embed_id for reminder {reminder_id}: {e}")
+                    if not target_embed_id:
+                        logger.error(f"No target_embed_id for embed reminder {reminder_id}")
+                        error_count += 1
+                        continue
                 else:
                     # Decrypt target_chat_id from vault-encrypted field (new format)
                     # or use plaintext (old cache format)
@@ -269,6 +287,12 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     "prompt_preview": prompt[:80],
                 }
 
+                if target_type == "embed":
+                    delivery_payload.update({
+                        "target_embed_id": target_embed_id,
+                        "target_embed_title": prompt.replace("Reminder: ", "", 1)[:100],
+                    })
+
                 # WebSocket delivery
                 try:
                     await task.publish_websocket_event(
@@ -304,7 +328,7 @@ async def _process_due_reminders_async(task: BaseServiceTask):
                     logger.warning(f"Failed to send email notification for reminder {reminder_id}: {email_error}")
 
                 # Dispatch AI response
-                if response_type == "full":
+                if response_type == "full" and target_type != "embed":
                     try:
                         await _dispatch_reminder_ai_request(
                             user_id=user_id,

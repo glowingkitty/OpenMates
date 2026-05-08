@@ -1622,6 +1622,11 @@ export class ChatSynchronizationService extends EventTarget {
   }): Promise<boolean> {
     return await senders.sendStoreAppSettingsMemoriesEntryImpl(this, entry);
   }
+
+  public async sendDeleteAppSettingsMemoriesEntry(entryId: string): Promise<boolean> {
+    return await senders.sendDeleteAppSettingsMemoriesEntryImpl(this, entryId);
+  }
+
   public async queueOfflineChange(
     change: Omit<OfflineChange, "change_id">,
   ): Promise<void> {

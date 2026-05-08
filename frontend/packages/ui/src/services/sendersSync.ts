@@ -191,6 +191,29 @@ export async function sendStoreAppSettingsMemoriesEntryImpl(
 	}
 }
 
+export async function sendDeleteAppSettingsMemoriesEntryImpl(
+	serviceInstance: ChatSynchronizationService,
+	entryId: string,
+): Promise<boolean> {
+	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+		console.warn(
+			"[ChatSyncService:Senders] WebSocket not connected. Cannot send 'delete_app_settings_memories_entry'."
+		);
+		return false;
+	}
+
+	if (!entryId) return false;
+
+	try {
+		await webSocketService.sendMessage("delete_app_settings_memories_entry", { entry_id: entryId });
+		console.info(`[ChatSyncService:Senders] Sent app settings/memories deletion ${entryId} to server`);
+		return true;
+	} catch (error) {
+		console.error(`[ChatSyncService:Senders] Error sending app settings/memories deletion ${entryId}:`, error);
+		return false;
+	}
+}
+
 export async function sendCancelAiTaskImpl(
 	serviceInstance: ChatSynchronizationService,
 	taskId: string,

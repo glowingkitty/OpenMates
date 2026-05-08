@@ -137,12 +137,25 @@ skills:
           enum:
             - new_chat
             - existing_chat
+            - embed
           default: new_chat
-          description: "'new_chat' creates a new chat when reminder fires, 'existing_chat' sends follow-up in current chat"
+          description: "'new_chat' creates a new chat when reminder fires, 'existing_chat' sends follow-up in current chat, 'embed' opens a saved embed fullscreen"
 
         new_chat_title:
           type: string
           description: "Title for the new chat. Required if target_type is 'new_chat'."
+
+        target_embed_id:
+          type: string
+          description: "Embed ID to open when target_type is 'embed'."
+
+        target_embed_app_id:
+          type: string
+          description: "App ID for the embed target. Optional; used by client display."
+
+        target_embed_title:
+          type: string
+          description: "Display title for the embed target. Optional; used by client display."
 
         response_type:
           type: string

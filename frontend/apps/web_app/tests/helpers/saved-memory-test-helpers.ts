@@ -21,13 +21,15 @@ async function saveCurrentFullscreenEmbed(
 
   const saveButton = page.getByTestId('save-embed-cta').last();
   await expect(saveButton).toBeVisible({ timeout: 10000 });
+  await expect(saveButton).toContainText('Add memory');
   const savedEventPromise = page.evaluate(() => new Promise((resolve) => {
     window.addEventListener('savedEmbedMemorySaved', (event) => {
       resolve((event as CustomEvent).detail);
     }, { once: true });
   }));
   await saveButton.click();
-  logCheckpoint(`Clicked Save for "${savedTitle}".`);
+  await expect(saveButton).toContainText('Forget', { timeout: 10000 });
+  logCheckpoint(`Clicked Add memory for "${savedTitle}".`);
 
   const memoryTitle = expectedMemoryTitle?.trim() || savedTitle;
   const savedEvent = await Promise.race([
@@ -62,6 +64,7 @@ async function verifySavedMemoryEntry(
   const embedPreview = page.getByTestId('memory-embed-preview').first();
   const hasEmbedPreview = await embedPreview.isVisible({ timeout: 5000 }).catch(() => false);
   if (hasEmbedPreview) {
+    await expect(embedPreview.getByTestId('saved-embed-badge').first()).toBeVisible({ timeout: 5000 });
     await embedPreview.click();
     await expect(page.getByTestId('embed-fullscreen-overlay')).toBeVisible({ timeout: 10000 });
   }

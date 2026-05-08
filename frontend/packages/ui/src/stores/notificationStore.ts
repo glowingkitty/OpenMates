@@ -64,6 +64,7 @@ export interface Notification {
   chatTitle?: string; // The chat title to display
   avatarUrl?: string; // Avatar image URL for chat message notifications
   category?: string; // Mate category for profile image (e.g., 'software_development')
+  dedupeKey?: string; // Prevents repeated copies of the same active toast
 }
 
 /**
@@ -83,6 +84,7 @@ export interface NotificationOptions {
   chatTitle?: string;
   avatarUrl?: string;
   category?: string;
+  dedupeKey?: string;
 }
 
 export interface NotificationState {
@@ -99,6 +101,11 @@ let notificationIdCounter = 0;
 
 // Track auto-dismiss timeouts so they can be paused/cancelled per notification
 const autoDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function getExistingDedupeId(state: NotificationState, dedupeKey?: string): string | undefined {
+  if (!dedupeKey) return undefined;
+  return state.notifications.find((notification) => notification.dedupeKey === dedupeKey)?.id;
+}
 
 export const notificationStore = {
   subscribe,
@@ -152,11 +159,17 @@ export const notificationStore = {
       dismissible: options.dismissible ?? true,
     };
 
+    let existingId: string | undefined;
     update((state) => {
+      existingId = getExistingDedupeId(state, options.dedupeKey);
+      if (existingId) return state;
+
       return {
         notifications: [...state.notifications, newNotification],
       };
     });
+
+    if (existingId) return existingId;
 
     if (newNotification.duration) {
       const timer = setTimeout(() => {

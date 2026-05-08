@@ -26,7 +26,7 @@ export function getEmbedIdFromContentRef(contentRef: unknown): string {
     : '';
 }
 
-interface SavedEmbedConfig {
+export interface SavedEmbedConfig {
   kind: SavedEmbedKind;
   appId: string;
   itemType: string;
@@ -35,6 +35,17 @@ interface SavedEmbedConfig {
   itemValue: Record<string, unknown>;
   reminderDateTime?: string | null;
   reminderPromptTitle?: string;
+}
+
+interface SavedMemoryEntry {
+  id: string;
+  item_key: string;
+  item_value: Record<string, unknown>;
+  settings_group: string;
+}
+
+interface AppSettingsMemoriesStateLike {
+  entriesByApp: Map<string, Record<string, SavedMemoryEntry[]>>;
 }
 
 const DEFAULT_OFFSETS_MINUTES: Record<SavedEmbedKind, number[]> = {
@@ -84,7 +95,32 @@ function getTriggerDateTimes(dateTime: string | null | undefined, kind: SavedEmb
     .map((trigger) => trigger.toISOString());
 }
 
-async function scheduleReminder(prompt: string, triggerDatetime: string): Promise<void> {
+export function getSavedEmbedId(config: SavedEmbedConfig): string {
+  const embedId = config.itemValue.embed_id;
+  return typeof embedId === 'string' ? embedId : '';
+}
+
+export function findSavedEmbedMemoryEntry(
+  state: AppSettingsMemoriesStateLike,
+  config: SavedEmbedConfig,
+): SavedMemoryEntry | undefined {
+  const appGroups = state.entriesByApp.get(config.appId);
+  const entries = appGroups?.[config.itemType] || [];
+  const embedId = getSavedEmbedId(config);
+
+  return entries.find((entry) => {
+    if (entry.item_key === config.itemKey) return true;
+    const entryEmbedId = entry.item_value?.embed_id;
+    return !!embedId && typeof entryEmbedId === 'string' && entryEmbedId === embedId;
+  });
+}
+
+export function isEmbedMemorySaved(config: SavedEmbedConfig): boolean {
+  return !!findSavedEmbedMemoryEntry(get(appSettingsMemoriesStore), config);
+}
+
+async function scheduleReminder(config: SavedEmbedConfig, prompt: string, triggerDatetime: string): Promise<void> {
+  const embedId = getSavedEmbedId(config);
   const response = await fetch(`${getApiUrl()}/v1/apps/reminder/skills/set-reminder`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -94,8 +130,11 @@ async function scheduleReminder(prompt: string, triggerDatetime: string): Promis
       trigger_type: 'specific',
       trigger_datetime: triggerDatetime,
       timezone: getTimezone(),
-      target_type: 'new_chat',
-      new_chat_title: prompt.slice(0, 50),
+      target_type: embedId ? 'embed' : 'new_chat',
+      target_embed_id: embedId || undefined,
+      target_embed_app_id: config.appId,
+      target_embed_title: config.title,
+      new_chat_title: embedId ? undefined : prompt.slice(0, 50),
       response_type: 'simple',
     }),
   });
@@ -117,11 +156,31 @@ async function scheduleDefaultReminders(config: SavedEmbedConfig): Promise<numbe
   let scheduledCount = 0;
 
   for (const triggerDatetime of triggerDateTimes) {
-    await scheduleReminder(`Reminder: ${reminderTitle}`, triggerDatetime);
+    await scheduleReminder(config, `Reminder: ${reminderTitle}`, triggerDatetime);
     scheduledCount += 1;
   }
 
   return scheduledCount;
+}
+
+export async function forgetEmbedMemory(config: SavedEmbedConfig): Promise<void> {
+  const entry = findSavedEmbedMemoryEntry(get(appSettingsMemoriesStore), config);
+  if (!entry) return;
+
+  await appSettingsMemoriesStore.deleteEntry(entry.id, config.appId);
+  notificationStore.success(`Forgot "${config.title}".`);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('savedEmbedMemoryForgotten', {
+      detail: {
+        appId: config.appId,
+        itemType: config.itemType,
+        itemKey: config.itemKey,
+        title: config.title,
+        embedId: getSavedEmbedId(config),
+      },
+    }));
+  }
 }
 
 export async function saveEmbedMemory(config: SavedEmbedConfig): Promise<void> {

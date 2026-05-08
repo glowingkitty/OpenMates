@@ -36,8 +36,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
+  import Icon from '../Icon.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
+  import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
   
   /**
    * Props interface for unified embed preview
@@ -135,6 +137,15 @@
 
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus);
+
+  let isSavedEmbed = $derived.by(() => {
+    for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
+      for (const entries of Object.values(appGroups)) {
+        if (entries.some((entry) => entry.item_value?.embed_id === id)) return true;
+      }
+    }
+    return false;
+  });
 
   // Stale-embed recovery: if still "processing" after STALE_CHECK_MS, send a
   // request_embed to the server. Redis pub/sub is fire-and-forget — if the
@@ -882,6 +893,11 @@
   ontouchmove={handleTouchMove}
   ontouchend={handleTouchEnd}
 >
+  {#if isSavedEmbed}
+    <div class="saved-embed-badge" title="Saved to memories" aria-label="Saved to memories" data-testid="saved-embed-badge">
+      <Icon name="notes" size="16px" />
+    </div>
+  {/if}
   {#if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
     <div class="mobile-layout">
@@ -981,6 +997,23 @@
     -webkit-touch-callout: none;
     /* Performance hint for transform animations */
     will-change: transform;
+  }
+
+  .saved-embed-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    color: white;
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.28);
+    pointer-events: none;
   }
   
   /* Prevent image drag/callouts */

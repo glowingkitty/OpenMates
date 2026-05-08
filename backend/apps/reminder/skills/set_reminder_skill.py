@@ -45,9 +45,12 @@ class SetReminderRequest(BaseModel):
     random_time_end: Optional[str] = Field(None, description="Latest time (HH:MM)")
 
     # Target configuration
-    target_type: str = Field(default="new_chat", description="'new_chat' or 'existing_chat'")
+    target_type: str = Field(default="new_chat", description="'new_chat', 'existing_chat', or 'embed'")
     new_chat_title: Optional[str] = Field(None, description="Title for new chat")
     chat_id: Optional[str] = Field(None, description="Current chat ID (required for existing_chat target via REST API)")
+    target_embed_id: Optional[str] = Field(None, description="Embed ID to open when an embed reminder fires")
+    target_embed_app_id: Optional[str] = Field(None, description="App ID for the target embed")
+    target_embed_title: Optional[str] = Field(None, description="Display title for the target embed")
 
     # Response type: "simple" = notification-only (no AI), "full" = AI executes a task
     response_type: str = Field(default="simple", description="'simple' for notification-only (no AI), 'full' for AI action trigger")
@@ -62,7 +65,7 @@ class SetReminderResponse(BaseModel):
     reminder_id: Optional[str] = Field(None, description="UUID of the created reminder")
     trigger_at: Optional[int] = Field(None, description="Unix timestamp when reminder will fire")
     trigger_at_formatted: Optional[str] = Field(None, description="Human-readable trigger time")
-    target_type: Optional[str] = Field(None, description="'new_chat' or 'existing_chat'")
+    target_type: Optional[str] = Field(None, description="'new_chat', 'existing_chat', or 'embed'")
     is_repeating: bool = Field(default=False, description="Whether this is a repeating reminder")
     prompt: Optional[str] = Field(None, description="The reminder prompt/content (echoed back for display)")
     message: Optional[str] = Field(None, description="Confirmation or informational message")
@@ -133,6 +136,9 @@ class SetReminderSkill(BaseSkill):
         new_chat_title: Optional[str] = None,
         repeat: Optional[Dict[str, Any]] = None,
         response_type: str = "simple",
+        target_embed_id: Optional[str] = None,
+        target_embed_app_id: Optional[str] = None,
+        target_embed_title: Optional[str] = None,
         # Context parameters passed by skill executor
         secrets_manager: Optional[SecretsManager] = None,
         cache_service=None,
@@ -154,7 +160,7 @@ class SetReminderSkill(BaseSkill):
             random_end_date: End date YYYY-MM-DD (for random trigger)
             random_time_start: Earliest time HH:MM (for random trigger)
             random_time_end: Latest time HH:MM (for random trigger)
-            target_type: 'new_chat' or 'existing_chat'
+            target_type: 'new_chat', 'existing_chat', or 'embed'
             new_chat_title: Title for new chat (required if target_type is 'new_chat')
             repeat: Optional repeat configuration dict
             response_type: "simple" for a brief nudge (no LLM), "full" for complete AI response
@@ -318,10 +324,16 @@ class SetReminderSkill(BaseSkill):
                 )
 
             # Validate target type
-            if target_type not in ["new_chat", "existing_chat"]:
+            if target_type not in ["new_chat", "existing_chat", "embed"]:
                 return SetReminderResponse(
                     success=False,
-                    error=f"Invalid target_type: {target_type}. Must be 'new_chat' or 'existing_chat'"
+                    error=f"Invalid target_type: {target_type}. Must be 'new_chat', 'existing_chat', or 'embed'"
+                )
+
+            if target_type == "embed" and not target_embed_id:
+                return SetReminderResponse(
+                    success=False,
+                    error="target_embed_id is required for embed target type"
                 )
 
             # For new_chat, title is required (or derive from prompt)
@@ -390,6 +402,9 @@ class SetReminderSkill(BaseSkill):
                 except Exception as e:
                     logger.warning(f"Could not cache chat history for reminder: {e}")
                     # Continue without chat history - will be handled at fire time
+
+            if target_type == "embed":
+                target_chat_id = target_embed_id
 
             # Validate repeat configuration if provided
             if repeat:
@@ -485,6 +500,7 @@ class SetReminderSkill(BaseSkill):
             email_warning = None
             try:
                 email_notifications_active = False
+                should_prompt_email = True
                 if directus_service:
                     user_profile = await directus_service.get_user_profile(user_id)
                     if user_profile and user_profile[1]:
@@ -493,6 +509,16 @@ class SetReminderSkill(BaseSkill):
                         )
 
                 if not email_notifications_active:
+                    prompt_cache_key = f"reminder:email_prompt:{hashlib.sha256(user_id.encode()).hexdigest()}"
+                    try:
+                        already_prompted = await cache_service.get(prompt_cache_key)
+                        should_prompt_email = not bool(already_prompted)
+                        if should_prompt_email:
+                            await cache_service.set(prompt_cache_key, "1", ttl=300)
+                    except Exception as cache_err:
+                        logger.debug(f"Could not dedupe email notification prompt: {cache_err}")
+
+                if not email_notifications_active and should_prompt_email:
                     email_warning = (
                         "Tip: Set up email notifications in your account settings "
                         "to receive reminder alerts even when you're not using the app."
@@ -517,6 +543,7 @@ class SetReminderSkill(BaseSkill):
                             "action_label": "Go to Settings",
                             "action_deep_link": "chat/notifications",
                             "duration": 12000,
+                            "dedupe_key": "activate-email-notifications",
                         },
                     }
                     try:
@@ -550,7 +577,12 @@ class SetReminderSkill(BaseSkill):
                     unit = repeat.get("interval_unit", "days")
                     repeat_info = f" (repeating every {interval} {unit})"
 
-            target_info = "create a new chat" if target_type == "new_chat" else "send a follow-up in this chat"
+            if target_type == "new_chat":
+                target_info = "create a new chat"
+            elif target_type == "embed":
+                target_info = "open the saved item"
+            else:
+                target_info = "send a follow-up in this chat"
             
             message = (
                 f"Reminder set for {trigger_at_formatted}{repeat_info}. "

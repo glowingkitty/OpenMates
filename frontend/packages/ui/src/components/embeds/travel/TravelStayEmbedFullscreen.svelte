@@ -21,7 +21,8 @@
   import MarkdownContent from '../MarkdownContent.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
-  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface NearbyPlace {
@@ -201,8 +202,15 @@
     };
   }
 
-  function handleSaveStay() {
-    saveEmbedMemory(buildSaveConfig());
+  let saveConfig = $derived(buildSaveConfig());
+  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
+
+  function handleToggleSavedStay() {
+    if (savedMemoryEntry) {
+      forgetEmbedMemory(saveConfig);
+      return;
+    }
+    saveEmbedMemory(saveConfig);
   }
 </script>
 
@@ -224,7 +232,7 @@
 >
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
-      <EmbedHeaderCtaButton label="Save" variant="secondary" onclick={handleSaveStay} testId="save-embed-cta" />
+      <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedStay} testId="save-embed-cta" />
       {#if bookingUrl}
         <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} testId="external-provider-cta" />
       {/if}

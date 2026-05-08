@@ -703,10 +703,14 @@ function createAppSettingsMemoriesStore() {
           `[AppSettingsMemoriesStore] Deleted entry ${entryId} for app ${appId}`,
         );
 
-        // TODO: Sync deletion to server when backend supports it
-        // Server sync for app settings/memories deletion is not yet implemented
-        // For now, deletion is local only - entries will reappear on re-sync
-        // Future: await chatSyncService.sendDeleteAppSettingsMemoriesEntry(entryId);
+        try {
+          await chatSyncService.sendDeleteAppSettingsMemoriesEntry(entryId);
+        } catch (syncError) {
+          console.error(
+            `[AppSettingsMemoriesStore] Error syncing deletion ${entryId} to server:`,
+            syncError,
+          );
+        }
       } catch (error) {
         console.error(
           "[AppSettingsMemoriesStore] Error deleting entry:",
@@ -727,12 +731,12 @@ export const appSettingsMemoriesForApp = (appId: string) => {
   );
 };
 
-const appSettingsMemoriesLoading = derived(
+export const appSettingsMemoriesLoading = derived(
   appSettingsMemoriesStore,
   (state) => state.isLoading,
 );
 
-const appSettingsMemoriesError = derived(
+export const appSettingsMemoriesError = derived(
   appSettingsMemoriesStore,
   (state) => state.error,
 );

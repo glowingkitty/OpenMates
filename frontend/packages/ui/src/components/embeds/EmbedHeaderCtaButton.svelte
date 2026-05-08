@@ -16,8 +16,8 @@
     href?: string;
     /** If set (and no href), renders as <button> with this click handler */
     onclick?: () => void;
-    /** Visual variant: 'primary' (default), 'secondary', 'loading' (spinner), 'fallback' (grey) */
-    variant?: 'primary' | 'secondary' | 'loading' | 'fallback';
+    /** Visual variant: 'primary' (default), 'secondary', 'destructive', 'loading' (spinner), 'fallback' (grey) */
+    variant?: 'primary' | 'secondary' | 'destructive' | 'loading' | 'fallback';
     /** Optional data-testid for E2E targeting */
     testId?: string;
   }
@@ -91,6 +91,18 @@
 
   .embed-header-cta.secondary:hover {
     background-color: var(--color-grey-30);
+  }
+
+  .embed-header-cta.destructive {
+    min-width: 120px;
+    background-color: rgba(220, 38, 38, 0.08);
+    color: var(--color-error, #dc2626);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    filter: none;
+  }
+
+  .embed-header-cta.destructive:hover {
+    background-color: rgba(220, 38, 38, 0.14);
   }
 
   :global(.embed-header-cta-group) {

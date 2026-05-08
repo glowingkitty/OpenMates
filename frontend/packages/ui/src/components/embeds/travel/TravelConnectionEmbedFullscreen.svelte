@@ -28,9 +28,11 @@
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap } from 'leaflet';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
-  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Segment data within a leg */
@@ -829,8 +831,57 @@
     };
   }
 
-  function handleSaveConnection() {
-    saveEmbedMemory(buildSaveConfig());
+  let saveConfig = $derived(buildSaveConfig());
+  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
+
+  let calendarStart = $derived(connection.departure || connection.legs?.[0]?.departure || '');
+  let calendarEnd = $derived(connection.arrival || connection.legs?.at(-1)?.arrival || '');
+
+  function handleToggleSavedConnection() {
+    if (savedMemoryEntry) {
+      forgetEmbedMemory(saveConfig);
+      return;
+    }
+    saveEmbedMemory(saveConfig);
+  }
+
+  function buildCalendarDescription(): string {
+    const lines: string[] = [];
+    const headerParts = [routeDisplay, tripTypeLabel, formattedPrice].filter(Boolean);
+    if (headerParts.length) lines.push(headerParts.join(' | '));
+
+    if (connection.carriers?.length) lines.push(connection.carriers.join(', '));
+    if (connection.duration) lines.push(`Duration: ${connection.duration}`);
+    if (connection.stops != null) lines.push(`Stops: ${getStopsLabel(connection.stops)}`);
+
+    if (connection.legs?.length) {
+      lines.push('');
+      for (const leg of connection.legs) {
+        const legLabel = getLegLabel(leg, connection.legs.length);
+        lines.push([legLabel, `${leg.origin} -> ${leg.destination}`].filter(Boolean).join(': '));
+        for (const segment of leg.segments) {
+          lines.push(`${formatTime(segment.departure_time)} ${segment.departure_station} -> ${formatTime(segment.arrival_time)} ${segment.arrival_station}`);
+          lines.push([segment.carrier, segment.number, segment.duration].filter(Boolean).join(' | '));
+        }
+      }
+    }
+
+    const bookingUrl = resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl();
+    if (bookingUrl) lines.push('', bookingUrl);
+
+    return lines.join('\n');
+  }
+
+  function handleAddToCalendar() {
+    downloadCalendarFile({
+      title: routeDisplay || routeHeaderWithFlags || 'Travel connection',
+      start: calendarStart,
+      end: calendarEnd,
+      location: [connection.origin, connection.destination].filter(Boolean).join(' to '),
+      description: buildCalendarDescription(),
+      url: resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl(),
+      filename: sanitizeCalendarFilename([connection.origin || 'travel', connection.destination || 'connection', calendarStart.slice(0, 10)].filter(Boolean).join('-')),
+    });
   }
   
   /**
@@ -1421,6 +1472,7 @@
   embedHeaderTitle={priceHeader}
   embedHeaderSubtitle={headerSubtitle}
   currentEmbedId={embedId}
+  onCalendar={calendarStart ? handleAddToCalendar : undefined}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -1446,7 +1498,7 @@
       </div>
     {/if}
     <div class="embed-header-cta-group">
-      <EmbedHeaderCtaButton testId="save-embed-cta" label="Save" variant="secondary" onclick={handleSaveConnection} />
+      <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedConnection} />
       {#if bookingState === 'loaded' && resolvedBookingUrl}
         <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
       {:else if bookingState === 'loading'}

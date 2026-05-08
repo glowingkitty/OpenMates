@@ -20,7 +20,8 @@
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
-  import { getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface GoogleReview {
@@ -285,8 +286,15 @@
     };
   }
 
-  function handleSaveAppointment() {
-    saveEmbedMemory(buildSaveConfig());
+  let saveConfig = $derived(buildSaveConfig());
+  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
+
+  function handleToggleSavedAppointment() {
+    if (savedMemoryEntry) {
+      forgetEmbedMemory(saveConfig);
+      return;
+    }
+    saveEmbedMemory(saveConfig);
   }
 
   function handleOpenAppointment() {
@@ -456,7 +464,7 @@
 
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
-      <EmbedHeaderCtaButton label="Save" variant="secondary" onclick={handleSaveAppointment} testId="save-embed-cta" />
+      <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedAppointment} testId="save-embed-cta" />
       {#if bookingUrl}
         <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} onclick={handleOpenAppointment} testId="external-provider-cta" />
       {/if}

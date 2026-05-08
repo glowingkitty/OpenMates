@@ -20,6 +20,7 @@
     import { text } from '@repo/ui';
     import Icon from '../Icon.svelte';
     import { SettingsSectionHeading } from './elements';
+    import AppSettingsMemoryEmbedPreview from './AppSettingsMemoryEmbedPreview.svelte';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import { updateEntryPrefillStore } from '../../stores/updateEntryPrefillStore';
     import { get } from 'svelte/store';
@@ -130,6 +131,21 @@
             }
         }
         return filtered;
+    });
+
+    const INTERNAL_FIELD_NAMES = new Set(['embed_id', 'settings_group', '_original_item_key']);
+
+    let viewProperties = $derived.by<Record<string, SchemaPropertyDefinition>>(() => {
+        const filtered: Record<string, SchemaPropertyDefinition> = {};
+        for (const [key, prop] of Object.entries(userInputProperties)) {
+            if (!INTERNAL_FIELD_NAMES.has(key)) filtered[key] = prop;
+        }
+        return filtered;
+    });
+
+    let entryEmbedId = $derived.by(() => {
+        const embedId = entry?.item_value?.embed_id;
+        return typeof embedId === 'string' ? embedId : '';
     });
 
     // Mode: 'view' or 'edit'
@@ -511,14 +527,6 @@
         }
     }
     
-    /**
-     * Check if a field is required.
-     */
-    function isFieldRequired(fieldName: string): boolean {
-        if (!schema?.required?.includes(fieldName)) return false;
-        if (schema?.properties?.[fieldName]?.auto_generated) return false;
-        return true;
-    }
 </script>
 
 <div class="entry-detail">
@@ -572,9 +580,12 @@
         <div class="view-container">
             <!-- Entry details -->
             <div class="details-section">
-                {#if Object.keys(userInputProperties).length > 0}
+                {#if entryEmbedId}
+                    <AppSettingsMemoryEmbedPreview {appId} embedId={entryEmbedId} />
+                {/if}
+                {#if Object.keys(viewProperties).length > 0}
                     <!-- Schema-based display -->
-                    {#each Object.entries(userInputProperties) as [fieldName, prop]}
+                    {#each Object.entries(viewProperties) as [fieldName, prop]}
                         <div class="detail-row">
                             <SettingsSectionHeading title={getFieldLabel(fieldName)} icon={getCategoryIconName(category?.icon_image)} />
                             <span class="detail-value" class:not-set={entry.item_value[fieldName] === null || entry.item_value[fieldName] === undefined || entry.item_value[fieldName] === ''}>
@@ -594,10 +605,12 @@
                         <span class="detail-label">Key</span>
                         <span class="detail-value">{entry.item_key}</span>
                     </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Value</span>
-                        <code class="detail-value-code">{formatValue(entry.item_value)}</code>
-                    </div>
+                    {#each Object.entries(entry.item_value).filter(([key]) => !INTERNAL_FIELD_NAMES.has(key)) as [fieldName, value]}
+                        <div class="detail-row">
+                            <span class="detail-label">{getFieldLabel(fieldName)}</span>
+                            <span class="detail-value">{formatValue(value)}</span>
+                        </div>
+                    {/each}
                 {/if}
                 
                 <!-- Metadata — small, subtle timestamps -->
@@ -831,19 +844,6 @@
         white-space: pre-wrap;
     }
     
-    .detail-value-code {
-        display: block;
-        padding: 0.75rem;
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-20);
-        border-radius: var(--radius-2);
-        font-family: 'Courier New', monospace;
-        font-size: 0.85rem;
-        overflow-x: auto;
-        white-space: pre-wrap;
-        margin-top: 0.5rem;
-    }
-    
     /* Action buttons — Edit (standard <button>) + Delete (icon-only) */
     .action-buttons {
         display: flex;
@@ -884,18 +884,6 @@
     .form-group {
         margin-bottom: 1.5rem;
     }
-    
-    
-    .form-group label {
-        display: block;
-        font-weight: 500;
-        color: var(--text-primary);
-    }
-    
-    .required {
-        color: var(--error-color, #dc3545);
-    }
-    
     /* Shared input/textarea/select styles — consistent rounded design */
     input,
     textarea,
