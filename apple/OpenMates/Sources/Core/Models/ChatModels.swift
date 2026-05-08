@@ -46,6 +46,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     let messagesV: Int?
     let titleV: Int?
     let draftV: Int?
+    let lastVisibleMessageId: String?
 
     init(
         id: String,
@@ -66,7 +67,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         encryptedChatKey: String?,
         messagesV: Int? = nil,
         titleV: Int? = nil,
-        draftV: Int? = nil
+        draftV: Int? = nil,
+        lastVisibleMessageId: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -87,6 +89,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.messagesV = messagesV
         self.titleV = titleV
         self.draftV = draftV
+        self.lastVisibleMessageId = lastVisibleMessageId
     }
 
     init(from decoder: Decoder) throws {
@@ -117,6 +120,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
         titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
+        lastVisibleMessageId = try container.decodeIfPresent(String.self, forKey: .lastVisibleMessageId)
     }
 
     private static func decodeFlexibleDateString(
@@ -159,6 +163,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         case messagesV
         case titleV
         case draftV
+        case lastVisibleMessageId
     }
 
     var displayTitle: String {

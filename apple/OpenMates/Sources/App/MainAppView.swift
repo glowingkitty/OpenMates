@@ -66,6 +66,7 @@ struct MainAppView: View {
     @State private var backgroundSyncFlushTask: Task<Void, Never>?
     @State private var isBackgroundSyncFlushInProgress = false
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
+    @State private var lastForegroundInteractionAt = Date.distantPast
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
@@ -123,8 +124,11 @@ struct MainAppView: View {
     private static let initialUserChatLimit = 11
     private static let showMoreUserChatIncrement = 20
     private static let backgroundSyncFlushDelayNs: UInt64 = 450_000_000
-    private static let backgroundSyncFlushChunkSize = 1
-    private static let backgroundSyncInterChunkPauseNs: UInt64 = 60_000_000
+    private static let backgroundSyncFlushChunkSize = 4
+    private static let backgroundSyncMaxEmbedsPerChunk = 120
+    private static let backgroundSyncInterChunkPauseNs: UInt64 = 40_000_000
+    private static let backgroundSyncForegroundPauseNs: UInt64 = 180_000_000
+    private static let foregroundInteractionGraceSeconds: TimeInterval = 2.0
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -323,6 +327,16 @@ struct MainAppView: View {
                 selectedChatId = chatId
                 showNewChat = false
                 pushManager.pendingChatId = nil
+            }
+        }
+        .onChange(of: selectedChatId) { _, chatId in
+            if chatId != nil {
+                lastForegroundInteractionAt = Date()
+            }
+        }
+        .onChange(of: showSettings) { _, isOpen in
+            if isOpen {
+                lastForegroundInteractionAt = Date()
             }
         }
     }
@@ -746,7 +760,10 @@ struct MainAppView: View {
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
-                onNewChat: openNewChatScreen
+                onNewChat: openNewChatScreen,
+                onScrollPositionChanged: { messageId in
+                    sendScrollPositionUpdate(chatId: chatId, messageId: messageId)
+                }
             )
         } else if !isAuthenticated, let chatId = selectedChatId {
             ChatView(
@@ -1504,6 +1521,25 @@ struct MainAppView: View {
         )
     }
 
+    private func sendScrollPositionUpdate(chatId: String, messageId: String) {
+        chatStore.updateLastVisibleMessage(chatId: chatId, messageId: messageId)
+        Task {
+            do {
+                try await wsManager.send(
+                    WSOutboundMessage(
+                        type: "scroll_position_update",
+                        payload: [
+                            "chat_id": chatId,
+                            "message_id": messageId
+                        ]
+                    )
+                )
+            } catch {
+                print("[MainApp] Failed to sync scroll position chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)): \(error)")
+            }
+        }
+    }
+
     private func handleChatUpdate(_ notification: Notification) {
         Task { await loadInitialData() }
     }
@@ -1670,11 +1706,19 @@ struct MainAppView: View {
         isBackgroundSyncFlushInProgress = true
         let start = NativeSyncPerfLog.now()
         let (messagesByChat, embedsByChat) = pendingBackgroundSyncContent.drain()
-        let chatIds = Array(Set(messagesByChat.keys).union(embedsByChat.keys))
-        for chunk in chatIds.chunked(into: Self.backgroundSyncFlushChunkSize) {
+        var chatIds = Array(Set(messagesByChat.keys).union(embedsByChat.keys))
+        if let selectedChatId, let selectedIndex = chatIds.firstIndex(of: selectedChatId) {
+            chatIds.remove(at: selectedIndex)
+            chatIds.insert(selectedChatId, at: 0)
+        }
+        let chunks = backgroundSyncChunks(chatIds: chatIds, embedsByChat: embedsByChat)
+        for chunk in chunks {
             guard isAuthenticated else {
                 isBackgroundSyncFlushInProgress = false
                 return
+            }
+            if shouldDeferBackgroundSyncChunk(chunk) {
+                try? await Task.sleep(nanoseconds: Self.backgroundSyncForegroundPauseNs)
             }
             let chunkMessages = messagesByChat.filter { chunk.contains($0.key) }
             let chunkEmbeds = embedsByChat.filter { chunk.contains($0.key) }
@@ -1693,6 +1737,45 @@ struct MainAppView: View {
         if !pendingBackgroundSyncContent.isEmpty {
             scheduleBackgroundSyncFlush(delay: Self.backgroundSyncInterChunkPauseNs, reason: "followUp")
         }
+    }
+
+    private func shouldDeferBackgroundSyncChunk(_ chatIds: [String]) -> Bool {
+        guard Date().timeIntervalSince(lastForegroundInteractionAt) < Self.foregroundInteractionGraceSeconds else {
+            return false
+        }
+        if showSettings {
+            return true
+        }
+        guard let selectedChatId else { return false }
+        return !chatIds.contains(selectedChatId)
+    }
+
+    private func backgroundSyncChunks(
+        chatIds: [String],
+        embedsByChat: [String: [EmbedRecord]]
+    ) -> [[String]] {
+        var chunks: [[String]] = []
+        var current: [String] = []
+        var currentEmbedCount = 0
+
+        for chatId in chatIds {
+            let embedCount = embedsByChat[chatId]?.count ?? 0
+            let exceedsChatLimit = current.count >= Self.backgroundSyncFlushChunkSize
+            let exceedsEmbedLimit = !current.isEmpty &&
+                currentEmbedCount + embedCount > Self.backgroundSyncMaxEmbedsPerChunk
+            if exceedsChatLimit || exceedsEmbedLimit {
+                chunks.append(current)
+                current = []
+                currentEmbedCount = 0
+            }
+            current.append(chatId)
+            currentEmbedCount += embedCount
+        }
+
+        if !current.isEmpty {
+            chunks.append(current)
+        }
+        return chunks
     }
 
     private func embedsForChat(_ chatId: String, messages: [Message]? = nil, from embeds: [EmbedRecord]) -> [EmbedRecord] {
@@ -2123,7 +2206,7 @@ struct OpenMatesWebHeader: View {
     }
 }
 
-private struct AuthenticatedProfileImage<Fallback: View>: View {
+struct AuthenticatedProfileImage<Fallback: View>: View {
     let urlString: String
     @ViewBuilder let fallback: () -> Fallback
 

@@ -21,15 +21,22 @@ final class ChatViewModel: ObservableObject {
     private let messagesPageSize = 50
     /// All messages fetched from the server (full history).
     private var allMessages: [Message] = []
+    /// Index in `allMessages` where the currently-rendered message window starts.
+    private var visibleWindowStartIndex = 0
     /// Whether there are older messages above the currently visible window.
     @Published var hasOlderMessages = false
     @Published var isLoadingOlder = false
 
     private let api = APIClient.shared
     private var streamTask: Task<Void, Never>?
+    private var embedHydrationTask: Task<Void, Never>?
+    private var loadGeneration = 0
     nonisolated(unsafe) private var embedRefreshObserver: Any?
 
     func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
+        loadGeneration += 1
+        let generation = loadGeneration
+        embedHydrationTask?.cancel()
         isLoading = true
         error = nil
 
@@ -39,8 +46,7 @@ final class ChatViewModel: ObservableObject {
         }
 
         if let initialChat {
-            await loadSyncedChat(initialChat, messages: initialMessages, embeds: initialEmbeds)
-            isLoading = false
+            await loadSyncedChat(initialChat, messages: initialMessages, embeds: initialEmbeds, generation: generation)
             return
         }
 
@@ -56,14 +62,14 @@ final class ChatViewModel: ObservableObject {
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
 
             allMessages = messagesResponse.sorted { $0.createdAt < $1.createdAt }
-            let visibleRawMessages = visibleWindow(from: allMessages)
+            let visibleRawMessages = visibleWindow(from: allMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
             let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: id)
             let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
             embedRecords = embedded.records
             followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
 
-            // Show only the most recent page initially for fast rendering
-            if allMessages.count > messagesPageSize {
+            // Show only the window around the restored scroll anchor for fast rendering.
+            if visibleWindowStartIndex > 0 {
                 messages = embedded.messages
                 hasOlderMessages = true
             } else {
@@ -71,17 +77,22 @@ final class ChatViewModel: ObservableObject {
                 hasOlderMessages = false
             }
 
-            // Load embeds for visible messages
-            await loadEmbeds(for: messages.map(\.id))
-
             // Start listening for streaming events and embed updates
             subscribeToStream(chatId: id)
             subscribeToEmbedUpdates(chatId: id)
+            isLoading = false
+            scheduleEmbedHydration(
+                syncedEmbeds: [],
+                referencedIds: Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] }),
+                chatId: id,
+                generation: generation,
+                existingRecords: embedRecords,
+                source: "rest"
+            )
         } catch {
             self.error = error.localizedDescription
+            isLoading = false
         }
-
-        isLoading = false
     }
 
     func applySynced(chat syncedChat: Chat?, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord] = []) async {
@@ -90,14 +101,41 @@ final class ChatViewModel: ObservableObject {
         if !syncedMessages.isEmpty && syncedMessages.allSatisfy({ $0.chatId != currentId }) { return }
         let nextChat = syncedChat ?? chat
         guard let nextChat else { return }
-        await loadSyncedChat(nextChat, messages: syncedMessages.isEmpty ? allMessages : syncedMessages, embeds: syncedEmbeds)
+        loadGeneration += 1
+        let generation = loadGeneration
+        embedHydrationTask?.cancel()
+        await loadSyncedChat(nextChat, messages: syncedMessages.isEmpty ? allMessages : syncedMessages, embeds: syncedEmbeds, generation: generation)
     }
 
-    private func loadSyncedChat(_ syncedChat: Chat, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord]) async {
+    func applySyncedEmbeds(_ syncedEmbeds: [EmbedRecord]) async {
+        guard let chatId = chat?.id, !messages.isEmpty, !syncedEmbeds.isEmpty else { return }
+        let referencedIds = Set(messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
+        guard !referencedIds.isEmpty else { return }
+        let currentRecords = embedRecords
+        let incomingRecords = EmbedRecord.dictionaryById(syncedEmbeds, context: "chatViewModel.applySyncedEmbeds.incoming")
+        let changedEmbeds = incomingRecords.values.filter { incoming in
+            guard let existing = currentRecords[incoming.id] else { return true }
+            return existing.rawData == nil || existing.encryptedType != nil || existing.encryptedContent != incoming.encryptedContent
+        }
+        guard !changedEmbeds.isEmpty else { return }
+        let mergedRecords = currentRecords.merging(incomingRecords) { _, new in new }
+        embedRecords = mergedRecords
+        scheduleEmbedHydration(
+            syncedEmbeds: Array(mergedRecords.values),
+            referencedIds: referencedIds,
+            chatId: chatId,
+            generation: loadGeneration,
+            existingRecords: mergedRecords,
+            source: "syncEmbeds"
+        )
+    }
+
+    private func loadSyncedChat(_ syncedChat: Chat, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord], generation: Int) async {
         var loadedChat = syncedChat
         let start = NativeSyncPerfLog.now()
         await ensureChatKey(for: loadedChat)
         loadedChat = await decryptMetadata(for: loadedChat)
+        guard generation == loadGeneration else { return }
         if NativeSyncPerfLog.verboseCrypto {
             print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) afterMetadata title=\(loadedChat.title != nil) category=\(loadedChat.category != nil) icon=\(loadedChat.icon != nil) summary=\(loadedChat.chatSummary != nil) hasKey=\(ChatKeyManager.shared.hasKey(for: loadedChat.id))")
         }
@@ -105,24 +143,17 @@ final class ChatViewModel: ObservableObject {
         chat = loadedChat
         let rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
         allMessages = rawMessages
-        let visibleRawMessages = visibleWindow(from: rawMessages)
+        let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
         let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
+        guard generation == loadGeneration else { return }
         let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
         let existingRecords = embedRecords
         let referencedIds = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
-        let relatedSyncedEmbeds = relatedEmbeds(referencedIds: referencedIds, from: syncedEmbeds)
-        let decryptedSyncedEmbeds = await decryptEmbeds(relatedSyncedEmbeds, chatId: loadedChat.id, existingRecords: existingRecords.merging(embedded.records) { _, new in new })
-        embedRecords = decryptedSyncedEmbeds.reduce(into: existingRecords.merging(embedded.records) { _, new in new }) { records, embed in
-            records[embed.id] = embed
-        }
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
-        let decryptedEmbedCount = decryptedSyncedEmbeds.filter { $0.rawData != nil }.count
-        NativeSyncPerfLog.info(
-            "phase=loadSyncedChat chat=\(loadedChat.id.prefix(8)) visibleMessages=\(decryptedMessages.count) totalMessages=\(rawMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) relatedEmbeds=\(relatedSyncedEmbeds.count) decryptedEmbeds=\(decryptedEmbedCount) totalRecords=\(embedRecords.count)"
-        )
+        embedRecords = existingRecords.merging(embedded.records) { _, new in new }
         followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
 
-        if allMessages.count > messagesPageSize {
+        if visibleWindowStartIndex > 0 {
             messages = embedded.messages
             hasOlderMessages = true
         } else {
@@ -130,12 +161,52 @@ final class ChatViewModel: ObservableObject {
             hasOlderMessages = false
         }
 
-        await loadEmbeds(for: messages.map(\.id))
         subscribeToStream(chatId: loadedChat.id)
         subscribeToEmbedUpdates(chatId: loadedChat.id)
+        isLoading = false
         NativeSyncPerfLog.info(
-            "phase=loadSyncedChatComplete chat=\(loadedChat.id.prefix(8)) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+            "phase=loadSyncedChatFirstPaint chat=\(loadedChat.id.prefix(8)) visibleMessages=\(decryptedMessages.count) totalMessages=\(rawMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
         )
+        scheduleEmbedHydration(
+            syncedEmbeds: syncedEmbeds,
+            referencedIds: referencedIds,
+            chatId: loadedChat.id,
+            generation: generation,
+            existingRecords: embedRecords,
+            source: "loadSynced"
+        )
+    }
+
+    private func scheduleEmbedHydration(
+        syncedEmbeds: [EmbedRecord],
+        referencedIds: Set<String>,
+        chatId: String,
+        generation: Int,
+        existingRecords: [String: EmbedRecord],
+        source: String
+    ) {
+        embedHydrationTask?.cancel()
+        embedHydrationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration else { return }
+            let start = NativeSyncPerfLog.now()
+            let relatedSyncedEmbeds = self.relatedEmbeds(referencedIds: referencedIds, from: syncedEmbeds)
+            let decryptedSyncedEmbeds = await self.decryptEmbeds(
+                relatedSyncedEmbeds,
+                chatId: chatId,
+                existingRecords: existingRecords
+            )
+            guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration else { return }
+            self.embedRecords = decryptedSyncedEmbeds.reduce(into: self.embedRecords) { records, embed in
+                records[embed.id] = embed
+            }
+            await self.loadEmbeds(for: self.messages.map(\.id))
+            NativeSyncPerfLog.info(
+                "phase=embedHydrationComplete source=\(source) chat=\(chatId.prefix(8)) referenced=\(referencedIds.count) related=\(relatedSyncedEmbeds.count) decrypted=\(decryptedSyncedEmbeds.filter { $0.rawData != nil }.count) totalRecords=\(self.embedRecords.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+            )
+        }
     }
 
     private func decryptMetadata(for chat: Chat) async -> Chat {
@@ -349,14 +420,12 @@ final class ChatViewModel: ObservableObject {
         guard hasOlderMessages, !isLoadingOlder else { return }
         isLoadingOlder = true
 
-        let currentCount = messages.count
-        let totalCount = allMessages.count
-        let remaining = totalCount - currentCount
+        let currentStartIndex = visibleWindowStartIndex
 
-        if remaining > 0 {
-            let nextPageSize = min(messagesPageSize, remaining)
-            let startIndex = remaining - nextPageSize
-            let olderBatch = Array(allMessages[startIndex..<remaining])
+        if currentStartIndex > 0 {
+            let nextPageSize = min(messagesPageSize, currentStartIndex)
+            let startIndex = currentStartIndex - nextPageSize
+            let olderBatch = Array(allMessages[startIndex..<currentStartIndex])
             Task { @MainActor in
                 guard let chatId = chat?.id else {
                     isLoadingOlder = false
@@ -368,6 +437,7 @@ final class ChatViewModel: ObservableObject {
                     embedRecords[id] = record
                 }
                 messages.insert(contentsOf: embedded.messages, at: 0)
+                visibleWindowStartIndex = startIndex
                 hasOlderMessages = startIndex > 0
                 await loadEmbeds(for: embedded.messages.map(\.id))
                 isLoadingOlder = false
@@ -638,8 +708,23 @@ final class ChatViewModel: ObservableObject {
         return result
     }
 
-    private func visibleWindow(from rawMessages: [Message]) -> [Message] {
-        rawMessages.count > messagesPageSize ? Array(rawMessages.suffix(messagesPageSize)) : rawMessages
+    private func visibleWindow(from rawMessages: [Message], anchorMessageId: String? = nil) -> [Message] {
+        guard rawMessages.count > messagesPageSize else {
+            visibleWindowStartIndex = 0
+            return rawMessages
+        }
+
+        if let anchorMessageId,
+           let anchorIndex = rawMessages.firstIndex(where: { $0.id == anchorMessageId }) {
+            let preferredStart = max(0, anchorIndex - 8)
+            let maxStart = rawMessages.count - messagesPageSize
+            let start = min(preferredStart, maxStart)
+            visibleWindowStartIndex = start
+            return Array(rawMessages[start..<rawMessages.count])
+        }
+
+        visibleWindowStartIndex = rawMessages.count - messagesPageSize
+        return Array(rawMessages.suffix(messagesPageSize))
     }
 
     private func relatedEmbeds(referencedIds: Set<String>, from embeds: [EmbedRecord]) -> [EmbedRecord] {

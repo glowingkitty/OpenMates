@@ -24,6 +24,7 @@ final class PersistedChat {
     var isArchived: Bool
     var isPrivate: Bool
     var lastMessageAt: String?
+    var lastVisibleMessageId: String?
     var createdAt: String
     var updatedAt: String?
 
@@ -46,6 +47,7 @@ final class PersistedChat {
         self.isArchived = chat.isArchived ?? false
         self.isPrivate = true
         self.lastMessageAt = chat.lastMessageAt
+        self.lastVisibleMessageId = chat.lastVisibleMessageId
         self.createdAt = chat.createdAt
         self.updatedAt = chat.updatedAt
     }
@@ -60,7 +62,8 @@ final class PersistedChat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
-            encryptedChatKey: encryptedChatKey
+            encryptedChatKey: encryptedChatKey,
+            lastVisibleMessageId: lastVisibleMessageId
         )
     }
 }

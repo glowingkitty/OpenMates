@@ -55,6 +55,14 @@ private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
     }
 }
 
+private struct ChatMessageFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
 private enum ChatResponsiveBreakpoint {
     /// Web `ChatMessage.svelte`: assistant messages use `.mobile-stacked`
     /// when the measured chat container width is <= 500 px.
@@ -87,6 +95,8 @@ struct ChatView: View {
     var onOpenPublicChat: ((String) -> Void)? = nil
     /// Opens the new-chat surface in the owning app shell window.
     var onNewChat: (() -> Void)? = nil
+    /// Sends the last visible message ID to the app shell for cross-device sync.
+    var onScrollPositionChanged: ((String) -> Void)? = nil
 
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
@@ -101,6 +111,10 @@ struct ChatView: View {
     @State private var chatContainerWidth: CGFloat = 0
     @State private var isAtTop = true
     @State private var isAtBottom = false
+    @State private var hasRestoredInitialScroll = false
+    @State private var isRestoringScroll = false
+    @State private var lastReportedVisibleMessageId: String?
+    @State private var scrollPositionDebounceTask: Task<Void, Never>?
     @StateObject private var focusModeManager = FocusModeManager()
     @FocusState private var isInputFocused: Bool
     @Environment(\.accessibilityReduceMotion) var reduceMotion
@@ -199,6 +213,7 @@ struct ChatView: View {
             PushNotificationManager.shared.clearBadge()
         }
         .onDisappear {
+            scrollPositionDebounceTask?.cancel()
             handoffManager.stopAdvertising()
         }
         .onChange(of: viewModel.forkedChatId) {
@@ -211,14 +226,19 @@ struct ChatView: View {
             )
             viewModel.forkedChatId = nil
         }
-        .onChange(of: initialSyncSignature) { _, _ in
+        .onChange(of: initialMessageSyncSignature) { _, _ in
             Task {
                 await viewModel.applySynced(chat: initialChat, messages: initialMessages, embeds: initialEmbeds)
             }
         }
+        .onChange(of: initialEmbedSyncSignature) { _, _ in
+            Task {
+                await viewModel.applySyncedEmbeds(initialEmbeds)
+            }
+        }
     }
 
-    private var initialSyncSignature: String {
+    private var initialMessageSyncSignature: String {
         [
             initialChat?.id ?? "",
             initialChat?.updatedAt ?? "",
@@ -227,7 +247,13 @@ struct ChatView: View {
             initialChat?.icon ?? "",
             initialChat?.chatSummary ?? "",
             String(initialMessages.count),
-            initialMessages.last?.id ?? "",
+            initialMessages.last?.id ?? ""
+        ].joined(separator: "|")
+    }
+
+    private var initialEmbedSyncSignature: String {
+        [
+            initialChat?.id ?? "",
             String(initialEmbeds.count),
             initialEmbeds.map(\.id).max() ?? ""
         ].joined(separator: "|")
@@ -411,6 +437,14 @@ struct ChatView: View {
                                         }
                                     )
                                     .id(message.id)
+                                    .background(
+                                        GeometryReader { messageGeo in
+                                            Color.clear.preference(
+                                                key: ChatMessageFramePreferenceKey.self,
+                                                value: [message.id: messageGeo.frame(in: .named("chat-scroll"))]
+                                            )
+                                        }
+                                    )
                                 }
 
                                 if viewModel.isStreaming && viewModel.streamingContent.isEmpty {
@@ -445,6 +479,9 @@ struct ChatView: View {
                     .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
                         updateScrollNavState(values: values, viewportHeight: scrollGeo.size.height)
                     }
+                    .onPreferenceChange(ChatMessageFramePreferenceKey.self) { frames in
+                        trackVisibleMessage(frames: frames, viewportHeight: scrollGeo.size.height)
+                    }
 
                     if !viewModel.messages.isEmpty && !isAtTop {
                         scrollNavButton(isTop: true) {
@@ -472,15 +509,16 @@ struct ChatView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     }
                 }
-                .onChange(of: viewModel.messages.count) { _, _ in
-                    // Demo/example chats (with banner) start at the top; real chats scroll to bottom
-                    if bannerState != nil {
-                        proxy.scrollTo("scroll-top", anchor: .top)
-                    } else {
-                        withAnimation {
-                            proxy.scrollTo("scroll-bottom", anchor: .bottom)
-                        }
-                    }
+                .onAppear {
+                    resetScrollRestoration()
+                    proxy.scrollTo("scroll-top", anchor: .top)
+                }
+                .onChange(of: chatId) { _, _ in
+                    resetScrollRestoration()
+                    proxy.scrollTo("scroll-top", anchor: .top)
+                }
+                .onChange(of: viewModel.messages.map(\.id)) { _, _ in
+                    restoreInitialScrollIfNeeded(proxy: proxy)
                 }
                 .onChange(of: viewModel.streamingContent) { _, _ in
                     withAnimation {
@@ -511,6 +549,57 @@ struct ChatView: View {
         }
         if let bottom = values[.bottom] {
             isAtBottom = bottom <= viewportHeight + 8
+        }
+    }
+
+    private func resetScrollRestoration() {
+        hasRestoredInitialScroll = false
+        isRestoringScroll = true
+        lastReportedVisibleMessageId = nil
+        scrollPositionDebounceTask?.cancel()
+        scrollPositionDebounceTask = nil
+    }
+
+    private func restoreInitialScrollIfNeeded(proxy: ScrollViewProxy) {
+        guard !hasRestoredInitialScroll, !viewModel.messages.isEmpty else { return }
+        hasRestoredInitialScroll = true
+        isRestoringScroll = true
+
+        let targetId = viewModel.chat?.lastVisibleMessageId
+        let hasTargetMessage = targetId.map { id in viewModel.messages.contains { $0.id == id } } ?? false
+
+        if bannerState != nil || isDemoOrLegalChat {
+            proxy.scrollTo("scroll-top", anchor: .top)
+            NativeSyncPerfLog.info("phase=chatScrollRestore chat=\(chatId.prefix(8)) mode=publicTop messages=\(viewModel.messages.count)")
+        } else if let targetId, hasTargetMessage {
+            proxy.scrollTo(targetId, anchor: UnitPoint(x: 0.5, y: 0.12))
+            NativeSyncPerfLog.info("phase=chatScrollRestore chat=\(chatId.prefix(8)) mode=saved message=\(targetId.prefix(8)) messages=\(viewModel.messages.count)")
+        } else {
+            proxy.scrollTo("scroll-top", anchor: .top)
+            NativeSyncPerfLog.info("phase=chatScrollRestore chat=\(chatId.prefix(8)) mode=noSavedTop messages=\(viewModel.messages.count)")
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            isRestoringScroll = false
+        }
+    }
+
+    private func trackVisibleMessage(frames: [String: CGRect], viewportHeight: CGFloat) {
+        guard !isRestoringScroll, onScrollPositionChanged != nil, !viewModel.messages.isEmpty else { return }
+        let visibleIds = Set(frames.compactMap { id, frame in
+            frame.maxY > 0 && frame.minY < viewportHeight ? id : nil
+        })
+        guard let lastVisibleId = viewModel.messages.last(where: { visibleIds.contains($0.id) })?.id,
+              lastVisibleId != lastReportedVisibleMessageId else { return }
+
+        lastReportedVisibleMessageId = lastVisibleId
+        scrollPositionDebounceTask?.cancel()
+        scrollPositionDebounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled, !isRestoringScroll else { return }
+            onScrollPositionChanged?(lastVisibleId)
+            NativeSyncPerfLog.info("phase=chatScrollPositionSend chat=\(chatId.prefix(8)) message=\(lastVisibleId.prefix(8))")
         }
     }
 

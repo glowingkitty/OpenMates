@@ -72,6 +72,12 @@ final class ChatStore: ObservableObject {
         chats.first { $0.id == id }
     }
 
+    func updateLastVisibleMessage(chatId: String, messageId: String) {
+        guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        chats[index] = chats[index].withLastVisibleMessage(messageId)
+        persistIfAllowed { $0.onChatsReceived([chats[index]]) }
+    }
+
     // MARK: - Message operations
 
     func messages(for chatId: String) -> [Message] {
@@ -223,7 +229,33 @@ private extension Chat {
             encryptedChatKey: incoming.encryptedChatKey ?? encryptedChatKey,
             messagesV: incoming.messagesV ?? messagesV,
             titleV: incoming.titleV ?? titleV,
-            draftV: incoming.draftV ?? draftV
+            draftV: incoming.draftV ?? draftV,
+            lastVisibleMessageId: incoming.lastVisibleMessageId ?? lastVisibleMessageId
+        )
+    }
+
+    func withLastVisibleMessage(_ messageId: String) -> Chat {
+        Chat(
+            id: id,
+            title: title,
+            lastMessageAt: lastMessageAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isArchived: isArchived,
+            isPinned: isPinned,
+            appId: appId,
+            category: category,
+            icon: icon,
+            chatSummary: chatSummary,
+            encryptedTitle: encryptedTitle,
+            encryptedCategory: encryptedCategory,
+            encryptedIcon: encryptedIcon,
+            encryptedChatSummary: encryptedChatSummary,
+            encryptedChatKey: encryptedChatKey,
+            messagesV: messagesV,
+            titleV: titleV,
+            draftV: draftV,
+            lastVisibleMessageId: messageId
         )
     }
 }

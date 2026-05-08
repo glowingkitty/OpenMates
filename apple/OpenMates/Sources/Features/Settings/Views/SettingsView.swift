@@ -94,7 +94,7 @@ struct SettingsView: View {
                     if isAuthenticated {
                         OMSettingsRow(
                             title: AppStrings.settingsIncognito,
-                            icon: "eye-off",
+                            icon: "incognito",
                             showsChevron: false
                         ) {
                             showIncognitoInfo = true
@@ -172,6 +172,7 @@ struct SettingsView: View {
             } else {
                 SettingsMainBanner(
                     username: authManager.currentUser?.username ?? AppStrings.guest,
+                    profileUserId: authManager.currentUser?.id,
                     profileImageUrl: authManager.currentUser?.profileImageUrl,
                     isAuthenticated: isAuthenticated,
                     credits: authManager.currentUser?.credits,
@@ -548,6 +549,7 @@ private struct SettingsHomeScrollOffsetPreferenceKey: PreferenceKey {
 
 private struct SettingsMainBanner: View {
     let username: String
+    let profileUserId: String?
     let profileImageUrl: String?
     let isAuthenticated: Bool
     let credits: Double?
@@ -629,19 +631,9 @@ private struct SettingsMainBanner: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if isAuthenticated,
-           let profileImageUrl,
-           let url = URL(string: profileImageUrl),
-           url.scheme != nil {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                default:
-                    defaultAvatar
-                }
+        if isAuthenticated, let profileImageUrl = effectiveProfileImageUrl {
+            AuthenticatedProfileImage(urlString: profileImageUrl) {
+                defaultAvatar
             }
             .frame(width: avatarSize, height: avatarSize)
             .clipShape(Circle())
@@ -649,6 +641,19 @@ private struct SettingsMainBanner: View {
         } else {
             defaultAvatar
         }
+    }
+
+    private var effectiveProfileImageUrl: String? {
+        if let profileImageUrl,
+           !profileImageUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return profileImageUrl
+        }
+        guard let profileUserId,
+              !profileUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let encodedUserId = profileUserId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            return nil
+        }
+        return "/v1/users/\(encodedUserId)/profile-image"
     }
 
     private var defaultAvatar: some View {
