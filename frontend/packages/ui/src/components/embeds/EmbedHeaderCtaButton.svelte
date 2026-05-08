@@ -95,14 +95,15 @@
 
   .embed-header-cta.destructive {
     min-width: 120px;
-    background-color: rgba(220, 38, 38, 0.08);
-    color: var(--color-error, #dc2626);
-    border: 1px solid rgba(220, 38, 38, 0.25);
-    filter: none;
+    background-color: #ffffff;
+    color: #b91c1c;
+    border: 2px solid #ffffff;
+    filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.28));
   }
 
   .embed-header-cta.destructive:hover {
-    background-color: rgba(220, 38, 38, 0.14);
+    background-color: #fee2e2;
+    border-color: #fee2e2;
   }
 
   :global(.embed-header-cta-group) {

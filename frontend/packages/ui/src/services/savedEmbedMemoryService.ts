@@ -121,6 +121,10 @@ export function isEmbedMemorySaved(config: SavedEmbedConfig): boolean {
 
 async function scheduleReminder(config: SavedEmbedConfig, prompt: string, triggerDatetime: string): Promise<void> {
   const embedId = getSavedEmbedId(config);
+  if (!embedId) {
+    throw new Error('Saved embed reminder requires an embed id');
+  }
+
   const response = await fetch(`${getApiUrl()}/v1/apps/reminder/skills/set-reminder`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -130,11 +134,10 @@ async function scheduleReminder(config: SavedEmbedConfig, prompt: string, trigge
       trigger_type: 'specific',
       trigger_datetime: triggerDatetime,
       timezone: getTimezone(),
-      target_type: embedId ? 'embed' : 'new_chat',
-      target_embed_id: embedId || undefined,
+      target_type: 'embed',
+      target_embed_id: embedId,
       target_embed_app_id: config.appId,
       target_embed_title: config.title,
-      new_chat_title: embedId ? undefined : prompt.slice(0, 50),
       response_type: 'simple',
     }),
   });
@@ -151,13 +154,24 @@ async function scheduleReminder(config: SavedEmbedConfig, prompt: string, trigge
 }
 
 async function scheduleDefaultReminders(config: SavedEmbedConfig): Promise<number> {
+  if (!getSavedEmbedId(config)) return 0;
+
   const triggerDateTimes = getTriggerDateTimes(config.reminderDateTime, config.kind);
   const reminderTitle = config.reminderPromptTitle || config.title;
   let scheduledCount = 0;
+  const errors: unknown[] = [];
 
   for (const triggerDatetime of triggerDateTimes) {
-    await scheduleReminder(config, `Reminder: ${reminderTitle}`, triggerDatetime);
-    scheduledCount += 1;
+    try {
+      await scheduleReminder(config, `Reminder: ${reminderTitle}`, triggerDatetime);
+      scheduledCount += 1;
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn('[savedEmbedMemoryService] Some saved embed reminders could not be scheduled:', errors);
   }
 
   return scheduledCount;
@@ -201,17 +215,12 @@ export async function saveEmbedMemory(config: SavedEmbedConfig): Promise<void> {
     }));
   }
 
-  try {
-    const scheduledCount = await scheduleDefaultReminders(config);
-    notificationStore.success(
-      scheduledCount > 0
-        ? `Saved "${config.title}" and created ${scheduledCount} reminder${scheduledCount === 1 ? '' : 's'}.`
-        : `Saved "${config.title}".`,
-    );
-  } catch (error) {
-    console.error('[savedEmbedMemoryService] Failed to schedule reminders:', error);
-    notificationStore.warning(`Saved "${config.title}", but reminders could not be created.`);
-  }
+  const scheduledCount = await scheduleDefaultReminders(config);
+  notificationStore.success(
+    scheduledCount > 0
+      ? `Saved "${config.title}" and created ${scheduledCount} reminder${scheduledCount === 1 ? '' : 's'}.`
+      : `Saved "${config.title}".`,
+  );
 }
 
 export function promptToSaveEmbedMemory(config: SavedEmbedConfig): void {
