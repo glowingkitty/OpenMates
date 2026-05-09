@@ -57,6 +57,14 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 
 ---
 
+## Obsidian Vault
+
+- The Obsidian vault lives at `/home/superdev/projects/OpenMates/vaults/memory/` (`vaults/memory/` from the repo root).
+- Create user-requested notes in that vault, using existing folders such as `Resources/research/`, `Areas/`, or `Projects/` when appropriate.
+- Put PDFs, images, and other attachments in `vaults/memory/assets/` unless the user asks for a different location.
+
+---
+
 ## Working Rules
 
 - Make the smallest correct change. Avoid rewrites unless the task requires one.
@@ -64,7 +72,6 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Add backend shared logic under `backend/shared/python_utils/`, `backend/shared/python_schemas/`, or `backend/shared/providers/`.
 - Do not import from another backend skill. Move shared behavior to `BaseSkill` or `backend/shared/`.
 - Use the repo scripts rather than ad hoc commands when available.
-- The Obsidian vault lives at `vaults/memory/`. Create user-requested notes there, and put PDFs/images/attachments in `vaults/memory/assets/` unless the user asks for a different location.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
 - For changed code, run the smallest relevant lint/test/build command that proves the change.
 - If verification is not run, state why.
