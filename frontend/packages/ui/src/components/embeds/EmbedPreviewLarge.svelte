@@ -57,6 +57,10 @@
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
 
+  const SWIPE_MIN_DISTANCE_PX = 48;
+  const SWIPE_MAX_VERTICAL_DRIFT_PX = 60;
+  const SWIPE_DIRECTION_RATIO = 1.5;
+
   interface Props {
     embedRef: string;
     embedId?: string | null;
@@ -122,6 +126,75 @@
     carouselStore.set(index);
   }
 
+  // Touch swipes use capture listeners because child embed previews stop touch
+  // propagation for long-press context-menu support.
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  let swipeTracking = false;
+
+  function handleSwipeTouchStart(e: TouchEvent) {
+    if (!hasMultiple || e.touches.length !== 1) {
+      swipeTracking = false;
+      return;
+    }
+
+    const touch = e.touches[0];
+    swipeStartX = touch.clientX;
+    swipeStartY = touch.clientY;
+    swipeTracking = true;
+  }
+
+  function handleSwipeTouchMove(e: TouchEvent) {
+    if (!swipeTracking || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    const deltaY = touch.clientY - swipeStartY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) * SWIPE_DIRECTION_RATIO) {
+      e.preventDefault();
+    }
+  }
+
+  function handleSwipeTouchEnd(e: TouchEvent) {
+    if (!swipeTracking || e.changedTouches.length !== 1) return;
+
+    swipeTracking = false;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    const deltaY = touch.clientY - swipeStartY;
+    const isHorizontalSwipe =
+      Math.abs(deltaX) >= SWIPE_MIN_DISTANCE_PX &&
+      Math.abs(deltaY) <= SWIPE_MAX_VERTICAL_DRIFT_PX &&
+      Math.abs(deltaX) > Math.abs(deltaY) * SWIPE_DIRECTION_RATIO;
+
+    if (!isHorizontalSwipe) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (deltaX < 0) {
+      carouselStore.update((i) => (i + 1) % carouselTotal);
+    } else {
+      carouselStore.update((i) => (i - 1 + carouselTotal) % carouselTotal);
+    }
+  }
+
+  function registerSwipeSurface(node: HTMLElement) {
+    node.addEventListener('touchstart', handleSwipeTouchStart, { capture: true, passive: true });
+    node.addEventListener('touchmove', handleSwipeTouchMove, { capture: true, passive: false });
+    node.addEventListener('touchend', handleSwipeTouchEnd, { capture: true, passive: false });
+
+    return {
+      destroy() {
+        node.removeEventListener('touchstart', handleSwipeTouchStart, { capture: true });
+        node.removeEventListener('touchmove', handleSwipeTouchMove, { capture: true });
+        node.removeEventListener('touchend', handleSwipeTouchEnd, { capture: true });
+      },
+    };
+  }
+
   // ── Embed ID resolution ─────────────────────────────────────────────────
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
@@ -173,6 +246,7 @@
   <!-- First card: always-visible carousel shell -->
   <div
     bind:this={wrapperEl}
+    use:registerSwipeSurface
     class="embed-preview-large-wrapper"
     class:embed-preview-large-wrapper--has-dots={hasMultiple}
     style="min-height: {shellMinHeight}px;"
@@ -226,6 +300,7 @@
        transform, so it contributes 0px to the carousel's flow height. -->
   <div class="embed-preview-large-overlay-anchor">
     <div
+      use:registerSwipeSurface
       class="embed-preview-large-overlay"
       class:embed-preview-large-overlay--hidden={!isVisible}
       style="transform: translateY(-{sharedShellHeight}px);"
@@ -242,6 +317,7 @@
   .embed-preview-large-wrapper {
     position: relative;
     width: 100%;
+    touch-action: pan-y;
   }
 
   /* Reserve space below the carousel for the floating pagination dots.
@@ -293,6 +369,7 @@
     z-index: var(--z-index-raised-2);
     opacity: 1;
     transition: opacity var(--duration-normal) var(--easing-default);
+    touch-action: pan-y;
   }
 
   .embed-preview-large-overlay--hidden {
