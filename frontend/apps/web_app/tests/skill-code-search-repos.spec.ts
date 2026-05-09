@@ -111,7 +111,7 @@ test.describe('App: Code / Skill: search_repos', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
-		await expect(fullscreenOverlay.getByText(/github\.com|repositories|Repository/i).first()).toBeVisible({ timeout: 10_000 });
+		await expect(fullscreenOverlay.getByText(/GitHub|repos|hashmd|carta/i).first()).toBeVisible({ timeout: 10_000 });
 
 		await closeFullscreen(page, fullscreenOverlay);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'code-search-repos');
