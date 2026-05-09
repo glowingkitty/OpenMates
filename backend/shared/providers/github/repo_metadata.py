@@ -26,6 +26,8 @@ GITHUB_API_BASE = "https://api.github.com"
 GITHUB_TIMEOUT_SECONDS = 12
 GITHUB_REPO_PATH_RE = re.compile(r"^/([^/]+)/([^/]+?)(?:\.git)?/?$")
 MIT_LICENSE_MARKER = "MIT License"
+DEFAULT_REPO_SEARCH_COUNT = 6
+MAX_REPO_SEARCH_COUNT = 10
 
 
 def parse_github_repo_url(url: str) -> tuple[str, str] | None:
@@ -244,3 +246,98 @@ async def build_github_repo_embed(url: str) -> dict[str, Any] | None:
         "site_name": "GitHub",
         "fetched_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
+
+
+def _normalise_search_item(item: dict[str, Any]) -> dict[str, Any] | None:
+    license_obj = item.get("license") if isinstance(item.get("license"), dict) else {}
+    license_name = _clean_text(license_obj.get("name"), 120)
+    license_spdx = _clean_text(license_obj.get("spdx_id"), 40)
+    if not license_name and not license_spdx:
+        return None
+
+    owner_payload = item.get("owner") if isinstance(item.get("owner"), dict) else {}
+    html_url = _clean_text(item.get("html_url"), 300)
+    full_name = _clean_text(item.get("full_name"), 160)
+    if not html_url or not full_name:
+        return None
+
+    return {
+        "url": html_url,
+        "html_url": html_url,
+        "full_name": full_name,
+        "owner_login": _clean_text(owner_payload.get("login"), 80),
+        "owner_avatar_url": _clean_text(owner_payload.get("avatar_url"), 300),
+        "name": _clean_text(item.get("name"), 120) or full_name.split("/")[-1],
+        "description": _clean_text(item.get("description"), 500),
+        "visibility": item.get("visibility") or "public",
+        "private": False,
+        "fork": bool(item.get("fork")),
+        "archived": bool(item.get("archived")),
+        "disabled": bool(item.get("disabled")),
+        "is_template": bool(item.get("is_template")),
+        "default_branch": item.get("default_branch") or "main",
+        "primary_language": item.get("language"),
+        "languages": [],
+        "topics": item.get("topics") if isinstance(item.get("topics"), list) else [],
+        "license_name": license_name,
+        "license_spdx_id": license_spdx,
+        "stars": item.get("stargazers_count") or 0,
+        "forks": item.get("forks_count") or 0,
+        "watchers": item.get("watchers_count") or 0,
+        "open_issues": item.get("open_issues_count") or 0,
+        "created_at": _iso_date(item.get("created_at")),
+        "updated_at": _iso_date(item.get("updated_at")),
+        "pushed_at": _iso_date(item.get("pushed_at")),
+        "latest_release_tag": None,
+        "latest_release_name": None,
+        "latest_release_published_at": None,
+        "latest_commit_sha": None,
+        "latest_commit_message": None,
+        "latest_commit_date": None,
+        "contributors": [],
+        "site_name": "GitHub",
+        "fetched_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+
+
+async def search_github_repositories(query: str, count: int = DEFAULT_REPO_SEARCH_COUNT) -> list[dict[str, Any]]:
+    """Search public licensed GitHub repositories and return normalized repo embeds."""
+    cleaned_query = _clean_text(query, 240)
+    if not cleaned_query:
+        return []
+
+    per_page = max(1, min(count, MAX_REPO_SEARCH_COUNT))
+    search_query = f"{cleaned_query} is:public archived:false"
+
+    async with httpx.AsyncClient(timeout=GITHUB_TIMEOUT_SECONDS, headers=_github_headers()) as client:
+        response = await client.get(
+            f"{GITHUB_API_BASE}/search/repositories",
+            params={
+                "q": search_query,
+                "sort": "stars",
+                "order": "desc",
+                "per_page": per_page,
+            },
+        )
+        if response.status_code == 403:
+            logger.warning("GitHub repository search rate limited or forbidden")
+            return []
+        response.raise_for_status()
+        payload = response.json()
+
+    items = payload.get("items") if isinstance(payload, dict) else []
+    if not isinstance(items, list):
+        return []
+
+    results: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("private") is True or item.get("visibility") not in {None, "public"}:
+            continue
+        if item.get("disabled") is True:
+            continue
+        normalized = _normalise_search_item(item)
+        if normalized:
+            results.append(normalized)
+    return results

@@ -34,6 +34,7 @@ import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPrev
 import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptEmbedPreview.svelte";
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
+import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
@@ -557,6 +558,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status,
         });
         return this.renderCodeGetDocsComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "code" && skillId === "search_repos") {
+        return this.renderCodeRepoSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -2199,6 +2209,66 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         error,
       );
       // Fallback to generic skill rendering
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private renderCodeRepoSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "GitHub";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const results = decodedContent?.results || [];
+    const taskId = decodedContent?.task_id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(CodeRepoSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          results,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting CodeRepoSearchEmbedPreview component:",
+        error,
+      );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }

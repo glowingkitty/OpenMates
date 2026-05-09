@@ -2199,6 +2199,9 @@ class EmbedService:
         if not isinstance(url, str) or not url:
             return "website", dict(result)
 
+        if result.get("full_name") and (result.get("license_name") or result.get("license_spdx_id")):
+            return "repo", dict(result)
+
         try:
             repo_payload = await build_github_repo_embed(url)
         except Exception as exc:

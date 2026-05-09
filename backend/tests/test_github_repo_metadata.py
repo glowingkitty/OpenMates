@@ -42,7 +42,7 @@ class _FakeAsyncClient:
     async def __aexit__(self, exc_type, exc, tb):
         return False
 
-    async def get(self, url: str):
+    async def get(self, url: str, **kwargs):
         path = url.removeprefix(repo_metadata.GITHUB_API_BASE)
         return self.responses.get(path, _FakeResponse({}, 404))
 
@@ -85,6 +85,13 @@ def _license_payload(spdx_id: str = "MIT", name: str = "MIT License", text: str 
         "license": {"name": name, "spdx_id": spdx_id},
         "content": base64.b64encode(text.encode("utf-8")).decode("ascii"),
     }
+
+
+def _search_item(**overrides):
+    item = _repo_payload()
+    item.update({"html_url": "https://github.com/openmates/example", "full_name": "openmates/example"})
+    item.update(overrides)
+    return item
 
 
 def test_parse_github_repo_url_accepts_canonical_repo_urls():
@@ -149,3 +156,23 @@ async def test_build_github_repo_embed_skips_repos_without_detectable_license(mo
     monkeypatch.setattr(repo_metadata.httpx, "AsyncClient", _FakeAsyncClient)
 
     assert await repo_metadata.build_github_repo_embed("https://github.com/openmates/unlicensed") is None
+
+
+@pytest.mark.asyncio
+async def test_search_github_repositories_returns_public_licensed_results(monkeypatch):
+    _FakeAsyncClient.responses = {
+        "/search/repositories": _FakeResponse({
+            "items": [
+                _search_item(),
+                _search_item(full_name="openmates/no-license", name="no-license", license=None),
+                _search_item(full_name="openmates/private", name="private", private=True, visibility="private"),
+            ]
+        }),
+    }
+    monkeypatch.setattr(repo_metadata.httpx, "AsyncClient", _FakeAsyncClient)
+
+    results = await repo_metadata.search_github_repositories("openmates example", count=3)
+
+    assert len(results) == 1
+    assert results[0]["full_name"] == "openmates/example"
+    assert results[0]["license_spdx_id"] == "MIT"

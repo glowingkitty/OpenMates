@@ -126,6 +126,131 @@ get_docs.how_to_use.3:
   he: "מהן **שיטות העבודה המומלצות** לטיפול בשגיאות ב-FastAPI?"
   verified_by_human: [en, de]
 
+search_repos:
+  context: Skill name for searching GitHub repositories
+  en: Search repos
+  de: Repos suchen
+  zh: 搜索仓库
+  es: Buscar repos
+  fr: Rechercher des dépôts
+  pt: Buscar repositórios
+  ru: Поиск репозиториев
+  ja: リポジトリを検索
+  ko: 저장소 검색
+  it: Cerca repo
+  tr: Repo ara
+  vi: Tìm repo
+  id: Cari repo
+  pl: Szukaj repozytoriów
+  nl: Repo's zoeken
+  ar: البحث عن المستودعات
+  hi: रेपो खोजें
+  th: ค้นหา repo
+  cs: Hledat repozitáře
+  sv: Sök repon
+  he: חיפוש מאגרים
+  verified_by_human: [en, de]
+
+search_repos.description:
+  context: Description for the GitHub repository search skill
+  en: Find public open-source GitHub repos.
+  de: Öffentliche Open-Source-GitHub-Repos finden.
+  zh: 查找公开开源 GitHub 仓库。
+  es: Encuentra repos públicos de GitHub.
+  fr: Trouvez des dépôts GitHub open source publics.
+  pt: Encontre repositórios GitHub públicos.
+  ru: Находите публичные open-source репозитории GitHub.
+  ja: 公開OSS GitHubリポジトリを探します。
+  ko: 공개 오픈소스 GitHub 저장소를 찾습니다.
+  it: Trova repo GitHub open source pubblici.
+  tr: Herkese açık açık kaynak GitHub repolarını bulun.
+  vi: Tìm repo GitHub mã nguồn mở công khai.
+  id: Temukan repo GitHub open-source publik.
+  pl: Znajdź publiczne repozytoria GitHub open source.
+  nl: Vind openbare open-source GitHub-repo's.
+  ar: ابحث عن مستودعات GitHub عامة ومفتوحة المصدر.
+  hi: सार्वजनिक ओपन-सोर्स GitHub repo खोजें।
+  th: ค้นหา repo GitHub โอเพนซอร์สสาธารณะ
+  cs: Najděte veřejné open-source repozitáře GitHub.
+  sv: Hitta offentliga GitHub-repon med öppen källkod.
+  he: מציאת מאגרי GitHub ציבוריים בקוד פתוח.
+  verified_by_human: [en, de]
+
+search_repos.how_to_use.1:
+  context: Example instruction for repository search skill
+  en: Find Svelte markdown editor repositories.
+  de: Finde Svelte-Markdown-Editor-Repos.
+  zh: 查找 Svelte markdown editor 仓库。
+  es: Busca repos de editores Markdown en Svelte.
+  fr: Trouve des dépôts éditeur Markdown Svelte.
+  pt: Encontre repos de editor Markdown em Svelte.
+  ru: Найди репозитории Svelte markdown editor.
+  ja: Svelte markdown editor のリポジトリを探して。
+  ko: Svelte markdown editor 저장소를 찾아줘.
+  it: Trova repo editor Markdown Svelte.
+  tr: Svelte markdown editor repolarını bul.
+  vi: Tìm repo Svelte markdown editor.
+  id: Cari repo Svelte markdown editor.
+  pl: Znajdź repozytoria Svelte markdown editor.
+  nl: Zoek Svelte markdown editor-repo's.
+  ar: ابحث عن مستودعات Svelte markdown editor.
+  hi: Svelte markdown editor repo खोजें।
+  th: ค้นหา repo Svelte markdown editor
+  cs: Najdi repozitáře Svelte markdown editor.
+  sv: Hitta Svelte markdown editor-repon.
+  he: מצא מאגרי Svelte markdown editor.
+  verified_by_human: [en, de]
+
+search_repos.how_to_use.2:
+  context: Example instruction for repository search skill
+  en: Search for Python CLI framework repos.
+  de: Suche nach Python-CLI-Framework-Repos.
+  zh: 搜索 Python CLI framework 仓库。
+  es: Busca repos de framework CLI de Python.
+  fr: Recherche des dépôts framework CLI Python.
+  pt: Busque repos de framework CLI Python.
+  ru: Найди репозитории Python CLI framework.
+  ja: Python CLI framework のリポジトリを検索して。
+  ko: Python CLI framework 저장소를 검색해줘.
+  it: Cerca repo framework CLI Python.
+  tr: Python CLI framework repolarını ara.
+  vi: Tìm repo Python CLI framework.
+  id: Cari repo Python CLI framework.
+  pl: Szukaj repozytoriów Python CLI framework.
+  nl: Zoek Python CLI framework-repo's.
+  ar: ابحث عن مستودعات Python CLI framework.
+  hi: Python CLI framework repo खोजें।
+  th: ค้นหา repo Python CLI framework
+  cs: Hledej repozitáře Python CLI framework.
+  sv: Sök efter Python CLI framework-repon.
+  he: חפש מאגרי Python CLI framework.
+  verified_by_human: [en, de]
+
+search_repos.how_to_use.3:
+  context: Example instruction for repository search skill
+  en: Find popular Rust web server repositories.
+  de: Finde beliebte Rust-Webserver-Repos.
+  zh: 查找热门 Rust web server 仓库。
+  es: Encuentra repos populares de servidores web Rust.
+  fr: Trouve des dépôts populaires de serveurs web Rust.
+  pt: Encontre repos populares de servidor web Rust.
+  ru: Найди популярные репозитории Rust web server.
+  ja: 人気の Rust web server リポジトリを探して。
+  ko: 인기 있는 Rust web server 저장소를 찾아줘.
+  it: Trova repo popolari server web Rust.
+  tr: Popüler Rust web server repolarını bul.
+  vi: Tìm repo Rust web server phổ biến.
+  id: Temukan repo Rust web server populer.
+  pl: Znajdź popularne repozytoria Rust web server.
+  nl: Vind populaire Rust web server-repo's.
+  ar: ابحث عن مستودعات Rust web server شائعة.
+  hi: लोकप्रिय Rust web server repo खोजें।
+  th: ค้นหา repo Rust web server ยอดนิยม
+  cs: Najdi oblíbené repozitáře Rust web server.
+  sv: Hitta populära Rust web server-repon.
+  he: מצא מאגרי Rust web server פופולריים.
+  verified_by_human: [en, de]
+
 clean_repo:
   context: Skill name for clean repo
   en: Clean repo
