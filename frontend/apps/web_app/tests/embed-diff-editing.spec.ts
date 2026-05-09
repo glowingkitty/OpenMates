@@ -91,6 +91,16 @@ async function getAssistantMessageCount(page: any): Promise<number> {
 	return page.getByTestId('message-assistant').count();
 }
 
+/**
+ * Streaming completion only means the assistant text finished. Embed and
+ * post-processing updates can still arrive a moment later; deleting the chat too
+ * quickly turns those legitimate late updates into ChatSync "chat not found"
+ * console errors that fail this spec at teardown.
+ */
+async function waitForBackgroundEmbedUpdates(page: any): Promise<void> {
+	await page.waitForTimeout(5000);
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('Embed Diff-Based Editing', () => {
@@ -181,6 +191,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		// Close fullscreen
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
+		await waitForBackgroundEmbedUpdates(page);
 
 		// Cleanup: delete the chat
 		await deleteActiveChat(page, log);
@@ -237,6 +248,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Sheet embeds after turn 2: ${sheetCount}`);
 		expect(sheetCount).toBeGreaterThanOrEqual(1);
 
+		await waitForBackgroundEmbedUpdates(page);
 		await deleteActiveChat(page, log);
 		log('Sheet diff test completed.');
 	});
@@ -293,6 +305,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Document embeds after turn 2: ${docCount}`);
 		expect(docCount).toBeGreaterThanOrEqual(1);
 
+		await waitForBackgroundEmbedUpdates(page);
 		await deleteActiveChat(page, log);
 		log('Document diff test completed.');
 	});
