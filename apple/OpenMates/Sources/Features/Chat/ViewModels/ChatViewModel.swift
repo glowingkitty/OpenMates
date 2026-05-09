@@ -1633,7 +1633,8 @@ final class ChatSendPipeline {
         in chat: Chat,
         existingMessages: [Message],
         wsManager: WebSocketManager?,
-        chatStore: ChatStore?
+        chatStore: ChatStore?,
+        activateChat: Bool = true
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
         let now = Date()
@@ -1666,7 +1667,9 @@ final class ChatSendPipeline {
         chatStore?.upsertChat(updatedChat)
         chatStore?.appendMessage(message, to: chat.id)
 
-        try await sendSetActiveChat(chat.id, wsManager: wsManager)
+        if activateChat {
+            try await sendSetActiveChat(chat.id, wsManager: wsManager)
+        }
         var messagePayload: [String: Any] = [
             "message_id": messageId,
             "role": "user",

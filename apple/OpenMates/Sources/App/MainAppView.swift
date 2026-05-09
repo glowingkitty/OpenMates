@@ -31,6 +31,7 @@ struct MainAppView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var pushManager: PushNotificationManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var chatStore = ChatStore()
     @StateObject private var wsManager = WebSocketManager()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
@@ -129,6 +130,7 @@ struct MainAppView: View {
     private static let backgroundSyncInterChunkPauseNs: UInt64 = 40_000_000
     private static let backgroundSyncForegroundPauseNs: UInt64 = 180_000_000
     private static let foregroundInteractionGraceSeconds: TimeInterval = 2.0
+    private static let notificationPreviewMaxCharacters = 200
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -256,6 +258,7 @@ struct MainAppView: View {
         }
         .onChange(of: authManager.state, authStateDidChange)
         .onChange(of: pushManager.pendingChatId, pendingPushChatDidChange)
+        .onChange(of: pushManager.pendingReplyRequest, pendingPushReplyDidChange)
         .onChange(of: selectedChatId, selectedChatDidChange)
         .onChange(of: showNewChat, showNewChatDidChange)
         .onChange(of: showSettings, showSettingsDidChange)
@@ -342,6 +345,12 @@ struct MainAppView: View {
         }
     }
 
+    private func pendingPushReplyDidChange(_ oldValue: NotificationReplyRequest?, _ request: NotificationReplyRequest?) {
+        guard let request else { return }
+        pushManager.pendingReplyRequest = nil
+        Task { await sendNotificationReply(request) }
+    }
+
     private func showNewChatDidChange(_ oldValue: Bool, _ isOpen: Bool) {
         if isOpen {
             Task { await announceActiveChat(nil) }
@@ -351,6 +360,34 @@ struct MainAppView: View {
     private func showSettingsDidChange(_ oldValue: Bool, _ isOpen: Bool) {
         if isOpen {
             lastForegroundInteractionAt = Date()
+        }
+    }
+
+    private func sendNotificationReply(_ request: NotificationReplyRequest) async {
+        guard isAuthenticated else { return }
+        let content = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { return }
+
+        if chatStore.chat(for: request.chatId) == nil {
+            await loadInitialData()
+        }
+
+        guard let chat = chatStore.chat(for: request.chatId) else {
+            print("[MainApp] Notification reply dropped; chat \(request.chatId.prefix(8)) is not available locally")
+            return
+        }
+
+        do {
+            _ = try await ChatSendPipeline().sendUserMessage(
+                content: content,
+                in: chat,
+                existingMessages: chatStore.messages(for: request.chatId),
+                wsManager: wsManager,
+                chatStore: chatStore,
+                activateChat: false
+            )
+        } catch {
+            print("[MainApp] Failed to send notification reply for chat \(request.chatId.prefix(8)): \(error)")
         }
     }
 
@@ -1849,6 +1886,7 @@ struct MainAppView: View {
         chatStore.upsertChat(updatedChat)
         chatStore.appendMessage(message, to: chatId)
         NativeSyncPerfLog.info("phase=assistantCompletionApplied source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)) role=\(role.rawValue)")
+        await showAssistantNotificationIfNeeded(chat: updatedChat, message: message, source: source)
 
         do {
             _ = try await ChatSendPipeline().persistCompletedAssistantMessage(
@@ -1860,6 +1898,30 @@ struct MainAppView: View {
         } catch {
             print("[MainApp] Failed to persist assistant completion source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)): \(error)")
         }
+    }
+
+    private func showAssistantNotificationIfNeeded(chat: Chat, message: Message, source: String) async {
+        guard source == "background" || source == "pending" else { return }
+        guard message.role == .assistant else { return }
+        guard scenePhase != .active else { return }
+        guard selectedChatId != chat.id else { return }
+
+        let body = notificationPreview(from: message.content)
+        guard !body.isEmpty else { return }
+        await pushManager.showChatMessageNotification(
+            chatId: chat.id,
+            title: chat.displayTitle,
+            body: body
+        )
+    }
+
+    private func notificationPreview(from content: String?) -> String {
+        let normalized = (content ?? "")
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count > Self.notificationPreviewMaxCharacters else { return normalized }
+        let end = normalized.index(normalized.startIndex, offsetBy: Self.notificationPreviewMaxCharacters)
+        return String(normalized[..<end]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func announceActiveChat(_ chatId: String?) async {

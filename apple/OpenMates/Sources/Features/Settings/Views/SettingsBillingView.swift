@@ -15,64 +15,139 @@ import SwiftUI
 import StoreKit
 
 struct SettingsBillingView: View {
+    private enum BillingRoute: String {
+        case buyCredits
+        case autoTopUp
+        case invoices
+        case giftCards
+    }
+
     @State private var balance: Double = 0
-    @State private var isLoading = true
+    @State private var usageCredits: Double = 0
+    @State private var usageMessages: Int = 0
+    @State private var route: BillingRoute?
 
     var body: some View {
-        List {
-            Section(LocalizationManager.shared.text("settings.billing.balance")) {
-                HStack {
-                    Text(AppStrings.credits)
-                        .font(.omP)
-                    Spacer()
-                    Text(String(format: "%.4f", balance))
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.buttonPrimary)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibleSetting(AppStrings.credits, value: String(format: "%.4f", balance))
-            }
-
-            Section(LocalizationManager.shared.text("settings.billing.top_up")) {
-                NavigationLink {
-                    BuyCreditsView()
-                } label: {
-                    Label(AppStrings.buyCredits, systemImage: "creditcard")
-                }
-
-                NavigationLink {
-                    AutoTopUpView()
-                } label: {
-                    Label(AppStrings.autoTopUp, systemImage: "arrow.triangle.2.circlepath")
-                }
-            }
-
-            Section(LocalizationManager.shared.text("settings.billing.history")) {
-                NavigationLink {
-                    PurchaseHistoryView()
-                } label: {
-                    Label(AppStrings.purchaseHistory, systemImage: "clock.arrow.circlepath")
-                }
-
-                NavigationLink {
-                    InvoicesView()
-                } label: {
-                    Label(AppStrings.invoices, systemImage: "doc.text")
-                }
-
-                NavigationLink {
-                    SettingsGiftCardsView()
-                } label: {
-                    Label(AppStrings.giftCards, systemImage: "gift")
-                }
+        Group {
+            if let route {
+                billingSubview(route)
+            } else {
+                billingHub
             }
         }
-        .navigationTitle(AppStrings.settingsBilling)
-        .task { await loadBalance() }
+        .task { await loadBillingHub() }
         .onReceive(NotificationCenter.default.publisher(for: .paymentCompleted)) { _ in
-            Task { await loadBalance() }
+            Task { await loadBillingHub() }
         }
+    }
+
+    private var billingHub: some View {
+        OMSettingsPage(title: AppStrings.settingsBilling, showsHeader: false) {
+            billingBalanceDisplay
+
+            OMSettingsSection {
+                OMSettingsRow(title: AppStrings.buyCredits, icon: "coins") {
+                    route = .buyCredits
+                }
+                OMSettingsRow(title: AppStrings.autoTopUp, icon: "reload") {
+                    route = .autoTopUp
+                }
+                OMSettingsRow(title: AppStrings.invoices, icon: "document") {
+                    route = .invoices
+                }
+                OMSettingsRow(title: AppStrings.giftCards, icon: "gift") {
+                    route = .giftCards
+                }
+            }
+
+            billingDivider
+
+            OMSettingsSection(AppStrings.usage, icon: "usage") {
+                OMSettingsStaticRow(
+                    title: LocalizationManager.shared.text("settings.usage.total_credits_label"),
+                    value: formattedDecimal(usageCredits)
+                )
+                OMSettingsStaticRow(
+                    title: LocalizationManager.shared.text("settings.server_stats.messages"),
+                    value: "\(usageMessages)"
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func billingSubview(_ route: BillingRoute) -> some View {
+        VStack(spacing: 0) {
+            Button {
+                self.route = nil
+            } label: {
+                HStack(spacing: .spacing3) {
+                    Icon("back", size: 20)
+                        .foregroundStyle(Color.fontSecondary)
+                    Text(AppStrings.settingsBilling)
+                        .font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.fontSecondary)
+                    Spacer()
+                }
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing5)
+                .background(Color.grey20)
+            }
+            .buttonStyle(.plain)
+
+            switch route {
+            case .buyCredits:
+                BuyCreditsView()
+            case .autoTopUp:
+                AutoTopUpView()
+            case .invoices:
+                InvoicesView()
+            case .giftCards:
+                SettingsGiftCardsView()
+            }
+        }
+    }
+
+    private var billingBalanceDisplay: some View {
+        VStack(alignment: .center, spacing: 0) {
+            HStack(spacing: .spacing5) {
+                Icon("coins", size: 28)
+                    .foregroundStyle(Color.grey90)
+
+                Text(formatCredits(Int(balance)))
+                    .font(.omH2.weight(.semibold))
+                    .foregroundStyle(Color.grey100)
+                    .monospacedDigit()
+
+                Text(AppStrings.credits)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.grey60)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, .spacing10)
+            .padding(.horizontal, .spacing6)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+            .shadow(color: .black.opacity(0.10), radius: 2, x: 0, y: 1)
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.top, .spacing5)
+        .padding(.bottom, .spacing4)
+        .accessibilityElement(children: .combine)
+        .accessibleSetting(AppStrings.credits, value: formatCredits(Int(balance)))
+    }
+
+    private var billingDivider: some View {
+        Rectangle()
+            .fill(Color.grey25)
+            .frame(height: 1)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing6)
+    }
+
+    private func loadBillingHub() async {
+        await loadBalance()
+        await loadUsage()
     }
 
     private func loadBalance() async {
@@ -84,7 +159,24 @@ struct SettingsBillingView: View {
         } catch {
             print("[Settings] Billing load error: \(error)")
         }
-        isLoading = false
+    }
+
+    private func loadUsage() async {
+        do {
+            let data: [String: AnyCodable] = try await APIClient.shared.request(.get, path: "/v1/settings/usage")
+            usageCredits = data["total_credits_used"]?.value as? Double ?? 0
+            usageMessages = data["message_count"]?.value as? Int ?? 0
+        } catch {
+            print("[Settings] Billing usage load error: \(error)")
+        }
+    }
+
+    private func formatCredits(_ credits: Int) -> String {
+        credits.formatted(.number.grouping(.automatic))
+    }
+
+    private func formattedDecimal(_ value: Double) -> String {
+        String(format: "%.4f", value)
     }
 }
 
