@@ -11,6 +11,7 @@ import pytest
 try:
     from backend.apps.ai.processing.preprocessor import (
         _contains_onboarding_trigger_in_user_history,
+        _contains_repo_search_intent_in_user_history,
         ONBOARDING_TRIGGER_PHRASES,
     )
 except ImportError as _exc:
@@ -140,3 +141,32 @@ class TestContainsOnboardingTrigger:
     def test_openmates_domain_trigger(self):
         history = [_user_msg("I found you at openmates.org")]
         assert _contains_onboarding_trigger_in_user_history(history) is True
+
+
+# ===========================================================================
+# _contains_repo_search_intent_in_user_history
+# ===========================================================================
+
+class TestContainsRepoSearchIntent:
+    def test_detects_short_repo_search_request(self):
+        history = [_user_msg("Search for marketing prompt repos")]
+        assert _contains_repo_search_intent_in_user_history(history) is True
+
+    def test_detects_github_repository_search_request(self):
+        history = [_user_msg("Find GitHub repositories for Svelte auth examples")]
+        assert _contains_repo_search_intent_in_user_history(history) is True
+
+    def test_ignores_informational_repo_question(self):
+        history = [_user_msg("What is a repo?")]
+        assert _contains_repo_search_intent_in_user_history(history) is False
+
+    def test_ignores_financial_repo_rate_search(self):
+        history = [_user_msg("Search for the latest repo rate")]
+        assert _contains_repo_search_intent_in_user_history(history) is False
+
+    def test_only_user_messages_checked(self):
+        history = [
+            _assistant_msg("Search for marketing prompt repos"),
+            _user_msg("Thanks"),
+        ]
+        assert _contains_repo_search_intent_in_user_history(history) is False

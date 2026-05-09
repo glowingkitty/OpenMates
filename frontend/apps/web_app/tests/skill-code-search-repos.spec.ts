@@ -85,11 +85,10 @@ test.describe('App: Code / Skill: search_repos', () => {
 		}
 	});
 
-	test.skip('Phase 4: Web chat triggers repo search with embed', async ({ page }: { page: any }) => {
+	test('Phase 4: Web chat triggers repo search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
-		test.skip(true, 'Chat preprocessor routing for a newly added skill is nondeterministic on dev until the backend worker registry has rolled forward; deterministic coverage is Phase 1 plus backend unit tests.');
 
 		const logCheckpoint = createSignupLogger('skill-code-search-repos');
 		await archiveExistingScreenshots(logCheckpoint);
