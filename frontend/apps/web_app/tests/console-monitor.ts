@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
@@ -57,6 +56,9 @@ const networkActivities: string[] = [];
 /** Raw structured entries for aggregation (all types). */
 const _rawEntries: ConsoleEntry[] = [];
 
+/** Per-test additions for specs with known background noise. Reset before each test. */
+const additionalBenignErrorPatterns: RegExp[] = [];
+
 // ─── Allowlist — known benign console.error patterns ────────────────────────
 // These patterns are filtered out before the "fail on console errors" assertion.
 // Extracted from embed-showcase.spec.ts and app-load-no-error-logs.spec.ts.
@@ -95,7 +97,12 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
  * Check if a console error message matches any known benign pattern.
  */
 function isBenignError(text: string): boolean {
-	return BENIGN_ERROR_PATTERNS.some((pattern) => pattern.test(text));
+	return BENIGN_ERROR_PATTERNS.some((pattern) => pattern.test(text)) ||
+		additionalBenignErrorPatterns.some((pattern) => pattern.test(text));
+}
+
+function allowConsoleErrorPatterns(patterns: RegExp[]): void {
+	additionalBenignErrorPatterns.push(...patterns);
 }
 
 // ─── Aggregation helpers ────────────────────────────────────────────────────
@@ -164,6 +171,7 @@ function resetLogs(): void {
 	warnErrorLogs.length = 0;
 	networkActivities.length = 0;
 	_rawEntries.length = 0;
+	additionalBenignErrorPatterns.length = 0;
 }
 
 // ─── Attach listeners helper ────────────────────────────────────────────────
@@ -350,6 +358,7 @@ module.exports = {
 	getLogSummaryForReporter,
 	aggregateEntries,
 	saveWarnErrorLogs,
+	allowConsoleErrorPatterns,
 	isBenignError,
 	BENIGN_ERROR_PATTERNS
 };
