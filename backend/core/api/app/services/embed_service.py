@@ -21,6 +21,7 @@ from backend.shared.python_schemas.embed_status import (
     validate_embed_transition,
 )
 from backend.shared.providers.youtube.youtube_metadata import extract_youtube_id_from_url
+from backend.shared.providers.github import build_github_repo_embed, is_github_repo_url
 
 logger = logging.getLogger(__name__)
 
@@ -1240,8 +1241,8 @@ class EmbedService:
             return False
 
     # =========================================================================
-    # Document embed methods (for document_html fenced blocks)
-    # Mirrors the code embed pattern but uses type="document" with HTML content
+    # Document embed methods (for docx_model fenced blocks)
+    # Creates type="document" embeds that are later materialized into DOCX artifacts.
     # =========================================================================
 
     async def create_document_embed_placeholder(
@@ -1256,9 +1257,9 @@ class EmbedService:
         log_prefix: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
-        Create a "processing" document embed placeholder immediately when a document_html
+        Create a "processing" document embed placeholder immediately when a docx_model
         block starts streaming. This allows the frontend to show the document embed
-        immediately while HTML content streams.
+        immediately while the structured model streams.
         
         The embed will be updated with HTML content as it streams, and finalized
         when the closing ``` fence is detected.
@@ -1292,8 +1293,9 @@ class EmbedService:
                 "type": "document",
                 "app_id": "docs",
                 "skill_id": "document",
-                "html": "",  # Empty initially, will be updated as HTML streams
+                "docx_model": {},
                 "title": title,
+                "filename": None,
                 "status": "processing",
                 "word_count": 0  # Will be updated when content is finalized
             }
@@ -1378,17 +1380,19 @@ class EmbedService:
         user_vault_key_id: str,
         status: str = "processing",
         title: Optional[str] = None,
+        filename: Optional[str] = None,
+        docx_model: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
-        Update document embed content as HTML streams.
+        Update document embed content as the structured DOCX model streams.
         
         This method updates the cached embed with new HTML content and sends
         the updated content to the client via WebSocket.
         
         Args:
             embed_id: The embed identifier
-            html_content: The HTML content to update (accumulated so far)
+            html_content: Legacy HTML content for old document embeds/diffs
             chat_id: Chat ID for cache indexing
             user_id: User ID (UUID)
             user_id_hash: Hashed user ID
@@ -1407,19 +1411,42 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Document embed {embed_id} not found in cache, cannot update")
                 return False
 
-            # Decode existing content to preserve title if not provided
-            if title is None:
+            # Decode existing content to preserve title/filename/model if not provided
+            existing_content = {}
+            if title is None or filename is None or docx_model is None:
                 existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
                 if existing_toon:
                     try:
                         existing_content = decode(existing_toon)
-                        title = existing_content.get("title")
+                        if title is None:
+                            title = existing_content.get("title")
+                        if filename is None:
+                            filename = existing_content.get("filename")
+                        if docx_model is None:
+                            docx_model = existing_content.get("docx_model")
                     except Exception as e:
                         logger.warning(f"{log_prefix} Failed to decode existing document embed content: {e}")
 
-            # Calculate word count from HTML content (strip tags for accurate count)
+            if docx_model is None:
+                docx_model = {}
+            if isinstance(docx_model, dict):
+                title = title or docx_model.get("title")
+                filename = filename or docx_model.get("filename")
+
+            # Calculate word count from model text, with legacy HTML fallback.
             import re
-            text_content = re.sub(r'<[^>]+>', ' ', html_content)
+            if isinstance(docx_model, dict) and docx_model.get("blocks"):
+                model_text_parts = []
+                for block in docx_model.get("blocks", []):
+                    for key in ("text", "items", "headers", "rows"):
+                        value = block.get(key) if isinstance(block, dict) else None
+                        if isinstance(value, str):
+                            model_text_parts.append(value)
+                        elif isinstance(value, list):
+                            model_text_parts.append(" ".join(str(item) for item in value))
+                text_content = " ".join(model_text_parts)
+            else:
+                text_content = re.sub(r'<[^>]+>', ' ', html_content)
             word_count = len(text_content.split()) if text_content.strip() else 0
 
             # Create updated content with new HTML.
@@ -1430,7 +1457,9 @@ class EmbedService:
                 "app_id": "docs",
                 "skill_id": "document",
                 "html": html_content,
+                "docx_model": docx_model,
                 "title": title,
+                "filename": filename,
                 "status": status,
                 "word_count": word_count
             }
@@ -2115,9 +2144,11 @@ class EmbedService:
         Determine the child embed type for a specific result, potentially overriding
         the default child type based on the result's URL.
 
-        Currently handles: YouTube URLs in web/news/shopping search results are
-        auto-converted from "website" to "video" so they render with the proper
-        video embed component instead of a generic website card.
+        Currently handles:
+        - YouTube URLs in web/news/shopping search results are auto-converted
+          from "website" to "video".
+        - GitHub repository root URLs are auto-converted from "website" to
+          "repo"; details are enriched later before TOON encoding.
 
         Args:
             default_child_type: The default child type from get_child_embed_type()
@@ -2145,7 +2176,49 @@ class EmbedService:
             )
             return "video"
 
+        if is_github_repo_url(url):
+            logger.info(
+                f"[GITHUB_REPO_DETECT] Converting web search result to repo embed: "
+                f"url={url[:80]}, app={app_id}, skill={skill_id}"
+            )
+            return "repo"
+
         return default_child_type
+
+    @staticmethod
+    async def _enrich_repo_result_if_needed(
+        child_type: str,
+        result: Dict[str, Any],
+        log_prefix: str = "",
+    ) -> tuple[str, Dict[str, Any]]:
+        """Fetch GitHub repo details for repo child embeds, or fall back to website."""
+        if child_type != "repo":
+            return child_type, dict(result)
+
+        url = result.get("url") or result.get("link") or ""
+        if not isinstance(url, str) or not url:
+            return "website", dict(result)
+
+        try:
+            repo_payload = await build_github_repo_embed(url)
+        except Exception as exc:
+            logger.warning(
+                f"{log_prefix} GitHub repo enrichment failed for {url[:80]}: {exc}. "
+                "Falling back to website embed.",
+                exc_info=True,
+            )
+            return "website", dict(result)
+
+        if not repo_payload:
+            logger.info(
+                f"{log_prefix} GitHub URL did not qualify for repo embed: {url[:80]}. "
+                "Falling back to website embed."
+            )
+            return "website", dict(result)
+
+        enriched = dict(result)
+        enriched.update(repo_payload)
+        return "repo", enriched
 
     @staticmethod
     def _generate_embed_ref_slug(
@@ -2632,6 +2705,10 @@ class EmbedService:
                         default_child_type, result, app_id, skill_id
                     )
 
+                    child_type, enriched_result = await self._enrich_repo_result_if_needed(
+                        child_type, result, log_prefix
+                    )
+
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
@@ -2649,12 +2726,12 @@ class EmbedService:
                     # random suffixes are generated for the same logical result.
                     # Fall back to generating a new slug only if embed_ref is missing (e.g., for
                     # non-composite skills or code paths that bypass the pre-generation step).
-                    result_with_ref = dict(result)
+                    result_with_ref = dict(enriched_result)
                     if "embed_ref" in result_with_ref:
                         child_embed_ref = result_with_ref["embed_ref"]
                         logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
-                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
                         result_with_ref["embed_ref"] = child_embed_ref
 
                     # Inject app_id and skill_id into child TOON so the frontend can
@@ -3441,6 +3518,10 @@ class EmbedService:
                         default_child_type, result, app_id, skill_id
                     )
 
+                    child_type, enriched_result = await self._enrich_repo_result_if_needed(
+                        child_type, result, log_prefix
+                    )
+
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
 
@@ -3451,12 +3532,12 @@ class EmbedService:
                     # the child embed TOON — preventing the slug-mismatch bug.
                     # The embed_ref is injected INSIDE the encrypted TOON content so only the
                     # client (after decryption) and the LLM (via filtered TOON) can see it.
-                    result_with_ref = dict(result)
+                    result_with_ref = dict(enriched_result)
                     if "embed_ref" in result_with_ref:
                         child_embed_ref = result_with_ref["embed_ref"]
                         logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
-                        child_embed_ref = self._generate_embed_ref_slug(child_type, result)
+                        child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
                         result_with_ref["embed_ref"] = child_embed_ref
 
                     # Inject app_id and skill_id into child TOON so the frontend can

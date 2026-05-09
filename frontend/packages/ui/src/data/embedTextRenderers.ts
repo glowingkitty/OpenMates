@@ -49,7 +49,7 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 
 import { renderWebSearch, renderWebRead, renderWebsite } from '../components/embeds/web/webEmbedText';
 import { renderTravelConnections, renderTravelStays, renderPriceCalendar, renderFlight, renderConnection, renderStay } from '../components/embeds/travel/travelEmbedText';
-import { renderCode, renderCodeDocs } from '../components/embeds/code/codeEmbedText';
+import { renderCode, renderCodeDocs, renderCodeRepo } from '../components/embeds/code/codeEmbedText';
 import { renderVideosSearch, renderVideoTranscript, renderVideo } from '../components/embeds/videos/videoEmbedText';
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
@@ -111,6 +111,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,
 	'code-code': renderCode,
+	'code-repo': renderCodeRepo,
 	'docs-doc': renderDoc,
 	'sheets-sheet': renderSheet,
 	'pdf': renderPdf,

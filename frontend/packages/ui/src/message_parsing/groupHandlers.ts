@@ -1022,6 +1022,19 @@ export class GroupHandlerRegistry {
     this.register(new WebWebsiteGroupHandler());
     this.register(new VideosVideoGroupHandler());
     this.register(new CodeCodeGroupHandler());
+    this.register(
+      new BaseGroupHandler("code-repo", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "url",
+        "full_name",
+        "name",
+        "owner_login",
+        "description",
+      ]),
+    );
     this.register(new DocsDocGroupHandler());
     this.register(new SheetsSheetGroupHandler());
     this.register(new AppSkillUseGroupHandler());

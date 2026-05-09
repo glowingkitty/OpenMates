@@ -55,3 +55,43 @@ embed_types:
       - name: focus_mode_name
         type: string
         required: true
+
+  # GitHub repository — auto-detected from pasted repo URLs and web search results
+  - id: repo
+    app_id: code
+    category: direct
+    frontend_type: code-repo
+    backend_type: repo
+    has_children: false
+    groupable: true
+    preview_component: code/CodeRepoEmbedPreview.svelte
+    fullscreen_component: code/CodeRepoEmbedFullscreen.svelte
+    icon: github
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.repo
+    content_fields:
+      - name: url
+        type: string
+        required: true
+      - name: full_name
+        type: string
+        required: true
+      - name: description
+        type: string
+      - name: owner_login
+        type: string
+        required: true
+      - name: owner_avatar_url
+        type: string
+      - name: primary_language
+        type: string
+      - name: license_name
+        type: string
+      - name: license_spdx_id
+        type: string
+      - name: stars
+        type: number
+      - name: forks
+        type: number
+      - name: open_issues
+        type: number

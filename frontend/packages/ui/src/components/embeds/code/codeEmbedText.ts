@@ -38,3 +38,18 @@ export function renderCodeDocs(c: Record<string, unknown>): string {
 	if (wordCount) lines.push(`${String(wordCount)} words`);
 	return lines.join('\n');
 }
+
+/** code-repo — GitHub repository embed */
+export function renderCodeRepo(c: Record<string, unknown>): string {
+  const fullName = str(c.full_name) ?? str(c.url) ?? 'GitHub repository';
+  const description = str(c.description);
+  const language = str(c.primary_language);
+  const license = str(c.license_spdx_id) && str(c.license_spdx_id) !== 'NOASSERTION'
+    ? str(c.license_spdx_id)
+    : str(c.license_name);
+  const lines = [`**Repository** — ${fullName}`];
+  if (description) lines.push(description);
+  const facts = [language, license, c.stars !== undefined ? `${c.stars} stars` : null, c.forks !== undefined ? `${c.forks} forks` : null].filter(Boolean);
+  if (facts.length) lines.push(facts.join(' · '));
+  return lines.join('\n');
+}
