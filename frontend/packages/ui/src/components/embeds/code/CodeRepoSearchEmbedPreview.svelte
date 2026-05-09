@@ -45,7 +45,7 @@
     if (resultsProp !== undefined) results = resultsProp || [];
   });
 
-  let skillName = $derived($text('code.search_repos'));
+  let skillName = $derived($text('app_skills.code.search_repos'));
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
   let resultCount = $derived(countResults(results));
 
