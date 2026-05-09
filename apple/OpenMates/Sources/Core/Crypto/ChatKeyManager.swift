@@ -31,6 +31,16 @@ final class ChatKeyManager: ObservableObject {
         chatKeys[chatId] = key
     }
 
+    /// Create or return the originating-device key for a new chat.
+    func createKeyForNewChat(_ chatId: String) async -> SymmetricKey {
+        if let existing = chatKeys[chatId] {
+            return existing
+        }
+        let key = await CryptoManager.shared.generateChatKey()
+        chatKeys[chatId] = key
+        return key
+    }
+
     /// Check if we have a key for a given chat.
     func hasKey(for chatId: String) -> Bool {
         chatKeys[chatId] != nil

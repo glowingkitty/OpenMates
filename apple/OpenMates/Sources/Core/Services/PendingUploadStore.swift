@@ -127,23 +127,14 @@ final class PendingUploadStore: ObservableObject {
     }
 
     private func dispatchPendingSend(_ context: PendingSendContext) {
-        Task {
-            let body: [String: Any] = [
-                "chat_id": context.chatId,
-                "message": [
-                    "message_id": UUID().uuidString,
-                    "role": "user",
-                    "content": context.messageContent,
-                    "created_at": Int(Date().timeIntervalSince1970),
-                    "chat_has_title": true,
-                ] as [String: Any],
+        NotificationCenter.default.post(
+            name: .pendingDeferredSendRequested,
+            object: nil,
+            userInfo: [
+                "chatId": context.chatId,
+                "content": context.messageContent
             ]
-            do {
-                let _: Data = try await APIClient.shared.request(.post, path: "/v1/chat/message", body: body)
-            } catch {
-                print("[PendingUpload] Deferred send failed for chat \(context.chatId): \(error)")
-            }
-        }
+        )
     }
 
     // MARK: - Query

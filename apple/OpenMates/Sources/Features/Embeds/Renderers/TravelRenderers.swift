@@ -326,14 +326,11 @@ private struct AirlineLogoStack: View {
         HStack(spacing: -6) {
             ForEach(carrierCodes.prefix(3), id: \.self) { code in
                 if let url = URL(string: "https://images.kiwi.com/airlines/64/\(code).png") {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        default:
-                            Circle().fill(Color.grey10)
-                                .overlay(Text(String(code.prefix(1))).font(.omMicro).foregroundStyle(Color.grey70))
-                        }
+                    CachedRemoteImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle().fill(Color.grey10)
+                            .overlay(Text(String(code.prefix(1))).font(.omMicro).foregroundStyle(Color.grey70))
                     }
                     .frame(width: 24, height: 24)
                     .background(Color.white)
@@ -542,7 +539,7 @@ struct TravelStayRenderer: View {
         case .preview:
             ZStack(alignment: .bottomLeading) {
                 if let imageUrl, let imgURL = URL(string: imageUrl) {
-                    AsyncImage(url: imgURL) { image in
+                    CachedRemoteImage(url: imgURL) { image in
                         image.resizable().aspectRatio(contentMode: .fill)
                     } placeholder: {
                         Color.grey20
@@ -573,7 +570,7 @@ struct TravelStayRenderer: View {
         case .fullscreen:
             VStack(alignment: .leading, spacing: .spacing4) {
                 if let imageUrl, let imgURL = URL(string: imageUrl) {
-                    AsyncImage(url: imgURL) { image in
+                    CachedRemoteImage(url: imgURL) { image in
                         image.resizable().aspectRatio(contentMode: .fit)
                     } placeholder: { ProgressView() }
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))

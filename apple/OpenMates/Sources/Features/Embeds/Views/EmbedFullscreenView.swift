@@ -147,16 +147,11 @@ struct EmbedFullscreenView: View {
 
                 HStack(spacing: .spacing2) {
                     if let faviconURL = websiteFaviconURL, let url = URL(string: faviconURL) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            default:
-                                Color.clear
-                            }
-                        }
+                        CachedRemoteImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: { Color.clear }
                         .frame(width: 19, height: 19)
                         .clipShape(RoundedRectangle(cornerRadius: .radius1))
                     }

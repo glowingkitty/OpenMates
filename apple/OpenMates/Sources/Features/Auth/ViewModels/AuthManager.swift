@@ -55,6 +55,18 @@ final class AuthManager: ObservableObject {
 
     func checkSession() async {
         Self._shared = self
+        let restoredFromDisk = await restoreCachedSessionForStartup()
+        guard !restoredFromDisk else { return }
+        Task { @MainActor in
+            await validateSessionAgainstServer(keepOfflineSessionOnFailure: false)
+        }
+    }
+
+    func validateSessionAfterOfflineBootstrap() async {
+        await validateSessionAgainstServer(keepOfflineSessionOnFailure: currentUser != nil)
+    }
+
+    private func validateSessionAgainstServer(keepOfflineSessionOnFailure: Bool) async {
         do {
             let response: SessionResponse = try await api.request(
                 .post,
@@ -70,6 +82,7 @@ final class AuthManager: ObservableObject {
                 }
                 currentUser = user
                 webSocketToken = response.wsToken
+                cacheAuthenticatedUser(user)
                 if response.needsDeviceVerification == true,
                    let type = response.deviceVerificationType {
                     state = .needsDeviceVerification(type: type)
@@ -81,7 +94,11 @@ final class AuthManager: ObservableObject {
             }
         } catch {
             webSocketToken = nil
-            state = .unauthenticated
+            if keepOfflineSessionOnFailure {
+                print("[Auth] Session validation unavailable; keeping cached offline session: \(error.localizedDescription)")
+            } else {
+                state = .unauthenticated
+            }
         }
     }
 
@@ -268,6 +285,7 @@ final class AuthManager: ObservableObject {
         webSocketToken = response.wsToken
         currentUser = user
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        cacheAuthenticatedUser(user)
         state = .authenticated
     }
 
@@ -285,6 +303,7 @@ final class AuthManager: ObservableObject {
         try await crypto.saveMasterKey(masterKey, for: user.id)
         webSocketToken = response.wsToken
         currentUser = user
+        cacheAuthenticatedUser(user)
         state = .authenticated
     }
 
@@ -306,6 +325,7 @@ final class AuthManager: ObservableObject {
         EmbedKeyManager.shared.clearAll()
         SpotlightIndexer.shared.removeAllItems()
         Self.resetNativeSessionId()
+        Self.clearCachedUser()
 
         webSocketToken = nil
         currentUser = nil
@@ -323,6 +343,7 @@ final class AuthManager: ObservableObject {
         EmbedKeyManager.shared.clearAll()
         SpotlightIndexer.shared.removeAllItems()
         Self.resetNativeSessionId()
+        Self.clearCachedUser()
         webSocketToken = nil
         currentUser = nil
         state = .unauthenticated
@@ -357,12 +378,35 @@ final class AuthManager: ObservableObject {
 
         webSocketToken = response.wsToken
         currentUser = user
+        cacheAuthenticatedUser(user)
 
         // Clear sensitive data
         pendingPassword = nil
         pendingEmail = nil
 
         state = .authenticated
+    }
+
+    private func restoreCachedSessionForStartup() async -> Bool {
+        guard let user = Self.cachedUser() else {
+            state = .unauthenticated
+            return false
+        }
+        guard (try? await crypto.loadMasterKey(for: user.id)) != nil else {
+            Self.clearCachedUser()
+            state = .unauthenticated
+            return false
+        }
+        currentUser = user
+        webSocketToken = nil
+        state = .authenticated
+        print("[Auth] Restored cached session for offline startup")
+        return true
+    }
+
+    private func cacheAuthenticatedUser(_ user: UserProfile) {
+        guard let data = try? JSONEncoder().encode(user) else { return }
+        UserDefaults.standard.set(data, forKey: Self.cachedUserDefaultsKey)
     }
 
     static var nativeSessionId: String {
@@ -411,9 +455,19 @@ final class AuthManager: ObservableObject {
     }
 
     private static let sessionIdDefaultsKey = "openmates.apple.auth.session_id"
+    private static let cachedUserDefaultsKey = "openmates.apple.auth.cached_user"
 
     private static func resetNativeSessionId() {
         UserDefaults.standard.removeObject(forKey: sessionIdDefaultsKey)
+    }
+
+    private static func cachedUser() -> UserProfile? {
+        guard let data = UserDefaults.standard.data(forKey: cachedUserDefaultsKey) else { return nil }
+        return try? JSONDecoder().decode(UserProfile.self, from: data)
+    }
+
+    private static func clearCachedUser() {
+        UserDefaults.standard.removeObject(forKey: cachedUserDefaultsKey)
     }
 }
 

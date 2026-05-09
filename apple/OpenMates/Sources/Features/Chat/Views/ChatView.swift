@@ -83,6 +83,8 @@ struct ChatView: View {
     var initialChat: Chat? = nil
     var initialMessages: [Message] = []
     var initialEmbeds: [EmbedRecord] = []
+    var wsManager: WebSocketManager? = nil
+    var chatStore: ChatStore? = nil
     /// Mirrors web `.chat-container.menu-open`; used by the banner header to
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
@@ -203,6 +205,7 @@ struct ChatView: View {
             }
         )
         .task(id: chatId) {
+            viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
             // Advertise this chat for Handoff to other Apple devices
             handoffManager.advertiseChatViewing(

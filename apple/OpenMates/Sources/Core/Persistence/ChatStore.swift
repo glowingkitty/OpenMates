@@ -113,6 +113,7 @@ final class ChatStore: ObservableObject {
         }
         embedsByChat[chatId] = current
         persistIfAllowed { $0.onEmbedsReceived(embeds, chatId: chatId) }
+        prefetchEmbedMediaIfOnlinePath(embeds)
     }
 
     func applySyncedContent(
@@ -146,6 +147,7 @@ final class ChatStore: ObservableObject {
                 embedsByChat: incomingEmbeds
             )
         }
+        prefetchEmbedMediaIfOnlinePath(incomingEmbeds.values.flatMap { $0 })
         let messageCount = incomingMessages.values.reduce(0) { $0 + $1.count }
         let embedCount = incomingEmbeds.values.reduce(0) { $0 + $1.count }
         NativeSyncPerfLog.info(
@@ -205,6 +207,11 @@ final class ChatStore: ObservableObject {
     private func persistIfAllowed(_ action: (OfflineSyncBridge) -> Void) {
         guard persistenceSuppressionDepth == 0, let bridge else { return }
         action(bridge)
+    }
+
+    private func prefetchEmbedMediaIfOnlinePath(_ embeds: [EmbedRecord]) {
+        guard persistenceSuppressionDepth == 0 else { return }
+        EmbedMediaOfflineCache.prefetchEmbeds(embeds)
     }
 }
 

@@ -120,7 +120,7 @@ struct SessionResponse: Decodable {
 
 // MARK: - User
 
-struct UserProfile: Decodable, Identifiable {
+struct UserProfile: Codable, Identifiable {
     let id: String
     let username: String
     let email: String?

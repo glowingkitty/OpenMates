@@ -12,6 +12,62 @@ import QuickLookUI
 #endif
 import AVFoundation
 
+// MARK: - Disk-backed public image loader
+
+struct CachedRemoteImage<Content: View, Placeholder: View>: View {
+    let url: URL
+    let onFailure: (() -> Void)?
+    let content: (Image) -> Content
+    let placeholder: () -> Placeholder
+
+    @State private var imageData: Data?
+
+    init(
+        url: URL,
+        onFailure: (() -> Void)? = nil,
+        @ViewBuilder content: @escaping (Image) -> Content,
+        @ViewBuilder placeholder: @escaping () -> Placeholder
+    ) {
+        self.url = url
+        self.onFailure = onFailure
+        self.content = content
+        self.placeholder = placeholder
+    }
+
+    var body: some View {
+        Group {
+            if let image = platformImage(from: imageData) {
+                content(image)
+            } else {
+                placeholder()
+            }
+        }
+        .task(id: url.absoluteString) {
+            if let cached = await RemoteImageCache.shared.data(for: url.absoluteString) {
+                imageData = cached
+                return
+            }
+            do {
+                imageData = try await RemoteImageCache.shared.fetch(url.absoluteString)
+            } catch {
+                onFailure?()
+            }
+        }
+    }
+
+    #if os(iOS)
+    private func platformImage(from data: Data?) -> Image? {
+        guard let data, let uiImage = UIImage(data: data) else { return nil }
+        return Image(uiImage: uiImage)
+    }
+    #elseif os(macOS)
+    private func platformImage(from data: Data?) -> Image? {
+        guard let data, let nsImage = NSImage(data: data) else { return nil }
+        return Image(nsImage: nsImage)
+    }
+    #endif
+}
+
 // MARK: - Encrypted image loader (shared by image embeds)
 
 struct EncryptedImageView: View {
@@ -243,7 +299,7 @@ struct VideoRenderer: View {
         case .preview:
             ZStack {
                 if let thumbnailUrl, let imgURL = URL(string: thumbnailUrl) {
-                    AsyncImage(url: imgURL) { image in
+                    CachedRemoteImage(url: imgURL) { image in
                         image.resizable().aspectRatio(contentMode: .fill)
                     } placeholder: { Color.grey20 }
                 } else {
@@ -290,7 +346,7 @@ struct VideoRenderer: View {
                         .frame(minHeight: 220)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                 } else if let thumbnailUrl, let imgURL = URL(string: thumbnailUrl) {
-                    AsyncImage(url: imgURL) { image in
+                    CachedRemoteImage(url: imgURL) { image in
                         image.resizable().aspectRatio(contentMode: .fit)
                     } placeholder: { ProgressView() }
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
@@ -388,7 +444,7 @@ struct ImageResultRenderer: View {
         case .preview:
             if let url, let imgURL = URL(string: url) {
                 ZStack(alignment: .topLeading) {
-                    AsyncImage(url: imgURL) { image in
+                    CachedRemoteImage(url: imgURL) { image in
                         image.resizable().aspectRatio(contentMode: .fit)
                     } placeholder: {
                         Color.grey20.overlay(ProgressView())
@@ -423,23 +479,13 @@ struct ImageResultRenderer: View {
                 if let url, let imgURL = URL(string: url) {
                     ZStack {
                         if let thumbnailUrl, let thumbURL = URL(string: thumbnailUrl) {
-                            AsyncImage(url: thumbURL) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image.resizable().aspectRatio(contentMode: .fit).blur(radius: 2)
-                                default:
-                                    Color.grey20
-                                }
-                            }
+                            CachedRemoteImage(url: thumbURL) { image in
+                                image.resizable().aspectRatio(contentMode: .fit).blur(radius: 2)
+                            } placeholder: { Color.grey20 }
                         }
-                        AsyncImage(url: imgURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().aspectRatio(contentMode: .fit)
-                            default:
-                                ProgressView()
-                            }
-                        }
+                        CachedRemoteImage(url: imgURL) { image in
+                            image.resizable().aspectRatio(contentMode: .fit)
+                        } placeholder: { ProgressView() }
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {

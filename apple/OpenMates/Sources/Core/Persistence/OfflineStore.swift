@@ -307,6 +307,7 @@ final class OfflineStore: ObservableObject {
                 existing.encryptedCategory = chat.encryptedCategory
                 existing.encryptedIcon = chat.encryptedIcon
                 existing.encryptedChatSummary = chat.encryptedChatSummary
+                existing.encryptedChatKey = chat.encryptedChatKey
                 existing.icon = chat.icon
                 existing.category = chat.category
                 existing.chatSummary = chat.chatSummary

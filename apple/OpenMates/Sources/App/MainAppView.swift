@@ -214,31 +214,21 @@ struct MainAppView: View {
             appOverlays
         }
         .overlay(alignment: .top) {
-            VStack(spacing: 0) {
-                OfflineBanner(isOffline: syncBridge?.networkStatus == .offline)
-                NetworkStatusBanner(wsManager: wsManager)
-            }
+            topStatusOverlay
         }
         .onOpenURL { url in
             deepLinkHandler.handle(url: url)
         }
         // Handoff: continue a chat from another Apple device
         .onContinueUserActivity(HandoffManager.viewChatActivityType) { activity in
-            if let chatId = activity.userInfo?["chatId"] as? String {
-                selectedChatId = chatId
-                showNewChat = false
-            }
+            handleViewChatActivity(activity)
         }
         .onContinueUserActivity(HandoffManager.browseChatsActivityType) { _ in
             // Just bring the app to the chat list — no specific action needed
         }
         // Spotlight: open a chat from system search results
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
-            if let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
-               identifier.hasPrefix("chat-") {
-                selectedChatId = String(identifier.dropFirst("chat-".count))
-                showNewChat = false
-            }
+            handleSpotlightActivity(activity)
         }
         // Global keyboard shortcuts (iPad + Mac)
         .appKeyboardShortcuts(
@@ -289,15 +279,7 @@ struct MainAppView: View {
         }
         #endif
         .task {
-            if isAuthenticated {
-                await bootstrapAuthenticatedSession()
-            } else {
-                // Unauthenticated: populate sidebar with demo chats
-                loadDemoChats()
-                // Fetch default daily inspirations (public endpoint, no auth required)
-                await syncInspirationToWidget()
-            }
-            applyLaunchCommandIfNeeded()
+            await runStartupTask()
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
             handleChatUpdate(notification)
@@ -307,6 +289,12 @@ struct MainAppView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { notification in
             handleSyncEvent(notification)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .wsHistoryRequested)) { notification in
+            handleHistoryRequest(notification)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
+            handlePendingDeferredSend(notification)
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsForceLogout)) { notification in
             let reason = notification.userInfo?["reason"] as? String ?? "session_revoked"
@@ -370,6 +358,39 @@ struct MainAppView: View {
 
         if launchCommand?.action == .newChat {
             openNewChatScreen()
+        }
+    }
+
+    private func runStartupTask() async {
+        if isAuthenticated {
+            await bootstrapAuthenticatedSession()
+        } else {
+            // Unauthenticated: populate sidebar with demo chats
+            loadDemoChats()
+            // Fetch default daily inspirations (public endpoint, no auth required)
+            Task { await syncInspirationToWidget() }
+        }
+        applyLaunchCommandIfNeeded()
+    }
+
+    private func handleViewChatActivity(_ activity: NSUserActivity) {
+        if let chatId = activity.userInfo?["chatId"] as? String {
+            selectedChatId = chatId
+            showNewChat = false
+        }
+    }
+
+    private func handleSpotlightActivity(_ activity: NSUserActivity) {
+        guard let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+              identifier.hasPrefix("chat-") else { return }
+        selectedChatId = String(identifier.dropFirst("chat-".count))
+        showNewChat = false
+    }
+
+    private var topStatusOverlay: some View {
+        VStack(spacing: 0) {
+            OfflineBanner(isOffline: syncBridge?.networkStatus == .offline)
+            NetworkStatusBanner(wsManager: wsManager)
         }
     }
 
@@ -721,6 +742,33 @@ struct MainAppView: View {
                 chats: chatStore.chats,
                 totalChatCount: totalChatCount,
                 serverSuggestions: syncedNewChatSuggestions,
+                onCreateChatWithMessage: { message in
+                    let chatId = UUID().uuidString
+                    let now = ChatSendPipeline.isoString(from: Date())
+                    let chat = Chat(
+                        id: chatId,
+                        title: nil,
+                        lastMessageAt: nil,
+                        createdAt: now,
+                        updatedAt: now,
+                        isArchived: false,
+                        isPinned: false,
+                        appId: nil,
+                        encryptedTitle: nil,
+                        encryptedChatKey: nil,
+                        messagesV: 0,
+                        titleV: 0,
+                        draftV: 0
+                    )
+                    let result = try await ChatSendPipeline().sendUserMessage(
+                        content: message,
+                        in: chat,
+                        existingMessages: [],
+                        wsManager: wsManager,
+                        chatStore: chatStore
+                    )
+                    return result.chat.id
+                },
                 onChatCreated: { chatId in
                     selectedChatId = chatId
                     showNewChat = false
@@ -755,6 +803,8 @@ struct MainAppView: View {
                 initialChat: isPublic ? nil : chatStore.chat(for: chatId),
                 initialMessages: isPublic ? [] : chatStore.messages(for: chatId),
                 initialEmbeds: isPublic ? [] : chatStore.embeds(for: chatId),
+                wsManager: wsManager,
+                chatStore: chatStore,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onShareChat: { showShareChat = true },
                 onPreviousChat: previousChatAction(for: chatId),
@@ -1230,14 +1280,31 @@ struct MainAppView: View {
         visibleUserChatLimit = Self.initialUserChatLimit
         loadDemoChats(selectDefault: false)
 
-        let bridge = syncBridge ?? OfflineSyncBridge(chatStore: chatStore)
+        let bridge = syncBridge ?? OfflineSyncBridge(chatStore: chatStore, wsManager: wsManager)
         chatStore.setBridge(bridge)
         syncBridge = bridge
         bridge.loadFromDisk()
+        bridge.startNetworkMonitoring()
 
+        Task { await authManager.validateSessionAfterOfflineBootstrap() }
         connectWebSocket()
+        scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
-        await syncInspirationToWidget()
+        Task { await syncInspirationToWidget() }
+    }
+
+    private func scheduleTokenBackedWebSocketReconnectIfNeeded() {
+        guard authManager.webSocketToken?.isEmpty != false else { return }
+        Task { @MainActor in
+            for _ in 0..<120 {
+                guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+                if authManager.webSocketToken?.isEmpty == false {
+                    connectWebSocket()
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 250_000_000)
+            }
+        }
     }
 
     private func scheduleInitialDataFallback() {
@@ -1562,11 +1629,116 @@ struct MainAppView: View {
         }
     }
 
+    private func handleHistoryRequest(_ notification: Notification) {
+        guard let raw = notification.userInfo?["raw"] as? Data else { return }
+        Task { @MainActor in
+            do {
+                let envelope = try syncDecoder.decode(WSEnvelope<HistoryRequestPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await resendChatHistory(chatId: payload.chatId)
+            } catch {
+                print("[MainApp] Failed to decode history request: \(error)")
+            }
+        }
+    }
+
+    private func handlePendingDeferredSend(_ notification: Notification) {
+        guard let chatId = notification.userInfo?["chatId"] as? String,
+              let content = notification.userInfo?["content"] as? String,
+              let chat = chatStore.chat(for: chatId) else { return }
+        Task { @MainActor in
+            do {
+                _ = try await ChatSendPipeline().sendUserMessage(
+                    content: content,
+                    in: chat,
+                    existingMessages: chatStore.messages(for: chatId),
+                    wsManager: wsManager,
+                    chatStore: chatStore
+                )
+            } catch {
+                print("[MainApp] Deferred upload send failed for chat \(chatId.prefix(8)): \(error)")
+            }
+        }
+    }
+
     private func handleEmbedUpdate(_ notification: Notification) {
         // Forward embed updates so the active ChatView can reload its embeds.
         // The notification carries the raw WS data; ChatViewModel listens for
         // embed refresh signals via NotificationCenter.
         NotificationCenter.default.post(name: .embedRefreshNeeded, object: nil, userInfo: notification.userInfo)
+    }
+
+    private func resendChatHistory(chatId: String) async {
+        let chat = chatStore.chat(for: chatId)
+        var messages = chatStore.messages(for: chatId)
+        guard !messages.isEmpty else {
+            print("[MainApp] Cannot resend history; no messages for chat \(chatId.prefix(8))")
+            return
+        }
+        if messages.contains(where: { ($0.content ?? "").isEmpty && $0.encryptedContent != nil }) {
+            messages = await decryptHistoryMessages(messages, chatId: chatId)
+        }
+        guard let latestUserMessage = messages
+            .filter({ $0.role == .user })
+            .sorted(by: { $0.createdAt > $1.createdAt })
+            .first,
+            let content = latestUserMessage.content,
+            !content.isEmpty else {
+            print("[MainApp] Cannot resend history; missing latest user message for chat \(chatId.prefix(8))")
+            return
+        }
+
+        let history = messages.map { message -> [String: Any] in
+            [
+                "message_id": message.id,
+                "role": message.role.rawValue,
+                "content": message.content ?? "",
+                "category": message.appId as Any,
+                "created_at": ChatSendPipeline.unixSeconds(from: message.createdAt)
+            ]
+        }
+        let chatHasTitle = (chat?.titleV ?? 0) > 0
+        var messagePayload: [String: Any] = [
+            "message_id": latestUserMessage.id,
+            "role": latestUserMessage.role.rawValue,
+            "content": content,
+            "created_at": ChatSendPipeline.unixSeconds(from: latestUserMessage.createdAt),
+            "sender_name": "user",
+            "chat_has_title": chatHasTitle,
+            "message_history": history
+        ]
+        if chatHasTitle {
+            messagePayload["current_chat_title"] = chat?.title
+        }
+
+        do {
+            try await wsManager.send(WSOutboundMessage(
+                type: "chat_message_added",
+                payload: [
+                    "chat_id": chatId,
+                    "message": messagePayload,
+                    "encrypted_chat_key": chat?.encryptedChatKey as Any
+                ]
+            ))
+        } catch {
+            print("[MainApp] Failed to resend chat history for \(chatId.prefix(8)): \(error)")
+        }
+    }
+
+    private func decryptHistoryMessages(_ messages: [Message], chatId: String) async -> [Message] {
+        var result: [Message] = []
+        for var message in messages {
+            if (message.content ?? "").isEmpty,
+               let encryptedContent = message.encryptedContent,
+               let decrypted = await ChatKeyManager.shared.decryptMessageContent(
+                   chatId: chatId,
+                   encryptedContent: encryptedContent
+               ) {
+                message.content = decrypted
+            }
+            result.append(message)
+        }
+        return result
     }
 
     private func processSyncEvent(type: String, raw: Data) async {
@@ -2031,6 +2203,16 @@ private struct PhaseContentSyncPayload: Decodable {
         case chats
         case embeds
         case embedKeys
+    }
+}
+
+private struct HistoryRequestPayload: Decodable {
+    let chatId: String
+    let reason: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case chatId
+        case reason
     }
 }
 
@@ -2533,6 +2715,7 @@ struct NewChatWelcomeView: View {
     let chats: [Chat]
     let totalChatCount: Int
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
+    let onCreateChatWithMessage: (String) async throws -> String
     let onChatCreated: (String) -> Void
     let onOpenChat: (String) -> Void
     let onInspirationViewed: (String) -> Void
@@ -2821,24 +3004,9 @@ struct NewChatWelcomeView: View {
             return
         }
 
-        let chatId = UUID().uuidString
-
         Task {
-            let body: [String: Any] = [
-                "chat_id": chatId,
-                "message": [
-                    "message_id": UUID().uuidString,
-                    "role": "user",
-                    "content": message,
-                    "created_at": Int(Date().timeIntervalSince1970),
-                    "chat_has_title": false
-                ] as [String: Any]
-            ]
-
             do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/chat/message", body: body
-                )
+                let chatId = try await onCreateChatWithMessage(message)
                 onChatCreated(chatId)
             } catch {
                 print("[NewChatWelcome] Failed to create chat: \(error)")

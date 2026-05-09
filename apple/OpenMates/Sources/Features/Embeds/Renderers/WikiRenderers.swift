@@ -141,22 +141,11 @@ struct WikiRenderer: View {
                         ProgressView()
                     }
             } else if let imageURL = resolvedImageURL, let url = URL(string: imageURL) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                    case .failure:
-                        wikiImageFallback
-                    case .empty:
-                        RoundedRectangle(cornerRadius: .radius6)
-                            .fill(Color.grey10)
-                            .overlay { ProgressView() }
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
+                CachedRemoteImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFit()
+                } placeholder: { wikiImageFallback }
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
             }

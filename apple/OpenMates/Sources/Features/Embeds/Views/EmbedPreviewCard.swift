@@ -197,16 +197,11 @@ struct EmbedPreviewCard: View {
                 .accessibilityHidden(true)
 
             if let faviconURL, let url = URL(string: faviconURL) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    default:
-                        Color.clear
-                    }
-                }
+                CachedRemoteImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: { Color.clear }
                 .frame(width: Constants.faviconSize, height: Constants.faviconSize)
                 .clipShape(RoundedRectangle(cornerRadius: .radius1))
                 .accessibilityHidden(true)

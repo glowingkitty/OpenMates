@@ -193,9 +193,13 @@ final class WebSocketManager: ObservableObject {
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? ""
             let metadata = StreamingClient.ChatMetadata(
-                encryptedTitle: msg.stringField("encrypted_title"),
-                encryptedIcon: msg.stringField("encrypted_icon"),
-                encryptedCategory: msg.stringField("encrypted_category"),
+                title: msg.stringField("title"),
+                iconNames: msg.stringArrayField("icon_names") ?? [],
+                category: msg.stringField("category"),
+                modelName: msg.stringField("model_name"),
+                providerName: msg.stringField("provider_name"),
+                serverRegion: msg.stringField("server_region"),
+                userMessageId: msg.stringField("user_message_id"),
                 encryptedChatKey: msg.stringField("encrypted_chat_key")
             )
             Task {
@@ -211,9 +215,23 @@ final class WebSocketManager: ObservableObject {
             let sequence = msg.intField("sequence") ?? 0
             let content = msg.stringField("full_content_so_far") ?? ""
             let isFinal = msg.boolField("is_final_chunk") ?? false
+            let userMessageId = msg.stringField("user_message_id")
+            let category = msg.stringField("category")
+            let modelName = msg.stringField("model_name")
+            let rejectionReason = msg.stringField("rejection_reason")
             Task {
                 await StreamingClient.shared.dispatch(
-                    .chunk(chatId: chatId, messageId: messageId, sequence: sequence, content: content, isFinal: isFinal),
+                    .chunk(
+                        chatId: chatId,
+                        messageId: messageId,
+                        sequence: sequence,
+                        content: content,
+                        isFinal: isFinal,
+                        userMessageId: userMessageId,
+                        category: category,
+                        modelName: modelName,
+                        rejectionReason: rejectionReason
+                    ),
                     for: chatId
                 )
             }
@@ -259,8 +277,33 @@ final class WebSocketManager: ObservableObject {
                 )
             }
 
+        case "post_processing_completed":
+            let chatId = msg.stringField("chat_id") ?? ""
+            let taskId = msg.stringField("task_id") ?? ""
+            Task {
+                await StreamingClient.shared.dispatch(
+                    .postProcessingCompleted(
+                        chatId: chatId,
+                        taskId: taskId,
+                        followUpSuggestions: msg.stringArrayField("follow_up_request_suggestions") ?? [],
+                        newChatSuggestions: msg.stringArrayField("new_chat_request_suggestions") ?? [],
+                        chatSummary: msg.stringField("chat_summary"),
+                        chatTags: msg.stringArrayField("chat_tags") ?? [],
+                        updatedTitle: msg.stringField("updated_chat_title")
+                    ),
+                    for: chatId
+                )
+            }
+
+        case "request_chat_history":
+            NotificationCenter.default.post(
+                name: .wsHistoryRequested, object: nil,
+                userInfo: ["raw": raw]
+            )
+
         // Chat updates
-        case "chat_message_added", "chat_update", "new_message", "message_update":
+        case "chat_message_added", "chat_message_confirmed", "encrypted_chat_metadata",
+             "chat_update", "new_message", "message_update":
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
@@ -304,9 +347,11 @@ final class WebSocketManager: ObservableObject {
     private func startPingTimer() {
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: true) { [weak self] _ in
-            self?.webSocketTask?.sendPing { error in
-                if let error {
-                    print("[WS] Ping error: \(error.localizedDescription)")
+            Task { @MainActor [weak self] in
+                self?.webSocketTask?.sendPing { error in
+                    if let error {
+                        print("[WS] Ping error: \(error.localizedDescription)")
+                    }
                 }
             }
         }
@@ -389,6 +434,16 @@ private struct WSInboundParsed: Decodable {
         if let v = rootFields?[key]?.value as? Bool { return v }
         return nil
     }
+
+    func stringArrayField(_ key: String) -> [String]? {
+        if let v = data?[key]?.value as? [String] { return v }
+        if let v = data?[key]?.value as? [Any] { return v.compactMap { $0 as? String } }
+        if let v = payload?[key]?.value as? [String] { return v }
+        if let v = payload?[key]?.value as? [Any] { return v.compactMap { $0 as? String } }
+        if let v = rootFields?[key]?.value as? [String] { return v }
+        if let v = rootFields?[key]?.value as? [Any] { return v.compactMap { $0 as? String } }
+        return nil
+    }
 }
 
 // MARK: - Outbound message
@@ -426,5 +481,7 @@ extension Notification.Name {
     static let wsSyncEvent = Notification.Name("openmates.wsSyncEvent")
     static let wsEmbedUpdate = Notification.Name("openmates.wsEmbedUpdate")
     static let wsForceLogout = Notification.Name("openmates.wsForceLogout")
+    static let wsHistoryRequested = Notification.Name("openmates.wsHistoryRequested")
+    static let pendingDeferredSendRequested = Notification.Name("openmates.pendingDeferredSendRequested")
     static let paymentCompleted = Notification.Name("openmates.paymentCompleted")
 }

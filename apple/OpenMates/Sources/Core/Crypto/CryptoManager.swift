@@ -48,7 +48,7 @@ actor CryptoManager {
         var derivedKey = Data(count: 32) // 256 bits
         let passwordData = password.data(using: .utf8)!
 
-        derivedKey.withUnsafeMutableBytes { derivedBytes in
+        let status = derivedKey.withUnsafeMutableBytes { derivedBytes in
             passwordData.withUnsafeBytes { passwordBytes in
                 salt.withUnsafeBytes { saltBytes in
                     CCKeyDerivationPBKDF(
@@ -64,6 +64,9 @@ actor CryptoManager {
                     )
                 }
             }
+        }
+        if status != kCCSuccess {
+            assertionFailure("PBKDF2 derivation failed with status \(status)")
         }
 
         return SymmetricKey(data: derivedKey)
@@ -122,6 +125,34 @@ actor CryptoManager {
     func unwrapChatKey(encryptedChatKeyBase64: String, masterKey: SymmetricKey) throws -> SymmetricKey {
         let plaintext = try decryptBlob(base64String: encryptedChatKeyBase64, key: masterKey)
         return SymmetricKey(data: plaintext)
+    }
+
+    /// Generate a web-compatible raw AES-256 chat key.
+    func generateChatKey() -> SymmetricKey {
+        SymmetricKey(size: .bits256)
+    }
+
+    /// Wrap a per-chat key with the user's master key for cross-device sync.
+    /// Format C: base64(IV[12 bytes] || ciphertext+tag), matching the web app.
+    func wrapChatKey(_ chatKey: SymmetricKey, masterKey: SymmetricKey) throws -> String {
+        let rawKey = chatKey.withUnsafeBytes { Data($0) }
+        let encrypted = try encrypt(rawKey, using: masterKey)
+        var combined = Data()
+        combined.append(encrypted.nonce)
+        combined.append(encrypted.ciphertext)
+        return combined.base64EncodedString()
+    }
+
+    /// Encrypt message or metadata content with a chat key.
+    /// Format A: base64("OM" || 4-byte FNV-1a key fingerprint || IV || ciphertext+tag).
+    func encryptContent(_ plaintext: String, key: SymmetricKey) throws -> String {
+        try encryptBlob(Data(plaintext.utf8), key: key, includeFingerprint: true)
+    }
+
+    /// Encrypt master-key metadata such as new-chat suggestions.
+    /// Format D: base64(IV[12 bytes] || ciphertext+tag), matching the web app.
+    func encryptWithMasterKey(_ plaintext: String, masterKey: SymmetricKey) throws -> String {
+        try encryptBlob(Data(plaintext.utf8), key: masterKey, includeFingerprint: false)
     }
 
     // MARK: - Content decryption (messages, titles, embeds)
@@ -188,6 +219,33 @@ actor CryptoManager {
         let nonce = AES.GCM.Nonce()
         let sealed = try AES.GCM.seal(plaintext, using: key, nonce: nonce)
         return (sealed.ciphertext + sealed.tag, Data(nonce))
+    }
+
+    private func encryptBlob(_ plaintext: Data, key: SymmetricKey, includeFingerprint: Bool) throws -> String {
+        let encrypted = try encrypt(plaintext, using: key)
+        var combined = Data()
+        if includeFingerprint {
+            combined.append(contentsOf: [0x4F, 0x4D])
+            combined.append(keyFingerprintBytes(key))
+        }
+        combined.append(encrypted.nonce)
+        combined.append(encrypted.ciphertext)
+        return combined.base64EncodedString()
+    }
+
+    private func keyFingerprintBytes(_ key: SymmetricKey) -> Data {
+        let raw = key.withUnsafeBytes { Data($0) }
+        var hash: UInt32 = 0x811c9dc5
+        for byte in raw {
+            hash ^= UInt32(byte)
+            hash = hash &* 0x01000193
+        }
+        return Data([
+            UInt8((hash >> 24) & 0xff),
+            UInt8((hash >> 16) & 0xff),
+            UInt8((hash >> 8) & 0xff),
+            UInt8(hash & 0xff),
+        ])
     }
 
     // MARK: - Keychain storage

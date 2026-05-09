@@ -38,16 +38,11 @@ struct WebsiteRenderer: View {
                                 .padding(.top, .spacing5)
 
                             if let imageURL, let url = URL(string: imageURL) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                    default:
-                                        Color.grey20
-                                    }
-                                }
+                                CachedRemoteImage(url: url) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } placeholder: { Color.grey20 }
                                 .frame(width: proxy.size.width * 0.6)
                                 .frame(height: 171)
                                 .clipped()
@@ -56,16 +51,11 @@ struct WebsiteRenderer: View {
                         }
                     }
                 } else if let imageURL, let url = URL(string: imageURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        default:
-                            Color.grey20
-                        }
-                    }
+                    CachedRemoteImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: { Color.grey20 }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                 } else {
@@ -297,23 +287,15 @@ private struct WebsiteRemoteImage: View {
 
     var body: some View {
         if let activeURL {
-            AsyncImage(url: activeURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    fallbackView
-                        .task {
-                            if fallbackURLString != nil, fallbackURLString != primaryURLString {
-                                shouldUseFallback = true
-                            }
-                        }
-                default:
-                    fallbackView
+            CachedRemoteImage(url: activeURL, onFailure: {
+                if fallbackURLString != nil, fallbackURLString != primaryURLString {
+                    shouldUseFallback = true
                 }
-            }
+            }) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: { fallbackView }
         } else {
             fallbackView
         }
