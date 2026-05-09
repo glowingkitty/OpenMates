@@ -208,6 +208,10 @@ final class WebSocketManager: ObservableObject {
                     for: chatId
                 )
             }
+            NotificationCenter.default.post(
+                name: .wsMessageReceived, object: nil,
+                userInfo: ["type": msg.type, "raw": raw]
+            )
 
         case "ai_message_update":
             let chatId = msg.stringField("chat_id") ?? ""
@@ -302,25 +306,37 @@ final class WebSocketManager: ObservableObject {
             )
 
         // Chat updates
-        case "chat_message_added", "chat_message_confirmed", "encrypted_chat_metadata",
-             "chat_update", "new_message", "message_update":
+        case "new_chat_message", "chat_message_added", "chat_message_confirmed",
+             "encrypted_chat_metadata", "chat_update", "new_message", "message_update",
+             "chat_draft_updated", "draft_deleted", "chat_deleted", "chat_read_status_updated",
+             "chat_pinned_updated", "message_deleted", "message_highlight_added",
+             "message_highlight_updated", "message_highlight_removed", "draft_embed_deleted",
+             "last_opened_updated", "key_delivery_confirmed", "system_message_confirmed",
+             "new_system_message", "reminder_fired", "pending_ai_response",
+             "ai_response_storage_confirmed", "ai_background_response_completed",
+             "ai_task_cancel_requested", "chat_compression_started", "chat_compression_completed",
+             "encrypted_metadata_stored", "post_processing_metadata_stored",
+             "ai_typing_ended", "message_queued":
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
             )
 
         // Sync phases
-        case "phase_1_last_chat_ready", "phase_1b_chat_content_ready",
+        case "initial_sync_response", "initial_sync_error",
+             "phase_1_last_chat_ready", "phase_1b_chat_content_ready",
              "phase_2_last_20_chats_ready", "phase_3_last_100_chats_ready",
-             "background_message_sync", "sync_metadata_chats_response",
-             "phased_sync_complete":
+             "background_message_sync", "cache_primed", "cache_status_response",
+             "load_more_chats_response", "sync_metadata_chats_response",
+             "phased_sync_complete", "sync_status_response",
+             "offline_sync_complete", "chat_content_batch_response":
             NotificationCenter.default.post(
                 name: .wsSyncEvent, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
             )
 
         // Embed updates
-        case "embed_updated", "embed_status_changed":
+        case "embed_update", "embed_updated", "embed_status_changed", "send_embed_data":
             NotificationCenter.default.post(
                 name: .wsEmbedUpdate, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
