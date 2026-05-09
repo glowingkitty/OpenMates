@@ -116,7 +116,6 @@ test.describe('Embed Diff-Based Editing', () => {
 		log('Turn 1 sent — waiting for code embed...');
 
 		await waitForStreamingComplete(page, log);
-		const turn1MessageCount = await getAssistantMessageCount(page);
 
 		// Wait for the code embed in the first assistant message
 		const embedId = await waitForFinishedCodeEmbed(page, 0, log);
@@ -281,6 +280,9 @@ test.describe('Embed Diff-Based Editing', () => {
 		const turn2Prompt = 'Change the title from "Cover Letter - Software Engineer" to "Application - Senior Engineer" and update the first paragraph to mention 8 years of experience instead of generic language.';
 		await sendMessage(page, turn2Prompt, log);
 		await waitForStreamingComplete(page, log);
+		await expect(
+			page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="processing"]')
+		).toHaveCount(0, { timeout: 90000 });
 		await screenshot(page, '04-doc-after-diff');
 
 		// Verify document embed still exists

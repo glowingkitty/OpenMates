@@ -4,6 +4,7 @@
 import logging
 import re
 import time
+import json
 import httpx
 import asyncio
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
@@ -79,6 +80,42 @@ _BLOCKQUOTE_EMBED_REF_PATTERN = re.compile(
 
 # Maximum number of quotes to verify per response to avoid excessive latency
 _MAX_QUOTES_TO_VERIFY = 10
+
+
+def _is_document_fence(language: Optional[str]) -> bool:
+    return (language or "").lower() in {"document_html", "docx_model"}
+
+
+def _parse_docx_model_fence(content: str) -> Dict[str, Any]:
+    parsed = json.loads(content.strip())
+    if not isinstance(parsed, dict):
+        raise ValueError("docx_model content must be a JSON object")
+    blocks = parsed.get("blocks")
+    if not isinstance(blocks, list):
+        raise ValueError("docx_model must include a blocks array")
+    return parsed
+
+
+def _extract_document_title_and_filename(language: Optional[str], content: str) -> tuple[Optional[str], Optional[str], Optional[Dict[str, Any]]]:
+    if (language or "").lower() == "docx_model":
+        try:
+            docx_model = _parse_docx_model_fence(content)
+            title = docx_model.get("title") if isinstance(docx_model.get("title"), str) else None
+            filename = docx_model.get("filename") if isinstance(docx_model.get("filename"), str) else None
+            return title, filename, docx_model
+        except (json.JSONDecodeError, ValueError):
+            logger.warning("Falling back to legacy document_html conversion for non-JSON document content")
+
+    title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', content)
+    filename_match = re.search(r'<!--\s*filename:\s*["\'](.+?)["\']\s*-->', content)
+    title = title_match.group(1) if title_match else None
+    filename = filename_match.group(1) if filename_match else None
+    legacy_model = {
+        "title": title or "Document",
+        "filename": filename or "OpenMates_Document.docx",
+        "blocks": [{"type": "paragraph", "text": re.sub(r"<[^>]+>", " ", content)}],
+    }
+    return title, filename, legacy_model
 
 
 def _extract_source_citations(
@@ -2027,8 +2064,8 @@ async def _consume_main_processing_stream(
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
     
-    # Document block tracking: document_html fences produce document embeds (type="document")
-    # instead of code embeds (type="code"). This flag is set when the language is "document_html"
+    # Document block tracking: docx_model fences produce document embeds (type="document")
+    # instead of code embeds (type="code"). Legacy document_html still resolves here.
     # and controls which embed service methods are called during streaming and finalization.
     in_document_block = False
     # Title extracted from <!-- title: "..." --> comment in document HTML content
@@ -2472,8 +2509,8 @@ async def _consume_main_processing_stream(
                                 # Check if this is a math plot block (```plot ... ```)
                                 is_plot_block = current_code_language.lower() == 'plot' if current_code_language else False
                                 
-                                # Check if this is a document_html block
-                                is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                                # Check if this is a document block
+                                is_document_html = _is_document_fence(current_code_language)
 
                                 # Check if this is a mail block
                                 is_email_block = current_code_language.lower() == 'email' if current_code_language else False
@@ -2493,7 +2530,7 @@ async def _consume_main_processing_stream(
                                     from backend.core.api.app.services.embed_diff_service import (
                                         parse_unified_diff, apply_patch, EmbedDiffService
                                     )
-                                    from toon_format import decode, encode
+                                    from toon_format import decode
 
                                     diff_embed_ref = current_code_filename  # embed_ref from fence
                                     diff_content = code_content
@@ -2542,6 +2579,7 @@ async def _consume_main_processing_stream(
                                                         current_content = (
                                                             decoded.get("code") or
                                                             decoded.get("html") or
+                                                            (json.dumps(decoded.get("docx_model"), ensure_ascii=False, indent=2) if decoded.get("docx_model") else None) or
                                                             decoded.get("table") or
                                                             ""
                                                         )
@@ -2604,15 +2642,35 @@ async def _consume_main_processing_stream(
                                                         log_prefix=log_prefix
                                                     )
                                                 elif embed_type == "document":
+                                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", patch_result.new_content)
                                                     await embed_service.update_document_embed_content(
                                                         embed_id=target_embed_id,
-                                                        html_content=patch_result.new_content,
+                                                        html_content="",
                                                         chat_id=request_data.chat_id,
                                                         user_id=request_data.user_id,
                                                         user_id_hash=request_data.user_id_hash,
                                                         user_vault_key_id=user_vault_key_id,
-                                                        status="finished",
+                                                        status="processing",
+                                                        title=doc_title,
+                                                        filename=doc_filename,
+                                                        docx_model=docx_model,
                                                         log_prefix=log_prefix
+                                                    )
+                                                    celery_config.app.send_task(
+                                                        "apps.docs.tasks.generate_docx",
+                                                        args=[{
+                                                            "embed_id": target_embed_id,
+                                                            "chat_id": request_data.chat_id,
+                                                            "message_id": request_data.message_id,
+                                                            "user_id": request_data.user_id,
+                                                            "user_id_hash": request_data.user_id_hash,
+                                                            "vault_key_id": user_vault_key_id,
+                                                            "title": doc_title,
+                                                            "filename": doc_filename,
+                                                            "docx_model": docx_model,
+                                                            "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
+                                                        }],
+                                                        queue="app_docs",
                                                     )
                                                 elif embed_type == "sheet":
                                                     await embed_service.update_table_embed_content(
@@ -2720,12 +2778,7 @@ async def _consume_main_processing_stream(
                                         current_code_content = ""
                                         current_code_embed_id = None
                                 elif is_document_html:
-                                    # Extract title from <!-- title: "..." --> comment
-                                    import re
-                                    doc_title = None
-                                    title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', code_content)
-                                    if title_match:
-                                        doc_title = title_match.group(1)
+                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, code_content)
                                     
                                     # Create document embed placeholder and finalize immediately
                                     embed_data = await embed_service.create_document_embed_placeholder(
@@ -2742,7 +2795,7 @@ async def _consume_main_processing_stream(
                                     if embed_data:
                                         current_code_embed_id = embed_data["embed_id"]
                                         
-                                        # Update with full HTML content and finalize
+                                        # Store the structured model, then let the docs worker generate artifacts.
                                         await embed_service.update_document_embed_content(
                                             embed_id=current_code_embed_id,
                                             html_content=code_content,
@@ -2750,9 +2803,27 @@ async def _consume_main_processing_stream(
                                             user_id=request_data.user_id,
                                             user_id_hash=request_data.user_id_hash,
                                             user_vault_key_id=user_vault_key_id,
-                                            status="finished",
+                                            status="processing",
                                             title=doc_title,
+                                            filename=doc_filename,
+                                            docx_model=docx_model,
                                             log_prefix=log_prefix
+                                        )
+                                        celery_config.app.send_task(
+                                            "apps.docs.tasks.generate_docx",
+                                            args=[{
+                                                "embed_id": current_code_embed_id,
+                                                "chat_id": request_data.chat_id,
+                                                "message_id": request_data.message_id,
+                                                "user_id": request_data.user_id,
+                                                "user_id_hash": request_data.user_id_hash,
+                                                "vault_key_id": user_vault_key_id,
+                                                "title": doc_title,
+                                                "filename": doc_filename,
+                                                "docx_model": docx_model,
+                                                "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
+                                            }],
+                                            queue="app_docs",
                                         )
                                         
                                         # Replace document block with embed reference in chunk
@@ -2760,7 +2831,7 @@ async def _consume_main_processing_stream(
                                         chunk = embed_reference_code
                                         logger.info(
                                             f"{log_prefix} Created and finalized document embed {current_code_embed_id} "
-                                            f"for complete document_html block "
+                                            f"for complete document block "
                                             f"(title_present={bool(doc_title)}, title_length={len(doc_title) if isinstance(doc_title, str) else 0})"
                                         )
                                         
@@ -2931,10 +3002,10 @@ async def _consume_main_processing_stream(
                             continue  # Skip embed creation, just track the content
                         
                         # Create embed placeholder (only for non-suspicious languages)
-                        # Plot blocks get math-plot embeds; document_html blocks get document embeds;
+                        # Plot blocks get math-plot embeds; document blocks get document embeds;
                         # email blocks get mail embeds; all others get code embeds.
                         is_plot_block_multi = current_code_language.lower() == 'plot' if current_code_language else False
-                        is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        is_document_html = _is_document_fence(current_code_language)
                         is_email_block_multi = current_code_language.lower() == 'email' if current_code_language else False
                         if is_plot_block_multi:
                             in_plot_block = True
@@ -3148,9 +3219,9 @@ async def _consume_main_processing_stream(
                             continue
 
                         # Now create the embed placeholder with the extracted (or empty) language
-                        # Check if this is a plot/document_html/email block (language resolved after bare fence)
+                        # Check if this is a plot/document/email block (language resolved after bare fence)
                         is_plot_block_post_bare = current_code_language.lower() == 'plot' if current_code_language else False
-                        is_document_html = current_code_language.lower() == 'document_html' if current_code_language else False
+                        is_document_html = _is_document_fence(current_code_language)
                         is_email_block_post_bare = current_code_language.lower() == 'email' if current_code_language else False
                         if is_plot_block_post_bare:
                             in_plot_block = True
@@ -3535,14 +3606,10 @@ async def _consume_main_processing_stream(
                                     
                                     logger.info(f"{log_prefix} Finalized math-plot embed {current_code_embed_id} with expr len={len(current_code_content)}")
                                 elif in_document_block:
-                                    # Finalize document embed with accumulated HTML content
-                                    # Try to extract title if not already found
-                                    if not current_document_title:
-                                        import re
-                                        title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', current_code_content)
-                                        if title_match:
-                                            current_document_title = title_match.group(1)
-                                    
+                                    # Store the final model and queue real DOCX artifact generation.
+                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, current_code_content)
+                                    current_document_title = current_document_title or doc_title
+                                     
                                     await embed_service.update_document_embed_content(
                                         embed_id=current_code_embed_id,
                                         html_content=current_code_content,
@@ -3550,13 +3617,31 @@ async def _consume_main_processing_stream(
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
-                                        status="finished",
+                                        status="processing",
                                         title=current_document_title,
+                                        filename=doc_filename,
+                                        docx_model=docx_model,
                                         log_prefix=log_prefix
                                     )
-                                    
+                                    celery_config.app.send_task(
+                                        "apps.docs.tasks.generate_docx",
+                                        args=[{
+                                            "embed_id": current_code_embed_id,
+                                            "chat_id": request_data.chat_id,
+                                            "message_id": request_data.message_id,
+                                            "user_id": request_data.user_id,
+                                            "user_id_hash": request_data.user_id_hash,
+                                            "vault_key_id": user_vault_key_id,
+                                            "title": current_document_title,
+                                            "filename": doc_filename,
+                                            "docx_model": docx_model,
+                                            "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
+                                        }],
+                                        queue="app_docs",
+                                    )
+                                     
                                     logger.info(
-                                        f"{log_prefix} Finalized document embed {current_code_embed_id} with {len(current_code_content)} chars "
+                                        f"{log_prefix} Queued document artifact generation for {current_code_embed_id} with {len(current_code_content)} chars "
                                         f"(title_present={bool(current_document_title)}, "
                                         f"title_length={len(current_document_title) if isinstance(current_document_title, str) else 0})"
                                     )

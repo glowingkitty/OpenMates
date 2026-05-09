@@ -1,2 +1,2 @@
 # Docs app - Document generation and management
-# Handles document_html embeds for rich document creation (reports, articles, etc.)
+# Handles docx_model embeds for rich DOCX document creation (reports, articles, etc.)

@@ -1,0 +1,51 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Docs worker image. It intentionally carries LibreOffice because DOCX preview
+# generation needs DOCX -> PDF conversion, while the other Celery workers should
+# not pay that image-size/runtime dependency cost.
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid && \
+    echo 'Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/99use-gzip-compression && \
+    for i in $(seq 1 3); do \
+        apt-get update -o Acquire::CompressionTypes::Order::="gz" && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            libpq-dev \
+            gcc \
+            curl \
+            git \
+            gosu \
+            libcairo2 \
+            libpango-1.0-0 \
+            libpangocairo-1.0-0 \
+            libgdk-pixbuf-xlib-2.0-0 \
+            libffi-dev \
+            libreoffice-writer \
+            fonts-dejavu \
+            shared-mime-info \
+            && break || \
+        sleep 5; \
+    done && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
+
+COPY . /app/
+
+RUN mkdir -p /app/logs && chmod 777 /app/logs
+RUN adduser --disabled-password --gecos '' celeryuser
+RUN mkdir -p /celerybeat-data && chown -R celeryuser:celeryuser /app /celerybeat-data
+
+USER celeryuser
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+CMD ["python", "-m", "celery", "-A", "app.tasks.celery_config", "worker", "--loglevel=info"]
