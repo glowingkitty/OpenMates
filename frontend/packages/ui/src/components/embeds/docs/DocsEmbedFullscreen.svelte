@@ -658,7 +658,12 @@ ${downloadHtmlContent}
         >
           <div class="doc-artifact-pages" style="transform: scale({zoomRatio}); transform-origin: top center;">
             {#each Object.entries(displayedArtifactPageUrls).sort(([a], [b]) => Number(a) - Number(b)) as [page, url]}
-              <img class="doc-artifact-page" src={url} alt={`${displayTitle} page ${page}`} />
+              <img
+                class="doc-artifact-page"
+                data-testid="doc-artifact-page"
+                src={url}
+                alt={`${displayTitle} page ${page}`}
+              />
             {/each}
           </div>
         </div>

@@ -37,6 +37,8 @@ const {
 	getTestAccount,
 } = require('./signup-flow-helpers');
 
+const fs = require('fs');
+
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
@@ -312,6 +314,34 @@ test.describe('Embed Diff-Based Editing', () => {
 		const docCount = await allDocEmbeds.count();
 		log(`Document embeds after turn 2: ${docCount}`);
 		expect(docCount).toBeGreaterThanOrEqual(1);
+
+		const firstDocEmbed = allDocEmbeds.first();
+		await firstDocEmbed.click();
+		const docArtifactPage = page.getByTestId('doc-artifact-page').first();
+		await expect(docArtifactPage).toBeVisible({ timeout: 90000 });
+		const docArtifactPageCount = await page.getByTestId('doc-artifact-page').count();
+		log(`Generated DOCX artifact page count in fullscreen: ${docArtifactPageCount}`);
+		expect(docArtifactPageCount).toBeGreaterThanOrEqual(1);
+		await screenshot(page, '05-doc-fullscreen-artifact');
+
+		const [download] = await Promise.all([
+			page.waitForEvent('download'),
+			page.getByRole('button', { name: 'Download' }).click()
+		]);
+		const suggestedFilename = download.suggestedFilename();
+		log(`Downloaded document filename: ${suggestedFilename}`);
+		expect(suggestedFilename.toLowerCase()).toContain('.docx');
+		const downloadPath = await download.path();
+		expect(downloadPath).toBeTruthy();
+		const downloadedBytes = fs.readFileSync(downloadPath);
+		log(`Downloaded document byte length: ${downloadedBytes.length}`);
+		expect(downloadedBytes.length).toBeGreaterThan(1000);
+		expect(downloadedBytes[0]).toBe(0x50);
+		expect(downloadedBytes[1]).toBe(0x4b);
+		expect(downloadedBytes.includes(Buffer.from('word/document.xml'))).toBe(true);
+
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(500);
 
 		await waitForBackgroundEmbedUpdates(page);
 		await deleteActiveChat(page, log);
