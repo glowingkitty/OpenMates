@@ -71,7 +71,7 @@ test.describe('App: Code / Skill: search_repos', () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
 		const message = withLiveMockMarker(
-			'Search GitHub repos for svelte markdown editor libraries',
+			'Use the Code Search repos skill to find GitHub repositories for svelte markdown editor libraries',
 			'code_search_repos_cli'
 		);
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 75_000);
@@ -100,7 +100,7 @@ test.describe('App: Code / Skill: search_repos', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Search GitHub repos for svelte markdown editor libraries', 'code_search_repos_web'),
+			withLiveMockMarker('Use the Code Search repos skill to find GitHub repositories for svelte markdown editor libraries', 'code_search_repos_web'),
 			logCheckpoint,
 			takeStepScreenshot,
 			'code-search-repos'

@@ -312,8 +312,10 @@ skills:
     description_translation_key: code.search_repos.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search public open-source GitHub repositories by topic, language, library,
-      framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.
+      Search GitHub repositories. Use this instead of web.search whenever the
+      user asks to find GitHub repos, repositories, open-source libraries,
+      starred repos, or repo examples by topic, language, framework, or project
+      need. Returns licensed repository embeds. Costs 10 credits per search.
     stage: production
     class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
     pricing:
