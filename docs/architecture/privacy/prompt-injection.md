@@ -1,10 +1,14 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-05-10
 key_files:
   - backend/core/api/app/utils/text_sanitization.py
   - backend/apps/ai/processing/content_sanitization.py
+  - backend/apps/ai/processing/preprocessor.py
+  - backend/apps/ai/tasks/stream_consumer.py
   - backend/apps/ai/prompt_injection_detection.yml
+  - backend/shared/python_utils/url_normalizer.py
+  - backend/shared/providers/groq/safeguard.py
   - backend/preview/app/services/content_sanitization.py
   - backend/preview/app/services/text_sanitization.py
   - backend/apps/ai/app.yml
@@ -73,14 +77,37 @@ The preview server ([`backend/preview/`](../../backend/preview/)) applies both l
 | YouTube Video | title, description, channel_name |
 | YouTube Channel | title, description |
 
-URLs, thumbnails, and favicons are not sanitized (no LLM-visible text risk).
+Preview metadata text is sanitized before the LLM sees it. Raw URLs, thumbnails, and favicons are not rewritten by the preview server; assistant-visible links are handled by the response URL safety layer below.
 
 **Graceful degradation**: If Groq API is unavailable, ASCII smuggling protection still runs. LLM detection is skipped with a warning log.
+
+### Layer 2: Assistant URL Source and Safety Checks
+
+Assistant responses can turn prompt-injected source text into malicious links, for example by encoding chat secrets in a URL path or query string. OpenMates therefore treats assistant-visible URLs as generated content that must be proven safe before the final response is persisted or streamed as the corrected final text.
+
+[`url_normalizer.py`](../../backend/shared/python_utils/url_normalizer.py) and [`stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) enforce two gates:
+
+1. **Exact source allowlist** -- every URL in the assistant response must already exist byte-for-byte in trusted source material available before generation.
+2. **Batched safeguard classification** -- URLs that pass the source allowlist are sent in one batch to `openai/gpt-oss-safeguard-20b` using function/tool calling. The model reports only malicious URLs via `report_malicious_urls`.
+
+**Source material for the allowlist:**
+
+- User-typed message content and relevant chat history
+- Tool results and app skill outputs passed back to main processing
+- Embed preview/result payloads such as web pages, web search results, code results, documents, emails, and transcripts
+
+**Removal rules:**
+
+- If an assistant URL is not present exactly in the source allowlist, remove it immediately without an LLM call.
+- If the safeguard reports a source-backed URL as malicious, remove it.
+- If the safeguard call fails, returns malformed tool arguments, references unknown URLs, or rewrites URLs, fail closed for the affected batch and remove those URLs.
+
+**Why this is not URL parameter stripping:** parameters, fragments, and paths are preserved when they are legitimate source URLs. The safety question is whether the exact URL came from source content and whether the full URL contains secrets, personal data, encoded payloads, prompt-injection instructions, phishing/malware indicators, or credential-exfiltration patterns.
 
 ### Additional Defenses
 
 - **Manual confirmation for sensitive skills**: Certain app skills require user confirmation before execution.
-- **URL parameter stripping**: All URL parameters are stripped before processing to prevent parameter-based injection.
+- **Assistant URL source allowlist**: Generated responses may only keep URLs that came from user/tool/embed source content exactly, then pass batched safeguard classification.
 - **CLI terminal command blocking**: The CLI prevents LLM from executing arbitrary shell commands, providing safe file-reading instead.
 
 ### Programmatic API Override

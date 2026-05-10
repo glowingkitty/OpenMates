@@ -38,7 +38,10 @@ from backend.apps.ai.processing.url_validator import (
     extract_urls_from_markdown,
     replace_broken_urls_with_search
 )
-from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
+from backend.shared.python_utils.url_normalizer import (
+    extract_urls_from_content,
+    sanitize_text_urls_with_safeguard,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -4533,11 +4536,22 @@ async def _consume_main_processing_stream(
                 exc_info=True
             )
 
-    # Remove URL query and fragment parameters from assistant response text.
-    # This applies to markdown links and plain URLs to avoid leaking sensitive
-    # data via query strings or hash fragments.
+    # Process assistant-visible URLs with a source allowlist plus the safeguard
+    # model. URLs must already exist exactly in user/context/tool source data;
+    # the assistant is not allowed to invent links from instructions or secrets.
     if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
-        cleaned_response = sanitize_text_urls_remove_query_and_fragment(aggregated_response)
+        source_url_allowlist = extract_urls_from_content(
+            {
+                "message_history": [msg.model_dump(exclude_none=True) for msg in request_data.message_history],
+                "tool_calls_info": tool_calls_info or [],
+            }
+        )
+        cleaned_response = await sanitize_text_urls_with_safeguard(
+            aggregated_response,
+            secrets_manager=secrets_manager,
+            log_prefix=log_prefix,
+            allowed_source_urls=source_url_allowlist,
+        )
         if cleaned_response != aggregated_response:
             aggregated_response = cleaned_response
             final_response_chunks = [aggregated_response]
@@ -4555,7 +4569,7 @@ async def _consume_main_processing_stream(
                     redis_channel_name,
                     cleaned_payload,
                     log_prefix,
-                    "Published response with URL query/fragment parameters stripped",
+                    "Published response with safeguard-processed URLs",
                 )
 
     # App-skill-use JSON blocks are streamed as live transport markers so the
