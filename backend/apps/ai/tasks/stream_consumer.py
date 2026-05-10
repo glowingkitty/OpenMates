@@ -61,6 +61,14 @@ _TOOL_CALL_XML_PATTERN = re.compile(
 # Matches 200+ consecutive characters of digits, commas, hyphens, spaces, and newlines.
 _GARBLED_NUMBER_SEQUENCE_PATTERN = re.compile(r'[\d,\-\s\n]{200,}')
 
+# JSON code blocks that only reference an app skill use placeholder are transport
+# markers for the live embed event stream. They should not remain in final
+# assistant text, unlike direct code/table/document embed references.
+_APP_SKILL_USE_JSON_BLOCK_PATTERN = re.compile(
+    r'```json\s*\n\s*(\{.*?\})\s*\n\s*```\s*\n*',
+    re.DOTALL,
+)
+
 # Regex pattern to detect source quotes in blockquotes — canonical format.
 # Matches lines like: > [quoted text](embed:some-ref-k8D)
 # Group 1 = quoted text, Group 2 = embed_ref slug.
@@ -256,6 +264,25 @@ def _strip_tool_call_xml_from_text(text: str) -> str:
         logger.debug(f"Stripped <tool_call> XML from text. Original: {len(text)} chars, cleaned: {len(cleaned)} chars")
     
     return cleaned
+
+
+def _strip_app_skill_use_embed_reference_blocks(text: str) -> str:
+    """Remove streamed app-skill placeholder JSON blocks from final text."""
+    if not text or "app_skill_use" not in text:
+        return text
+
+    def _replace(match: re.Match) -> str:
+        try:
+            parsed = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            return match.group(0)
+
+        if parsed.get("type") == "app_skill_use" and parsed.get("embed_id"):
+            return ""
+        return match.group(0)
+
+    cleaned = _APP_SKILL_USE_JSON_BLOCK_PATTERN.sub(_replace, text)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
 def _parse_email_fence_content(raw_content: str) -> Dict[str, str]:
@@ -4529,6 +4556,32 @@ async def _consume_main_processing_stream(
                     cleaned_payload,
                     log_prefix,
                     "Published response with URL query/fragment parameters stripped",
+                )
+
+    # App-skill-use JSON blocks are streamed as live transport markers so the
+    # frontend can show processing embeds immediately. Strip them from the final
+    # assistant text after source verification has used them, otherwise a
+    # successful search embed remains visibly embedded in the answer forever.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        app_skill_cleaned_response = _strip_app_skill_use_embed_reference_blocks(aggregated_response)
+        if app_skill_cleaned_response != aggregated_response:
+            aggregated_response = app_skill_cleaned_response
+            final_response_chunks = [aggregated_response]
+            if cache_service:
+                app_skill_cleaned_payload = _create_redis_payload(
+                    task_id,
+                    request_data,
+                    aggregated_response,
+                    stream_chunk_count + 5,
+                    is_final=False,
+                    model_name=stream_model_name,
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    app_skill_cleaned_payload,
+                    log_prefix,
+                    "Published response with app-skill placeholder references stripped",
                 )
 
     # --- Hardcoded Advice Disclaimer Injection ---

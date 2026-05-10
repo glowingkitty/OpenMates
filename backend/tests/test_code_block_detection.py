@@ -15,6 +15,7 @@ import pytest
 try:
     from backend.apps.ai.tasks.stream_consumer import (
         _should_process_chunk_as_code_block,
+        _strip_app_skill_use_embed_reference_blocks,
     )
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
@@ -145,6 +146,30 @@ class TestEmbedReferenceSkip:
         aggregated = "The data:\n"
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
         assert result is False
+
+
+class TestAppSkillUseReferenceStripping:
+    """App-skill-use transport markers should not persist as answer text."""
+
+    def test_strips_app_skill_use_json_block(self):
+        text = (
+            '```json\n'
+            '{"type":"app_skill_use","embed_id":"9f01d86d-6877-43fd-88bb-0fceabe10bb1"}\n'
+            '```\n\n'
+            'Here are the repository results.'
+        )
+        result = _strip_app_skill_use_embed_reference_blocks(text)
+        assert result == "Here are the repository results."
+
+    def test_keeps_direct_embed_reference_blocks(self):
+        text = '```json\n{"type":"code","embed_id":"abc-123"}\n```\n\nHere is the code.'
+        result = _strip_app_skill_use_embed_reference_blocks(text)
+        assert result == text
+
+    def test_keeps_invalid_json_block(self):
+        text = '```json\n{"type":"app_skill_use",\n```\n\nFallback text.'
+        result = _strip_app_skill_use_embed_reference_blocks(text)
+        assert result == text
 
 
 # ---------------------------------------------------------------------------
