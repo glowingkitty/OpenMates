@@ -18,6 +18,16 @@
 	import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
 	import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
 	import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
+	import { activeChatStore } from '../../../stores/activeChatStore';
+	import { chatDB } from '../../../services/db';
+	import { chatMetadataCache } from '../../../services/chatMetadataCache';
+	import { panelState } from '../../../stores/panelStateStore';
+	import { settingsMenuVisible } from '../../Settings.svelte';
+	import {
+		getCategoryGradientColors,
+		getFallbackIconForCategory,
+		getLucideIcon
+	} from '../../../utils/categoryUtils';
 
 	interface Props {
 		reminderId: string;
@@ -36,6 +46,7 @@
 		trigger_at: number;
 		trigger_at_formatted: string;
 		target_type: string;
+		target_chat_id?: string | null;
 		is_repeating: boolean;
 		status: string;
 	}
@@ -44,6 +55,9 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let mode = $state<'view' | 'edit'>(untrack(() => startInEditMode ? 'edit' : 'view'));
+	let chatTitle = $state<string | null>(null);
+	let chatCategory = $state<string | null>(null);
+	let chatIcon = $state<string | null>(null);
 
 	// Edit form state
 	let editDate = $state('');
@@ -54,6 +68,13 @@
 	// Delete state
 	let confirmDelete = $state(false);
 	let deleting = $state(false);
+
+	let categoryGradient = $derived(
+		getCategoryGradientColors(chatCategory || 'general_knowledge')
+	);
+	let CategoryIcon = $derived(
+		getLucideIcon(chatIcon || getFallbackIconForCategory(chatCategory || 'general_knowledge'))
+	);
 
 	// ─── Data fetching ─────────────────────────────────────────────────────────
 
@@ -92,6 +113,23 @@
 		}
 	}
 
+	async function loadChatPreview(chatId: string | null | undefined) {
+		chatTitle = null;
+		chatCategory = null;
+		chatIcon = null;
+		if (!chatId) return;
+
+		const chat = await chatDB.getChat(chatId);
+		if (!chat) return;
+
+		const meta = await chatMetadataCache.getDecryptedMetadata(chat);
+		if (meta) {
+			chatTitle = meta.title;
+			chatCategory = meta.category;
+			chatIcon = meta.icon;
+		}
+	}
+
 	// ─── Actions ───────────────────────────────────────────────────────────────
 
 	function startEdit() {
@@ -109,6 +147,18 @@
 			editTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 		}
 	}
+
+	function openTargetChat() {
+		if (!reminder?.target_chat_id) return;
+		activeChatStore.setActiveChat(reminder.target_chat_id);
+		settingsMenuVisible.set(false);
+		panelState.closeSettings();
+	}
+
+	$effect(() => {
+		const targetChatId = reminder?.target_chat_id;
+		void loadChatPreview(targetChatId);
+	});
 
 	async function handleSave() {
 		if (!editDate || !editTime) return;
@@ -211,6 +261,24 @@
 					: $text('reminder.settings.type_task')}
 			</div>
 
+			{#if reminder.target_type === 'existing_chat' && reminder.target_chat_id && chatTitle}
+				<button
+					class="chat-context"
+					data-testid="reminder-target-chat"
+					onclick={openTargetChat}
+				>
+					<div
+						class="category-circle"
+						style={categoryGradient
+							? `background: linear-gradient(135deg, ${categoryGradient.start}, ${categoryGradient.end})`
+							: 'background: #cccccc'}
+					>
+						<CategoryIcon size={16} color="white" />
+					</div>
+					<span class="chat-context-title">{chatTitle}</span>
+				</button>
+			{/if}
+
 			{#if reminder.is_repeating}
 				<SettingsSectionHeading icon="reload" title={$text('reminder.settings.repeat_heading')} />
 				<div class="detail-value">{$text('apps.reminder.active_reminders.repeating')}</div>
@@ -306,6 +374,46 @@
 		font-weight: 500;
 		color: var(--color-font-primary);
 		line-height: 1.4;
+	}
+
+	.chat-context {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: calc(100% - 1.25rem);
+		margin: 0.25rem 0.625rem 0.75rem;
+		padding: 0.75rem 1rem;
+		border: none;
+		border-radius: 1.25rem;
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
+		font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		font-size: var(--font-size-p, 0.875rem);
+		font-weight: 600;
+		cursor: pointer;
+		text-align: left;
+		transition: background var(--duration-fast) var(--easing-default), transform var(--duration-fast) var(--easing-default);
+	}
+
+	.chat-context:hover {
+		background: var(--color-grey-20);
+		transform: translateY(-1px);
+	}
+
+	.category-circle {
+		width: 2rem;
+		height: 2rem;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.chat-context-title {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.native-input-wrapper {

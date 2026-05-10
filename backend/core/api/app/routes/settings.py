@@ -52,6 +52,7 @@ class ActiveReminderItem(BaseModel):
     trigger_at: int = Field(description="Unix timestamp when reminder fires")
     trigger_at_formatted: str = Field(description="Human-readable trigger time")
     target_type: str = Field(description="new_chat or existing_chat")
+    target_chat_id: Optional[str] = Field(default=None, description="Target chat ID for chat reminders")
     is_repeating: bool = Field(default=False)
     status: str = Field(default="pending")
 
@@ -112,8 +113,22 @@ async def get_active_reminders(
                 trigger_at = reminder.get("trigger_at", 0)
                 timezone = reminder.get("timezone", "UTC")
                 target_type = reminder.get("target_type", "new_chat")
+                target_chat_id = None
                 repeat_config = reminder.get("repeat_config")
                 reminder_status = reminder.get("status", "pending")
+
+                # Decrypt the target chat ID so settings can render and open the
+                # specific chat for chat reminders. This endpoint is authenticated
+                # and already scoped to the reminder owner.
+                encrypted_target_chat_id = reminder.get("encrypted_target_chat_id")
+                if encrypted_target_chat_id and vault_key_id:
+                    try:
+                        target_chat_id = await encryption_service.decrypt_with_user_key(
+                            ciphertext=encrypted_target_chat_id,
+                            key_id=vault_key_id
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not decrypt reminder target chat {reminder_id}: {e}")
                 
                 # Decrypt the prompt for preview
                 prompt_preview = ""
@@ -140,6 +155,7 @@ async def get_active_reminders(
                     trigger_at=trigger_at,
                     trigger_at_formatted=trigger_at_formatted,
                     target_type=target_type,
+                    target_chat_id=target_chat_id,
                     is_repeating=repeat_config is not None,
                     status=reminder_status
                 ).model_dump())
