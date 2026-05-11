@@ -21,6 +21,7 @@
 		trigger_at: number;
 		trigger_at_formatted: string;
 		target_type: string;
+		target_chat_id?: string | null;
 		is_repeating: boolean;
 		status: string;
 	}

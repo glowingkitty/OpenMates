@@ -4,7 +4,45 @@ icon_image: |
   events.svg
 category: personal
 last_updated: "2026-03-08"
-settings_and_memories: []
+settings_and_memories:
+  - id: saved_events
+    name_translation_key: events.saved_events
+    description_translation_key: events.saved_events.description
+    icon_image: event.svg
+    type: list
+    stage: production
+    schema:
+      type: object
+      properties:
+        embed_id:
+          type: string
+          description: Referenced embed id for preview/fullscreen reopen
+        title:
+          type: string
+          description: Event title
+          is_title: true
+        provider:
+          type: string
+          description: Source provider
+        url:
+          type: string
+          description: Event URL
+        date_start:
+          type: string
+          description: Event start datetime
+          is_subtitle: true
+        date_end:
+          type: string
+          description: Event end datetime
+        location:
+          type: string
+          description: Venue or online location
+        notes:
+          type: string
+          description: Optional notes
+          multiline: true
+      required:
+        - title
 instructions: []
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:

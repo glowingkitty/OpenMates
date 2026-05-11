@@ -207,11 +207,22 @@ struct SignupAlphaDisclaimerStep: View {
                 .padding(.vertical, .spacing2)
 
             VStack(alignment: .leading, spacing: .spacing5) {
-                alphaRow(icon: "rocket", text: LocalizationManager.shared.text("signup.is_alpha_disclaimer"))
-                alphaRow(icon: "thumbs-up", text: LocalizationManager.shared.text("signup.decent_stable"))
-                alphaRow(icon: "check", text: LocalizationManager.shared.text("signup.not_all_core_features_implemented"))
+                alphaRow(icon: "project", text: LocalizationManager.shared.text("signup.is_alpha_disclaimer"))
+                alphaRow(icon: "thumbsup", text: LocalizationManager.shared.text("signup.decent_stable"))
+                alphaRow(icon: "task", text: LocalizationManager.shared.text("signup.not_all_core_features_implemented"))
                 alphaRow(icon: "bug", text: LocalizationManager.shared.text("signup.expect_bugs_and_missing_features"))
-                alphaRow(icon: "asset:github", text: LocalizationManager.shared.text("signup.view_on_github"))
+                alphaRow(
+                    icon: "github",
+                    text: LocalizationManager.shared.text("signup.view_on_github"),
+                    detail: LocalizationManager.shared.text("signup.view_on_github_description"),
+                    isLink: true
+                )
+                alphaRow(
+                    icon: "instagram",
+                    text: LocalizationManager.shared.text("signup.view_on_instagram"),
+                    detail: LocalizationManager.shared.text("signup.view_on_instagram_description"),
+                    isLink: true
+                )
             }
 
             Button {
@@ -229,23 +240,27 @@ struct SignupAlphaDisclaimerStep: View {
         }
     }
 
-    private func alphaRow(icon: String, text: String) -> some View {
+    private func alphaRow(icon: String, text: String, detail: String? = nil, isLink: Bool = false) -> some View {
         HStack(alignment: .top, spacing: .spacing4) {
-            if icon.hasPrefix("asset:") {
-                Icon(String(icon.dropFirst(6)), size: 22)
-                    .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 28, height: 28)
-            } else {
-                LucideNativeIcon(icon, size: 22)
-                    .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 28, height: 28)
-            }
+            Icon(icon, size: 24)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 28, height: 28)
 
-            Text(text)
-                .font(.omP)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.fontPrimary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(text)
+                    .font(.omP)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(isLink ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.fontPrimary))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let detail {
+                    Text(detail)
+                        .font(.omSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 }

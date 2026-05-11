@@ -31,6 +31,7 @@
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
+    import { forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
     import { normalizeEmbedType as registryNormalizeEmbedType } from '../data/embedRegistry.generated';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
@@ -58,6 +59,7 @@
     import { signupStore } from '../stores/signupStore';
     import SignupStatusbar from './signup/SignupStatusbar.svelte';
     import { userDB } from '../services/userDB';
+
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
@@ -120,6 +122,17 @@
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
+
+    function loadWikipediaFullscreenComponent() {
+        return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
+            console.error('[ActiveChat] Failed to load Wikipedia fullscreen component', error);
+            if (isChunkLoadError(error)) {
+                logChunkLoadError('ActiveChat:WikipediaFullscreen', error);
+                forcePageReload();
+            }
+            return null;
+        });
+    }
     
     // Lightweight type aliases to keep complex event payloads and component refs explicit.
     type EventListenerCallback = (event: Event) => void;
@@ -10362,7 +10375,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          with the new article (fresh fetch, reset state) — same pattern as
                          regular embed fullscreen keyed on ${embedId}:${focusChildEmbedId}. -->
                     {#key wikiFullscreenData.wikiTitle}
-                        {#await import('./embeds/wiki/WikipediaFullscreen.svelte') then module}
+                        {#await loadWikipediaFullscreenComponent() then module}
+                            {#if module}
                             <module.default
                                 wikiTitle={wikiFullscreenData.wikiTitle}
                                 wikidataId={wikiFullscreenData.wikidataId}
@@ -10371,6 +10385,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 description={wikiFullscreenData.description}
                                 onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}
                             />
+                            {:else}
+                                <div class="embed-fullscreen-fallback">
+                                    <div class="fullscreen-header">
+                                        <button onclick={() => { showWikiFullscreen = false; wikiFullscreenData = null; }}>Close</button>
+                                    </div>
+                                    <div class="fullscreen-content">
+                                        <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
+                                    </div>
+                                </div>
+                            {/if}
                         {/await}
                     {/key}
                 </div>

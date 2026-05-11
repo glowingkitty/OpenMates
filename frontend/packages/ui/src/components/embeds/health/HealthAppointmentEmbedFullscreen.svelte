@@ -20,6 +20,8 @@
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
+  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface GoogleReview {
@@ -252,6 +254,53 @@
     if (activeAppointment?.speciality) parts.push(activeAppointment.speciality);
     return parts.join(' · ') || undefined;
   });
+
+  let bookingUrl = $derived(activeAppointment?.booking_url || activeAppointment?.practice_url || '');
+
+  function getSlotDate(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return iso.split('T')[0] || iso;
+    return parsed.toISOString().split('T')[0];
+  }
+
+  function buildSaveConfig() {
+    const title = activeAppointment?.name || activeAppointment?.speciality || 'Appointment';
+    const date = getSlotDate(effectiveSlotDatetime);
+    return {
+      kind: 'health_appointment' as const,
+      appId: 'health',
+      itemType: 'appointments',
+      itemKey: `appointments.${bookingUrl || title}.${effectiveSlotDatetime || ''}`,
+      title,
+      reminderDateTime: effectiveSlotDatetime,
+      reminderPromptTitle: `${title}${effectiveSlotDatetime ? ` at ${formatSlot(effectiveSlotDatetime)}` : ''}`,
+      itemValue: {
+        embed_id: embedId || data.focusChildEmbedId || activeAppointment?.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
+        title: headerTitle,
+        appointment_type: 'doctor_visit',
+        where: [activeAppointment?.name, activeAppointment?.speciality].filter(Boolean).join(' · '),
+        date,
+        notes: [activeAppointment?.address, bookingUrl].filter(Boolean).join('\n'),
+      },
+    };
+  }
+
+  let saveConfig = $derived(buildSaveConfig());
+  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
+
+  function handleToggleSavedAppointment() {
+    if (savedMemoryEntry) {
+      forgetEmbedMemory(saveConfig);
+      return;
+    }
+    saveEmbedMemory(saveConfig);
+  }
+
+  function handleOpenAppointment() {
+    if (bookingUrl) window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+    promptToSaveEmbedMemory(buildSaveConfig());
+  }
 </script>
 
 {#if activeAppointment}
@@ -414,11 +463,12 @@
   {/snippet}
 
   {#snippet embedHeaderCta()}
-    {#if activeAppointment.booking_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} href={activeAppointment.booking_url} />
-    {:else if activeAppointment.practice_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} href={activeAppointment.practice_url} />
-    {/if}
+    <div class="embed-header-cta-group">
+      <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedAppointment} testId="save-embed-cta" />
+      {#if bookingUrl}
+        <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} onclick={handleOpenAppointment} testId="external-provider-cta" />
+      {/if}
+    </div>
   {/snippet}
 </EntryWithMapTemplate>
 {/if}

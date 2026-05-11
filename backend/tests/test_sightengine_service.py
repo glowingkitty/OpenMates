@@ -525,3 +525,41 @@ class TestHealthCheckProbe:
             result = await _check_sightengine_health(mock_secrets)
 
         assert result["status"] == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_health_check_skips_on_usage_limit(self):
+        """Sightengine quota exhaustion should be explicit, not a service outage."""
+        _check_sightengine_health = _hct._check_sightengine_health
+
+        mock_secrets = AsyncMock()
+        mock_secrets.get_secret = AsyncMock(side_effect=["u", "s"])
+
+        mock_resp = _make_mock_response(
+            {
+                "status": "failure",
+                "error": {
+                    "type": "usage_limit",
+                    "message": "30-day usage limit reached",
+                },
+            },
+            status_code=400,
+        )
+
+        with patch("httpx.AsyncClient") as mock_client_cls, \
+             patch.object(_hct, "CacheService") as mock_cache_cls, \
+             patch.object(_hct, "_record_health_event_if_changed", new_callable=AsyncMock) as mock_record:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            mock_client_cls.return_value = mock_client
+
+            mock_cache = AsyncMock()
+            mock_cache.client = AsyncMock(return_value=None)
+            mock_cache_cls.return_value = mock_cache
+
+            result = await _check_sightengine_health(mock_secrets)
+
+        assert result["status"] == "skipped"
+        assert result["last_error"] == "usage_limit"
+        mock_record.assert_not_called()

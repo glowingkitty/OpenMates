@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
   
-  Preview component for Document embeds (document_html).
+  Preview component for Document embeds.
   Uses UnifiedEmbedPreview as base and provides document-specific details content.
   
   Renders an A4-like document preview using CSS transform: scale() to shrink a
@@ -23,6 +23,7 @@
     generateFilenameFromTitle,
     countDocWords
   } from './docsEmbedContent';
+  import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore } from '../../../stores/embedPIIStore';
   
@@ -48,6 +49,8 @@
     onFullscreen: () => void;
     /** HTML content (full HTML for preview extraction) */
     htmlContent?: string;
+    /** Optional pre-rendered preview page URLs for local/dev previews */
+    previewPageUrls?: Record<string, string>;
   }
   
   let {
@@ -59,7 +62,8 @@
     taskId: taskIdProp,
     isMobile = false,
     onFullscreen,
-    htmlContent: htmlContentProp = ''
+    htmlContent: htmlContentProp = '',
+    previewPageUrls: previewPageUrlsProp
   }: Props = $props();
   
   // Local reactive state for embed data - updated via onEmbedDataUpdated callback
@@ -69,7 +73,11 @@
   let localWordCount = $state<number>(0);
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
+  let localScreenshotS3Keys = $state<Record<string, string> | undefined>(undefined);
+  let localAesKey = $state<string | undefined>(undefined);
+  let localPreviewPageUrls = $state<Record<string, string> | undefined>(undefined);
   let storeResolved = $state(false);
+  let firstPageUrl = $state<string | undefined>(undefined);
 
   // Initialize local state from props
   $effect(() => {
@@ -80,6 +88,7 @@
       localWordCount = wordCountProp || 0;
       localStatus = statusProp || 'processing';
       localTaskId = taskIdProp;
+      localPreviewPageUrls = previewPageUrlsProp;
     }
   });
   
@@ -90,6 +99,10 @@
   let wordCount = $derived(localWordCount);
   let status = $derived(localStatus);
   let taskId = $derived(localTaskId);
+  let screenshotS3Keys = $derived(localScreenshotS3Keys);
+  let aesKey = $derived(localAesKey);
+  let previewPageUrls = $derived(localPreviewPageUrls);
+  let displayedFirstPageUrl = $derived(firstPageUrl || previewPageUrls?.['1']);
   
   // Subscribe to the global embed PII store to get the current chat's PII state.
   // This allows the preview to reactively apply PII masking without needing
@@ -171,7 +184,21 @@
     filename?: string;
     word_count?: number;
     task_id?: string;
+    screenshot_s3_keys?: Record<string, string>;
+    aes_key?: string;
   }
+
+  $effect(() => {
+    const firstPageKey = screenshotS3Keys?.['1'];
+    if (!firstPageKey || !aesKey) return;
+    fetchAndDecryptDocArtifact(firstPageKey, aesKey, 'image/png')
+      .then((blob) => {
+        firstPageUrl = URL.createObjectURL(blob);
+      })
+      .catch((error) => {
+        console.error('[DocsEmbedPreview] Failed to load DOCX preview page:', error);
+      });
+  });
 
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -200,6 +227,12 @@
       }
       if (data.decodedContent.task_id !== undefined) {
         localTaskId = data.decodedContent.task_id;
+      }
+      if (data.decodedContent.screenshot_s3_keys !== undefined) {
+        localScreenshotS3Keys = data.decodedContent.screenshot_s3_keys;
+      }
+      if (data.decodedContent.aes_key !== undefined) {
+        localAesKey = data.decodedContent.aes_key;
       }
     }
     
@@ -235,7 +268,13 @@
 >
   {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
     <div class="doc-details" class:mobile={isMobileLayout}>
-      {#if sanitizedHtml}
+      {#if displayedFirstPageUrl}
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
+          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
+            <img class="doc-page-image" src={displayedFirstPageUrl} alt={displayTitle} />
+          </div>
+        </div>
+      {:else if sanitizedHtml && !screenshotS3Keys}
         <!--
           A4-like document preview using CSS transform: scale().
           We render the document at full size (794px wide, same as fullscreen — A4 at 96 DPI)
@@ -321,6 +360,14 @@
   .doc-details.mobile .doc-page-scaler {
     /* Mobile preview is ~126px wide (150 - padding), scale = 126/794 ≈ 0.159 */
     transform: scale(0.159);
+  }
+
+  .doc-page-image {
+    width: 794px;
+    display: block;
+    background: white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    border-radius: var(--radius-1);
   }
   
   /* White A4 page - same styling as fullscreen for exact match */

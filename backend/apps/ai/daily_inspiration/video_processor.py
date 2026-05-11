@@ -282,11 +282,11 @@ async def _enrich_with_youtube(
     secrets_manager: SecretsManager,
 ) -> List[Dict[str, Any]]:
     """
-    Enrich candidate videos with YouTube Data API metadata (views, likes, duration).
+    Enrich candidate videos with YouTube Data API metadata (views, duration, audience status).
 
     If the API key is unavailable or the request fails, returns candidates unchanged.
-    Candidates are updated in-place with `view_count`, `duration_seconds`, and
-    `published_at` fields where available.
+    Candidates are updated in-place with `view_count`, `duration_seconds`,
+    `published_at`, and `made_for_kids` fields where available.
 
     Args:
         candidates: List of candidate dicts with `youtube_id` key
@@ -308,7 +308,7 @@ async def _enrich_with_youtube(
             response = await client.get(
                 YOUTUBE_DATA_API_URL,
                 params={
-                    "part": "snippet,statistics,contentDetails",
+                    "part": "snippet,statistics,contentDetails,status",
                     "id": ",".join(video_ids),
                     "key": api_key,
                 },
@@ -324,6 +324,7 @@ async def _enrich_with_youtube(
                 continue
             stats = item.get("statistics", {})
             content_details = item.get("contentDetails", {})
+            status = item.get("status", {})
 
             # Parse ISO 8601 duration → seconds (e.g. PT4M33S → 273)
             duration_seconds: Optional[int] = None
@@ -346,6 +347,7 @@ async def _enrich_with_youtube(
                 "view_count": int(stats.get("viewCount", 0)) if stats.get("viewCount") else None,
                 "duration_seconds": duration_seconds,
                 "published_at": published_at_iso,
+                "made_for_kids": status.get("madeForKids"),
             }
 
         # Apply enrichment to candidates
@@ -363,6 +365,37 @@ async def _enrich_with_youtube(
         )
 
     return candidates
+
+
+def _filter_made_for_kids(
+    candidates: List[Dict[str, Any]],
+    task_id: str,
+    topic_phrase: str,
+) -> List[Dict[str, Any]]:
+    """
+    Drop videos YouTube marks as Made for Kids.
+
+    This is language-independent and uses the official YouTube Data API
+    `status.madeForKids` field. Missing values are kept because enrichment can
+    fail open when the API key is unavailable or YouTube omits status metadata.
+    """
+    kept: List[Dict[str, Any]] = []
+    dropped: List[str] = []
+    for candidate in candidates:
+        if candidate.get("made_for_kids") is True:
+            dropped.append(
+                f"{candidate.get('title', '')[:50]} ({candidate.get('youtube_id', '?')})"
+            )
+            continue
+        kept.append(candidate)
+
+    if dropped:
+        logger.info(
+            f"[DailyInspiration][{task_id}] YouTube madeForKids filter blocked "
+            f"{len(dropped)} video(s) for '{topic_phrase}': {dropped}"
+        )
+
+    return kept
 
 
 def _filter_by_hard_age_cutoff(
@@ -615,6 +648,14 @@ async def find_video_candidates(
 
     # Enrich with YouTube Data API (view counts, duration)
     candidates = await _enrich_with_youtube(candidates, secrets_manager)
+
+    candidates = _filter_made_for_kids(candidates, task_id, topic_phrase)
+    if not candidates:
+        logger.warning(
+            f"[DailyInspiration][{task_id}] All candidates rejected by YouTube "
+            f"madeForKids filter for '{topic_phrase}'"
+        )
+        return []
 
     # Apply blanket hard-age cutoff (>10y) before sorting/selection.
     # Category-specific caps are enforced post-LLM in generator.py.

@@ -8,36 +8,99 @@
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 #if os(macOS)
 import AppKit
 #endif
 
 struct RootView: View {
+    let launchCommand: AppWindowLaunchCommand?
+
     @EnvironmentObject var authManager: AuthManager
+    #if os(iOS)
+    @Environment(\.isExternalDisplayScene) private var isExternalDisplayScene
+    #endif
+    #if os(iOS)
+    @StateObject private var externalDisplayCoordinator = ExternalDisplayCoordinator.shared
+    #endif
+    #if DEBUG
+    @State private var devPreviewConfiguration = DevPreviewLaunchConfiguration.current
+    #endif
+
+    init(launchCommand: AppWindowLaunchCommand? = nil) {
+        self.launchCommand = launchCommand
+    }
 
     var body: some View {
         Group {
-            switch authManager.state {
-            case .initializing:
-                LaunchScreen()
-
-            case .unauthenticated:
-                MainAppView()
-                    .transition(.opacity)
-
-            case .needsDeviceVerification(let type):
-                DeviceVerificationView(verificationType: type)
-                    .transition(.opacity)
-
-            case .authenticated:
-                MainAppView()
+            #if DEBUG
+            if let devPreviewConfiguration {
+                DevPreviewRootView(configuration: devPreviewConfiguration)
+            } else {
+                rootContent
+            }
+            #else
+            rootContent
+            #endif
+        }
+        #if os(iOS)
+        .overlay {
+            if !isExternalDisplayScene && externalDisplayCoordinator.shouldShowPhoneController {
+                ExternalDisplayControllerView()
+                    .environmentObject(externalDisplayCoordinator)
                     .transition(.opacity)
             }
         }
+        .onAppear {
+            externalDisplayCoordinator.refreshConnectedDisplays()
+        }
+        #endif
         .animation(.easeInOut(duration: 0.3), value: authManager.state)
         .modifier(MacWindowChromeModifier())
+        #if DEBUG
+        .onOpenURL { url in
+            if let configuration = DevPreviewLaunchConfiguration.parse(url: url) {
+                devPreviewConfiguration = configuration
+            }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        switch authManager.state {
+        case .initializing:
+            LaunchScreen()
+
+        case .unauthenticated:
+            MainAppView(launchCommand: launchCommand)
+                .transition(.opacity)
+
+        case .needsDeviceVerification(let type):
+            DeviceVerificationView(verificationType: type)
+                .transition(.opacity)
+
+        case .authenticated:
+            MainAppView(launchCommand: launchCommand)
+                .transition(.opacity)
+        }
     }
 }
+
+#if os(iOS)
+private struct ExternalDisplaySceneKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var isExternalDisplayScene: Bool {
+        get { self[ExternalDisplaySceneKey.self] }
+        set { self[ExternalDisplaySceneKey.self] = newValue }
+    }
+}
+#endif
 
 private struct MacWindowChromeModifier: ViewModifier {
     func body(content: Content) -> some View {

@@ -17,6 +17,8 @@ import { mount, unmount } from "svelte";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
+import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
+import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
@@ -182,6 +184,11 @@ export class GroupRenderer implements EmbedRenderer {
         "code-code",
         (item, embedData, decodedContent, content) =>
           this.renderCodeComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "code-repo",
+        (item, embedData, decodedContent, content) =>
+          this.renderCodeRepoComponent(item, embedData, decodedContent, content),
       ],
       [
         "docs-doc",
@@ -541,6 +548,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderVideoItem(item, embedData, decodedContent);
       case "code-code":
         return this.renderCodeItem(item, embedData, decodedContent);
+      case "code-repo":
+        return this.renderCodeRepoItem(item, embedData, decodedContent);
       case "docs-doc":
         return this.renderDocItem(item, embedData, decodedContent);
       case "sheets-sheet":
@@ -1069,6 +1078,11 @@ export class GroupRenderer implements EmbedRenderer {
       "processing") as "processing" | "finished" | "error";
     const taskId = decodedContent?.task_id;
     const results = decodedContent?.results || [];
+    const childEmbedIds = Array.isArray(embedData?.embed_ids)
+      ? embedData.embed_ids
+      : Array.isArray(decodedContent?.embed_ids)
+        ? decodedContent.embed_ids
+        : [];
 
     // Error embeds are kept in the group and rendered with status: 'error'.
     // The individual preview components handle the error state display (dimmed,
@@ -1312,6 +1326,26 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             taskId,
             skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle code.search_repos skill (GitHub repository search)
+      if (appId === "code" && skillId === "search_repos") {
+        const repoSearchResults = results.length > 0 ? results : childEmbedIds;
+        const component = mount(CodeRepoSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "GitHub",
+            status,
+            results: repoSearchResults,
+            taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
@@ -2409,6 +2443,68 @@ export class GroupRenderer implements EmbedRenderer {
       );
       content.innerHTML = fallbackHtml;
     }
+  }
+
+  /** Render GitHub repository embed using Svelte component. */
+  private async renderCodeRepoComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || "";
+    const hasResolvedData = decodedContent && (decodedContent.url || decodedContent.full_name);
+    const status = hasResolvedData ? "finished" : item.status || "processing";
+
+    content.innerHTML = "";
+    try {
+      const handleFullscreen = () => this.openFullscreen(item, embedData, decodedContent);
+      const component = mount(CodeRepoEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          url: decodedContent?.url || item.url || "",
+          fullName: decodedContent?.full_name,
+          name: decodedContent?.name,
+          ownerLogin: decodedContent?.owner_login,
+          ownerAvatarUrl: decodedContent?.owner_avatar_url,
+          description: decodedContent?.description,
+          primaryLanguage: decodedContent?.primary_language,
+          licenseName: decodedContent?.license_name,
+          licenseSpdxId: decodedContent?.license_spdx_id,
+          stars: decodedContent?.stars,
+          forks: decodedContent?.forks,
+          openIssues: decodedContent?.open_issues,
+          updatedAt: decodedContent?.updated_at,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[GroupRenderer] Error mounting CodeRepoEmbedPreview component:", error);
+      content.innerHTML = await this.renderCodeRepoItem(item, embedData, decodedContent);
+    }
+  }
+
+  private async renderCodeRepoItem(
+    item: EmbedNodeAttributes,
+    _embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const fullName = decodedContent?.full_name || item.title || "GitHub repository";
+    const description = decodedContent?.description || "";
+    const embedId = item.contentRef?.replace("embed:", "") || "";
+    return `
+      <div class="embed-unified-container" data-embed-type="code-repo" data-embed-id="${embedId}">
+        <div class="embed-app-icon code"><span class="icon icon_code"></span></div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">${fullName}</div>
+          ${description ? `<div class="embed-text-line">${description}</div>` : ""}
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -4172,6 +4268,7 @@ export class GroupRenderer implements EmbedRenderer {
       "web-website": "website",
       "videos-video": "video",
       "code-code": "code file",
+      "code-repo": "repository",
       "docs-doc": "document",
       "sheets-sheet": "spreadsheet",
       "mail-email": "email draft",

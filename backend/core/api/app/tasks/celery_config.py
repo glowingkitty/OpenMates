@@ -151,6 +151,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
+    {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.daily_inspiration_tasks'},  # Daily Inspiration generation tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.default_inspiration_tasks'},  # Daily defaults selection from pool (replaces old admin-curated pipeline)
     {'name': 'server_stats', 'module': 'backend.core.api.app.tasks.web_analytics_tasks'},  # Web analytics flush tasks (privacy-preserving aggregate counters)

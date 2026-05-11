@@ -39,6 +39,7 @@ enum AppStrings {
     static var version: String { L("settings.current_version") }
     static var openMatesName: String { L("apps.openmates") }
     static var guest: String { L("settings.guest") }
+    static var newWindow: String { L("common.new_window") }
 
     // MARK: - Chat
     static var newChat: String { L("chat.new_chat") }
@@ -49,10 +50,10 @@ enum AppStrings {
     static var incognito: String { L("activity.incognito") }
     static var sendMessage: String { L("context_menu.send") }
     static var sendAction: String { L("enter_message.send") }
-    static var copyMessage: String { L("context_menu.copy") }
-    static var editMessage: String { L("context_menu.edit") }
-    static var deleteMessage: String { L("context_menu.delete") }
-    static var forkConversation: String { L("context_menu.fork") }
+    static var copyMessage: String { L("chats.context_menu.copy.text") }
+    static var editMessage: String { L("chats.context_menu.edit.text") }
+    static var deleteMessage: String { L("chats.context_menu.delete_message.text") }
+    static var forkConversation: String { L("chats.context_menu.fork.text") }
     static var chatMessageInput: String { L("chat.message_input") }
     static var typeMessage: String { L("enter_message.placeholder.touch") }
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
@@ -225,6 +226,49 @@ enum AppStrings {
     static var loginWithRecoveryKey: String { L("auth.login_with_recovery_key") }
     static var twoFactorRequired: String { L("auth.two_factor_required") }
     static var invalidCredentials: String { L("auth.invalid_credentials") }
+    static var loginButton: String { L("login.login_button") }
+    static var loginFailed: String { L("login.login_failed") }
+    static var passwordPlaceholder: String { L("login.password_placeholder") }
+    static var twoFactorCodePlaceholder: String { L("login.2fa_code_placeholder") }
+    static var loginWithAnotherAccount: String { L("login.login_with_another_account") }
+    static var loginWithBackupCode: String { L("login.login_with_backup_code") }
+    static var loginWithTfaApp: String { L("login.login_with_tfa_app") }
+    static var backupCodeIsSingleUse: String { L("login.backup_code_is_single_use") }
+    static var emailOrPasswordWrong: String { L("login.email_or_password_wrong") }
+    static var codeWrong: String { L("login.code_wrong") }
+    static var enterOneTimeCode: String { L("signup.enter_one_time_code") }
+    static var enterBackupCode: String { L("login.enter_backup_code") }
+    static var stayLoggedIn: String { L("login.stay_logged_in") }
+    static var toChatToYour: String { L("login.to_chat_to_your") }
+    static var digitalTeamMates: String { L("login.digital_team_mates") }
+    static var emailPlaceholder: String { L("login.email_placeholder") }
+    static var atMissing: String { L("signup.at_missing") }
+    static var domainEndingMissing: String { L("signup.domain_ending_missing") }
+    static var cantLogin: String { L("login.cant_login") }
+    static var yourTfaApp: String { L("login.your_tfa_app") }
+    static var checkYourTfaApp: String {
+        LocalizationManager.shared.text("login.check_your_2fa_app", replacements: ["tfa_app": yourTfaApp])
+    }
+
+    // MARK: - Pair login
+    static var pairWaiting: String { L("settings.sessions.pair_waiting") }
+    static var pairGenerating: String { L("settings.sessions.pair_generating") }
+    static var pairExpired: String { L("settings.sessions.pair_expired") }
+    static var pairRefresh: String { L("settings.sessions.pair_refresh") }
+    static var pairCopyLink: String { L("settings.sessions.pair_copy_link") }
+    static var pairCopied: String { L("settings.sessions.pair_copied") }
+    static var pairUrlLabel: String { L("settings.sessions.pair_url_label") }
+    // Web currently renders this label as literal copy in SettingsSessionsPairInitiate.svelte.
+    static var pairScanCode: String { "Scan code:" }
+    static var pairEnterPinTitle: String { L("settings.sessions.pair_enter_pin_title") }
+    static var pairEnterPinDescription: String { L("settings.sessions.pair_enter_pin_description") }
+    static var pairPinPlaceholder: String { L("settings.sessions.pair_pin_placeholder") }
+    static var pairLogin: String { L("settings.sessions.pair_login") }
+    static var pairLoggingIn: String { L("settings.sessions.pair_logging_in") }
+    static var pairPinLocked: String { L("settings.sessions.pair_pin_locked") }
+    static func pairPinError(attempts: String) -> String {
+        LocalizationManager.shared.text("settings.sessions.pair_pin_error", replacements: ["n": attempts])
+    }
 
     // MARK: - Enter message / action buttons (ActionButtons.svelte)
     static var attachFiles: String { L("enter_message.attachments.attach_files") }
@@ -242,13 +286,31 @@ enum AppStrings {
     static var openInBrowser: String { L("embed.open_in_browser") }
     static var loadPDF: String { L("embed.load_pdf") }
     static var decryptingPDF: String { L("embed.decrypting_pdf") }
+    static var snippets: String { L("embeds.snippets") }
+    static var viaBraveSearch: String { L("embeds.via_brave_search") }
     static var copy: String { L("common.copy") }
+    static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
+    static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
+    static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
+
+    static func openOnProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.open_on_provider", replacements: ["provider": provider])
+    }
+
+    static func dataFrom(_ date: String) -> String {
+        LocalizationManager.shared.text("embeds.data_from", replacements: ["date": date])
+    }
+
+    static func generatedBy(_ model: String) -> String {
+        LocalizationManager.shared.text("chat.generated_by", replacements: ["model": model])
+    }
 
     // MARK: - Notifications
     static var offline: String { L("notifications.offline") }
     static var reconnecting: String { L("notifications.reconnecting") }
     static var incognitoModeOn: String { L("notifications.incognito_on") }
     static var incognitoModeOff: String { L("notifications.incognito_off") }
+    static var clickToRespond: String { L("notifications.click_to_respond") }
     static var incognitoDescription: String { L("settings.incognito.description") }
 
     // MARK: - Misc

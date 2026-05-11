@@ -2171,12 +2171,15 @@ export async function handlePendingAIResponseImpl(
  */
 interface ReminderFiredPayload {
   reminder_id: string;
-  chat_id: string;
+  chat_id?: string;
   message_id: string;
-  target_type: "new_chat" | "existing_chat";
+  target_type: "new_chat" | "existing_chat" | "embed";
   is_repeating: boolean;
   content: string; // PLAINTEXT reminder content
   chat_title?: string; // For new_chat target
+  target_embed_id?: string;
+  target_embed_app_id?: string;
+  target_embed_title?: string;
   user_id: string; // User's UUID (used for WebSocket routing)
   fired_at?: number; // Unix timestamp when the reminder actually fired (set by backend)
   response_type?: "simple" | "full"; // "simple" = notification-only, "full" = AI executes task
@@ -2210,7 +2213,7 @@ export async function handleReminderFiredImpl(
 
   const { chat_id, message_id, content, target_type, chat_title } = payload;
 
-  if (!chat_id || !message_id || !content) {
+  if (!message_id || !content || (target_type !== "embed" && !chat_id)) {
     console.warn(
       "[ChatSyncService:Reminder] Invalid reminder_fired payload:",
       payload,
@@ -2219,6 +2222,53 @@ export async function handleReminderFiredImpl(
   }
 
   try {
+    if (target_type === "embed") {
+      const embedId = payload.target_embed_id;
+      const title = payload.target_embed_title || chat_title || "Saved item reminder";
+      if (!embedId) {
+        console.warn("[ChatSyncService:Reminder] Embed reminder missing target_embed_id", payload);
+        return;
+      }
+
+      notificationStore.addNotificationWithOptions("info", {
+        title: "Reminder",
+        message: title,
+        messageSecondary: content.replace(/\*\*Reminder\*\*\n\n|\n\n---[\s\S]*$/g, "").trim() || "Your saved item reminder is due.",
+        duration: 0,
+        dismissible: true,
+        actionLabel: "Open saved item",
+        dedupeKey: `reminder-embed-${payload.reminder_id}`,
+        onAction: async () => {
+          const { resolveEmbed, decodeToonContent } = await import("./embedResolver");
+          const { embedStore } = await import("./embedStore");
+          const embedData = await resolveEmbed(embedId);
+          if (!embedData) return;
+          const decodedContent = await decodeToonContent(embedData.content);
+          const embedEntry = await embedStore.get(`embed:${embedId}`);
+          const embedRecord = typeof embedEntry === "object" && embedEntry !== null ? embedEntry : null;
+          const rawType = String(embedRecord?.type || embedRecord?.embed_type || "app-skill-use");
+          const autoConvertedTypes = ["code", "code-code", "sheet", "sheets-sheet", "math-plot", "document", "docs-doc"];
+          document.dispatchEvent(new CustomEvent("embedfullscreen", {
+            detail: {
+              embedId,
+              embedData,
+              decodedContent,
+              embedType: autoConvertedTypes.includes(rawType) ? rawType : "app-skill-use",
+              attrs: {
+                type: rawType,
+                contentRef: `embed:${embedId}`,
+                status: embedData.status || "finished",
+              },
+            },
+            bubbles: true,
+          }));
+        },
+      });
+      return;
+    }
+
+    if (!chat_id) return;
+
     // Deduplicate: if this message already exists locally (e.g., the user received it
     // via real-time WebSocket AND again via pending delivery on reconnect), skip it.
     const existingMessage = await chatDB.getMessage(message_id);
@@ -2488,6 +2538,7 @@ interface UserNotificationPayload {
   action_deep_link?: string;
   /** Override auto-dismiss duration in ms (default: 12 000) */
   duration?: number;
+  dedupe_key?: string;
 }
 
 /**
@@ -2507,6 +2558,7 @@ export async function handleUserNotificationImpl(
       action_label,
       action_deep_link,
       duration = 12000,
+      dedupe_key,
     } = payload;
 
     console.warn("[ChatSyncService:UserNotification] Received user_notification:", {
@@ -2528,6 +2580,7 @@ export async function handleUserNotificationImpl(
     notificationStore.addNotificationWithOptions(notification_type, {
       message,
       duration,
+      dedupeKey: dedupe_key,
       dismissible: true,
       ...(action_label && onAction
         ? { actionLabel: action_label, onAction }

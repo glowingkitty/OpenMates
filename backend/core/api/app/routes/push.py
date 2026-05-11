@@ -1,6 +1,6 @@
 # backend/core/api/app/routes/push.py
 """
-Push notification routes — VAPID public key and subscription management.
+Push notification routes — browser Web Push and native Apple device registration.
 
 Architecture:
 - GET  /v1/push/vapid-public-key  → returns the server VAPID public key (no auth required)
@@ -28,6 +28,7 @@ from backend.core.api.app.services.cache import CacheService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/push", tags=["Push Notifications"])
+notifications_router = APIRouter(prefix="/v1/notifications", tags=["Push Notifications"])
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +49,13 @@ class PushVapidKeyResponse(BaseModel):
 class PushSubscribeResponse(BaseModel):
     success: bool
     message: str
+
+
+class NativeDeviceRegisterRequest(BaseModel):
+    """Native Apple push token registration from the iOS/macOS app."""
+    token: str
+    platform: str = "apns"
+    environment: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -134,4 +142,52 @@ async def unsubscribe_push(
         raise
     except Exception as e:
         logger.error(f"[PushRoutes] Failed to remove push subscription for {user_id[:6]}...: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@notifications_router.post("/register-device", response_model=PushSubscribeResponse)
+async def register_native_device(
+    body: NativeDeviceRegisterRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Save a native Apple APNs device token for the authenticated user.
+
+    The native app already calls this endpoint after APNs registration. Store the
+    token in the existing push subscription field with a type discriminator so
+    the offline assistant-completion path can dispatch either Web Push or APNs.
+    """
+    user_id = str(current_user.id)
+    token = body.token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing device token")
+
+    platform = body.platform.strip().lower() or "apns"
+    if platform not in {"apns", "ios", "macos"}:
+        raise HTTPException(status_code=400, detail="Unsupported native push platform")
+
+    subscription_json = json.dumps({
+        "type": "apns",
+        "token": token,
+        "platform": platform,
+        "environment": body.environment,
+    })
+
+    try:
+        updated = await directus_service.update_user(user_id, {
+            "push_notification_enabled": True,
+            "push_notification_subscription": subscription_json,
+        })
+        if not updated:
+            raise HTTPException(status_code=500, detail="Failed to save device token")
+
+        await cache_service.delete_user_cache(user_id)
+        logger.info(f"[PushRoutes] Saved native APNs token for user {user_id[:6]}...")
+        return PushSubscribeResponse(success=True, message="Device registered")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[PushRoutes] Failed to save native token for {user_id[:6]}...: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

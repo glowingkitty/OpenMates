@@ -5,12 +5,14 @@
 import Foundation
 import SwiftUI
 import AuthenticationServices
+import CryptoKit
 
 @MainActor
 final class AuthManager: ObservableObject {
     @Published var state: AuthState = .initializing
     @Published var currentUser: UserProfile?
     @Published var error: String?
+    @Published private(set) var webSocketToken: String?
 
     private let api = APIClient.shared
     private let crypto = CryptoManager.shared
@@ -53,11 +55,34 @@ final class AuthManager: ObservableObject {
 
     func checkSession() async {
         Self._shared = self
+        let restoredFromDisk = await restoreCachedSessionForStartup()
+        guard !restoredFromDisk else { return }
+        Task { @MainActor in
+            await validateSessionAgainstServer(keepOfflineSessionOnFailure: false)
+        }
+    }
+
+    func validateSessionAfterOfflineBootstrap() async {
+        await validateSessionAgainstServer(keepOfflineSessionOnFailure: currentUser != nil)
+    }
+
+    private func validateSessionAgainstServer(keepOfflineSessionOnFailure: Bool) async {
         do {
-            let response: SessionResponse = try await api.request(.get, path: "/v1/auth/session")
+            let response: SessionResponse = try await api.request(
+                .post,
+                path: "/v1/auth/session",
+                body: SessionRequest(sessionId: Self.sessionId, deviceInfo: makeDeviceInfo())
+            )
 
             if response.isAuthenticated, let user = response.user {
+                if response.needsDeviceVerification != true,
+                   (try? await crypto.loadMasterKey(for: user.id)) == nil {
+                    await forceLocalLogout(reason: "missing_master_key")
+                    return
+                }
                 currentUser = user
+                webSocketToken = response.wsToken
+                cacheAuthenticatedUser(user)
                 if response.needsDeviceVerification == true,
                    let type = response.deviceVerificationType {
                     state = .needsDeviceVerification(type: type)
@@ -65,10 +90,15 @@ final class AuthManager: ObservableObject {
                     state = .authenticated
                 }
             } else {
-                state = .unauthenticated
+                await forceLocalLogout(reason: response.reAuthReason ?? response.reAuthRequired ?? "session_invalid")
             }
         } catch {
-            state = .unauthenticated
+            webSocketToken = nil
+            if keepOfflineSessionOnFailure {
+                print("[Auth] Session validation unavailable; keeping cached offline session: \(error.localizedDescription)")
+            } else {
+                state = .unauthenticated
+            }
         }
     }
 
@@ -90,6 +120,7 @@ final class AuthManager: ObservableObject {
         password: String,
         userEmailSalt: String?,
         tfaCode: String? = nil,
+        codeType: String? = nil,
         stayLoggedIn: Bool = false
     ) async throws {
         guard let userEmailSalt,
@@ -114,7 +145,7 @@ final class AuthManager: ObservableObject {
             lookupHash: lookupHash,
             loginMethod: "password",
             tfaCode: tfaCode,
-            codeType: tfaCode == nil ? nil : "otp",
+            codeType: tfaCode == nil ? nil : (codeType ?? "otp"),
             emailEncryptionKey: emailEncryptionKey,
             stayLoggedIn: stayLoggedIn,
             sessionId: Self.sessionId,
@@ -124,7 +155,7 @@ final class AuthManager: ObservableObject {
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
         print("[Auth] Password login response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)")
 
-        if response.success, response.tfaRequired == true, tfaCode == nil {
+        if response.tfaRequired == true, tfaCode == nil {
             throw AuthError.tfaRequired
         }
 
@@ -134,8 +165,8 @@ final class AuthManager: ObservableObject {
             return
         }
 
-        if response.success, let user = response.user {
-            await handleSuccessfulLogin(user: user, password: password)
+        if response.success, response.user != nil {
+            try await handleSuccessfulLogin(response: response, password: password)
             return
         }
 
@@ -177,9 +208,9 @@ final class AuthManager: ObservableObject {
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
         print("[Auth] Recovery login response success=\(response.success) hasUser=\(response.user != nil)")
 
-        if response.success, let user = response.user {
+        if response.success, response.user != nil {
             // Recovery key uses same PBKDF2 derivation as password
-            await handleSuccessfulLogin(user: user, password: recoveryKey)
+            try await handleSuccessfulLogin(response: response, password: recoveryKey)
             return
         }
 
@@ -221,8 +252,8 @@ final class AuthManager: ObservableObject {
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
         print("[Auth] Backup-code login response success=\(response.success) hasUser=\(response.user != nil)")
 
-        if response.success, let user = response.user {
-            await handleSuccessfulLogin(user: user, password: password)
+        if response.success, response.user != nil {
+            try await handleSuccessfulLogin(response: response, password: password)
             return
         }
 
@@ -237,6 +268,42 @@ final class AuthManager: ObservableObject {
             path: "/v1/auth/2fa/verify/device",
             body: DeviceVerifyRequest(code: code)
         )
+        state = .authenticated
+    }
+
+    func completePasskeyLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
+        if response.needsDeviceVerification == true,
+           let type = response.deviceVerificationType {
+            state = .needsDeviceVerification(type: type)
+            return
+        }
+
+        guard response.success, let user = response.user else {
+            throw AuthError.invalidCredentials
+        }
+
+        webSocketToken = response.wsToken
+        currentUser = user
+        try await crypto.saveMasterKey(masterKey, for: user.id)
+        cacheAuthenticatedUser(user)
+        state = .authenticated
+    }
+
+    func completePairLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
+        if response.needsDeviceVerification == true,
+           let type = response.deviceVerificationType {
+            state = .needsDeviceVerification(type: type)
+            return
+        }
+
+        guard response.success, let user = response.user else {
+            throw AuthError.invalidCredentials
+        }
+
+        try await crypto.saveMasterKey(masterKey, for: user.id)
+        webSocketToken = response.wsToken
+        currentUser = user
+        cacheAuthenticatedUser(user)
         state = .authenticated
     }
 
@@ -255,38 +322,63 @@ final class AuthManager: ObservableObject {
 
         // Clear decryption key caches and Spotlight index on logout
         ChatKeyManager.shared.clearAll()
+        EmbedKeyManager.shared.clearAll()
         SpotlightIndexer.shared.removeAllItems()
+        Self.resetNativeSessionId()
+        Self.clearCachedUser()
 
+        webSocketToken = nil
+        currentUser = nil
+        state = .unauthenticated
+    }
+
+    func forceLocalLogout(reason: String) async {
+        print("[Auth] Forced local logout reason=\(reason)")
+        if let userId = currentUser?.id {
+            try? await crypto.deleteMasterKey(for: userId)
+        } else {
+            try? KeychainHelper.deleteAll()
+        }
+        ChatKeyManager.shared.clearAll()
+        EmbedKeyManager.shared.clearAll()
+        SpotlightIndexer.shared.removeAllItems()
+        Self.resetNativeSessionId()
+        Self.clearCachedUser()
+        webSocketToken = nil
         currentUser = nil
         state = .unauthenticated
     }
 
     // MARK: - Private
 
-    private func handleSuccessfulLogin(user: UserProfile, password: String) async {
-        currentUser = user
+    private func handleSuccessfulLogin(response: LoginResponse, password: String) async throws {
+        guard let user = response.user else {
+            throw AuthError.invalidCredentials
+        }
 
         // Derive PBKDF2 wrapping key from password + salt, then unwrap master key.
         // Mirrors web: deriveKeyFromPassword(password, salt) → decryptKey(encrypted_key, key_iv, wrappingKey)
-        if let encryptedKeyB64 = user.encryptedKey,
-           let keyIvB64 = user.keyIv,
-           let saltB64 = user.salt,
-           let saltData = Data(base64Encoded: saltB64) {
-            do {
-                let wrappingKey = await crypto.deriveWrappingKeyFromPassword(
-                    password: password, salt: saltData
-                )
-                let masterKey = try await crypto.unwrapMasterKey(
-                    wrappedKeyBase64: encryptedKeyB64,
-                    ivBase64: keyIvB64,
-                    wrappingKey: wrappingKey
-                )
-                try await crypto.saveMasterKey(masterKey, for: user.id)
-                print("[Auth] Master key derived and saved to Keychain")
-            } catch {
-                print("[Auth] Failed to derive/store master key: \(error)")
-            }
+        guard let encryptedKeyB64 = user.encryptedKey,
+              let keyIvB64 = user.keyIv,
+              let saltB64 = user.salt,
+              let saltData = Data(base64Encoded: saltB64) else {
+            throw AuthError.missingAuthData
         }
+
+        let wrappingKey = await crypto.deriveWrappingKeyFromPassword(
+            password: password, salt: saltData
+        )
+        let masterKey = try await crypto.unwrapMasterKey(
+            wrappedKeyBase64: encryptedKeyB64,
+            ivBase64: keyIvB64,
+            wrappingKey: wrappingKey
+        )
+        try await crypto.saveMasterKey(masterKey, for: user.id)
+        print("[Auth] Master key derived and saved to Keychain")
+
+        webSocketToken = response.wsToken
+        currentUser = user
+        cacheAuthenticatedUser(user)
 
         // Clear sensitive data
         pendingPassword = nil
@@ -295,7 +387,34 @@ final class AuthManager: ObservableObject {
         state = .authenticated
     }
 
-    private func makeDeviceInfo() -> DeviceInfo {
+    private func restoreCachedSessionForStartup() async -> Bool {
+        guard let user = Self.cachedUser() else {
+            state = .unauthenticated
+            return false
+        }
+        guard (try? await crypto.loadMasterKey(for: user.id)) != nil else {
+            Self.clearCachedUser()
+            state = .unauthenticated
+            return false
+        }
+        currentUser = user
+        webSocketToken = nil
+        state = .authenticated
+        print("[Auth] Restored cached session for offline startup")
+        return true
+    }
+
+    private func cacheAuthenticatedUser(_ user: UserProfile) {
+        guard let data = try? JSONEncoder().encode(user) else { return }
+        UserDefaults.standard.set(data, forKey: Self.cachedUserDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.set(data, forKey: Self.cachedUserDefaultsKey)
+    }
+
+    static var nativeSessionId: String {
+        sessionId
+    }
+
+    static func makeNativeDeviceInfo() -> DeviceInfo {
         #if os(iOS)
         let os = "iOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
         #elseif os(macOS)
@@ -306,12 +425,16 @@ final class AuthManager: ObservableObject {
 
         return DeviceInfo(
             os: os,
-            deviceModel: getDeviceModel(),
+            deviceModel: getNativeDeviceModel(),
             appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         )
     }
 
-    private func getDeviceModel() -> String {
+    private func makeDeviceInfo() -> DeviceInfo {
+        Self.makeNativeDeviceInfo()
+    }
+
+    private static func getNativeDeviceModel() -> String {
         #if os(iOS)
         return UIDevice.current.model
         #else
@@ -324,13 +447,36 @@ final class AuthManager: ObservableObject {
     }
 
     private static var sessionId: String {
-        let key = "openmates.apple.auth.session_id"
-        if let existing = UserDefaults.standard.string(forKey: key) {
+        if let existing = OpenMatesSharedEnvironment.defaults.string(forKey: sessionIdDefaultsKey) {
+            return existing
+        }
+        if let existing = UserDefaults.standard.string(forKey: sessionIdDefaultsKey) {
+            OpenMatesSharedEnvironment.defaults.set(existing, forKey: sessionIdDefaultsKey)
             return existing
         }
         let newValue = UUID().uuidString
-        UserDefaults.standard.set(newValue, forKey: key)
+        UserDefaults.standard.set(newValue, forKey: sessionIdDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.set(newValue, forKey: sessionIdDefaultsKey)
         return newValue
+    }
+
+    private static let sessionIdDefaultsKey = "openmates.apple.auth.session_id"
+    private static let cachedUserDefaultsKey = "openmates.apple.auth.cached_user"
+
+    private static func resetNativeSessionId() {
+        UserDefaults.standard.removeObject(forKey: sessionIdDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.removeObject(forKey: sessionIdDefaultsKey)
+    }
+
+    private static func cachedUser() -> UserProfile? {
+        guard let data = OpenMatesSharedEnvironment.defaults.data(forKey: cachedUserDefaultsKey)
+            ?? UserDefaults.standard.data(forKey: cachedUserDefaultsKey) else { return nil }
+        return try? JSONDecoder().decode(UserProfile.self, from: data)
+    }
+
+    private static func clearCachedUser() {
+        UserDefaults.standard.removeObject(forKey: cachedUserDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.removeObject(forKey: cachedUserDefaultsKey)
     }
 }
 

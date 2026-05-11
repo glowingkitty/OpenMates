@@ -366,11 +366,11 @@ step_4_top_content_svelte:
     {/if} <!-- End of {#if !setupComplete}{:else} block -->
 
     <!-- Separate block for action/reset buttons -->
-    {#if $userProfile.tfa_enabled}
+    {#if $userProfile.tfa_enabled && !setupComplete}
         <!-- Reset View: Reset Button -->
         <div class="action-buttons">
              <div class="button-row">
-                 <button class="text-button with-icon" onclick={handleResetTFA}>
+                 <button class="text-button with-icon" data-testid="signup-2fa-reconnect" onclick={handleResetTFA}>
                     <span class="button-icon restore-icon"></span> <!-- Assuming a restore/reset icon exists -->
                     <span>{@html $text('signup.reset_tfa')}</span>
                 </button>
@@ -378,7 +378,7 @@ step_4_top_content_svelte:
         </div>
     {/if} 
 
-    {#if !$userProfile.tfa_enabled && setupComplete}
+    {#if (!$userProfile.tfa_enabled || setupComplete) && setupComplete}
         <!-- Standard Actions (only if NOT resetting AND setup is complete) -->
         {#if showQrCode}
         <div class="qr-code" data-testid="qr-code" transition:fade>
@@ -397,7 +397,7 @@ step_4_top_content_svelte:
             
             <div class="button-row" class:move-up={showQrCode}>
                 <span class="or-text">{@html $text('signup.or')}</span>
-                <button id="signup-2fa-scan-qr" class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
+                <button id="signup-2fa-scan-qr" data-testid="signup-2fa-scan-qr" class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
                     <span class="button-icon camera-icon"></span>
                     <span>{@html $text('signup.scan_via_2fa_app')}</span>
                 </button>
@@ -405,7 +405,7 @@ step_4_top_content_svelte:
 
             <div class="button-row">
                 <span class="or-text">{@html $text('signup.or')}</span>
-                <button id="signup-2fa-copy-secret" class="text-button with-icon" onclick={copySecret} disabled={!secret}>
+                <button id="signup-2fa-copy-secret" data-testid="signup-2fa-copy-secret" class="text-button with-icon" onclick={copySecret} disabled={!secret}>
                     <span class="button-icon copy-icon"></span>
                     <span>
                         {#if showCopiedText}
@@ -424,6 +424,7 @@ step_4_top_content_svelte:
                 <input 
                     type="text" 
                     class="secret-code-input" 
+                    data-testid="signup-2fa-secret-input"
                     value={secret} 
                     readonly 
                     onclick={(e) => e.currentTarget.select()}

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for home/search skill (apartment search).
@@ -34,6 +33,10 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+const {
+	saveCurrentFullscreenEmbed,
+	verifySavedMemoryEntry
+} = require('./helpers/saved-memory-test-helpers');
 
 test.describe('App: Home / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -115,7 +118,11 @@ test.describe('App: Home / Skill: search', () => {
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
 		logCheckpoint(`Found ${await resultCards.count()} listing result(s).`);
 
+		await resultCards.first().click();
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
+
 		await closeFullscreen(page, fullscreenOverlay);
+		await verifySavedMemoryEntry(page, 'home', 'saved_listings', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'home-search');
 	});
 });

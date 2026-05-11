@@ -1,6 +1,6 @@
 # backend/core/api/app/tasks/push_notification_task.py
 """
-Celery task for sending browser push notifications to users.
+Celery task for sending browser or native push notifications to users.
 
 Architecture:
 - Called from websockets.py after an AI response completes and the user is offline.
@@ -36,6 +36,8 @@ def send_push_notification(
     body: str,
     url: Optional[str] = None,
     tag: Optional[str] = None,
+    chat_id: Optional[str] = None,
+    category: str = "OPENMATES_CHAT_MESSAGE",
     user_id: Optional[str] = None,
 ) -> bool:
     """
@@ -47,6 +49,8 @@ def send_push_notification(
         body: Notification body text.
         url: URL to open on click (defaults to '/').
         tag: Deduplication tag; replaces previous notification with same tag.
+        chat_id: Native notification chat target for APNs actions.
+        category: Native notification category identifier.
         user_id: User ID (for logging / subscription cleanup on expiry).
 
     Returns:
@@ -65,19 +69,32 @@ def send_push_notification(
         body=body,
         url=url,
         tag=tag,
+        chat_id=chat_id,
+        category=category,
     )
 
     if not success:
         logger.warning(f"{log_prefix} Push delivery failed")
         # Attempt to clear the stale subscription so future notifications fall
         # back to email immediately (best-effort, non-blocking).
-        if user_id:
+        if user_id and _should_clear_failed_subscription(subscription_json):
             try:
                 asyncio.run(_clear_stale_subscription(user_id))
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not clear stale subscription: {e}")
 
     return success
+
+
+def _should_clear_failed_subscription(subscription_json: str) -> bool:
+    """Only auto-clear browser Web Push failures; APNs failures need reason-aware handling."""
+    try:
+        import json
+
+        subscription = json.loads(subscription_json)
+    except Exception:
+        return False
+    return subscription.get("type") != "apns"
 
 
 async def _clear_stale_subscription(user_id: str) -> None:

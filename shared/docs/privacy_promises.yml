@@ -82,7 +82,7 @@ promises:
       - file: .claude/hooks/analytics-sdk-forbidden.sh
         what: Pre-edit hook blocks introduction of analytics SDKs (gtag, segment, mixpanel, posthog, plausible, amplitude)
       - file: frontend/apps/web_app/tests/helpers/cookie-audit.ts
-        what: Per-test cookie snapshots + inline assertNoThirdPartyCookies helper enforce first-party-only domains
+        what: Per-test cookie snapshots + inline assertNoThirdPartyCookies helper enforce first-party-only domains, except strictly necessary payment/fraud-prevention cookies from user-initiated Stripe checkout and its embedded hCaptcha challenge
     tests:
       - kind: static
         path: backend/tests/test_privacy_promises.py

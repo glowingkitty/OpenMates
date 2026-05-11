@@ -94,6 +94,18 @@ verify_vault_unsealed() {
 }
 
 # ---------------------------------------------------------------------------
+# verify_vault_token — validate api.token with Vault lookup-self.
+# Vault /sys/health only proves Vault is unsealed; it does not prove the token
+# on the shared handoff volume is still valid or has required policies.
+# ---------------------------------------------------------------------------
+verify_vault_token() {
+    echo "Validating Vault api.token handoff..."
+    python3 -m backend.core.api.app.utils.vault_token_check \
+        --vault-url "$VAULT_ADDR" \
+        --token-file "$TOKEN_FILE"
+}
+
+# ---------------------------------------------------------------------------
 # wait_for_cms — poll CMS (Directus) health endpoint until it responds 200.
 # Prevents the API from starting before CMS is ready, which would cause
 # DNS resolution failures and empty cache entries during container restarts.
@@ -144,6 +156,12 @@ if [ -f "$SENTINEL_FILE" ] && [ -f "$TOKEN_FILE" ]; then
         exit 1
     fi
 
+    if ! verify_vault_token; then
+        echo "ERROR: Vault api.token is invalid. Refusing to start API with a stale token."
+        echo "Run or restart vault-setup so it can regenerate /vault-data/api.token, then restart API."
+        exit 1
+    fi
+
     start_api
 fi
 
@@ -171,24 +189,18 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
 done
 
 if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
-    echo "vault-setup did not complete within timeout."
-    # Last-resort fallback: use whatever token is in the file, even if stale.
-    # This keeps the API from being completely dead if vault-setup takes unusually long.
-    if [ -f "$TOKEN_FILE" ]; then
-        export VAULT_TOKEN=$(cat "$TOKEN_FILE")
-        FIRST_CHARS=$(echo "$VAULT_TOKEN" | cut -c 1-4)
-        echo "WARNING: Using token from file as fallback. Token starts with: $FIRST_CHARS..."
-    elif [ -n "$VAULT_TOKEN" ]; then
-        echo "WARNING: Using token from environment variable as fallback (not recommended)."
-    else
-        echo "ERROR: No Vault token available. API will not be able to access secrets."
-        echo "Please ensure vault-setup has completed successfully."
-    fi
+    echo "ERROR: vault-setup did not complete within timeout. Refusing to start API without a validated token."
+    exit 1
 fi
 
 # Verify Vault is unsealed before starting (covers both slow path and fallback)
 if ! verify_vault_unsealed; then
     echo "ERROR: Vault never became healthy. Cannot start API."
+    exit 1
+fi
+
+if ! verify_vault_token; then
+    echo "ERROR: Vault api.token is invalid after vault-setup wait. Cannot start API."
     exit 1
 fi
 

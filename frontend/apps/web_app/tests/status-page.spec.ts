@@ -404,10 +404,10 @@ test.describe('Status page — E2E tests section', () => {
 		await mockStatusApi(page, MOCK_STATUS_RESPONSE);
 		await gotoStatus(page);
 
-		// Chat: 4/5 passing, Payment: 2/3 passing, Signup: 2/2 passing
+		// Chat: 4/5 passing, Payment: 2/3 passing, Signup: 3/3 passing
 		await expect(page.getByText('4/5 passing')).toBeVisible();
 		await expect(page.getByText('2/3 passing')).toBeVisible();
-		await expect(page.getByText('2/2 passing')).toBeVisible();
+		await expect(page.getByText('3/3 passing')).toBeVisible();
 	});
 });
 

@@ -38,15 +38,35 @@ targets:
       - path: OpenMates/Sources
         excludes:
           - "**/*.generated.swift"
+      - path: OpenMatesShared
       # Import generated design tokens from the frontend token pipeline
       - path: ../frontend/packages/ui/src/tokens/generated/swift
         name: DesignTokens
         type: group
+      - path: ../frontend/packages/ui/static/images/mates
+        buildPhase: resources
+        name: Mates
+        type: folder
+      - path: ../frontend/packages/ui/src/i18n/locales
+        buildPhase: resources
+        name: i18n
+        type: folder
+      - path: ../frontend/packages/ui/src/demo_chats/data/example_chats
+        buildPhase: resources
+        name: example_chats
+        type: folder
+      - path: OpenMates/Resources/Videos
+        buildPhase: resources
+        name: Videos
+        type: folder
+      - path: OpenMates/Resources/Fonts
+        buildPhase: resources
+        name: Fonts
+        type: folder
     resources:
       # Xcode asset catalogs with theme-aware colors and custom icons
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Icons.xcassets
-      - path: OpenMates/Resources
     settings:
       base:
         INFOPLIST_FILE: OpenMates/Resources/Info.plist
@@ -56,15 +76,24 @@ targets:
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org?mode=developer
           # StoreKit testing configuration for sandbox purchases
           STOREKIT_CONFIGURATION: OpenMates/Resources/OpenMates.storekit
         Release:
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
+          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
     entitlements:
       path: OpenMates/Resources/OpenMates.entitlements
       properties:
         keychain-access-groups:
+          - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
+        com.apple.security.application-groups:
+          - group.org.openmates.app
+        com.apple.developer.associated-domains:
+          - webcredentials:openmates.org
+          - $(OPENMATES_DEV_WEBCREDENTIALS)
+          - webcredentials:app.openmates.org
     info:
       path: OpenMates/Resources/Info.plist
       properties:
@@ -73,6 +102,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
+        OpenMatesKeychainAccessGroup: $(AppIdentifierPrefix)org.openmates.app
         NSUserActivityTypes:
           - org.openmates.app.viewChat
           - org.openmates.app.composeChat
@@ -97,9 +127,11 @@ targets:
     dependencies:
       - package: LucideIcons
       - target: OpenMatesShareExtension
-        platformFilter: iOS
+        platforms: [iOS]
+      - target: OpenMatesShareExtension_macOS
+        platforms: [macOS]
       - target: OpenMatesWidget
-        platformFilter: iOS
+        platforms: [iOS]
 
   # Share extension — share URLs, text, and images from other apps into OpenMates chats
   OpenMatesShareExtension:
@@ -107,6 +139,11 @@ targets:
     platform: iOS
     sources:
       - path: OpenMatesShareExtension
+      - path: OpenMatesShared
+      - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+      - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtension/Info.plist
@@ -115,7 +152,40 @@ targets:
         SWIFT_VERSION: "6.0"
     entitlements:
       path: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(CFBundleIdentifier)
+          - $(AppIdentifierPrefix)org.openmates.app
+        com.apple.security.application-groups:
+          - group.org.openmates.app
 
+  # macOS share extension — share URLs and text from Mac apps into OpenMates chats
+  OpenMatesShareExtension_macOS:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: OpenMatesShareExtensionMacOS
+      - path: OpenMatesShared
+      - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+      - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesShareExtensionMacOS/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.share-macos
+        CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
+        SWIFT_VERSION: "6.0"
+    entitlements:
+      path: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(CFBundleIdentifier)
+          - $(AppIdentifierPrefix)org.openmates.app
+        com.apple.security.application-groups:
+          - group.org.openmates.app
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
   # WidgetKit extension — Daily Inspiration home screen widget
   OpenMatesWidget:
     type: app-extension
@@ -131,3 +201,9 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
     entitlements:
       path: OpenMatesWidget/OpenMatesWidget.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(CFBundleIdentifier)
+          - $(AppIdentifierPrefix)org.openmates.app
+        com.apple.security.application-groups:
+          - group.org.openmates.app

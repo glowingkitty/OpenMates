@@ -31,7 +31,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.routes import favicon_router, image_router, metadata_router, youtube_router, health_router
+from app.routes import favicon_router, github_repo_router, image_router, metadata_router, youtube_router, health_router
 from app.services import fetch_service, youtube_service, cache_service
 
 # ===========================================
@@ -235,7 +235,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 #
 # Endpoint groups and their limits (from config):
 #   "youtube"  → /api/v1/youtube          — 10 req/min  (calls Google YouTube API)
-#   "metadata" → /api/v1/metadata, /favicon — 20 req/min (cheap OG scraping)
+#   "metadata" → /api/v1/metadata, /favicon, /github-repo — 20 req/min
 #   "image"    → /api/v1/image            — 60 req/min  (image proxy, many per page)
 #
 # Health check endpoints (/health/*) are always exempt.
@@ -249,6 +249,7 @@ _RATE_LIMIT_GROUPS: list[tuple[str, str]] = [
     ("/api/v1/image",    "image"),
     ("/api/v1/metadata", "metadata"),
     ("/api/v1/favicon",  "metadata"),  # same budget as metadata
+    ("/api/v1/github-repo", "metadata"),
 ]
 
 # { (ip, group) → deque of epoch-second timestamps }
@@ -457,6 +458,7 @@ app.include_router(favicon_router)
 app.include_router(image_router)
 app.include_router(metadata_router)
 app.include_router(youtube_router)
+app.include_router(github_repo_router)
 # Admin endpoints (/admin/logs, /admin/update) are handled by the dedicated
 # admin-sidecar container, NOT by this service. See docker-compose.preview.yml.
 # This keeps the Docker socket and ADMIN_LOG_API_KEY out of this container.
@@ -491,4 +493,3 @@ if __name__ == "__main__":
         reload=settings.debug,
         log_level=settings.log_level.lower()
     )
-

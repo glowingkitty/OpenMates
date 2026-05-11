@@ -57,11 +57,8 @@ async function main(): Promise<void> {
         : undefined,
   });
 
-  // Initialize output redactor with personal data entries from Memories.
-  // This loads user-defined names, addresses, etc. for auto-censoring in terminal output.
-  // Safe to call before login — silently skips if no session.
   const redactor = new OutputRedactor();
-  if (client.hasSession()) {
+  if (client.hasSession() && shouldInitializeRedactor(command, subcommand)) {
     try {
       const memories = await client.listMemories();
       redactor.initializeFromMemories(memories);
@@ -187,6 +184,16 @@ async function main(): Promise<void> {
   }
 
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
+}
+
+function shouldInitializeRedactor(
+  command: string | undefined,
+  subcommand: string | undefined,
+): boolean {
+  return (
+    command === "chats" &&
+    ["new", "send", "incognito"].includes(subcommand ?? "")
+  );
 }
 
 // ---------------------------------------------------------------------------

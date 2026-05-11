@@ -30,6 +30,7 @@ struct LoginRequest: Encodable {
     let hashedEmail: String
     let lookupHash: String
     let loginMethod: String
+    var credentialId: String? = nil
     let tfaCode: String?
     let codeType: String?
     let emailEncryptionKey: String?
@@ -53,18 +54,73 @@ struct LoginResponse: Decodable {
     let wsToken: String?
 }
 
+// MARK: - Phone / PC pair login
+
+struct PairInitiateRequest: Encodable {
+    let deviceHint: String?
+
+    init(deviceHint: String? = nil) {
+        self.deviceHint = deviceHint
+    }
+}
+
+struct PairInitiateResponse: Decodable {
+    let token: String
+    let expiresIn: Int
+}
+
+struct PairPollResponse: Decodable {
+    let status: String
+    let authorizerDeviceName: String?
+}
+
+struct PairCompleteRequest: Encodable {
+    let pin: String
+}
+
+struct PairCompleteResponse: Decodable {
+    let success: Bool
+    let encryptedBundle: String?
+    let iv: String?
+    let autoLogoutMinutes: Int?
+    let authorizerDeviceName: String?
+    let message: String?
+}
+
+struct PairLoginBundle: Decodable {
+    let lookupHash: String
+    let hashedEmail: String
+    let userEmailSalt: String
+    let masterKeyExported: String
+}
+
 // MARK: - Session check
 
+struct SessionRequest: Encodable {
+    let sessionId: String
+    let deviceInfo: DeviceInfo?
+}
+
 struct SessionResponse: Decodable {
-    let isAuthenticated: Bool
+    let success: Bool
+    let message: String?
     let user: UserProfile?
+    let tokenRefreshNeeded: Bool?
+    let reAuthRequired: String?
+    let reAuthReason: String?
+    let requireInviteCode: Bool?
+    let wsToken: String?
     let needsDeviceVerification: Bool?
     let deviceVerificationType: String?
+
+    var isAuthenticated: Bool {
+        success && user != nil
+    }
 }
 
 // MARK: - User
 
-struct UserProfile: Decodable, Identifiable {
+struct UserProfile: Codable, Identifiable {
     let id: String
     let username: String
     let email: String?
@@ -90,11 +146,31 @@ struct UserProfile: Decodable, Identifiable {
 // MARK: - Passkey
 
 struct PasskeyAssertionInitResponse: Decodable {
+    let success: Bool
     let challenge: String
-    let rpId: String
+    let rp: PasskeyRelyingParty
     let timeout: Int?
     let userVerification: String?
     let allowCredentials: [PasskeyCredential]?
+    let extensions: PasskeyAssertionExtensions?
+    let message: String?
+}
+
+struct PasskeyRelyingParty: Decodable {
+    let id: String
+    let name: String
+}
+
+struct PasskeyAssertionExtensions: Decodable {
+    let prf: PasskeyPRFExtension?
+}
+
+struct PasskeyPRFExtension: Decodable {
+    let eval: PasskeyPRFEvaluation?
+}
+
+struct PasskeyPRFEvaluation: Decodable {
+    let first: String?
 }
 
 struct PasskeyCredential: Decodable {
@@ -105,8 +181,12 @@ struct PasskeyCredential: Decodable {
 struct PasskeyAssertionVerifyRequest: Encodable {
     let credentialId: String
     let assertionResponse: PasskeyAssertionData
+    let clientDataJSON: String
+    let authenticatorData: String
     let sessionId: String?
     let stayLoggedIn: Bool
+    let hashedEmail: String?
+    let emailEncryptionKey: String?
 }
 
 struct PasskeyAssertionData: Encodable {
@@ -118,9 +198,21 @@ struct PasskeyAssertionData: Encodable {
 
 struct PasskeyVerifyResponse: Decodable {
     let success: Bool
+    let message: String?
+    let userId: String?
+    let hashedEmail: String?
+    let encryptedEmail: String?
     let encryptedMasterKey: String?
     let keyIv: String?
+    let salt: String?
     let userEmailSalt: String?
+    let userEmail: String?
+    let authSession: PasskeyAuthSession?
+}
+
+struct PasskeyAuthSession: Decodable {
+    let user: UserProfile?
+    let wsToken: String?
 }
 
 // MARK: - Device verification

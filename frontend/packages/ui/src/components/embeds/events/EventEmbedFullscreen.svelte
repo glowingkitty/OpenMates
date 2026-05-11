@@ -16,6 +16,9 @@
   import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
+  import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
+  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface EventResult {
@@ -357,6 +360,60 @@
 
   function handleOpenEvent() {
     if (event.url) window.open(event.url, '_blank', 'noopener,noreferrer');
+    promptToSaveEmbedMemory(buildSaveConfig());
+  }
+
+  function buildSaveConfig() {
+    const title = event.title || 'Event';
+    return {
+      kind: 'event' as const,
+      appId: 'events',
+      itemType: 'saved_events',
+      itemKey: `saved_events.${event.id || event.url || title}`,
+      title,
+      reminderDateTime: event.date_start || null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId || data.focusChildEmbedId || event.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
+        title,
+        provider: providerLabel || event.provider || '',
+        url: event.url || '',
+        date_start: event.date_start || '',
+        date_end: event.date_end || '',
+        location: isOnline ? 'Online event' : venueAddress,
+        notes: '',
+      },
+    };
+  }
+
+  let saveConfig = $derived(buildSaveConfig());
+  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
+
+  function handleToggleSavedEvent() {
+    if (savedMemoryEntry) {
+      forgetEmbedMemory(saveConfig);
+      return;
+    }
+    saveEmbedMemory(saveConfig);
+  }
+
+  function handleAddToCalendar() {
+    const descriptionLines = [
+      event.description || '',
+      event.organizer?.name ? `Organizer: ${event.organizer.name}` : '',
+      providerLabel ? `Source: ${providerLabel}` : '',
+      event.url || '',
+    ].filter(Boolean);
+
+    downloadCalendarFile({
+      title: event.title || 'Event',
+      start: event.date_start || '',
+      end: event.date_end,
+      location: isOnline ? 'Online event' : venueAddress,
+      description: descriptionLines.join('\n\n'),
+      url: event.url,
+      filename: sanitizeCalendarFilename([event.title || 'event', event.date_start?.slice(0, 10) || ''].filter(Boolean).join('-')),
+    });
   }
 </script>
 
@@ -375,12 +432,16 @@
   {mapCenter}
   mapZoom={13}
   {mapMarkers}
+  onCalendar={event.date_start ? handleAddToCalendar : undefined}
   currentEmbedId={embedId}
 >
   {#snippet embedHeaderCta()}
-    {#if event.url && openButtonText}
-      <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} />
-    {/if}
+    <div class="embed-header-cta-group">
+      <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedEvent} testId="save-embed-cta" />
+      {#if event.url && openButtonText}
+        <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} testId="external-provider-cta" />
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet detailContent(_ctx)}

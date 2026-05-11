@@ -194,16 +194,30 @@
                 <span class="notification-message-secondary">{notification.messageSecondary}</span>
             {/if}
             {#if notification.onAction && notification.actionLabel}
-                <button
-                    class="notification-action-btn notification-action-btn-primary"
-                    data-testid="notification-action"
-                    onclick={(e: MouseEvent) => {
-                        e.stopPropagation();
-                        notification.onAction?.();
-                    }}
-                >
-                    {notification.actionLabel}
-                </button>
+                <div class="notification-action-row">
+                    {#if notification.onSecondaryAction && notification.secondaryActionLabel}
+                        <button
+                            class="notification-action-btn notification-action-btn-secondary"
+                            data-testid="notification-secondary-action"
+                            onclick={(e: MouseEvent) => {
+                                e.stopPropagation();
+                                notification.onSecondaryAction?.();
+                            }}
+                        >
+                            {notification.secondaryActionLabel}
+                        </button>
+                    {/if}
+                    <button
+                        class="notification-action-btn notification-action-btn-primary"
+                        data-testid="notification-action"
+                        onclick={(e: MouseEvent) => {
+                            e.stopPropagation();
+                            notification.onAction?.();
+                        }}
+                    >
+                        {notification.actionLabel}
+                    </button>
+                </div>
             {/if}
         </div>
     </div>
@@ -424,11 +438,17 @@
         color: var(--color-grey-90);
     }
     
+    .notification-action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-3);
+        margin-top: var(--spacing-3);
+    }
+
     /* Action button for interactive notifications (e.g., "Tap to reconnect") */
     .notification-action-btn {
         all: unset;
         cursor: pointer;
-        margin-top: var(--spacing-3);
         padding: 6px 14px;
         font-size: var(--font-size-xs);
         font-weight: 600;
@@ -446,6 +466,13 @@
     
     .notification-action-btn:active {
         opacity: 0.8;
+    }
+
+    .notification-action-btn-secondary {
+        color: var(--color-font-primary);
+        background-color: var(--color-grey-40);
+        border-radius: var(--radius-5);
+        padding: 8px 18px;
     }
     
     /* Primary action button - orange style matching buttons.css default */
@@ -499,4 +526,3 @@
         }
     }
 </style>
-

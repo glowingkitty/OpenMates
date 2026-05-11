@@ -16,6 +16,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>OpenMatesKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)org.openmates.app</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
@@ -24,15 +26,13 @@
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
 		<key>NSExtensionActivationRule</key>
 		<dict>
-			<!-- Accept up to 1 URL, 1 text item, or 5 images at once -->
+			<!-- Accept URL/text only for the focused background task flow. -->
 			<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
 			<integer>1</integer>
 			<key>NSExtensionActivationSupportsWebPageWithMaxCount</key>
 			<integer>1</integer>
 			<key>NSExtensionActivationSupportsText</key>
 			<true/>
-			<key>NSExtensionActivationSupportsImageWithMaxCount</key>
-			<integer>5</integer>
 		</dict>
 	</dict>
 </dict>

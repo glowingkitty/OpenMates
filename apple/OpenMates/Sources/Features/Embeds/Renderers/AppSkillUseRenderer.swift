@@ -40,11 +40,17 @@ struct AppSkillUseRenderer: View {
     }
 
     private var appId: String {
-        embed.appId ?? data["app_id"]?.value as? String ?? "web"
+        embed.appId ?? data["app_id"]?.value as? String ?? EmbedType(rawValue: embed.type)?.appId ?? "web"
     }
 
     private var skillId: String {
-        embed.skillId ?? data["skill_id"]?.value as? String ?? "search"
+        embed.skillId ?? data["skill_id"]?.value as? String ?? skillIdFromType ?? "search"
+    }
+
+    private var skillIdFromType: String? {
+        let parts = embed.type.split(separator: ":")
+        guard parts.count >= 3, parts[0] == "app" else { return nil }
+        return String(parts[2])
     }
 
     private var skillTitle: String {
@@ -265,14 +271,9 @@ struct AppSkillUseRenderer: View {
         return ZStack {
             Circle().fill(Color.grey0)
             if let favicon, let url = URL(string: favicon) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    default:
-                        AppIconView(appId: "web", size: 13)
-                    }
-                }
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { AppIconView(appId: "web", size: 13) }
                 .clipShape(Circle())
             } else {
                 AppIconView(appId: "web", size: 13)
@@ -289,14 +290,9 @@ struct AppSkillUseRenderer: View {
             "thumbnail_url", "thumbnail", "image_url", "image", "thumbnail_original", "meta_url_favicon", "favicon"
         ])
         if let imageURL, let url = URL(string: imageURL) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                default:
-                    fallbackThumb(for: child)
-                }
-            }
+            CachedRemoteImage(url: url) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: { fallbackThumb(for: child) }
         } else {
             fallbackThumb(for: child)
         }
@@ -366,14 +362,11 @@ private struct SearchResultFullscreenRow: View {
             AppIconView(appId: appId, size: 61)
 
             if let favicon, let url = URL(string: favicon) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    default:
-                        Icon(appId == "images" ? "image" : "web", size: 20)
-                            .foregroundStyle(Color.grey70)
-                    }
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Icon(appId == "images" ? "image" : "web", size: 20)
+                        .foregroundStyle(Color.grey70)
                 }
                 .frame(width: 25, height: 25)
                 .clipShape(RoundedRectangle(cornerRadius: .radius1))
@@ -397,14 +390,9 @@ private struct SearchResultFullscreenRow: View {
             Spacer(minLength: 0)
 
             if let imageURL, let url = URL(string: imageURL) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    default:
-                        Color.grey25
-                    }
-                }
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { Color.grey25 }
                 .frame(width: 120, height: 82)
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
             }
@@ -449,13 +437,10 @@ private struct ImageResultFullscreenCard: View {
             VStack(spacing: 0) {
                 ZStack(alignment: .topLeading) {
                     if let imageURL, let url = URL(string: imageURL) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            default:
-                                Color.grey20.overlay(Icon("image", size: 28).foregroundStyle(Color.grey40))
-                            }
+                        CachedRemoteImage(url: url) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color.grey20.overlay(Icon("image", size: 28).foregroundStyle(Color.grey40))
                         }
                     } else {
                         Color.grey20.overlay(Icon("image", size: 28).foregroundStyle(Color.grey40))
@@ -486,14 +471,9 @@ private struct ImageResultFullscreenCard: View {
                     AppIconView(appId: "images", size: 61)
 
                     if let favicon, let url = URL(string: favicon) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            default:
-                                EmptyView()
-                            }
-                        }
+                        CachedRemoteImage(url: url) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: { EmptyView() }
                         .frame(width: 20, height: 20)
                         .clipShape(RoundedRectangle(cornerRadius: .radius1))
                     }

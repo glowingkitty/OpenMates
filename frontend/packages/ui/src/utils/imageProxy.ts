@@ -101,6 +101,20 @@ export function getYouTubeMetadataUrl(videoUrl: string): string {
 }
 
 // =============================================================================
+// GitHub Repository Metadata Endpoint — /api/v1/github-repo
+// =============================================================================
+
+/**
+ * Get normalized public repository metadata for a GitHub repo URL.
+ *
+ * @param repoUrl - GitHub repository root URL
+ * @returns Full GitHub repo metadata endpoint URL
+ */
+export function getGitHubRepoMetadataUrl(repoUrl: string): string {
+  return `${PREVIEW_BASE}/api/v1/github-repo?url=${encodeURIComponent(repoUrl)}`;
+}
+
+// =============================================================================
 // Common max_width presets (document why each value exists)
 // =============================================================================
 

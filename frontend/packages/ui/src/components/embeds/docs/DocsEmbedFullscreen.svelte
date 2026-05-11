@@ -1,7 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
 
-  Fullscreen view for Document embeds (document_html).
+  Fullscreen view for Document embeds.
   Uses UnifiedEmbedFullscreen as base and provides document-specific content.
 
   Architecture: See docs/contributing/guides/add-embed-type.md for the unified embed pattern.
@@ -48,6 +48,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { hydrateEmbedLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
 
   /**
    * Props for document embed fullscreen
@@ -128,6 +129,18 @@
       typeof dc.word_count === 'number' ? dc.word_count
       : typeof attrs?.wordCount === 'number' ? attrs.wordCount as number
       : 0
+    );
+  let screenshotS3Keys = $derived(
+      dc.screenshot_s3_keys && typeof dc.screenshot_s3_keys === 'object'
+        ? dc.screenshot_s3_keys as Record<string, string>
+        : undefined
+    );
+  let docxS3Key = $derived(typeof dc.docx_s3_key === 'string' ? dc.docx_s3_key : undefined);
+  let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : undefined);
+  let previewPageUrls = $derived(
+      dc.preview_page_urls && typeof dc.preview_page_urls === 'object'
+        ? dc.preview_page_urls as Record<string, string>
+        : undefined
     );
   let versionNumber = $derived(
       typeof dc.version_number === 'number' ? dc.version_number
@@ -313,7 +326,26 @@
   let contentEl: HTMLDivElement | undefined = $state(undefined);
   let canvasScrollEl: HTMLDivElement | undefined = $state(undefined);
   let pageCount = $state(1);
+  let artifactPageUrls = $state<Record<string, string>>({});
+  let displayedArtifactPageUrls = $derived(
+      Object.keys(artifactPageUrls).length > 0 ? artifactPageUrls : (previewPageUrls ?? {})
+    );
   const SPACER_CLASS = 'doc-page-break-spacer';
+
+  $effect(() => {
+    if (!screenshotS3Keys || !aesKey) return;
+    const entries = Object.entries(screenshotS3Keys).sort(([a], [b]) => Number(a) - Number(b));
+    Promise.all(entries.map(async ([page, s3Key]) => {
+      const blob = await fetchAndDecryptDocArtifact(s3Key, aesKey, 'image/png');
+      return [page, URL.createObjectURL(blob)] as const;
+    }))
+      .then((loadedPages) => {
+        artifactPageUrls = Object.fromEntries(loadedPages);
+      })
+      .catch((error) => {
+        console.error('[DocsEmbedFullscreen] Failed to load DOCX preview pages:', error);
+      });
+  });
 
   // =============================================
   // Auto-fit zoom on mount
@@ -515,8 +547,27 @@
     try {
       console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
 
-      const { asBlob } = await import('html-docx-js-typescript');
       const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
+
+      if (docxS3Key && aesKey) {
+        const docxBlob = await fetchAndDecryptDocArtifact(
+          docxS3Key,
+          aesKey,
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+        const url = URL.createObjectURL(docxBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = downloadFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        notificationStore.success('Document downloaded successfully');
+        return;
+      }
+
+      const { asBlob } = await import('html-docx-js-typescript');
 
       let downloadHtmlContent = piiRevealed && hasPII
         ? sanitizeDocumentHtml(restorePIIInText(htmlContent, piiMappings))
@@ -594,7 +645,48 @@ ${downloadHtmlContent}
   onTogglePII={togglePII}
 >
   {#snippet content()}
-    {#if sanitizedHtml}
+    {#if Object.keys(displayedArtifactPageUrls).length > 0}
+      <div class="doc-viewer-canvas">
+        <div
+          class="doc-canvas-scroll"
+          bind:this={canvasScrollEl}
+          ontouchstart={handleTouchStart}
+          ontouchmove={handleTouchMove}
+          ontouchend={handleTouchEnd}
+          role="region"
+          aria-label="Document viewer"
+        >
+          <div class="doc-artifact-pages" style="transform: scale({zoomRatio}); transform-origin: top center;">
+            {#each Object.entries(displayedArtifactPageUrls).sort(([a], [b]) => Number(a) - Number(b)) as [page, url]}
+              <img
+                class="doc-artifact-page"
+                data-testid="doc-artifact-page"
+                src={url}
+                alt={`${displayTitle} page ${page}`}
+              />
+            {/each}
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-zoom-bar">
+        <div class="doc-zoom-bar-inner">
+          <button class="doc-zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomPercent <= ZOOM_MIN}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="doc-zoom-level" onclick={resetZoom} aria-label="Reset zoom" title="Click to fit page to screen">
+            {zoomDisplayText}
+          </button>
+          <button class="doc-zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomPercent >= ZOOM_MAX}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    {:else if sanitizedHtml}
       <!--
         Grey canvas area containing the document pages. The zoom bar is
         placed AFTER this element (not inside it) with position: sticky
@@ -685,7 +777,7 @@ ${downloadHtmlContent}
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, content) => {
+        onVersionSelect={(version, _content) => {
           console.log('[DocsEmbedFullscreen] Version selected:', version);
         }}
       />
@@ -726,6 +818,23 @@ ${downloadHtmlContent}
     scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
     /* Allow scroll but intercept pinch via JS touch handlers */
     touch-action: pan-x pan-y;
+  }
+
+  .doc-artifact-pages {
+    width: min(100%, 900px);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+    align-items: center;
+  }
+
+  .doc-artifact-page {
+    width: 794px;
+    max-width: 100%;
+    display: block;
+    background: white;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
   }
 
   .doc-canvas-scroll::-webkit-scrollbar {

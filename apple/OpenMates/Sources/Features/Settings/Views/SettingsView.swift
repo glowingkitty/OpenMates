@@ -94,7 +94,7 @@ struct SettingsView: View {
                     if isAuthenticated {
                         OMSettingsRow(
                             title: AppStrings.settingsIncognito,
-                            icon: "eye-off",
+                            icon: "incognito",
                             showsChevron: false
                         ) {
                             showIncognitoInfo = true
@@ -118,6 +118,7 @@ struct SettingsView: View {
                     }
 
                     row(.interface, AppStrings.settingsInterface, icon: "interface")
+                    row(.serverConnection, "Server", icon: "server")
 
                     if isAuthenticated {
                         row(.account, AppStrings.settingsAccount, icon: "account")
@@ -171,6 +172,7 @@ struct SettingsView: View {
             } else {
                 SettingsMainBanner(
                     username: authManager.currentUser?.username ?? AppStrings.guest,
+                    profileUserId: authManager.currentUser?.id,
                     profileImageUrl: authManager.currentUser?.profileImageUrl,
                     isAuthenticated: isAuthenticated,
                     credits: authManager.currentUser?.credits,
@@ -427,6 +429,7 @@ struct SettingsView: View {
         case pricing, ai, memories, apps, privacy, mates
         case billing, notifications, shared, interface
         case account, developers, newsletter, support, reportIssue
+        case serverConnection
         case server, logs
         // Footer legal items
         case privacyPolicy, terms, imprint
@@ -448,6 +451,7 @@ struct SettingsView: View {
             case .newsletter: return AppStrings.settingsNewsletter
             case .support: return AppStrings.settingsSupport
             case .reportIssue: return AppStrings.settingsReportIssue
+            case .serverConnection: return "Server"
             case .server: return AppStrings.serverAdmin
             case .logs: return AppStrings.logs
             case .privacyPolicy: return AppStrings.privacyPolicy
@@ -473,6 +477,7 @@ struct SettingsView: View {
             case .newsletter: return "newsletter"
             case .support: return "support"
             case .reportIssue: return "report_issue"
+            case .serverConnection: return "server"
             case .server: return "server"
             case .logs: return "log"
             case .privacyPolicy, .terms, .imprint: return "document"
@@ -495,6 +500,7 @@ struct SettingsView: View {
             case .developers: return LocalizationManager.shared.text("settings.developers_description")
             case .newsletter: return LocalizationManager.shared.text("settings.newsletter.description")
             case .support: return LocalizationManager.shared.text("settings.support.description")
+            case .serverConnection: return "Choose the OpenMates server domain"
             case .server: return LocalizationManager.shared.text("settings.server.description")
             default: return ""
             }
@@ -518,6 +524,7 @@ struct SettingsView: View {
             case .newsletter: NewsletterSettingsView()
             case .support: SettingsSupportView()
             case .reportIssue: ReportIssueView()
+            case .serverConnection: SettingsServerConnectionView()
             case .server: SettingsServerView()
             case .logs: SettingsLogsView()
             case .privacyPolicy: LegalChatView(documentType: .privacy)
@@ -542,6 +549,7 @@ private struct SettingsHomeScrollOffsetPreferenceKey: PreferenceKey {
 
 private struct SettingsMainBanner: View {
     let username: String
+    let profileUserId: String?
     let profileImageUrl: String?
     let isAuthenticated: Bool
     let credits: Double?
@@ -623,16 +631,9 @@ private struct SettingsMainBanner: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if isAuthenticated, let profileImageUrl, let url = URL(string: profileImageUrl) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                default:
-                    defaultAvatar
-                }
+        if isAuthenticated, let profileImageUrl = effectiveProfileImageUrl {
+            AuthenticatedProfileImage(urlString: profileImageUrl) {
+                defaultAvatar
             }
             .frame(width: avatarSize, height: avatarSize)
             .clipShape(Circle())
@@ -640,6 +641,19 @@ private struct SettingsMainBanner: View {
         } else {
             defaultAvatar
         }
+    }
+
+    private var effectiveProfileImageUrl: String? {
+        if let profileImageUrl,
+           !profileImageUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return profileImageUrl
+        }
+        guard let profileUserId,
+              !profileUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let encodedUserId = profileUserId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            return nil
+        }
+        return "/v1/users/\(encodedUserId)/profile-image"
     }
 
     private var defaultAvatar: some View {

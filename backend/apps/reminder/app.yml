@@ -3,6 +3,37 @@ description_translation_key: reminder.description
 icon_image: reminder.svg
 category: productivity
 last_updated: "2026-02-04"
+settings_and_memories:
+  - id: saved_item_reminder_defaults
+    name_translation_key: reminder.saved_item_reminder_defaults
+    description_translation_key: reminder.saved_item_reminder_defaults.description
+    icon_image: reminder.svg
+    type: list
+    stage: production
+    schema:
+      type: object
+      properties:
+        item_kind:
+          type: string
+          description: Saved item kind
+          enum:
+            - event
+            - travel_connection
+            - travel_stay
+            - home_listing
+            - health_appointment
+          is_title: true
+        offsets_minutes:
+          type: string
+          description: Comma-separated reminder offsets in minutes. For dated items these are before the item datetime; for saved listings/stays without dates these are after saving, e.g. 10080,1440,60
+          is_subtitle: true
+        notes:
+          type: string
+          description: Optional notes
+          multiline: true
+      required:
+        - item_kind
+        - offsets_minutes
 
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
@@ -106,12 +137,25 @@ skills:
           enum:
             - new_chat
             - existing_chat
+            - embed
           default: new_chat
-          description: "'new_chat' creates a new chat when reminder fires, 'existing_chat' sends follow-up in current chat"
+          description: "'new_chat' creates a new chat when reminder fires, 'existing_chat' sends follow-up in current chat, 'embed' opens a saved embed fullscreen"
 
         new_chat_title:
           type: string
           description: "Title for the new chat. Required if target_type is 'new_chat'."
+
+        target_embed_id:
+          type: string
+          description: "Embed ID to open when target_type is 'embed'."
+
+        target_embed_app_id:
+          type: string
+          description: "App ID for the embed target. Optional; used by client display."
+
+        target_embed_title:
+          type: string
+          description: "Display title for the embed target. Optional; used by client display."
 
         response_type:
           type: string

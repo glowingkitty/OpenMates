@@ -25,7 +25,6 @@ from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as Ask
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
-from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
 
 logger = logging.getLogger(__name__)
 
@@ -170,10 +169,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 include_stats=True
             )
 
-            # Remove URL query/fragment parameters from user message text.
-            # This prevents accidental secret leakage through pasted URLs.
-            content_plain = sanitize_text_urls_remove_query_and_fragment(content_plain)
-            
             # Log security alert if hidden content was detected (potential attack)
             if sanitization_stats.get("hidden_ascii_detected"):
                 logger.warning(

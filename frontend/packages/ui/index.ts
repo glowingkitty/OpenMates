@@ -107,6 +107,7 @@ export {
   // Embed key management functions for wrapped key architecture
   generateEmbedKey,
   deriveEmbedKeyFromChatKey,
+  decryptWithChatKey,
   wrapEmbedKeyWithMasterKey,
   wrapEmbedKeyWithChatKey,
   unwrapEmbedKeyWithMasterKey,

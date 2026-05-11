@@ -564,6 +564,7 @@ export interface OpenMatesClientOptions {
 
 const DEFAULT_API_URL =
   process.env.OPENMATES_API_URL ?? "https://api.openmates.org";
+const SETTINGS_GET_RATE_LIMIT_RETRY_MS = 61_000;
 
 /**
  * Derive the web app URL from the API URL so the pair token is always looked
@@ -1903,10 +1904,17 @@ export class OpenMatesClient {
   async settingsGet(path: string): Promise<unknown> {
     this.requireSession();
     const normalizedPath = this.normalizePath(path);
-    const response = await this.http.get(
+    let response = await this.http.get(
       normalizedPath,
       this.getCliRequestHeaders(),
     );
+    if (response.status === 429) {
+      process.stderr.write(
+        `Rate limited by settings API; retrying in ${Math.ceil(SETTINGS_GET_RATE_LIMIT_RETRY_MS / 1000)}s...\n`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, SETTINGS_GET_RATE_LIMIT_RETRY_MS));
+      response = await this.http.get(normalizedPath, this.getCliRequestHeaders());
+    }
     if (!response.ok) {
       throw new Error(`Settings GET failed with HTTP ${response.status}`);
     }

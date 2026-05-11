@@ -96,6 +96,7 @@ class UserCacheMixin:
     # the existing values are preserved. This prevents billing/payment/session code paths
     # (which may write partial dicts) from wiping fields required for passkey login.
     _PROTECTED_PROFILE_FIELDS = (
+        "username",
         "encrypted_email_with_master_key",
         "encrypted_email_address",
         "hashed_email",

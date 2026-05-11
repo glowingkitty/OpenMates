@@ -32,7 +32,7 @@
 
   Dimensions:
     - Desktop: 50vh height (min 240px), 14px border-radius
-    - Mobile (≤730px): 50vh height (min 190px)
+    - Mobile-width header (≤730px): 50vh height (min 190px)
     - When settings panel is open or embed fullscreen is side-by-side: reverts to fixed 240px / 190px
 
   Props:
@@ -152,6 +152,7 @@
   let isVideoActive = $state(false);
   let chatHeaderBannerEl = $state<HTMLElement | null>(null);
   let chatHeaderHeight = $state(240);
+  let chatHeaderWidth = $state(0);
   let touchStartX = $state(0);
   let touchStartY = $state(0);
   let touchSwipeHandled = $state(false);
@@ -165,12 +166,19 @@
   const TEASER_TILT_SCALE = 0.985;
   const TEASER_VERTICAL_EDGE_GAP = 10;
   const TEASER_MAX_WIDTH = 640;
+  const MEDIUM_HEADER_WIDTH = 900;
+  const MOBILE_HEADER_WIDTH = 730;
+  const COMPACT_TEASER_HEADER_WIDTH = 960;
 
   let teaserVideoMaxWidth = $derived.by(() => {
     const maxHeight = Math.max(0, chatHeaderHeight - TEASER_VERTICAL_EDGE_GAP * 2);
     const maxWidthByHeaderHeight = Math.floor(maxHeight * 16 / 9);
     return `min(${TEASER_MAX_WIDTH}px, 52%, ${maxWidthByHeaderHeight}px)`;
   });
+
+  let isMediumHeader = $derived(chatHeaderWidth > 0 && chatHeaderWidth <= MEDIUM_HEADER_WIDTH);
+  let isMobileHeader = $derived(chatHeaderWidth > 0 && chatHeaderWidth <= MOBILE_HEADER_WIDTH);
+  let isCompactTeaserHeader = $derived(chatHeaderWidth > 0 && chatHeaderWidth <= COMPACT_TEASER_HEADER_WIDTH);
 
   let teaserTiltTransform = $derived.by(() => {
     if (!isTeaserVideoHovering) return '';
@@ -252,7 +260,9 @@
     if (!browser || !chatHeaderBannerEl) return;
 
     const updateHeaderHeight = () => {
-      chatHeaderHeight = chatHeaderBannerEl?.getBoundingClientRect().height ?? 240;
+      const rect = chatHeaderBannerEl?.getBoundingClientRect();
+      chatHeaderHeight = rect?.height ?? 240;
+      chatHeaderWidth = rect?.width ?? 0;
     };
     const resizeObserver = new ResizeObserver(updateHeaderHeight);
     updateHeaderHeight();
@@ -548,6 +558,9 @@
   bind:this={chatHeaderBannerEl}
   class="chat-header-banner"
   class:is-loaded={isLoaded}
+  class:is-medium-header={isMediumHeader}
+  class:is-mobile-header={isMobileHeader}
+  class:is-compact-teaser-header={isCompactTeaserHeader}
   style={bannerStyle}
   role="presentation"
   ontouchstart={handleHeaderTouchStart}
@@ -1505,94 +1518,92 @@
     .orb { animation: none !important; }
   }
 
-  /* ─── Mobile adjustments (≤730px) ───────────────────────────────────────── */
+  /* ─── Mobile adjustments based on header width (≤730px) ─────────────────── */
 
-  @media (max-width: 730px) {
-    .chat-header-banner {
-      height: 35vh;
-      min-height: 230px;
-    }
+  .chat-header-banner.is-mobile-header {
+    height: 35vh;
+    min-height: 230px;
+  }
 
-    :global(.menu-open) .chat-header-banner,
-    :global(.side-by-side-active) .chat-header-banner {
-      height: 230px;
-      min-height: unset;
-    }
+  :global(.menu-open) .chat-header-banner.is-mobile-header,
+  :global(.side-by-side-active) .chat-header-banner.is-mobile-header {
+    height: 230px;
+    min-height: unset;
+  }
 
-    .processing-ai-icon {
-      width: 32px;
-      height: 32px;
-    }
+  .is-mobile-header .processing-ai-icon {
+    width: 32px;
+    height: 32px;
+  }
 
-    .processing-text {
-      font-size: var(--font-size-lg);
-    }
+  .is-mobile-header .processing-text {
+    font-size: var(--font-size-lg);
+  }
 
-    .credits-error-text {
-      font-size: var(--font-size-lg);
-    }
+  .is-mobile-header .credits-error-text {
+    font-size: var(--font-size-lg);
+  }
 
-    .loaded-content {
-      padding: var(--spacing-6) var(--spacing-10);
-      max-width: 360px;
-    }
+  .is-mobile-header .loaded-content {
+    padding: var(--spacing-6) var(--spacing-10);
+    max-width: 360px;
+  }
 
-    .loaded-icon {
-      width: 32px;
-      height: 32px;
-    }
+  .is-mobile-header .loaded-icon {
+    width: 32px;
+    height: 32px;
+  }
 
-    .loaded-icon :global(svg) {
-      width: 32px !important;
-      height: 32px !important;
-    }
+  .is-mobile-header .loaded-icon :global(svg) {
+    width: 32px !important;
+    height: 32px !important;
+  }
 
-    .ai-header-icon {
-      width: 32px;
-      height: 32px;
-    }
+  .is-mobile-header .ai-header-icon {
+    width: 32px;
+    height: 32px;
+  }
 
-    .loaded-title {
-      font-size: var(--font-size-lg);
-    }
+  .is-mobile-header .loaded-title {
+    font-size: var(--font-size-lg);
+  }
 
-    .loaded-summary {
-      font-size: var(--font-size-xs);
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-    }
+  .is-mobile-header .loaded-summary {
+    font-size: var(--font-size-xs);
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
 
-    /* Smaller decorative icons on mobile, closer to edges */
-    .deco-icon {
-      width: 90px;
-      height: 90px;
-    }
+  /* Smaller decorative icons on mobile, closer to edges */
+  .is-mobile-header .deco-icon {
+    width: 90px;
+    height: 90px;
+  }
 
-    .deco-icon :global(svg) {
-      width: 90px !important;
-      height: 90px !important;
-    }
+  .is-mobile-header .deco-icon :global(svg) {
+    width: 90px !important;
+    height: 90px !important;
+  }
 
-    .deco-icon-left {
-      /* On mobile: content max-width 360px (half=180px), icon 90px */
-      left: calc(50% - 180px - 70px);
-    }
+  .is-mobile-header .deco-icon-left {
+    /* On mobile: content max-width 360px (half=180px), icon 90px */
+    left: calc(50% - 180px - 70px);
+  }
 
-    .deco-icon-right {
-      right: calc(50% - 180px - 70px);
-    }
+  .is-mobile-header .deco-icon-right {
+    right: calc(50% - 180px - 70px);
+  }
 
-    .video-play-btn {
-      width: 56px !important;
-      height: 56px !important;
-    }
+  .is-mobile-header .video-play-btn {
+    width: 56px !important;
+    height: 56px !important;
+  }
 
-    .video-play-icon {
-      border-top: 10px solid transparent;
-      border-bottom: 10px solid transparent;
-      border-left: 17px solid rgba(255, 255, 255, 0.95);
-      margin-left: 3px;
-    }
+  .is-mobile-header .video-play-icon {
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-left: 17px solid rgba(255, 255, 255, 0.95);
+    margin-left: 3px;
   }
 
   /* ─── Teaser split layout (text left + video right) ────────────────────────
@@ -1699,50 +1710,48 @@
     display: block;
   }
 
-  @media (max-width: 520px) {
-    .teaser-split-layout {
-      display: block;
-      width: 100%;
-      max-width: 100%;
-      padding: 16px 48px;
-    }
+  .is-compact-teaser-header .teaser-split-layout {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    padding: 16px 48px;
+  }
 
-    .teaser-split-left,
-    .teaser-split-right {
-      position: absolute;
-      inset: 16px 48px;
-      width: auto;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+  .is-compact-teaser-header .teaser-split-left,
+  .is-compact-teaser-header .teaser-split-right {
+    position: absolute;
+    inset: 16px 48px;
+    width: auto;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-    .teaser-split-left {
-      animation: mobileTeaserTextCycle 7s 1 ease-in-out forwards;
-    }
+  .is-compact-teaser-header .teaser-split-left {
+    animation: mobileTeaserTextCycle 7s 1 ease-in-out forwards;
+  }
 
-    .teaser-split-right {
-      opacity: 0;
-      animation: mobileTeaserVideoCycle 7s 1 ease-in-out forwards;
-    }
+  .is-compact-teaser-header .teaser-split-right {
+    opacity: 0;
+    animation: mobileTeaserVideoCycle 7s 1 ease-in-out forwards;
+  }
 
-    .teaser-copy {
-      align-items: flex-start;
-      max-width: 280px;
-    }
+  .is-compact-teaser-header .teaser-copy {
+    align-items: flex-start;
+    max-width: 280px;
+  }
 
-    .teaser-title {
-      font-size: var(--font-size-lg);
-    }
+  .is-compact-teaser-header .teaser-title {
+    font-size: var(--font-size-lg);
+  }
 
-    .teaser-video-box {
-      width: min(100%, 280px);
-    }
+  .is-compact-teaser-header .teaser-video-box {
+    width: min(100%, 280px);
+  }
 
-    .teaser-video-box.hovering {
-      transform: none !important;
-    }
+  .is-compact-teaser-header .teaser-video-box.hovering {
+    transform: none !important;
   }
 
   @keyframes mobileTeaserTextCycle {
@@ -1755,16 +1764,16 @@
     55%, 100% { opacity: 1; transform: translateY(0); }
   }
 
-  @media (max-width: 520px) and (prefers-reduced-motion: reduce) {
-    .teaser-split-layout {
+  @media (prefers-reduced-motion: reduce) {
+    .is-compact-teaser-header .teaser-split-layout {
       display: flex;
       flex-direction: column;
       justify-content: center;
       gap: var(--spacing-4);
     }
 
-    .teaser-split-left,
-    .teaser-split-right {
+    .is-compact-teaser-header .teaser-split-left,
+    .is-compact-teaser-header .teaser-split-right {
       position: static;
       inset: auto;
       animation: none !important;
@@ -2069,28 +2078,25 @@
     opacity: 1;
   }
 
-  /* Tablet and below (≤900px): push content below the absolute-positioned
+  /* Narrow header (≤900px): push content below the absolute-positioned
      new-chat/report-issue buttons (≈50px from top) and keep 16:9 ratio.
      height:min() provides a definite value so width:auto (inherited from base)
      can derive the correct width via aspect-ratio:16/9 — no ratio-breaking
      width:100% is needed. 46px = title(30) + gap(16). */
-  @media (max-width: 900px) {
-    .media-center-group {
-      padding-top: 55px;
-      justify-content: flex-start;
-    }
-    .media-frame {
-      height: min(72%, calc(100% - 46px));
-      max-height: unset;
-    }
+  .is-medium-header .media-center-group {
+    padding-top: 55px;
+    justify-content: flex-start;
   }
 
-  /* Mobile (≤730px): same height-driven sizing as ≤900px (inherited).
+  .is-medium-header .media-frame {
+    height: min(72%, calc(100% - 46px));
+    max-height: unset;
+  }
+
+  /* Mobile-width header (≤730px): same height-driven sizing as ≤900px (inherited).
      Relax max-width so the frame can be slightly wider on narrow screens. */
-  @media (max-width: 730px) {
-    .media-frame {
-      max-width: calc(100% - 40px);
-    }
+  .is-mobile-header .media-frame {
+    max-width: calc(100% - 40px);
   }
 
   /* Sign-up CTA rendered inside the banner below the title, for non-auth intro chats. */

@@ -358,6 +358,15 @@ open_on_provider:
   sv: "Öppna på {provider}"
   he: "פתיחה ב-{provider}"
   verified_by_human: []
+data_from:
+  context: Website fullscreen metadata date, e.g. 'Data from 2026/04/29'
+  en: Data from {date}
+snippets:
+  context: Heading for website/search result snippets in embed fullscreen
+  en: Snippets
+via_brave_search:
+  context: Source label under snippets in website fullscreen
+  en: via Brave Search
 open_on_youtube:
   context: Button label to open video on YouTube
   en: Open on YouTube

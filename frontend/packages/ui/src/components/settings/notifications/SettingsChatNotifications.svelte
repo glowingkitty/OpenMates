@@ -18,6 +18,7 @@ When enabled, notifications are sent to the user's login email (from account set
     import { authStore } from '../../../stores/authStore';
     import { getEmailDecryptedWithMasterKey } from '../../../services/cryptoService';
     import { webSocketService } from '../../../services/websocketService';
+    import { notificationStore } from '../../../stores/notificationStore';
     
     // Local state for push notifications
     let isRequestingPermission = $state(false);
@@ -283,6 +284,12 @@ When enabled, notifications are sent to the user's login email (from account set
                     backupReminder: payload.preferences?.backupReminder ?? true,
                 }
             });
+            emailNotificationsEnabled = payload.enabled;
+            emailPreferences = {
+                aiResponses: payload.preferences?.aiResponses ?? true,
+                backupReminder: payload.preferences?.backupReminder ?? true,
+            };
+            notificationStore.success(payload.enabled ? 'Email notification settings saved.' : 'Email notifications turned off.');
             console.warn('[SettingsChatNotifications] email_notification_settings_ack received, persisted to IDB');
         }
 

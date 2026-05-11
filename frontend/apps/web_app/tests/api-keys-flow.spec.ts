@@ -30,9 +30,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -48,16 +46,41 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
  * Navigate to Settings > Developers > API Keys.
  * Returns when the API Keys container is visible (data-testid="api-keys-container").
  */
-async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const profileContainer = page.locator('#settings-menu-toggle');
-	await expect(profileContainer).toBeVisible({ timeout: 10000 });
-	await profileContainer.click();
-	logCheckpoint('Opened settings menu.');
-
-	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) => void): Promise<any> {
+	const settingsMenu = page.getByTestId('settings-menu');
+	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
+		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+		await openSettingsButton.click();
+		logCheckpoint('Opened settings menu.');
+	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 
+	for (let i = 0; i < 5; i++) {
+		const activeView = await settingsMenu.getAttribute('data-active-view');
+		if (!activeView || activeView === 'main') {
+			return settingsMenu;
+		}
+
+		const bannerBackButton = page.getByTestId('banner-back-button').first();
+		const backButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+			? bannerBackButton
+			: page.locator('#settings-back-button');
+		await expect(backButton).toBeVisible({ timeout: 5000 });
+		await backButton.click();
+		logCheckpoint('Returned to root settings menu.');
+		await expect(settingsMenu).toHaveAttribute('data-active-view', /^(main|developers)$/i, { timeout: 5000 });
+	}
+
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'main');
+	return settingsMenu;
+}
+
+async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
+
 	const developersItem = settingsMenu.getByRole('menuitem', { name: /developers/i }).first();
+	await developersItem.scrollIntoViewIfNeeded();
 	await expect(developersItem).toBeVisible({ timeout: 10000 });
 	await developersItem.click();
 	logCheckpoint('Navigated to Developers.');
@@ -73,6 +96,7 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 		.first();
 	const apiKeysVisible = await apiKeysItem.isVisible({ timeout: 5000 }).catch(() => false);
 	const targetItem = apiKeysVisible ? apiKeysItem : apiKeysItemFallback;
+	await targetItem.scrollIntoViewIfNeeded();
 	await expect(targetItem).toBeVisible({ timeout: 10000 });
 	await targetItem.click();
 	logCheckpoint('Navigated to API Keys.');
@@ -394,34 +418,30 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
-	const settingsToggle = page.locator('#settings-menu-toggle');
-	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	const closeIcon = page.locator('#settings-menu-toggle [data-testid="close-icon-container"].visible').first();
-	if (await closeIcon.isVisible().catch(() => false)) {
-		await closeIcon.click();
-		await page.waitForTimeout(500);
+	const reviewDeviceButton = page.getByRole('button', { name: /review in developer settings/i }).first();
+	if (await reviewDeviceButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await reviewDeviceButton.click();
+		log('Opened Devices from pending-device notification.');
+	} else {
+		const settingsMenu2 = await ensureSettingsMenuOpen(page, log);
+
+		const developersItem2 = settingsMenu2
+			.getByRole('menuitem')
+			.filter({ hasText: /^developers$/i })
+			.first();
+		await developersItem2.scrollIntoViewIfNeeded();
+		await expect(developersItem2).toBeVisible({ timeout: 8000 });
+		await developersItem2.click();
+
+		const devicesItem = settingsMenu2
+			.getByRole('menuitem')
+			.filter({ hasText: /^devices$/i })
+			.first();
+		await devicesItem.scrollIntoViewIfNeeded();
+		await expect(devicesItem).toBeVisible({ timeout: 8000 });
+		await devicesItem.click();
+		log('Navigated to Devices page.');
 	}
-	await settingsToggle.click();
-	await page.waitForTimeout(500);
-
-	const settingsMenu2 = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenu2).toBeVisible({ timeout: 8000 });
-
-	const developersItem2 = settingsMenu2
-		.getByRole('menuitem')
-		.filter({ hasText: /^developers$/i })
-		.first();
-	await expect(developersItem2).toBeVisible({ timeout: 8000 });
-	await developersItem2.click();
-
-	const devicesItem = page
-		.locator('[data-testid="settings-menu"].visible')
-		.getByRole('menuitem')
-		.filter({ hasText: /^devices$/i })
-		.first();
-	await expect(devicesItem).toBeVisible({ timeout: 8000 });
-	await devicesItem.click();
-	log('Navigated to Devices page.');
 	await screenshot(page, 'devices-page');
 
 	const devicesContainer = page.getByTestId('devices-container');

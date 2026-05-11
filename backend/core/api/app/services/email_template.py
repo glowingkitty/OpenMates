@@ -407,6 +407,7 @@ class EmailTemplateService:
                 'community_share_notification',
                 'password-security-reminder',
                 'incomplete-signup-deletion-reminder', 'incomplete-signup-account-deleted',
+                'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',
             }

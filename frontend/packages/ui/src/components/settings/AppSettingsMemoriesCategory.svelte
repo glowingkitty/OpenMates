@@ -32,6 +32,7 @@
     import { text } from '@repo/ui';
     import { appSettingsMemoriesStore, appSettingsMemoriesForApp } from '../../stores/appSettingsMemoriesStore';
     import { setAppStoreNavList, clearAppStoreNav } from '../../stores/appStoreNavigationStore';
+    import AppSettingsMemoryEmbedPreview from './AppSettingsMemoryEmbedPreview.svelte';
 
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -311,6 +312,11 @@
         
         return parts.join(' • ');
     }
+
+    function getEntryEmbedId(itemValue: Record<string, unknown>): string {
+        const embedId = itemValue.embed_id;
+        return typeof embedId === 'string' ? embedId : '';
+    }
     
     /**
      * Format timestamp as relative time (e.g., "2 days ago", "Just now").
@@ -379,7 +385,7 @@
 
 </script>
 
-<div class="app-settings-memories-category">
+<div class="app-settings-memories-category" data-testid="app-settings-memories-category" data-app-id={appId} data-category-id={categoryId}>
     {#if !app || !category}
         <div class="error">
             <p>{$text('settings.app_store.category_not_found')}</p>
@@ -403,20 +409,26 @@
                     <p>{$text('settings.app_settings_memories.no_entries_yet')}</p>
                 </div>
             {:else}
-                <div class="entries-list">
+                <div class="entries-list" data-testid="memory-entries-list">
                     {#each allEntries as entry (entry.id)}
                         {@const entryTitle = getEntryTitle(entry.item_value)}
                         {@const entrySubtitle = getEntrySubtitle(entry.item_value, entry.updated_at)}
-                        <SettingsItem
-                            type="submenu"
-                            icon={getCategoryIconName(category?.icon_image)}
-                            iconColor="var(--icon-memory-background)"
-                            title={entryTitle}
-                            subtitleBottom={entrySubtitle}
-                            hasModifyButton={true}
-                            onClick={() => handleEntryClick(entry.id, entryTitle)}
-                            onModifyClick={() => handleEntryEditClick(entry.id, entryTitle)}
-                        />
+                        {@const entryEmbedId = getEntryEmbedId(entry.item_value)}
+                        <div class="memory-entry-wrapper" data-testid="memory-entry">
+                            <SettingsItem
+                                type="submenu"
+                                icon={getCategoryIconName(category?.icon_image)}
+                                iconColor="var(--icon-memory-background)"
+                                title={entryTitle}
+                                subtitleBottom={entrySubtitle}
+                                hasModifyButton={true}
+                                onClick={() => handleEntryClick(entry.id, entryTitle)}
+                                onModifyClick={() => handleEntryEditClick(entry.id, entryTitle)}
+                            />
+                        </div>
+                        {#if entryEmbedId}
+                            <AppSettingsMemoryEmbedPreview appId={appId} embedId={entryEmbedId} />
+                        {/if}
                     {/each}
                 </div>
             {/if}
@@ -518,4 +530,3 @@
         background: var(--button-hover-background, #e0e0e0);
     }
 </style>
-

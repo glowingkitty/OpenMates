@@ -33,6 +33,8 @@ SERVER_STATS_CACHE_DIR = ".obsidian-auto/server-stats"
 SERVER_STATS_CACHE_MAX_AGE_SECONDS = 60 * 60
 KANBAN_BOARD_EMBED = "![[Boards/all-todos]]"
 KANBAN_BOARD_LINK = "Kanban: [[Boards/all-todos|Open All Todos board]]"
+GENERATED_TEST_NOTE_PREFIX = "OpenMates/Tests/"
+GENERATED_TEST_NOTE_TYPES = {"e2e-test", "test-dashboard"}
 MARKER_PATTERN = re.compile(
     r"<!-- AUTO:(?P<name>[a-z0-9-]+):start -->.*?<!-- AUTO:(?P=name):end -->",
     re.DOTALL,
@@ -79,7 +81,20 @@ def should_skip(path: Path, vault: Path) -> bool:
     if not rel_parts:
         return True
     first = rel_parts[0]
-    return first in {DAILY_NOTES_DIR, "Templates", "Boards", "Archive", ".obsidian", ".obsidian-auto"}
+    rel_path = path.relative_to(vault).as_posix()
+    return (
+        first in {DAILY_NOTES_DIR, "Templates", "Boards", "Archive", ".obsidian", ".obsidian-auto"}
+        or rel_path.startswith(GENERATED_TEST_NOTE_PREFIX)
+    )
+
+
+def is_generated_test_note(path: str) -> bool:
+    return path.startswith(GENERATED_TEST_NOTE_PREFIX)
+
+
+def is_generated_test_note_info(note: dict[str, str | None] | NoteInfo) -> bool:
+    note_type = note.note_type if isinstance(note, NoteInfo) else note.get("type")
+    return note_type in GENERATED_TEST_NOTE_TYPES
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
@@ -128,7 +143,9 @@ def changed_notes(vault: Path, start_ts: float, end_ts: float, tz: ZoneInfo) -> 
             continue
         mtime = path.stat().st_mtime
         if start_ts <= mtime <= end_ts:
-            notes.append(note_info(path, vault, tz))
+            info = note_info(path, vault, tz)
+            if not is_generated_test_note_info(info):
+                notes.append(info)
     return sorted(notes, key=lambda item: item.path.lower())
 
 
@@ -153,7 +170,12 @@ def merge_manifest(
     merged = {
         path: note
         for path, note in existing.items()
-        if path.endswith(".md") and (vault / path).exists()
+        if (
+            path.endswith(".md")
+            and not is_generated_test_note(path)
+            and not is_generated_test_note_info(note)
+            and (vault / path).exists()
+        )
     }
     changed = len(merged) != len(existing)
     now_text = now.isoformat(timespec="seconds")
@@ -564,12 +586,13 @@ def git_commits(repo: Path, start_ts: float, end_ts: float, tz: ZoneInfo) -> lis
         if len(parts) != 4:
             continue
         full_hash, short_hash, committed_at, subject = parts
-        local_time = datetime.fromisoformat(committed_at).astimezone(tz).strftime("%H:%M")
+        local_datetime = datetime.fromisoformat(committed_at).astimezone(tz)
         commits.append(
             {
                 "hash": short_hash,
                 "url": f"{GITHUB_REPO_URL}/commit/{full_hash}",
-                "time": local_time,
+                "time": local_datetime.strftime("%H:%M"),
+                "sort_key": local_datetime.isoformat(timespec="seconds"),
                 "subject": subject,
             }
         )
@@ -592,8 +615,7 @@ def activity_list_body(notes: dict[str, dict[str, str | None]], commits: list[di
 
     for commit in commits:
         label = f"{commit['time']} commit: [`{commit['hash']}`]({commit['url']}) {commit['subject']}"
-        # Use time for sorting (commits don't have full ISO, build a sortable key)
-        sort_key = commit.get("time", "00:00")
+        sort_key = commit.get("sort_key", "")
         entries.append((sort_key, label))
 
     if not entries:

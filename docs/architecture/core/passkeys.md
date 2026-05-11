@@ -119,7 +119,7 @@ Schema: [user_passkeys.yml](../../backend/core/directus/schemas/user_passkeys.ym
 
 ### Device Support
 
-PRF is supported on: macOS (iCloud Keychain, security keys), iOS (Face ID/Touch ID), Android (Google Password Manager), Windows (Windows Hello). Not supported on some older devices and security keys.
+PRF is supported on: macOS (platform passkeys and security keys), iOS (Face ID/Touch ID), Android (Google Password Manager), Windows (Windows Hello). Not supported on some older devices and security keys.
 
 ## Edge Cases
 

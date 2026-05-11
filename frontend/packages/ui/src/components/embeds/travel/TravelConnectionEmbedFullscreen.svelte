@@ -28,8 +28,11 @@
   import 'leaflet/dist/leaflet.css';
   import type { Map as LeafletMap } from 'leaflet';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
+  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /** Segment data within a leg */
@@ -39,13 +42,25 @@
     number?: string;
     departure_station: string;
     departure_time: string;
+    scheduled_departure_time?: string;
+    actual_departure_time?: string;
+    departure_delay_minutes?: number;
+    departure_platform?: string;
+    departure_platform_changed?: boolean;
     departure_latitude?: number;
     departure_longitude?: number;
     arrival_station: string;
     arrival_time: string;
+    scheduled_arrival_time?: string;
+    actual_arrival_time?: string;
+    arrival_delay_minutes?: number;
+    arrival_platform?: string;
+    arrival_platform_changed?: boolean;
     arrival_latitude?: number;
     arrival_longitude?: number;
     duration: string;
+    cancelled?: boolean;
+    realtime_notes?: string[];
     /** Country codes (ISO 3166-1 alpha-2) for flag emoji display */
     departure_country_code?: string;
     arrival_country_code?: string;
@@ -76,7 +91,13 @@
     origin: string;
     destination: string;
     departure: string;
+    scheduled_departure?: string;
+    actual_departure?: string;
+    departure_delay_minutes?: number;
     arrival: string;
+    scheduled_arrival?: string;
+    actual_arrival?: string;
+    arrival_delay_minutes?: number;
     duration: string;
     stops: number;
     segments: SegmentData[];
@@ -169,7 +190,7 @@
   // Store example flag — set by SkillExamplesSection when browsing app-store examples.
   // When true, interactive actions like booking link lookup are disabled with a notification.
   let isStoreExample = $derived(dc.is_store_example === true);
-  let connection: ConnectionData = {
+  let connection: ConnectionData = $derived.by(() => ({
     embed_id: typeof dc.embed_id === 'string' ? dc.embed_id : (embedId || ''),
     type: typeof dc.type === 'string' ? dc.type : undefined,
     transport_method: typeof dc.transport_method === 'string' ? dc.transport_method : undefined,
@@ -199,7 +220,7 @@
     co2_typical_kg: typeof dc.co2_typical_kg === 'number' ? dc.co2_typical_kg : undefined,
     co2_difference_percent: typeof dc.co2_difference_percent === 'number' ? dc.co2_difference_percent : undefined,
     flight_track: (typeof dc.flight_track === 'object' && dc.flight_track !== null) ? dc.flight_track as ConnectionData['flight_track'] : undefined,
-  };
+  }));
 
   // Defensive: connection may be undefined during async component loading in dev preview
   type MaybeConnection = ConnectionData | undefined;
@@ -250,6 +271,28 @@
     } catch {
       return isoString;
     }
+  }
+
+  function displayTime(scheduledTime: string, actualTime?: string): string {
+    return formatTime(actualTime || scheduledTime);
+  }
+
+  function hasRealtimeChange(scheduledTime: string, actualTime?: string): boolean {
+    return Boolean(actualTime && scheduledTime && actualTime !== scheduledTime);
+  }
+
+  function formatDelay(delayMinutes?: number): string {
+    if (delayMinutes == null) return '';
+    if (delayMinutes === 0) return 'On time';
+    if (delayMinutes > 0) return `+${delayMinutes} min`;
+    return `${delayMinutes} min`;
+  }
+
+  function delayClass(delayMinutes?: number): 'early' | 'late' | 'ontime' | '' {
+    if (delayMinutes == null) return '';
+    if (delayMinutes > 0) return 'late';
+    if (delayMinutes < 0) return 'early';
+    return 'ontime';
   }
   
   // Format date from ISO string
@@ -674,6 +717,7 @@
    */
   function handleOpenGoogleFlights() {
     window.open(buildGoogleFlightsUrl(), '_blank', 'noopener,noreferrer');
+    promptToSaveEmbedMemory(buildSaveConfig());
   }
   
   /**
@@ -758,6 +802,86 @@
     if (resolvedBookingUrl) {
       window.open(resolvedBookingUrl, '_blank', 'noopener,noreferrer');
     }
+    promptToSaveEmbedMemory(buildSaveConfig());
+  }
+
+  function buildSaveConfig() {
+    const title = routeDisplay || routeHeaderWithFlags || 'Travel connection';
+    const bookingUrl = resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl();
+    return {
+      kind: 'travel_connection' as const,
+      appId: 'travel',
+      itemType: 'saved_connections',
+      itemKey: `saved_connections.${connection.hash || bookingUrl || title}`,
+      title,
+      reminderDateTime: connection.departure || connection.legs?.[0]?.departure || null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId || data.focusChildEmbedId || connection.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
+        title,
+        transport_method: connection.transport_method || '',
+        origin: connection.origin || connection.legs?.[0]?.origin || '',
+        destination: connection.destination || connection.legs?.at(-1)?.destination || '',
+        departure: connection.departure || connection.legs?.[0]?.departure || '',
+        arrival: connection.arrival || connection.legs?.at(-1)?.arrival || '',
+        booking_url: bookingUrl,
+        provider: resolvedBookingProvider || connection.booking_provider || primaryCarrier || '',
+        notes: [tripTypeLabel, formattedPrice, connection.duration].filter(Boolean).join(' · '),
+      },
+    };
+  }
+
+  let saveConfig = $derived(buildSaveConfig());
+  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
+
+  let calendarStart = $derived(connection.departure || connection.legs?.[0]?.departure || '');
+  let calendarEnd = $derived(connection.arrival || connection.legs?.at(-1)?.arrival || '');
+
+  function handleToggleSavedConnection() {
+    if (savedMemoryEntry) {
+      forgetEmbedMemory(saveConfig);
+      return;
+    }
+    saveEmbedMemory(saveConfig);
+  }
+
+  function buildCalendarDescription(): string {
+    const lines: string[] = [];
+    const headerParts = [routeDisplay, tripTypeLabel, formattedPrice].filter(Boolean);
+    if (headerParts.length) lines.push(headerParts.join(' | '));
+
+    if (connection.carriers?.length) lines.push(connection.carriers.join(', '));
+    if (connection.duration) lines.push(`Duration: ${connection.duration}`);
+    if (connection.stops != null) lines.push(`Stops: ${getStopsLabel(connection.stops)}`);
+
+    if (connection.legs?.length) {
+      lines.push('');
+      for (const leg of connection.legs) {
+        const legLabel = getLegLabel(leg, connection.legs.length);
+        lines.push([legLabel, `${leg.origin} -> ${leg.destination}`].filter(Boolean).join(': '));
+        for (const segment of leg.segments) {
+          lines.push(`${formatTime(segment.departure_time)} ${segment.departure_station} -> ${formatTime(segment.arrival_time)} ${segment.arrival_station}`);
+          lines.push([segment.carrier, segment.number, segment.duration].filter(Boolean).join(' | '));
+        }
+      }
+    }
+
+    const bookingUrl = resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl();
+    if (bookingUrl) lines.push('', bookingUrl);
+
+    return lines.join('\n');
+  }
+
+  function handleAddToCalendar() {
+    downloadCalendarFile({
+      title: routeDisplay || routeHeaderWithFlags || 'Travel connection',
+      start: calendarStart,
+      end: calendarEnd,
+      location: [connection.origin, connection.destination].filter(Boolean).join(' to '),
+      description: buildCalendarDescription(),
+      url: resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl(),
+      filename: sanitizeCalendarFilename([connection.origin || 'travel', connection.destination || 'connection', calendarStart.slice(0, 10)].filter(Boolean).join('-')),
+    });
   }
   
   /**
@@ -1348,6 +1472,7 @@
   embedHeaderTitle={priceHeader}
   embedHeaderSubtitle={headerSubtitle}
   currentEmbedId={embedId}
+  onCalendar={calendarStart ? handleAddToCalendar : undefined}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -1372,15 +1497,18 @@
         {/each}
       </div>
     {/if}
-    {#if bookingState === 'loaded' && resolvedBookingUrl}
-      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
-    {:else if bookingState === 'loading'}
-      <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
-    {:else if bookingState === 'error'}
-      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
-    {:else if connection.booking_token && bookingState === 'idle'}
-      <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
-    {/if}
+    <div class="embed-header-cta-group">
+      <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedConnection} />
+      {#if bookingState === 'loaded' && resolvedBookingUrl}
+        <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
+      {:else if bookingState === 'loading'}
+        <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
+      {:else if bookingState === 'error'}
+        <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.open_google_flights')} onclick={handleOpenGoogleFlights} variant="fallback" />
+      {:else if connection.booking_token && bookingState === 'idle'}
+        <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.get_booking_link')} onclick={handleLoadBookingLink} />
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet detailContent(_childContext)}
@@ -1403,22 +1531,45 @@
       {#if connection.legs && connection.legs.length > 0}
         {#each connection.legs as leg}
           {#each leg.segments as segment, segIdx}
+            {@const depChanged = hasRealtimeChange(segment.departure_time, segment.actual_departure_time)}
+            {@const arrChanged = hasRealtimeChange(segment.arrival_time, segment.actual_arrival_time)}
+            {@const depDelayClass = delayClass(segment.departure_delay_minutes)}
+            {@const arrDelayClass = delayClass(segment.arrival_delay_minutes)}
             <div class="segment-card" data-testid="segment-card">
               <div class="segment-left">
                 <div class="time-badge" class:daytime={segment.departure_is_daytime === true} class:nighttime={segment.departure_is_daytime !== true}>
                   <span class="time-icon">{segment.departure_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text">{formatTime(segment.departure_time)}</span>
+                  <span class="time-text" class:changed={depChanged}>{displayTime(segment.departure_time, segment.actual_departure_time)}</span>
                 </div>
+                {#if depChanged}
+                  <div class="scheduled-time">was {formatTime(segment.departure_time)}</div>
+                {/if}
+                {#if segment.departure_delay_minutes != null}
+                  <div class="delay-badge" class:late={depDelayClass === 'late'} class:early={depDelayClass === 'early'} class:ontime={depDelayClass === 'ontime'}>
+                    {formatDelay(segment.departure_delay_minutes)}
+                  </div>
+                {/if}
                 <div class="segment-duration-text">{segment.duration}</div>
                 <div class="time-badge" class:daytime={segment.arrival_is_daytime === true} class:nighttime={segment.arrival_is_daytime !== true}>
                   <span class="time-icon">{segment.arrival_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text">{formatTime(segment.arrival_time)}</span>
+                  <span class="time-text" class:changed={arrChanged}>{displayTime(segment.arrival_time, segment.actual_arrival_time)}</span>
                 </div>
+                {#if arrChanged}
+                  <div class="scheduled-time">was {formatTime(segment.arrival_time)}</div>
+                {/if}
+                {#if segment.arrival_delay_minutes != null}
+                  <div class="delay-badge" class:late={arrDelayClass === 'late'} class:early={arrDelayClass === 'early'} class:ontime={arrDelayClass === 'ontime'}>
+                    {formatDelay(segment.arrival_delay_minutes)}
+                  </div>
+                {/if}
               </div>
 
               <div class="segment-center">
                 <div class="segment-airport-code" data-testid="departure-code">
                   {#if segment.departure_country_code}{countryCodeToFlag(segment.departure_country_code)} {/if}{segment.departure_station}
+                  {#if segment.departure_platform}
+                    <span class="platform-pill" class:changed={segment.departure_platform_changed === true}>Platform {segment.departure_platform}</span>
+                  {/if}
                 </div>
                 <div class="segment-carrier-row">
                   {#if segment.airline_logo}
@@ -1429,10 +1580,19 @@
                     {#if segment.airplane}
                       <span class="carrier-aircraft">via {segment.airplane}</span>
                     {/if}
+                    {#if segment.cancelled}
+                      <span class="status-pill cancelled">Cancellation on route</span>
+                    {/if}
+                    {#if segment.realtime_notes && segment.realtime_notes.length > 0}
+                      <span class="carrier-aircraft">{segment.realtime_notes.slice(0, 2).join(' · ')}</span>
+                    {/if}
                   </div>
                 </div>
                 <div class="segment-airport-code" data-testid="arrival-code">
                   {#if segment.arrival_country_code}{countryCodeToFlag(segment.arrival_country_code)} {/if}{segment.arrival_station}
+                  {#if segment.arrival_platform}
+                    <span class="platform-pill" class:changed={segment.arrival_platform_changed === true}>Platform {segment.arrival_platform}</span>
+                  {/if}
                 </div>
               </div>
             </div>
@@ -1519,15 +1679,25 @@
   .time-badge.daytime { background: linear-gradient(to right, #f5bb12, #e79600); }
   .time-icon { font-size: 0.75rem; line-height: 1; }
   .time-text { line-height: 1; }
+  .time-text.changed { color: #fff; }
+  .scheduled-time { margin-top: -8px; margin-left: 10px; font-size: 0.688rem; font-weight: 700; color: var(--color-grey-50); text-decoration: line-through; }
+  .delay-badge { margin-top: -8px; padding: 2px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; color: var(--color-grey-60); background: var(--color-grey-20); white-space: nowrap; }
+  .delay-badge.late { color: #991b1b; background: #fee2e2; }
+  .delay-badge.early { color: #166534; background: #dcfce7; }
+  .delay-badge.ontime { color: #166534; background: #dcfce7; }
   .segment-duration-text { font-size: 1.25rem; font-weight: 700; background: linear-gradient(164deg, rgb(72, 103, 205) 9%, rgb(90, 133, 235) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; padding: 2px 0; }
 
   .segment-center { display: flex; flex-direction: column; gap: var(--spacing-4); flex: 1; min-width: 0; justify-content: space-between; }
   .segment-airport-code { font-size: 1rem; font-weight: 700; color: var(--color-font-primary); }
+  .platform-pill { display: inline-flex; align-items: center; margin-left: 8px; padding: 2px 7px; border-radius: 999px; background: var(--color-grey-20); color: var(--color-grey-70); font-size: 0.688rem; font-weight: 800; vertical-align: middle; }
+  .platform-pill.changed { color: #92400e; background: #fef3c7; }
   .segment-carrier-row { display: flex; align-items: center; gap: var(--spacing-4); }
   .segment-airline-logo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: white; border: 1.5px solid var(--color-grey-20); flex-shrink: 0; }
   .segment-carrier-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .carrier-flight { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
   .carrier-aircraft { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); }
+  .status-pill { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; }
+  .status-pill.cancelled { color: #991b1b; background: #fee2e2; }
 
   .layover-section { display: flex; flex-direction: column; gap: var(--spacing-2); padding: 8px 14px; }
   .layover-overnight-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 12px; border-radius: 58px; background: linear-gradient(to right, #365dad, #1745a1); color: white; font-size: 1rem; font-weight: 700; width: fit-content; }

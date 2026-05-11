@@ -61,6 +61,88 @@ embed_types:
     gradient_var: "--color-app-travel"
     i18n_namespace: embeds.travel.flight_details
 settings_and_memories:
+  - id: saved_connections
+    name_translation_key: travel.saved_connections
+    description_translation_key: travel.saved_connections.description
+    icon_image: travel.svg
+    type: list
+    stage: production
+    schema:
+      type: object
+      properties:
+        embed_id:
+          type: string
+          description: Referenced embed id for preview/fullscreen reopen
+        title:
+          type: string
+          description: Route summary
+          is_title: true
+        transport_method:
+          type: string
+          description: Transport type
+        origin:
+          type: string
+          description: Origin
+        destination:
+          type: string
+          description: Destination
+        departure:
+          type: string
+          description: Departure datetime
+          is_subtitle: true
+        arrival:
+          type: string
+          description: Arrival datetime
+        booking_url:
+          type: string
+          description: Booking URL
+        provider:
+          type: string
+          description: Booking provider
+        notes:
+          type: string
+          description: Optional notes
+          multiline: true
+      required:
+        - title
+  - id: saved_stays
+    name_translation_key: travel.saved_stays
+    description_translation_key: travel.saved_stays.description
+    icon_image: home.svg
+    type: list
+    stage: production
+    schema:
+      type: object
+      properties:
+        embed_id:
+          type: string
+          description: Referenced embed id for preview/fullscreen reopen
+        name:
+          type: string
+          description: Stay name
+          is_title: true
+        property_type:
+          type: string
+          description: Property type
+        url:
+          type: string
+          description: Booking URL
+        price:
+          type: string
+          description: Price
+          is_subtitle: true
+        rating:
+          type: number
+          description: Rating
+        location:
+          type: string
+          description: Location
+        notes:
+          type: string
+          description: Optional notes
+          multiline: true
+      required:
+        - name
   # Trips: Planned or past trips with destination and dates
   - id: trips
     name_translation_key: travel.trips

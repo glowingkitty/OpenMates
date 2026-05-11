@@ -40,6 +40,10 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+const {
+	saveCurrentFullscreenEmbed,
+	verifySavedMemoryEntry
+} = require('./helpers/saved-memory-test-helpers');
 
 /** Get a date 14 days from now in YYYY-MM-DD format */
 function futureDate(daysAhead = 14): string {
@@ -105,6 +109,12 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		expect(seg.number).toBeTruthy(); // e.g., "ICE 505"
 		expect(seg.departure_station).toBeTruthy();
 		expect(seg.arrival_station).toBeTruthy();
+		expect(seg.scheduled_departure_time || seg.departure_time).toBeTruthy();
+		expect(seg.actual_departure_time).toBeTruthy();
+		expect(seg.scheduled_arrival_time || seg.arrival_time).toBeTruthy();
+		expect(seg.actual_arrival_time).toBeTruthy();
+		expect(seg.departure_platform).toBeTruthy();
+		expect(seg.arrival_platform).toBeTruthy();
 		console.log(`[P1] First segment: ${seg.number} (${seg.carrier}), ${seg.departure_station} → ${seg.arrival_station}`);
 	});
 
@@ -193,6 +203,8 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const detailsCard = page.getByTestId('flight-details-card');
 		await expect(detailsCard).toBeVisible({ timeout: 15000 });
 
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, routeText?.trim() || undefined);
+
 		// At least one segment card
 		const segmentCards = detailsCard.getByTestId('segment-card');
 		await expect(segmentCards.first()).toBeVisible({ timeout: 5000 });
@@ -217,6 +229,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		await page.waitForTimeout(500);
 
 		await closeFullscreen(page, fullscreenOverlay);
+		await verifySavedMemoryEntry(page, 'travel', 'saved_connections', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'travel-train');
 	});
 });

@@ -28,6 +28,8 @@
 		<string>org.openmates.app.composeChat</string>
 		<string>org.openmates.app.browseChats</string>
 	</array>
+	<key>OpenMatesKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)org.openmates.app</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>LexendDeca-Light.ttf</string>

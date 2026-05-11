@@ -116,7 +116,7 @@ struct HomeListingRenderer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if mode == .fullscreen, let imageUrl, let imgURL = URL(string: imageUrl) {
-                AsyncImage(url: imgURL) { image in
+                CachedRemoteImage(url: imgURL) { image in
                     image.resizable().aspectRatio(contentMode: .fit)
                 } placeholder: { ProgressView() }
                 .clipShape(RoundedRectangle(cornerRadius: .radius3))
@@ -155,7 +155,7 @@ struct RecipeRenderer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if mode == .fullscreen, let imageUrl, let imgURL = URL(string: imageUrl) {
-                AsyncImage(url: imgURL) { image in
+                CachedRemoteImage(url: imgURL) { image in
                     image.resizable().aspectRatio(contentMode: .fit)
                 } placeholder: { ProgressView() }
                 .clipShape(RoundedRectangle(cornerRadius: .radius3))
@@ -188,7 +188,7 @@ struct ShoppingProductRenderer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if let imageUrl, let imgURL = URL(string: imageUrl) {
-                AsyncImage(url: imgURL) { image in
+                CachedRemoteImage(url: imgURL) { image in
                     image.resizable().aspectRatio(contentMode: mode == .preview ? .fill : .fit)
                 } placeholder: { Color.grey20 }
                 .frame(height: mode == .preview ? 80 : nil)

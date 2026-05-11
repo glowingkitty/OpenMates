@@ -17,7 +17,11 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const {
+	openSignupInterface,
+	submitPasswordAndHandleOtp,
+	waitForChatReady
+} = require('./helpers/chat-test-helpers');
 
 /**
  * Verify ARIA attributes on a dialog element.
@@ -187,8 +191,7 @@ test.describe('Modal ARIA — authenticated', () => {
 
 		await submitPasswordAndHandleOtp(page, TEST_OTP_KEY);
 
-		await page.waitForURL(/chat/, { timeout: 30000 });
-		await page.waitForTimeout(5000);
+		await waitForChatReady(page);
 	}
 
 	test('settings modal has correct ARIA attributes and focus trap', async ({ page }: { page: any }) => {

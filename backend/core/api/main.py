@@ -37,7 +37,7 @@ from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the 
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
 from backend.core.api.app.routes import admin  # noqa: E402 # Import admin router
-from backend.core.api.app.routes.push import router as push_router  # noqa: E402 # Push notification routes
+from backend.core.api.app.routes.push import router as push_router, notifications_router  # noqa: E402 # Push notification routes
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
@@ -1346,6 +1346,7 @@ def create_app() -> FastAPI:
     app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
     app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management
+    app.include_router(notifications_router, include_in_schema=False)  # Native APNs device registration
     app.include_router(telemetry.router, include_in_schema=False)  # OTLP proxy for frontend browser traces (JWT auth, rate-limited)
     app.include_router(webhooks_router.router, include_in_schema=True)  # Webhook CRUD + incoming webhook handler (JWT + webhook key auth)
     app.include_router(internal_tunnel.router, include_in_schema=False)  # Ephemeral tunnel management for CI (HMAC auth)

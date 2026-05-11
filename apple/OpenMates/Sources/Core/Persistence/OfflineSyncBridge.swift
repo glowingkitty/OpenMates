@@ -20,14 +20,16 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     private let chatStore: ChatStore
+    private weak var wsManager: WebSocketManager?
     private let offlineStore: OfflineStore
     private let pathMonitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "org.openmates.network-monitor")
+    private var isNetworkMonitoringStarted = false
 
-    init(chatStore: ChatStore) {
+    init(chatStore: ChatStore, wsManager: WebSocketManager? = nil) {
         self.chatStore = chatStore
+        self.wsManager = wsManager
         self.offlineStore = OfflineStore.shared
-        startNetworkMonitoring()
     }
 
     deinit {
@@ -36,7 +38,9 @@ final class OfflineSyncBridge: ObservableObject {
 
     // MARK: - Network monitoring
 
-    private func startNetworkMonitoring() {
+    func startNetworkMonitoring() {
+        guard !isNetworkMonitoringStarted else { return }
+        isNetworkMonitoringStarted = true
         pathMonitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -56,6 +60,17 @@ final class OfflineSyncBridge: ObservableObject {
     // MARK: - Cold boot: load from disk before network is available
 
     func loadFromDisk() {
+        chatStore.performWithoutPersistence {
+            loadPersistedDataIntoStore()
+        }
+    }
+
+    private func loadPersistedDataIntoStore() {
+        let embedKeys = offlineStore.loadEmbedKeys()
+        if !embedKeys.isEmpty {
+            EmbedKeyManager.shared.store(embedKeys, source: "offline")
+        }
+
         let chats = offlineStore.loadChats()
         for chat in chats {
             chatStore.upsertChat(chat)
@@ -65,6 +80,10 @@ final class OfflineSyncBridge: ObservableObject {
             let messages = offlineStore.loadMessages(chatId: chat.id)
             if !messages.isEmpty {
                 chatStore.setMessages(for: chat.id, messages: messages)
+            }
+            let embeds = offlineStore.loadEmbeds(chatId: chat.id)
+            if !embeds.isEmpty {
+                chatStore.upsertEmbeds(embeds, for: chat.id)
             }
         }
     }
@@ -79,8 +98,20 @@ final class OfflineSyncBridge: ObservableObject {
         offlineStore.persistMessages(messages, chatId: chatId)
     }
 
-    func onEmbedsReceived(_ embeds: [EmbedRecord]) {
-        offlineStore.persistEmbeds(embeds)
+    func onEmbedsReceived(_ embeds: [EmbedRecord], chatId: String) {
+        offlineStore.persistEmbeds(embeds, chatId: chatId)
+    }
+
+    func onSyncContentReceived(
+        messagesByChat: [String: [Message]],
+        embedsByChat: [String: [EmbedRecord]]
+    ) {
+        if !messagesByChat.isEmpty {
+            offlineStore.persistMessagesBatch(messagesByChat)
+        }
+        if !embedsByChat.isEmpty {
+            offlineStore.persistEmbedsBatch(embedsByChat)
+        }
     }
 
     func onChatDeleted(_ chatId: String) {
@@ -176,20 +207,15 @@ final class OfflineSyncBridge: ObservableObject {
 
     private func replaySendMessage(_ payload: [String: Any]) async throws {
         guard let chatId = payload["chat_id"] as? String,
-              let messageId = payload["message_id"] as? String,
               let content = payload["content"] as? String else { return }
-
-        let body: [String: Any] = [
-            "chat_id": chatId,
-            "message": [
-                "message_id": messageId,
-                "role": "user",
-                "content": content,
-                "created_at": payload["created_at"] ?? Int(Date().timeIntervalSince1970),
-                "chat_has_title": true,
-            ] as [String: Any],
-        ]
-        let _: Data = try await APIClient.shared.request(.post, path: "/v1/chat/message", body: body)
+        guard let chat = chatStore.chat(for: chatId) else { return }
+        _ = try await ChatSendPipeline().sendUserMessage(
+            content: content,
+            in: chat,
+            existingMessages: chatStore.messages(for: chatId),
+            wsManager: wsManager,
+            chatStore: chatStore
+        )
     }
 
     private func replayDeleteMessage(_ payload: [String: Any]) async throws {

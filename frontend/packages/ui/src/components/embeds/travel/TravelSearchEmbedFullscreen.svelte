@@ -48,13 +48,25 @@
     number?: string;
     departure_station: string;
     departure_time: string;
+    scheduled_departure_time?: string;
+    actual_departure_time?: string;
+    departure_delay_minutes?: number;
+    departure_platform?: string;
+    departure_platform_changed?: boolean;
     departure_latitude?: number;
     departure_longitude?: number;
     arrival_station: string;
     arrival_time: string;
+    scheduled_arrival_time?: string;
+    actual_arrival_time?: string;
+    arrival_delay_minutes?: number;
+    arrival_platform?: string;
+    arrival_platform_changed?: boolean;
     arrival_latitude?: number;
     arrival_longitude?: number;
     duration: string;
+    cancelled?: boolean;
+    realtime_notes?: string[];
     airplane?: string;
     airline_logo?: string;
     legroom?: string;
@@ -69,7 +81,13 @@
     origin: string;
     destination: string;
     departure: string;
+    scheduled_departure?: string;
+    actual_departure?: string;
+    departure_delay_minutes?: number;
     arrival: string;
+    scheduled_arrival?: string;
+    actual_arrival?: string;
+    arrival_delay_minutes?: number;
     duration: string;
     stops: number;
     segments: SegmentData[];
@@ -249,7 +267,13 @@
         origin,
         destination: (content[`legs_${i}_destination`] as string) || '',
         departure: (content[`legs_${i}_departure`] as string) || '',
+        scheduled_departure: content[`legs_${i}_scheduled_departure`] as string | undefined,
+        actual_departure: content[`legs_${i}_actual_departure`] as string | undefined,
+        departure_delay_minutes: content[`legs_${i}_departure_delay_minutes`] as number | undefined,
         arrival: (content[`legs_${i}_arrival`] as string) || '',
+        scheduled_arrival: content[`legs_${i}_scheduled_arrival`] as string | undefined,
+        actual_arrival: content[`legs_${i}_actual_arrival`] as string | undefined,
+        arrival_delay_minutes: content[`legs_${i}_arrival_delay_minutes`] as number | undefined,
         duration: (content[`legs_${i}_duration`] as string) || '',
         stops: (content[`legs_${i}_stops`] as number) || 0,
         segments: reconstructSegments(content, i),
@@ -269,13 +293,27 @@
         number: content[`legs_${legIndex}_segments_${j}_number`] as string | undefined,
         departure_station: (content[`legs_${legIndex}_segments_${j}_departure_station`] as string) || '',
         departure_time: (content[`legs_${legIndex}_segments_${j}_departure_time`] as string) || '',
+        scheduled_departure_time: content[`legs_${legIndex}_segments_${j}_scheduled_departure_time`] as string | undefined,
+        actual_departure_time: content[`legs_${legIndex}_segments_${j}_actual_departure_time`] as string | undefined,
+        departure_delay_minutes: content[`legs_${legIndex}_segments_${j}_departure_delay_minutes`] as number | undefined,
+        departure_platform: content[`legs_${legIndex}_segments_${j}_departure_platform`] as string | undefined,
+        departure_platform_changed: content[`legs_${legIndex}_segments_${j}_departure_platform_changed`] as boolean | undefined,
         departure_latitude: content[`legs_${legIndex}_segments_${j}_departure_latitude`] as number | undefined,
         departure_longitude: content[`legs_${legIndex}_segments_${j}_departure_longitude`] as number | undefined,
         arrival_station: (content[`legs_${legIndex}_segments_${j}_arrival_station`] as string) || '',
         arrival_time: (content[`legs_${legIndex}_segments_${j}_arrival_time`] as string) || '',
+        scheduled_arrival_time: content[`legs_${legIndex}_segments_${j}_scheduled_arrival_time`] as string | undefined,
+        actual_arrival_time: content[`legs_${legIndex}_segments_${j}_actual_arrival_time`] as string | undefined,
+        arrival_delay_minutes: content[`legs_${legIndex}_segments_${j}_arrival_delay_minutes`] as number | undefined,
+        arrival_platform: content[`legs_${legIndex}_segments_${j}_arrival_platform`] as string | undefined,
+        arrival_platform_changed: content[`legs_${legIndex}_segments_${j}_arrival_platform_changed`] as boolean | undefined,
         arrival_latitude: content[`legs_${legIndex}_segments_${j}_arrival_latitude`] as number | undefined,
         arrival_longitude: content[`legs_${legIndex}_segments_${j}_arrival_longitude`] as number | undefined,
         duration: (content[`legs_${legIndex}_segments_${j}_duration`] as string) || '',
+        cancelled: content[`legs_${legIndex}_segments_${j}_cancelled`] as boolean | undefined,
+        realtime_notes: Array.isArray(content[`legs_${legIndex}_segments_${j}_realtime_notes`])
+          ? content[`legs_${legIndex}_segments_${j}_realtime_notes`] as string[]
+          : undefined,
         departure_country_code: content[`legs_${legIndex}_segments_${j}_departure_country_code`] as string | undefined,
         arrival_country_code: content[`legs_${legIndex}_segments_${j}_arrival_country_code`] as string | undefined,
         departure_is_daytime: content[`legs_${legIndex}_segments_${j}_departure_is_daytime`] as boolean | undefined,
@@ -298,7 +336,13 @@
         origin: (leg.origin as string) || '',
         destination: (leg.destination as string) || '',
         departure: (leg.departure as string) || '',
+        scheduled_departure: leg.scheduled_departure as string | undefined,
+        actual_departure: leg.actual_departure as string | undefined,
+        departure_delay_minutes: leg.departure_delay_minutes as number | undefined,
         arrival: (leg.arrival as string) || '',
+        scheduled_arrival: leg.scheduled_arrival as string | undefined,
+        actual_arrival: leg.actual_arrival as string | undefined,
+        arrival_delay_minutes: leg.arrival_delay_minutes as number | undefined,
         duration: (leg.duration as string) || '',
         stops: (leg.stops as number) || 0,
         segments: Array.isArray(leg.segments)
@@ -308,13 +352,25 @@
               number: seg.number as string | undefined,
               departure_station: (seg.departure_station as string) || '',
               departure_time: (seg.departure_time as string) || '',
+              scheduled_departure_time: seg.scheduled_departure_time as string | undefined,
+              actual_departure_time: seg.actual_departure_time as string | undefined,
+              departure_delay_minutes: seg.departure_delay_minutes as number | undefined,
+              departure_platform: seg.departure_platform as string | undefined,
+              departure_platform_changed: seg.departure_platform_changed as boolean | undefined,
               departure_latitude: seg.departure_latitude as number | undefined,
               departure_longitude: seg.departure_longitude as number | undefined,
               arrival_station: (seg.arrival_station as string) || '',
               arrival_time: (seg.arrival_time as string) || '',
+              scheduled_arrival_time: seg.scheduled_arrival_time as string | undefined,
+              actual_arrival_time: seg.actual_arrival_time as string | undefined,
+              arrival_delay_minutes: seg.arrival_delay_minutes as number | undefined,
+              arrival_platform: seg.arrival_platform as string | undefined,
+              arrival_platform_changed: seg.arrival_platform_changed as boolean | undefined,
               arrival_latitude: seg.arrival_latitude as number | undefined,
               arrival_longitude: seg.arrival_longitude as number | undefined,
               duration: (seg.duration as string) || '',
+              cancelled: seg.cancelled as boolean | undefined,
+              realtime_notes: Array.isArray(seg.realtime_notes) ? seg.realtime_notes as string[] : undefined,
               departure_country_code: seg.departure_country_code as string | undefined,
               arrival_country_code: seg.arrival_country_code as string | undefined,
               departure_is_daytime: seg.departure_is_daytime as boolean | undefined,
@@ -421,6 +477,17 @@
     return prices[idx];
   }
 
+  function getArrivalDelay(result: ConnectionResult): number | undefined {
+    const lastLeg = result.legs?.at(-1);
+    if (lastLeg?.arrival_delay_minutes != null) return lastLeg.arrival_delay_minutes;
+    const lastSegment = lastLeg?.segments?.at(-1);
+    return lastSegment?.arrival_delay_minutes;
+  }
+
+  function hasCancellation(result: ConnectionResult): boolean {
+    return Boolean(result.legs?.some(leg => leg.segments?.some(seg => seg.cancelled)));
+  }
+
   let cheapestThreshold = $derived(getCheapestThreshold(headerResults));
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
@@ -486,6 +553,8 @@
       arrival={result.arrival}
       duration={result.duration}
       stops={result.stops}
+      arrivalDelayMinutes={getArrivalDelay(result)}
+      hasCancellation={hasCancellation(result)}
       carriers={result.carriers}
       carrierCodes={result.carrier_codes}
       bookableSeats={result.bookable_seats}

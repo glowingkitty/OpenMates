@@ -6,11 +6,24 @@
 			"destination": "/"
 		},
 		{
-			"source": "/((?!_app|static|docs|status|announcements|tips|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+			"source": "/((?!_app|static|docs|status|announcements|tips|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
 			"destination": "/"
 		}
 	],
 	"headers": [
+		{
+			"source": "/.well-known/apple-app-site-association",
+			"headers": [
+				{
+					"key": "Content-Type",
+					"value": "application/json"
+				},
+				{
+					"key": "Cache-Control",
+					"value": "public, max-age=3600"
+				}
+			]
+		},
 		{
 			"source": "/",
 			"headers": [

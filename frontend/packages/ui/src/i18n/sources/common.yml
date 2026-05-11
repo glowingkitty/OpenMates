@@ -1298,6 +1298,31 @@ new_chat:
   he: "צ'אט חדש"
   verified_by_human: []
 
+new_window:
+  context: "Generic desktop menu command: New Window"
+  en: New Window
+  de: Neues Fenster
+  zh: 新窗口
+  es: Nueva ventana
+  fr: Nouvelle fenêtre
+  pt: Nova janela
+  ru: Новое окно
+  ja: 新規ウインドウ
+  ko: 새 창
+  it: Nuova finestra
+  tr: Yeni pencere
+  vi: Cửa sổ mới
+  id: Jendela baru
+  pl: Nowe okno
+  nl: Nieuw venster
+  ar: نافذة جديدة
+  hi: नई विंडो
+  th: หน้าต่างใหม่
+  cs: Nové okno
+  sv: Nytt fönster
+  he: חלון חדש
+  verified_by_human: []
+
 privacy:
   context: "Generic UI text: Privacy"
   en: Privacy

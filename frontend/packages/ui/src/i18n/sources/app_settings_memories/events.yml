@@ -1,0 +1,14 @@
+saved_events:
+  context: Settings/memory name for saved events
+  en: Saved events
+  de: Gespeicherte Events
+  verified_by_human:
+    - en
+    - de
+saved_events.description:
+  context: Description for saved events settings/memory
+  en: Events you saved from search results.
+  de: Events, die du aus Suchergebnissen gespeichert hast.
+  verified_by_human:
+    - en
+    - de

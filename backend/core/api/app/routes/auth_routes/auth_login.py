@@ -29,6 +29,10 @@ from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
 from backend.core.api.app.utils.ws_token import create_ws_token
+from backend.core.api.app.utils.directus_cookies import (
+    extract_directus_refresh_token,
+    normalize_directus_cookie,
+)
 
 """
 Zero-Knowledge Authentication System
@@ -1165,12 +1169,9 @@ async def finalize_login_session(
     # Set authentication cookies
     if "cookies" in auth_data:
         logger.info(f"Setting {len(auth_data['cookies'])} cookies")
+        refresh_token = extract_directus_refresh_token(auth_data["cookies"])
         for name, value in auth_data["cookies"].items():
-            if name == "directus_refresh_token":
-                refresh_token = value
-            cookie_name = name
-            if name.startswith("directus_"):
-                cookie_name = "auth_" + name[9:]
+            cookie_name = normalize_directus_cookie(name)
 
             # Build cookie parameters
             # - Secure=True requires HTTPS (both dev and prod use HTTPS)
@@ -1455,17 +1456,27 @@ async def lookup_user(
         # Step 4: Get user profile to access tfa_app_name (leverages existing cache)
         user_id = user_data.get("id")
         tfa_app_name = None
+        cached_user_profile = None
         
         if user_id:
-            # Check if user profile is already cached
             cached_user_profile = await cache_service.get_user_by_id(user_id)
-            if cached_user_profile:
+            required_profile_fields = ("username", "vault_key_id", "hashed_email", "user_email_salt")
+            if cached_user_profile and all(cached_user_profile.get(field) for field in required_profile_fields):
                 tfa_app_name = cached_user_profile.get("tfa_app_name")
                 logger.info(f"Using cached user profile for tfa_app_name lookup: {user_id}")
             else:
-                # Fetch user profile if not cached (will be cached by get_user_profile)
+                if cached_user_profile:
+                    missing_fields = [field for field in required_profile_fields if not cached_user_profile.get(field)]
+                    logger.warning(
+                        f"Cached user profile for {user_id} is missing {missing_fields} during lookup. "
+                        "Evicting and re-fetching before login."
+                    )
+                    await cache_service.delete(f"user_profile:{user_id}")
+
+                # Fetch a validated profile if not cached or if cache was incomplete.
                 profile_success, user_profile, _ = await directus_service.get_user_profile(user_id)
                 if profile_success and user_profile:
+                    cached_user_profile = user_profile
                     tfa_app_name = user_profile.get("tfa_app_name")
                     logger.info(f"Fetched user profile for tfa_app_name lookup: {user_id}")
         

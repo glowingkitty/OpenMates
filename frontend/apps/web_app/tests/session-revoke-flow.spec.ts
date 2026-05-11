@@ -32,7 +32,6 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount
 } = require('./signup-flow-helpers');
 
@@ -66,12 +65,12 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 
 	// Submit password first, then handle OTP if required.
 	// OTP field only appears after backend confirms 2FA is needed (anti-enumeration).
-	const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+	const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logFn);
-	logFn('Login submitted, waiting for redirect to /chat…');
+	logFn('Login submitted, waiting for authenticated chat UI…');
 
-	await page.waitForURL(/chat/, { timeout: 30000 });
-	logFn('Redirected to /chat — login complete.');
+	await waitForChatReady(page, logFn);
+	logFn('Authenticated chat UI ready — login complete.');
 }
 
 // ---------------------------------------------------------------------------

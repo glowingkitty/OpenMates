@@ -245,6 +245,8 @@ async def _send_push_notification_if_enabled(
                 "body": push_body,
                 "url": push_url,
                 "tag": push_tag,
+                "chat_id": chat_id,
+                "category": "OPENMATES_CHAT_MESSAGE",
                 "user_id": user_id,
             },
             queue="push",

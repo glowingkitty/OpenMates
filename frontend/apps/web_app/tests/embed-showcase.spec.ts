@@ -65,6 +65,8 @@ const SEARCH_SKILLS: Record<string, string[]> = {
 	shopping: ['Search']
 };
 
+const PREVIEW_AUTH_NOISE_APPS = new Set(['videos', 'images', 'audio', 'pdf']);
+
 /** How long to wait for all sections to finish loading (ms) */
 const SECTION_LOAD_TIMEOUT = 20_000;
 
@@ -120,7 +122,8 @@ for (const app of ALL_APPS) {
 						text.includes('Failed to load resource: net::ERR_') ||
 						text.includes('Failed to load resource: the server responded') ||
 						text.includes('Content Security Policy') ||
-						text.includes('[ChatDatabase]')
+						text.includes('[ChatDatabase]') ||
+						(PREVIEW_AUTH_NOISE_APPS.has(app) && text.includes('User not authenticated'))
 					) {
 						return;
 					}

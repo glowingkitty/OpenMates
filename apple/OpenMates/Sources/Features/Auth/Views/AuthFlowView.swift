@@ -6,6 +6,7 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Login.svelte
 //          frontend/packages/ui/src/components/LoginMethodSelector.svelte
+//          frontend/packages/ui/src/components/settings/SettingsSessionsPairInitiate.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ struct AuthFlowView: View {
         case recoveryKey
         case backupCode
         case pairInitiate
+        case accountRecovery
     }
 
     var body: some View {
@@ -162,11 +164,17 @@ struct AuthFlowView: View {
                 tfaEnabled: tfaEnabled,
                 stayLoggedIn: $stayLoggedIn,
                 onRecoveryKey: { currentStep = .recoveryKey },
-                onBackupCode: { currentStep = .backupCode }
+                onAnotherAccount: {
+                    currentStep = .emailLookup
+                    email = ""
+                    availableMethods = []
+                    userEmailSalt = nil
+                },
+                onAccountRecovery: { currentStep = .accountRecovery }
             )
 
         case .passkeyLogin:
-            PasskeyLoginView(email: email)
+            PasskeyLoginView(email: email, stayLoggedIn: $stayLoggedIn)
 
         case .recoveryKey:
             RecoveryKeyView(email: email, userEmailSalt: userEmailSalt)
@@ -175,7 +183,10 @@ struct AuthFlowView: View {
             BackupCodeView(email: email, userEmailSalt: userEmailSalt)
 
         case .pairInitiate:
-            SettingsPairInitiateView()
+            PhonePairLoginView(stayLoggedIn: $stayLoggedIn)
+
+        case .accountRecovery:
+            AccountRecoveryView()
         }
     }
 

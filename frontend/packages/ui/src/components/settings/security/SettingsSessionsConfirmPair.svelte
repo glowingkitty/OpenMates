@@ -5,7 +5,7 @@ The already-logged-in device opens this page (via /#pair=TOKEN deep link) to:
   1. See the requesting device's info (name, truncated IP, location)
   2. Choose an auto-logout duration for the new session
   3. Allow or Deny
-  4. On Allow: display a 6-digit PIN to the user, who relays it to the new device
+  4. On Allow: display a 6-character PIN to the user, who relays it to the new device
 
 Architecture: docs/architecture/device-sessions.md
 Zero-knowledge: the server stores the plaintext PIN only for /complete validation
@@ -129,7 +129,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         errorMessage = '';
 
         try {
-            // 1. Generate a random 6-digit PIN
+            // 1. Generate a random 6-character PIN
             const pin = generatePin();
             generatedPin = pin;
 
@@ -384,7 +384,7 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         return parts.join(' · ') || 'Unknown location';
     }
 
-    /** Format 6-digit PIN as "123 456" for readability */
+    /** Format 6-character PIN as "ABC 123" for readability */
     let displayPin = $derived(
         generatedPin ? `${generatedPin.slice(0, 3)} ${generatedPin.slice(3)}` : ''
     );

@@ -358,6 +358,25 @@
                         class="right-section"
                         class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible}
                     >
+                        {#if !isMobile}
+                            <a
+                                class="github-repo-button"
+                                href="https://github.com/glowingkitty/OpenMates"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Open OpenMates GitHub repository"
+                            >
+                                <svg
+                                    aria-hidden="true"
+                                    viewBox="0 0 24 24"
+                                    width="20"
+                                    height="20"
+                                    fill="currentColor"
+                                >
+                                    <path d="M12 0C5.37 0 0 5.5 0 12.28c0 5.42 3.44 10.02 8.2 11.65.6.11.82-.27.82-.59 0-.29-.01-1.06-.02-2.08-3.34.74-4.04-1.65-4.04-1.65-.55-1.42-1.34-1.8-1.34-1.8-1.09-.77.08-.76.08-.76 1.2.09 1.84 1.27 1.84 1.27 1.07 1.87 2.81 1.33 3.5 1.02.11-.79.42-1.33.76-1.64-2.66-.31-5.46-1.36-5.46-6.07 0-1.34.47-2.44 1.24-3.3-.12-.31-.54-1.56.12-3.25 0 0 1.01-.33 3.3 1.26A11.2 11.2 0 0 1 12 5.93c1.02.01 2.05.14 3.01.41 2.29-1.59 3.3-1.26 3.3-1.26.66 1.69.24 2.94.12 3.25.77.86 1.24 1.96 1.24 3.3 0 4.72-2.8 5.75-5.48 6.06.43.38.81 1.12.81 2.27 0 1.64-.02 2.96-.02 3.36 0 .33.22.71.83.59C20.57 22.3 24 17.7 24 12.28 24 5.5 18.63 0 12 0Z" />
+                                </svg>
+                            </a>
+                        {/if}
                         <button
                             class="login-signup-button"
                             data-testid="header-login-signup-btn"
@@ -726,6 +745,29 @@
         visibility: hidden;
         pointer-events: none; /* Prevent interaction when hidden */
         transform: translateY(-50%) translateX(16px);
+    }
+
+    .github-repo-button {
+        all: unset;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        transition:
+            color var(--duration-normal) var(--easing-default),
+            transform var(--duration-normal) var(--easing-default);
+    }
+
+    .github-repo-button:hover {
+        color: var(--color-grey-80);
+        transform: scale(1.05);
+    }
+
+    .github-repo-button:active {
+        transform: scale(0.98);
     }
 
     .login-signup-button {

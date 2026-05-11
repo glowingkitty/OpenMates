@@ -226,6 +226,8 @@ services:
         condition: service_healthy
       cms:
         condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
@@ -325,7 +327,7 @@ services:
       cms:
         condition: service_healthy
       vault-setup:
-        condition: service_started
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
@@ -386,7 +388,7 @@ services:
       cms:
         condition: service_healthy
       vault-setup:
-        condition: service_started
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 
@@ -443,7 +445,64 @@ services:
       cms:
         condition: service_healthy
       vault-setup:
-        condition: service_started
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+
+  app-docs-worker:
+    container_name: app-docs-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.docs
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1"
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      CELERY_QUEUES: "app_docs"
+      CELERY_AUTOSCALE_MAX: "3"
+      CELERY_AUTOSCALE_MIN: "1"
+      CELERY_METRICS_PORT: "9105"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_docs \
+             --concurrency=2 \
+             --max-tasks-per-child=10 \
+             --max-memory-per-child=1000000 \
+             --prefetch-multiplier=1"
+    volumes:
+      - ../../backend:/app/backend
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
       cms-setup:
         condition: service_completed_successfully
 

@@ -216,6 +216,51 @@ embeds:
       Code on the left, rendered preview (auto playing) on the right.
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
+  - id: search_repos
+    category: app-skill-use
+    skill_id: search_repos
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: repo
+    child_frontend_type: code-repo
+    groupable: true
+    preview_component: code/CodeRepoSearchEmbedPreview.svelte
+    fullscreen_component: code/CodeRepoSearchEmbedFullscreen.svelte
+    child_preview_component: code/CodeRepoEmbedPreview.svelte
+    child_fullscreen_component: code/CodeRepoEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.search_repos
+    content_fields:
+      - name: query
+        type: string
+        required: true
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+        required: true
+      - name: embed_ids
+        type: string
+        description: "Pipe-delimited child repository embed IDs"
+    child_content_fields:
+      - name: url
+        type: string
+        required: true
+      - name: full_name
+        type: string
+        required: true
+      - name: description
+        type: string
+      - name: primary_language
+        type: string
+      - name: license_spdx_id
+        type: string
+      - name: stars
+        type: number
+      - name: forks
+        type: number
   - id: get_docs
     category: app-skill-use
     skill_id: get_docs
@@ -262,6 +307,55 @@ embed_types:
         type: number
         required: true
 skills:
+  - id: search_repos
+    name_translation_key: code.search_repos
+    description_translation_key: code.search_repos.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search GitHub repositories. Use this instead of web.search whenever the
+      user asks to find GitHub repos, repositories, open-source libraries,
+      starred repos, or repo examples by topic, language, framework, or project
+      need. Returns licensed repository embeds. Costs 10 credits per search.
+    stage: production
+    class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
+    pricing:
+      per_unit:
+        credits: 10
+    providers:
+      - name: GitHub
+        no_api_key: true
+    exclude_fields_for_llm:
+      - owner_avatar_url
+      - contributors.avatar_url
+      - contributors.html_url
+      - fetched_at
+      - latest_commit_sha
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of repository search requests. Each request searches GitHub for
+            public licensed repositories matching the query.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: >
+                  Repository search query, e.g. "svelte markdown editor",
+                  "python cli framework", or "rust web server".
+              count:
+                type: integer
+                minimum: 1
+                maximum: 10
+                default: 6
+                description: Number of repositories to return.
+            required:
+              - query
+      required:
+        - requests
   - id: get_docs
     name_translation_key: code.get_docs
     description_translation_key: code.get_docs.description

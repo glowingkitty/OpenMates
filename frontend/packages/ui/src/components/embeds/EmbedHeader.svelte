@@ -244,7 +244,7 @@
               onerror={hideFavicon}
             />
           {/if}
-          <span class="header-title-text">{title}</span>
+          <span class="header-title-text" data-testid="embed-header-title">{title}</span>
         </div>
       {/if}
 
@@ -773,6 +773,11 @@
   :global([data-skill-icon="coding"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/coding.svg');
     mask-image: url('@openmates/ui/static/icons/coding.svg');
+  }
+
+  :global([data-skill-icon="github"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/github.svg');
+    mask-image: url('@openmates/ui/static/icons/github.svg');
   }
   :global([data-skill-icon="travel"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');

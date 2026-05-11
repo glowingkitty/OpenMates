@@ -38,3 +38,34 @@ export function renderCodeDocs(c: Record<string, unknown>): string {
 	if (wordCount) lines.push(`${String(wordCount)} words`);
 	return lines.join('\n');
 }
+
+/** app:code:search_repos — GitHub repository search */
+export function renderCodeRepoSearch(
+  c: Record<string, unknown>,
+  children: Record<string, unknown>[] = []
+): string {
+  const query = str(c.query) ?? 'repository search';
+  const count = typeof c.result_count === 'number' ? c.result_count : children.length;
+  const lines = [`**Repository search** — ${query}`];
+  lines.push(`${count} ${count === 1 ? 'repository' : 'repositories'}`);
+  for (const child of children.slice(0, 5)) {
+    const fullName = str(child.full_name) ?? str(child.url);
+    if (fullName) lines.push(`- ${fullName}`);
+  }
+  return lines.join('\n');
+}
+
+/** code-repo — GitHub repository embed */
+export function renderCodeRepo(c: Record<string, unknown>): string {
+  const fullName = str(c.full_name) ?? str(c.url) ?? 'GitHub repository';
+  const description = str(c.description);
+  const language = str(c.primary_language);
+  const license = str(c.license_spdx_id) && str(c.license_spdx_id) !== 'NOASSERTION'
+    ? str(c.license_spdx_id)
+    : str(c.license_name);
+  const lines = [`**Repository** — ${fullName}`];
+  if (description) lines.push(description);
+  const facts = [language, license, c.stars !== undefined ? `${c.stars} stars` : null, c.forks !== undefined ? `${c.forks} forks` : null].filter(Boolean);
+  if (facts.length) lines.push(facts.join(' · '));
+  return lines.join('\n');
+}

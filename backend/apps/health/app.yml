@@ -44,6 +44,9 @@ settings_and_memories:
     schema:
       type: object
       properties:
+        embed_id:
+          type: string
+          description: Referenced embed id for preview/fullscreen reopen
         title:
           type: string
           description: Auto-generated from type, where, and date

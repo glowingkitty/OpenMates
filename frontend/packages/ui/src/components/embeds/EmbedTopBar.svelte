@@ -25,6 +25,8 @@
     showCopy?: boolean;
     /** Whether to show the download button (truthy = show). */
     showDownload?: boolean;
+    /** Whether to show the add-to-calendar button (truthy = show). */
+    showCalendar?: boolean;
     /** Whether to show the preview/render button (for markdown/HTML code embeds). */
     showPreview?: boolean;
     /** Whether preview mode is currently active (highlights the button). */
@@ -38,6 +40,7 @@
     onShare?: () => void;
     onCopy?: () => void;
     onDownload?: () => void;
+    onCalendar?: () => void;
     onTogglePreview?: () => void;
     onReportIssue?: () => void;
     /** Whether to show the admin debug toggle button. */
@@ -54,6 +57,7 @@
     showShare = true,
     showCopy = false,
     showDownload = false,
+    showCalendar = false,
     showPreview = false,
     previewActive = false,
     showPIIToggle = false,
@@ -62,6 +66,7 @@
     onShare,
     onCopy,
     onDownload,
+    onCalendar,
     onTogglePreview,
     onReportIssue,
     showDebug = false,
@@ -120,6 +125,19 @@
           onclick={onDownload}
           aria-label="Download"
           title="Download"
+        ></button>
+      </div>
+    {/if}
+
+    <!-- Add to calendar -->
+    {#if showCalendar && onCalendar}
+      <div class="button-wrapper">
+        <button
+          class="clickable-icon icon_calendar top-button"
+          data-testid="embed-calendar-button"
+          onclick={onCalendar}
+          aria-label="Add to calendar"
+          title="Add to calendar"
         ></button>
       </div>
     {/if}
@@ -255,5 +273,10 @@
   /* PII toggle: amber tint when sensitive data is revealed — matches ActiveChat.svelte */
   .pii-toggle-active {
     background-color: rgba(245, 158, 11, 0.3) !important;
+  }
+
+  :global(.clickable-icon.icon_calendar) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg');
+    mask-image: url('@openmates/ui/static/icons/calendar.svg');
   }
 </style>

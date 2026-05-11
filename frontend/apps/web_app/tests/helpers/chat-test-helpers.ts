@@ -322,6 +322,13 @@ async function startNewChat(
 	const currentUrl = page.url();
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
+	// If the editor has focus, the adjacent new-chat CTA is intentionally hidden.
+	// Blur before probing selectors so we do not create fake draft state just to
+	// reveal the button.
+	await page.keyboard.press('Escape').catch(() => undefined);
+	await page.locator('body').click({ position: { x: 1, y: 1 }, timeout: 1000 }).catch(() => undefined);
+	await page.waitForTimeout(300);
+
 	// Try stable selectors in priority order
 	const newChatButton = page.getByTestId('new-chat-button');
 	let clicked = false;
@@ -356,34 +363,12 @@ async function startNewChat(
 	}
 
 	if (!clicked) {
-		logCheckpoint('New Chat button not initially visible, trying to trigger it...');
 		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await messageEditor.click();
-			await page.keyboard.type(' ');
-			await page.waitForTimeout(500);
-
-			const retryButton = page.getByTestId('new-chat-button');
-			if (await retryButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-				logCheckpoint('Found New Chat button after typing');
-				await retryButton.click();
-				clicked = true;
-				await page.waitForTimeout(2000);
-			}
-
-			if (clicked) {
-				const newEditor = page.getByTestId('message-editor');
-				if (await newEditor.isVisible({ timeout: 2000 }).catch(() => false)) {
-					await newEditor.click();
-					await page.keyboard.press('Control+A');
-					await page.keyboard.press('Backspace');
-				}
-			}
+			logCheckpoint('New Chat button not visible; editor is already ready, treating page as new chat.');
+		} else {
+			logCheckpoint('WARNING: Could not find New Chat button or ready message editor.');
 		}
-	}
-
-	if (!clicked) {
-		logCheckpoint('WARNING: Could not find New Chat button with any selector.');
 	}
 
 	const newUrl = page.url();
@@ -532,7 +517,10 @@ async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any
  *  1. `data-authenticated="true"` marker is present (set by ActiveChat.svelte
  *     when authStore.isAuthenticated flips to true).
  *  2. `message-editor` is visible.
- *  3. The send button is present in the DOM (proves MessageInput fully mounted).
+ *  3. A short settle lets post-login WebSocket and sync initialization start.
+ *
+ * The send button is intentionally absent while the composer is empty, so it is
+ * not a reliable readiness signal for specs that only need post-login UI access.
  */
 async function waitForChatReady(
 	page: any,
@@ -544,14 +532,13 @@ async function waitForChatReady(
 
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: budget() });
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: budget() });
-	await expect(page.locator('[data-action="send-message"]')).toHaveCount(1, { timeout: budget() });
 
 	// Small post-mount settle: the MessageInput mounts before chatSyncService finishes
 	// its initial WS handshake. 1.5s matches the pattern in chat-flow.spec.ts which
 	// passes reliably on nightly.
 	await page.waitForTimeout(1500);
 
-	logCheckpoint('Chat UI ready: authenticated + editor + send button mounted.');
+	logCheckpoint('Chat UI ready: authenticated + editor mounted.');
 }
 
 /**

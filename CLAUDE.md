@@ -54,8 +54,8 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 
 ## Obsidian Vault
 
-- The Obsidian vault lives at `vaults/memory/`.
-- Create user-requested notes in that vault, using the existing folders such as `Resources/research/`, `Areas/`, or `Projects/`.
+- The Obsidian vault lives at `/home/superdev/projects/OpenMates/vaults/memory/` (`vaults/memory/` from the repo root).
+- Create user-requested notes in that vault, using existing folders such as `Resources/research/`, `Areas/`, or `Projects/` when appropriate.
 - Put PDFs, images, and other attachments in `vaults/memory/assets/` unless the user asks for a different location.
 
 ---

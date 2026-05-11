@@ -7,6 +7,7 @@
 # See: docs/architecture/prompt_injection_protection.md
 
 import logging
+import re
 from typing import Dict, Any, List, Optional
 import datetime # For current date/time in system prompt
 
@@ -38,7 +39,10 @@ from backend.apps.ai.utils.model_selector import ModelSelector
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
-from backend.shared.python_utils.url_normalizer import sanitize_text_urls_remove_query_and_fragment
+from backend.shared.python_utils.url_normalizer import (
+    extract_urls_from_text,
+    sanitize_text_urls_with_safeguard,
+)
 
 # Import AIHistoryMessage for type-safe onboarding trigger detection
 from backend.core.api.app.schemas.chat import AIHistoryMessage
@@ -51,6 +55,19 @@ logger = logging.getLogger(__name__)
 ONBOARDING_SUPPORT_CATEGORY = "onboarding_support"
 ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
+
+REPO_SEARCH_ACTION_PATTERN = re.compile(
+    r"\b(search|find|look\s+for|discover|show\s+me|list|recommend|suggest)\b",
+    re.IGNORECASE,
+)
+REPO_SEARCH_TARGET_PATTERN = re.compile(
+    r"\b(github|repos?|repositories|repository|open[-\s]?source)\b",
+    re.IGNORECASE,
+)
+FINANCIAL_REPO_PATTERN = re.compile(
+    r"\b(repo\s+rate|reverse\s+repo|repurchase\s+agreement)\b",
+    re.IGNORECASE,
+)
 
 # ---------------------------------------------------------------------------
 # Onboarding trigger phrases — multilingual (all 20 supported locales).
@@ -286,6 +303,31 @@ def _contains_onboarding_trigger_in_user_history(message_history: List[AIHistory
 
         normalized_content = content.casefold()
         if any(trigger in normalized_content for trigger in ONBOARDING_TRIGGER_PHRASES):
+            return True
+
+    return False
+
+
+def _contains_repo_search_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """
+    Return True when a user message asks to search for code repositories.
+
+    This intentionally requires both a search/list-style action and a repository
+    target so informational questions like "what is a repo" stay in normal chat.
+    """
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if FINANCIAL_REPO_PATTERN.search(content):
+            continue
+
+        if REPO_SEARCH_ACTION_PATTERN.search(content) and REPO_SEARCH_TARGET_PATTERN.search(content):
             return True
 
     return False
@@ -965,7 +1007,12 @@ async def handle_preprocessing(
             if isinstance(original_content, str):
                 # Use comprehensive ASCII smuggling sanitization
                 sanitized_content = _sanitize_text_content(original_content, log_prefix=log_prefix)
-                sanitized_content = sanitize_text_urls_remove_query_and_fragment(sanitized_content)
+                sanitized_content = await sanitize_text_urls_with_safeguard(
+                    sanitized_content,
+                    secrets_manager=secrets_manager,
+                    log_prefix=log_prefix,
+                    allowed_source_urls=extract_urls_from_text(sanitized_content),
+                )
                 # Update the 'content' in the dictionary representation
                 msg_dict["content"] = sanitized_content
                 if original_content != sanitized_content: # Log only if changed
@@ -2608,6 +2655,27 @@ async def handle_preprocessing(
             else:
                 logger.debug(
                     f"{log_prefix} [RULE_BASED] 'math-calculate' already preselected by LLM — no override needed."
+                )
+
+        # --- code-search_repos ---
+        # Repository search intent is short and ambiguous enough that the
+        # preprocessing LLM can route it to generic web-search. Force the Code
+        # skill when user text asks to search/list/find repositories so the main
+        # LLM receives the repo-specific schema and embed renderer.
+        if (
+            "code-search_repos" in available_skill_ids
+            and _contains_repo_search_intent_in_user_history(request_data.message_history)
+        ):
+            if "code-search_repos" not in validated_relevant_skills:
+                validated_relevant_skills.append("code-search_repos")
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'code-search_repos' into preselected skills: "
+                    f"detected repository search intent in user message. "
+                    f"(Prevents generic web-search from handling code repository discovery.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'code-search_repos' already preselected by LLM — no override needed."
                 )
 
         # --- videos-get_transcript ---

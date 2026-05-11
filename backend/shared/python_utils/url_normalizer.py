@@ -5,10 +5,65 @@
 
 import logging
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
-from typing import Optional
+from typing import Any, Optional
 import re
 
 logger = logging.getLogger(__name__)
+MARKDOWN_URL_PATTERN = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
+PLAIN_URL_PATTERN = re.compile(r"https?://[^\s<>()]+")
+URL_TRAILING_PUNCTUATION = ",.;:!?)]}\"'"
+
+
+def _get_safeguard_client():
+    """Lazy-load the optional Groq dependency only for model-backed URL checks."""
+    from backend.shared.providers.groq.safeguard import get_safeguard_client
+
+    return get_safeguard_client()
+
+
+def _strip_url_trailing_punctuation(token: str) -> tuple[str, str]:
+    """Split punctuation that is adjacent to, but not part of, a URL token."""
+    trailing = ""
+    while token and token[-1] in URL_TRAILING_PUNCTUATION:
+        trailing = token[-1] + trailing
+        token = token[:-1]
+    return token, trailing
+
+
+def extract_urls_from_text(text: str) -> set[str]:
+    """Extract exact HTTP(S) URL tokens from text."""
+    if not isinstance(text, str) or not text:
+        return set()
+
+    urls: set[str] = set()
+    for match in MARKDOWN_URL_PATTERN.finditer(text):
+        url, _trailing = _strip_url_trailing_punctuation(match.group(2))
+        if url:
+            urls.add(url)
+
+    for match in PLAIN_URL_PATTERN.finditer(text):
+        url, _trailing = _strip_url_trailing_punctuation(match.group(0))
+        if url:
+            urls.add(url)
+
+    return urls
+
+
+def extract_urls_from_content(value: Any) -> set[str]:
+    """Recursively extract exact HTTP(S) URLs from source content objects."""
+    if isinstance(value, str):
+        return extract_urls_from_text(value)
+    if isinstance(value, dict):
+        urls: set[str] = set()
+        for item in value.values():
+            urls.update(extract_urls_from_content(item))
+        return urls
+    if isinstance(value, (list, tuple, set)):
+        urls: set[str] = set()
+        for item in value:
+            urls.update(extract_urls_from_content(item))
+        return urls
+    return set()
 
 
 def extract_domain_from_url(url: str) -> Optional[str]:
@@ -155,8 +210,8 @@ def sanitize_url_remove_query_and_fragment(url: str) -> Optional[str]:
     """
     Sanitize URL by removing both query parameters and fragment.
 
-    This is used for user/assistant message content to prevent data leakage via
-    URL parameters and fragment payloads. Path and domain are preserved.
+    This deterministic helper is kept for URL normalization call sites that need
+    a stable URL without arbitrary query/fragment payloads. Path/domain remain.
 
     Exception: YouTube URLs need the ``v`` parameter (video ID) and optionally
     ``t`` (timestamp) to function. These are preserved after validation while
@@ -191,40 +246,120 @@ def sanitize_url_remove_query_and_fragment(url: str) -> Optional[str]:
         return None
 
 
-def sanitize_text_urls_remove_query_and_fragment(text: str) -> str:
+async def sanitize_text_urls_with_safeguard(
+    text: str,
+    *,
+    secrets_manager: Optional[Any] = None,
+    log_prefix: str = "",
+    allowed_source_urls: Optional[set[str]] = None,
+) -> str:
     """
-    Remove query parameters and fragments from all HTTP(S) URLs in text.
+    Process all HTTP(S) URLs through gpt-oss-safeguard.
 
-    Works for markdown links and plain URLs. Leaves non-URL text unchanged.
+    The model can only keep an exact URL token that already exists in the
+    caller-provided source URL set. Any assistant-created URL absent from the
+    source corpus is removed before model safety processing.
     """
     if not isinstance(text, str) or not text:
         return text if isinstance(text, str) else str(text)
 
-    markdown_pattern = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
-    plain_url_pattern = re.compile(r"https?://[^\s<>()]+")
+    response_urls = extract_urls_from_text(text)
+    if not response_urls:
+        return text
 
-    def _sanitize_url_token(token: str) -> str:
-        trailing = ""
-        while token and token[-1] in ",.;:!?)]}\"'":
-            trailing = token[-1] + trailing
-            token = token[:-1]
-        cleaned = sanitize_url_remove_query_and_fragment(token)
-        if not cleaned:
-            return token + trailing
-        return cleaned + trailing
+    safeguard = _get_safeguard_client()
+    if secrets_manager:
+        await safeguard.initialize(secrets_manager)
 
-    def _replace_markdown(match: re.Match[str]) -> str:
+    source_urls = allowed_source_urls if allowed_source_urls is not None else extract_urls_from_text(text)
+    source_backed_urls = response_urls & source_urls
+    malicious_urls: set[str] = set(source_backed_urls)
+    if source_backed_urls:
+        verdict = await safeguard.report_malicious_urls(
+            urls=sorted(source_backed_urls),
+            assistant_response=text,
+        )
+        malicious_urls = verdict.malicious_urls
+        if verdict.error:
+            logger.warning(
+                f"{log_prefix} URL safety batch failed closed: {verdict.error}"
+            )
+
+    async def _clean_url_token(token: str, *, markdown_label: Optional[str] = None) -> str:
+        token, trailing = _strip_url_trailing_punctuation(token)
+
+        if token not in source_urls:
+            logger.warning(
+                f"{log_prefix} URL safety rejected assistant-created link not present in source content: {token}"
+            )
+            return markdown_label if markdown_label else "[link removed]" + trailing
+
+        if token in malicious_urls:
+            logger.info(f"{log_prefix} URL safety removed malicious link")
+            return markdown_label if markdown_label else "[link removed]" + trailing
+        return token + trailing
+
+    markdown_matches = list(MARKDOWN_URL_PATTERN.finditer(text))
+    sanitized_parts: list[str] = []
+    cursor = 0
+    protected_original_spans = {(match.start(2), match.end(2)) for match in markdown_matches}
+
+    for match in markdown_matches:
+        sanitized_parts.append(text[cursor:match.start()])
         label = match.group(1)
         url = match.group(2)
-        return f"[{label}]({_sanitize_url_token(url)})"
+        cleaned_url = await _clean_url_token(url, markdown_label=label)
+        if cleaned_url == label:
+            sanitized_parts.append(label)
+        else:
+            sanitized_parts.append(f"[{label}]({cleaned_url})")
+        cursor = match.end()
 
-    sanitized = markdown_pattern.sub(_replace_markdown, text)
+    sanitized_parts.append(text[cursor:])
+    markdown_sanitized = "".join(sanitized_parts)
 
-    def _replace_plain(match: re.Match[str]) -> str:
-        return _sanitize_url_token(match.group(0))
+    plain_parts: list[str] = []
+    cursor = 0
+    for match in PLAIN_URL_PATTERN.finditer(text):
+        if any(start <= match.start() and match.end() <= end for start, end in protected_original_spans):
+            continue
+        plain_parts.append(text[cursor:match.start()])
+        plain_parts.append(await _clean_url_token(match.group(0)))
+        cursor = match.end()
+    plain_parts.append(text[cursor:])
+    plain_sanitized = "".join(plain_parts)
 
-    sanitized = plain_url_pattern.sub(_replace_plain, sanitized)
-    return sanitized
+    # If no plain URLs were changed, preserve the markdown pass output. If both
+    # forms changed in the same text, process markdown first then plain on the
+    # original text's non-markdown spans to avoid double-checking link targets.
+    if plain_sanitized == text:
+        return markdown_sanitized
+    if markdown_sanitized == text:
+        return plain_sanitized
+
+    combined_parts: list[str] = []
+    cursor = 0
+    for match in MARKDOWN_URL_PATTERN.finditer(text):
+        segment = text[cursor:match.start()]
+        combined_parts.append(await _sanitize_plain_url_segment(segment, _clean_url_token))
+        label = match.group(1)
+        cleaned_url = await _clean_url_token(match.group(2), markdown_label=label)
+        combined_parts.append(label if cleaned_url == label else f"[{label}]({cleaned_url})")
+        cursor = match.end()
+    combined_parts.append(await _sanitize_plain_url_segment(text[cursor:], _clean_url_token))
+    return "".join(combined_parts)
+
+
+async def _sanitize_plain_url_segment(segment: str, clean_url_token: Any) -> str:
+    """Sanitize plain URLs inside a segment that contains no markdown links."""
+    parts: list[str] = []
+    cursor = 0
+    for match in PLAIN_URL_PATTERN.finditer(segment):
+        parts.append(segment[cursor:match.start()])
+        parts.append(await clean_url_token(match.group(0)))
+        cursor = match.end()
+    parts.append(segment[cursor:])
+    return "".join(parts)
 
 
 def normalize_url_for_content_id(url: str) -> Optional[str]:

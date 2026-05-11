@@ -401,6 +401,43 @@ class TestLoginResponseShape:
         assert resp.tfa_required is True
 
 
+class TestDirectusCookieNormalization:
+    """Ensure Directus refresh cookies always become OpenMates auth cookies.
+
+    Production can receive either ``directus_refresh_token`` or ``refresh_token``
+    from Directus depending on Directus/cookie configuration. Both must feed the
+    same ``auth_refresh_token`` cookie and ws_token/session-cache path.
+    """
+
+    def test_directus_refresh_token_cookie_is_normalized(self):
+        from core.api.app.utils.directus_cookies import (
+            extract_directus_refresh_token,
+            normalize_directus_cookie,
+        )
+
+        cookies = {"directus_refresh_token": "directus-refresh"}
+
+        assert extract_directus_refresh_token(cookies) == "directus-refresh"
+        assert normalize_directus_cookie("directus_refresh_token") == "auth_refresh_token"
+
+    def test_plain_refresh_token_cookie_is_normalized(self):
+        from core.api.app.utils.directus_cookies import (
+            extract_directus_refresh_token,
+            normalize_directus_cookie,
+        )
+
+        cookies = {"refresh_token": "plain-refresh"}
+
+        assert extract_directus_refresh_token(cookies) == "plain-refresh"
+        assert normalize_directus_cookie("refresh_token") == "auth_refresh_token"
+
+    def test_other_directus_cookies_keep_existing_auth_prefix_behavior(self):
+        from core.api.app.utils.directus_cookies import normalize_directus_cookie
+
+        assert normalize_directus_cookie("directus_session_token") == "auth_session_token"
+        assert normalize_directus_cookie("custom_cookie") == "custom_cookie"
+
+
 # ─── Test: Cache miss fallback pattern ───────────────────────────────────────
 
 class TestCacheMissFallback:

@@ -432,6 +432,11 @@
     mask-image: url('@openmates/ui/static/icons/coding.svg');
   }
 
+  .basic-infos-bar .skill-icon[data-skill-icon="github"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/github.svg');
+    mask-image: url('@openmates/ui/static/icons/github.svg');
+  }
+
   .basic-infos-bar .skill-icon[data-skill-icon="travel"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/travel.svg');
     mask-image: url('@openmates/ui/static/icons/travel.svg');
@@ -858,4 +863,3 @@
     animation-play-state: paused;
   }
 </style>
-

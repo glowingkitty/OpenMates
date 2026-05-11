@@ -17,7 +17,7 @@ struct ChatHeaderView: View {
     let chat: Chat?
     let isLoading: Bool
 
-    private var appId: String? { chat?.appId }
+    private var appId: String? { chat?.category ?? chat?.appId }
     private var title: String { chat?.displayTitle ?? "" }
 
     var body: some View {

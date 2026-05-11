@@ -124,7 +124,7 @@
     // Add state for mobile view using $state (Svelte 5 runes mode)
     let isMobile = $state(false);
     let screenWidth = $state(0);
-    let emailInput: HTMLInputElement | undefined; // Reference to the email input element
+    let emailInput = $state<HTMLInputElement | undefined>(undefined); // Reference to the email input element
     let loginContainer = $state<HTMLDivElement | undefined>(undefined); // Reference to the login-container element (using $state for Svelte 5 bind:this)
 
     // Add state for minimum loading time control using $state (Svelte 5 runes mode)
@@ -472,10 +472,7 @@
 
         console.log('[Login] View should now be:', $isInSignupProcess ? 'signup' : 'login');
 
-        // Only focus if not touch device
-        if (emailInput && !isTouchDevice) {
-            emailInput.focus();
-        }
+        focusLoginEmailInput();
     }
     
     /**
@@ -513,6 +510,12 @@
             sessionStorage.setItem('openmates_session_id', sessionId);
         }
         return sessionId;
+    }
+
+    function focusLoginEmailInput() {
+        if (emailInput && !isTouchDevice) {
+            emailInput.focus();
+        }
     }
     
     /**
@@ -1165,6 +1168,7 @@
         if (!window.PublicKeyCredential) {
             console.log('[Login] WebAuthn not supported');
             conditionalUIStartPending = false;
+            focusLoginEmailInput();
             return;
         }
         
@@ -1175,6 +1179,7 @@
                 console.log('[Login] Conditional UI (passkey autofill) not supported by browser');
                 isConditionalUISupported = false;
                 conditionalUIStartPending = false;
+                focusLoginEmailInput();
                 return;
             }
             isConditionalUISupported = true;
@@ -1183,6 +1188,7 @@
             console.log('[Login] Error checking conditional UI support:', error);
             isConditionalUISupported = false;
             conditionalUIStartPending = false;
+            focusLoginEmailInput();
             return;
         }
         
@@ -1208,6 +1214,7 @@
             if (!initiateResponse.ok) {
                 const errorData = await initiateResponse.json();
                 console.log('[Login] Conditional UI passkey initiation failed (expected if no passkeys registered):', errorData);
+                focusLoginEmailInput();
                 return;
             }
             
@@ -1215,6 +1222,7 @@
             
             if (!initiateData.success) {
                 console.log('[Login] Conditional UI passkey initiation failed:', initiateData.message);
+                focusLoginEmailInput();
                 return;
             }
             
@@ -1250,13 +1258,21 @@
             
             let assertion: PublicKeyCredential;
             try {
-                assertion = await navigator.credentials.get({
+                const assertionPromise = navigator.credentials.get({
                     publicKey: publicKeyCredentialRequestOptions,
                     // CRITICAL: mediation: 'conditional' enables autofill mode
                     // This makes passkeys appear in the username/email field autofill dropdown
                     mediation: 'conditional',
                     signal: conditionalUIAbortController?.signal
-                }) as PublicKeyCredential;
+                });
+
+                // Conditional UI suggestions are tied to the focused username field.
+                // Focus after the request starts so the browser has an active passkey
+                // autofill request when it decides whether to show suggestions.
+                await tick();
+                focusLoginEmailInput();
+
+                assertion = await assertionPromise as PublicKeyCredential;
             } catch (error: unknown) {
                 if (error instanceof Error && error.name === 'AbortError') {
                     console.log('[Login] Conditional UI passkey request was cancelled');
@@ -1806,11 +1822,6 @@
             showForm = true; // Show form before removing loading state
             // Note: gridsReady is now initialized to true, so grids show immediately
             
-            // Only focus if not touch device and not authenticated
-            if (!$authStore.isAuthenticated && emailInput && !isTouchDevice) {
-                emailInput.focus();
-            }
-
             // Check if we're still rate limited
             const rateLimitTimestamp = localStorage.getItem('loginRateLimit');
             if (rateLimitTimestamp) {
@@ -1943,12 +1954,7 @@
         // Stop the timer
         stopInactivityTimer();
         
-        // Focus email input after a tick if not touch device
-        tick().then(() => {
-            if (emailInput && !isTouchDevice) {
-                emailInput.focus();
-            }
-        });
+        tick().then(focusLoginEmailInput);
     }
 
     function resetInactivityTimer() {
@@ -2010,12 +2016,7 @@
         // This ensures the saved message is deleted if user doesn't complete the flow
         clearPendingDraft();
         
-        // Focus email input after a tick if not touch
-        tick().then(() => {
-            if (emailInput && !isTouchDevice) {
-                emailInput.focus();
-            }
-        });
+        tick().then(focusLoginEmailInput);
     }
 
     // Strengthen the reactive statement to switch views when in signup process
@@ -2380,6 +2381,7 @@
                                             <!-- Use EmailLookup component for email input -->
                                             <EmailLookup
                                                 bind:email
+                                                bind:emailInputElement={emailInput}
                                                 bind:isLoading
                                                 bind:loginFailedWarning
                                                 bind:stayLoggedIn

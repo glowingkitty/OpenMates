@@ -183,7 +183,18 @@ test.describe('newsletter categories (authenticated)', () => {
 		log(`daily_inspirations before flip: ${beforeState}`);
 
 		await dailyToggle.click();
-		await page.waitForTimeout(1500); // let the PATCH settle
+		const saveButton = page.getByTestId('newsletter-save-button');
+		await expect(saveButton).toBeVisible({ timeout: 5000 });
+		await Promise.all([
+			page.waitForResponse(
+				(resp: any) =>
+					resp.url().includes('/v1/newsletter/categories') &&
+					resp.request().method() === 'PATCH' &&
+					resp.ok(),
+				{ timeout: 10000 }
+			),
+			saveButton.click()
+		]);
 
 		const afterState = await fetchCategoriesViaBrowser(page);
 		log(`daily_inspirations after flip: ${afterState.categories.daily_inspirations}`);
@@ -192,7 +203,17 @@ test.describe('newsletter categories (authenticated)', () => {
 
 		// Flip back so the test is idempotent for repeated runs.
 		await dailyToggle.click();
-		await page.waitForTimeout(1500);
+		await expect(saveButton).toBeVisible({ timeout: 5000 });
+		await Promise.all([
+			page.waitForResponse(
+				(resp: any) =>
+					resp.url().includes('/v1/newsletter/categories') &&
+					resp.request().method() === 'PATCH' &&
+					resp.ok(),
+				{ timeout: 10000 }
+			),
+			saveButton.click()
+		]);
 
 		const restoredState = await fetchCategoriesViaBrowser(page);
 		expect(restoredState.categories.daily_inspirations).toBe(beforeState);

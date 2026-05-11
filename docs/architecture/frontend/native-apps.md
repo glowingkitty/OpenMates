@@ -23,7 +23,7 @@ The web app at `openmates.org` remains the primary surface and gets new
 features first. Native apps exist to deliver a polished, high-trust
 experience on devices where users expect deep OS integration:
 
-- Keychain-backed E2EE key storage and iCloud Keychain sync
+- Local Keychain-backed E2EE key storage; OpenMates never syncs keys through Apple services
 - Native push notifications (APNs), Live Activities, Widgets, Shortcuts
 - Handoff between iPhone / iPad / Mac
 - Face ID / Touch ID for hidden chats and sensitive actions
@@ -44,7 +44,7 @@ Android and other platforms are explicitly out of scope for this phase.
 | UI | SwiftUI | Declarative, adapts per platform |
 | Persistence | SwiftData | Modern Core Data replacement |
 | Networking | `URLSession` + `URLSessionWebSocketTask` | Native WebSockets for phased sync |
-| Secrets | Keychain + iCloud Keychain | E2EE key storage + multi-device sync |
+| Secrets | Local Keychain only | E2EE key storage for this app install; multi-device sync uses OpenMates key material only |
 | Passkeys | `ASAuthorizationController` | Native Face ID / Touch ID auth |
 | Build | Xcode multiplatform + XcodeGen | `project.yml` → `.xcodeproj` |
 
@@ -151,8 +151,9 @@ Standalone watch app with voice-first interface. visionOS when there's demand.
 
 In rough order of effort:
 
-- **E2EE key lifecycle** — `ChatKeyManager` → Apple CryptoKit + Keychain +
-  iCloud Keychain sync. See [core/client-side-encryption.md](../core/client-side-encryption.md).
+- **E2EE key lifecycle** — `ChatKeyManager` → Apple CryptoKit + local
+  Keychain only. OpenMates does not use Apple cloud storage for keys. See
+  [core/client-side-encryption.md](../core/client-side-encryption.md).
 - **Phased sync protocol** — 3-phase WebSocket sync →
   `URLSessionWebSocketTask`. See [data/sync.md](../data/sync.md).
 - **Embed renderers** — 30+ embed types → SwiftUI equivalents for top 10,

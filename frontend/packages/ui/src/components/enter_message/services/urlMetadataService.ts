@@ -22,7 +22,7 @@ import { get } from "svelte/store";
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { userProfile } from "../../../stores/userProfile";
-import { getMetadataUrl, getYouTubeMetadataUrl } from "../../../utils/imageProxy";
+import { getGitHubRepoMetadataUrl, getMetadataUrl, getYouTubeMetadataUrl } from "../../../utils/imageProxy";
 
 // =============================================================================
 // Types
@@ -69,13 +69,66 @@ export interface YouTubeMetadata {
   published_at?: string;
 }
 
+export interface GitHubRepoContributor {
+  login: string;
+  avatar_url?: string;
+  html_url?: string;
+  contributions?: number;
+}
+
+export interface GitHubRepoLanguage {
+  language: string;
+  bytes: number;
+  percent: number;
+}
+
+export interface GitHubRepoMetadata {
+  type: "repo";
+  url: string;
+  html_url: string;
+  full_name: string;
+  owner_login: string;
+  owner_avatar_url?: string;
+  name: string;
+  description?: string;
+  visibility: "public";
+  private: false;
+  fork: boolean;
+  archived: boolean;
+  disabled: boolean;
+  is_template: boolean;
+  default_branch: string;
+  primary_language?: string;
+  languages?: GitHubRepoLanguage[];
+  topics?: string[];
+  license_name?: string;
+  license_spdx_id?: string;
+  stars: number;
+  forks: number;
+  watchers: number;
+  subscribers?: number;
+  open_issues: number;
+  created_at?: string;
+  updated_at?: string;
+  pushed_at?: string;
+  latest_release_tag?: string;
+  latest_release_name?: string;
+  latest_release_published_at?: string;
+  latest_commit_sha?: string;
+  latest_commit_message?: string;
+  latest_commit_date?: string;
+  contributors?: GitHubRepoContributor[];
+  site_name?: string;
+  fetched_at?: string;
+}
+
 /**
  * Result of creating an embed from URL metadata
  * Contains the embed_id and the markdown reference to insert
  */
 export interface EmbedCreationResult {
   embed_id: string;
-  type: "website" | "video";
+  type: "website" | "video" | "repo";
   embedReference: string; // The JSON code block to insert: ```json\n{"type": "...", "embed_id": "..."}\n```
 }
 
@@ -145,6 +198,32 @@ export async function fetchUrlMetadata(
     return metadata;
   } catch (error) {
     console.error("[urlMetadataService] Error fetching URL metadata:", error);
+    return null;
+  }
+}
+
+export async function fetchGitHubRepoMetadata(
+  url: string,
+): Promise<GitHubRepoMetadata | null> {
+  try {
+    console.debug("[urlMetadataService] Fetching GitHub repo metadata:", url);
+    const response = await fetch(getGitHubRepoMetadataUrl(url));
+    if (!response.ok) {
+      console.warn(
+        "[urlMetadataService] GitHub repo metadata unavailable:",
+        response.status,
+        response.statusText,
+      );
+      return null;
+    }
+    const data = await response.json();
+    if (!data || typeof data !== "object" || typeof data.full_name !== "string") {
+      console.warn("[urlMetadataService] Invalid GitHub repo metadata response:", data);
+      return null;
+    }
+    return { ...data, type: "repo" } as GitHubRepoMetadata;
+  } catch (error) {
+    console.error("[urlMetadataService] Error fetching GitHub repo metadata:", error);
     return null;
   }
 }
@@ -466,6 +545,54 @@ export async function createYouTubeEmbed(
   };
 }
 
+export async function createGitHubRepoEmbed(
+  metadata: GitHubRepoMetadata,
+): Promise<EmbedCreationResult> {
+  const embed_id = generateUUID();
+  const metadataContent = { ...metadata } as Record<string, unknown>;
+  delete metadataContent.type;
+  const embedContent = {
+    ...metadataContent,
+    fetched_at: metadata.fetched_at || new Date().toISOString(),
+  };
+
+  let toonContent: string;
+  try {
+    toonContent = toonEncode(embedContent);
+  } catch (error) {
+    console.warn(
+      "[urlMetadataService] TOON encoding failed for GitHub repo embed, using JSON fallback:",
+      error,
+    );
+    toonContent = JSON.stringify(embedContent);
+  }
+
+  const textPreview = `${metadata.full_name}${metadata.primary_language ? ` · ${metadata.primary_language}` : ""}`;
+  const now = Date.now();
+  const embedData = {
+    embed_id,
+    type: "repo",
+    status: "finished",
+    content: toonContent,
+    text_preview: textPreview,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await embedStore.put(`embed:${embed_id}`, embedData, "code-repo");
+    console.info("[urlMetadataService] Stored GitHub repo embed in EmbedStore:", embed_id);
+  } catch (error) {
+    console.error("[urlMetadataService] Failed to store GitHub repo embed in EmbedStore:", error);
+  }
+
+  return {
+    embed_id,
+    type: "repo",
+    embedReference: createEmbedReferenceBlock("repo", embed_id, metadata.url),
+  };
+}
+
 // =============================================================================
 // URL Detection Helpers
 // =============================================================================
@@ -482,6 +609,7 @@ export async function createYouTubeEmbed(
  */
 const YOUTUBE_URL_PATTERN =
   /^https?:\/\/(www\.|m\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)/i;
+const GITHUB_REPO_URL_PATTERN = /^https?:\/\/(www\.)?github\.com\/[^/\s]+\/[^/\s?#]+\/?(?:[?#].*)?$/i;
 
 /**
  * Check if a URL is a YouTube video URL
@@ -490,6 +618,19 @@ const YOUTUBE_URL_PATTERN =
  */
 export function isYouTubeUrl(url: string): boolean {
   return YOUTUBE_URL_PATTERN.test(url);
+}
+
+export function isGitHubRepoUrl(url: string): boolean {
+  if (!GITHUB_REPO_URL_PATTERN.test(url)) return false;
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.replace(/\/$/, "").split("/").filter(Boolean);
+    if (parts.length !== 2) return false;
+    const [owner, repo] = parts;
+    return Boolean(owner && repo && !["features", "topics", "collections", "marketplace", "explore", "login"].includes(owner));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -643,6 +784,16 @@ export async function createStaticYouTubeEmbed(
 export async function createEmbedFromUrl(
   url: string,
 ): Promise<EmbedCreationResult | null> {
+  if (isGitHubRepoUrl(url)) {
+    const repoMetadata = await fetchGitHubRepoMetadata(url);
+    if (repoMetadata) {
+      return await createGitHubRepoEmbed(repoMetadata);
+    }
+    console.warn(
+      "[urlMetadataService] GitHub URL did not qualify for repo embed, falling back to website embed",
+    );
+  }
+
   // Check if it's a YouTube URL
   if (isYouTubeUrl(url)) {
     const videoId = extractYouTubeVideoId(url);

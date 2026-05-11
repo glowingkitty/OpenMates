@@ -23,7 +23,13 @@ struct EmailLookupView: View {
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showEmailWarning = false
+    @State private var didAttemptImmediatePasskey = false
     @FocusState private var emailFocused: Bool
+
+    private var hasValidEmail: Bool {
+        validationMessage(for: email) == nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -68,13 +74,25 @@ struct EmailLookupView: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(OMPrimaryButtonStyle())
-            .disabled(email.isEmpty || isLoading)
+            .disabled(!hasValidEmail || isLoading)
             .padding(.top, .spacing4)
             .accessibilityIdentifier("continue-button")
             .accessibilityLabel(LocalizationManager.shared.text("common.continue"))
             .accessibilityHint(LocalizationManager.shared.text("auth.lookup_login_methods"))
         }
         .frame(maxWidth: .infinity)
+        .onChange(of: email) { _, newValue in
+            email = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if showEmailWarning || !newValue.isEmpty {
+                errorMessage = validationMessage(for: email)
+                showEmailWarning = errorMessage != nil
+            }
+        }
+        .task {
+            guard !didAttemptImmediatePasskey else { return }
+            didAttemptImmediatePasskey = true
+            await attemptImmediatePasskeyLogin()
+        }
     }
 
     private var stayLoggedInControl: some View {
@@ -146,7 +164,7 @@ struct EmailLookupView: View {
             Icon("mail", size: 20)
                 .foregroundStyle(LinearGradient.primary)
 
-            TextField(LocalizationManager.shared.text("login.email_placeholder"), text: $email)
+            TextField(AppStrings.emailPlaceholder, text: $email)
                 .font(.omP)
                 .textContentType(.emailAddress)
                 #if os(iOS)
@@ -159,7 +177,7 @@ struct EmailLookupView: View {
                 .focused($emailFocused)
                 .onSubmit { performLookup() }
                 .accessibilityIdentifier("email-input")
-                .accessibilityLabel(LocalizationManager.shared.text("login.email_placeholder"))
+                .accessibilityLabel(AppStrings.emailPlaceholder)
         }
         .padding(.horizontal, .spacing6)
         .frame(height: 48)
@@ -167,12 +185,19 @@ struct EmailLookupView: View {
         .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
         .overlay(
             RoundedRectangle(cornerRadius: .radiusFull)
-                .stroke(emailFocused ? Color.buttonPrimary : Color.grey30, lineWidth: 2)
+                .stroke(errorMessage == nil ? (emailFocused ? Color.buttonPrimary : Color.grey30) : Color.error, lineWidth: 2)
         )
     }
 
     private func performLookup() {
         guard !email.isEmpty else { return }
+        if let validationError = validationMessage(for: email) {
+            errorMessage = validationError
+            showEmailWarning = true
+            AccessibilityAnnouncement.announce(validationError)
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
@@ -186,6 +211,30 @@ struct EmailLookupView: View {
                 errorMessage = LocalizationManager.shared.text("login.cant_connect_to_server")
             }
             isLoading = false
+        }
+    }
+
+    private func validationMessage(for value: String) -> String? {
+        guard !value.isEmpty else { return AppStrings.emailPlaceholder }
+        guard value.contains("@") else { return AppStrings.atMissing }
+        guard value.range(of: #"\.[A-Za-z]{2,}$"#, options: .regularExpression) != nil else {
+            return AppStrings.domainEndingMissing
+        }
+        return nil
+    }
+
+    @MainActor
+    private func attemptImmediatePasskeyLogin() async {
+        do {
+            try await PasskeyLoginCoordinator.login(
+                authManager: authManager,
+                stayLoggedIn: stayLoggedIn,
+                preferImmediatelyAvailableCredentials: true
+            )
+        } catch PasskeyError.cancelled {
+            // No immediately available passkey or user dismissed the OS prompt.
+        } catch {
+            print("[Auth] Immediate passkey login skipped: \(error)")
         }
     }
 }

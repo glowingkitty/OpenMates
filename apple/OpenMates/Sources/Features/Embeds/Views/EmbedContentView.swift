@@ -19,22 +19,29 @@ struct EmbedContentView: View {
     let embed: EmbedRecord
     let mode: EmbedDisplayMode
     let allEmbedRecords: [String: EmbedRecord]
+    let codePreviewActive: Bool
     let onOpenEmbed: (EmbedRecord) -> Void
 
     init(
         embed: EmbedRecord,
         mode: EmbedDisplayMode,
         allEmbedRecords: [String: EmbedRecord] = [:],
+        codePreviewActive: Bool = false,
         onOpenEmbed: @escaping (EmbedRecord) -> Void = { _ in }
     ) {
         self.embed = embed
         self.mode = mode
         self.allEmbedRecords = allEmbedRecords
+        self.codePreviewActive = codePreviewActive
         self.onOpenEmbed = onOpenEmbed
     }
 
     private var embedType: EmbedType? {
         EmbedType(rawValue: embed.type)
+    }
+
+    private var shouldUseCompositeRenderer: Bool {
+        embed.isAppSkillUse || embedType?.isComposite == true
     }
 
     private var rawData: [String: AnyCodable]? {
@@ -44,7 +51,7 @@ struct EmbedContentView: View {
 
     var body: some View {
         Group {
-            if embed.isAppSkillUse {
+            if shouldUseCompositeRenderer {
                 AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
             } else {
             switch embedType {
@@ -55,10 +62,12 @@ struct EmbedContentView: View {
                 WebsiteRenderer(data: rawData, mode: mode)
             case .webRead:
                 WebReadRenderer(data: rawData, mode: mode)
+            case .wiki:
+                WikiRenderer(data: rawData, mode: mode)
 
             // Code
             case .codeCode:
-                CodeRenderer(data: rawData, mode: mode)
+                CodeRenderer(data: rawData, mode: mode, previewActive: codePreviewActive)
             case .codeGetDocs:
                 DocsRenderer(data: rawData, mode: mode)
 
@@ -96,7 +105,13 @@ struct EmbedContentView: View {
 
             // Travel
             case .travelConnections:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "connections")
+                TravelSearchRenderer(
+                    embed: embed,
+                    data: rawData,
+                    mode: mode,
+                    allEmbedRecords: allEmbedRecords,
+                    onOpenEmbed: onOpenEmbed
+                )
             case .travelConnection:
                 TravelConnectionRenderer(data: rawData, mode: mode)
             case .travelStays:

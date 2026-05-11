@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for health/search_appointments skill.
@@ -34,6 +33,10 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+const {
+	saveCurrentFullscreenEmbed,
+	verifySavedMemoryEntry
+} = require('./helpers/saved-memory-test-helpers');
 
 test.describe('App: Health / Skill: search_appointments', () => {
 	test.setTimeout(120_000);
@@ -117,7 +120,11 @@ test.describe('App: Health / Skill: search_appointments', () => {
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
 		logCheckpoint(`Found ${await resultCards.count()} appointment result(s).`);
 
+		await resultCards.first().click();
+		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
+
 		await closeFullscreen(page, fullscreenOverlay);
+		await verifySavedMemoryEntry(page, 'health', 'appointments', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'health-appointments');
 	});
 });

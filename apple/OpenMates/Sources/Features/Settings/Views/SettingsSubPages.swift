@@ -273,18 +273,23 @@ struct SettingsPasskeysView: View {
 
     private func addPasskey() {
         #if os(iOS)
-        let controller = ASAuthorizationController(authorizationRequests: [
-            ASAuthorizationPlatformPublicKeyCredentialProvider(
-                relyingPartyIdentifier: "openmates.org"
-            ).createCredentialRegistrationRequest(
-                challenge: Data(),
-                name: UIDevice.current.name,
-                userID: Data()
-            )
-        ])
         isAddingPasskey = true
         #endif
         Task {
+            #if os(iOS)
+            let webAppURL = await APIClient.shared.webAppURL
+            let relyingPartyIdentifier = webAppURL.host() ?? ServerEndpointConfiguration.defaultSelectedDomain
+            let controller = ASAuthorizationController(authorizationRequests: [
+                ASAuthorizationPlatformPublicKeyCredentialProvider(
+                    relyingPartyIdentifier: relyingPartyIdentifier
+                ).createCredentialRegistrationRequest(
+                    challenge: Data(),
+                    name: UIDevice.current.name,
+                    userID: Data()
+                )
+            ])
+            _ = controller
+            #endif
             try? await Task.sleep(for: .seconds(2))
             await loadPasskeys()
             isAddingPasskey = false

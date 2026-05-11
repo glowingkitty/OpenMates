@@ -1,16 +1,38 @@
 # backend/tests/test_url_normalizer.py
 #
 # Unit tests for URL normalization hardening helpers.
-# Verifies deterministic stripping of query/fragment parameters from URLs
-# and message text (markdown links + plain URLs) without any LLM dependency.
+# Verifies deterministic URL normalization plus model-backed link safety
+# processing for message text (markdown links + plain URLs).
 #
 # Architecture: docs/architecture/prompt-injection.md
 
+import pytest
+
+from backend.shared.python_utils import url_normalizer
 from backend.shared.python_utils.url_normalizer import (
+    extract_urls_from_content,
     sanitize_url_remove_fragment,
     sanitize_url_remove_query_and_fragment,
-    sanitize_text_urls_remove_query_and_fragment,
+    sanitize_text_urls_with_safeguard,
 )
+
+
+class _FakeSafeguard:
+    def __init__(self, malicious_urls: set[str] | None = None, error: str | None = None) -> None:
+        self.malicious_urls = malicious_urls or set()
+        self.error = error
+        self.calls: list[list[str]] = []
+
+    async def initialize(self, secrets_manager) -> None:
+        return None
+
+    async def report_malicious_urls(self, *, urls: list[str], assistant_response: str):
+        self.calls.append(urls)
+        return type(
+            "Report",
+            (),
+            {"all_urls_safe": not self.malicious_urls, "malicious_urls": self.malicious_urls, "error": self.error},
+        )()
 
 
 def test_sanitize_url_remove_fragment_keeps_query() -> None:
@@ -21,25 +43,6 @@ def test_sanitize_url_remove_fragment_keeps_query() -> None:
 def test_sanitize_url_remove_query_and_fragment() -> None:
     url = "https://example.com/path?a=1&b=2#section"
     assert sanitize_url_remove_query_and_fragment(url) == "https://example.com/path"
-
-
-def test_sanitize_text_urls_markdown_and_plain() -> None:
-    text = (
-        "Check [doc](https://docs.example.com/page?token=abc#intro) and "
-        "also visit https://news.example.com/story?id=42&utm_source=x#comments."
-    )
-    sanitized = sanitize_text_urls_remove_query_and_fragment(text)
-    assert "[doc](https://docs.example.com/page)" in sanitized
-    assert "https://news.example.com/story" in sanitized
-    assert "?token=" not in sanitized
-    assert "utm_source" not in sanitized
-    assert "#intro" not in sanitized
-    assert "#comments" not in sanitized
-
-
-def test_sanitize_text_urls_preserves_non_url_text() -> None:
-    text = "No links here, only plain text and numbers 123."
-    assert sanitize_text_urls_remove_query_and_fragment(text) == text
 
 
 # --- YouTube URL exception tests ---
@@ -90,15 +93,113 @@ def test_youtube_timestamp_shorthand() -> None:
     assert "t=1h2m3s" in result
 
 
-def test_youtube_in_text_preserves_video_id() -> None:
-    """YouTube URLs inside message text should also preserve v= param."""
-    text = "Watch this: https://www.youtube.com/watch?v=7YVrb3-ABYE&si=tracking123"
-    result = sanitize_text_urls_remove_query_and_fragment(text)
-    assert "v=7YVrb3-ABYE" in result
-    assert "si=" not in result
-
-
 def test_non_youtube_url_still_stripped() -> None:
     """Non-YouTube URLs should still have all query params stripped."""
     url = "https://example.com/page?v=something&t=123"
     assert sanitize_url_remove_query_and_fragment(url) == "https://example.com/page"
+
+
+def test_extract_urls_from_content_recurses_source_payloads() -> None:
+    payload = {
+        "user": "Please inspect https://user.example.com/start.",
+        "tool": {
+            "results": [
+                {"url": "https://docs.example.com/page?ref=1#section"},
+                "Mirror: [doc](https://docs.example.com/page?ref=1#section)",
+            ]
+        },
+    }
+
+    assert extract_urls_from_content(payload) == {
+        "https://user.example.com/start",
+        "https://docs.example.com/page?ref=1#section",
+    }
+
+
+@pytest.mark.asyncio
+async def test_safeguard_url_processing_keeps_safe_url_with_params(monkeypatch) -> None:
+    text = "Read https://example.com/page?ref=public#intro."
+    fake = _FakeSafeguard()
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(text, secrets_manager=object())
+
+    assert result == text
+    assert fake.calls == [["https://example.com/page?ref=public#intro"]]
+
+
+@pytest.mark.asyncio
+async def test_safeguard_url_processing_removes_reported_malicious_url(monkeypatch) -> None:
+    text = "Read https://example.com/sensitiveuserdata."
+    fake = _FakeSafeguard(malicious_urls={"https://example.com/sensitiveuserdata"})
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(text, secrets_manager=object())
+
+    assert result == "Read [link removed]."
+
+
+@pytest.mark.asyncio
+async def test_safeguard_url_processing_removes_unsafe_markdown_url(monkeypatch) -> None:
+    text = "Open [profile](https://example.com/user/alice-private-token)."
+    fake = _FakeSafeguard(malicious_urls={"https://example.com/user/alice-private-token"})
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(text, secrets_manager=object())
+
+    assert result == "Open profile."
+
+
+@pytest.mark.asyncio
+async def test_safeguard_url_processing_removes_assistant_url_missing_from_sources(
+    monkeypatch,
+) -> None:
+    text = "Secret link: https://evil.example.com/user-secret-path."
+    fake = _FakeSafeguard()
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(
+        text,
+        secrets_manager=object(),
+        allowed_source_urls={"https://docs.example.com/original"},
+    )
+
+    assert result == "Secret link: [link removed]."
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_safeguard_url_processing_keeps_assistant_url_found_in_sources(
+    monkeypatch,
+) -> None:
+    text = "Use https://docs.example.com/original."
+    fake = _FakeSafeguard()
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(
+        text,
+        secrets_manager=object(),
+        allowed_source_urls={"https://docs.example.com/original"},
+    )
+
+    assert result == text
+    assert fake.calls == [["https://docs.example.com/original"]]
+
+
+@pytest.mark.asyncio
+async def test_safeguard_url_processing_fails_closed_on_batch_error(monkeypatch) -> None:
+    text = "Use https://docs.example.com/original."
+    fake = _FakeSafeguard(
+        malicious_urls={"https://docs.example.com/original"},
+        error="safeguard_error",
+    )
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(
+        text,
+        secrets_manager=object(),
+        allowed_source_urls={"https://docs.example.com/original"},
+    )
+
+    assert result == "Use [link removed]."
+    assert fake.calls == [["https://docs.example.com/original"]]

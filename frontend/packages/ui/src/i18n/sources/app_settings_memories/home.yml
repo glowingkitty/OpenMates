@@ -1,0 +1,14 @@
+saved_listings:
+  context: Settings/memory name for saved home listings
+  en: Saved listings
+  de: Gespeicherte Anzeigen
+  verified_by_human:
+    - en
+    - de
+saved_listings.description:
+  context: Description for saved home listings settings/memory
+  en: Homes and apartments you saved from search results.
+  de: Wohnungen und Häuser, die du aus Suchergebnissen gespeichert hast.
+  verified_by_human:
+    - en
+    - de
