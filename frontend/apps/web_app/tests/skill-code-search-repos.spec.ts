@@ -115,6 +115,15 @@ test.describe('App: Code / Skill: search_repos', () => {
 		logCheckpoint('Code repo search embed finished.');
 		await takeStepScreenshot(page, 'repo-search-embed-finished');
 
+		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 120_000 });
+		await page.waitForTimeout(2_000);
+		await expect(
+			page.locator('[data-testid="embed-preview"][data-app-id="code"][data-skill-id="search_repos"]')
+				.first()
+		).toBeVisible({ timeout: 10_000 });
+		logCheckpoint('Code repo search embed remained visible after chat completion.');
+		await takeStepScreenshot(page, 'repo-search-embed-after-completion');
+
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
 		await expect(fullscreenOverlay.getByText(/GitHub|repos|hashmd|carta/i).first()).toBeVisible({ timeout: 10_000 });
