@@ -38,18 +38,26 @@
 
 	let loaded = $state(false);
 	let { children } = $props();
+	const BROWSER_CHROME_BACKGROUND_LIGHT = '#ffffff';
+	const BROWSER_CHROME_BACKGROUND_DARK = '#171717';
+	const BROWSER_CHROME_BACKGROUND_DARK_CHATS_OPEN = '#212121';
 
 	function applyBrowserChromeTheme(themeName: string) {
 		if (!browser) return;
 
-		const backgroundColor = themeName === 'dark' ? '#171717' : '#ffffff';
+		const backgroundColor =
+			themeName === 'dark' ? BROWSER_CHROME_BACKGROUND_DARK : BROWSER_CHROME_BACKGROUND_LIGHT;
 		const rootElement = document.documentElement;
+		const browserChromeColor =
+			themeName === 'dark' && rootElement.classList.contains('chats-panel-open')
+				? BROWSER_CHROME_BACKGROUND_DARK_CHATS_OPEN
+				: backgroundColor;
 
 		rootElement.style.backgroundColor = backgroundColor;
 		rootElement.style.colorScheme = themeName;
 		document.body.style.backgroundColor = backgroundColor;
 		document.querySelectorAll('meta[name="theme-color"]').forEach((themeColorMeta) => {
-			themeColorMeta.setAttribute('content', backgroundColor);
+			themeColorMeta.setAttribute('content', browserChromeColor);
 			themeColorMeta.removeAttribute('media');
 		});
 	}

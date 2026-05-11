@@ -31,6 +31,7 @@
 		chatSyncService,
 		webSocketService, // Import WebSocket service to listen for auth errors
 		mostUsedAppsStore, // Import most used apps store to fetch on app load
+		theme,
 		// deep link handler
 		processDeepLink,
 		processSettingsDeepLink as processSettingsDeepLinkUnified,
@@ -94,6 +95,11 @@
 	const EDGE_SWIPE_START_WIDTH_PX = 28;
 	const EDGE_SWIPE_OPEN_DISTANCE_PX = 64;
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
+	const MOBILE_CHATS_CHROME_TINT_QUERY = '(max-width: 600px)';
+	const BROWSER_CHROME_BACKGROUND_LIGHT = '#ffffff';
+	const BROWSER_CHROME_BACKGROUND_DARK = '#171717';
+	const BROWSER_CHROME_BACKGROUND_DARK_CHATS_OPEN = '#212121';
+	let isMobileChatsChromeTintViewport = $state(false);
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
@@ -126,6 +132,54 @@
 		settingsMenuVisible.set(false);
 		panelState.closeSettings();
 	}
+
+	function getBrowserChromeTint(themeName: string, useChatsPanelTint: boolean): string {
+		if (themeName === 'dark' && useChatsPanelTint) {
+			return BROWSER_CHROME_BACKGROUND_DARK_CHATS_OPEN;
+		}
+
+		return themeName === 'dark'
+			? BROWSER_CHROME_BACKGROUND_DARK
+			: BROWSER_CHROME_BACKGROUND_LIGHT;
+	}
+
+	function applySafariBrowserChromeTint(themeName: string, useChatsPanelTint: boolean): void {
+		const rootElement = document.documentElement;
+		const browserChromeColor = getBrowserChromeTint(themeName, useChatsPanelTint);
+
+		rootElement.classList.toggle('chats-panel-open', useChatsPanelTint);
+		document.querySelectorAll('meta[name="theme-color"]').forEach((themeColorMeta) => {
+			themeColorMeta.setAttribute('content', browserChromeColor);
+			themeColorMeta.removeAttribute('media');
+		});
+	}
+
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+
+		const mediaQueryList = window.matchMedia(MOBILE_CHATS_CHROME_TINT_QUERY);
+		const updateViewportMatch = () => {
+			isMobileChatsChromeTintViewport = mediaQueryList.matches;
+		};
+
+		updateViewportMatch();
+		mediaQueryList.addEventListener('change', updateViewportMatch);
+
+		return () => mediaQueryList.removeEventListener('change', updateViewportMatch);
+	});
+
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+
+		applySafariBrowserChromeTint(
+			$theme,
+			$panelState.isActivityHistoryOpen && isMobileChatsChromeTintViewport
+		);
+	});
 
 	function handleEdgeSwipeStart(event: TouchEvent): void {
 		if (!isTouchDevice() || event.touches.length !== 1) {

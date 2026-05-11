@@ -57,13 +57,27 @@
 				color-scheme: dark;
 			}
 
+			html {
+				--safari-browser-chrome-bg: #ffffff;
+			}
+
+			html[data-theme='dark'] {
+				--safari-browser-chrome-bg: #171717;
+			}
+
+			@media (max-width: 600px) {
+				html[data-theme='dark'].chats-panel-open {
+					--safari-browser-chrome-bg: #212121;
+				}
+			}
+
 			.safari-browser-tint-sampler {
 				position: fixed;
 				left: 0;
 				right: 0;
 				width: 100vw;
 				height: 8px;
-				background-color: #ffffff;
+				background-color: var(--safari-browser-chrome-bg);
 				pointer-events: none;
 				z-index: 2147483647;
 			}
@@ -76,9 +90,6 @@
 				bottom: 0;
 			}
 
-			html[data-theme='dark'] .safari-browser-tint-sampler {
-				background-color: #171717;
-			}
 		</style>
 
 		<!-- Safari-specific cache control meta tags to prevent aggressive HTML caching -->
