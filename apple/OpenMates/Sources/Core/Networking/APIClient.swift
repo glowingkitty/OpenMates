@@ -32,7 +32,7 @@ actor APIClient {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
         config.httpShouldSetCookies = true
-        config.httpCookieStorage = .shared
+        config.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
         self.session = URLSession(configuration: config)

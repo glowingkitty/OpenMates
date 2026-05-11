@@ -11,7 +11,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>OpenMates</string>
 	<key>CFBundleName</key>
-	<string>OpenMatesShareExtension</string>
+	<string>OpenMatesShareExtensionMacOS</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
@@ -23,7 +23,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.share-services</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
+		<string>$(PRODUCT_MODULE_NAME).MacShareViewController</string>
 		<key>NSExtensionActivationRule</key>
 		<dict>
 			<!-- Accept URL/text only for the focused background task flow. -->

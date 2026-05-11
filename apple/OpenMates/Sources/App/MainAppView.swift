@@ -68,6 +68,7 @@ struct MainAppView: View {
     @State private var isBackgroundSyncFlushInProgress = false
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
     @State private var lastForegroundInteractionAt = Date.distantPast
+    @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
@@ -331,7 +332,10 @@ struct MainAppView: View {
     private func authStateDidChange(_ oldValue: AuthManager.AuthState, _ newState: AuthManager.AuthState) {
         if newState == .authenticated {
             showAuthSheet = false
-            Task { await bootstrapAuthenticatedSession() }
+            Task {
+                await bootstrapAuthenticatedSession()
+                await flushQueuedNotificationReplies()
+            }
         } else if newState == .unauthenticated {
             resetToUnauthenticatedSession()
         }
@@ -364,7 +368,12 @@ struct MainAppView: View {
     }
 
     private func sendNotificationReply(_ request: NotificationReplyRequest) async {
-        guard isAuthenticated else { return }
+        guard isAuthenticated, didBootstrapAuthenticatedSession else {
+            if !queuedNotificationReplies.contains(request) {
+                queuedNotificationReplies.append(request)
+            }
+            return
+        }
         let content = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
 
@@ -388,6 +397,15 @@ struct MainAppView: View {
             )
         } catch {
             print("[MainApp] Failed to send notification reply for chat \(request.chatId.prefix(8)): \(error)")
+        }
+    }
+
+    private func flushQueuedNotificationReplies() async {
+        guard isAuthenticated, didBootstrapAuthenticatedSession, !queuedNotificationReplies.isEmpty else { return }
+        let replies = queuedNotificationReplies
+        queuedNotificationReplies.removeAll()
+        for reply in replies {
+            await sendNotificationReply(reply)
         }
     }
 
@@ -1353,6 +1371,7 @@ struct MainAppView: View {
         scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
         Task { await syncInspirationToWidget() }
+        await flushQueuedNotificationReplies()
     }
 
     private func scheduleTokenBackedWebSocketReconnectIfNeeded() {

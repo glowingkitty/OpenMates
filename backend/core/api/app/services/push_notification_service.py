@@ -1,6 +1,6 @@
 # backend/core/api/app/services/push_notification_service.py
 """
-Web Push Notification Service — VAPID key management and push delivery.
+Push Notification Service — VAPID Web Push and Apple APNs delivery.
 
 Architecture:
 - VAPID keys are generated once at startup and persisted to Vault at
@@ -17,6 +17,8 @@ See docs/architecture/notifications.md for the full notification flow.
 import json
 import logging
 import os
+import time
+import base64
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,9 @@ VAPID_VAULT_PATH = "kv/data/providers/vapid"
 # VAPID contact email — identifies this server to push services.
 # Use the VAPID_CONTACT env var (set in docker-compose); fall back to placeholder.
 VAPID_CONTACT_EMAIL = os.getenv("VAPID_CONTACT_EMAIL", "admin@openmates.org")
+
+APNS_CHAT_CATEGORY = "OPENMATES_CHAT_MESSAGE"
+APNS_TIMEOUT_SECONDS = 10.0
 
 
 class PushNotificationService:
@@ -132,6 +137,8 @@ class PushNotificationService:
         body: str,
         url: Optional[str] = None,
         tag: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        category: str = APNS_CHAT_CATEGORY,
         icon: str = "/icons/icon-192x192.png",
         badge: str = "/icons/badge-72x72.png",
     ) -> bool:
@@ -153,14 +160,25 @@ class PushNotificationService:
         Returns:
             True if the push was accepted by the push service, False otherwise.
         """
-        if not self.is_ready():
-            logger.error("[PushNotificationService] Cannot send push — VAPID keys not initialized")
-            return False
-
         try:
             subscription_info = json.loads(subscription_json)
         except (json.JSONDecodeError, TypeError) as e:
             logger.error(f"[PushNotificationService] Invalid subscription JSON: {e}")
+            return False
+
+        subscription_type = subscription_info.get("type")
+        if subscription_type == "apns":
+            return self._send_apns_notification(
+                subscription_info=subscription_info,
+                title=title,
+                body=body,
+                chat_id=chat_id,
+                category=category,
+                tag=tag,
+            )
+
+        if not self.is_ready():
+            logger.error("[PushNotificationService] Cannot send Web Push — VAPID keys not initialized")
             return False
 
         payload = json.dumps(
@@ -171,6 +189,8 @@ class PushNotificationService:
                 "badge": badge,
                 "tag": tag or "openmates-notification",
                 "url": url or "/",
+                "chat_id": chat_id,
+                "category": category,
             }
         )
 
@@ -206,6 +226,117 @@ class PushNotificationService:
                     exc_info=True,
                 )
             return False
+
+    def _send_apns_notification(
+        self,
+        subscription_info: dict,
+        title: str,
+        body: str,
+        chat_id: Optional[str],
+        category: str,
+        tag: Optional[str],
+    ) -> bool:
+        """
+        Send an APNs alert notification to a native Apple device token.
+
+        Required environment:
+        - APNS_TEAM_ID
+        - APNS_KEY_ID
+        - APNS_PRIVATE_KEY or APNS_PRIVATE_KEY_PATH
+        - APNS_BUNDLE_ID (defaults to org.openmates.app)
+        - APNS_USE_SANDBOX=true for development APNs
+        """
+        token = (subscription_info.get("token") or "").strip()
+        if not token:
+            logger.error("[PushNotificationService] APNs subscription missing token")
+            return False
+
+        team_id = os.getenv("APNS_TEAM_ID")
+        key_id = os.getenv("APNS_KEY_ID")
+        bundle_id = os.getenv("APNS_BUNDLE_ID", "org.openmates.app")
+        private_key = os.getenv("APNS_PRIVATE_KEY")
+        private_key_path = os.getenv("APNS_PRIVATE_KEY_PATH")
+
+        if not private_key and private_key_path:
+            try:
+                with open(private_key_path, "r", encoding="utf-8") as key_file:
+                    private_key = key_file.read()
+            except OSError as exc:
+                logger.error(f"[PushNotificationService] Could not read APNs key file: {exc}")
+                return False
+
+        if not team_id or not key_id or not private_key:
+            logger.error("[PushNotificationService] APNs credentials are not configured")
+            return False
+        private_key = private_key.replace("\\n", "\n")
+
+        host = "api.sandbox.push.apple.com" if os.getenv("APNS_USE_SANDBOX", "false").lower() == "true" else "api.push.apple.com"
+        payload = {
+            "aps": {
+                "alert": {"title": title, "body": body},
+                "sound": "default",
+                "category": category,
+                "thread-id": chat_id or tag or "openmates-chat",
+            },
+            "chat_id": chat_id,
+            "category": category,
+        }
+
+        try:
+            import httpx
+
+            jwt_token = self._build_apns_jwt(team_id=team_id, key_id=key_id, private_key_pem=private_key)
+            headers = {
+                "authorization": f"bearer {jwt_token}",
+                "apns-topic": bundle_id,
+                "apns-push-type": "alert",
+                "apns-priority": "10",
+            }
+            if tag:
+                headers["apns-collapse-id"] = tag[:64]
+
+            with httpx.Client(http2=True, timeout=APNS_TIMEOUT_SECONDS) as client:
+                response = client.post(
+                    f"https://{host}/3/device/{token}",
+                    json=payload,
+                    headers=headers,
+                )
+            if 200 <= response.status_code < 300:
+                logger.info("[PushNotificationService] APNs notification accepted")
+                return True
+
+            logger.error(
+                "[PushNotificationService] APNs delivery failed "
+                f"status={response.status_code} body={response.text[:500]}"
+            )
+            return False
+        except Exception as exc:
+            logger.error(f"[PushNotificationService] APNs delivery failed: {exc}", exc_info=True)
+            return False
+
+    def _build_apns_jwt(self, team_id: str, key_id: str, private_key_pem: str) -> str:
+        """Build the ES256 provider token APNs expects without adding a PyJWT dependency."""
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+
+        def b64url(data: bytes) -> str:
+            return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+        header = {"alg": "ES256", "kid": key_id}
+        claims = {"iss": team_id, "iat": int(time.time())}
+        signing_input = (
+            f"{b64url(json.dumps(header, separators=(',', ':')).encode())}."
+            f"{b64url(json.dumps(claims, separators=(',', ':')).encode())}"
+        ).encode("ascii")
+
+        private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+        if not isinstance(private_key, ec.EllipticCurvePrivateKey):
+            raise ValueError("APNs private key must be an EC private key")
+        der_signature = private_key.sign(signing_input, ec.ECDSA(hashes.SHA256()))
+        r, s = decode_dss_signature(der_signature)
+        raw_signature = r.to_bytes(32, "big") + s.to_bytes(32, "big")
+        return f"{signing_input.decode('ascii')}.{b64url(raw_signature)}"
 
 
 # Singleton — imported by routes and tasks

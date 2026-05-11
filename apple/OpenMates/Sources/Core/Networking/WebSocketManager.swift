@@ -30,7 +30,7 @@ final class WebSocketManager: ObservableObject {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
         config.httpShouldSetCookies = true
-        config.httpCookieStorage = .shared
+        config.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
         self.session = URLSession(configuration: config)
     }
 

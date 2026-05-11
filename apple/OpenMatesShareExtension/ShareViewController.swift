@@ -1,55 +1,55 @@
-// Share extension — receives shared content (URLs, text, images) from other apps
-// and sends it to a new or existing OpenMates chat. Loads recent chats from the
-// API so the user can pick a destination. Uses the shared App Group cookie storage
-// for authentication without a separate login.
+// Share extension for sending URLs and text into encrypted OpenMates chats.
+// The extension stays focused: preview shared content, let the user add a task
+// instruction, choose a new or recent chat, then send through the shared native
+// background chat pipeline. Files, audio, camera, sketch, and location are out
+// of scope for this v1 flow.
 
 import UIKit
 import UniformTypeIdentifiers
 
-class ShareViewController: UIViewController {
-    private var sharedItems: [SharedItem] = []
-    private var recentChats: [RecentChat] = []
-    private var selectedChat: RecentChat?
+final class ShareViewController: UIViewController {
+    private var sharedParts: [SharedPart] = []
+    private var recentChats: [BackgroundChatSender.DestinationChat] = []
+    private var selectedChat: BackgroundChatSender.DestinationChat?
+    private var selectedIndexPath: IndexPath?
     private var isSubmitting = false
-    private var isLoadingChats = true
 
-    // UI elements
+    private let sender = BackgroundChatSender()
     private let scrollView = UIScrollView()
-    private let contentStack = UIStackView()
-    private let titleLabel = UILabel()
+    private let stackView = UIStackView()
+    private let headerLabel = UILabel()
     private let cancelButton = UIButton(type: .system)
     private let sendButton = UIButton(type: .system)
     private let previewLabel = UILabel()
-    private let textView = UITextView()
-    private let chatPickerLabel = UILabel()
-    private let chatTableView = UITableView()
-    private let activityIndicator = UIActivityIndicatorView(style: .medium)
-    private let errorLabel = UILabel()
+    private let messageTextView = UITextView()
+    private let newChatButton = UIButton(type: .system)
+    private let chatTableView = UITableView(frame: .zero, style: .plain)
+    private let statusLabel = UILabel()
+    private let spinner = UIActivityIndicatorView(style: .medium)
+    private var tableHeightConstraint: NSLayoutConstraint?
 
-    struct SharedItem {
-        enum ItemType { case url, text, image }
-        let type: ItemType
-        let text: String?
-        let url: URL?
-        let imageData: Data?
+    private struct SharedPart {
+        let text: String
+        let isURL: Bool
     }
 
-    struct RecentChat: Codable {
-        let id: String
-        let title: String?
-        let appId: String?
-        let lastMessageAt: String?
+    private final class SharedPartCollector: @unchecked Sendable {
+        private var parts: [SharedPart] = []
+        private let lock = NSLock()
 
-        var displayTitle: String { title ?? "New Chat" }
+        func append(_ part: SharedPart) {
+            lock.lock()
+            parts.append(part)
+            lock.unlock()
+        }
 
-        enum CodingKeys: String, CodingKey {
-            case id, title
-            case appId = "app_id"
-            case lastMessageAt = "last_message_at"
+        func values() -> [SharedPart] {
+            lock.lock()
+            let snapshot = parts
+            lock.unlock()
+            return snapshot
         }
     }
-
-    // MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -58,380 +58,238 @@ class ShareViewController: UIViewController {
         loadRecentChats()
     }
 
-    // MARK: - UI Setup
-
     private func setupUI() {
         view.backgroundColor = .systemBackground
 
-        // Header bar
-        let headerStack = UIStackView()
-        headerStack.axis = .horizontal
-        headerStack.alignment = .center
-        headerStack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(headerStack)
+        let header = UIStackView()
+        header.axis = .horizontal
+        header.alignment = .center
+        header.spacing = 12
+        header.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(header)
 
         cancelButton.setTitle("Cancel", for: .normal)
         cancelButton.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
-        headerStack.addArrangedSubview(cancelButton)
+        header.addArrangedSubview(cancelButton)
 
-        titleLabel.text = "Share to OpenMates"
-        titleLabel.font = .systemFont(ofSize: 17, weight: .semibold)
-        titleLabel.textAlignment = .center
-        headerStack.addArrangedSubview(titleLabel)
+        headerLabel.text = "OpenMates"
+        headerLabel.font = .systemFont(ofSize: 17, weight: .semibold)
+        headerLabel.textAlignment = .center
+        header.addArrangedSubview(headerLabel)
 
         sendButton.setTitle("Send", for: .normal)
         sendButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
-        headerStack.addArrangedSubview(sendButton)
+        header.addArrangedSubview(sendButton)
 
-        // Content
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scrollView)
 
-        contentStack.axis = .vertical
-        contentStack.spacing = 12
-        contentStack.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(contentStack)
+        stackView.axis = .vertical
+        stackView.spacing = 14
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(stackView)
 
-        // Preview
-        previewLabel.font = .systemFont(ofSize: 13)
+        previewLabel.font = .systemFont(ofSize: 13, weight: .regular)
         previewLabel.textColor = .secondaryLabel
-        previewLabel.numberOfLines = 3
-        contentStack.addArrangedSubview(previewLabel)
+        previewLabel.numberOfLines = 4
+        previewLabel.layer.cornerRadius = 10
+        previewLabel.layer.masksToBounds = true
+        previewLabel.backgroundColor = .secondarySystemBackground
+        stackView.addArrangedSubview(previewLabel)
 
-        // Message input
-        textView.font = .systemFont(ofSize: 15)
-        textView.layer.borderColor = UIColor.separator.cgColor
-        textView.layer.borderWidth = 0.5
-        textView.layer.cornerRadius = 10
-        textView.textContainerInset = UIEdgeInsets(top: 12, left: 8, bottom: 12, right: 8)
-        textView.placeholder = "Add a message (optional)..."
-        let textViewHeight = textView.heightAnchor.constraint(equalToConstant: 100)
-        textViewHeight.isActive = true
-        contentStack.addArrangedSubview(textView)
+        messageTextView.font = .systemFont(ofSize: 16)
+        messageTextView.layer.borderColor = UIColor.separator.cgColor
+        messageTextView.layer.borderWidth = 1
+        messageTextView.layer.cornerRadius = 12
+        messageTextView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
+        messageTextView.heightAnchor.constraint(equalToConstant: 116).isActive = true
+        stackView.addArrangedSubview(messageTextView)
 
-        // Chat picker section
-        chatPickerLabel.text = "Send to:"
-        chatPickerLabel.font = .systemFont(ofSize: 15, weight: .semibold)
-        chatPickerLabel.textColor = .label
-        contentStack.addArrangedSubview(chatPickerLabel)
-
-        // New Chat option (always first)
-        let newChatButton = UIButton(type: .system)
-        newChatButton.setTitle("＋ New Chat", for: .normal)
-        newChatButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
+        newChatButton.setTitle("New Chat", for: .normal)
+        newChatButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
         newChatButton.contentHorizontalAlignment = .leading
-        newChatButton.contentEdgeInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
-        newChatButton.backgroundColor = .systemGray6
+        var newChatConfiguration = UIButton.Configuration.plain()
+        newChatConfiguration.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14)
+        newChatButton.configuration = newChatConfiguration
         newChatButton.layer.cornerRadius = 10
-        newChatButton.tag = -1
-        newChatButton.addTarget(self, action: #selector(newChatTapped), for: .touchUpInside)
-        contentStack.addArrangedSubview(newChatButton)
-        highlightButton(newChatButton, selected: true)
+        newChatButton.addTarget(self, action: #selector(selectNewChat), for: .touchUpInside)
+        stackView.addArrangedSubview(newChatButton)
+        updateNewChatSelection(true)
 
-        // Chat list
         chatTableView.dataSource = self
         chatTableView.delegate = self
-        chatTableView.register(ChatCell.self, forCellReuseIdentifier: "ChatCell")
+        chatTableView.register(ChatDestinationCell.self, forCellReuseIdentifier: ChatDestinationCell.reuseIdentifier)
         chatTableView.isScrollEnabled = false
+        chatTableView.rowHeight = 50
         chatTableView.separatorStyle = .none
-        chatTableView.rowHeight = 52
-        chatTableView.translatesAutoresizingMaskIntoConstraints = false
-        contentStack.addArrangedSubview(chatTableView)
+        chatTableView.backgroundColor = .clear
+        stackView.addArrangedSubview(chatTableView)
+        tableHeightConstraint = chatTableView.heightAnchor.constraint(equalToConstant: 0)
+        tableHeightConstraint?.isActive = true
 
-        // Loading indicator
-        activityIndicator.hidesWhenStopped = true
-        activityIndicator.startAnimating()
-        contentStack.addArrangedSubview(activityIndicator)
+        statusLabel.font = .systemFont(ofSize: 13)
+        statusLabel.textColor = .secondaryLabel
+        statusLabel.numberOfLines = 0
+        stackView.addArrangedSubview(statusLabel)
 
-        // Error
-        errorLabel.font = .systemFont(ofSize: 13)
-        errorLabel.textColor = .systemRed
-        errorLabel.numberOfLines = 0
-        errorLabel.textAlignment = .center
-        errorLabel.isHidden = true
-        contentStack.addArrangedSubview(errorLabel)
+        spinner.hidesWhenStopped = true
+        stackView.addArrangedSubview(spinner)
 
         NSLayoutConstraint.activate([
-            headerStack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            headerStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            headerStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
 
-            scrollView.topAnchor.constraint(equalTo: headerStack.bottomAnchor, constant: 16),
+            scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 14),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
-            contentStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 0),
-            contentStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 16),
-            contentStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -16),
-            contentStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -16),
-            contentStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -32),
+            stackView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            stackView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 16),
+            stackView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -16),
+            stackView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -20),
+            stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -32),
         ])
     }
 
-    // MARK: - Extract shared content
-
     private func extractSharedContent() {
         guard let extensionItems = extensionContext?.inputItems as? [NSExtensionItem] else {
-            showError("No content to share")
+            showFailure("Nothing to share.")
             return
         }
 
         let group = DispatchGroup()
+        let collector = SharedPartCollector()
 
         for item in extensionItems {
-            guard let attachments = item.attachments else { continue }
-
-            for attachment in attachments {
-                if attachment.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            item.attachments?.forEach { provider in
+                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     group.enter()
-                    attachment.loadItem(forTypeIdentifier: UTType.url.identifier) { [weak self] data, _ in
-                        if let url = data as? URL {
-                            self?.sharedItems.append(SharedItem(type: .url, text: url.absoluteString, url: url, imageData: nil))
+                    provider.loadItem(forTypeIdentifier: UTType.url.identifier) { value, _ in
+                        if let url = value as? URL {
+                            collector.append(SharedPart(text: url.absoluteString, isURL: true))
                         }
                         group.leave()
                     }
-                } else if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+                } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
                     group.enter()
-                    attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier) { [weak self] data, _ in
-                        if let text = data as? String {
-                            self?.sharedItems.append(SharedItem(type: .text, text: text, url: nil, imageData: nil))
+                    provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { value, _ in
+                        if let text = value as? String {
+                            collector.append(SharedPart(text: text, isURL: false))
                         }
-                        group.leave()
-                    }
-                } else if attachment.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                    group.enter()
-                    attachment.loadItem(forTypeIdentifier: UTType.image.identifier) { [weak self] data, _ in
-                        var imageData: Data?
-                        if let url = data as? URL { imageData = try? Data(contentsOf: url) }
-                        else if let image = data as? UIImage { imageData = image.jpegData(compressionQuality: 0.8) }
-                        if let imageData { self?.sharedItems.append(SharedItem(type: .image, text: nil, url: nil, imageData: imageData)) }
                         group.leave()
                     }
                 }
             }
         }
 
-        group.notify(queue: .main) { [weak self] in self?.updatePreview() }
+        group.notify(queue: .main) { [weak self] in
+            guard let self else { return }
+            sharedParts = collector.values()
+            updatePreview()
+        }
     }
 
     private func updatePreview() {
-        var previews: [String] = []
-        for item in sharedItems {
-            switch item.type {
-            case .url: previews.append("🔗 \(item.text ?? "")")
-            case .text: previews.append("📝 \(String((item.text ?? "").prefix(80)))")
-            case .image: previews.append("🖼 Image attachment")
-            }
-        }
-        previewLabel.text = previews.joined(separator: "\n")
+        let sharedText = sharedParts.map(\.text).joined(separator: "\n")
+        previewLabel.text = sharedText.isEmpty ? "No URL or text was found." : sharedText
+        messageTextView.text = ""
+        sendButton.isEnabled = !sharedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    // MARK: - Load recent chats
-
     private func loadRecentChats() {
+        spinner.startAnimating()
+        statusLabel.text = "Loading recent chats..."
         Task {
             do {
-                let data = try await apiRequest(.get, path: "/v1/chats?limit=15")
-                struct ChatListResponse: Codable { let chats: [RecentChat] }
-                let decoded = try JSONDecoder().decode(ChatListResponse.self, from: data)
+                let chats = try await sender.loadRecentChats()
                 await MainActor.run {
-                    recentChats = decoded.chats
-                    isLoadingChats = false
-                    activityIndicator.stopAnimating()
-                    let tableHeight = chatTableView.heightAnchor.constraint(equalToConstant: CGFloat(min(recentChats.count, 8)) * 52)
-                    tableHeight.isActive = true
+                    spinner.stopAnimating()
+                    statusLabel.text = chats.isEmpty ? "New Chat is ready." : "Choose a recent chat or keep New Chat selected."
+                    recentChats = chats
+                    tableHeightConstraint?.constant = CGFloat(chats.count) * 50
                     chatTableView.reloadData()
                 }
             } catch {
                 await MainActor.run {
-                    isLoadingChats = false
-                    activityIndicator.stopAnimating()
-                    if (error as NSError).code == 401 {
-                        showError("Please log in to OpenMates first")
-                    }
+                    spinner.stopAnimating()
+                    statusLabel.text = error.localizedDescription
                 }
             }
         }
     }
-
-    // MARK: - Actions
 
     @objc private func cancelTapped() {
         extensionContext?.completeRequest(returningItems: nil)
     }
 
-    @objc private func newChatTapped() {
+    @objc private func selectNewChat() {
         selectedChat = nil
-        // Deselect table rows
-        if let indexPath = chatTableView.indexPathForSelectedRow {
-            chatTableView.deselectRow(at: indexPath, animated: true)
+        if let selectedIndexPath {
+            chatTableView.deselectRow(at: selectedIndexPath, animated: true)
         }
-        // Highlight new chat button
-        for subview in contentStack.arrangedSubviews where subview.tag == -1 {
-            highlightButton(subview as? UIButton, selected: true)
-        }
+        selectedIndexPath = nil
+        updateNewChatSelection(true)
     }
 
     @objc private func sendTapped() {
         guard !isSubmitting else { return }
         isSubmitting = true
         sendButton.isEnabled = false
-        activityIndicator.startAnimating()
-        errorLabel.isHidden = true
+        cancelButton.isEnabled = false
+        spinner.startAnimating()
+        statusLabel.textColor = .secondaryLabel
+        statusLabel.text = "Sending..."
 
         Task {
             do {
-                try await sendToOpenMates()
+                let finalMessage = try buildFinalMessage()
+                _ = try await sender.send(.init(content: finalMessage, destination: selectedChat))
                 await MainActor.run {
                     extensionContext?.completeRequest(returningItems: nil)
                 }
             } catch {
                 await MainActor.run {
-                    showError(error.localizedDescription)
+                    showFailure(error.localizedDescription)
                     isSubmitting = false
                     sendButton.isEnabled = true
-                    activityIndicator.stopAnimating()
+                    cancelButton.isEnabled = true
+                    spinner.stopAnimating()
                 }
             }
         }
     }
 
-    // MARK: - Send to API
-
-    private func sendToOpenMates() async throws {
-        var messageContent = textView.text ?? ""
-
-        for item in sharedItems {
-            switch item.type {
-            case .url, .text:
-                if !messageContent.isEmpty { messageContent += "\n\n" }
-                messageContent += item.text ?? ""
-            case .image:
-                if messageContent.isEmpty { messageContent = "Shared image" }
-            }
-        }
-
-        guard !messageContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ShareError.emptyContent
-        }
-
-        let chatId: String
-        let chatHasTitle: Bool
-
-        if let existing = selectedChat {
-            // Send to existing chat
-            chatId = existing.id
-            chatHasTitle = existing.title != nil
+    private func buildFinalMessage() throws -> String {
+        let userText = messageTextView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        let message: String
+        if userText.isEmpty {
+            message = sharedText
+        } else if sharedText.isEmpty {
+            message = userText
         } else {
-            // Create new chat
-            chatId = UUID().uuidString
-            chatHasTitle = false
+            message = "\(userText)\n\n\(sharedText)"
         }
-
-        let messageId = UUID().uuidString
-        let body: [String: Any] = [
-            "chat_id": chatId,
-            "message": [
-                "message_id": messageId,
-                "role": "user",
-                "content": messageContent,
-                "created_at": Int(Date().timeIntervalSince1970),
-                "chat_has_title": chatHasTitle,
-            ] as [String: Any],
-        ]
-
-        let jsonData = try JSONSerialization.data(withJSONObject: body)
-        let _ = try await apiRequest(.post, path: "/v1/chat/message", body: jsonData)
-
-        // Upload images if any
-        for item in sharedItems where item.type == .image {
-            if let imageData = item.imageData {
-                try await uploadImage(imageData, chatId: chatId)
-            }
+        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw BackgroundChatSendError.emptyMessage
         }
+        return message
     }
 
-    private func uploadImage(_ data: Data, chatId: String) async throws {
-        let boundary = UUID().uuidString
-        var body = Data()
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"shared-image.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
-        body.append(chatId.data(using: .utf8)!)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-        let baseURL = Self.apiBaseURL
-        let url = baseURL.deletingLastPathComponent().appendingPathComponent("upload/v1/files")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body
-
-        let session = Self.sharedSession
-        let (_, _) = try await session.data(for: request)
+    private func updateNewChatSelection(_ selected: Bool) {
+        newChatButton.backgroundColor = selected ? .systemBlue.withAlphaComponent(0.12) : .secondarySystemBackground
+        newChatButton.layer.borderColor = selected ? UIColor.systemBlue.cgColor : UIColor.clear.cgColor
+        newChatButton.layer.borderWidth = selected ? 1 : 0
     }
 
-    // MARK: - Networking
-
-    enum HTTPMethod: String { case get = "GET", post = "POST" }
-
-    private static var apiBaseURL: URL {
-        #if DEBUG
-        URL(string: "https://dev.openmates.org/api")!
-        #else
-        URL(string: "https://api.openmates.org")!
-        #endif
-    }
-
-    private static var sharedSession: URLSession = {
-        let config = URLSessionConfiguration.default
-        config.httpCookieAcceptPolicy = .always
-        config.httpShouldSetCookies = true
-        config.httpCookieStorage = HTTPCookieStorage.sharedCookieStorage(
-            forGroupContainerIdentifier: "group.org.openmates.app"
-        )
-        return URLSession(configuration: config)
-    }()
-
-    private func apiRequest(_ method: HTTPMethod, path: String, body: Data? = nil) async throws -> Data {
-        let url = Self.apiBaseURL.appendingPathComponent(path)
-        var request = URLRequest(url: url)
-        request.httpMethod = method.rawValue
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body
-
-        let (data, response) = try await Self.sharedSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ShareError.networkError
-        }
-        if httpResponse.statusCode == 401 { throw ShareError.notAuthenticated }
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw ShareError.serverError(httpResponse.statusCode)
-        }
-        return data
-    }
-
-    // MARK: - Helpers
-
-    private func showError(_ message: String) {
-        errorLabel.text = message
-        errorLabel.isHidden = false
-    }
-
-    private func highlightButton(_ button: UIButton?, selected: Bool) {
-        button?.backgroundColor = selected ? .systemBlue.withAlphaComponent(0.12) : .systemGray6
-        button?.layer.borderWidth = selected ? 1.5 : 0
-        button?.layer.borderColor = selected ? UIColor.systemBlue.cgColor : nil
+    private func showFailure(_ message: String) {
+        statusLabel.textColor = .systemRed
+        statusLabel.text = message
     }
 }
-
-// MARK: - Chat list data source + delegate
 
 extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -439,95 +297,47 @@ extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ChatCell", for: indexPath) as! ChatCell
-        let chat = recentChats[indexPath.row]
-        cell.configure(title: chat.displayTitle, appId: chat.appId)
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: ChatDestinationCell.reuseIdentifier,
+            for: indexPath
+        ) as! ChatDestinationCell
+        cell.configure(title: recentChats[indexPath.row].displayTitle)
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         selectedChat = recentChats[indexPath.row]
-        // Unhighlight new chat button
-        for subview in contentStack.arrangedSubviews where subview.tag == -1 {
-            highlightButton(subview as? UIButton, selected: false)
-        }
+        selectedIndexPath = indexPath
+        updateNewChatSelection(false)
     }
 }
 
-// MARK: - Chat cell
+private final class ChatDestinationCell: UITableViewCell {
+    static let reuseIdentifier = "ChatDestinationCell"
 
-class ChatCell: UITableViewCell {
-    private let iconView = UIView()
-    private let titleView = UILabel()
+    private let titleLabel = UILabel()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
+        selectionStyle = .none
+        backgroundColor = .clear
 
-        iconView.layer.cornerRadius = 16
-        iconView.clipsToBounds = true
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(iconView)
-
-        titleView.font = .systemFont(ofSize: 15)
-        titleView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(titleView)
+        titleLabel.font = .systemFont(ofSize: 15, weight: .medium)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(titleLabel)
 
         NSLayoutConstraint.activate([
-            iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
-            iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 32),
-            iconView.heightAnchor.constraint(equalToConstant: 32),
-
-            titleView.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
-            titleView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
-            titleView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 14),
+            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -14),
+            titleLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
         ])
     }
 
-    required init?(coder: NSCoder) { fatalError() }
-
-    func configure(title: String, appId: String?) {
-        titleView.text = title
-        iconView.backgroundColor = .systemBlue.withAlphaComponent(0.15)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
-}
 
-// MARK: - Errors
-
-enum ShareError: LocalizedError {
-    case emptyContent, notAuthenticated, networkError, serverError(Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .emptyContent: return "Nothing to share"
-        case .notAuthenticated: return "Please log in to OpenMates first"
-        case .networkError: return "Network error — check your connection"
-        case .serverError(let code): return "Server error (\(code))"
-        }
-    }
-}
-
-// MARK: - UITextView placeholder
-
-extension UITextView {
-    var placeholder: String? {
-        get { layer.value(forKey: "placeholder") as? String }
-        set {
-            guard let text = newValue else { return }
-            let label = UILabel()
-            label.text = text
-            label.font = font
-            label.textColor = .placeholderText
-            label.tag = 999
-            label.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(label)
-            NSLayoutConstraint.activate([
-                label.topAnchor.constraint(equalTo: topAnchor, constant: textContainerInset.top),
-                label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: textContainerInset.left + textContainer.lineFragmentPadding),
-            ])
-            NotificationCenter.default.addObserver(forName: UITextView.textDidChangeNotification, object: self, queue: .main) { [weak self] _ in
-                self?.viewWithTag(999)?.isHidden = !(self?.text.isEmpty ?? true)
-            }
-        }
+    func configure(title: String) {
+        titleLabel.text = title
     }
 }

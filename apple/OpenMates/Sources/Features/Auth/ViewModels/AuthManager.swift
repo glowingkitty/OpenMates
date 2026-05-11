@@ -407,6 +407,7 @@ final class AuthManager: ObservableObject {
     private func cacheAuthenticatedUser(_ user: UserProfile) {
         guard let data = try? JSONEncoder().encode(user) else { return }
         UserDefaults.standard.set(data, forKey: Self.cachedUserDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.set(data, forKey: Self.cachedUserDefaultsKey)
     }
 
     static var nativeSessionId: String {
@@ -446,11 +447,16 @@ final class AuthManager: ObservableObject {
     }
 
     private static var sessionId: String {
+        if let existing = OpenMatesSharedEnvironment.defaults.string(forKey: sessionIdDefaultsKey) {
+            return existing
+        }
         if let existing = UserDefaults.standard.string(forKey: sessionIdDefaultsKey) {
+            OpenMatesSharedEnvironment.defaults.set(existing, forKey: sessionIdDefaultsKey)
             return existing
         }
         let newValue = UUID().uuidString
         UserDefaults.standard.set(newValue, forKey: sessionIdDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.set(newValue, forKey: sessionIdDefaultsKey)
         return newValue
     }
 
@@ -459,15 +465,18 @@ final class AuthManager: ObservableObject {
 
     private static func resetNativeSessionId() {
         UserDefaults.standard.removeObject(forKey: sessionIdDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.removeObject(forKey: sessionIdDefaultsKey)
     }
 
     private static func cachedUser() -> UserProfile? {
-        guard let data = UserDefaults.standard.data(forKey: cachedUserDefaultsKey) else { return nil }
+        guard let data = OpenMatesSharedEnvironment.defaults.data(forKey: cachedUserDefaultsKey)
+            ?? UserDefaults.standard.data(forKey: cachedUserDefaultsKey) else { return nil }
         return try? JSONDecoder().decode(UserProfile.self, from: data)
     }
 
     private static func clearCachedUser() {
         UserDefaults.standard.removeObject(forKey: cachedUserDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.removeObject(forKey: cachedUserDefaultsKey)
     }
 }
 
