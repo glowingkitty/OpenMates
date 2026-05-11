@@ -103,7 +103,7 @@ class RevolutBusinessService:
             logger.warning(
                 f"Revolut Business webhook secret for '{env}' is not configured. "
                 f"Incoming Revolut webhooks will be rejected. "
-                f"Use apply_bank_transfer.py for manual processing in the meantime."
+                f"Use approve_bank_transfer.py for manual processing in the meantime."
             )
 
         # IBAN/BIC are environment-specific — sandbox uses a separate test IBAN
