@@ -2071,7 +2071,20 @@ class EmbedService:
         ("news", "search"): "website",
         ("web", "search"): "website",
         ("nutrition", "search_recipes"): "recipe",
+        ("code", "search_repos"): "repo",
     }
+
+    @staticmethod
+    async def get_composite_child_embed_type(
+        app_id: str,
+        skill_id: str,
+        cache_service: Optional[CacheService] = None,
+    ) -> Optional[str]:
+        """Return child embed type when a skill is composite, otherwise None."""
+        try:
+            return await EmbedService.get_child_embed_type(app_id, skill_id, cache_service=cache_service)
+        except ValueError:
+            return None
 
     @staticmethod
     async def get_child_embed_type(
@@ -2641,8 +2654,10 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
-            # Determine if this is a composite result (web search, places, events, connections, stays, appointments, products)
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays", "search_appointments", "search_products"]
+            default_child_type = await EmbedService.get_composite_child_embed_type(
+                app_id, skill_id, cache_service=self.cache_service
+            )
+            is_composite = default_child_type is not None
 
             child_embed_ids = []
 
@@ -2697,11 +2712,6 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                # Determine default child embed type using canonical helper (single source of truth)
-                default_child_type = await EmbedService.get_child_embed_type(
-                    app_id, skill_id, cache_service=self.cache_service
-                )
-
                 for result in results:
                     # Determine per-result child type (may override default for YouTube URLs in web search)
                     child_type = EmbedService._get_per_result_child_type(
@@ -3498,19 +3508,14 @@ class EmbedService:
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
             
-            # Determine if this is a composite result (web search, places, events, connections, stays, appointments, products)
-            # Check both app_id and skill_id to determine composite vs single
-            # Maps search uses skill_id "search" but should create "place" embeds, not "website" embeds
-            is_composite = skill_id in ["search", "places_search", "events_search", "search_connections", "search_stays", "search_appointments", "search_products"]
+            default_child_type = await EmbedService.get_composite_child_embed_type(
+                app_id, skill_id, cache_service=self.cache_service
+            )
+            is_composite = default_child_type is not None
             
             child_embed_ids = []
             
             if is_composite:
-                # Determine default child embed type using canonical helper (single source of truth)
-                default_child_type = await EmbedService.get_child_embed_type(
-                    app_id, skill_id, cache_service=self.cache_service
-                )
-
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key
                 parent_embed_id = str(uuid.uuid4())
