@@ -18,6 +18,7 @@ import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte"
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
+import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
 import NewsSearchEmbedPreview from "../../../embeds/news/NewsSearchEmbedPreview.svelte";
@@ -1320,6 +1321,25 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             taskId,
             skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      // Handle code.search_repos skill (GitHub repository search)
+      if (appId === "code" && skillId === "search_repos") {
+        const component = mount(CodeRepoSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "GitHub",
+            status,
+            results,
+            taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },

@@ -73,6 +73,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Do not import from another backend skill. Move shared behavior to `BaseSkill` or `backend/shared/`.
 - Use the repo scripts rather than ad hoc commands when available.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
+- For `*.spec.ts` Playwright verification, deploy the change to `dev` first, wait for the deployment to be live, then run the spec. Do not run E2E specs against undeployed local code.
 - For changed code, run the smallest relevant lint/test/build command that proves the change.
 - If verification is not run, state why.
 
@@ -104,6 +105,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 Use the repo rule files when the task touches relevant areas. In OpenCode, these are also listed in `opencode.json` instructions.
 
 - Frontend work: `.claude/rules/frontend.md`
+- Design/UI/media work: `DESIGN.md`
 - Backend work: `.claude/rules/backend.md`
 - Tests or test failures: `.claude/rules/testing.md`
 - Privacy/legal/provider work: `.claude/rules/privacy.md`
