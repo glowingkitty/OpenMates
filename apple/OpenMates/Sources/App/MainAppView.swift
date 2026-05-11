@@ -31,6 +31,7 @@ struct MainAppView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var pushManager: PushNotificationManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var chatStore = ChatStore()
     @StateObject private var wsManager = WebSocketManager()
     @StateObject private var deepLinkHandler = DeepLinkHandler()
@@ -67,6 +68,7 @@ struct MainAppView: View {
     @State private var isBackgroundSyncFlushInProgress = false
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
     @State private var lastForegroundInteractionAt = Date.distantPast
+    @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
@@ -129,6 +131,7 @@ struct MainAppView: View {
     private static let backgroundSyncInterChunkPauseNs: UInt64 = 40_000_000
     private static let backgroundSyncForegroundPauseNs: UInt64 = 180_000_000
     private static let foregroundInteractionGraceSeconds: TimeInterval = 2.0
+    private static let notificationPreviewMaxCharacters = 200
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -167,55 +170,7 @@ struct MainAppView: View {
     ]
 
     var body: some View {
-        GeometryReader { geo in
-            let viewportWidth = geo.size.width
-            let compactPanelWidth = min(viewportWidth - 10, 390)
-            let chatsPanelOffset = isCompactShell
-                ? (isChatsPanelOpen ? max(0, compactPanelWidth + shellDragOffset) : max(0, shellDragOffset))
-                : 0
-
-            ZStack(alignment: .leading) {
-                activeAppChrome(viewportWidth: viewportWidth)
-                    .offset(x: chatsPanelOffset)
-
-                if isCompactShell {
-                    chatsPanel
-                        .frame(width: compactPanelWidth)
-                        .offset(x: isChatsPanelOpen ? min(0, shellDragOffset) : -compactPanelWidth + max(0, shellDragOffset))
-                        .allowsHitTesting(isChatsPanelOpen || shellDragOffset > 0)
-                        .accessibilityHidden(!isChatsPanelOpen)
-                        .zIndex(1)
-                }
-            }
-            .clipped()
-            .contentShape(Rectangle())
-            .simultaneousGesture(shellSwipeGesture(viewportWidth: viewportWidth))
-            .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
-        }
-        .background(Color.grey0)
-        #if os(macOS)
-        .focusedSceneValue(\.newChatCommand) {
-            openNewChatScreen()
-        }
-        .background {
-            MacWindowTitleUpdater(title: currentWindowTitle)
-                .frame(width: 0, height: 0)
-        }
-        #endif
-        .overlay {
-            ToastOverlay()
-        }
-        .overlay {
-            if let actionChat {
-                chatActionsOverlay(for: actionChat)
-            }
-        }
-        .overlay {
-            appOverlays
-        }
-        .overlay(alignment: .top) {
-            topStatusOverlay
-        }
+        shellWithOverlays
         .onOpenURL { url in
             deepLinkHandler.handle(url: url)
         }
@@ -302,30 +257,155 @@ struct MainAppView: View {
                 await authManager.forceLocalLogout(reason: reason)
             }
         }
-        .onChange(of: authManager.state) { _, newState in
-            if newState == .authenticated {
-                showAuthSheet = false
-                Task { await bootstrapAuthenticatedSession() }
-            } else if newState == .unauthenticated {
-                resetToUnauthenticatedSession()
+        .onChange(of: authManager.state, authStateDidChange)
+        .onChange(of: pushManager.pendingChatId, pendingPushChatDidChange)
+        .onChange(of: pushManager.pendingReplyRequest, pendingPushReplyDidChange)
+        .onChange(of: selectedChatId, selectedChatDidChange)
+        .onChange(of: showNewChat, showNewChatDidChange)
+        .onChange(of: showSettings, showSettingsDidChange)
+    }
+
+    private var shellWithOverlays: some View {
+        rootShell
+        #if os(macOS)
+        .focusedSceneValue(\.newChatCommand) {
+            openNewChatScreen()
+        }
+        .background {
+            MacWindowTitleUpdater(title: currentWindowTitle)
+                .frame(width: 0, height: 0)
+        }
+        #endif
+        .overlay {
+            ToastOverlay()
+        }
+        .overlay {
+            if let actionChat {
+                chatActionsOverlay(for: actionChat)
             }
         }
-        .onChange(of: pushManager.pendingChatId) { _, chatId in
-            if let chatId {
-                selectedChatId = chatId
-                showNewChat = false
-                pushManager.pendingChatId = nil
-            }
+        .overlay {
+            appOverlays
         }
-        .onChange(of: selectedChatId) { _, chatId in
-            if chatId != nil {
-                lastForegroundInteractionAt = Date()
-            }
+        .overlay(alignment: .top) {
+            topStatusOverlay
+                .allowsHitTesting(false)
         }
-        .onChange(of: showSettings) { _, isOpen in
-            if isOpen {
-                lastForegroundInteractionAt = Date()
+    }
+
+    private var rootShell: some View {
+        GeometryReader { geo in
+            let viewportWidth = geo.size.width
+            let compactPanelWidth = min(viewportWidth - 10, 390)
+            let chatsPanelOffset = isCompactShell
+                ? (isChatsPanelOpen ? max(0, compactPanelWidth + shellDragOffset) : max(0, shellDragOffset))
+                : 0
+
+            ZStack(alignment: .leading) {
+                activeAppChrome(viewportWidth: viewportWidth)
+                    .offset(x: chatsPanelOffset)
+
+                if isCompactShell {
+                    chatsPanel
+                        .frame(width: compactPanelWidth)
+                        .offset(x: isChatsPanelOpen ? min(0, shellDragOffset) : -compactPanelWidth + max(0, shellDragOffset))
+                        .allowsHitTesting(isChatsPanelOpen || shellDragOffset > 0)
+                        .accessibilityHidden(!isChatsPanelOpen)
+                        .zIndex(1)
+                }
             }
+            .clipped()
+            .contentShape(Rectangle())
+            .simultaneousGesture(shellSwipeGesture(viewportWidth: viewportWidth))
+            .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
+        }
+        .background(Color.grey0)
+    }
+
+    private func selectedChatDidChange(_ oldValue: String?, _ chatId: String?) {
+        if chatId != nil {
+            lastForegroundInteractionAt = Date()
+        }
+        Task { await announceActiveChat(chatId) }
+    }
+
+    private func authStateDidChange(_ oldValue: AuthManager.AuthState, _ newState: AuthManager.AuthState) {
+        if newState == .authenticated {
+            showAuthSheet = false
+            Task {
+                await bootstrapAuthenticatedSession()
+                await flushQueuedNotificationReplies()
+            }
+        } else if newState == .unauthenticated {
+            resetToUnauthenticatedSession()
+        }
+    }
+
+    private func pendingPushChatDidChange(_ oldValue: String?, _ chatId: String?) {
+        if let chatId {
+            selectedChatId = chatId
+            showNewChat = false
+            pushManager.pendingChatId = nil
+        }
+    }
+
+    private func pendingPushReplyDidChange(_ oldValue: NotificationReplyRequest?, _ request: NotificationReplyRequest?) {
+        guard let request else { return }
+        pushManager.pendingReplyRequest = nil
+        Task { await sendNotificationReply(request) }
+    }
+
+    private func showNewChatDidChange(_ oldValue: Bool, _ isOpen: Bool) {
+        if isOpen {
+            Task { await announceActiveChat(nil) }
+        }
+    }
+
+    private func showSettingsDidChange(_ oldValue: Bool, _ isOpen: Bool) {
+        if isOpen {
+            lastForegroundInteractionAt = Date()
+        }
+    }
+
+    private func sendNotificationReply(_ request: NotificationReplyRequest) async {
+        guard isAuthenticated, didBootstrapAuthenticatedSession else {
+            if !queuedNotificationReplies.contains(request) {
+                queuedNotificationReplies.append(request)
+            }
+            return
+        }
+        let content = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { return }
+
+        if chatStore.chat(for: request.chatId) == nil {
+            await loadInitialData()
+        }
+
+        guard let chat = chatStore.chat(for: request.chatId) else {
+            print("[MainApp] Notification reply dropped; chat \(request.chatId.prefix(8)) is not available locally")
+            return
+        }
+
+        do {
+            _ = try await ChatSendPipeline().sendUserMessage(
+                content: content,
+                in: chat,
+                existingMessages: chatStore.messages(for: request.chatId),
+                wsManager: wsManager,
+                chatStore: chatStore,
+                activateChat: false
+            )
+        } catch {
+            print("[MainApp] Failed to send notification reply for chat \(request.chatId.prefix(8)): \(error)")
+        }
+    }
+
+    private func flushQueuedNotificationReplies() async {
+        guard isAuthenticated, didBootstrapAuthenticatedSession, !queuedNotificationReplies.isEmpty else { return }
+        let replies = queuedNotificationReplies
+        queuedNotificationReplies.removeAll()
+        for reply in replies {
+            await sendNotificationReply(reply)
         }
     }
 
@@ -1291,6 +1371,7 @@ struct MainAppView: View {
         scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
         Task { await syncInspirationToWidget() }
+        await flushQueuedNotificationReplies()
     }
 
     private func scheduleTokenBackedWebSocketReconnectIfNeeded() {
@@ -1608,7 +1689,280 @@ struct MainAppView: View {
     }
 
     private func handleChatUpdate(_ notification: Notification) {
-        Task { await loadInitialData() }
+        guard let type = notification.userInfo?["type"] as? String,
+              let raw = notification.userInfo?["raw"] as? Data else {
+            Task { await loadInitialData() }
+            return
+        }
+        Task { @MainActor in
+            await processChatUpdate(type: type, raw: raw)
+        }
+    }
+
+    private func processChatUpdate(type: String, raw: Data) async {
+        do {
+            switch type {
+            case "new_chat_message":
+                let envelope = try syncDecoder.decode(WSEnvelope<NewChatMessagePayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await applyNewChatMessage(payload)
+
+            case "ai_typing_started":
+                let envelope = try syncDecoder.decode(WSEnvelope<AITypingStartedSyncPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await applyTypingStartedMetadata(payload)
+
+            case "ai_background_response_completed":
+                let envelope = try syncDecoder.decode(WSEnvelope<AIBackgroundResponseCompletedPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await applyAssistantCompletion(
+                    chatId: payload.chatId,
+                    messageId: payload.messageId,
+                    userMessageId: payload.userMessageId,
+                    content: payload.fullContent,
+                    createdAt: nil,
+                    modelName: payload.modelName,
+                    category: payload.category,
+                    rejectionReason: payload.rejectionReason,
+                    source: "background"
+                )
+
+            case "pending_ai_response":
+                let envelope = try syncDecoder.decode(WSEnvelope<PendingAIResponsePayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await applyAssistantCompletion(
+                    chatId: payload.chatId,
+                    messageId: payload.messageId,
+                    userMessageId: nil,
+                    content: payload.content,
+                    createdAt: payload.firedAt,
+                    modelName: payload.modelName,
+                    category: payload.category,
+                    rejectionReason: nil,
+                    source: "pending"
+                )
+
+            case "chat_deleted":
+                let envelope = try syncDecoder.decode(WSEnvelope<ChatDeletedSyncPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                chatStore.removeChat(payload.chatId)
+                ChatKeyManager.shared.removeKey(for: payload.chatId)
+                if selectedChatId == payload.chatId {
+                    selectedChatId = nil
+                    showNewChat = true
+                }
+
+            default:
+                await loadInitialData()
+            }
+        } catch {
+            print("[MainApp] Failed to process chat update \(type): \(error)")
+            await loadInitialData()
+        }
+    }
+
+    private func applyNewChatMessage(_ payload: NewChatMessagePayload) async {
+        await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: payload.encryptedChatKey)
+
+        let createdAt = Self.isoString(fromUnixSeconds: payload.createdAt)
+        let lastMessageAt = Self.isoString(fromUnixSeconds: payload.lastEditedOverallTimestamp ?? payload.createdAt)
+        let existing = chatStore.chat(for: payload.chatId)
+        var chat = Chat(
+            id: payload.chatId,
+            title: existing?.title,
+            lastMessageAt: lastMessageAt,
+            createdAt: existing?.createdAt ?? createdAt,
+            updatedAt: lastMessageAt,
+            isArchived: existing?.isArchived ?? false,
+            isPinned: existing?.isPinned ?? false,
+            appId: existing?.appId ?? "ai",
+            category: existing?.category,
+            icon: existing?.icon,
+            chatSummary: existing?.chatSummary,
+            encryptedTitle: payload.encryptedTitle ?? existing?.encryptedTitle,
+            encryptedCategory: payload.encryptedCategory ?? existing?.encryptedCategory,
+            encryptedIcon: existing?.encryptedIcon,
+            encryptedChatSummary: existing?.encryptedChatSummary,
+            encryptedChatKey: payload.encryptedChatKey ?? existing?.encryptedChatKey,
+            messagesV: payload.messagesV ?? existing?.messagesV,
+            titleV: payload.encryptedTitle != nil ? 1 : existing?.titleV,
+            draftV: existing?.draftV,
+            lastVisibleMessageId: existing?.lastVisibleMessageId
+        )
+        chat = await decryptChatMetadata(chat)
+        chatStore.upsertChat(chat)
+
+        let message = Message(
+            id: payload.messageId,
+            chatId: payload.chatId,
+            role: MessageRole(rawValue: payload.role ?? "user") ?? .user,
+            content: payload.content,
+            encryptedContent: nil,
+            createdAt: createdAt,
+            updatedAt: nil,
+            appId: payload.role == "assistant" ? (chat.category ?? chat.appId) : nil,
+            isStreaming: false,
+            embedRefs: nil
+        )
+        chatStore.appendMessage(message, to: payload.chatId)
+        NativeSyncPerfLog.info("phase=newChatMessageSync chat=\(payload.chatId.prefix(8)) message=\(payload.messageId.prefix(8))")
+    }
+
+    private func applyTypingStartedMetadata(_ payload: AITypingStartedSyncPayload) async {
+        await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: payload.encryptedChatKey)
+
+        let existing = chatStore.chat(for: payload.chatId)
+        let now = ISO8601DateFormatter().string(from: Date())
+        var chat = Chat(
+            id: payload.chatId,
+            title: payload.title ?? existing?.title,
+            lastMessageAt: existing?.lastMessageAt ?? now,
+            createdAt: existing?.createdAt ?? now,
+            updatedAt: now,
+            isArchived: existing?.isArchived ?? false,
+            isPinned: existing?.isPinned ?? false,
+            appId: existing?.appId ?? "ai",
+            category: payload.category ?? existing?.category,
+            icon: payload.iconNames?.first ?? existing?.icon,
+            chatSummary: existing?.chatSummary,
+            encryptedTitle: existing?.encryptedTitle,
+            encryptedCategory: existing?.encryptedCategory,
+            encryptedIcon: existing?.encryptedIcon,
+            encryptedChatSummary: existing?.encryptedChatSummary,
+            encryptedChatKey: payload.encryptedChatKey ?? existing?.encryptedChatKey,
+            messagesV: existing?.messagesV,
+            titleV: payload.title == nil ? existing?.titleV : max(existing?.titleV ?? 0, 1),
+            draftV: existing?.draftV,
+            lastVisibleMessageId: existing?.lastVisibleMessageId
+        )
+        chat = await decryptChatMetadata(chat)
+        chatStore.upsertChat(chat)
+        NativeSyncPerfLog.info("phase=typingStartedMetadata chat=\(payload.chatId.prefix(8)) hasTitle=\(payload.title != nil) hasCategory=\(payload.category != nil)")
+    }
+
+    private func applyAssistantCompletion(
+        chatId: String,
+        messageId: String,
+        userMessageId: String?,
+        content: String,
+        createdAt: Int?,
+        modelName: String?,
+        category: String?,
+        rejectionReason: String?,
+        source: String
+    ) async {
+        guard !chatId.isEmpty, !messageId.isEmpty, !content.isEmpty else { return }
+        guard !chatStore.messages(for: chatId).contains(where: { $0.id == messageId }) else {
+            NativeSyncPerfLog.info("phase=assistantCompletionSkip source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)) reason=duplicate")
+            return
+        }
+        guard let existingChat = chatStore.chat(for: chatId) else {
+            NativeSyncPerfLog.warning("phase=assistantCompletionMissingChat source=\(source) chat=\(chatId.prefix(8))")
+            await loadInitialData()
+            return
+        }
+
+        let timestamp = Self.isoString(fromUnixSeconds: createdAt)
+        let role: MessageRole = rejectionReason == nil ? .assistant : .system
+        let rawMessage = Message(
+            id: messageId,
+            chatId: chatId,
+            role: role,
+            content: content,
+            encryptedContent: nil,
+            createdAt: timestamp,
+            updatedAt: nil,
+            appId: category ?? existingChat.category ?? existingChat.appId,
+            isStreaming: false,
+            embedRefs: nil,
+            modelName: modelName
+        )
+        let message = rawMessage
+
+        let nextMessagesV = max(existingChat.messagesV ?? 0, chatStore.messages(for: chatId).count) + 1
+        let updatedChat = Chat(
+            id: existingChat.id,
+            title: existingChat.title,
+            lastMessageAt: timestamp,
+            createdAt: existingChat.createdAt,
+            updatedAt: timestamp,
+            isArchived: existingChat.isArchived,
+            isPinned: existingChat.isPinned,
+            appId: existingChat.appId,
+            category: category ?? existingChat.category,
+            icon: existingChat.icon,
+            chatSummary: existingChat.chatSummary,
+            encryptedTitle: existingChat.encryptedTitle,
+            encryptedCategory: existingChat.encryptedCategory,
+            encryptedIcon: existingChat.encryptedIcon,
+            encryptedChatSummary: existingChat.encryptedChatSummary,
+            encryptedChatKey: existingChat.encryptedChatKey,
+            messagesV: nextMessagesV,
+            titleV: existingChat.titleV,
+            draftV: existingChat.draftV,
+            lastVisibleMessageId: existingChat.lastVisibleMessageId
+        )
+        chatStore.upsertChat(updatedChat)
+        chatStore.appendMessage(message, to: chatId)
+        NativeSyncPerfLog.info("phase=assistantCompletionApplied source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)) role=\(role.rawValue)")
+        await showAssistantNotificationIfNeeded(chat: updatedChat, message: message, source: source)
+
+        do {
+            _ = try await ChatSendPipeline().persistCompletedAssistantMessage(
+                message,
+                userMessageId: userMessageId,
+                wsManager: wsManager,
+                chatStore: chatStore
+            )
+        } catch {
+            print("[MainApp] Failed to persist assistant completion source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)): \(error)")
+        }
+    }
+
+    private func showAssistantNotificationIfNeeded(chat: Chat, message: Message, source: String) async {
+        guard source == "background" || source == "pending" else { return }
+        guard message.role == .assistant else { return }
+        guard scenePhase != .active else { return }
+        guard selectedChatId != chat.id else { return }
+
+        let body = notificationPreview(from: message.content)
+        guard !body.isEmpty else { return }
+        await pushManager.showChatMessageNotification(
+            chatId: chat.id,
+            title: chat.displayTitle,
+            body: body
+        )
+    }
+
+    private func notificationPreview(from content: String?) -> String {
+        let normalized = (content ?? "")
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count > Self.notificationPreviewMaxCharacters else { return normalized }
+        let end = normalized.index(normalized.startIndex, offsetBy: Self.notificationPreviewMaxCharacters)
+        return String(normalized[..<end]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func announceActiveChat(_ chatId: String?) async {
+        guard isAuthenticated else { return }
+        do {
+            try await ChatSendPipeline().sendSetActiveChat(chatId, wsManager: wsManager)
+        } catch {
+            print("[MainApp] Failed to announce active chat \(chatId?.prefix(8) ?? "nil"): \(error)")
+        }
+    }
+
+    private func loadChatKeyIfNeeded(chatId: String, encryptedChatKey: String?) async {
+        guard let encryptedChatKey, !ChatKeyManager.shared.hasKey(for: chatId),
+              let userId = authManager.currentUser?.id,
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else {
+            return
+        }
+        await ChatKeyManager.shared.loadChatKey(
+            chatId: chatId,
+            encryptedChatKey: encryptedChatKey,
+            masterKey: masterKey
+        )
     }
 
     private func handleSyncEvent(_ notification: Notification) {
@@ -1982,6 +2336,13 @@ struct MainAppView: View {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
+    private static func isoString(fromUnixSeconds seconds: Int?) -> String {
+        guard let seconds else {
+            return ISO8601DateFormatter().string(from: Date())
+        }
+        return ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: TimeInterval(seconds)))
+    }
+
     private var syncDecoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -2165,6 +2526,55 @@ private struct WSEnvelope<Payload: Decodable>: Decodable {
     let data: Payload?
 }
 
+private struct NewChatMessagePayload: Decodable {
+    let chatId: String
+    let messageId: String
+    let content: String
+    let role: String?
+    let createdAt: Int?
+    let messagesV: Int?
+    let lastEditedOverallTimestamp: Int?
+    let encryptedChatKey: String?
+    let encryptedTitle: String?
+    let encryptedCategory: String?
+}
+
+private struct AITypingStartedSyncPayload: Decodable {
+    let chatId: String
+    let messageId: String?
+    let title: String?
+    let category: String?
+    let iconNames: [String]?
+    let encryptedChatKey: String?
+}
+
+private struct AIBackgroundResponseCompletedPayload: Decodable {
+    let chatId: String
+    let messageId: String
+    let userMessageId: String?
+    let taskId: String?
+    let fullContent: String
+    let modelName: String?
+    let category: String?
+    let interruptedBySoftLimit: Bool?
+    let interruptedByRevocation: Bool?
+    let rejectionReason: String?
+}
+
+private struct PendingAIResponsePayload: Decodable {
+    let chatId: String
+    let messageId: String
+    let content: String
+    let userId: String?
+    let firedAt: Int?
+    let modelName: String?
+    let category: String?
+}
+
+private struct ChatDeletedSyncPayload: Decodable {
+    let chatId: String
+}
+
 private struct Phase1SyncPayload: Decodable {
     let chatDetails: Chat?
     let recentChatMetadata: [Chat]?
@@ -2288,9 +2698,10 @@ struct OpenMatesWebHeader: View {
                 // Web: uses the same branded icon treatment as the top-right settings affordance.
                 WebHamburgerIcon(isOpen: isChatsPanelOpen)
                     .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
-            .frame(width: 34, height: 34)
+            .frame(width: 44, height: 44)
             .contentShape(Rectangle())
             .accessibilityIdentifier("sidebar-toggle")
             .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
@@ -2722,6 +3133,7 @@ struct NewChatWelcomeView: View {
     let onOpenAuth: () -> Void
     @State private var messageText = ""
     @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
+    @State private var hiddenSuggestionIds = Set<String>()
     @State private var inspirationIndex = 0
     @State private var viewedInspirationIds = Set<String>()
     @State private var isComposerExpanded = false
@@ -2842,6 +3254,7 @@ struct NewChatWelcomeView: View {
         .onChange(of: serverSuggestions.map(\.id)) { _, _ in
             if !serverSuggestions.isEmpty {
                 suggestions = serverSuggestions
+                hiddenSuggestionIds.removeAll()
             }
         }
     }
@@ -2889,17 +3302,48 @@ struct NewChatWelcomeView: View {
     }
 
     private var suggestionsCarousel: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: .spacing3) {
-                ForEach(filteredSuggestions) { suggestion in
-                    SuggestionChip(suggestion: suggestion) {
-                        messageText = suggestion.text
-                        isFocused = true
+        GeometryReader { proxy in
+            let cardWidth: CGFloat = proxy.size.width <= 730 ? 210 : 300
+            let sideInset = max((proxy.size.width - cardWidth) / 2, proxy.size.width <= 730 ? 15 : 48)
+
+            VStack(alignment: .leading, spacing: .spacing3) {
+                Text(AppStrings.suggestionsHeader)
+                    .font(proxy.size.width <= 730 ? .omSmall : .omP)
+                    .foregroundStyle(Color.grey60)
+                    .tracking(0.5)
+                    .opacity(0.9)
+                    .padding(.leading, sideInset)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: proxy.size.width <= 730 ? .spacing5 : .spacing6) {
+                        ForEach(filteredSuggestions) { suggestion in
+                            SuggestionChip(suggestion: suggestion, width: cardWidth) {
+                                hiddenSuggestionIds.insert(suggestion.id)
+                                messageText = suggestion.parsedBody
+                                isFocused = true
+                            }
+                        }
                     }
+                    .padding(.leading, sideInset)
+                    .padding(.trailing, proxy.size.width <= 730 ? 15 : 48)
+                    .padding(.top, 4)
+                    .padding(.bottom, proxy.size.width <= 730 ? 8 : 14)
                 }
             }
-            .padding(.horizontal, .spacing5)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: proxy.size.width <= 730 ? 0.05 : 0.035),
+                        .init(color: .black, location: proxy.size.width <= 730 ? 0.95 : 0.965),
+                        .init(color: .clear, location: 1)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
         }
+        .frame(height: 106)
     }
 
     private func inspirationCarousel(_ activeInspiration: DailyInspirationBanner.DailyInspiration) -> some View {
@@ -2957,15 +3401,20 @@ struct NewChatWelcomeView: View {
 
     /// Filter suggestions based on typed text, matching web's debounced filter behavior
     private var filteredSuggestions: [NewChatSuggestionsView.ChatSuggestion] {
-        guard !messageText.isEmpty else { return suggestions }
+        let visibleSuggestions = suggestions.filter { !hiddenSuggestionIds.contains($0.id) }
+        guard !messageText.isEmpty else { return visibleSuggestions }
         let query = messageText.lowercased()
-        let filtered = suggestions.filter { $0.text.lowercased().contains(query) }
-        return filtered.isEmpty ? suggestions : filtered
+        let filtered = visibleSuggestions.filter {
+            $0.parsedBody.lowercased().contains(query) ||
+            $0.resolvedAppId.lowercased().contains(query)
+        }
+        return filtered.isEmpty ? visibleSuggestions : filtered
     }
 
     private func loadSuggestions() async {
         if !serverSuggestions.isEmpty {
             suggestions = serverSuggestions
+            hiddenSuggestionIds.removeAll()
             return
         }
 
@@ -2981,6 +3430,7 @@ struct NewChatWelcomeView: View {
         if suggestions.isEmpty {
             suggestions = Self.defaultSuggestions
         }
+        hiddenSuggestionIds.removeAll()
     }
 
     /// Hardcoded default suggestions matching the web app's defaultNewChatSuggestions.ts

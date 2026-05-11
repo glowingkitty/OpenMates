@@ -105,12 +105,17 @@ struct SettingsAIFullView: View {
                 OMSettingsSection(AppStrings.defaultModels, icon: "settings") {
                     OMSettingsToggleRow(
                         title: AppStrings.autoSelectModel,
-                        subtitle: AppStrings.autoSelectDescription,
-                        icon: "ai",
+                        icon: "search",
                         isOn: $autoSelectModel
                     )
                     .onChange(of: autoSelectModel) { _, _ in saveDefaults() }
                     .accessibleToggle(AppStrings.autoSelectModel, isOn: autoSelectModel)
+
+                    Text(AppStrings.autoSelectDescription)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.bottom, .spacing4)
 
                     if !autoSelectModel {
                         OMSettingsPickerRow(
@@ -129,6 +134,12 @@ struct SettingsAIFullView: View {
                         )
                         .onChange(of: defaultComplexModel) { _, _ in saveDefaults() }
                     }
+
+                    Text(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.manual_select_note"))
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.top, .spacing2)
                 }
             }
 
@@ -219,7 +230,7 @@ struct SettingsAIFullView: View {
 
     private var filteredModels: [AIModel] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        var models = displayModels.filter { $0.isEnabled != false }
+        var models = displayModels
         if !query.isEmpty {
             models = models.filter {
                 $0.name.lowercased().contains(query) ||
@@ -383,6 +394,7 @@ struct SettingsAIFullView: View {
             .contentShape(RoundedRectangle(cornerRadius: .radius3))
         }
         .buttonStyle(.plain)
+        .opacity(model.isEnabled == false ? 0.55 : 1)
         .accessibilityElement(children: .combine)
         .accessibleSetting(model.name, value: simplifyProviderName(model.providerName))
     }

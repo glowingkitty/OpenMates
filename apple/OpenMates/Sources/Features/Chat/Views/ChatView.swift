@@ -456,7 +456,11 @@ struct ChatView: View {
                                 }
 
                                 if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
-                                    FollowUpSuggestions(suggestions: viewModel.followUpSuggestions) { suggestion in
+                                    FollowUpSuggestions(
+                                        suggestions: viewModel.followUpSuggestions,
+                                        category: viewModel.chat?.category,
+                                        icon: viewModel.chat?.icon
+                                    ) { suggestion in
                                         messageText = suggestion
                                     }
                                     .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 75 : 0)
@@ -508,8 +512,8 @@ struct ChatView: View {
                     if effectiveBannerState != nil {
                         chatFloatingActions
                             .padding(.top, .spacing4)
-                            .padding(.leading, .spacing6)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .padding(.horizontal, .spacing6)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
                 }
                 .onAppear {
@@ -622,16 +626,22 @@ struct ChatView: View {
 
     private var chatFloatingActions: some View {
         HStack(spacing: .spacing2) {
-            chatFloatingAction(icon: "share", label: AppStrings.share) {
-                onShareChat?()
+            HStack(spacing: .spacing2) {
+                chatFloatingAction(icon: "share", label: AppStrings.share) {
+                    onShareChat?()
+                }
+                chatFloatingAction(icon: "bug", label: AppStrings.report) {
+                    ToastManager.shared.show(AppStrings.report, type: .info)
+                }
             }
-            chatFloatingAction(icon: "bug", label: AppStrings.report) {
-                ToastManager.shared.show(AppStrings.report, type: .info)
-            }
+
+            Spacer(minLength: .spacing6)
+
             chatFloatingAction(icon: "reminder", label: AppStrings.setReminder) {
                 showReminder = true
             }
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func chatFloatingAction(icon: String, label: String, action: @escaping () -> Void) -> some View {

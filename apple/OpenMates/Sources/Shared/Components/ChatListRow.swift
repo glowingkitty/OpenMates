@@ -20,12 +20,13 @@ struct ChatListRow: View {
     private struct PublicIconDescriptor {
         let icon: String
         let gradient: LinearGradient
+        var usesAssetIcon = false
     }
 
     private var publicIconDescriptor: PublicIconDescriptor? {
         switch chat.id {
         case "demo-for-everyone":
-            return .init(icon: "hand", gradient: CategoryMapping.gradient(for: "openmates_official"))
+            return .init(icon: "ai", gradient: CategoryMapping.gradient(for: "openmates_official"), usesAssetIcon: true)
         case "demo-for-developers":
             return .init(icon: "code", gradient: CategoryMapping.gradient(for: "openmates_official"))
         case "demo-who-develops-openmates":
@@ -62,8 +63,13 @@ struct ChatListRow: View {
                     .fill(descriptor.gradient)
                     .frame(width: 28, height: 28)
                     .overlay {
-                        LucideNativeIcon(descriptor.icon, size: 16)
-                            .foregroundStyle(.white)
+                        if descriptor.usesAssetIcon {
+                            Icon(descriptor.icon, size: 16)
+                                .foregroundStyle(.white)
+                        } else {
+                            LucideNativeIcon(descriptor.icon, size: 16)
+                                .foregroundStyle(.white)
+                        }
                     }
                     .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
             } else if let category = chat.category, !category.isEmpty {

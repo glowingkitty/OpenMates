@@ -106,35 +106,39 @@ enum ServerConfiguration {
     static var current: ServerEndpointConfiguration {
         get {
             migrateDebugDefaultIfNeeded()
-            let selectedDomain = UserDefaults.standard.string(forKey: selectedDomainKey)
+            let selectedDomain = defaults.string(forKey: selectedDomainKey)
                 ?? ServerEndpointConfiguration.defaultSelectedDomain
-            let customDomains = UserDefaults.standard.stringArray(forKey: customDomainsKey)
+            let customDomains = defaults.stringArray(forKey: customDomainsKey)
                 ?? ServerEndpointConfiguration.defaultCustomDomains
             return ServerEndpointConfiguration(selectedDomain: selectedDomain, customDomains: customDomains)
         }
         set {
-            UserDefaults.standard.set(newValue.selectedDomain, forKey: selectedDomainKey)
-            UserDefaults.standard.set(newValue.customDomains, forKey: customDomainsKey)
+            defaults.set(newValue.selectedDomain, forKey: selectedDomainKey)
+            defaults.set(newValue.customDomains, forKey: customDomainsKey)
             NotificationCenter.default.post(name: didChangeNotification, object: nil)
         }
     }
 
+    private static var defaults: UserDefaults {
+        OpenMatesSharedEnvironment.defaults
+    }
+
     private static func migrateDebugDefaultIfNeeded() {
         #if DEBUG
-        guard !UserDefaults.standard.bool(forKey: debugDefaultMigrationKey) else { return }
-        let storedDomain = UserDefaults.standard.string(forKey: selectedDomainKey)
+        guard !defaults.bool(forKey: debugDefaultMigrationKey) else { return }
+        let storedDomain = defaults.string(forKey: selectedDomainKey)
         let normalizedDomain = storedDomain.map(ServerEndpointConfiguration.normalizedDomain)
         if normalizedDomain == nil || normalizedDomain == ServerEndpointConfiguration.productionDomain {
-            UserDefaults.standard.set(ServerEndpointConfiguration.developmentDomain, forKey: selectedDomainKey)
+            defaults.set(ServerEndpointConfiguration.developmentDomain, forKey: selectedDomainKey)
         }
-        let customDomains = UserDefaults.standard.stringArray(forKey: customDomainsKey)
+        let customDomains = defaults.stringArray(forKey: customDomainsKey)
             ?? ServerEndpointConfiguration.defaultCustomDomains
         let migratedDomains = ServerEndpointConfiguration(
             selectedDomain: ServerEndpointConfiguration.developmentDomain,
             customDomains: customDomains + [ServerEndpointConfiguration.developmentDomain]
         ).customDomains
-        UserDefaults.standard.set(migratedDomains, forKey: customDomainsKey)
-        UserDefaults.standard.set(true, forKey: debugDefaultMigrationKey)
+        defaults.set(migratedDomains, forKey: customDomainsKey)
+        defaults.set(true, forKey: debugDefaultMigrationKey)
         #endif
     }
 }
