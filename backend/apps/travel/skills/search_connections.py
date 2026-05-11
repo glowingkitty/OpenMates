@@ -13,6 +13,7 @@ The skill follows the standard BaseSkill request/response pattern with the
 import hashlib
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,6 +28,10 @@ from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_RESULTS = 20
+MAX_RESULTS_LIMIT = 50
+FILTER_OVERFETCH_MULTIPLIER = 3
 
 
 # ---------------------------------------------------------------------------
@@ -80,8 +85,8 @@ class SearchConnectionsRequestItem(BaseModel):
         description="Cabin class for flights. One of: economy, premium_economy, business, first.",
     )
     max_results: int = Field(
-        default=6,
-        description="Maximum number of connection options to return per transport method.",
+        default=DEFAULT_MAX_RESULTS,
+        description="Maximum number of connection options to return per transport method. Default 20, maximum 50.",
     )
     non_stop_only: bool = Field(
         default=False,
@@ -110,6 +115,34 @@ class SearchConnectionsRequestItem(BaseModel):
         default="price_asc",
         description="How to sort the results. Options: price_asc, price_desc, duration_asc, "
         "duration_desc, departure_asc, departure_desc, stops_asc, stops_desc.",
+    )
+    min_departure_time: Optional[str] = Field(
+        default=None,
+        description="Earliest acceptable departure time in HH:MM local time. Supports overnight windows with max_departure_time.",
+    )
+    max_departure_time: Optional[str] = Field(
+        default=None,
+        description="Latest acceptable departure time in HH:MM local time. Supports overnight windows with min_departure_time.",
+    )
+    min_arrival_time: Optional[str] = Field(
+        default=None,
+        description="Earliest acceptable arrival time in HH:MM local time. Supports overnight windows with max_arrival_time.",
+    )
+    max_arrival_time: Optional[str] = Field(
+        default=None,
+        description="Latest acceptable arrival time in HH:MM local time. Supports overnight windows with min_arrival_time.",
+    )
+    max_duration_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum total duration for the first leg, in minutes.",
+    )
+    max_layover_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum allowed layover/transfer duration, in minutes.",
+    )
+    avoid_overnight_layovers: bool = Field(
+        default=False,
+        description="If true, remove connections with any overnight layover/transfer.",
     )
 
 
@@ -217,7 +250,7 @@ class SearchConnectionsSkill(BaseSkill):
     - transport_methods: list of transport types to search (default: ["airplane"])
     - passengers: number of adult passengers (default: 1)
     - travel_class: cabin/travel class (default: "economy")
-    - max_results: max connection options per transport method (default: 5)
+    - max_results: max connection options per transport method (default: 20, max: 50)
     - non_stop_only: if true, only return direct connections (default: false)
     - currency: preferred currency for prices (default: "EUR")
 
@@ -353,13 +386,15 @@ class SearchConnectionsSkill(BaseSkill):
         infants_in_seat = req.get("infants_in_seat", 0)
         infants_on_lap = req.get("infants_on_lap", 0)
         travel_class = req.get("travel_class", "economy")
-        max_results = req.get("max_results", 5)
+        max_results = self._clamp_max_results(req.get("max_results", DEFAULT_MAX_RESULTS))
         non_stop_only = req.get("non_stop_only", False)
         max_stops = req.get("max_stops")
         include_airlines = req.get("include_airlines")
         exclude_airlines = req.get("exclude_airlines")
         currency = req.get("currency", "EUR")
         sort_by = req.get("sort_by", "price_asc")
+        result_filters = self._extract_result_filters(req)
+        provider_max_results = self._provider_fetch_limit(max_results, result_filters)
 
         # Validate legs
         if not legs or not isinstance(legs, list):
@@ -397,7 +432,7 @@ class SearchConnectionsSkill(BaseSkill):
                     infants_in_seat=infants_in_seat,
                     infants_on_lap=infants_on_lap,
                     travel_class=travel_class,
-                    max_results=max_results,
+                    max_results=provider_max_results,
                     non_stop_only=non_stop_only,
                     max_stops=max_stops,
                     include_airlines=include_airlines,
@@ -501,8 +536,12 @@ class SearchConnectionsSkill(BaseSkill):
 
             results.append(result_dict)
 
+        if result_filters:
+            results = self._filter_results(results, result_filters)
+
         # Sort results according to the requested sort_by parameter
         self._sort_results(results, sort_by)
+        results = results[:max_results]
 
         try:
             results = await sanitize_long_text_fields_in_payload(
@@ -526,6 +565,160 @@ class SearchConnectionsSkill(BaseSkill):
     # ------------------------------------------------------------------
     # Sorting helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _clamp_max_results(value: Any) -> int:
+        """Clamp requested result count to the supported range."""
+        try:
+            requested = int(value)
+        except (TypeError, ValueError):
+            requested = DEFAULT_MAX_RESULTS
+        return max(1, min(requested, MAX_RESULTS_LIMIT))
+
+    @staticmethod
+    def _extract_result_filters(req: Dict[str, Any]) -> Dict[str, Any]:
+        """Return only supported result-level filters that were explicitly set."""
+        filter_keys = (
+            "min_departure_time",
+            "max_departure_time",
+            "min_arrival_time",
+            "max_arrival_time",
+            "max_duration_minutes",
+            "max_layover_minutes",
+            "avoid_overnight_layovers",
+        )
+        return {
+            key: req[key]
+            for key in filter_keys
+            if req.get(key) not in (None, False, "")
+        }
+
+    @staticmethod
+    def _provider_fetch_limit(max_results: int, result_filters: Dict[str, Any]) -> int:
+        """Overfetch when post-provider filters are active so final results stay useful."""
+        if not result_filters:
+            return max_results
+        return min(MAX_RESULTS_LIMIT, max_results * FILTER_OVERFETCH_MULTIPLIER)
+
+    def _filter_results(
+        self,
+        results: List[Dict[str, Any]],
+        result_filters: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        """Apply cross-provider filters to normalized connection result dicts."""
+        filtered: List[Dict[str, Any]] = []
+        for result in results:
+            if not self._matches_time_window(
+                result.get("departure"),
+                result_filters.get("min_departure_time"),
+                result_filters.get("max_departure_time"),
+            ):
+                continue
+            if not self._matches_time_window(
+                result.get("arrival"),
+                result_filters.get("min_arrival_time"),
+                result_filters.get("max_arrival_time"),
+            ):
+                continue
+            if not self._matches_max_duration(result, result_filters.get("max_duration_minutes")):
+                continue
+            if not self._matches_layover_filters(
+                result,
+                result_filters.get("max_layover_minutes"),
+                bool(result_filters.get("avoid_overnight_layovers")),
+            ):
+                continue
+            filtered.append(result)
+        return filtered
+
+    @staticmethod
+    def _matches_time_window(
+        value: Any,
+        min_time: Optional[str],
+        max_time: Optional[str],
+    ) -> bool:
+        """Check a local HH:MM value against an optional inclusive time window."""
+        if not min_time and not max_time:
+            return True
+        value_minutes = SearchConnectionsSkill._extract_time_minutes(value)
+        if value_minutes is None:
+            return False
+        min_minutes = SearchConnectionsSkill._parse_time_minutes(min_time) if min_time else None
+        max_minutes = SearchConnectionsSkill._parse_time_minutes(max_time) if max_time else None
+        if min_time and min_minutes is None:
+            min_minutes = None
+        if max_time and max_minutes is None:
+            max_minutes = None
+        if min_minutes is not None and max_minutes is not None:
+            if min_minutes <= max_minutes:
+                return min_minutes <= value_minutes <= max_minutes
+            return value_minutes >= min_minutes or value_minutes <= max_minutes
+        if min_minutes is not None:
+            return value_minutes >= min_minutes
+        if max_minutes is not None:
+            return value_minutes <= max_minutes
+        return True
+
+    @staticmethod
+    def _matches_max_duration(result: Dict[str, Any], max_duration_minutes: Any) -> bool:
+        if max_duration_minutes in (None, ""):
+            return True
+        try:
+            max_minutes = int(max_duration_minutes)
+        except (TypeError, ValueError):
+            return True
+        duration_minutes = SearchConnectionsSkill._parse_duration_minutes(str(result.get("duration", "")))
+        if duration_minutes is None:
+            return False
+        return duration_minutes <= max_minutes
+
+    @staticmethod
+    def _matches_layover_filters(
+        result: Dict[str, Any],
+        max_layover_minutes: Any,
+        avoid_overnight_layovers: bool,
+    ) -> bool:
+        try:
+            max_minutes = int(max_layover_minutes) if max_layover_minutes not in (None, "") else None
+        except (TypeError, ValueError):
+            max_minutes = None
+
+        for leg in result.get("legs", []) or []:
+            for layover in leg.get("layovers", []) or []:
+                if avoid_overnight_layovers and layover.get("overnight"):
+                    return False
+                duration = layover.get("duration_minutes")
+                if max_minutes is not None and duration is not None and duration > max_minutes:
+                    return False
+        return True
+
+    @staticmethod
+    def _parse_time_minutes(value: Optional[str]) -> Optional[int]:
+        if not value or not isinstance(value, str):
+            return None
+        match = re.match(r"^(\d{1,2}):(\d{2})$", value.strip())
+        if not match:
+            return None
+        hours = int(match.group(1))
+        minutes = int(match.group(2))
+        if hours > 23 or minutes > 59:
+            return None
+        return hours * 60 + minutes
+
+    @staticmethod
+    def _extract_time_minutes(value: Any) -> Optional[int]:
+        if not value or not isinstance(value, str):
+            return None
+        match = re.search(r"(?:T|\s)(\d{2}):(\d{2})", value)
+        if not match:
+            match = re.match(r"^(\d{1,2}):(\d{2})$", value.strip())
+        if not match:
+            return None
+        hours = int(match.group(1))
+        minutes = int(match.group(2))
+        if hours > 23 or minutes > 59:
+            return None
+        return hours * 60 + minutes
 
     # Valid sort_by values and their defaults
     VALID_SORT_OPTIONS = {
