@@ -1078,6 +1078,11 @@ export class GroupRenderer implements EmbedRenderer {
       "processing") as "processing" | "finished" | "error";
     const taskId = decodedContent?.task_id;
     const results = decodedContent?.results || [];
+    const childEmbedIds = Array.isArray(embedData?.embed_ids)
+      ? embedData.embed_ids
+      : Array.isArray(decodedContent?.embed_ids)
+        ? decodedContent.embed_ids
+        : [];
 
     // Error embeds are kept in the group and rendered with status: 'error'.
     // The individual preview components handle the error state display (dimmed,
@@ -1331,6 +1336,7 @@ export class GroupRenderer implements EmbedRenderer {
 
       // Handle code.search_repos skill (GitHub repository search)
       if (appId === "code" && skillId === "search_repos") {
+        const repoSearchResults = results.length > 0 ? results : childEmbedIds;
         const component = mount(CodeRepoSearchEmbedPreview, {
           target,
           props: {
@@ -1338,7 +1344,7 @@ export class GroupRenderer implements EmbedRenderer {
             query: query || "",
             provider: provider || "GitHub",
             status,
-            results,
+            results: repoSearchResults,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
