@@ -13,6 +13,7 @@ The skill follows the standard BaseSkill request/response pattern with the
 import hashlib
 import json
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
@@ -26,6 +27,7 @@ from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_t
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
+from backend.apps.travel.providers.flix_provider import FlixProvider
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +67,8 @@ class SearchConnectionsRequestItem(BaseModel):
     transport_methods: List[str] = Field(
         default=["airplane"],
         description="Transport types to search. Supported: 'airplane' (worldwide via Google Flights), "
-        "'train' (Germany + select European routes via Deutsche Bahn).",
+        "'train' (Germany + select European routes via Deutsche Bahn and FlixTrain), "
+        "'bus' (FlixBus / Greyhound network where available).",
     )
     passengers: int = Field(default=1, description="Number of adult passengers.")
     children: int = Field(
@@ -167,6 +170,10 @@ PROVIDER_REGISTRY: Dict[str, Dict[str, str]] = {
         "name": "Deutsche Bahn",
         "icon_url": "https://www.bahn.de/favicon.ico",
     },
+    "flix": {
+        "name": "FlixBus / FlixTrain",
+        "icon_url": "https://www.flixbus.com/favicon.ico",
+    },
     # Add new providers here as they are integrated:
     # "trainline": {
     #     "name": "Trainline",
@@ -217,10 +224,16 @@ def _create_providers(
         secrets_manager: Optional SecretsManager for providers that need
             to load API keys from Vault.
     """
-    return [
+    providers: List[BaseTransportProvider] = [
         SerpApiProvider(secrets_manager=secrets_manager),
         DeutscheBahnProvider(),
     ]
+    if os.getenv("ENABLE_FLIX_PROVIDER", "true").lower() not in {"0", "false", "no"}:
+        providers.extend([
+            FlixProvider(supported_methods={"bus"}),
+            FlixProvider(supported_methods={"train"}),
+        ])
+    return providers
 
 
 def _get_providers_for_methods(
