@@ -105,6 +105,12 @@ test.describe('App: Code / Skill: search_repos', () => {
 			'code-search-repos'
 		);
 
+		const rejectMemoriesButton = page.getByRole('button', { name: /reject all/i });
+		if (await rejectMemoriesButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await rejectMemoriesButton.click();
+			logCheckpoint('Rejected optional memory permissions prompt.');
+		}
+
 		const embed = await waitForEmbedFinished(page, 'code', 'search_repos');
 		logCheckpoint('Code repo search embed finished.');
 		await takeStepScreenshot(page, 'repo-search-embed-finished');
