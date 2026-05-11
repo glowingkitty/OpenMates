@@ -51,39 +51,43 @@ After each code change:
 3. Compare against the web app (use `firecrawl_scrape` with `screenshot` format on the equivalent page)
 4. If mismatch: re-read the CSS, fix the Swift code, repeat
 
-### Physical iPhone deploys with a personal Apple team
+### Local Personal Team builds without paid Apple Developer Program
 
 Apple personal development teams cannot provision the Associated Domains
 capability. The normal `OpenMates.entitlements` file must keep
 `com.apple.developer.associated-domains` because passkeys/shared web credentials
-need it. Do not remove that entitlement from the source-of-truth file just to
-test on a phone.
+need it. The normal app/extension/widget entitlements also keep App Groups for
+production sharing. Do not remove those entitlements from the source-of-truth
+files just to test locally.
 
-For local iPhone smoke testing with a personal team, build with the reduced
-entitlements file instead:
+Use the local scripts instead. They build with reduced local entitlements and
+make the tradeoffs explicit.
 
 ```bash
-xcodebuild -project apple/OpenMates.xcodeproj \
-  -scheme OpenMates_iOS \
-  -configuration Debug \
-  -destination id=<DEVICE_ID> \
-  -derivedDataPath .derivedData/iphone-device-build \
-  -allowProvisioningUpdates \
-  CODE_SIGN_ENTITLEMENTS=OpenMates/Resources/OpenMatesPersonalTeam.entitlements \
-  build
+# Build, ad-hoc sign, install to /Applications, launch, and run Spotlight checks.
+scripts/apple_local_macos.sh
 
-xcrun devicectl device install app \
-  --device <DEVICE_ID> \
-  .derivedData/iphone-device-build/Build/Products/Debug-iphoneos/OpenMates.app
+# Build/install macOS app without launching.
+scripts/apple_local_macos.sh --no-launch --no-spotlight-check
 
-xcrun devicectl device process launch \
-  --device <DEVICE_ID> \
-  org.openmates.app
+# Build, install, and launch on the connected iPad.
+scripts/apple_local_ipad.sh
 ```
 
-This build intentionally has no Associated Domains entitlement, so passkeys and
-shared web credentials are not expected to work. Use it only for native UI,
-networking, chat rendering, and general device smoke tests.
+These builds intentionally have no Associated Domains entitlement. The macOS
+script also avoids production App Groups/shared keychain groups and removes the
+built app artifact's `OpenMatesKeychainAccessGroup` override so the local app
+uses default keychain access. Passkeys, shared web credentials, app group
+sharing, widgets, and share-extension data sharing are not expected to match
+production. Use these scripts for native UI, networking, chat rendering, sync,
+Spotlight indexing, and general device smoke tests.
+
+If `scripts/apple_local_ipad.sh` reports `No Accounts`, the shell running
+`xcodebuild` cannot access the Xcode account token needed to create Personal
+Team provisioning profiles. Run the same script once from Terminal. If Terminal
+shows the same error, open Xcode > Settings > Accounts, select the Personal
+Team, and refresh/download profiles. Do not add Associated Domains or App
+Groups back to the local Personal Team build to fix that error.
 
 ### Reminders
 
