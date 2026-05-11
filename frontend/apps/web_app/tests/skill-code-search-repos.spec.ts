@@ -113,6 +113,10 @@ test.describe('App: Code / Skill: search_repos', () => {
 
 		const embed = await waitForEmbedFinished(page, 'code', 'search_repos');
 		logCheckpoint('Code repo search embed finished.');
+		await expect(page.getByTestId('code-repo-search-count')).toContainText(/\d+ repositor(?:y|ies)/, {
+			timeout: 10_000
+		});
+		await expect(page.getByTestId('code-repo-search-count')).not.toContainText(/No results found/i);
 		await takeStepScreenshot(page, 'repo-search-embed-finished');
 
 		await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 120_000 });

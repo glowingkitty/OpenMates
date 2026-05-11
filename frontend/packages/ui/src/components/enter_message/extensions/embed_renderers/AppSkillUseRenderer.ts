@@ -2227,6 +2227,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       attrs.status ||
       "processing";
     const results = decodedContent?.results || [];
+    const resultCount = decodedContent?.result_count ?? embedData?.result_count;
+    const embedIds = decodedContent?.embed_ids ?? embedData?.embed_ids;
     const taskId = decodedContent?.task_id || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -2257,6 +2259,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
+          resultCount,
+          embedIds,
           taskId,
           isMobile: false,
           onFullscreen: handleFullscreen,

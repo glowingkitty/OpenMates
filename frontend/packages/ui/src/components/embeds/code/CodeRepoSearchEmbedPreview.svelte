@@ -16,6 +16,8 @@
     provider?: string;
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     results?: unknown[];
+    resultCount?: number | string;
+    embedIds?: unknown[] | string;
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
@@ -27,6 +29,8 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp,
+    resultCount: resultCountProp,
+    embedIds: embedIdsProp,
     taskId,
     isMobile = false,
     onFullscreen
@@ -36,6 +40,8 @@
   let provider = $state('GitHub');
   let status = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let results = $state<unknown[]>([]);
+  let explicitResultCount = $state<number | undefined>(undefined);
+  let embedIds = $state<unknown[] | string | undefined>(undefined);
   let errorMessage = $state('');
 
   $effect(() => {
@@ -43,11 +49,30 @@
     if (providerProp !== undefined) provider = providerProp || 'GitHub';
     if (statusProp !== undefined) status = statusProp || 'processing';
     if (resultsProp !== undefined) results = resultsProp || [];
+    if (resultCountProp !== undefined) explicitResultCount = normalizeResultCount(resultCountProp);
+    if (embedIdsProp !== undefined) embedIds = embedIdsProp;
   });
 
   let skillName = $derived($text('app_skills.code.search_repos'));
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
-  let resultCount = $derived(countResults(results));
+  let resultCount = $derived(explicitResultCount ?? countEmbedIds(embedIds) ?? countResults(results));
+
+  function normalizeResultCount(rawCount: number | string): number | undefined {
+    if (typeof rawCount === 'number' && Number.isFinite(rawCount)) return rawCount;
+    if (typeof rawCount === 'string') {
+      const parsed = Number.parseInt(rawCount, 10);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
+  }
+
+  function countEmbedIds(rawEmbedIds: unknown[] | string | undefined): number | undefined {
+    if (Array.isArray(rawEmbedIds)) return rawEmbedIds.length;
+    if (typeof rawEmbedIds === 'string') {
+      return rawEmbedIds.split('|').filter((id) => id.length > 0).length;
+    }
+    return undefined;
+  }
 
   function countResults(rawResults: unknown[]): number {
     if (!Array.isArray(rawResults)) return 0;
@@ -69,6 +94,10 @@
     if (typeof content.query === 'string') query = content.query;
     if (typeof content.provider === 'string') provider = content.provider;
     if (Array.isArray(content.results)) results = content.results;
+    if (typeof content.result_count === 'number' || typeof content.result_count === 'string') {
+      explicitResultCount = normalizeResultCount(content.result_count);
+    }
+    if (Array.isArray(content.embed_ids) || typeof content.embed_ids === 'string') embedIds = content.embed_ids;
     if (typeof content.error === 'string') errorMessage = content.error;
   }
 </script>
