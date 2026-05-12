@@ -1,0 +1,40 @@
+{
+  "fixture_id": "follow_up_suggestions",
+  "recorded_at": "2026-05-12T21:55:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "What is the capital of Japan?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Capital of Japan",
+    "icon_names": ["globe"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked about the capital of Japan",
+    "chat_tags": ["geography", "general-knowledge"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Capital of Japan"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "The capital of Japan is **Tokyo**. Tokyo is the country's political, economic, and cultural center, and it has served as Japan's capital since 1868.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 45,
+    "completion_tokens": 34,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}
