@@ -311,6 +311,7 @@ struct RichMarkdownView: View {
     let onOpenPublicChat: ((String) -> Void)?
     let embedLookup: [String: EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
+    let hiddenEmbedIds: Set<String>
     let onEmbedTap: ((EmbedRecord) -> Void)?
     private let blocks: [MarkdownBlock]
 
@@ -320,6 +321,7 @@ struct RichMarkdownView: View {
         onOpenPublicChat: ((String) -> Void)? = nil,
         embedLookup: [String: EmbedRecord] = [:],
         allEmbedRecords: [String: EmbedRecord] = [:],
+        hiddenEmbedIds: Set<String> = [],
         onEmbedTap: ((EmbedRecord) -> Void)? = nil
     ) {
         self.content = content
@@ -327,6 +329,7 @@ struct RichMarkdownView: View {
         self.onOpenPublicChat = onOpenPublicChat
         self.embedLookup = embedLookup
         self.allEmbedRecords = allEmbedRecords
+        self.hiddenEmbedIds = hiddenEmbedIds
         self.onEmbedTap = onEmbedTap
         self.blocks = MarkdownParser.parse(content)
     }
@@ -393,7 +396,9 @@ struct RichMarkdownView: View {
             DemoRichGroupView(kind: kind, onOpenPublicChat: onOpenPublicChat)
 
         case .embedGroup(let references):
-            let embeds = references.compactMap(resolveEmbed)
+            let embeds = references
+                .compactMap(resolveEmbed)
+                .filter { !hiddenEmbedIds.contains($0.id) }
             if !embeds.isEmpty {
                 if references.first?.isLargePreview == true {
                     LargeEmbedPreviewCarousel(embeds: embeds, allEmbedRecords: allEmbedRecords) { embed in

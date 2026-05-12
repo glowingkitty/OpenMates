@@ -8,6 +8,7 @@
 //          frontend/packages/ui/src/components/embeds/web/*.preview.ts
 //          frontend/packages/ui/src/components/embeds/images/*.preview.ts
 //          frontend/packages/ui/src/components/embeds/travel/*.preview.ts
+//          frontend/packages/ui/src/components/embeds/events/*.preview.ts
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case web
     case images
     case travel
+    case events
 
     var id: String { rawValue }
 
@@ -28,6 +30,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .web: return "Web"
         case .images: return "Images"
         case .travel: return "Travel"
+        case .events: return "Events"
         }
     }
 }
@@ -51,6 +54,8 @@ enum DevEmbedPreviewFixtures {
             return [imageGenerate, imagesSearch, imageResult, imageUpload, imageView]
         case .travel:
             return [travelSearch, travelConnection, travelPriceCalendar, travelStay, travelStays]
+        case .events:
+            return [eventsSearch, event]
         }
     }
 
@@ -362,6 +367,47 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "travel-stays", label: "Stays Search", primary: parent, children: children)
     }
 
+    // MARK: - Events
+
+    private static var eventsSearch: DevEmbedPreviewSkill {
+        let children = eventResults(parentId: "preview-events-search-1")
+        let parent = appSkill(
+            id: "preview-events-search-1",
+            type: EmbedType.eventsSearch.rawValue,
+            appId: "events",
+            skillId: "search",
+            data: [
+                "query": "AI meetups in Berlin",
+                "provider": "Meetup",
+                "providers": ["meetup"]
+            ],
+            embedIds: children.map(\.id).joined(separator: "|")
+        )
+        return skill(id: "events-search", label: "Search", primary: parent, children: children)
+    }
+
+    private static var event: DevEmbedPreviewSkill {
+        let embed = eventRecord(
+            id: "preview-event-1",
+            title: "AI & Machine Learning Berlin Meetup - Spring Edition",
+            dateStart: "2026-03-15T19:00:00+01:00",
+            dateEnd: "2026-03-15T22:00:00+01:00",
+            eventType: "PHYSICAL",
+            city: "Berlin",
+            country: "Germany",
+            rsvpCount: 142,
+            isPaid: false,
+            feeAmount: nil,
+            imageURL: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1200",
+            venueName: "Factory Berlin",
+            venueAddress: "Lohmühlenstraße 65",
+            venueLatitude: 52.5008,
+            venueLongitude: 13.4498,
+            parentId: nil
+        )
+        return skill(id: "events-event", label: "Event", primary: embed)
+    }
+
     // MARK: - Builders
 
     private static func skill(
@@ -429,7 +475,7 @@ enum DevEmbedPreviewFixtures {
     }
 
     private static func imageResultRecord(id: String, title: String, thumbnail: String, image: String, parentId: String?) -> EmbedRecord {
-        record(
+        return record(
             id: id,
             type: EmbedType.imagesImageResult.rawValue,
             appId: "images",
@@ -456,7 +502,10 @@ enum DevEmbedPreviewFixtures {
         carrierCodes: [String],
         parentId: String?
     ) -> EmbedRecord {
-        record(
+        let destinationCode = destination.contains("Gatwick") ? "LGW" : "LHR"
+        let destinationLatitude = destination.contains("Gatwick") ? 51.1537 : 51.4700
+        let destinationLongitude = destination.contains("Gatwick") ? -0.1821 : -0.4543
+        return record(
             id: id,
             type: EmbedType.travelConnection.rawValue,
             appId: "travel",
@@ -468,12 +517,44 @@ enum DevEmbedPreviewFixtures {
                 "trip_type": "one_way",
                 "origin": "Munich (MUC)",
                 "destination": destination,
+                "origin_country_code": "DE",
+                "destination_country_code": "GB",
                 "departure": departure,
                 "arrival": arrival,
                 "duration": duration,
                 "stops": stops,
                 "carrier_codes": carrierCodes,
-                "carriers": carrierCodes
+                "carriers": carrierCodes,
+                "booking_url": "https://www.google.com/travel/flights",
+                "booking_provider": "Google Flights",
+                "legs": [[
+                    "leg_index": 0,
+                    "origin": "Munich (MUC)",
+                    "destination": destination,
+                    "departure": departure,
+                    "arrival": arrival,
+                    "duration": duration,
+                    "stops": stops,
+                    "segments": [[
+                        "carrier": carrierCodes.first ?? "LH",
+                        "carrier_code": carrierCodes.first ?? "LH",
+                        "number": "\(carrierCodes.first ?? "LH") 123",
+                        "departure_station": "MUC",
+                        "departure_time": departure,
+                        "departure_country_code": "DE",
+                        "departure_is_daytime": false,
+                        "departure_latitude": 48.3538,
+                        "departure_longitude": 11.7861,
+                        "arrival_station": destinationCode,
+                        "arrival_time": arrival,
+                        "arrival_country_code": "GB",
+                        "arrival_is_daytime": false,
+                        "arrival_latitude": destinationLatitude,
+                        "arrival_longitude": destinationLongitude,
+                        "duration": duration,
+                        "travel_class": "Economy"
+                    ]]
+                ]]
             ],
             parentEmbedId: parentId
         )
@@ -503,10 +584,129 @@ enum DevEmbedPreviewFixtures {
                 "rate_per_night": ratePerNight,
                 "price_per_night": Double(ratePerNight) ?? 0,
                 "total_rate": totalRate,
+                "link": "https://www.google.com/travel/hotels",
+                "thumbnail": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200",
+                "gps_coordinates": [
+                    "latitude": 41.3874,
+                    "longitude": 2.1686
+                ],
                 "amenities": ["Free Wi-Fi", "Breakfast included", "Spa", "Fitness center"],
                 "free_cancellation": true,
                 "eco_certified": true
             ],
+            parentEmbedId: parentId
+        )
+    }
+
+    private static func eventResults(parentId: String) -> [EmbedRecord] {
+        [
+            eventRecord(
+                id: "preview-events-result-1",
+                title: "AI & Machine Learning Berlin Meetup - Spring Edition",
+                dateStart: "2026-03-15T19:00:00+01:00",
+                dateEnd: "2026-03-15T22:00:00+01:00",
+                eventType: "PHYSICAL",
+                city: "Berlin",
+                country: "Germany",
+                rsvpCount: 142,
+                isPaid: false,
+                feeAmount: nil,
+                imageURL: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1200",
+                venueName: "Factory Berlin",
+                venueAddress: "Lohmühlenstraße 65",
+                venueLatitude: 52.5008,
+                venueLongitude: 13.4498,
+                parentId: parentId
+            ),
+            eventRecord(
+                id: "preview-events-result-2",
+                title: "TypeScript Deep Dive: Advanced Patterns for Scalable Apps",
+                dateStart: "2026-03-20T18:00:00Z",
+                dateEnd: "2026-03-20T20:00:00Z",
+                eventType: "ONLINE",
+                city: nil,
+                country: nil,
+                rsvpCount: 87,
+                isPaid: false,
+                feeAmount: nil,
+                imageURL: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200",
+                venueName: nil,
+                venueAddress: nil,
+                venueLatitude: nil,
+                venueLongitude: nil,
+                parentId: parentId
+            ),
+            eventRecord(
+                id: "preview-events-result-3",
+                title: "Product Management Summit - London 2026",
+                dateStart: "2026-04-05T09:00:00+01:00",
+                dateEnd: "2026-04-06T17:00:00+01:00",
+                eventType: "PHYSICAL",
+                city: "London",
+                country: "United Kingdom",
+                rsvpCount: 320,
+                isPaid: true,
+                feeAmount: 25,
+                imageURL: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=1200",
+                venueName: "Business Design Centre",
+                venueAddress: "52 Upper Street",
+                venueLatitude: 51.5356,
+                venueLongitude: -0.1066,
+                parentId: parentId
+            )
+        ]
+    }
+
+    private static func eventRecord(
+        id: String,
+        title: String,
+        dateStart: String,
+        dateEnd: String,
+        eventType: String,
+        city: String?,
+        country: String?,
+        rsvpCount: Int,
+        isPaid: Bool,
+        feeAmount: Double?,
+        imageURL: String?,
+        venueName: String?,
+        venueAddress: String?,
+        venueLatitude: Double?,
+        venueLongitude: Double?,
+        parentId: String?
+    ) -> EmbedRecord {
+        var data: [String: Any] = [
+            "type": "event_result",
+            "provider": "meetup",
+            "title": title,
+            "description": "Join us for an evening of talks, creative exchange, and community networking.",
+            "url": "https://www.meetup.com/example-ai-berlin/events/preview",
+            "date_start": dateStart,
+            "date_end": dateEnd,
+            "timezone": "Europe/Berlin",
+            "event_type": eventType,
+            "organizer_name": "AI Berlin Community",
+            "rsvp_count": rsvpCount,
+            "is_paid": isPaid,
+            "app_id": "events",
+            "skill_id": "search"
+        ]
+        if let imageURL { data["image_url"] = imageURL }
+        if let venueName { data["venue_name"] = venueName }
+        if let venueAddress { data["venue_address"] = venueAddress }
+        if let venueLatitude { data["venue_lat"] = venueLatitude }
+        if let venueLongitude { data["venue_lon"] = venueLongitude }
+        if let city { data["venue_city"] = city }
+        if let country { data["venue_country"] = country }
+        if let feeAmount {
+            data["fee_amount"] = feeAmount
+            data["fee_currency"] = "GBP"
+        }
+        return record(
+            id: id,
+            type: EmbedType.eventsEvent.rawValue,
+            appId: "events",
+            data: data,
             parentEmbedId: parentId
         )
     }

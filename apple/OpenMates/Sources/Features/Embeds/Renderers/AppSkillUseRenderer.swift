@@ -56,7 +56,7 @@ struct AppSkillUseRenderer: View {
     private var skillTitle: String {
         switch (appId, skillId) {
         case ("web", "search"), ("news", "search"): return "Search"
-        case ("images", "search"), ("videos", "search"): return "Search"
+        case ("events", "search"), ("images", "search"), ("videos", "search"): return "Search"
         case ("code", "get_docs"): return "Docs"
         case ("web", "read"): return "Read"
         case ("math", "calculate"): return "Calculate"
@@ -85,6 +85,8 @@ struct AppSkillUseRenderer: View {
                     return type == .imagesImageResult || type == .image
                 case "videos":
                     return type == .videosVideo
+                case "events":
+                    return type == .eventsEvent
                 default:
                     return child.appId == appId
                 }
@@ -115,6 +117,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(ImageEmbedRenderer(data: data, mode: .preview))
         } else if appId == "code", skillId == "get_docs" {
             return AnyView(CodeGetDocsEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "events", skillId == "search" {
+            return AnyView(EventsSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "travel", skillId == "search_connections" {
             return AnyView(TravelSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "travel", skillId == "search_stays" {
@@ -204,6 +208,8 @@ struct AppSkillUseRenderer: View {
             ImageEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "code", skillId == "get_docs" {
             CodeGetDocsEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "events", skillId == "search" {
+            EventsSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "travel", skillId == "search_connections" {
             TravelSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "travel", skillId == "search_stays" {

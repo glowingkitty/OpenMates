@@ -18,7 +18,7 @@ function parseArgs(argv) {
   const options = {
     baseUrl: 'https://app.dev.openmates.org',
     out: path.join(repoRoot, 'test-results', 'apple-embed-visual'),
-    apps: ['web', 'images', 'travel', 'code'],
+    apps: ['web', 'images', 'travel', 'code', 'events'],
     theme: 'dark',
     viewport: '402,874',
     iosScreenshots: {},
@@ -58,6 +58,9 @@ function parseArgs(argv) {
       case '--ios-code':
         options.iosScreenshots.code = path.resolve(next());
         break;
+      case '--ios-events':
+        options.iosScreenshots.events = path.resolve(next());
+        break;
       case '--web-web-crop':
         options.webCrops.web = next();
         break;
@@ -70,6 +73,9 @@ function parseArgs(argv) {
       case '--web-code-crop':
         options.webCrops.code = next();
         break;
+      case '--web-events-crop':
+        options.webCrops.events = next();
+        break;
       case '--ios-web-crop':
         options.iosCrops.web = next();
         break;
@@ -81,6 +87,9 @@ function parseArgs(argv) {
         break;
       case '--ios-code-crop':
         options.iosCrops.code = next();
+        break;
+      case '--ios-events-crop':
+        options.iosCrops.events = next();
         break;
       case '--capture-only':
         options.captureOnly = true;
@@ -104,7 +113,7 @@ function printUsage() {
 Options:
   --base-url URL             Baseline host (default: https://app.dev.openmates.org)
   --out DIR                  Artifact directory (default: test-results/apple-embed-visual)
-  --apps web,images,travel,code
+  --apps web,images,travel,code,events
                               Apps to capture
   --theme dark|light         Browser color scheme (default: dark)
   --viewport 402x874         Browser viewport (default: 402x874)
@@ -112,6 +121,7 @@ Options:
   --ios-images PATH          Simulator screenshot for images comparison
   --ios-travel PATH          Simulator screenshot for travel comparison
   --ios-code PATH            Simulator screenshot for code comparison
+  --ios-events PATH          Simulator screenshot for events comparison
   --web-*-crop x,y,w,h       Crop applied to the matching web baseline screenshot
   --ios-*-crop x,y,w,h       Crop applied to the matching iOS screenshot
   --capture-only             Skip comparisons even if iOS screenshots are passed

@@ -133,9 +133,15 @@ struct EmbedContentView: View {
 
             // Events
             case .eventsSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "events")
+                EventsSearchEmbedRenderer(
+                    embed: embed,
+                    data: rawData,
+                    mode: mode,
+                    allEmbedRecords: allEmbedRecords,
+                    onOpenEmbed: onOpenEmbed
+                )
             case .eventsEvent:
-                EventRenderer(data: rawData, mode: mode)
+                EventEmbedRenderer(data: rawData, mode: mode)
 
             // Health
             case .healthSearch:

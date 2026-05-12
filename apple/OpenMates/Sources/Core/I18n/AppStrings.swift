@@ -288,6 +288,13 @@ enum AppStrings {
     static var decryptingPDF: String { L("embed.decrypting_pdf") }
     static var snippets: String { L("embeds.snippets") }
     static var viaBraveSearch: String { L("embeds.via_brave_search") }
+    static var via: String { L("embeds.via") }
+    static var searchFailed: String { L("embeds.search_failed") }
+    static var genericProcessingError: String { L("chat.an_error_occured") }
+    static var imageSearchViewSource: String { L("embeds.image_search.view_source") }
+    static var imageSearchOpenImage: String { L("embeds.image_search.open_image") }
+    static var imageGenerateGeneratedBy: String { L("embeds.image_generate.generated_by") }
+    static var imageGenerateGeneratingVia: String { L("embeds.image_generate.generating_via") }
     static var copy: String { L("common.copy") }
     static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
     static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
@@ -297,8 +304,41 @@ enum AppStrings {
         LocalizationManager.shared.text("embeds.open_on_provider", replacements: ["provider": provider])
     }
 
+    static func bookOnProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.book_on", replacements: ["provider": provider])
+    }
+
+    static func registerOnProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.register_on_provider", replacements: ["provider": provider])
+    }
+
+    static var openGoogleFlights: String {
+        L("embeds.open_google_flights")
+    }
+
+    static var getBookingLink: String {
+        L("embeds.get_booking_link")
+    }
+
+    static var perNight: String { L("embeds.per_night") }
+    static var total: String { L("embeds.total") }
+    static var reviews: String { L("embeds.reviews") }
+    static var freeCancellation: String { L("embeds.free_cancellation") }
+    static var ecoCertified: String { L("embeds.eco_certified") }
+    static var viewOnGoogleHotels: String { L("embeds.view_on_google_hotels") }
+    static var zoomIn: String { L("sketchview.zoom_in") }
+    static var zoomOut: String { L("sketchview.zoom_out") }
+
     static func dataFrom(_ date: String) -> String {
         LocalizationManager.shared.text("embeds.data_from", replacements: ["date": date])
+    }
+
+    static func moreResults(_ count: Int) -> String {
+        LocalizationManager.shared.text("embeds.more_results", replacements: ["count": "\(count)"])
+    }
+
+    static func searchNoResults(for query: String) -> String {
+        LocalizationManager.shared.text("embeds.search_no_results_for_query", replacements: ["query": query])
     }
 
     static func generatedBy(_ model: String) -> String {

@@ -1793,6 +1793,11 @@ no_results:
   sv: Inga förbindelser hittades.
   he: לא נמצאו חיבורים.
   verified_by_human: [en, de]
+register_on_provider:
+  context: Button label to register for an event on a provider website, e.g. 'Register on Meetup'
+  en: Register on {provider}
+  de: Auf {provider} registrieren
+  verified_by_human: [en]
 book_on:
   context: CTA button text, e.g. 'Book on Google Flights'
   en: Book on {provider}

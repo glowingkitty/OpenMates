@@ -233,7 +233,12 @@ struct EmbedPreviewCard: View {
     }
 
     private var showsSkillIcon: Bool {
-        if embedType == .codeCode || embedType == .webWebsite || embedType == .videosVideo || embedType == .imagesImageResult {
+        if embedType == .codeCode
+            || embedType == .webWebsite
+            || embedType == .videosVideo
+            || embedType == .imagesImageResult
+            || embedType == .eventsEvent
+            || embedType == .travelConnection {
             return false
         }
         return true
@@ -258,6 +263,22 @@ struct EmbedPreviewCard: View {
         }
         if embedType == .imagesImageResult {
             return sourceDomain ?? embedType?.displayName ?? embed.type
+        }
+        if embedType == .eventsEvent {
+            return firstString(in: embed.rawData ?? [:], keys: ["title", "name"])
+                ?? embedType?.displayName
+                ?? embed.type
+        }
+        if embedType == .travelConnection {
+            let raw = embed.rawData ?? [:]
+            let origin = firstString(in: raw, keys: ["origin_code", "departure_airport_code", "from_code", "origin"])
+            let destination = firstString(in: raw, keys: ["destination_code", "arrival_airport_code", "to_code", "destination"])
+            if let origin, let destination {
+                return "\(origin) → \(destination)"
+            }
+            return firstString(in: raw, keys: ["title", "route"])
+                ?? embedType?.displayName
+                ?? embed.type
         }
         if embed.isAppSkillUse {
             return skillDisplayName
@@ -326,8 +347,10 @@ struct EmbedPreviewCard: View {
         let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? "web"
         let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? "search"
         switch (appId, skillId) {
-        case ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
+        case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
             return LocalizationManager.shared.text("common.search")
+        case ("travel", "search_connections"):
+            return "Search connections"
         case ("code", "get_docs"):
             return LocalizationManager.shared.text("common.docs")
         default:

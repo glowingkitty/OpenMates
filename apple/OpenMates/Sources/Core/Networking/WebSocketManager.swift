@@ -5,13 +5,22 @@
 import Foundation
 
 @MainActor
-final class WebSocketManager: ObservableObject {
+final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDelegate {
     @Published private(set) var connectionState: ConnectionState = .disconnected
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var pingTimer: Timer?
-    private let session: URLSession
     private let decoder = JSONDecoder()
+    private var connectTask: Task<Void, Never>?
+    private var activeConnectionKey: ConnectionKey?
+    private var didOpenCurrentSocket = false
+    private lazy var session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.httpCookieAcceptPolicy = .always
+        config.httpShouldSetCookies = true
+        config.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+    }()
 
     enum ConnectionState: Equatable {
         case disconnected
@@ -26,26 +35,42 @@ final class WebSocketManager: ObservableObject {
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
 
-    init() {
-        let config = URLSessionConfiguration.default
-        config.httpCookieAcceptPolicy = .always
-        config.httpShouldSetCookies = true
-        config.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
-        self.session = URLSession(configuration: config)
+    override init() {
+        super.init()
     }
 
-    func connect(sessionId: String, token: String?) {
+    func connect(
+        sessionId: String,
+        token: String?,
+        syncState: SyncClientState = .empty
+    ) {
+        let nextKey = ConnectionKey(sessionId: sessionId, token: token)
+        if activeConnectionKey == nextKey {
+            switch connectionState {
+            case .connected:
+                return
+            case .connecting:
+                return
+            case .disconnected, .reconnecting:
+                break
+            }
+        }
+
+        connectTask?.cancel()
         pingTimer?.invalidate()
         pingTimer = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
+        didOpenCurrentSocket = false
 
         self.sessionId = sessionId
         self.authToken = token
+        activeConnectionKey = nextKey
         shouldReconnect = true
         connectionState = .connecting
 
-        Task {
+        connectTask = Task { [weak self] in
+            guard let self else { return }
             let baseURL = await APIClient.shared.baseURL
             let origin = await APIClient.shared.webAppURL.absoluteString
             guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
@@ -69,7 +94,7 @@ final class WebSocketManager: ObservableObject {
             webSocketTask = session.webSocketTask(with: request)
             webSocketTask?.resume()
 
-            guard await waitForOpenSocket() else {
+            guard await waitForOpenSocket(), !Task.isCancelled else {
                 print("[WS] Connection probe failed before sync request")
                 handleDisconnect()
                 return
@@ -79,17 +104,21 @@ final class WebSocketManager: ObservableObject {
             reconnectDelay = 1.0
             startPingTimer()
             receiveMessages()
-            try? await requestPhasedSync()
+            try? await requestPhasedSync(syncState: syncState)
         }
     }
 
     func disconnect() {
         shouldReconnect = false
+        connectTask?.cancel()
+        connectTask = nil
         pingTimer?.invalidate()
         pingTimer = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
         authToken = nil
+        activeConnectionKey = nil
+        didOpenCurrentSocket = false
         connectionState = .disconnected
     }
 
@@ -120,8 +149,21 @@ final class WebSocketManager: ObservableObject {
         ))
     }
 
+    func requestPhasedSync(syncState: SyncClientState) async throws {
+        try await requestPhasedSync(
+            clientChatVersions: syncState.clientChatVersions,
+            clientChatIds: syncState.clientChatIds,
+            clientSuggestionsCount: syncState.clientSuggestionsCount,
+            clientEmbedIds: syncState.clientEmbedIds
+        )
+    }
+
     private func waitForOpenSocket() async -> Bool {
-        try? await Task.sleep(for: .milliseconds(650))
+        for _ in 0..<30 {
+            if Task.isCancelled { return false }
+            if didOpenCurrentSocket { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
         guard let task = webSocketTask else { return false }
         return await withCheckedContinuation { continuation in
             task.sendPing { error in
@@ -367,6 +409,9 @@ final class WebSocketManager: ObservableObject {
                 self?.webSocketTask?.sendPing { error in
                     if let error {
                         print("[WS] Ping error: \(error.localizedDescription)")
+                        Task { @MainActor in
+                            self?.handleDisconnect()
+                        }
                     }
                 }
             }
@@ -403,6 +448,48 @@ final class WebSocketManager: ObservableObject {
             }
         }
     }
+
+    nonisolated func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didOpenWithProtocol protocol: String?
+    ) {
+        Task { @MainActor [weak self] in
+            guard let self, self.webSocketTask?.taskIdentifier == webSocketTask.taskIdentifier else { return }
+            self.didOpenCurrentSocket = true
+        }
+    }
+
+    nonisolated func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
+        reason: Data?
+    ) {
+        Task { @MainActor [weak self] in
+            guard let self, self.webSocketTask?.taskIdentifier == webSocketTask.taskIdentifier else { return }
+            self.handleDisconnect()
+        }
+    }
+}
+
+struct SyncClientState: Equatable {
+    let clientChatVersions: [String: [String: Int]]
+    let clientChatIds: [String]
+    let clientSuggestionsCount: Int
+    let clientEmbedIds: [String]
+
+    static let empty = SyncClientState(
+        clientChatVersions: [:],
+        clientChatIds: [],
+        clientSuggestionsCount: 0,
+        clientEmbedIds: []
+    )
+}
+
+private struct ConnectionKey: Equatable {
+    let sessionId: String
+    let token: String?
 }
 
 // MARK: - Parsed inbound message with field accessors

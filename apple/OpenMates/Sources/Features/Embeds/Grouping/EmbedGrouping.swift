@@ -126,6 +126,7 @@ struct GroupedEmbedView: View {
                 }
             }
         }
+        .frame(height: 200)
     }
 
     private var verticalStack: some View {

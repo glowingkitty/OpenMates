@@ -1203,6 +1203,10 @@ fileprivate enum PublicChatContent {
         let embedded = attachEmbeds(to: messages)
         let demoRecords = demoEmbedRecords(for: id)
         let embedRecords = embedded.records.merging(demoRecords) { _, demo in demo }
+        let messagesWithDemoRefs = attachDemoAppSkillRefs(
+            to: embedded.messages,
+            demoRecords: demoRecords
+        )
 
         return PublicChat(
             chat: Chat(
@@ -1217,7 +1221,7 @@ fileprivate enum PublicChatContent {
                 encryptedTitle: nil,
                 encryptedChatKey: nil
             ),
-            messages: embedded.messages,
+            messages: messagesWithDemoRefs,
             followUpSuggestions: followUpKeys.map(text).filter { !$0.isEmpty && !$0.contains(".follow_up_") },
             embedRecords: embedRecords
         )
@@ -1293,6 +1297,70 @@ fileprivate enum PublicChatContent {
             )
         }
         return (updatedMessages, records)
+    }
+
+    private static func attachDemoAppSkillRefs(
+        to messages: [Message],
+        demoRecords: [String: EmbedRecord]
+    ) -> [Message] {
+        let parentRecords = EmbedRecord.deduplicatedById(
+            Array(demoRecords.values),
+            context: "publicChat.demoAppSkillRefs"
+        )
+            .filter(\.isAppSkillUse)
+        guard !parentRecords.isEmpty else { return messages }
+
+        var assignedParentIds = Set<String>()
+        var updatedMessages = messages.map { message in
+            guard message.role == .assistant else { return message }
+            let existingRefs = message.embedRefs ?? []
+            let existingIds = Set(existingRefs.map(\.id))
+            let matchingParents = parentRecords.filter { parent in
+                guard !existingIds.contains(parent.id) else { return false }
+                let childIds = Set(parent.childEmbedIds)
+                return !childIds.isEmpty && !childIds.isDisjoint(with: existingIds)
+            }
+            guard !matchingParents.isEmpty else { return message }
+            assignedParentIds.formUnion(matchingParents.map(\.id))
+            return messageWithEmbedRefs(
+                message,
+                refs: matchingParents.map(embedRef) + existingRefs
+            )
+        }
+
+        let unassignedParents = parentRecords.filter { !assignedParentIds.contains($0.id) }
+        guard !unassignedParents.isEmpty,
+              let lastAssistantIndex = updatedMessages.lastIndex(where: { $0.role == .assistant })
+        else { return updatedMessages }
+
+        let target = updatedMessages[lastAssistantIndex]
+        let existingRefs = target.embedRefs ?? []
+        let existingIds = Set(existingRefs.map(\.id))
+        let newRefs = unassignedParents
+            .filter { !existingIds.contains($0.id) }
+            .map(embedRef)
+        guard !newRefs.isEmpty else { return updatedMessages }
+        updatedMessages[lastAssistantIndex] = messageWithEmbedRefs(
+            target,
+            refs: newRefs + existingRefs
+        )
+        return updatedMessages
+    }
+
+    private static func messageWithEmbedRefs(_ message: Message, refs: [EmbedRef]) -> Message {
+        Message(
+            id: message.id,
+            chatId: message.chatId,
+            role: message.role,
+            content: message.content,
+            encryptedContent: message.encryptedContent,
+            createdAt: message.createdAt,
+            updatedAt: message.updatedAt,
+            appId: message.appId,
+            isStreaming: message.isStreaming,
+            embedRefs: refs,
+            modelName: message.modelName
+        )
     }
 
     private static func extractEmbeds(from content: String, fallbackAppId: String?) -> (content: String, refs: [EmbedRef], records: [EmbedRecord]) {
@@ -1432,7 +1500,8 @@ fileprivate enum PublicChatContent {
             let embedId = String(source[idRange])
             let block = String(source[blockRange])
             guard let rawType = firstRegexCapture(#"type:\s*"([^"]+)""#, in: block),
-                  let content = firstRegexCapture(#"content:\s*`([\s\S]*?)`"#, in: block) else { continue }
+                  let rawContent = firstRegexCapture(#"content:\s*`([\s\S]*?)`"#, in: block) else { continue }
+            let content = unescapedDemoEmbedContent(rawContent)
             var data = parseToonObject(content)
             data["embed_id"] = embedId
             data["type"] = data["type"] ?? rawType
@@ -1446,7 +1515,7 @@ fileprivate enum PublicChatContent {
             let skillId = data["skill_id"] as? String
             let normalizedType = normalizedEmbedType(from: rawType, appId: appId, skillId: skillId)
 
-            records[embedId] = embedRecord(
+            let record = embedRecord(
                 id: embedId,
                 type: normalizedType,
                 appId: appId ?? EmbedType(rawValue: normalizedType)?.appId,
@@ -1455,8 +1524,19 @@ fileprivate enum PublicChatContent {
                 parentEmbedId: parentEmbedId,
                 embedIds: embedIds
             )
+            records[embedId] = record
+            if let embedRef = data["embed_ref"] as? String, !embedRef.isEmpty {
+                records[embedRef] = record
+            }
         }
         return records
+    }
+
+    private static func unescapedDemoEmbedContent(_ content: String) -> String {
+        content
+            .replacingOccurrences(of: #"\n"#, with: "\n")
+            .replacingOccurrences(of: #"\""#, with: "\"")
+            .replacingOccurrences(of: #"\u20ac"#, with: "€")
     }
 
     private static func firstRegexCapture(_ pattern: String, in text: String) -> String? {
@@ -1484,14 +1564,19 @@ fileprivate enum PublicChatContent {
         case "example-artemis-ii-mission": return "artemis-ii-mission.ts"
         case "example-beautiful-single-page-html": return "beautiful-single-page-html.ts"
         case "example-eu-chat-control-law": return "eu-chat-control-law-criticisms.ts"
-        case "example-flights-berlin-bangkok": return "flights-berlin-bangkok.ts"
+        case "example-flights-berlin-bangkok": return "flights-berlin-to-bangkok.ts"
         case "example-creativity-drawing-meetups-berlin": return "creativity-drawing-meetups-berlin.ts"
         default: return nil
         }
     }
 
     private static func demoEmbedURL(fileName: String) -> URL? {
+        let resourceName = (fileName as NSString).deletingPathExtension
+        let resourceExtension = (fileName as NSString).pathExtension
         let bundleCandidates = [
+            Bundle.main.url(forResource: resourceName, withExtension: resourceExtension, subdirectory: "example_chats"),
+            Bundle.main.url(forResource: resourceName, withExtension: resourceExtension, subdirectory: "demo_chats/example_chats"),
+            Bundle.main.url(forResource: resourceName, withExtension: resourceExtension),
             Bundle.main.url(forResource: fileName, withExtension: nil, subdirectory: "example_chats"),
             Bundle.main.url(forResource: fileName, withExtension: nil, subdirectory: "demo_chats/example_chats"),
             Bundle.main.url(forResource: fileName, withExtension: nil)
@@ -1552,6 +1637,12 @@ fileprivate enum PublicChatContent {
         }
         if type == "image_result" {
             return "images-image-result"
+        }
+        if type == "connection" {
+            return "travel-connection"
+        }
+        if type == "event_result" || type == "event" {
+            return "events-event"
         }
         if type == "video_result" {
             return "videos-video"

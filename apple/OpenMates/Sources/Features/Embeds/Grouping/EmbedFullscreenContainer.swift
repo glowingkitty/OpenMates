@@ -52,6 +52,15 @@ struct EmbedFullscreenContainer: View {
         currentEmbedType == .sheetsSheet
     }
 
+    private var usesEdgeToEdgeContent: Bool {
+        switch currentEmbedType {
+        case .eventsEvent, .travelConnection, .travelStay:
+            return true
+        default:
+            return false
+        }
+    }
+
     private var isCodePreviewable: Bool {
         guard let payload = currentEmbed?.codePayload else { return false }
         let language = payload.language.lowercased()
@@ -82,6 +91,8 @@ struct EmbedFullscreenContainer: View {
                                 onNavigateNext: { withAnimation { currentIndex += 1 } },
                                 headerCTA: headerCTA(for: embed)
                             )
+                            .zIndex(2)
+
                             EmbedContentView(
                                 embed: embed,
                                 mode: .fullscreen,
@@ -92,8 +103,9 @@ struct EmbedFullscreenContainer: View {
                                     showChildFullscreen = true
                                 }
                             )
-                                .padding(.horizontal, .spacing8)
-                                .padding(.vertical, .spacing10)
+                                .padding(.horizontal, usesEdgeToEdgeContent ? 0 : .spacing8)
+                                .padding(.vertical, usesEdgeToEdgeContent ? 0 : .spacing10)
+                                .zIndex(0)
 
                             if !embed.isAppSkillUse && !childEmbeds.isEmpty {
                                 childEmbedSection
@@ -101,7 +113,7 @@ struct EmbedFullscreenContainer: View {
                         }
                     }
                     .background(Color.grey20)
-                    .containerRelativeFrame([.horizontal, .vertical])
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                     EmbedFullscreenTopBar(
                         embed: embed,
@@ -169,6 +181,44 @@ struct EmbedFullscreenContainer: View {
                 }
             }
             return nil
+
+        case .eventsEvent:
+            guard let url = firstString(["url", "booking_url"], in: data) else { return nil }
+            let event = EventResultSummary(embedId: embed.id, data: data)
+            let provider = event.providerLabel ?? host(from: url)
+            let normalizedProvider = event.provider?.lowercased() ?? ""
+            let title: String
+            if ["luma", "eventbrite", "meetup"].contains(normalizedProvider) {
+                title = AppStrings.registerOnProvider(provider)
+            } else if ["classictic", "berlin_philharmonic", "bachtrack", "ticketmaster", "eventim", "dice"].contains(normalizedProvider) {
+                title = AppStrings.bookOnProvider(provider)
+            } else {
+                title = AppStrings.openOnProvider(provider)
+            }
+            return EmbedHeaderCTA(title: title) {
+                openExternalURL(url)
+            }
+
+        case .travelConnection:
+            let connection = TravelConnectionSummary(embedId: embed.id, data: data)
+            if let bookingURL = connection.bookingURL {
+                let provider = connection.bookingProvider ?? connection.carrierCodes.first ?? host(from: bookingURL)
+                return EmbedHeaderCTA(title: AppStrings.bookOnProvider(provider)) {
+                    openExternalURL(bookingURL)
+                }
+            }
+            if let googleFlightsURL = connection.googleFlightsURL {
+                return EmbedHeaderCTA(title: AppStrings.openGoogleFlights) {
+                    openExternalURL(googleFlightsURL)
+                }
+            }
+            return nil
+
+        case .travelStay:
+            guard let url = firstString(["link", "url", "booking_url"], in: data) else { return nil }
+            return EmbedHeaderCTA(title: AppStrings.viewOnGoogleHotels) {
+                openExternalURL(url)
+            }
 
         default:
             return nil
@@ -456,6 +506,12 @@ struct EmbedFullscreenHeader: View {
     private var embedType: EmbedType? { EmbedType(rawValue: embed.type) }
     private var appId: String { embed.appId ?? embedType?.appId ?? "web" }
     private var headerHeight: CGFloat { horizontalSizeClass == .compact ? 190 : 240 }
+    private var headerFrameHeight: CGFloat {
+        headerHeight
+    }
+    private var ctaOffsetY: CGFloat {
+        headerHeight - 22
+    }
     private var skillIconName: String {
         switch embed.skillId {
         case "search": return "search"
@@ -474,10 +530,10 @@ struct EmbedFullscreenHeader: View {
 
             if let headerCTA {
                 headerCTAButton(headerCTA)
-                    .offset(y: headerHeight - 22)
+                    .offset(y: ctaOffsetY)
             }
         }
-        .frame(height: headerHeight + (headerCTA == nil ? 0 : 28))
+        .frame(height: headerFrameHeight)
         .onAppear { animateHeader = true }
     }
 
@@ -597,7 +653,7 @@ struct EmbedFullscreenHeader: View {
             return table.title ?? LocalizationManager.shared.text("embeds.table")
         }
         if let connection = travelConnection {
-            return connection.routeFull ?? EmbedType.travelConnection.displayName
+            return connection.priceHeader ?? EmbedType.travelConnection.displayName
         }
         if embedType == .travelConnections, let first = travelSearchConnections.first {
             return [first.routeFull, first.departureDateText].compactMap { $0 }.joined(separator: " · ")
@@ -622,7 +678,7 @@ struct EmbedFullscreenHeader: View {
             return table.dimensionsText
         }
         if let connection = travelConnection {
-            return [connection.priceText.map { "\($0) | \(connection.tripTypeLabel)" }, connection.metaLine].compactMap { $0 }.joined(separator: "\n")
+            return [connection.routeFull, connection.metaLine].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
         }
         if embedType == .travelConnections {
             let count = travelSearchConnections.count
@@ -634,6 +690,10 @@ struct EmbedFullscreenHeader: View {
             return parts.joined(separator: " · ")
         }
         guard let data = embed.data, case .raw(let dict) = data else { return nil }
+        if embedType == .eventsEvent {
+            let event = EventResultSummary(embedId: embed.id, data: dict)
+            return [event.shortDate, event.shortLocation].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        }
         if let provider = dict["provider"]?.value as? String {
             return "via \(provider == "Brave" ? "Brave Search" : provider)"
         }

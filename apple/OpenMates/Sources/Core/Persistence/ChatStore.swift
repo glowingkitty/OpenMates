@@ -68,6 +68,31 @@ final class ChatStore: ObservableObject {
         embedsByChat.removeAll()
     }
 
+    func makeSyncClientState(clientSuggestionsCount: Int) -> SyncClientState {
+        let versions = chats.reduce(into: [String: [String: Int]]()) { result, chat in
+            var chatVersions: [String: Int] = [:]
+            if let messagesV = chat.messagesV {
+                chatVersions["messages_v"] = messagesV
+            }
+            if let titleV = chat.titleV {
+                chatVersions["title_v"] = titleV
+            }
+            if let draftV = chat.draftV {
+                chatVersions["draft_v"] = draftV
+            }
+            if !chatVersions.isEmpty {
+                result[chat.id] = chatVersions
+            }
+        }
+        let embedIds = Set(embedsByChat.values.flatMap { $0.keys }).sorted()
+        return SyncClientState(
+            clientChatVersions: versions,
+            clientChatIds: chats.map(\.id),
+            clientSuggestionsCount: clientSuggestionsCount,
+            clientEmbedIds: embedIds
+        )
+    }
+
     func chat(for id: String) -> Chat? {
         chats.first { $0.id == id }
     }

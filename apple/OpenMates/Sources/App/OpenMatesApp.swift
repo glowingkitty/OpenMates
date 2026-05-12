@@ -28,6 +28,87 @@ struct AppWindowLaunchCommand: Codable, Hashable {
     }
 }
 
+enum AppQuickAction: String {
+    case newChat
+    case search
+}
+
+@MainActor
+final class AppQuickActionCenter {
+    static let shared = AppQuickActionCenter()
+
+    private var pendingAction: AppQuickAction?
+
+    private init() {}
+
+    func perform(_ action: AppQuickAction) {
+        pendingAction = action
+        NotificationCenter.default.post(
+            name: .quickActionReceived,
+            object: nil,
+            userInfo: ["action": action.rawValue]
+        )
+    }
+
+    func consumePendingAction() -> AppQuickAction? {
+        let action = pendingAction
+        pendingAction = nil
+        return action
+    }
+
+    func clearPendingAction(_ action: AppQuickAction) {
+        if pendingAction == action {
+            pendingAction = nil
+        }
+    }
+}
+
+@MainActor
+final class AppSessionCoordinator: ObservableObject {
+    static let shared = AppSessionCoordinator()
+
+    let chatStore = ChatStore()
+    let webSocketManager = WebSocketManager()
+
+    private var offlineBridgeStorage: OfflineSyncBridge?
+    private var didLoadFromDisk = false
+    private var didStartNetworkMonitoring = false
+
+    private init() {}
+
+    func prepareAuthenticatedRuntime() -> OfflineSyncBridge {
+        let bridge = offlineBridge()
+        chatStore.setBridge(bridge)
+
+        if !didLoadFromDisk {
+            bridge.loadFromDisk()
+            didLoadFromDisk = true
+        }
+
+        if !didStartNetworkMonitoring {
+            bridge.startNetworkMonitoring()
+            didStartNetworkMonitoring = true
+        }
+
+        return bridge
+    }
+
+    func resetTransientRuntime() {
+        webSocketManager.disconnect()
+        chatStore.clearInMemory()
+        didLoadFromDisk = false
+    }
+
+    private func offlineBridge() -> OfflineSyncBridge {
+        if let offlineBridgeStorage {
+            return offlineBridgeStorage
+        }
+        let bridge = OfflineSyncBridge(chatStore: chatStore, wsManager: webSocketManager)
+        offlineBridgeStorage = bridge
+        return bridge
+    }
+}
+
 @main
 struct OpenMatesApp: App {
     private static let mainWindowID = "openmates-main-window"
@@ -254,6 +335,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension Notification.Name {
     static let newChat = Notification.Name("openmates.newChat")
+    static let quickActionReceived = Notification.Name("openmates.quickActionReceived")
     static let toggleIncognito = Notification.Name("openmates.toggleIncognito")
     static let embedRefreshNeeded = Notification.Name("openmates.embedRefreshNeeded")
     static let openAuth = Notification.Name("openmates.openAuth")

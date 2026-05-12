@@ -22,33 +22,54 @@ import UIKit
 import AppKit
 #endif
 
+enum PhonePairLoginStatus: Equatable {
+    case generating
+    case waiting
+    case ready
+    case expired
+    case failed
+}
+
+@MainActor
+final class PhonePairLoginState: ObservableObject {
+    @Published var token: String?
+    @Published var pairURLString: String?
+    @Published var qrImage: Image?
+    @Published var status: PhonePairLoginStatus = .generating
+    @Published var pin = ""
+    @Published var errorMessage: String?
+    @Published var isSubmitting = false
+
+    var pollTask: Task<Void, Never>?
+
+    deinit {
+        pollTask?.cancel()
+    }
+
+    func reset() {
+        pollTask?.cancel()
+        pollTask = nil
+        token = nil
+        pairURLString = nil
+        qrImage = nil
+        status = .generating
+        pin = ""
+        errorMessage = nil
+        isSubmitting = false
+    }
+}
+
 struct PhonePairLoginView: View {
     @EnvironmentObject private var authManager: AuthManager
     @Binding var stayLoggedIn: Bool
-
-    @State private var token: String?
-    @State private var pairURLString: String?
-    @State private var qrImage: Image?
-    @State private var status: PairStatus = .generating
-    @State private var pin = ""
-    @State private var errorMessage: String?
-    @State private var isSubmitting = false
-    @State private var pollTask: Task<Void, Never>?
+    @ObservedObject var pairState: PhonePairLoginState
     @FocusState private var isPinFocused: Bool
-
-    private enum PairStatus: Equatable {
-        case generating
-        case waiting
-        case ready
-        case expired
-        case failed
-    }
 
     var body: some View {
         VStack(spacing: .spacing6) {
             statusView
 
-            if qrImage != nil {
+            if pairState.qrImage != nil {
                 VStack(spacing: .spacing5) {
                     qrSection
                     pinSection
@@ -57,25 +78,21 @@ struct PhonePairLoginView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            if status == .expired || status == .failed {
+            if pairState.status == .expired || pairState.status == .failed {
                 Button(AppStrings.pairRefresh) {
-                    Task { await initiatePairing() }
+                    Task { await initiatePairing(force: true) }
                 }
                 .buttonStyle(OMPrimaryButtonStyle())
                 .accessibilityIdentifier("pair-refresh-button")
                 .accessibleButton(AppStrings.pairRefresh, hint: AppStrings.pairRefresh)
             }
         }
-        .task { await initiatePairing() }
-        .onDisappear {
-            pollTask?.cancel()
-            pollTask = nil
-        }
+        .task { await initiatePairingIfNeeded() }
     }
 
     @ViewBuilder
     private var statusView: some View {
-        switch status {
+        switch pairState.status {
         case .generating:
             VStack(spacing: .spacing3) {
                 ProgressView()
@@ -94,7 +111,7 @@ struct PhonePairLoginView: View {
         case .expired:
             messageBox(text: AppStrings.pairExpired, isError: true)
         case .failed:
-            messageBox(text: errorMessage ?? AppStrings.loginFailed, isError: true)
+            messageBox(text: pairState.errorMessage ?? AppStrings.loginFailed, isError: true)
         }
     }
 
@@ -110,7 +127,7 @@ struct PhonePairLoginView: View {
             }
             .frame(maxWidth: .infinity)
 
-            if let qrImage {
+            if let qrImage = pairState.qrImage {
                 qrImage
                     .interpolation(.none)
                     .resizable()
@@ -140,7 +157,7 @@ struct PhonePairLoginView: View {
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
 
-            TextField(AppStrings.pairPinPlaceholder, text: $pin)
+            TextField(AppStrings.pairPinPlaceholder, text: $pairState.pin)
                 .textFieldStyle(PairPinFieldStyle())
                 #if os(iOS)
                 .keyboardType(.asciiCapable)
@@ -148,18 +165,18 @@ struct PhonePairLoginView: View {
                 #endif
                 .autocorrectionDisabled(true)
                 .focused($isPinFocused)
-                .onChange(of: pin) { _, newValue in
+                .onChange(of: pairState.pin) { _, newValue in
                     sanitizeAndSubmitPin(newValue)
                 }
-                .disabled(status != .ready || isSubmitting)
+                .disabled(pairState.status != .ready || pairState.isSubmitting)
                 .accessibilityIdentifier("pair-pin-input")
                 .accessibleInput(AppStrings.pairEnterPinTitle, hint: AppStrings.pairEnterPinDescription)
 
-            if isSubmitting {
+            if pairState.isSubmitting {
                 Text(AppStrings.pairLoggingIn)
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
-            } else if let errorMessage {
+            } else if let errorMessage = pairState.errorMessage {
                 messageBox(text: errorMessage, isError: true)
             }
         }
@@ -167,7 +184,7 @@ struct PhonePairLoginView: View {
 
     @ViewBuilder
     private var urlSection: some View {
-        if let pairURLString {
+        if let pairURLString = pairState.pairURLString {
             VStack(alignment: .leading, spacing: .spacing3) {
                 Text(AppStrings.pairUrlLabel)
                     .font(.omSmall)
@@ -219,16 +236,21 @@ struct PhonePairLoginView: View {
             )
     }
 
-    private func initiatePairing() async {
-        pollTask?.cancel()
-        pollTask = nil
-        token = nil
-        pairURLString = nil
-        qrImage = nil
-        pin = ""
-        errorMessage = nil
-        isSubmitting = false
-        status = .generating
+    private func initiatePairingIfNeeded() async {
+        if let token = pairState.token {
+            if pairState.status == .waiting, pairState.pollTask == nil {
+                startPolling(token: token)
+            }
+            return
+        }
+        await initiatePairing(force: false)
+    }
+
+    private func initiatePairing(force: Bool) async {
+        if !force, pairState.token != nil {
+            return
+        }
+        pairState.reset()
 
         do {
             let response: PairInitiateResponse = try await APIClient.shared.request(
@@ -237,21 +259,21 @@ struct PhonePairLoginView: View {
                 body: PairInitiateRequest(deviceHint: officialAppDeviceHint)
             )
             let upperToken = response.token.uppercased()
-            token = upperToken
+            pairState.token = upperToken
             let pairURL = await buildPairURL(token: upperToken)
-            pairURLString = pairURL
-            qrImage = generateQRCode(from: pairURL)
-            status = .waiting
+            pairState.pairURLString = pairURL
+            pairState.qrImage = generateQRCode(from: pairURL)
+            pairState.status = .waiting
             startPolling(token: upperToken)
         } catch {
-            errorMessage = error.localizedDescription
-            status = .failed
+            pairState.errorMessage = error.localizedDescription
+            pairState.status = .failed
         }
     }
 
     private func startPolling(token: String) {
-        pollTask?.cancel()
-        pollTask = Task {
+        pairState.pollTask?.cancel()
+        pairState.pollTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3))
                 if Task.isCancelled { return }
@@ -264,13 +286,13 @@ struct PhonePairLoginView: View {
 
                     await MainActor.run {
                         if response.status == "ready" {
-                            status = .ready
+                            pairState.status = .ready
                             isPinFocused = true
-                            if pin.count == 6 {
+                            if pairState.pin.count == 6 {
                                 submitPinIfReady()
                             }
                         } else if response.status == "expired" {
-                            status = .expired
+                            pairState.status = .expired
                         }
                     }
 
@@ -279,8 +301,8 @@ struct PhonePairLoginView: View {
                     }
                 } catch {
                     await MainActor.run {
-                        errorMessage = error.localizedDescription
-                        status = .failed
+                        pairState.errorMessage = error.localizedDescription
+                        pairState.status = .failed
                     }
                     return
                 }
@@ -296,26 +318,29 @@ struct PhonePairLoginView: View {
                 .prefix(6)
         )
         if sanitized != rawValue {
-            pin = sanitized
+            pairState.pin = sanitized
             return
         }
-        errorMessage = nil
+        pairState.errorMessage = nil
         if sanitized.count == 6 {
             submitPinIfReady()
         }
     }
 
     private func submitPinIfReady() {
-        guard status == .ready, !isSubmitting, pin.count == 6, let token else { return }
-        isSubmitting = true
-        errorMessage = nil
+        guard pairState.status == .ready,
+              !pairState.isSubmitting,
+              pairState.pin.count == 6,
+              let token = pairState.token else { return }
+        pairState.isSubmitting = true
+        pairState.errorMessage = nil
 
         Task {
             do {
                 let completeResponse: PairCompleteResponse = try await APIClient.shared.request(
                     .post,
                     path: "/v1/auth/pair/complete/\(token)",
-                    body: PairCompleteRequest(pin: pin)
+                    body: PairCompleteRequest(pin: pairState.pin)
                 )
 
                 guard completeResponse.success else {
@@ -323,7 +348,7 @@ struct PhonePairLoginView: View {
                     return
                 }
 
-                let (bundle, masterKey) = try await decryptLoginBundle(from: completeResponse, token: token, pin: pin)
+                let (bundle, masterKey) = try await decryptLoginBundle(from: completeResponse, token: token, pin: pairState.pin)
                 let loginResponse: LoginResponse = try await APIClient.shared.request(
                     .post,
                     path: "/v1/auth/login",
@@ -342,35 +367,35 @@ struct PhonePairLoginView: View {
 
                 try await authManager.completePairLogin(response: loginResponse, masterKey: masterKey)
             } catch {
-                errorMessage = error.localizedDescription
-                isSubmitting = false
+                pairState.errorMessage = error.localizedDescription
+                pairState.isSubmitting = false
             }
         }
     }
 
     private func handlePairCompleteFailure(_ message: String?) {
-        isSubmitting = false
-        pin = ""
+        pairState.isSubmitting = false
+        pairState.pin = ""
 
         if message == "too_many_attempts" {
-            errorMessage = AppStrings.pairPinLocked
-            status = .expired
+            pairState.errorMessage = AppStrings.pairPinLocked
+            pairState.status = .expired
             return
         }
 
         if let message, message.hasPrefix("invalid_pin:") {
             let attempts = message.split(separator: ":").last.map(String.init) ?? "0"
-            errorMessage = AppStrings.pairPinError(attempts: attempts)
+            pairState.errorMessage = AppStrings.pairPinError(attempts: attempts)
             return
         }
 
         if message == "expired" {
-            status = .expired
-            errorMessage = AppStrings.pairExpired
+            pairState.status = .expired
+            pairState.errorMessage = AppStrings.pairExpired
             return
         }
 
-        errorMessage = AppStrings.loginFailed
+        pairState.errorMessage = AppStrings.loginFailed
     }
 
     private func decryptLoginBundle(

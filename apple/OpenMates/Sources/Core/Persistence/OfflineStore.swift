@@ -25,6 +25,9 @@ final class PersistedChat {
     var isPrivate: Bool
     var lastMessageAt: String?
     var lastVisibleMessageId: String?
+    var messagesV: Int?
+    var titleV: Int?
+    var draftV: Int?
     var createdAt: String
     var updatedAt: String?
 
@@ -48,6 +51,9 @@ final class PersistedChat {
         self.isPrivate = true
         self.lastMessageAt = chat.lastMessageAt
         self.lastVisibleMessageId = chat.lastVisibleMessageId
+        self.messagesV = chat.messagesV
+        self.titleV = chat.titleV
+        self.draftV = chat.draftV
         self.createdAt = chat.createdAt
         self.updatedAt = chat.updatedAt
     }
@@ -63,6 +69,9 @@ final class PersistedChat {
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
             encryptedChatKey: encryptedChatKey,
+            messagesV: messagesV,
+            titleV: titleV,
+            draftV: draftV,
             lastVisibleMessageId: lastVisibleMessageId
         )
     }
@@ -316,6 +325,10 @@ final class OfflineStore: ObservableObject {
                 existing.isArchived = chat.isArchived ?? false
                 existing.lastMessageAt = chat.lastMessageAt
                 existing.updatedAt = chat.updatedAt
+                existing.lastVisibleMessageId = chat.lastVisibleMessageId
+                existing.messagesV = chat.messagesV
+                existing.titleV = chat.titleV
+                existing.draftV = chat.draftV
             } else {
                 context.insert(PersistedChat(from: chat))
             }
@@ -324,55 +337,39 @@ final class OfflineStore: ObservableObject {
     }
 
     func persistMessages(_ messages: [Message], chatId: String) {
-        guard let context = modelContext else { return }
-
-        let targetChatId = chatId
-        let chatDescriptor = FetchDescriptor<PersistedChat>(
-            predicate: #Predicate { $0.id == targetChatId }
-        )
-        let persistedChat = try? context.fetch(chatDescriptor).first
-
-        for message in messages {
-            let targetId = message.id
-            let descriptor = FetchDescriptor<PersistedMessage>(
-                predicate: #Predicate { $0.id == targetId }
-            )
-                if let existing = try? context.fetch(descriptor).first {
-                    existing.content = message.content
-                    existing.updatedAt = message.updatedAt
-                    existing.encryptedContent = message.encryptedContent
-                    existing.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
-                } else {
-                let persisted = PersistedMessage(from: message)
-                persisted.chat = persistedChat
-                context.insert(persisted)
-            }
-        }
-        try? context.save()
+        persistMessagesBatch([chatId: messages])
     }
 
     func persistMessagesBatch(_ messagesByChat: [String: [Message]]) {
         guard let context = modelContext else { return }
         let start = NativeSyncPerfLog.now()
         var savedMessages = 0
+        let encoder = JSONEncoder()
 
         for (chatId, messages) in messagesByChat {
+            guard !messages.isEmpty else { continue }
             let targetChatId = chatId
             let chatDescriptor = FetchDescriptor<PersistedChat>(
                 predicate: #Predicate { $0.id == targetChatId }
             )
             let persistedChat = try? context.fetch(chatDescriptor).first
 
+            let existingDescriptor = FetchDescriptor<PersistedMessage>(
+                predicate: #Predicate { $0.chatId == targetChatId }
+            )
+            let existingById = Dictionary(
+                ((try? context.fetch(existingDescriptor)) ?? []).map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+
             for message in messages {
-                let targetId = message.id
-                let descriptor = FetchDescriptor<PersistedMessage>(
-                    predicate: #Predicate { $0.id == targetId }
-                )
-                if let existing = try? context.fetch(descriptor).first {
+                if let existing = existingById[message.id] {
                     existing.content = message.content
                     existing.encryptedContent = message.encryptedContent
                     existing.updatedAt = message.updatedAt
-                    existing.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
+                    existing.appId = message.appId
+                    existing.modelName = message.modelName
+                    existing.embedRefsJSON = try? encoder.encode(message.embedRefs)
                 } else {
                     let persisted = PersistedMessage(from: message)
                     persisted.chat = persistedChat
@@ -389,19 +386,7 @@ final class OfflineStore: ObservableObject {
     }
 
     func persistEmbeds(_ embeds: [EmbedRecord], chatId: String) {
-        guard let context = modelContext else { return }
-        for embed in embeds {
-            let targetId = embed.id
-            let descriptor = FetchDescriptor<PersistedEmbed>(
-                predicate: #Predicate { $0.id == targetId }
-            )
-            if let existing = try? context.fetch(descriptor).first {
-                existing.update(from: embed, chatId: chatId)
-            } else {
-                context.insert(PersistedEmbed(from: embed, chatId: chatId))
-            }
-        }
-        try? context.save()
+        persistEmbedsBatch([chatId: embeds])
     }
 
     func persistEmbedsBatch(_ embedsByChat: [String: [EmbedRecord]]) {
@@ -410,12 +395,18 @@ final class OfflineStore: ObservableObject {
         var savedEmbeds = 0
 
         for (chatId, embeds) in embedsByChat {
+            guard !embeds.isEmpty else { continue }
+            let targetChatId = chatId
+            let existingDescriptor = FetchDescriptor<PersistedEmbed>(
+                predicate: #Predicate { $0.chatId == targetChatId }
+            )
+            let existingById = Dictionary(
+                ((try? context.fetch(existingDescriptor)) ?? []).map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+
             for embed in embeds {
-                let targetId = embed.id
-                let descriptor = FetchDescriptor<PersistedEmbed>(
-                    predicate: #Predicate { $0.id == targetId }
-                )
-                if let existing = try? context.fetch(descriptor).first {
+                if let existing = existingById[embed.id] {
                     existing.update(from: embed, chatId: chatId)
                 } else {
                     context.insert(PersistedEmbed(from: embed, chatId: chatId))

@@ -18,7 +18,17 @@ struct TravelSearchEmbedRenderer: View {
     let onOpenEmbed: (EmbedRecord) -> Void
 
     private var childEmbeds: [EmbedRecord] {
-        embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return uniqueEmbeds(explicit) }
+
+        let parented = allEmbedRecords.values
+            .filter { $0.parentEmbedId == embed.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
+        if !parented.isEmpty { return uniqueEmbeds(parented) }
+
+        return uniqueEmbeds(allEmbedRecords.values
+            .filter { $0.id != embed.id && EmbedType(rawValue: $0.type) == .travelConnection }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) })
     }
 
     private var connections: [TravelConnectionSummary] {
@@ -39,6 +49,11 @@ struct TravelSearchEmbedRenderer: View {
                 onOpenEmbed: onOpenEmbed
             )
         }
+    }
+
+    private func uniqueEmbeds(_ embeds: [EmbedRecord]) -> [EmbedRecord] {
+        var seen = Set<String>()
+        return embeds.filter { seen.insert($0.id).inserted }
     }
 }
 
@@ -136,4 +151,3 @@ private struct TravelSearchFullscreen: View {
         .frame(maxWidth: .infinity)
     }
 }
-

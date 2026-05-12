@@ -27,16 +27,25 @@ import AppKit
 struct MainAppView: View {
     let launchCommand: AppWindowLaunchCommand?
 
+    private enum ShellSwipeTarget {
+        case openChats
+        case closeChats
+        case openSettings
+        case closeSettings
+    }
+
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var pushManager: PushNotificationManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var chatStore = ChatStore()
-    @StateObject private var wsManager = WebSocketManager()
+    @StateObject private var appSession = AppSessionCoordinator.shared
+    @StateObject private var chatStore = AppSessionCoordinator.shared.chatStore
+    @StateObject private var wsManager = AppSessionCoordinator.shared.webSocketManager
     @StateObject private var deepLinkHandler = DeepLinkHandler()
     @StateObject private var incognitoManager = IncognitoManager()
     @StateObject private var handoffManager = HandoffManager()
+    @StateObject private var authFlowState = AuthFlowState()
     @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
     @State private var isChatsPanelOpen = false
@@ -61,6 +70,7 @@ struct MainAppView: View {
     @State private var actionChat: Chat?
     @State private var didBootstrapAuthenticatedSession = false
     @State private var didApplyLaunchCommand = false
+    @State private var shellSwipeTarget: ShellSwipeTarget?
     @State private var shellDragOffset: CGFloat = 0
     @State private var visibleUserChatLimit = Self.initialUserChatLimit
     @State private var syncProcessingTask: Task<Void, Never>?
@@ -123,6 +133,7 @@ struct MainAppView: View {
 
     // Web `.active-chat-container`: border-radius: 17px.
     private let activeChatContainerRadius: CGFloat = 17
+    private static let desktopChatsPanelWidth: CGFloat = 325
     private static let initialUserChatLimit = 11
     private static let showMoreUserChatIncrement = 20
     private static let backgroundSyncFlushDelayNs: UInt64 = 450_000_000
@@ -188,30 +199,13 @@ struct MainAppView: View {
         // Global keyboard shortcuts (iPad + Mac)
         .appKeyboardShortcuts(
             onNewChat: openNewChatScreen,
-            onSearch: { showSearch = true },
+            onSearch: openSearchOverlay,
             onSettings: { showSettings = true }
         )
-        .onChange(of: deepLinkHandler.pendingChatId) { _, chatId in
-            if let chatId {
-                selectedChatId = chatId
-                showNewChat = false
-                deepLinkHandler.clearPending()
-            }
-        }
-        .onChange(of: deepLinkHandler.pendingPairToken) { _, token in
-            if let token {
-                pairToken = token
-                showPairAuthorize = true
-                deepLinkHandler.pendingPairToken = nil
-            }
-        }
-        .onChange(of: deepLinkHandler.pendingInspirationId) { _, inspirationId in
-            if inspirationId != nil {
-                selectedChatId = nil
-                showNewChat = true
-                deepLinkHandler.pendingInspirationId = nil
-            }
-        }
+        .modifier(externalEventHandlers)
+        .onChange(of: deepLinkHandler.pendingChatId, pendingDeepLinkChatDidChange)
+        .onChange(of: deepLinkHandler.pendingPairToken, pendingPairTokenDidChange)
+        .onChange(of: deepLinkHandler.pendingInspirationId, pendingInspirationDidChange)
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             openNewChatScreen()
         }
@@ -263,6 +257,7 @@ struct MainAppView: View {
         .onChange(of: selectedChatId, selectedChatDidChange)
         .onChange(of: showNewChat, showNewChatDidChange)
         .onChange(of: showSettings, showSettingsDidChange)
+        .onChange(of: scenePhase, scenePhaseDidChange)
     }
 
     private var shellWithOverlays: some View {
@@ -293,6 +288,51 @@ struct MainAppView: View {
         }
     }
 
+    private var externalEventHandlers: MainAppExternalEventModifier {
+        MainAppExternalEventModifier(
+            deepLinkHandler: deepLinkHandler,
+            onDeepLink: { url in
+                deepLinkHandler.handle(url: url)
+            },
+            onQuickAction: { action in
+                handleQuickAction(action)
+                AppQuickActionCenter.shared.clearPendingAction(action)
+            },
+            onNewChatDeepLink: {
+                openNewChatScreen()
+                deepLinkHandler.pendingNewChat = false
+            },
+            onSearchDeepLink: {
+                openSearchOverlay()
+                deepLinkHandler.pendingSearch = false
+            }
+        )
+    }
+
+    private func pendingDeepLinkChatDidChange(_ oldValue: String?, _ chatId: String?) {
+        if let chatId {
+            selectedChatId = chatId
+            showNewChat = false
+            deepLinkHandler.clearPending()
+        }
+    }
+
+    private func pendingPairTokenDidChange(_ oldValue: String?, _ token: String?) {
+        if let token {
+            pairToken = token
+            showPairAuthorize = true
+            deepLinkHandler.pendingPairToken = nil
+        }
+    }
+
+    private func pendingInspirationDidChange(_ oldValue: String?, _ inspirationId: String?) {
+        if inspirationId != nil {
+            selectedChatId = nil
+            showNewChat = true
+            deepLinkHandler.pendingInspirationId = nil
+        }
+    }
+
     private var rootShell: some View {
         GeometryReader { geo in
             let viewportWidth = geo.size.width
@@ -301,25 +341,44 @@ struct MainAppView: View {
                 ? (isChatsPanelOpen ? max(0, compactPanelWidth + shellDragOffset) : max(0, shellDragOffset))
                 : 0
 
-            ZStack(alignment: .leading) {
-                activeAppChrome(viewportWidth: viewportWidth)
-                    .offset(x: chatsPanelOffset)
-
+            Group {
                 if isCompactShell {
-                    chatsPanel
-                        .frame(width: compactPanelWidth)
-                        .offset(x: isChatsPanelOpen ? min(0, shellDragOffset) : -compactPanelWidth + max(0, shellDragOffset))
-                        .allowsHitTesting(isChatsPanelOpen || shellDragOffset > 0)
-                        .accessibilityHidden(!isChatsPanelOpen)
-                        .zIndex(1)
+                    ZStack(alignment: .leading) {
+                        activeAppChrome(viewportWidth: viewportWidth)
+                            .offset(x: chatsPanelOffset)
+
+                        chatsPanel
+                            .frame(width: compactPanelWidth)
+                            .offset(x: isChatsPanelOpen ? min(0, shellDragOffset) : -compactPanelWidth + max(0, shellDragOffset))
+                            .allowsHitTesting(isChatsPanelOpen || shellDragOffset > 0)
+                            .accessibilityHidden(!isChatsPanelOpen)
+                            .zIndex(1)
+                    }
+                } else {
+                    HStack(spacing: isChatsPanelOpen ? .spacing5 : 0) {
+                        if isChatsPanelOpen {
+                            chatsPanel
+                                .frame(width: Self.desktopChatsPanelWidth)
+                                .transition(.move(edge: .leading).combined(with: .opacity))
+                        }
+
+                        activeAppChrome(viewportWidth: regularMainWidth(for: viewportWidth))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .contentShape(Rectangle())
             .simultaneousGesture(shellSwipeGesture(viewportWidth: viewportWidth))
             .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
         }
         .background(Color.grey0)
+    }
+
+    private func regularMainWidth(for viewportWidth: CGFloat) -> CGFloat {
+        guard !isCompactShell, isChatsPanelOpen else { return viewportWidth }
+        return max(0, viewportWidth - Self.desktopChatsPanelWidth - .spacing5)
     }
 
     private func selectedChatDidChange(_ oldValue: String?, _ chatId: String?) {
@@ -332,6 +391,7 @@ struct MainAppView: View {
     private func authStateDidChange(_ oldValue: AuthManager.AuthState, _ newState: AuthManager.AuthState) {
         if newState == .authenticated {
             showAuthSheet = false
+            authFlowState.reset()
             Task {
                 await bootstrapAuthenticatedSession()
                 await flushQueuedNotificationReplies()
@@ -364,6 +424,16 @@ struct MainAppView: View {
     private func showSettingsDidChange(_ oldValue: Bool, _ isOpen: Bool) {
         if isOpen {
             lastForegroundInteractionAt = Date()
+        }
+    }
+
+    private func scenePhaseDidChange(_ oldValue: ScenePhase, _ newValue: ScenePhase) {
+        guard newValue == .active, isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        switch wsManager.connectionState {
+        case .connected, .connecting, .reconnecting:
+            break
+        case .disconnected:
+            connectWebSocket()
         }
     }
 
@@ -413,6 +483,25 @@ struct MainAppView: View {
         selectedChatId = nil
         showNewChat = true
         showAuthSheet = false
+        showSearch = false
+        showExplore = false
+        showShareChat = false
+        showHiddenChats = false
+        actionChat = nil
+    }
+
+    private func openSearchOverlay() {
+        showSearch = true
+        lastForegroundInteractionAt = Date()
+    }
+
+    private func handleQuickAction(_ action: AppQuickAction) {
+        switch action {
+        case .newChat:
+            openNewChatScreen()
+        case .search:
+            openSearchOverlay()
+        }
     }
 
     private func resetToUnauthenticatedSession() {
@@ -423,8 +512,7 @@ struct MainAppView: View {
         backgroundSyncFlushTask = nil
         isBackgroundSyncFlushInProgress = false
         pendingBackgroundSyncContent = PendingSyncedContent()
-        wsManager.disconnect()
-        chatStore.clearInMemory()
+        appSession.resetTransientRuntime()
         totalChatCount = 0
         selectedChatId = nil
         showNewChat = false
@@ -451,6 +539,12 @@ struct MainAppView: View {
             Task { await syncInspirationToWidget() }
         }
         applyLaunchCommandIfNeeded()
+        applyPendingQuickActionIfNeeded()
+    }
+
+    private func applyPendingQuickActionIfNeeded() {
+        guard let action = AppQuickActionCenter.shared.consumePendingAction() else { return }
+        handleQuickAction(action)
     }
 
     private func handleViewChatActivity(_ activity: NSUserActivity) {
@@ -492,18 +586,17 @@ struct MainAppView: View {
             return
         }
 
-        let startedNearLeftEdge = value.startLocation.x <= 42
-        let startedNearRightEdge = value.startLocation.x >= viewportWidth - 42
-
-        if isCompactShell, !isChatsPanelOpen, !showSettings, startedNearLeftEdge, dx > 0 {
+        let target = currentShellSwipeTarget(for: value, viewportWidth: viewportWidth)
+        switch target {
+        case .openChats:
             shellDragOffset = min(dx, min(viewportWidth - 10, 390))
-        } else if isCompactShell, isChatsPanelOpen, dx < 0 {
+        case .closeChats:
             shellDragOffset = min(0, dx)
-        } else if !showSettings, startedNearRightEdge, dx < 0 {
+        case .openSettings:
             shellDragOffset = max(dx, -min(viewportWidth - 40, 323))
-        } else if showSettings, dx > 0 {
+        case .closeSettings:
             shellDragOffset = min(dx, min(viewportWidth - 40, 323))
-        } else {
+        case nil:
             shellDragOffset = 0
         }
     }
@@ -511,27 +604,56 @@ struct MainAppView: View {
     private func handleShellSwipe(_ value: DragGesture.Value, viewportWidth: CGFloat) {
         let dx = value.translation.width
         let dy = value.translation.height
-        defer { shellDragOffset = 0 }
+        defer {
+            shellSwipeTarget = nil
+            shellDragOffset = 0
+        }
         guard abs(dx) > 70, abs(dx) > abs(dy) * 1.35 else { return }
-
-        let startedNearLeftEdge = value.startLocation.x <= 42
-        let startedNearRightEdge = value.startLocation.x >= viewportWidth - 42
+        guard let target = currentShellSwipeTarget(for: value, viewportWidth: viewportWidth) else { return }
 
         withAnimation(.easeInOut(duration: 0.24)) {
-            if dx < 0 {
-                if isChatsPanelOpen {
-                    isChatsPanelOpen = false
-                } else if !showSettings, startedNearRightEdge {
-                    showSettings = true
-                }
-            } else {
-                if showSettings {
-                    showSettings = false
-                } else if !isChatsPanelOpen, startedNearLeftEdge {
-                    isChatsPanelOpen = true
-                }
+            switch target {
+            case .openChats:
+                isChatsPanelOpen = true
+            case .closeChats:
+                isChatsPanelOpen = false
+            case .openSettings:
+                showSettings = true
+            case .closeSettings:
+                showSettings = false
             }
         }
+    }
+
+    private func currentShellSwipeTarget(for value: DragGesture.Value, viewportWidth: CGFloat) -> ShellSwipeTarget? {
+        if let shellSwipeTarget {
+            return shellSwipeTarget
+        }
+
+        let dx = value.translation.width
+        let startedNearLeftEdge = value.startLocation.x <= 42
+        let startedNearRightEdge = value.startLocation.x >= viewportWidth - 42
+        let settingsPanelWidth = min(viewportWidth - 40, 323)
+        let settingsIsOverlay = showSettings && !isSettingsSideBySide(width: viewportWidth)
+        let startedInSettingsPanel = value.startLocation.x >= viewportWidth - settingsPanelWidth
+        let target: ShellSwipeTarget?
+
+        if settingsIsOverlay, dx > 0 {
+            target = .closeSettings
+        } else if showSettings, dx > 0, startedInSettingsPanel {
+            target = .closeSettings
+        } else if !isChatsPanelOpen, startedNearLeftEdge, dx > 0 {
+            target = .openChats
+        } else if isChatsPanelOpen, dx < 0 {
+            target = .closeChats
+        } else if !showSettings, startedNearRightEdge, dx < 0 {
+            target = .openSettings
+        } else {
+            target = nil
+        }
+
+        shellSwipeTarget = target
+        return target
     }
 
     private func activeAppChrome(viewportWidth: CGFloat) -> some View {
@@ -559,10 +681,12 @@ struct MainAppView: View {
                     HStack(spacing: showSettings ? .spacing10 : 0) {
                         shellContent
 
-                        if showSettings {
-                            settingsPanel(width: 323)
-                                .transition(.move(edge: .trailing).combined(with: .opacity))
-                        }
+                        settingsPanel(width: 323)
+                            .frame(width: showSettings ? 323 : 0, alignment: .trailing)
+                            .opacity(showSettings ? 1 : 0)
+                            .clipped()
+                            .allowsHitTesting(showSettings)
+                            .accessibilityHidden(!showSettings)
                     }
                     .animation(.easeInOut(duration: 0.3), value: showSettings)
                 } else {
@@ -784,31 +908,19 @@ struct MainAppView: View {
             } else {
                 detailContent
             }
+        } else if showAuthSheet {
+            authContent
         } else {
-            HStack(spacing: 0) {
-                if isChatsPanelOpen {
-                    chatsPanel
-                        .frame(width: 340)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-
-                    Divider()
-                        .overlay(Color.grey20)
-                }
-
-                if showAuthSheet {
-                    authContent
-                } else {
-                    detailContent
-                }
-            }
+            detailContent
         }
     }
 
     private var authContent: some View {
         AuthFlowView(onBackToDemo: {
+            authFlowState.reset()
             showAuthSheet = false
             selectedChatId = "demo-for-everyone"
-        })
+        }, flowState: authFlowState)
         .environmentObject(authManager)
     }
 
@@ -1001,11 +1113,11 @@ struct MainAppView: View {
     private var chatPanelTopButtons: some View {
         HStack(spacing: .spacing6) {
             Button {
-                showSearch = true
+                openSearchOverlay()
             } label: {
-                Icon("search", size: 32)
+                Icon("search", size: 25)
                     .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("search-button")
@@ -1018,9 +1130,9 @@ struct MainAppView: View {
                     isChatsPanelOpen = false
                 }
             } label: {
-                Icon("close", size: 32)
+                Icon("close", size: 25)
                     .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(AppStrings.close)
@@ -1360,11 +1472,8 @@ struct MainAppView: View {
         visibleUserChatLimit = Self.initialUserChatLimit
         loadDemoChats(selectDefault: false)
 
-        let bridge = syncBridge ?? OfflineSyncBridge(chatStore: chatStore, wsManager: wsManager)
-        chatStore.setBridge(bridge)
+        let bridge = appSession.prepareAuthenticatedRuntime()
         syncBridge = bridge
-        bridge.loadFromDisk()
-        bridge.startNetworkMonitoring()
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
         connectWebSocket()
@@ -1665,7 +1774,10 @@ struct MainAppView: View {
     private func connectWebSocket() {
         wsManager.connect(
             sessionId: AuthManager.nativeSessionId,
-            token: authManager.webSocketToken
+            token: authManager.webSocketToken,
+            syncState: chatStore.makeSyncClientState(
+                clientSuggestionsCount: syncedNewChatSuggestions.count
+            )
         )
     }
 
@@ -2467,6 +2579,41 @@ struct MainAppView: View {
     }
 }
 
+@MainActor
+private struct MainAppExternalEventModifier: ViewModifier {
+    @ObservedObject var deepLinkHandler: DeepLinkHandler
+
+    let onDeepLink: @MainActor (URL) -> Void
+    let onQuickAction: @MainActor (AppQuickAction) -> Void
+    let onNewChatDeepLink: @MainActor () -> Void
+    let onSearchDeepLink: @MainActor () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .deepLinkReceived)) { notification in
+                if let url = notification.userInfo?["url"] as? URL {
+                    onDeepLink(url)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .quickActionReceived)) { notification in
+                if let rawAction = notification.userInfo?["action"] as? String,
+                   let action = AppQuickAction(rawValue: rawAction) {
+                    onQuickAction(action)
+                }
+            }
+            .onChange(of: deepLinkHandler.pendingNewChat) { _, shouldOpen in
+                if shouldOpen {
+                    onNewChatDeepLink()
+                }
+            }
+            .onChange(of: deepLinkHandler.pendingSearch) { _, shouldOpen in
+                if shouldOpen {
+                    onSearchDeepLink()
+                }
+            }
+    }
+}
+
 private struct PendingSyncedContent {
     private(set) var messagesByChat: [String: [Message]] = [:]
     private var embedsByChat: [String: [String: EmbedRecord]] = [:]
@@ -2694,17 +2841,19 @@ struct OpenMatesWebHeader: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: .spacing4) {
-            Button(action: onToggleChats) {
-                // Web: uses the same branded icon treatment as the top-right settings affordance.
-                WebHamburgerIcon(isOpen: isChatsPanelOpen)
-                    .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 25, height: 25)
+            if !isChatsPanelOpen {
+                Button(action: onToggleChats) {
+                    // Web: uses the same branded icon treatment as the top-right settings affordance.
+                    WebHamburgerIcon(isOpen: isChatsPanelOpen)
+                        .foregroundStyle(LinearGradient.primary)
+                        .frame(width: 25, height: 25)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .accessibilityIdentifier("sidebar-toggle")
+                .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
             }
-            .buttonStyle(.plain)
-            .frame(width: 44, height: 44)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("sidebar-toggle")
-            .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 0) {

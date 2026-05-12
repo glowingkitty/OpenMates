@@ -13,17 +13,16 @@
 
 import SwiftUI
 
-struct AuthFlowView: View {
-    let onBackToDemo: () -> Void
-
-    @EnvironmentObject var authManager: AuthManager
-    @State private var currentStep: AuthStep = .emailLookup
-    @State private var authMode: AuthMode = .signup
-    @State private var email = ""
-    @State private var availableMethods: [LoginMethod] = []
-    @State private var tfaEnabled = false
-    @State private var stayLoggedIn = false
-    @State private var userEmailSalt: String?
+@MainActor
+final class AuthFlowState: ObservableObject {
+    @Published var currentStep: AuthStep = .emailLookup
+    @Published var authMode: AuthMode = .signup
+    @Published var email = ""
+    @Published var availableMethods: [LoginMethod] = []
+    @Published var tfaEnabled = false
+    @Published var stayLoggedIn = true
+    @Published var userEmailSalt: String?
+    let phonePair = PhonePairLoginState()
 
     enum AuthMode {
         case login
@@ -40,6 +39,32 @@ struct AuthFlowView: View {
         case accountRecovery
     }
 
+    func reset() {
+        currentStep = .emailLookup
+        authMode = .signup
+        email = ""
+        availableMethods = []
+        tfaEnabled = false
+        stayLoggedIn = true
+        userEmailSalt = nil
+        phonePair.reset()
+    }
+
+    func resetForAnotherAccount() {
+        currentStep = .emailLookup
+        email = ""
+        availableMethods = []
+        userEmailSalt = nil
+        phonePair.reset()
+    }
+}
+
+struct AuthFlowView: View {
+    let onBackToDemo: () -> Void
+    @ObservedObject var flowState: AuthFlowState
+
+    @EnvironmentObject var authManager: AuthManager
+
     var body: some View {
         ZStack {
             Color.grey20.ignoresSafeArea()
@@ -54,7 +79,7 @@ struct AuthFlowView: View {
                     VStack(spacing: .spacing6) {
                         authTabs
 
-                        if authMode == .login {
+                        if flowState.authMode == .login {
                             Text(LocalizationManager.shared.text("login.login"))
                                 .font(.omH1)
                                 .fontWeight(.bold)
@@ -67,7 +92,7 @@ struct AuthFlowView: View {
                                 .foregroundStyle(Color.fontPrimary)
                         }
 
-                        if authMode == .login {
+                        if flowState.authMode == .login {
                             loginContent
                         } else {
                             SignupFlowView()
@@ -119,22 +144,25 @@ struct AuthFlowView: View {
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 
-    private func authTab(_ title: String, mode: AuthMode) -> some View {
+    private func authTab(_ title: String, mode: AuthFlowState.AuthMode) -> some View {
         Button {
-            authMode = mode
+            if flowState.currentStep == .pairInitiate {
+                flowState.phonePair.reset()
+            }
+            flowState.authMode = mode
             if mode == .login {
-                currentStep = .emailLookup
+                flowState.currentStep = .emailLookup
             }
         } label: {
             Text(title)
                 .font(.omP)
                 .fontWeight(.semibold)
-                .foregroundStyle(authMode == mode ? Color.fontButton : Color.fontSecondary)
+                .foregroundStyle(flowState.authMode == mode ? Color.fontButton : Color.fontSecondary)
                 .padding(.horizontal, .spacing5)
                 .padding(.vertical, .spacing3)
                 .frame(maxWidth: .infinity)
                 .background {
-                    if authMode == mode {
+                    if flowState.authMode == mode {
                         LinearGradient.primary
                     } else {
                         Color.clear
@@ -147,43 +175,38 @@ struct AuthFlowView: View {
 
     @ViewBuilder
     private var loginContent: some View {
-        switch currentStep {
+        switch flowState.currentStep {
         case .emailLookup:
             EmailLookupView(
-                email: $email,
-                stayLoggedIn: $stayLoggedIn,
-                onPasskeyLogin: { currentStep = .passkeyLogin },
-                onPairLogin: { currentStep = .pairInitiate },
+                email: $flowState.email,
+                stayLoggedIn: $flowState.stayLoggedIn,
+                onPasskeyLogin: { flowState.currentStep = .passkeyLogin },
+                onPairLogin: { flowState.currentStep = .pairInitiate },
                 onLookupComplete: handleLookupComplete
             )
 
         case .passwordLogin:
             PasswordLoginView(
-                email: email,
-                userEmailSalt: userEmailSalt,
-                tfaEnabled: tfaEnabled,
-                stayLoggedIn: $stayLoggedIn,
-                onRecoveryKey: { currentStep = .recoveryKey },
-                onAnotherAccount: {
-                    currentStep = .emailLookup
-                    email = ""
-                    availableMethods = []
-                    userEmailSalt = nil
-                },
-                onAccountRecovery: { currentStep = .accountRecovery }
+                email: flowState.email,
+                userEmailSalt: flowState.userEmailSalt,
+                tfaEnabled: flowState.tfaEnabled,
+                stayLoggedIn: $flowState.stayLoggedIn,
+                onRecoveryKey: { flowState.currentStep = .recoveryKey },
+                onAnotherAccount: { flowState.resetForAnotherAccount() },
+                onAccountRecovery: { flowState.currentStep = .accountRecovery }
             )
 
         case .passkeyLogin:
-            PasskeyLoginView(email: email, stayLoggedIn: $stayLoggedIn)
+            PasskeyLoginView(email: flowState.email, stayLoggedIn: $flowState.stayLoggedIn)
 
         case .recoveryKey:
-            RecoveryKeyView(email: email, userEmailSalt: userEmailSalt)
+            RecoveryKeyView(email: flowState.email, userEmailSalt: flowState.userEmailSalt)
 
         case .backupCode:
-            BackupCodeView(email: email, userEmailSalt: userEmailSalt)
+            BackupCodeView(email: flowState.email, userEmailSalt: flowState.userEmailSalt)
 
         case .pairInitiate:
-            PhonePairLoginView(stayLoggedIn: $stayLoggedIn)
+            PhonePairLoginView(stayLoggedIn: $flowState.stayLoggedIn, pairState: flowState.phonePair)
 
         case .accountRecovery:
             AccountRecoveryView()
@@ -193,21 +216,21 @@ struct AuthFlowView: View {
     // MARK: - Navigation bar (back button for non-email steps)
 
     private var showBackButton: Bool {
-        currentStep != .emailLookup
+        flowState.currentStep != .emailLookup
     }
 
     // MARK: - Actions
 
     private func handleLookupComplete(methods: [LoginMethod], tfa: Bool, userEmailSalt: String?) {
-        availableMethods = methods
-        tfaEnabled = tfa
-        self.userEmailSalt = userEmailSalt
+        flowState.availableMethods = methods
+        flowState.tfaEnabled = tfa
+        flowState.userEmailSalt = userEmailSalt
 
         if methods.contains(.passkey) {
-            currentStep = .passkeyLogin
+            flowState.currentStep = .passkeyLogin
             AccessibilityAnnouncement.screenChanged(LocalizationManager.shared.text("auth.passkey_login_screen"))
         } else {
-            currentStep = .passwordLogin
+            flowState.currentStep = .passwordLogin
             AccessibilityAnnouncement.screenChanged(LocalizationManager.shared.text("auth.password_login_screen"))
         }
     }
