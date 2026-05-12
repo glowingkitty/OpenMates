@@ -27,13 +27,23 @@ const {
 const {
 	waitForEmbedFinished,
 	openFullscreen,
-	closeFullscreen
+	closeFullscreen,
+	verifySearchGrid
 } = require('./helpers/embed-test-helpers');
 
-async function expectSocialPostChild(page: any): Promise<any> {
-	const child = page.locator('[data-testid="embed-preview"][data-app-id="social_media"][data-skill-id="social_post"][data-status="finished"]');
-	await expect(child.first()).toBeVisible({ timeout: 90_000 });
-	return child.first();
+async function openFirstSocialPostFullscreen(page: any, parentFullscreen: any): Promise<any> {
+	const resultCards = await verifySearchGrid(parentFullscreen, 1, 90_000);
+	const child = resultCards.first();
+	await expect(child).toBeVisible({ timeout: 10_000 });
+	await child.click();
+
+	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	await expect(async () => {
+		const count = await overlays.count();
+		expect(count).toBeGreaterThanOrEqual(2);
+	}).toPass({ timeout: 10_000 });
+
+	return overlays.last();
 }
 
 async function expectAssistantInterpretation(page: any): Promise<void> {
@@ -72,16 +82,12 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		logCheckpoint('Social Media search embed finished.');
 		await takeStepScreenshot(page, 'social-media-search-embed-finished');
 
-		const child = await expectSocialPostChild(page);
-		logCheckpoint('Social Media child post embed rendered.');
-
 		const parentFullscreen = await openFullscreen(page, embed);
 		logCheckpoint('Social Media search fullscreen opened.');
-		await closeFullscreen(page, parentFullscreen);
-
-		const childFullscreen = await openFullscreen(page, child);
+		const childFullscreen = await openFirstSocialPostFullscreen(page, parentFullscreen);
 		logCheckpoint('Social post fullscreen opened.');
 		await closeFullscreen(page, childFullscreen);
+		await closeFullscreen(page, parentFullscreen);
 
 		await expectAssistantInterpretation(page);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'social-media-search');
@@ -108,16 +114,12 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		logCheckpoint('Social Media get-posts embed finished.');
 		await takeStepScreenshot(page, 'social-media-get-posts-embed-finished');
 
-		const child = await expectSocialPostChild(page);
-		logCheckpoint('Social Media child post embed rendered.');
-
 		const parentFullscreen = await openFullscreen(page, embed);
 		logCheckpoint('Social Media get-posts fullscreen opened.');
-		await closeFullscreen(page, parentFullscreen);
-
-		const childFullscreen = await openFullscreen(page, child);
+		const childFullscreen = await openFirstSocialPostFullscreen(page, parentFullscreen);
 		logCheckpoint('Social post fullscreen opened.');
 		await closeFullscreen(page, childFullscreen);
+		await closeFullscreen(page, parentFullscreen);
 
 		await expectAssistantInterpretation(page);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'social-media-get-posts');
