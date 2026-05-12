@@ -12,8 +12,10 @@ try:
     from backend.apps.ai.processing.postprocessor import (
         extract_available_skills,
         extract_available_focus_modes,
+        handle_postprocessing,
         sanitize_suggestions,
     )
+    from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
@@ -288,3 +290,72 @@ class TestSanitizeSuggestions:
         assert result[0] == "[web-search] Find the latest Python release notes"
         assert result[1].startswith("[ai] Do something cool")
         assert result[2] == "[ai] No prefix but enough words here"
+
+
+@pytest.mark.anyio
+async def test_postprocessing_translates_metadata_even_when_output_language_matches_ui(monkeypatch):
+    """German-heavy history can produce German metadata even if output_language is misdetected as English."""
+
+    async def fake_call_preprocessing_llm(**kwargs):
+        return LLMPreprocessingCallResult(
+            arguments={
+                "follow_up_request_suggestions": ["[ai] Schreibe den nächsten Abschnitt"],
+                "new_chat_request_suggestions": ["[ai] Create another job application draft"],
+                "harmful_response": 0.0,
+                "top_recommended_apps_for_user": ["ai"],
+                "chat_summary": "Nutzer erstellt deutsche Bewerbungsunterlagen.",
+                "updated_chat_title": "Bewerbungsunterlagen erstellen",
+                "daily_inspiration_topic_suggestions": ["job applications", "cover letters", "career planning"],
+            }
+        )
+
+    translations = []
+
+    async def fake_translate_chat_summary(task_id, summary, target_language, secrets_manager):
+        translations.append((summary, target_language))
+        if summary == "Nutzer erstellt deutsche Bewerbungsunterlagen.":
+            return "User creates German job application documents."
+        if summary == "Bewerbungsunterlagen erstellen":
+            return "Create Application Documents"
+        return summary
+
+    async def fake_translate_new_chat_suggestions(**kwargs):
+        return kwargs["suggestions"]
+
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.call_preprocessing_llm",
+        fake_call_preprocessing_llm,
+    )
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.translate_chat_summary",
+        fake_translate_chat_summary,
+    )
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.postprocessor.translate_new_chat_suggestions",
+        fake_translate_new_chat_suggestions,
+    )
+    result = await handle_postprocessing(
+        task_id="test-task",
+        user_message="Please adjust the application letter.",
+        assistant_response="Here is the updated section.",
+        chat_summary="Existing summary",
+        chat_tags=["jobs"],
+        message_history=[
+            {"role": "user", "content": "Bitte erstelle Bewerbungsunterlagen."},
+            {"role": "assistant", "content": "Gerne, ich erstelle sie."},
+        ],
+        base_instructions={"postprocess_response_tool": {"type": "function", "function": {"name": "postprocess"}}},
+        secrets_manager=None,
+        cache_service=None,
+        available_app_ids=["ai"],
+        output_language="en",
+        user_system_language="en",
+        current_chat_title="Application Letter",
+    )
+
+    assert result.chat_summary == "User creates German job application documents."
+    assert result.updated_chat_title == "Create Application Documents"
+    assert translations == [
+        ("Nutzer erstellt deutsche Bewerbungsunterlagen.", "en"),
+        ("Bewerbungsunterlagen erstellen", "en"),
+    ]

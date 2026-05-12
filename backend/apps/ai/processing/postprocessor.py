@@ -545,16 +545,16 @@ async def handle_postprocessing(
     else:
         postproc_updated_title = None
 
-    # Translate the chat summary into the user's system/UI language when the conversation
-    # was conducted in a different language. This mirrors the translate_new_chat_suggestions
-    # pattern: an isolated call with no conversation context avoids language bleed reliably.
+    # Translate the chat summary into the user's system/UI language. This mirrors the
+    # translate_new_chat_suggestions pattern: an isolated call with no conversation context
+    # avoids language bleed reliably.
     # The system prompt already instructs the LLM to use user_system_language, but that
     # instruction is frequently overridden when the entire conversation history is in a
     # foreign language. The post-hoc translation call is the reliable enforcement layer.
-    if postproc_chat_summary and output_language != user_system_language:
+    if postproc_chat_summary:
         logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Conversation language '{output_language}' differs "
-            f"from UI language '{user_system_language}' — translating chat summary."
+            f"[Task ID: {task_id}] [PostProcessor] Ensuring chat summary is in "
+            f"UI language '{user_system_language}'."
         )
         postproc_chat_summary = await translate_chat_summary(
             task_id=task_id,
@@ -565,9 +565,10 @@ async def handle_postprocessing(
 
     # Translate the updated title into the user's system/UI language (same pattern as chat_summary).
     # Reuses translate_chat_summary since it's the same isolated translation pattern.
-    if postproc_updated_title and output_language != user_system_language:
+    if postproc_updated_title:
         logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Translating updated_chat_title to '{user_system_language}'"
+            f"[Task ID: {task_id}] [PostProcessor] Ensuring updated_chat_title is in "
+            f"UI language '{user_system_language}'"
         )
         postproc_updated_title = await translate_chat_summary(
             task_id=task_id,
@@ -968,5 +969,4 @@ async def translate_new_chat_suggestions(
             exc_info=True,
         )
         return suggestions
-
 
