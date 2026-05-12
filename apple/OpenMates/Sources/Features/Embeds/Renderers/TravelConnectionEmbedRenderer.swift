@@ -1,144 +1,15 @@
-// Travel embed renderers — connections, stays, price calendar, flights.
+// TravelConnectionEmbedRenderer — native counterpart for travel connection embeds.
+//
 // ─── Web source ─────────────────────────────────────────────────────
-// Svelte:  frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
-//          frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
-//          frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+// Svelte:  frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
-//          frontend/packages/ui/src/components/embeds/travel/TravelStaysEmbedPreview.svelte
-//          frontend/packages/ui/src/components/embeds/travel/TravelStaysEmbedFullscreen.svelte
-// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift, GradientTokens.generated.swift
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
-struct TravelSearchRenderer: View {
-    let embed: EmbedRecord
-    let data: [String: AnyCodable]?
-    let mode: EmbedDisplayMode
-    let allEmbedRecords: [String: EmbedRecord]
-    let onOpenEmbed: (EmbedRecord) -> Void
-
-    private var childEmbeds: [EmbedRecord] {
-        embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
-    }
-
-    private var connections: [TravelConnectionSummary] {
-        let children = childEmbeds.map { TravelConnectionSummary(embedId: $0.id, data: $0.rawData ?? [:]) }
-        if !children.isEmpty { return children }
-        return TravelConnectionSummary.list(from: data)
-    }
-
-    var body: some View {
-        switch mode {
-        case .preview:
-            TravelSearchPreview(data: data, connections: connections)
-        case .fullscreen:
-            TravelSearchFullscreen(
-                data: data,
-                connections: connections,
-                childEmbeds: childEmbeds,
-                onOpenEmbed: onOpenEmbed
-            )
-        }
-    }
-}
-
-private struct TravelSearchPreview: View {
-    let data: [String: AnyCodable]?
-    let connections: [TravelConnectionSummary]
-
-    private var first: TravelConnectionSummary? { connections.first }
-    private var route: String {
-        first?.routeFull ?? TravelValue.string(data, ["query"]) ?? "Connections"
-    }
-    private var provider: String? {
-        TravelValue.string(data, ["provider"]).map { $0 == "Google" ? "Google" : $0 }
-    }
-    private var minimumPrice: String? {
-        let priced = connections.compactMap(\.priceNumber)
-        guard let min = priced.min() else { return nil }
-        return "\(first?.currency ?? "EUR") \(String(format: "%.0f", min))"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
-            Text(route)
-                .font(.omP)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.fontPrimary)
-                .lineLimit(2)
-
-            if let departure = first?.departureDateText {
-                Text(departure)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey70)
-            }
-
-            if let provider {
-                Text("via \(provider)")
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey70)
-            }
-
-            HStack(spacing: .spacing2) {
-                if !connections.isEmpty {
-                    Text("\(connections.count) \(connections.count == 1 ? "connection" : "connections")")
-                        .font(.omSmall)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.grey70)
-                }
-                if let minimumPrice {
-                    Text("from \(minimumPrice)")
-                        .font(.omSmall)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontPrimary)
-                }
-            }
-        }
-        .padding(.spacing6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-private struct TravelSearchFullscreen: View {
-    let data: [String: AnyCodable]?
-    let connections: [TravelConnectionSummary]
-    let childEmbeds: [EmbedRecord]
-    let onOpenEmbed: (EmbedRecord) -> Void
-
-    var body: some View {
-        LazyVStack(spacing: .spacing8) {
-            if connections.isEmpty {
-                Text(LocalizationManager.shared.text("embed.no_results"))
-                    .font(.omP)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontSecondary)
-                    .frame(maxWidth: .infinity, minHeight: 200)
-            } else {
-                ForEach(Array(connections.enumerated()), id: \.element.id) { index, connection in
-                    if let child = childEmbeds.first(where: { $0.id == connection.embedId }) {
-                        Button {
-                            onOpenEmbed(child)
-                        } label: {
-                            TravelConnectionResultCard(connection: connection)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        TravelConnectionResultCard(connection: connection)
-                    }
-                    if index < connections.count - 1 {
-                        Color.clear.frame(height: .spacing1)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-struct TravelConnectionRenderer: View {
+struct TravelConnectionEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
@@ -199,7 +70,7 @@ private struct TravelConnectionPreviewDetails: View {
     }
 }
 
-private struct TravelConnectionResultCard: View {
+struct TravelConnectionResultCard: View {
     let connection: TravelConnectionSummary
 
     var body: some View {
@@ -469,7 +340,7 @@ private struct TravelSegmentSummary {
     }
 }
 
-private enum TravelValue {
+enum TravelValue {
     static func string(_ data: [String: AnyCodable]?, _ keys: [String]) -> String? {
         for key in keys {
             if let string = data?[key]?.value as? String, !string.isEmpty { return string }
@@ -484,6 +355,17 @@ private enum TravelValue {
             if let int = data?[key]?.value as? Int { return int }
             if let double = data?[key]?.value as? Double { return Int(double) }
             if let string = data?[key]?.value as? String, let int = Int(string) { return int }
+        }
+        return nil
+    }
+
+    static func double(_ data: [String: AnyCodable]?, _ keys: [String]) -> Double? {
+        for key in keys {
+            if let double = data?[key]?.value as? Double { return double }
+            if let int = data?[key]?.value as? Int { return Double(int) }
+            if let string = data?[key]?.value as? String {
+                return Double(string) ?? Double(string.replacingOccurrences(of: ",", with: "."))
+            }
         }
         return nil
     }
@@ -503,9 +385,9 @@ private enum TravelValue {
     }
 
     static func formatDate(_ value: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: value) {
+        if let date = parseDate(value) {
             let out = DateFormatter()
+            out.locale = Locale(identifier: "en_US_POSIX")
             out.dateFormat = "EEE, MMM d"
             return out.string(from: date)
         }
@@ -513,145 +395,29 @@ private enum TravelValue {
     }
 
     static func formatTime(_ value: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: value) {
+        if let date = parseDate(value) {
             let out = DateFormatter()
+            out.locale = Locale(identifier: "en_US_POSIX")
             out.dateFormat = "HH:mm"
             return out.string(from: date)
         }
         return value
     }
-}
 
-struct TravelStayRenderer: View {
-    let data: [String: AnyCodable]?
-    let mode: EmbedDisplayMode
+    private static func parseDate(_ value: String) -> Date? {
+        let isoFormatter = ISO8601DateFormatter()
+        if let date = isoFormatter.date(from: value) { return date }
 
-    private var name: String { data?["name"]?.value as? String ?? "Stay" }
-    private var location: String? { data?["location"]?.value as? String }
-    private var pricePerNight: Double? { data?["price_per_night"]?.value as? Double }
-    private var currency: String { data?["currency"]?.value as? String ?? "€" }
-    private var rating: Double? { data?["rating"]?.value as? Double }
-    private var imageUrl: String? { data?["image_url"]?.value as? String }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
 
-    var body: some View {
-        switch mode {
-        case .preview:
-            ZStack(alignment: .bottomLeading) {
-                if let imageUrl, let imgURL = URL(string: imageUrl) {
-                    CachedRemoteImage(url: imgURL) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color.grey20
-                    }
-                } else {
-                    Color.grey20.overlay(Icon("travel", size: 36).foregroundStyle(Color.fontTertiary))
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(.omSmall).fontWeight(.medium).foregroundStyle(.white).lineLimit(1)
-                    HStack {
-                        if let pricePerNight {
-                            Text("\(currency)\(String(format: "%.0f", pricePerNight))/night")
-                                .font(.omXs).foregroundStyle(.white)
-                        }
-                        if let rating {
-                            Label { Text(String(format: "%.1f", rating)).font(.omTiny) } icon: { Icon("rating", size: 10) }
-                                .foregroundStyle(.yellow)
-                        }
-                    }
-                }
-                .padding(.spacing3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.linearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-        case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let imageUrl, let imgURL = URL(string: imageUrl) {
-                    CachedRemoteImage(url: imgURL) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: { ProgressView() }
-                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                }
-                if let location { Label { Text(location).font(.omSmall) } icon: { Icon("maps", size: 14) }.foregroundStyle(Color.fontSecondary) }
-                if let pricePerNight {
-                    Text("\(currency)\(String(format: "%.2f", pricePerNight)) per night")
-                        .font(.omH4).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
-                }
-                if let rating {
-                    HStack {
-                        ForEach(0..<Int(rating), id: \.self) { _ in
-                            Icon("rating", size: 14).foregroundStyle(.yellow)
-                        }
-                        Text(String(format: "%.1f", rating)).font(.omSmall).foregroundStyle(Color.fontSecondary)
-                    }
-                }
-            }
+        for format in ["yyyy-MM-dd'T'HH:mm:ssXXXXX", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd"] {
+            formatter.dateFormat = format
+            if let date = formatter.date(from: value) { return date }
         }
+
+        return nil
     }
 }
 
-struct TravelPriceCalendarRenderer: View {
-    let data: [String: AnyCodable]?
-    let mode: EmbedDisplayMode
-
-    private var origin: String? { data?["origin"]?.value as? String }
-    private var destination: String? { data?["destination"]?.value as? String }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            Icon("calendar", size: mode == .preview ? 24 : 32)
-                .foregroundStyle(Color.fontTertiary)
-            if let origin, let destination {
-                Text("\(origin) → \(destination)")
-                    .font(mode == .preview ? .omSmall : .omP)
-                    .foregroundStyle(Color.fontPrimary)
-            }
-            Text(LocalizationManager.shared.text("embed.travel.price_calendar"))
-                .font(.omXs).foregroundStyle(Color.fontSecondary)
-        }
-        .padding(.spacing4)
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .topLeading)
-    }
-}
-
-struct TravelFlightRenderer: View {
-    let data: [String: AnyCodable]?
-    let mode: EmbedDisplayMode
-
-    private var airline: String? { data?["airline"]?.value as? String }
-    private var flightNumber: String? { data?["flight_number"]?.value as? String }
-    private var departure: String? { data?["departure"]?.value as? String }
-    private var arrival: String? { data?["arrival"]?.value as? String }
-    private var duration: String? { data?["duration"]?.value as? String }
-    private var price: Double? { data?["price"]?.value as? Double }
-    private var currency: String { data?["currency"]?.value as? String ?? "€" }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            if let airline {
-                Text(airline).font(mode == .preview ? .omSmall : .omH4)
-                    .fontWeight(.medium).foregroundStyle(Color.fontPrimary)
-            }
-            if let flightNumber {
-                Text(flightNumber).font(.omXs).foregroundStyle(Color.fontTertiary)
-            }
-            if let departure, let arrival {
-                HStack {
-                    Text(departure)
-                    Icon("back", size: 12).scaleEffect(x: -1, y: 1)
-                    Text(arrival)
-                }
-                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-            }
-            if let price {
-                Text("\(currency)\(String(format: "%.0f", price))")
-                    .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
-            }
-        }
-        .padding(.spacing4)
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .topLeading)
-    }
-}

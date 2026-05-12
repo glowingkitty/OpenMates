@@ -107,9 +107,16 @@ actor RemoteImageCache {
 
     func data(for urlString: String) async -> Data? {
         if let cached = memoryCache[urlString] {
+            guard !Self.isClearlyInvalidImageData(cached) else {
+                memoryCache.removeValue(forKey: urlString)
+                return nil
+            }
             return cached
         }
         if let cached = try? diskCache.load(cacheKey: urlString) {
+            guard !Self.isClearlyInvalidImageData(cached) else {
+                return nil
+            }
             memoryCache[urlString] = cached
             return cached
         }
@@ -150,11 +157,47 @@ actor RemoteImageCache {
     private static func download(_ urlString: String) async throws -> Data {
         guard let url = URL(string: urlString) else { throw S3Error.invalidURL }
         let (data, response) = try await URLSession.shared.data(from: url)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw S3Error.downloadFailed
+        if let httpResponse = response as? HTTPURLResponse,
+           (200...299).contains(httpResponse.statusCode),
+           isRenderableImage(data, response: httpResponse) {
+            return data
         }
-        return data
+        if let originalURL = originalImageURL(fromProxyURL: urlString) {
+            return try await download(originalURL)
+        }
+        throw S3Error.downloadFailed
+    }
+
+    private static func originalImageURL(fromProxyURL urlString: String) -> String? {
+        guard let components = URLComponents(string: urlString),
+              components.host == "preview.openmates.org",
+              components.path == "/api/v1/image",
+              let original = components.queryItems?.first(where: { $0.name == "url" })?.value,
+              original != urlString else {
+            return nil
+        }
+        return original
+    }
+
+    private static func isRenderableImage(_ data: Data, response: HTTPURLResponse) -> Bool {
+        guard !data.isEmpty else { return false }
+        if response.mimeType?.lowercased().hasPrefix("image/") == true {
+            return true
+        }
+        return data.starts(with: [0xFF, 0xD8, 0xFF])
+            || data.starts(with: [0x89, 0x50, 0x4E, 0x47])
+            || data.starts(with: [0x47, 0x49, 0x46])
+            || data.starts(with: [0x52, 0x49, 0x46, 0x46])
+    }
+
+    private static func isClearlyInvalidImageData(_ data: Data) -> Bool {
+        guard !data.isEmpty else { return true }
+        let prefix = String(decoding: data.prefix(80), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return prefix.hasPrefix("<!doctype html")
+            || prefix.hasPrefix("<html")
+            || prefix.hasPrefix("{\"detail\"")
     }
 }
 

@@ -38,6 +38,9 @@ final class ChatViewModel: ObservableObject {
     private var loadGeneration = 0
     private var pendingUserMessagesById: [String: Message] = [:]
     private var userMessageIdByAssistantMessageId: [String: String] = [:]
+    private var assistantMessageCreatedAtById: [String: String] = [:]
+    private var assistantCategoryByMessageId: [String: String] = [:]
+    private var assistantModelNameByMessageId: [String: String] = [:]
     nonisolated(unsafe) private var embedRefreshObserver: Any?
 
     func configure(wsManager: WebSocketManager?, chatStore: ChatStore?) {
@@ -518,6 +521,12 @@ final class ChatViewModel: ObservableObject {
             if let userMessageId = metadata?.userMessageId {
                 userMessageIdByAssistantMessageId[messageId] = userMessageId
             }
+            if let category = metadata?.category {
+                assistantCategoryByMessageId[messageId] = category
+            }
+            if let modelName = metadata?.modelName {
+                assistantModelNameByMessageId[messageId] = modelName
+            }
             if let metadata {
                 Task { @MainActor in
                     await sendEncryptedUserStorageIfPossible(
@@ -530,18 +539,28 @@ final class ChatViewModel: ObservableObject {
 
         case .chunk(let chatId, let messageId, _, let content, let isFinal, let userMessageId, let category, let modelName, let rejectionReason):
             streamingMessageId = messageId
-            streamingContent = content
             if let userMessageId {
                 userMessageIdByAssistantMessageId[messageId] = userMessageId
             }
+            if let category {
+                assistantCategoryByMessageId[messageId] = category
+            }
+            if let modelName {
+                assistantModelNameByMessageId[messageId] = modelName
+            }
+
+            let resolvedCategory = category ?? assistantCategoryByMessageId[messageId] ?? chat?.category ?? chat?.appId
+            let resolvedModelName = modelName ?? assistantModelNameByMessageId[messageId]
+            let displayContent = streamingDisplayContent(for: messageId, incomingContent: content, isFinal: isFinal)
+            streamingContent = displayContent
 
             if isFinal {
                 let rawAssistantMessage = Message(
                     id: messageId, chatId: chatId, role: rejectionReason == nil ? .assistant : .system,
                     content: content, encryptedContent: nil,
-                    createdAt: ISO8601DateFormatter().string(from: Date()),
-                    updatedAt: nil, appId: category ?? chat?.category ?? chat?.appId, isStreaming: false, embedRefs: nil,
-                    modelName: modelName
+                    createdAt: createdAtForAssistantMessage(messageId),
+                    updatedAt: nil, appId: resolvedCategory, isStreaming: false, embedRefs: nil,
+                    modelName: resolvedModelName
                 )
                 let embedded = PublicChatContent.attachEmbeds(to: [rawAssistantMessage])
                 for (id, record) in embedded.records {
@@ -553,12 +572,25 @@ final class ChatViewModel: ObservableObject {
                 isStreaming = false
                 streamingContent = ""
                 streamingMessageId = nil
+                assistantMessageCreatedAtById.removeValue(forKey: messageId)
+                assistantCategoryByMessageId.removeValue(forKey: messageId)
+                assistantModelNameByMessageId.removeValue(forKey: messageId)
                 Task { @MainActor in
                     await persistCompletedAssistantMessage(
                         assistantMessage,
                         userMessageId: userMessageIdByAssistantMessageId[messageId]
                     )
                 }
+            } else {
+                let partialAssistantMessage = Message(
+                    id: messageId, chatId: chatId, role: rejectionReason == nil ? .assistant : .system,
+                    content: displayContent, encryptedContent: nil,
+                    createdAt: createdAtForAssistantMessage(messageId),
+                    updatedAt: nil, appId: resolvedCategory, isStreaming: true, embedRefs: nil,
+                    modelName: resolvedModelName
+                )
+                appendOrReplaceTransientMessage(partialAssistantMessage)
+                isStreaming = true
             }
 
         case .thinkingChunk(_, _, _):
@@ -649,6 +681,39 @@ final class ChatViewModel: ObservableObject {
         }
         messages.sort { $0.createdAt < $1.createdAt }
         chatStore?.appendMessage(message, to: message.chatId)
+    }
+
+    private func appendOrReplaceTransientMessage(_ message: Message) {
+        if let index = allMessages.firstIndex(where: { $0.id == message.id }) {
+            allMessages[index] = message
+        } else {
+            allMessages.append(message)
+        }
+        allMessages.sort { $0.createdAt < $1.createdAt }
+
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            messages[index] = message
+        } else {
+            messages.append(message)
+        }
+        messages.sort { $0.createdAt < $1.createdAt }
+    }
+
+    private func createdAtForAssistantMessage(_ messageId: String) -> String {
+        if let createdAt = assistantMessageCreatedAtById[messageId] {
+            return createdAt
+        }
+        let createdAt = ISO8601DateFormatter().string(from: Date())
+        assistantMessageCreatedAtById[messageId] = createdAt
+        return createdAt
+    }
+
+    private func streamingDisplayContent(for messageId: String, incomingContent: String, isFinal: Bool) -> String {
+        guard !isFinal else { return incomingContent }
+        let existingContent = messages.first(where: { $0.id == messageId })?.content ?? ""
+        guard !incomingContent.isEmpty else { return existingContent }
+        guard incomingContent.count >= existingContent.count else { return existingContent }
+        return incomingContent
     }
 
     // MARK: - Embed update subscription

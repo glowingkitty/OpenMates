@@ -1,12 +1,24 @@
 // Code and document embed renderers.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeGetDocsEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeGetDocsEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+//          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 import WebKit
 
-struct CodeRenderer: View {
+struct CodeEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     var previewActive = false
+    var isLargePreview = false
 
     private var code: String {
         (data?["code"]?.value as? String ?? "")
@@ -36,8 +48,16 @@ struct CodeRenderer: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    CodeLinesView(code: previewCode, language: language, showsLineNumbers: true, fontSize: 12)
+                    CodeLinesView(
+                        code: previewCode,
+                        language: language,
+                        showsLineNumbers: true,
+                        fontSize: 12,
+                        clipsLongLines: true
+                    )
                         .padding(.top, .spacing5)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .clipped()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -49,7 +69,13 @@ struct CodeRenderer: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
             } else {
                 ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                    CodeLinesView(code: code, language: language, showsLineNumbers: true, fontSize: 15)
+                    CodeLinesView(
+                        code: code,
+                        language: language,
+                        showsLineNumbers: true,
+                        fontSize: 15,
+                        clipsLongLines: false
+                    )
                         .padding(.top, .spacing6)
                         .padding(.bottom, .spacing8)
                         .padding(.trailing, .spacing4)
@@ -69,7 +95,7 @@ struct CodeRenderer: View {
     }
 
     private var previewCode: String {
-        code.components(separatedBy: "\n").prefix(21).joined(separator: "\n")
+        code.components(separatedBy: "\n").prefix(isLargePreview ? 21 : 8).joined(separator: "\n")
     }
 
     private var codeInfoText: String {
@@ -96,6 +122,7 @@ private struct CodeLinesView: View {
     let language: String
     let showsLineNumbers: Bool
     let fontSize: CGFloat
+    let clipsLongLines: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -107,12 +134,20 @@ private struct CodeLinesView: View {
                             .foregroundStyle(Color.grey60)
                             .frame(width: 34, alignment: .trailing)
                     }
-                    HighlightedCodeLine(line: line, language: language, fontSize: fontSize)
+                    HighlightedCodeLine(
+                        line: line,
+                        language: language,
+                        fontSize: fontSize,
+                        clipsLongLines: clipsLongLines
+                    )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
             }
         }
         .textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .clipped()
     }
 
     private var lines: [String] {
@@ -125,11 +160,21 @@ private struct HighlightedCodeLine: View {
     let line: String
     let language: String
     let fontSize: CGFloat
+    let clipsLongLines: Bool
 
     var body: some View {
-        Text(attributedLine)
-            .font(.system(size: fontSize, design: .monospaced))
-            .fixedSize(horizontal: true, vertical: false)
+        if clipsLongLines {
+            Text(attributedLine)
+                .font(.system(size: fontSize, design: .monospaced))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
+        } else {
+            Text(attributedLine)
+                .font(.system(size: fontSize, design: .monospaced))
+                .fixedSize(horizontal: true, vertical: false)
+                .lineLimit(1)
+        }
     }
 
     private var attributedLine: AttributedString {
@@ -400,6 +445,148 @@ private struct CodeHTMLPreview: NSViewRepresentable {
 }
 #endif
 
+struct CodeGetDocsEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var title: String? {
+        firstString(["title", "library_id", "library"])
+            ?? firstResultString(["library_id", "id", "library_title", "title"])
+    }
+    private var html: String? { data?["html"]?.value as? String }
+    private var content: String? {
+        firstString(["content", "documentation", "html"])
+            ?? firstResultString(["content", "documentation", "text"])
+    }
+    private var question: String? { firstString(["question", "query"]) }
+    private var wordCount: Int? {
+        firstInt(["word_count", "wordCount"]) ?? firstResultInt(["word_count", "wordCount"])
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing3) {
+                if let title {
+                    Text(title)
+                        .font(.omP)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.grey100)
+                        .monospaced()
+                        .lineLimit(2)
+                }
+                if let question {
+                    Text(question)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.grey80)
+                        .lineLimit(2)
+                }
+                Text("via Context7")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.grey70)
+                if let wordCount {
+                    Text("\(wordCount.formatted()) words")
+                        .font(.omSmall)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.grey70)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing4) {
+                if let title {
+                    Text(title)
+                        .font(.omH3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey100)
+                        .monospaced()
+                }
+                if let question {
+                    Text(question)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                }
+                if let wordCount {
+                    Text("\(wordCount.formatted()) words")
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontTertiary)
+                }
+                Text(content ?? html ?? "")
+                    .font(.omP)
+                    .foregroundStyle(Color.fontPrimary)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    private var firstResult: [String: Any]? {
+        if let results = data?["results"]?.value as? [[String: Any]], let first = results.first {
+            return first
+        }
+        if let results = data?["results"]?.value as? [[String: AnyCodable]], let first = results.first {
+            return first.mapValues(\.value)
+        }
+        if let result = data?["result"]?.value as? [String: Any] {
+            return result
+        }
+        if let result = data?["result"]?.value as? [String: AnyCodable] {
+            return result.mapValues(\.value)
+        }
+        return nil
+    }
+
+    private func firstString(_ keys: [String]) -> String? {
+        for key in keys {
+            if let value = data?[key]?.value as? String, !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func firstInt(_ keys: [String]) -> Int? {
+        for key in keys {
+            if let value = data?[key]?.value as? Int {
+                return value
+            }
+            if let value = data?[key]?.value as? String, let int = Int(value) {
+                return int
+            }
+        }
+        return nil
+    }
+
+    private func firstResultString(_ keys: [String]) -> String? {
+        guard let firstResult else { return nil }
+        for key in keys {
+            if let value = firstResult[key] as? String, !value.isEmpty {
+                return value
+            }
+            if key == "library_id",
+               let library = firstResult["library"] as? [String: Any],
+               let value = library["id"] as? String,
+               !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func firstResultInt(_ keys: [String]) -> Int? {
+        guard let firstResult else { return nil }
+        for key in keys {
+            if let value = firstResult[key] as? Int {
+                return value
+            }
+            if let value = firstResult[key] as? String, let int = Int(value) {
+                return int
+            }
+        }
+        return nil
+    }
+}
+
 struct DocsRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
@@ -407,7 +594,11 @@ struct DocsRenderer: View {
     private var title: String? { data?["title"]?.value as? String }
     private var html: String? { data?["html"]?.value as? String }
     private var content: String? { data?["content"]?.value as? String }
-    private var wordCount: Int? { data?["word_count"]?.value as? Int }
+    private var wordCount: Int? {
+        if let value = data?["word_count"]?.value as? Int { return value }
+        if let value = data?["word_count"]?.value as? String { return Int(value) }
+        return nil
+    }
 
     var body: some View {
         switch mode {
@@ -421,7 +612,7 @@ struct DocsRenderer: View {
                         .lineLimit(2)
                 }
                 if let wordCount {
-                    Text("\(wordCount) words")
+                    Text("\(wordCount.formatted()) words")
                         .font(.omXs)
                         .foregroundStyle(Color.fontTertiary)
                 }
@@ -438,7 +629,7 @@ struct DocsRenderer: View {
         case .fullscreen:
             VStack(alignment: .leading, spacing: .spacing4) {
                 if let wordCount {
-                    Text("\(wordCount) words")
+                    Text("\(wordCount.formatted()) words")
                         .font(.omSmall)
                         .foregroundStyle(Color.fontTertiary)
                 }

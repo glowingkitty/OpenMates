@@ -20,6 +20,7 @@ struct EmbedContentView: View {
     let mode: EmbedDisplayMode
     let allEmbedRecords: [String: EmbedRecord]
     let codePreviewActive: Bool
+    let previewVariant: EmbedPreviewCardVariant
     let onOpenEmbed: (EmbedRecord) -> Void
 
     init(
@@ -27,12 +28,14 @@ struct EmbedContentView: View {
         mode: EmbedDisplayMode,
         allEmbedRecords: [String: EmbedRecord] = [:],
         codePreviewActive: Bool = false,
+        previewVariant: EmbedPreviewCardVariant = .compact,
         onOpenEmbed: @escaping (EmbedRecord) -> Void = { _ in }
     ) {
         self.embed = embed
         self.mode = mode
         self.allEmbedRecords = allEmbedRecords
         self.codePreviewActive = codePreviewActive
+        self.previewVariant = previewVariant
         self.onOpenEmbed = onOpenEmbed
     }
 
@@ -59,17 +62,22 @@ struct EmbedContentView: View {
             case .webSearch, .newsSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "results")
             case .webWebsite:
-                WebsiteRenderer(data: rawData, mode: mode)
+                WebsiteEmbedRenderer(data: rawData, mode: mode)
             case .webRead:
-                WebReadRenderer(data: rawData, mode: mode)
+                WebReadEmbedRenderer(data: rawData, mode: mode)
             case .wiki:
                 WikiRenderer(data: rawData, mode: mode)
 
             // Code
             case .codeCode:
-                CodeRenderer(data: rawData, mode: mode, previewActive: codePreviewActive)
+                CodeEmbedRenderer(
+                    data: rawData,
+                    mode: mode,
+                    previewActive: codePreviewActive,
+                    isLargePreview: previewVariant == .large
+                )
             case .codeGetDocs:
-                DocsRenderer(data: rawData, mode: mode)
+                CodeGetDocsEmbedRenderer(data: rawData, mode: mode)
 
             // Documents
             case .docsDoc:
@@ -89,11 +97,11 @@ struct EmbedContentView: View {
             case .imagesSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "images")
             case .imagesImageResult:
-                ImageResultRenderer(data: rawData, mode: mode)
+                ImageResultEmbedRenderer(data: rawData, mode: mode)
             case .imagesGenerate, .imagesGenerateDraft:
-                ImageGenerateRenderer(data: rawData, mode: mode)
+                ImageGenerateEmbedRenderer(data: rawData, mode: mode)
             case .image:
-                ImageRenderer(data: rawData, mode: mode)
+                ImageEmbedRenderer(data: rawData, mode: mode)
 
             // Maps
             case .mapsSearch:
@@ -105,7 +113,7 @@ struct EmbedContentView: View {
 
             // Travel
             case .travelConnections:
-                TravelSearchRenderer(
+                TravelSearchEmbedRenderer(
                     embed: embed,
                     data: rawData,
                     mode: mode,
@@ -113,15 +121,15 @@ struct EmbedContentView: View {
                     onOpenEmbed: onOpenEmbed
                 )
             case .travelConnection:
-                TravelConnectionRenderer(data: rawData, mode: mode)
+                TravelConnectionEmbedRenderer(data: rawData, mode: mode)
             case .travelStays:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "stays")
             case .travelStay:
-                TravelStayRenderer(data: rawData, mode: mode)
+                TravelStayEmbedRenderer(data: rawData, mode: mode)
             case .travelPriceCalendar:
-                TravelPriceCalendarRenderer(data: rawData, mode: mode)
+                TravelPriceCalendarEmbedRenderer(data: rawData, mode: mode)
             case .travelFlight:
-                TravelFlightRenderer(data: rawData, mode: mode)
+                TravelFlightDetailsEmbedRenderer(data: rawData, mode: mode)
 
             // Events
             case .eventsSearch:

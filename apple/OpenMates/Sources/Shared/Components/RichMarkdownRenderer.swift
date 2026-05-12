@@ -18,6 +18,7 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import Foundation
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -137,7 +138,12 @@ enum MarkdownParser {
                     codeLines.append(lines[i])
                     i += 1
                 }
-                blocks.append(.codeBlock(language: language, code: codeLines.joined(separator: "\n")))
+                let code = codeLines.joined(separator: "\n")
+                if let embed = parseFencedEmbedReference(language: language, code: code) {
+                    blocks.append(.embedGroup([embed]))
+                } else {
+                    blocks.append(.codeBlock(language: language, code: code))
+                }
                 continue
             }
 
@@ -271,6 +277,23 @@ enum MarkdownParser {
         let end = line.index(line.endIndex, offsetBy: -2)
         guard start < end else { return nil }
         return MarkdownEmbedReference(value: String(line[start..<end]), isRef: true, isLargePreview: true)
+    }
+
+    private static func parseFencedEmbedReference(language: String?, code: String) -> MarkdownEmbedReference? {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let language, !language.isEmpty, language.lowercased() != "json" {
+            return nil
+        }
+        guard let data = trimmed.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object["type"] is String,
+              let embedId = object["embed_id"] as? String,
+              !embedId.isEmpty else {
+            return nil
+        }
+        let isLargePreview = object["large_preview"] as? Bool ?? object["is_large_preview"] as? Bool ?? false
+        return MarkdownEmbedReference(value: embedId, isRef: false, isLargePreview: isLargePreview)
     }
 
     private static func parseTableRow(_ line: String) -> [String] {
