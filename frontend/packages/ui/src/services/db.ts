@@ -219,7 +219,12 @@ class ChatDatabase {
     // skip all orphan detection, cleanup checks, and re-open logic.
     // This eliminates the "Skipping orphan detection" log spam that fires on
     // every IDB operation (getChat, getAllChats, etc.) after tab resume.
-    if (this.db && !this.isDeleting && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
+    if (
+      this.db &&
+      !this.isDeleting &&
+      !get(forcedLogoutInProgress) &&
+      !get(isLoggingOut)
+    ) {
       return;
     }
 
@@ -870,8 +875,14 @@ class ChatDatabase {
         { keyPath: "id" },
       );
       highlightsStore.createIndex("chat_id", "chat_id", { unique: false });
-      highlightsStore.createIndex("message_id", "message_id", { unique: false });
-      highlightsStore.createIndex("chat_id_message_id", ["chat_id", "message_id"], { unique: false });
+      highlightsStore.createIndex("message_id", "message_id", {
+        unique: false,
+      });
+      highlightsStore.createIndex(
+        "chat_id_message_id",
+        ["chat_id", "message_id"],
+        { unique: false },
+      );
       console.warn("[ChatDatabase] Created message_highlights store (v23)");
     }
 
@@ -884,7 +895,11 @@ class ChatDatabase {
         { keyPath: "id" },
       );
       embedDiffsStore.createIndex("embed_id", "embed_id", { unique: false });
-      embedDiffsStore.createIndex("embed_id_version", ["embed_id", "version_number"], { unique: true });
+      embedDiffsStore.createIndex(
+        "embed_id_version",
+        ["embed_id", "version_number"],
+        { unique: true },
+      );
       console.warn("[ChatDatabase] Created embed_diffs store (v24)");
     }
 
@@ -1161,7 +1176,11 @@ class ChatDatabase {
   // CHAT CRUD OPERATIONS (delegated to chatCrudOperations.ts)
   // ============================================================================
 
-  async addChat(chat: Chat, transaction?: IDBTransaction, options?: { isFromSync?: boolean }): Promise<void> {
+  async addChat(
+    chat: Chat,
+    transaction?: IDBTransaction,
+    options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean },
+  ): Promise<void> {
     return chatCrudOps.addChat(this, chat, transaction, options);
   }
 
@@ -2001,5 +2020,8 @@ export const cryptoReady: Promise<void> = chatDB
   .then(() => chatDB.loadChatKeysFromDatabase())
   .catch((err) => {
     // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
-    console.warn("[db] cryptoReady init failed (may be expected during logout):", err);
+    console.warn(
+      "[db] cryptoReady init failed (may be expected during logout):",
+      err,
+    );
   });

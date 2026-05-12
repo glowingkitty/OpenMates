@@ -122,8 +122,7 @@ export function generateChatKey(): Uint8Array {
 // The magic bytes "OM" (0x4F, 0x4D) distinguish the two formats.
 const CIPHERTEXT_MAGIC = new Uint8Array([0x4f, 0x4d]); // "OM"
 const FINGERPRINT_LENGTH = 4;
-const CIPHERTEXT_HEADER_LENGTH =
-  CIPHERTEXT_MAGIC.length + FINGERPRINT_LENGTH; // 6 bytes
+const CIPHERTEXT_HEADER_LENGTH = CIPHERTEXT_MAGIC.length + FINGERPRINT_LENGTH; // 6 bytes
 
 /**
  * Compute a 4-byte FNV-1a fingerprint of a chat key.
@@ -144,6 +143,12 @@ export function computeKeyFingerprint4Bytes(key: Uint8Array): Uint8Array {
   fp[2] = (h >>> 8) & 0xff;
   fp[3] = h & 0xff;
   return fp;
+}
+
+function fingerprintBytesToHex(fingerprint: Uint8Array): string {
+  return Array.from(fingerprint)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
@@ -208,6 +213,9 @@ export async function decryptWithChatKey(
 ): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
+    let decryptionKey = chatKey;
+    let recoveredCandidate: import("./ChatKeyManager").CandidateChatKey | null =
+      null;
 
     let iv: Uint8Array;
     let ciphertext: Uint8Array;
@@ -223,7 +231,7 @@ export async function decryptWithChatKey(
         CIPHERTEXT_MAGIC.length,
         CIPHERTEXT_HEADER_LENGTH,
       );
-      const actualFp = computeKeyFingerprint4Bytes(chatKey);
+      const actualFp = computeKeyFingerprint4Bytes(decryptionKey);
 
       if (
         storedFp[0] !== actualFp[0] ||
@@ -234,19 +242,34 @@ export async function decryptWithChatKey(
         // Key fingerprint mismatch — fast fail with clear diagnostic
         const chatId = context?.chatId ?? "unknown";
         const fieldName = context?.fieldName ?? "unknown";
-        const storedHex = Array.from(storedFp)
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-        const actualHex = Array.from(actualFp)
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-        console.error(
-          `[CryptoService] Key fingerprint mismatch: data encrypted with key fp=${storedHex}, ` +
-            `but attempting decryption with key fp=${actualHex}. ` +
-            `chat_id=${chatId} field=${fieldName}. ` +
-            `This means the data was encrypted with a DIFFERENT key than the one currently loaded.`,
-        );
-        return null;
+        const storedHex = fingerprintBytesToHex(storedFp);
+        const actualHex = fingerprintBytesToHex(actualFp);
+
+        if (context?.chatId) {
+          const { chatKeyManager } = await import("./ChatKeyManager");
+          recoveredCandidate =
+            await chatKeyManager.findCandidateKeyByFingerprint(
+              context.chatId,
+              storedHex,
+            );
+          if (recoveredCandidate) {
+            decryptionKey = recoveredCandidate.key;
+            console.warn(
+              `[CryptoService] Recovering chat key from candidate after fingerprint mismatch: ` +
+                `data fp=${storedHex}, loaded fp=${actualHex}, chat_id=${chatId} field=${fieldName}`,
+            );
+          }
+        }
+
+        if (!recoveredCandidate) {
+          console.error(
+            `[CryptoService] Key fingerprint mismatch: data encrypted with key fp=${storedHex}, ` +
+              `but attempting decryption with key fp=${actualHex}. ` +
+              `chat_id=${chatId} field=${fieldName}. ` +
+              `This means the data was encrypted with a DIFFERENT key than the one currently loaded.`,
+          );
+          return null;
+        }
       }
 
       iv = combined.slice(
@@ -261,7 +284,7 @@ export async function decryptWithChatKey(
     }
 
     // Use cached CryptoKey to avoid redundant importKey calls
-    const cryptoKey = await getOrImportCryptoKey(chatKey, "decrypt");
+    const cryptoKey = await getOrImportCryptoKey(decryptionKey, "decrypt");
 
     const decrypted = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: new Uint8Array(iv) },
@@ -270,7 +293,16 @@ export async function decryptWithChatKey(
     );
 
     const decoder = new TextDecoder();
-    return decoder.decode(decrypted);
+    const decoded = decoder.decode(decrypted);
+    if (recoveredCandidate && context?.chatId) {
+      const { chatKeyManager } = await import("./ChatKeyManager");
+      chatKeyManager.promoteCandidateKey(
+        context.chatId,
+        recoveredCandidate,
+        "fingerprint_mismatch_recovery",
+      );
+    }
+    return decoded;
   } catch (error) {
     // Enhanced logging with key provenance to help diagnose decryption failures.
     // Import ChatKeyManager lazily to get provenance info without circular deps.

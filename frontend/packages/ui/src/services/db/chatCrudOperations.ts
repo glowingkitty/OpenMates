@@ -13,7 +13,10 @@ import {
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
 } from "../cryptoService";
-import { chatKeyManager, computeKeyFingerprint } from "../encryption/ChatKeyManager";
+import {
+  chatKeyManager,
+  computeKeyFingerprint,
+} from "../encryption/ChatKeyManager";
 import { chatKeysEqual } from "../chatKeyConsistency";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
@@ -64,11 +67,17 @@ export async function addCandidateKey(
 
     const updated = [...existing, encryptedKeyBlob].slice(-MAX_CANDIDATE_KEYS);
     // Use a minimal update object — only touch the candidate_encrypted_keys field
-    const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+    const transaction = await dbInstance.getTransaction(
+      dbInstance.CHATS_STORE_NAME,
+      "readwrite",
+    );
     const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
     store.put({ ...chat, candidate_encrypted_keys: updated });
   } catch (err) {
-    console.warn(`[ChatDatabase] Failed to persist candidate key for chat ${chatId}:`, err);
+    console.warn(
+      `[ChatDatabase] Failed to persist candidate key for chat ${chatId}:`,
+      err,
+    );
   }
 }
 
@@ -109,7 +118,7 @@ function _extractTitleFromContent(content: TiptapJSON): string {
 export async function encryptChatForStorage(
   dbInstance: ChatDatabaseInstance,
   chat: Chat,
-  options?: { isFromSync?: boolean },
+  options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean },
 ): Promise<Chat> {
   // Skip encryption entirely for public chats (demo + legal) - they're public content
   // Add null check to prevent TypeError when chat.chat_id is undefined
@@ -159,27 +168,61 @@ export async function encryptChatForStorage(
   // store the incoming key beside locally encrypted fields. The caller must
   // explicitly clear/reload ChatKeyManager before accepting a server key change.
   if (chatKey && chat.encrypted_chat_key) {
-    const incomingKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+    const incomingKey = await decryptChatKeyWithMasterKey(
+      chat.encrypted_chat_key,
+    );
     if (incomingKey) {
       if (!chatKeysEqual(chatKey, incomingKey)) {
-        addCandidateKey(dbInstance, chat.chat_id, chat.encrypted_chat_key).catch(() => {});
         const existingChat = await dbInstance.getChat(chat.chat_id);
-        encryptedChat.encrypted_chat_key =
-          existingChat?.encrypted_chat_key ??
-          (await encryptChatKeyWithMasterKey(chatKey));
-        console.warn(
-          `[ChatDatabase] Refusing to persist conflicting encrypted_chat_key for chat ${chat.chat_id}; ` +
-            `cached key remains authoritative until sync explicitly reloads the server key`,
-        );
+        if (options?.forceIncomingEncryptedChatKey) {
+          if (existingChat?.encrypted_chat_key) {
+            addCandidateKey(
+              dbInstance,
+              chat.chat_id,
+              existingChat.encrypted_chat_key,
+            ).catch(() => {});
+          }
+          chatKeyManager.injectKey(
+            chat.chat_id,
+            incomingKey,
+            "server_sync",
+            true,
+          );
+          chatKey = incomingKey;
+          encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
+          console.warn(
+            `[ChatDatabase] Accepting authoritative server encrypted_chat_key for chat ${chat.chat_id}; ` +
+              `previous local key was preserved as a candidate`,
+          );
+        } else {
+          addCandidateKey(
+            dbInstance,
+            chat.chat_id,
+            chat.encrypted_chat_key,
+          ).catch(() => {});
+          encryptedChat.encrypted_chat_key =
+            existingChat?.encrypted_chat_key ??
+            (await encryptChatKeyWithMasterKey(chatKey));
+          console.warn(
+            `[ChatDatabase] Refusing to persist conflicting encrypted_chat_key for chat ${chat.chat_id}; ` +
+              `cached key remains authoritative until sync explicitly reloads the server key`,
+          );
+        }
       }
     }
   }
 
   // Step 2: server-provided encrypted_chat_key on the incoming chat object
   if (!chatKey && chat.encrypted_chat_key) {
-    const candidateKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+    const candidateKey = await decryptChatKeyWithMasterKey(
+      chat.encrypted_chat_key,
+    );
     if (candidateKey) {
-      const accepted = chatKeyManager.injectKey(chat.chat_id, candidateKey, "master_key");
+      const accepted = chatKeyManager.injectKey(
+        chat.chat_id,
+        candidateKey,
+        "master_key",
+      );
       if (accepted) {
         chatKey = candidateKey;
         encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
@@ -187,7 +230,11 @@ export async function encryptChatForStorage(
       // If rejected: save the conflicting blob as a candidate so tryDecryptWithCandidates
       // can recover it later if the local key turns out to be the wrong one.
       if (!accepted && chat.encrypted_chat_key) {
-        addCandidateKey(dbInstance, chat.chat_id, chat.encrypted_chat_key).catch(() => {});
+        addCandidateKey(
+          dbInstance,
+          chat.chat_id,
+          chat.encrypted_chat_key,
+        ).catch(() => {});
       }
     } else {
       console.error(
@@ -369,7 +416,7 @@ export async function addChat(
   dbInstance: ChatDatabaseInstance,
   chat: Chat,
   transaction?: IDBTransaction,
-  options?: { isFromSync?: boolean },
+  options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean },
 ): Promise<void> {
   console.debug(
     `[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`,
@@ -377,7 +424,7 @@ export async function addChat(
 
   // CRITICAL: During forced logout (missing master key), only allow adding public chats
   // Refuse to save encrypted user chats since they cannot be decrypted later without the master key
-  if (get(forcedLogoutInProgress) && !isPublicChat(chat.chat_id ?? '')) {
+  if (get(forcedLogoutInProgress) && !isPublicChat(chat.chat_id ?? "")) {
     console.error(
       `[ChatDatabase] Refusing to addChat during forced logout - chat ${chat.chat_id}`,
     );
@@ -413,7 +460,11 @@ export async function addChat(
 
   // CRITICAL FIX: Do async encryption work BEFORE using the transaction
   // This ensures the transaction is still active when we try to use it
-  const chatToSave = await encryptChatForStorage(dbInstance, chatWithDefaults, options);
+  const chatToSave = await encryptChatForStorage(
+    dbInstance,
+    chatWithDefaults,
+    options,
+  );
   delete chatToSave.messages;
 
   return new Promise<void>((resolve, reject) => {

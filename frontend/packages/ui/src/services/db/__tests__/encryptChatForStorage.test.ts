@@ -36,7 +36,8 @@ vi.mock("../../encryption/ChatKeyManager", () => ({
   chatKeyManager: {
     getKeySync: (...args: unknown[]) => mockGetKeySync(...args),
     injectKey: (...args: unknown[]) => mockInjectKey(...args),
-    createKeyForNewChat: (...args: unknown[]) => mockCreateKeyForNewChat(...args),
+    createKeyForNewChat: (...args: unknown[]) =>
+      mockCreateKeyForNewChat(...args),
     onKeyReady: vi.fn(() => () => {}),
   },
   computeKeyFingerprint: (...args: unknown[]) =>
@@ -45,8 +46,18 @@ vi.mock("../../encryption/ChatKeyManager", () => ({
 
 // Mock signupState stores (used by addChat guard)
 vi.mock("../../../stores/signupState", () => ({
-  forcedLogoutInProgress: { subscribe: vi.fn((cb: (v: boolean) => void) => { cb(false); return () => {}; }) },
-  isLoggingOut: { subscribe: vi.fn((cb: (v: boolean) => void) => { cb(false); return () => {}; }) },
+  forcedLogoutInProgress: {
+    subscribe: vi.fn((cb: (v: boolean) => void) => {
+      cb(false);
+      return () => {};
+    }),
+  },
+  isLoggingOut: {
+    subscribe: vi.fn((cb: (v: boolean) => void) => {
+      cb(false);
+      return () => {};
+    }),
+  },
 }));
 
 // Mock svelte/store get()
@@ -99,13 +110,17 @@ function makeChat(overrides: Partial<Chat> = {}): Chat {
 }
 
 function makeDbInstance() {
+  const put = vi.fn();
   return {
     db: null,
     CHATS_STORE_NAME: "chats",
     init: vi.fn().mockResolvedValue(undefined),
-    getTransaction: vi.fn(),
+    getTransaction: vi.fn().mockResolvedValue({
+      objectStore: vi.fn().mockReturnValue({ put }),
+    }),
     getChat: vi.fn().mockResolvedValue(null),
     getEncryptedChatKey: vi.fn().mockResolvedValue(null),
+    put,
   };
 }
 
@@ -252,6 +267,39 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     expect(result.key_fingerprint).toBe("abcd1234");
   });
 
+  it("accepts an authoritative server key during explicit mismatch recovery", async () => {
+    const db = makeDbInstance();
+    const serverKey = new Uint8Array(32).fill(99);
+    const chat = makeChat({ encrypted_chat_key: "server-encrypted-key" });
+
+    mockGetKeySync.mockReturnValue(fakeKey);
+    mockDecryptChatKeyWithMasterKey.mockResolvedValue(serverKey);
+    db.getChat.mockResolvedValue({
+      chat_id: "test-chat-123",
+      encrypted_chat_key: "old-local-key",
+      candidate_encrypted_keys: [],
+    });
+
+    const result = await encryptChatForStorage(db as any, chat, {
+      isFromSync: true,
+      forceIncomingEncryptedChatKey: true,
+    });
+
+    expect(mockInjectKey).toHaveBeenCalledWith(
+      "test-chat-123",
+      serverKey,
+      "server_sync",
+      true,
+    );
+    expect(result.encrypted_chat_key).toBe("server-encrypted-key");
+    expect(result.encrypted_chat_key).not.toBe("old-local-key");
+    expect(db.put).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidate_encrypted_keys: ["old-local-key"],
+      }),
+    );
+  });
+
   it("falls back to IDB key during sync (Step 3)", async () => {
     const db = makeDbInstance();
     const chat = makeChat(); // No encrypted_chat_key from server
@@ -284,9 +332,7 @@ describe("encryptChatForStorage — isFromSync guard", () => {
     const chat = makeChat(); // No server key
     db.getChat.mockResolvedValue(null); // No IDB key
 
-    const consoleSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const result = await encryptChatForStorage(db as any, chat, {
       isFromSync: true,

@@ -150,7 +150,9 @@ export async function handlePhase2RecentChatsImpl(
 
     // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
-      console.debug("[ChatSyncService] Phase 2 cache warming notification, ignoring");
+      console.debug(
+        "[ChatSyncService] Phase 2 cache warming notification, ignoring",
+      );
       return;
     }
 
@@ -222,7 +224,11 @@ export async function handlePhase3FullSyncImpl(
 
     // Store chat data if present (may be empty when batches already sent all chats)
     if (chats.length > 0) {
-      await storeAllChats(serviceInstance, chats, phase2ProcessedChatIds ?? undefined);
+      await storeAllChats(
+        serviceInstance,
+        chats,
+        phase2ProcessedChatIds ?? undefined,
+      );
       phase2ProcessedChatIds = null; // Clear after Phase 3 completes
     } else {
       console.debug(
@@ -305,11 +311,14 @@ export async function handlePhase3FullSyncImpl(
         const existingIds = await chatDB.getMetadataOnlyChatIds();
         console.info(
           `[ChatSyncService] Phase 3: Triggering metadata sync for chats 101–1000 ` +
-          `(total=${total_chat_count}, existing_metadata=${existingIds.length})`
+            `(total=${total_chat_count}, existing_metadata=${existingIds.length})`,
         );
         await serviceInstance.sendSyncMetadataChats(existingIds);
       } catch (err) {
-        console.error("[ChatSyncService] Failed to trigger metadata sync after Phase 3:", err);
+        console.error(
+          "[ChatSyncService] Failed to trigger metadata sync after Phase 3:",
+          err,
+        );
       }
     }
   } catch (error) {
@@ -374,19 +383,29 @@ export async function handleBackgroundMessageSyncImpl(
           chatData.messages_v || chatData.server_message_count || 0,
         );
         if (newV > (existingChat.messages_v || 0)) {
-          await chatDB.addChat({ ...existingChat, messages_v: newV }, undefined, { isFromSync: true });
+          await chatDB.addChat(
+            { ...existingChat, messages_v: newV },
+            undefined,
+            { isFromSync: true },
+          );
         }
       }
     }
 
     // Store embed_keys FIRST (needed for embed decryption)
     if (payload.embed_keys && payload.embed_keys.length > 0) {
-      await storeEmbedKeysBatch(payload.embed_keys, `Phase 3 batch ${payload.batch_number}`);
+      await storeEmbedKeysBatch(
+        payload.embed_keys,
+        `Phase 3 batch ${payload.batch_number}`,
+      );
     }
 
     // Store embeds (encrypted — decryption happens on-demand when user opens the chat)
     if (payload.embeds && payload.embeds.length > 0) {
-      await storeEmbedsBatch(payload.embeds, `Phase 3 batch ${payload.batch_number}`);
+      await storeEmbedsBatch(
+        payload.embeds,
+        `Phase 3 batch ${payload.batch_number}`,
+      );
     }
 
     // Yield to main thread between batches
@@ -524,7 +543,11 @@ async function storeRecentChats(
 
     for (let i = 0; i < sortedChats.length; i++) {
       const chatItem = sortedChats[i];
-      const { chat_details, messages, server_message_count: _server_message_count } = chatItem;
+      const {
+        chat_details,
+        messages,
+        server_message_count: _server_message_count,
+      } = chatItem;
       const chatId = chat_details.id;
 
       // Yield to the main thread between non-active chat saves to prevent UI jank
@@ -542,13 +565,23 @@ async function storeRecentChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      const keyMismatch = hasEncryptedChatKeyMismatch(chat_details, existingChat);
+      const keyMismatch = hasEncryptedChatKeyMismatch(
+        chat_details,
+        existingChat,
+      );
       if (keyMismatch) {
         console.warn(
           `[ChatSyncService] Phase 2 - chat key mismatch for ${chatId}; ` +
             `server key will be used and local message content will be re-synced`,
         );
-        chatKeyManager.removeKey(chatId);
+        if (chat_details.encrypted_chat_key) {
+          await chatKeyManager.acceptServerKeyForMismatch(
+            chatId,
+            chat_details.encrypted_chat_key,
+          );
+        } else {
+          chatKeyManager.removeKey(chatId);
+        }
       }
 
       // Merge server data with local data, preserving higher versions
@@ -572,10 +605,14 @@ async function storeRecentChats(
       // Check if messages were provided (legacy/backwards compat) or metadata-only.
       const shouldSyncMessages =
         messages && Array.isArray(messages) && messages.length > 0;
+      const syncSaveOptions = {
+        isFromSync: true,
+        forceIncomingEncryptedChatKey: keyMismatch,
+      };
 
       // Metadata-only path: save chat and move on (no message processing)
       if (!shouldSyncMessages) {
-        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
         if (keyMismatch) {
           serviceInstance.dispatchEvent(
@@ -583,7 +620,8 @@ async function storeRecentChats(
               detail: {
                 chatId,
                 localCount: await chatDB.getMessageCountForChat(chatId),
-                serverCount: _server_message_count ?? chat_details.messages_v ?? 0,
+                serverCount:
+                  _server_message_count ?? chat_details.messages_v ?? 0,
                 phase: "phase2-key-mismatch",
               },
             }),
@@ -608,7 +646,7 @@ async function storeRecentChats(
       }
 
       if (shouldSkipMessageSync) {
-        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
         processedChatIds.add(chatId);
         continue;
@@ -623,7 +661,7 @@ async function storeRecentChats(
 
       // Save chat and messages
       try {
-        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
 
         if (shouldSyncMessages && preparedMessages.length > 0) {
@@ -714,13 +752,23 @@ async function storeAllChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      const keyMismatch = hasEncryptedChatKeyMismatch(chat_details, existingChat);
+      const keyMismatch = hasEncryptedChatKeyMismatch(
+        chat_details,
+        existingChat,
+      );
       if (keyMismatch) {
         console.warn(
           `[ChatSyncService] Phase 3 - chat key mismatch for ${chatId}; ` +
             `clearing cached key and forcing server message re-sync`,
         );
-        chatKeyManager.removeKey(chatId);
+        if (chat_details.encrypted_chat_key) {
+          await chatKeyManager.acceptServerKeyForMismatch(
+            chatId,
+            chat_details.encrypted_chat_key,
+          );
+        } else {
+          chatKeyManager.removeKey(chatId);
+        }
       }
 
       // Merge server data with local data, preserving higher versions
@@ -753,6 +801,10 @@ async function storeAllChats(
       // Check if we should sync messages
       const shouldSyncMessages =
         messages && Array.isArray(messages) && messages.length > 0;
+      const syncSaveOptions = {
+        isFromSync: true,
+        forceIncomingEncryptedChatKey: keyMismatch,
+      };
       const serverMessagesV = chat_details.messages_v || 0;
       const localMessagesV = existingChat?.messages_v || 0;
 
@@ -780,7 +832,7 @@ async function storeAllChats(
             ...mergedChat,
             messages_v: 0, // Reset to force re-sync on next load
           };
-          await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+          await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
           chatListCache.upsertChat(mergedChat);
 
           // Dispatch event to notify about the inconsistency
@@ -799,7 +851,7 @@ async function storeAllChats(
       }
 
       if (keyMismatch && !shouldSyncMessages) {
-        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
         serviceInstance.dispatchEvent(
           new CustomEvent("chatDataInconsistency", {
@@ -836,14 +888,14 @@ async function storeAllChats(
       }
 
       if (shouldSkipMessageSync) {
-        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
         continue;
       }
 
       // Save chat and messages
       try {
-        await chatDB.addChat(mergedChat, undefined, { isFromSync: true });
+        await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
 
         if (shouldSyncMessages && messages && messages.length > 0) {
@@ -974,7 +1026,9 @@ async function storeEmbedsBatch(
     });
 
     if (validEmbeds.length === 0) {
-      console.debug(`[ChatSyncService] ${phaseName} - No valid embeds to store`);
+      console.debug(
+        `[ChatSyncService] ${phaseName} - No valid embeds to store`,
+      );
       return;
     }
 
