@@ -384,6 +384,79 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] AI model deep link test passed');
 	});
 
+	test('settings horizontal card rows keep native touch scrolling', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		const TOUCH_DRAG_DISTANCE_PX = 120;
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		page.on('console', (msg: any) => {
+			const text = `[${msg.type()}] ${msg.text()}`;
+			consoleLogs.push(text);
+			if (msg.type() === 'error') consoleErrors.push(text);
+		});
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/images'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/images', {
+			timeout: 10000
+		});
+
+		const skillCardsScroll = page.getByTestId('settings-skill-cards-scroll');
+		await expect(skillCardsScroll).toBeVisible({ timeout: 10000 });
+		expect(
+			await skillCardsScroll.evaluate(
+				(container: HTMLElement) => container.scrollWidth > container.clientWidth
+			)
+		).toBe(true);
+
+		const touchMoveWasCanceled = await skillCardsScroll.evaluate(
+			(container: HTMLElement, dragDistancePx: number) => {
+				const rect = container.getBoundingClientRect();
+				const startX = rect.left + rect.width / 2;
+				const startY = rect.top + rect.height / 2;
+				const createTouch = (x: number) =>
+					new Touch({
+						identifier: 1,
+						target: container,
+						clientX: x,
+						clientY: startY
+					});
+
+				container.dispatchEvent(
+					new TouchEvent('touchstart', {
+						bubbles: true,
+						cancelable: true,
+						touches: [createTouch(startX)],
+						targetTouches: [createTouch(startX)],
+						changedTouches: [createTouch(startX)]
+					})
+				);
+
+				const moveEvent = new TouchEvent('touchmove', {
+					bubbles: true,
+					cancelable: true,
+					touches: [createTouch(startX - dragDistancePx)],
+					targetTouches: [createTouch(startX - dragDistancePx)],
+					changedTouches: [createTouch(startX - dragDistancePx)]
+				});
+
+				container.dispatchEvent(moveEvent);
+				return moveEvent.defaultPrevented;
+			},
+			TOUCH_DRAG_DISTANCE_PX
+		);
+
+		expect(touchMoveWasCanceled).toBe(false);
+		await expect(settingsMenu).toBeVisible();
+	});
+
 	test('for-everyone chat header play button opens intro video in embed fullscreen', async ({
 		page
 	}: {

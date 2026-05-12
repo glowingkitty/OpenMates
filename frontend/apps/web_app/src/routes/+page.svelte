@@ -134,6 +134,25 @@
 		return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 	}
 
+	function isInsideScrollableHorizontalElement(target: EventTarget | null): boolean {
+		let element = target instanceof Element ? target : null;
+
+		while (element && element !== document.body && element !== document.documentElement) {
+			const styles = window.getComputedStyle(element);
+			const canScrollHorizontally =
+				(styles.overflowX === 'auto' || styles.overflowX === 'scroll') &&
+				element.scrollWidth > element.clientWidth;
+
+			if (canScrollHorizontally) {
+				return true;
+			}
+
+			element = element.parentElement;
+		}
+
+		return false;
+	}
+
 	function resetEdgeSwipe(): void {
 		edgeSwipeTarget = null;
 		edgeSwipeStartX = 0;
@@ -191,6 +210,11 @@
 		const viewportWidth = window.innerWidth;
 		edgeSwipeStartX = touch.clientX;
 		edgeSwipeStartY = touch.clientY;
+
+		if (isInsideScrollableHorizontalElement(event.target)) {
+			resetEdgeSwipe();
+			return;
+		}
 
 		if (edgeSwipeStartX <= EDGE_SWIPE_START_WIDTH_PX && !$panelState.isActivityHistoryOpen) {
 			edgeSwipeTarget = 'open-chats';
