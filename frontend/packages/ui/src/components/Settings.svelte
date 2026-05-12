@@ -3005,6 +3005,13 @@ changes to the documentation (to keep the documentation up to date).
         visibility: visible;
     }
 
+    @media (min-width: 1101px) {
+        :global(.settings-edge-dragging) .settings-menu.visible {
+            width: var(--settings-drag-width);
+            transition: none;
+        }
+    }
+
     .settings-header,
     .settings-content-wrapper,
     :global(.app-details-header) {

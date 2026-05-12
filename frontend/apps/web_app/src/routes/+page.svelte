@@ -103,6 +103,7 @@
 	let edgeSwipeStartY = 0;
 	let edgeSwipeProgress = $state(0);
 	let edgeSwipeChatOffsetPx = $state(0);
+	let edgeSwipeSettingsWidthPx = $state(0);
 	let edgeSwipeSettingsOffsetPx = $state(0);
 	let edgeSwipeDragging = $state(false);
 	let edgeSwipeTouchStartHandler: ((event: TouchEvent) => void) | null = null;
@@ -120,7 +121,7 @@
 	}
 
 	function getChatOpenOffsetPx(): number {
-		return window.innerWidth <= 600 ? window.innerWidth : 335;
+		return window.innerWidth <= 600 ? window.innerWidth : 325;
 	}
 
 	function openGiftCardRedeemSettings(): void {
@@ -139,6 +140,7 @@
 		edgeSwipeStartY = 0;
 		edgeSwipeProgress = 0;
 		edgeSwipeChatOffsetPx = 0;
+		edgeSwipeSettingsWidthPx = 0;
 		edgeSwipeSettingsOffsetPx = 0;
 		edgeSwipeDragging = false;
 	}
@@ -170,6 +172,7 @@
 
 		edgeSwipeProgress = progress;
 		edgeSwipeChatOffsetPx = chatOpenOffsetPx * progress;
+		edgeSwipeSettingsWidthPx = 323 * progress;
 		edgeSwipeSettingsOffsetPx = settingsClosedOffsetPx * (1 - progress);
 	}
 
@@ -206,6 +209,7 @@
 			edgeSwipeTarget = 'open-settings';
 			edgeSwipeDragging = true;
 			edgeSwipeProgress = 0;
+			edgeSwipeSettingsWidthPx = 0;
 			edgeSwipeSettingsOffsetPx = getSettingsClosedOffsetPx();
 			panelState.closeChats();
 			panelState.openSettings();
@@ -216,6 +220,7 @@
 			edgeSwipeTarget = 'close-settings';
 			edgeSwipeDragging = true;
 			edgeSwipeProgress = 1;
+			edgeSwipeSettingsWidthPx = 323;
 			edgeSwipeSettingsOffsetPx = 0;
 			return;
 		}
@@ -2989,7 +2994,7 @@
 		(edgeSwipeTarget === 'open-settings' || edgeSwipeTarget === 'close-settings')}
 	class:initial-load={isInitialLoad}
 	class:scrollable={showFooter}
-	style={`--dev-console-height: ${devConsoleOpen ? DEV_CONSOLE_HEIGHT : 0}px; --chat-drag-offset: ${edgeSwipeChatOffsetPx}px; --settings-drag-offset: ${edgeSwipeSettingsOffsetPx}px;`}
+	style={`--dev-console-height: ${devConsoleOpen ? DEV_CONSOLE_HEIGHT : 0}px; --chat-drag-offset: ${edgeSwipeChatOffsetPx}px; --settings-drag-offset: ${edgeSwipeSettingsOffsetPx}px; --settings-drag-width: ${edgeSwipeSettingsWidthPx}px; --settings-drag-gap: ${edgeSwipeProgress * 20}px;`}
 >
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 	<div
@@ -3152,6 +3157,11 @@
 		.chat-container.menu-open {
 			gap: 20px;
 		}
+
+		.main-content.settings-edge-dragging .chat-container.menu-open {
+			gap: var(--settings-drag-gap);
+			transition: none;
+		}
 	}
 
 	/* Ensure no gap on mobile */
@@ -3243,14 +3253,9 @@
 
 	.main-content.edge-dragging.menu-closed,
 	.main-content.edge-dragging:not(.menu-closed) {
-		inset-inline-start: var(--sidebar-margin);
+		inset-inline-start: calc(var(--sidebar-margin) + var(--chat-drag-offset));
 		transition: none;
-		transform: translateX(var(--chat-drag-offset));
-	}
-
-	:global([dir='rtl']) .main-content.edge-dragging.menu-closed,
-	:global([dir='rtl']) .main-content.edge-dragging:not(.menu-closed) {
-		transform: translateX(calc(var(--chat-drag-offset) * -1));
+		transform: none;
 	}
 
 	@media (max-width: 600px) {
