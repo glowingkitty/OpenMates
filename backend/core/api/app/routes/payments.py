@@ -1010,6 +1010,11 @@ class CreateBankTransferOrderResponse(BaseModel):
     bic: str
     bank_name: str
     account_holder_name: str    # Legal account holder name (required for SEPA transfers)
+    account_holder_address_line1: str = ""
+    account_holder_address_line2: str = ""
+    account_holder_postal_code: str = ""
+    account_holder_city: str = ""
+    account_holder_country: str = ""
     amount_eur: str             # Display amount (e.g. "100.00")
     credits_amount: int
     expires_at: str             # ISO datetime
@@ -1109,6 +1114,11 @@ async def create_bank_transfer_order(
                 bic=bank_details["bic"],
                 bank_name=bank_details["bank_name"],
                 account_holder_name=bank_details.get("account_holder_name", ""),
+                account_holder_address_line1=bank_details.get("account_holder_address_line1", ""),
+                account_holder_address_line2=bank_details.get("account_holder_address_line2", ""),
+                account_holder_postal_code=bank_details.get("account_holder_postal_code", ""),
+                account_holder_city=bank_details.get("account_holder_city", ""),
+                account_holder_country=bank_details.get("account_holder_country", ""),
                 amount_eur=f"{price_cents / 100:.2f}",
                 credits_amount=order_data.credits_amount,
                 expires_at=existing.get("expires_at", ""),
@@ -1179,6 +1189,11 @@ async def create_bank_transfer_order(
                         "iban": bank_details["iban"],
                         "bic": bank_details["bic"],
                         "account_holder_name": bank_details.get("account_holder_name", ""),
+                        "account_holder_address_line1": bank_details.get("account_holder_address_line1", ""),
+                        "account_holder_address_line2": bank_details.get("account_holder_address_line2", ""),
+                        "account_holder_postal_code": bank_details.get("account_holder_postal_code", ""),
+                        "account_holder_city": bank_details.get("account_holder_city", ""),
+                        "account_holder_country": bank_details.get("account_holder_country", ""),
                         "bank_name": bank_details["bank_name"],
                         "amount_eur": f"{price_cents / 100:.2f}",
                         "credits_amount": order_data.credits_amount,
@@ -1199,6 +1214,11 @@ async def create_bank_transfer_order(
             bic=bank_details["bic"],
             bank_name=bank_details["bank_name"],
             account_holder_name=bank_details.get("account_holder_name", ""),
+            account_holder_address_line1=bank_details.get("account_holder_address_line1", ""),
+            account_holder_address_line2=bank_details.get("account_holder_address_line2", ""),
+            account_holder_postal_code=bank_details.get("account_holder_postal_code", ""),
+            account_holder_city=bank_details.get("account_holder_city", ""),
+            account_holder_country=bank_details.get("account_holder_country", ""),
             amount_eur=f"{price_cents / 100:.2f}",
             credits_amount=order_data.credits_amount,
             expires_at=expires_at,
@@ -1298,6 +1318,11 @@ async def create_support_bank_transfer_order(
             bic=bank_details["bic"],
             bank_name=bank_details["bank_name"],
             account_holder_name=bank_details.get("account_holder_name", ""),
+            account_holder_address_line1=bank_details.get("account_holder_address_line1", ""),
+            account_holder_address_line2=bank_details.get("account_holder_address_line2", ""),
+            account_holder_postal_code=bank_details.get("account_holder_postal_code", ""),
+            account_holder_city=bank_details.get("account_holder_city", ""),
+            account_holder_country=bank_details.get("account_holder_country", ""),
             amount_eur=f"{order_data.amount / 100:.2f}",
             credits_amount=0,
             expires_at=expires_at,

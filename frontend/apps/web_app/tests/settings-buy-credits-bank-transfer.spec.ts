@@ -48,6 +48,11 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const MOCK_IBAN = 'GB68REVO04290962398393';
 const MOCK_BIC = 'REVOGB21';
+const MOCK_ACCOUNT_HOLDER = 'OpenMates';
+const MOCK_ADDRESS_LINE_1 = 'Sorauer Str. 19';
+const MOCK_POSTAL_CODE = '10997';
+const MOCK_CITY = 'Berlin';
+const MOCK_COUNTRY = 'Germany';
 
 test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view', async ({
 	page
@@ -95,6 +100,12 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 				iban: MOCK_IBAN,
 				bic: MOCK_BIC,
 				bank_name: 'Revolut Bank UAB',
+				account_holder_name: MOCK_ACCOUNT_HOLDER,
+				account_holder_address_line1: MOCK_ADDRESS_LINE_1,
+				account_holder_address_line2: '',
+				account_holder_postal_code: MOCK_POSTAL_CODE,
+				account_holder_city: MOCK_CITY,
+				account_holder_country: MOCK_COUNTRY,
 				amount_eur: '100.00',
 				credits_amount: 110000,
 				expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -163,6 +174,10 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 
 	await expect(page.getByTestId('bank-transfer-amount')).toContainText('100.00', { timeout: 5000 });
 	await expect(page.getByTestId('bank-transfer-reference')).toContainText('OM-TEST-110ktest', { timeout: 5000 });
+	await expect(page.getByTestId('bank-transfer-account-holder')).toContainText(MOCK_ACCOUNT_HOLDER, { timeout: 5000 });
+	await expect(page.getByTestId('bank-transfer-account-holder-address')).toContainText(MOCK_ADDRESS_LINE_1, { timeout: 5000 });
+	await expect(page.getByTestId('bank-transfer-account-holder-address')).toContainText(`${MOCK_POSTAL_CODE} ${MOCK_CITY}`, { timeout: 5000 });
+	await expect(page.getByTestId('bank-transfer-account-holder-address')).toContainText(MOCK_COUNTRY, { timeout: 5000 });
 	log('Amount (€100) and reference correct.');
 	await screenshot(page, '04-details-verified');
 

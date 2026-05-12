@@ -93,17 +93,36 @@
 	const SHORTCUT_TOGGLE_SETTINGS_KEY = '.';
 	const EDGE_SWIPE_START_WIDTH_PX = 28;
 	const EDGE_SWIPE_OPEN_DISTANCE_PX = 64;
+	const EDGE_SWIPE_COMPLETE_PROGRESS = 0.35;
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
-	let edgeSwipeTarget: EdgeSwipeTarget | null = null;
+	let edgeSwipeTarget = $state<EdgeSwipeTarget | null>(null);
 	let edgeSwipeStartX = 0;
 	let edgeSwipeStartY = 0;
-	let edgeSwipeHandled = false;
+	let edgeSwipeProgress = $state(0);
+	let edgeSwipeChatOffsetPx = $state(0);
+	let edgeSwipeSettingsWidthPx = $state(0);
+	let edgeSwipeSettingsOffsetPx = $state(0);
+	let edgeSwipeDragging = $state(false);
 	let edgeSwipeTouchStartHandler: ((event: TouchEvent) => void) | null = null;
 	let edgeSwipeTouchMoveHandler: ((event: TouchEvent) => void) | null = null;
-	let edgeSwipeTouchEndHandler: (() => void) | null = null;
+	let edgeSwipeTouchEndHandler: ((event: TouchEvent) => void) | null = null;
+
+	function clampEdgeSwipeProgress(value: number): number {
+		return Math.min(1, Math.max(0, value));
+	}
+
+	function getSettingsClosedOffsetPx(): number {
+		const isRtl = document.documentElement.dir === 'rtl';
+		const mobileGapPx = window.innerWidth <= 730 ? 20 : 40;
+		return (323 + mobileGapPx) * (isRtl ? -1 : 1);
+	}
+
+	function getChatOpenOffsetPx(): number {
+		return window.innerWidth <= 600 ? window.innerWidth : 325;
+	}
 
 	function openGiftCardRedeemSettings(): void {
 		hasAutoOpenedGiftCardRedeemAfterAuth = true;
@@ -119,7 +138,42 @@
 		edgeSwipeTarget = null;
 		edgeSwipeStartX = 0;
 		edgeSwipeStartY = 0;
-		edgeSwipeHandled = false;
+		edgeSwipeProgress = 0;
+		edgeSwipeChatOffsetPx = 0;
+		edgeSwipeSettingsWidthPx = 0;
+		edgeSwipeSettingsOffsetPx = 0;
+		edgeSwipeDragging = false;
+	}
+
+	function cancelEdgeSwipe(): void {
+		if (edgeSwipeTarget === 'open-chats') {
+			panelState.closeChats();
+		} else if (edgeSwipeTarget === 'open-settings') {
+			closeSettingsMenu();
+		}
+
+		resetEdgeSwipe();
+	}
+
+	function updateEdgeSwipeProgress(deltaX: number): void {
+		const chatOpenOffsetPx = getChatOpenOffsetPx();
+		const settingsClosedOffsetPx = getSettingsClosedOffsetPx();
+		let progress = 0;
+
+		if (edgeSwipeTarget === 'open-chats') {
+			progress = clampEdgeSwipeProgress(deltaX / chatOpenOffsetPx);
+		} else if (edgeSwipeTarget === 'close-chats') {
+			progress = clampEdgeSwipeProgress(1 + deltaX / chatOpenOffsetPx);
+		} else if (edgeSwipeTarget === 'open-settings') {
+			progress = clampEdgeSwipeProgress(-deltaX / Math.abs(settingsClosedOffsetPx));
+		} else if (edgeSwipeTarget === 'close-settings') {
+			progress = clampEdgeSwipeProgress(1 - deltaX / Math.abs(settingsClosedOffsetPx));
+		}
+
+		edgeSwipeProgress = progress;
+		edgeSwipeChatOffsetPx = chatOpenOffsetPx * progress;
+		edgeSwipeSettingsWidthPx = 323 * progress;
+		edgeSwipeSettingsOffsetPx = settingsClosedOffsetPx * (1 - progress);
 	}
 
 	function closeSettingsMenu(): void {
@@ -137,10 +191,14 @@
 		const viewportWidth = window.innerWidth;
 		edgeSwipeStartX = touch.clientX;
 		edgeSwipeStartY = touch.clientY;
-		edgeSwipeHandled = false;
 
 		if (edgeSwipeStartX <= EDGE_SWIPE_START_WIDTH_PX && !$panelState.isActivityHistoryOpen) {
 			edgeSwipeTarget = 'open-chats';
+			edgeSwipeDragging = true;
+			edgeSwipeProgress = 0;
+			edgeSwipeChatOffsetPx = 0;
+			panelState.closeSettings();
+			panelState.openChats();
 			return;
 		}
 
@@ -149,16 +207,29 @@
 			!$panelState.isSettingsOpen
 		) {
 			edgeSwipeTarget = 'open-settings';
+			edgeSwipeDragging = true;
+			edgeSwipeProgress = 0;
+			edgeSwipeSettingsWidthPx = 0;
+			edgeSwipeSettingsOffsetPx = getSettingsClosedOffsetPx();
+			panelState.closeChats();
+			panelState.openSettings();
 			return;
 		}
 
 		if ($panelState.isSettingsOpen) {
 			edgeSwipeTarget = 'close-settings';
+			edgeSwipeDragging = true;
+			edgeSwipeProgress = 1;
+			edgeSwipeSettingsWidthPx = 323;
+			edgeSwipeSettingsOffsetPx = 0;
 			return;
 		}
 
 		if ($panelState.isActivityHistoryOpen) {
 			edgeSwipeTarget = 'close-chats';
+			edgeSwipeDragging = true;
+			edgeSwipeProgress = 1;
+			edgeSwipeChatOffsetPx = getChatOpenOffsetPx();
 			return;
 		}
 
@@ -166,7 +237,7 @@
 	}
 
 	function handleEdgeSwipeMove(event: TouchEvent): void {
-		if (!edgeSwipeTarget || edgeSwipeHandled || event.touches.length !== 1) {
+		if (!edgeSwipeTarget || event.touches.length !== 1) {
 			return;
 		}
 
@@ -177,36 +248,51 @@
 		const isMostlyHorizontal = Math.abs(deltaX) > absDeltaY * 1.2;
 
 		if (absDeltaY > EDGE_SWIPE_VERTICAL_CANCEL_PX && !isMostlyHorizontal) {
-			resetEdgeSwipe();
+			cancelEdgeSwipe();
 			return;
 		}
 
-		const shouldOpenChats = edgeSwipeTarget === 'open-chats' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
-		const shouldCloseChats =
-			edgeSwipeTarget === 'close-chats' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
-		const shouldOpenSettings =
-			edgeSwipeTarget === 'open-settings' && deltaX <= -EDGE_SWIPE_OPEN_DISTANCE_PX;
-		const shouldCloseSettings =
-			edgeSwipeTarget === 'close-settings' && deltaX >= EDGE_SWIPE_OPEN_DISTANCE_PX;
-
-		if (!shouldOpenChats && !shouldCloseChats && !shouldOpenSettings && !shouldCloseSettings) {
+		if (!isMostlyHorizontal && Math.abs(deltaX) < EDGE_SWIPE_OPEN_DISTANCE_PX) {
 			return;
 		}
 
 		event.preventDefault();
-		edgeSwipeHandled = true;
+		updateEdgeSwipeProgress(deltaX);
+	}
 
-		if (shouldOpenChats) {
-			panelState.closeSettings();
-			panelState.openChats();
-		} else if (shouldCloseChats) {
-			panelState.closeChats();
-		} else if (shouldOpenSettings) {
-			panelState.closeChats();
+	function handleEdgeSwipeEnd(): void {
+		if (!edgeSwipeTarget) {
+			resetEdgeSwipe();
+			return;
+		}
+
+		const shouldComplete = edgeSwipeProgress >= EDGE_SWIPE_COMPLETE_PROGRESS;
+
+		if (edgeSwipeTarget === 'open-chats') {
+			if (shouldComplete) {
+				panelState.openChats();
+			} else {
+				panelState.closeChats();
+			}
+		} else if (edgeSwipeTarget === 'close-chats') {
+			if (shouldComplete) {
+				panelState.openChats();
+			} else {
+				panelState.closeChats();
+			}
+		} else if (edgeSwipeTarget === 'open-settings') {
+			if (shouldComplete) {
+				panelState.openSettings();
+			} else {
+				closeSettingsMenu();
+			}
+		} else if (shouldComplete) {
 			panelState.openSettings();
 		} else {
 			closeSettingsMenu();
 		}
+
+		resetEdgeSwipe();
 	}
 
 	$effect(() => {
@@ -1056,7 +1142,7 @@
 
 		edgeSwipeTouchStartHandler = handleEdgeSwipeStart;
 		edgeSwipeTouchMoveHandler = handleEdgeSwipeMove;
-		edgeSwipeTouchEndHandler = resetEdgeSwipe;
+		edgeSwipeTouchEndHandler = handleEdgeSwipeEnd;
 		window.addEventListener('touchstart', edgeSwipeTouchStartHandler, { passive: true });
 		window.addEventListener('touchmove', edgeSwipeTouchMoveHandler, { passive: false });
 		window.addEventListener('touchend', edgeSwipeTouchEndHandler, { passive: true });
@@ -2902,11 +2988,13 @@
 <div
 	class="main-content"
 	class:menu-closed={!$panelState.isActivityHistoryOpen}
+	class:edge-dragging={edgeSwipeDragging &&
+		(edgeSwipeTarget === 'open-chats' || edgeSwipeTarget === 'close-chats')}
+	class:settings-edge-dragging={edgeSwipeDragging &&
+		(edgeSwipeTarget === 'open-settings' || edgeSwipeTarget === 'close-settings')}
 	class:initial-load={isInitialLoad}
 	class:scrollable={showFooter}
-	style={devConsoleOpen
-		? `--dev-console-height: ${DEV_CONSOLE_HEIGHT}px`
-		: '--dev-console-height: 0px'}
+	style={`--dev-console-height: ${devConsoleOpen ? DEV_CONSOLE_HEIGHT : 0}px; --chat-drag-offset: ${edgeSwipeChatOffsetPx}px; --settings-drag-offset: ${edgeSwipeSettingsOffsetPx}px; --settings-drag-width: ${edgeSwipeSettingsWidthPx}px; --settings-drag-gap: ${edgeSwipeProgress * 20}px;`}
 >
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 	<div
@@ -3069,6 +3157,11 @@
 		.chat-container.menu-open {
 			gap: 20px;
 		}
+
+		.main-content.settings-edge-dragging .chat-container.menu-open {
+			gap: var(--settings-drag-gap);
+			transition: none;
+		}
 	}
 
 	/* Ensure no gap on mobile */
@@ -3134,6 +3227,10 @@
 		:global([dir='rtl']) .main-content:not(.menu-closed) {
 			transform: translateX(-100%);
 		}
+
+		:global([dir='rtl']) .main-content.edge-dragging {
+			transform: translateX(calc(var(--chat-drag-offset) * -1));
+		}
 	}
 
 	.chat-wrapper,
@@ -3152,6 +3249,26 @@
 		transition:
 			inset-inline-start 0.3s ease,
 			transform 0.3s ease;
+	}
+
+	.main-content.edge-dragging.menu-closed,
+	.main-content.edge-dragging:not(.menu-closed) {
+		inset-inline-start: calc(var(--sidebar-margin) + var(--chat-drag-offset));
+		transition: none;
+		transform: none;
+	}
+
+	@media (max-width: 600px) {
+		.main-content.edge-dragging.menu-closed,
+		.main-content.edge-dragging:not(.menu-closed) {
+			inset-inline-start: 0;
+			transform: translateX(var(--chat-drag-offset));
+		}
+
+		:global([dir='rtl']) .main-content.edge-dragging.menu-closed,
+		:global([dir='rtl']) .main-content.edge-dragging:not(.menu-closed) {
+			transform: translateX(calc(var(--chat-drag-offset) * -1));
+		}
 	}
 
 	/* Disable transitions during initial load */

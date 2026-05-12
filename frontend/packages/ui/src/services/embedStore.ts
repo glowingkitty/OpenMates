@@ -54,6 +54,8 @@ interface EmbedRefEntry {
 }
 const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 
+const MAX_CHILD_EMBEDS_TO_INDEX = 50;
+
 // Reactive version counter — incremented on every registerEmbedRef() call.
 // EmbedInlineLink.svelte subscribes to this Svelte store so it re-derives
 // effectiveAppId whenever new refs are registered (e.g. after a page-reload
@@ -163,10 +165,35 @@ export class EmbedStore {
   }
 
   private normalizeEmbedIds(rawIds: unknown): string[] {
-    if (!Array.isArray(rawIds)) return [];
-    return rawIds
+    const ids = typeof rawIds === "string" ? rawIds.split("|") : rawIds;
+    if (!Array.isArray(ids)) return [];
+    return ids
       .filter((id): id is string => typeof id === "string" && id.length > 0)
-      .map((id) => this.normalizeEmbedId(id));
+      .map((id) => this.normalizeEmbedId(id.trim()))
+      .filter((id) => id.length > 0);
+  }
+
+  private async indexChildEmbedRefs(decodedContent: unknown): Promise<void> {
+    if (!decodedContent || typeof decodedContent !== "object") return;
+
+    const childEmbedIds = this.normalizeEmbedIds(
+      (decodedContent as Record<string, unknown>).embed_ids,
+    ).slice(0, MAX_CHILD_EMBEDS_TO_INDEX);
+    if (childEmbedIds.length === 0) return;
+
+    await Promise.all(
+      childEmbedIds.map(async (childEmbedId) => {
+        try {
+          await this.get(`embed:${childEmbedId}`);
+        } catch (error) {
+          console.debug(
+            "[EmbedStore] Failed to index child embed_ref:",
+            childEmbedId,
+            error,
+          );
+        }
+      }),
+    );
   }
 
   private extractEmbedIdsFromEntry(entry: EmbedStoreEntry): string[] {
@@ -644,6 +671,7 @@ export class EmbedStore {
                 appMetadata.app_id ?? null,
               );
             }
+            await this.indexChildEmbedRefs(decoded);
           }
         } else if (encryptedData.encrypted_content) {
           // Fallback: Try to decrypt content temporarily to extract app_id/skill_id
@@ -690,6 +718,7 @@ export class EmbedStore {
                     appMetadata.app_id ?? null,
                   );
                 }
+                await this.indexChildEmbedRefs(decoded);
               }
             }
           } else {
@@ -945,6 +974,7 @@ export class EmbedStore {
                     typeof appId === "string" ? appId : null,
                   );
                 }
+                await this.indexChildEmbedRefs(decoded);
               }
             } catch {
               // Non-critical: embed_ref registration failure only affects inline badge
@@ -1026,6 +1056,7 @@ export class EmbedStore {
                     typeof appId === "string" ? appId : null,
                   );
                 }
+                await this.indexChildEmbedRefs(decoded);
               }
             }
           } catch {

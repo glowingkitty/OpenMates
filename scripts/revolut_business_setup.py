@@ -350,6 +350,10 @@ def write_env_secrets(env: str, secrets: dict) -> None:
         f"SECRET__REVOLUT_BUSINESS__{env_upper}_WEBHOOK_SECRET": secrets["webhook_secret"],
         f"SECRET__REVOLUT_BUSINESS__{env_upper}_IBAN": secrets["iban"],
         f"SECRET__REVOLUT_BUSINESS__{env_upper}_BIC": secrets["bic"],
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_ADDRESS_LINE1": secrets.get("account_holder_address_line1", "Sorauer Str. 19"),
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_POSTAL_CODE": secrets.get("account_holder_postal_code", "10997"),
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_CITY": secrets.get("account_holder_city", "Berlin"),
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_COUNTRY": secrets.get("account_holder_country", "Germany"),
     }
 
     env_path = project_root() / ".env"
@@ -660,6 +664,10 @@ def setup(env: str, write_env: bool = False) -> None:
             "webhook_secret": signing_secret,
             "iban": iban,
             "bic": bic,
+            "account_holder_address_line1": "Sorauer Str. 19",
+            "account_holder_postal_code": "10997",
+            "account_holder_city": "Berlin",
+            "account_holder_country": "Germany",
         })
     else:
         print(f"""
@@ -668,6 +676,10 @@ def setup(env: str, write_env: bool = False) -> None:
     SECRET__REVOLUT_BUSINESS__{env_upper}_WEBHOOK_SECRET={signing_secret}
     SECRET__REVOLUT_BUSINESS__{env_upper}_IBAN={iban}
     SECRET__REVOLUT_BUSINESS__{env_upper}_BIC={bic}
+    SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_ADDRESS_LINE1=Sorauer Str. 19
+    SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_POSTAL_CODE=10997
+    SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_CITY=Berlin
+    SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_COUNTRY=Germany
 
   Tip: re-run with --write-env to update .env automatically.""")
 

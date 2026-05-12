@@ -21,6 +21,10 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
+# Stripe Managed Payments requires every sold product to have an eligible
+# digital-goods tax code. Credits are a SaaS-style digital service.
+MANAGED_PAYMENTS_TAX_CODE = "txcd_10103000"
+
 class StripeProductSync:
     """
     Service for synchronizing Stripe products with pricing configuration.
@@ -78,18 +82,23 @@ class StripeProductSync:
             logger.info("Synchronizing supporter contribution products...")
             supporter_results = await self._sync_supporter_products_optimized(existing_products, existing_prices)
             sync_results["supporter_products"] = supporter_results
+
+            tax_code_results = await self._ensure_managed_payments_tax_codes()
+            sync_results["managed_payments_tax_codes"] = tax_code_results
             
             # Calculate totals
             sync_results["total_operations"] = (
                 one_time_results["created"] + one_time_results["updated"] + one_time_results["errors"] +
                 subscription_results["created"] + subscription_results["updated"] + subscription_results["errors"] +
-                supporter_results["created"] + supporter_results["updated"] + supporter_results["errors"]
+                supporter_results["created"] + supporter_results["updated"] + supporter_results["errors"] +
+                tax_code_results["updated"] + tax_code_results["errors"]
             )
             
             logger.info(f"Optimized Stripe product synchronization completed. "
                        f"One-time: {one_time_results['created']} created, {one_time_results['updated']} updated, {one_time_results['errors']} errors. "
                        f"Subscriptions: {subscription_results['created']} created, {subscription_results['updated']} updated, {subscription_results['errors']} errors. "
-                       f"Supporter: {supporter_results['created']} created, {supporter_results['updated']} updated, {supporter_results['errors']} errors.")
+                       f"Supporter: {supporter_results['created']} created, {supporter_results['updated']} updated, {supporter_results['errors']} errors. "
+                       f"Managed tax codes: {tax_code_results['updated']} updated, {tax_code_results['errors']} errors.")
             
             return {"success": True, "results": sync_results}
             
@@ -158,6 +167,39 @@ class StripeProductSync:
         except Exception as e:
             logger.error(f"Error fetching Stripe data: {str(e)}", exc_info=True)
             return {}, {}
+
+    async def _ensure_managed_payments_tax_codes(self) -> Dict[str, int]:
+        """Repair active global credit products so Checkout Managed Payments can start."""
+        results = {"updated": 0, "errors": 0}
+        try:
+            products = self.stripe_api.Product.list(active=True, limit=100)
+            for product in products.auto_paging_iter():
+                name = product.name or ""
+                if "credits" not in name.lower() or "global" not in name.lower():
+                    continue
+                if getattr(product, "tax_code", None) == MANAGED_PAYMENTS_TAX_CODE:
+                    continue
+                try:
+                    self.stripe_api.Product.modify(product.id, tax_code=MANAGED_PAYMENTS_TAX_CODE)
+                    results["updated"] += 1
+                    logger.warning(
+                        "Updated Managed Payments tax_code for Stripe product %s (%s)",
+                        product.id,
+                        name,
+                    )
+                except Exception as exc:
+                    results["errors"] += 1
+                    logger.error(
+                        "Failed to update Managed Payments tax_code for Stripe product %s (%s): %s",
+                        product.id,
+                        name,
+                        exc,
+                        exc_info=True,
+                    )
+        except Exception as exc:
+            results["errors"] += 1
+            logger.error("Failed to validate Managed Payments tax codes: %s", exc, exc_info=True)
+        return results
     
     async def _sync_one_time_products_optimized(self, pricing_config: Dict[str, Any], existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> Dict[str, int]:
         """
@@ -255,10 +297,11 @@ class StripeProductSync:
             if existing_product:
                 logger.debug(f"Found existing product: {product_name} (ID: {existing_product.id})")
                 # Check if product needs updating
-                needs_update = await self._check_one_time_product_needs_update(existing_product, currency, price_cents, credits, existing_prices)
+                tax_code = MANAGED_PAYMENTS_TAX_CODE if "global" in name_suffix.lower() else None
+                needs_update = await self._check_one_time_product_needs_update(existing_product, currency, price_cents, credits, existing_prices, tax_code)
                 
                 if needs_update:
-                    await self._update_one_time_product_optimized(existing_product, currency, price_cents, credits, existing_prices)
+                    await self._update_one_time_product_optimized(existing_product, currency, price_cents, credits, existing_prices, tax_code)
                     logger.info(f"Updated existing product: {product_name} ({currency.upper()})")
                     return "updated"
                 else:
@@ -267,7 +310,8 @@ class StripeProductSync:
             else:
                 logger.info(f"No existing product found for: {product_name}")
                 # Create new product
-                await self._create_one_time_product_optimized(product_name, currency, price_cents, credits)
+                tax_code = MANAGED_PAYMENTS_TAX_CODE if "global" in name_suffix.lower() else None
+                await self._create_one_time_product_optimized(product_name, currency, price_cents, credits, tax_code)
                 logger.info(f"Created new product: {product_name} ({currency.upper()})")
                 return "created"
                 
@@ -275,7 +319,7 @@ class StripeProductSync:
             logger.error(f"Error syncing one-time product for {credits} credits in {currency}: {str(e)}")
             raise
     
-    async def _check_one_time_product_needs_update(self, product: Any, currency: str, price_cents: int, credits: int, existing_prices: Dict[str, List[Any]]) -> bool:
+    async def _check_one_time_product_needs_update(self, product: Any, currency: str, price_cents: int, credits: int, existing_prices: Dict[str, List[Any]], tax_code: Optional[str] = None) -> bool:
         """
         Check if a one-time product needs updating by comparing with existing data.
         
@@ -295,6 +339,10 @@ class StripeProductSync:
                 if current_metadata.get(key) != expected_value:
                     logger.debug(f"Product metadata mismatch for {product.name}: {key} = {current_metadata.get(key)} != {expected_value}")
                     return True
+
+            if tax_code and getattr(product, "tax_code", None) != tax_code:
+                logger.debug(f"Product tax_code mismatch for {product.name}: {getattr(product, 'tax_code', None)} != {tax_code}")
+                return True
             
             # Check if price needs updating
             product_prices = existing_prices.get(product.id, [])
@@ -327,7 +375,7 @@ class StripeProductSync:
             logger.error(f"Error checking if product {product.name} needs update: {str(e)}")
             return True  # Assume it needs updating if we can't check
     
-    async def _update_one_time_product_optimized(self, product: Any, currency: str, price_cents: int, credits: int, existing_prices: Dict[str, List[Any]]) -> bool:
+    async def _update_one_time_product_optimized(self, product: Any, currency: str, price_cents: int, credits: int, existing_prices: Dict[str, List[Any]], tax_code: Optional[str] = None) -> bool:
         """
         Update an existing one-time product using pre-fetched data.
         
@@ -336,13 +384,15 @@ class StripeProductSync:
         """
         try:
             # Update product metadata (product metadata should not be currency-specific)
-            self.stripe_api.Product.modify(
-                product.id,
-                metadata={
+            product_update: Dict[str, Any] = {
+                "metadata": {
                     "credits": str(credits),
                     "sync_source": "pricing_yml"
                 }
-            )
+            }
+            if tax_code:
+                product_update["tax_code"] = tax_code
+            self.stripe_api.Product.modify(product.id, **product_update)
             logger.info(f"Updated product metadata for {product.name}")
             
             # Update or create price
@@ -399,7 +449,7 @@ class StripeProductSync:
             logger.error(f"Error updating product {product.name}: {str(e)}")
             return False
     
-    async def _create_one_time_product_optimized(self, name: str, currency: str, price_cents: int, credits: int) -> bool:
+    async def _create_one_time_product_optimized(self, name: str, currency: str, price_cents: int, credits: int, tax_code: Optional[str] = None) -> bool:
         """
         Create a new one-time product using optimized approach.
         
@@ -408,15 +458,18 @@ class StripeProductSync:
         """
         try:
             # Create the product
-            product = self.stripe_api.Product.create(
-                name=name,
-                description=f"{credits:,} credits for OpenMates AI platform",
-                type="service",
-                metadata={
+            product_create: Dict[str, Any] = {
+                "name": name,
+                "description": f"{credits:,} credits for OpenMates AI platform",
+                "type": "service",
+                "metadata": {
                     "credits": str(credits),
                     "sync_source": "pricing_yml"
                 }
-            )
+            }
+            if tax_code:
+                product_create["tax_code"] = tax_code
+            product = self.stripe_api.Product.create(**product_create)
             
             # Create the price
             self.stripe_api.Price.create(

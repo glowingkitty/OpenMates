@@ -166,6 +166,9 @@
   const TEASER_TILT_SCALE = 0.985;
   const TEASER_VERTICAL_EDGE_GAP = 10;
   const TEASER_MAX_WIDTH = 640;
+  const COMPACT_TEASER_TEXT_SECONDS = 6;
+  const COMPACT_TEASER_VIDEO_SECONDS = 7;
+  const COMPACT_TEASER_CYCLE_SECONDS = COMPACT_TEASER_TEXT_SECONDS + COMPACT_TEASER_VIDEO_SECONDS;
   const MEDIUM_HEADER_WIDTH = 900;
   const MOBILE_HEADER_WIDTH = 730;
   const COMPACT_TEASER_HEADER_WIDTH = 960;
@@ -174,6 +177,14 @@
     const maxHeight = Math.max(0, chatHeaderHeight - TEASER_VERTICAL_EDGE_GAP * 2);
     const maxWidthByHeaderHeight = Math.floor(maxHeight * 16 / 9);
     return `min(${TEASER_MAX_WIDTH}px, 52%, ${maxWidthByHeaderHeight}px)`;
+  });
+
+  let compactTeaserTitleSize = $derived.by(() => {
+    if (!chatHeaderWidth || !chatHeaderHeight) return '28px';
+    const sizeByWidth = chatHeaderWidth * 0.032;
+    const sizeByHeight = chatHeaderHeight * 0.105;
+    const titleSize = Math.max(22, Math.min(34, sizeByWidth, sizeByHeight));
+    return `${Math.round(titleSize)}px`;
   });
 
   let isMediumHeader = $derived(chatHeaderWidth > 0 && chatHeaderWidth <= MEDIUM_HEADER_WIDTH);
@@ -639,7 +650,11 @@
            Mirrors the DailyInspirationBanner split: orbs provide the gradient
            backdrop, text on the left, teaser video in a rounded contained box
            on the right. The full MP4 is still mounted only after play click. -->
-      <div class="teaser-split-layout">
+      <div
+        class="teaser-split-layout"
+        class:is-video-active={isVideoActive}
+        style={`--compact-teaser-cycle-duration: ${COMPACT_TEASER_CYCLE_SECONDS}s; --compact-teaser-title-size: ${compactTeaserTitleSize};`}
+      >
 
         <!-- Left column: fixed intro teaser copy -->
         <div class="teaser-split-left">
@@ -680,7 +695,11 @@
         </div>
 
         <!-- Right column: teaser video in a rounded, contained box -->
-        <div class="teaser-split-right" data-testid="chat-header-media-frame" style={`--teaser-video-max-width: ${teaserVideoMaxWidth};`}>
+        <div
+          class="teaser-split-right"
+          data-testid="chat-header-media-frame"
+          style={`--teaser-video-max-width: ${teaserVideoMaxWidth};`}
+        >
           <div
             bind:this={teaserVideoBoxEl}
             class="teaser-video-box"
@@ -1729,25 +1748,52 @@
   }
 
   .is-compact-teaser-header .teaser-split-left {
-    animation: mobileTeaserTextCycle 7s 1 ease-in-out forwards;
+    animation: mobileTeaserTextCycle var(--compact-teaser-cycle-duration, 12s) infinite ease-in-out;
   }
 
   .is-compact-teaser-header .teaser-split-right {
     opacity: 0;
-    animation: mobileTeaserVideoCycle 7s 1 ease-in-out forwards;
+    animation: mobileTeaserVideoCycle var(--compact-teaser-cycle-duration, 12s) infinite ease-in-out;
+  }
+
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-left,
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-right {
+    animation: none;
+  }
+
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-left {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.985);
+  }
+
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-right {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 
   .is-compact-teaser-header .teaser-copy {
     align-items: flex-start;
-    max-width: 280px;
+    max-width: min(76vw, 460px);
   }
 
   .is-compact-teaser-header .teaser-title {
-    font-size: var(--font-size-lg);
+    font-size: var(--compact-teaser-title-size, 28px);
+    line-height: 1.18;
   }
 
   .is-compact-teaser-header .teaser-video-box {
-    width: min(100%, 280px);
+    width: min(78vw, 560px);
+  }
+
+  .is-compact-teaser-header .ai-header-icon,
+  .is-compact-teaser-header .loaded-icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .is-compact-teaser-header .loaded-icon :global(svg) {
+    width: 54px !important;
+    height: 54px !important;
   }
 
   .is-compact-teaser-header .teaser-video-box.hovering {
@@ -1755,13 +1801,15 @@
   }
 
   @keyframes mobileTeaserTextCycle {
-    0%, 45% { opacity: 1; transform: translateY(0); }
-    55%, 100% { opacity: 0; transform: translateY(-8px); }
+    0%, 42% { opacity: 1; transform: translateY(0) scale(1); }
+    46.154%, 96% { opacity: 0; transform: translateY(-10px) scale(0.985); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   @keyframes mobileTeaserVideoCycle {
-    0%, 45% { opacity: 0; transform: translateY(8px); }
-    55%, 100% { opacity: 1; transform: translateY(0); }
+    0%, 42% { opacity: 0; transform: translateY(10px) scale(0.985); }
+    46.154%, 96% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(10px) scale(0.985); }
   }
 
   @media (prefers-reduced-motion: reduce) {

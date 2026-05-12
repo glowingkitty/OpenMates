@@ -257,6 +257,20 @@
     return found ? ctx : undefined;
   }
 
+  function extractStringArray(content: Record<string, unknown>, fieldName: string, maxItems = 20): string[] {
+    const direct = content[fieldName];
+    if (Array.isArray(direct)) return direct.filter((value): value is string => typeof value === 'string' && value.length > 0);
+    if (typeof direct === 'string' && direct.length > 0) return [direct];
+
+    const values: string[] = [];
+    for (let i = 0; i < maxItems; i++) {
+      const value = content[`${fieldName}_${i}`];
+      if (typeof value === 'string' && value.length > 0) values.push(value);
+      else break;
+    }
+    return values;
+  }
+
   function reconstructLegs(content: Record<string, unknown>): LegData[] {
     const legs: LegData[] = [];
     for (let i = 0; i < 10; i++) {
@@ -397,27 +411,15 @@
       legs = reconstructLegs(content);
     }
 
-    let carriers: string[] = [];
-    if (Array.isArray(content.carriers)) {
-      carriers = content.carriers as string[];
-    } else {
-      for (let i = 0; i < 20; i++) {
-        const c = content[`carriers_${i}`];
-        if (typeof c === 'string') carriers.push(c);
-        else break;
-      }
-    }
-
-    let carrier_codes: string[] = [];
-    if (Array.isArray(content.carrier_codes)) {
-      carrier_codes = content.carrier_codes as string[];
-    } else {
-      for (let i = 0; i < 20; i++) {
-        const cc = content[`carrier_codes_${i}`];
-        if (typeof cc === 'string') carrier_codes.push(cc);
-        else break;
-      }
-    }
+    const carriers = extractStringArray(content, 'carriers');
+    const carrier_codes = extractStringArray(content, 'carrier_codes');
+    const firstLeg = legs[0];
+    const lastLeg = legs.at(-1);
+    const firstSegment = firstLeg?.segments?.[0];
+    const lastSegment = lastLeg?.segments?.at(-1);
+    const departure = (content.departure as string | undefined) || firstLeg?.departure || firstSegment?.departure_time;
+    const arrival = (content.arrival as string | undefined) || lastLeg?.arrival || lastSegment?.arrival_time;
+    const airlineLogo = (content.airline_logo as string | undefined) || firstSegment?.airline_logo;
 
     return {
       embed_id: embedId,
@@ -443,9 +445,9 @@
       })(),
       origin: content.origin as string | undefined,
       destination: content.destination as string | undefined,
-      departure: content.departure as string | undefined,
-      arrival: content.arrival as string | undefined,
-      duration: content.duration as string | undefined,
+      departure,
+      arrival,
+      duration: (content.duration as string | undefined) || firstLeg?.duration,
       stops: (content.stops as number) || 0,
       carriers,
       carrier_codes,
@@ -453,7 +455,7 @@
       legs,
       origin_country_code: content.origin_country_code as string | undefined,
       destination_country_code: content.destination_country_code as string | undefined,
-      airline_logo: content.airline_logo as string | undefined,
+      airline_logo: airlineLogo,
       co2_kg: content.co2_kg as number | undefined,
       co2_typical_kg: content.co2_typical_kg as number | undefined,
       co2_difference_percent: content.co2_difference_percent as number | undefined,
@@ -556,6 +558,8 @@
       arrivalDelayMinutes={getArrivalDelay(result)}
       hasCancellation={hasCancellation(result)}
       carriers={result.carriers}
+      bookingProvider={result.booking_provider}
+      airlineLogo={result.airline_logo}
       carrierCodes={result.carrier_codes}
       bookableSeats={result.bookable_seats}
       isCheapest={cheapestThreshold > 0 && result.total_price != null && parseFloat(result.total_price) <= cheapestThreshold}

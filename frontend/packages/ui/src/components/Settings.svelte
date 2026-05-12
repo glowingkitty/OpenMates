@@ -2959,6 +2959,11 @@ changes to the documentation (to keep the documentation up to date).
             visibility: visible;
         }
 
+        :global(.settings-edge-dragging) .settings-menu.visible {
+            transition: none;
+            transform: translateX(var(--settings-drag-offset));
+        }
+
         :global([dir="rtl"]) .settings-menu:not(.visible) {
             transform: translateX(calc(-100% - 40px));
         }
@@ -2989,11 +2994,22 @@ changes to the documentation (to keep the documentation up to date).
         .settings-menu.visible {
             transform: translateX(0);
         }
+
+        :global(.settings-edge-dragging) .settings-menu.visible {
+            transform: translateX(var(--settings-drag-offset));
+        }
     }
 
     .settings-menu.visible {
         width: 323px;
         visibility: visible;
+    }
+
+    @media (min-width: 1101px) {
+        :global(.settings-edge-dragging) .settings-menu.visible {
+            width: var(--settings-drag-width);
+            transition: none;
+        }
     }
 
     .settings-header,

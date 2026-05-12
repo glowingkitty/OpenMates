@@ -40,6 +40,11 @@ def send_bank_transfer_reminder(
     credits_amount: int,
     reference: str,
     expires_at: str,
+    account_holder_address_line1: str = "",
+    account_holder_address_line2: str = "",
+    account_holder_postal_code: str = "",
+    account_holder_city: str = "",
+    account_holder_country: str = "",
 ) -> bool:
     return asyncio.run(
         _async_send_bank_transfer_reminder(
@@ -49,6 +54,11 @@ def send_bank_transfer_reminder(
             iban=iban,
             bic=bic,
             account_holder_name=account_holder_name,
+            account_holder_address_line1=account_holder_address_line1,
+            account_holder_address_line2=account_holder_address_line2,
+            account_holder_postal_code=account_holder_postal_code,
+            account_holder_city=account_holder_city,
+            account_holder_country=account_holder_country,
             bank_name=bank_name,
             amount_eur=amount_eur,
             credits_amount=credits_amount,
@@ -70,6 +80,11 @@ async def _async_send_bank_transfer_reminder(
     credits_amount: int,
     reference: str,
     expires_at: str,
+    account_holder_address_line1: str = "",
+    account_holder_address_line2: str = "",
+    account_holder_postal_code: str = "",
+    account_holder_city: str = "",
+    account_holder_country: str = "",
 ) -> bool:
     from backend.core.api.app.services.cache import CacheService
     from backend.core.api.app.services.directus import DirectusService
@@ -124,6 +139,11 @@ async def _async_send_bank_transfer_reminder(
             "iban": iban,
             "bic": bic,
             "account_holder_name": account_holder_name,
+            "account_holder_address_line1": account_holder_address_line1,
+            "account_holder_address_line2": account_holder_address_line2,
+            "account_holder_postal_code": account_holder_postal_code,
+            "account_holder_city": account_holder_city,
+            "account_holder_country": account_holder_country,
             "bank_name": bank_name,
             "amount_eur": amount_eur,
             "credits_amount": credits_formatted,

@@ -250,6 +250,7 @@
             src={safeFaviconUrl}
             alt=""
             class="title-favicon"
+            data-testid="embed-title-favicon"
             class:circular={faviconIsCircular}
             crossorigin="anonymous"
             onerror={(e) => {

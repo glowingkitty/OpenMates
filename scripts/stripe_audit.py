@@ -37,6 +37,8 @@ GLOBAL_PRICING_TIERS = [
     {"credits": 54000, "price_global": {"eur": 60},  "monthly_auto_top_up_extra_credits": 3000},
 ]
 
+MANAGED_PAYMENTS_TAX_CODE = "txcd_10103000"
+
 
 def _credits_label(n: int) -> str:
     """Format credit count with dot-thousands separator (European style)."""
@@ -195,6 +197,7 @@ async def create_global_products(force_env: str | None = None):
         if product_name not in existing:
             product = stripe.Product.create(
                 name=product_name,
+                tax_code=MANAGED_PAYMENTS_TAX_CODE,
                 metadata={"credits": str(credits), "pricing_type": "global"},
             )
             stripe.Price.create(
@@ -218,6 +221,7 @@ async def create_global_products(force_env: str | None = None):
             if sub_name not in existing:
                 sub_product = stripe.Product.create(
                     name=sub_name,
+                    tax_code=MANAGED_PAYMENTS_TAX_CODE,
                     metadata={
                         "credits": str(credits),
                         "bonus_credits": str(bonus),

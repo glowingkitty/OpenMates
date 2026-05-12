@@ -66,6 +66,11 @@ class RevolutBusinessService:
         self._iban: Optional[str] = None
         self._bic: Optional[str] = None
         self._account_holder_name: Optional[str] = None
+        self._account_holder_address_line1: Optional[str] = None
+        self._account_holder_address_line2: Optional[str] = None
+        self._account_holder_postal_code: Optional[str] = None
+        self._account_holder_city: Optional[str] = None
+        self._account_holder_country: Optional[str] = None
 
     async def initialize(self, is_production: bool) -> None:
         """
@@ -77,6 +82,10 @@ class RevolutBusinessService:
           - {env}_iban
           - {env}_bic
           - {env}_account_holder_name  (legal account holder name shown to bank transfer senders)
+          - {env}_account_holder_address_line1
+          - {env}_account_holder_postal_code
+          - {env}_account_holder_city
+          - {env}_account_holder_country
 
         Production and sandbox use separate IBAN/BIC because the sandbox account
         has a different (test) IBAN. Keeping them strictly separated prevents
@@ -131,6 +140,22 @@ class RevolutBusinessService:
                 f"(key: '{env}_account_holder_name'). It is required for SEPA transfers."
             )
 
+        self._account_holder_address_line1 = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_account_holder_address_line1", log_missing=False
+        )
+        self._account_holder_address_line2 = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_account_holder_address_line2", log_missing=False
+        )
+        self._account_holder_postal_code = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_account_holder_postal_code", log_missing=False
+        )
+        self._account_holder_city = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_account_holder_city", log_missing=False
+        )
+        self._account_holder_country = await self.secrets_manager.get_secret(
+            secret_path=secret_path, secret_key=f"{env}_account_holder_country", log_missing=False
+        )
+
         logger.info(
             f"RevolutBusinessService initialized. Production: {is_production}, "
             f"IBAN: {self._iban[:8]}...{self._iban[-4:]}, "
@@ -142,13 +167,18 @@ class RevolutBusinessService:
         Return company bank details for display in the payment UI.
 
         Returns:
-            Dict with 'iban', 'bic', 'bank_name', 'account_holder_name'
+            Dict with bank and legal beneficiary details for SEPA transfer forms.
         """
         return {
             "iban": self._iban or "",
             "bic": self._bic or "",
             "bank_name": BANK_NAME,
             "account_holder_name": self._account_holder_name or "",
+            "account_holder_address_line1": self._account_holder_address_line1 or "",
+            "account_holder_address_line2": self._account_holder_address_line2 or "",
+            "account_holder_postal_code": self._account_holder_postal_code or "",
+            "account_holder_city": self._account_holder_city or "",
+            "account_holder_country": self._account_holder_country or "",
         }
 
     async def verify_webhook(

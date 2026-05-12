@@ -8733,6 +8733,30 @@ bank_transfer_account_holder:
   sv: Kontoinnehavare
   he: בעל החשבון
   verified_by_human: []
+bank_transfer_account_holder_address:
+  context: Label for account holder address row in bank transfer reminder email
+  en: Account holder address
+  de: Adresse des Kontoinhabers
+  zh: 账户持有人地址
+  es: Dirección del titular de la cuenta
+  fr: Adresse du titulaire du compte
+  pt: Endereço do titular da conta
+  ru: Адрес владельца счёта
+  ja: 口座名義人の住所
+  ko: 계좌 소유자 주소
+  it: Indirizzo dell'intestatario del conto
+  tr: Hesap sahibi adresi
+  vi: Địa chỉ chủ tài khoản
+  id: Alamat pemilik rekening
+  pl: Adres właściciela konta
+  nl: Adres rekeninghouder
+  ar: عنوان صاحب الحساب
+  hi: खाताधारक का पता
+  th: ที่อยู่เจ้าของบัญชี
+  cs: Adresa majitele účtu
+  sv: Kontoinnehavarens adress
+  he: כתובת בעל החשבון
+  verified_by_human: []
 bank_transfer_amount:
   context: Label for amount row in bank transfer reminder email
   en: Amount
