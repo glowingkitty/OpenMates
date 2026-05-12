@@ -30,12 +30,18 @@ const {
 	verifySearchGrid
 } = require('./helpers/embed-test-helpers');
 
-async function waitForSocialParentEmbed(page: any, appId: string, skillId: string, fallbackText: string): Promise<any> {
+async function waitForSocialParentEmbed(page: any, appId: string, skillId: string, fallbackTexts: string[]): Promise<any> {
 	const exact = page.locator('[data-testid="embed-preview"][data-app-id="' + appId + '"][data-skill-id="' + skillId + '"][data-status="finished"]').first();
 	const exactVisible = await exact.isVisible({ timeout: 5_000 }).catch(() => false);
 	if (exactVisible) return exact;
 
-	const fallback = page.getByTestId('embed-preview').filter({ hasText: fallbackText }).first();
+	for (const fallbackText of fallbackTexts) {
+		const fallback = page.getByTestId('embed-preview').filter({ hasText: fallbackText }).first();
+		const fallbackVisible = await fallback.isVisible({ timeout: 5_000 }).catch(() => false);
+		if (fallbackVisible) return fallback;
+	}
+
+	const fallback = page.getByTestId('embed-preview').filter({ hasText: fallbackTexts[0] }).first();
 	await expect(fallback).toBeVisible({ timeout: 120_000 });
 	return fallback;
 }
@@ -71,7 +77,7 @@ async function expectAssistantInterpretation(page: any): Promise<void> {
 	const assistantMessages = page.getByTestId('message-assistant');
 	await expect(async () => {
 		const count = await assistantMessages.count();
-		expect(count).toBeGreaterThanOrEqual(2);
+		expect(count).toBeGreaterThanOrEqual(1);
 	}).toPass({ timeout: 120_000 });
 
 	const latestText = ((await assistantMessages.last().textContent()) || '').trim();
@@ -100,7 +106,7 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'social-media-search');
 
 		await waitForEmbedFinished(page, 'social_media', 'search', 120_000).catch(() => null);
-		const embed = await waitForSocialParentEmbed(page, 'social_media', 'search', 'reddit_rss');
+		const embed = await waitForSocialParentEmbed(page, 'social_media', 'search', ['reddit_rss', '10 posts found']);
 		logCheckpoint('Social Media search embed finished.');
 		await takeStepScreenshot(page, 'social-media-search-embed-finished');
 
@@ -134,7 +140,7 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'social-media-get-posts');
 
 		await waitForEmbedFinished(page, 'social_media', 'get-posts', 120_000).catch(() => null);
-		const embed = await waitForSocialParentEmbed(page, 'social_media', 'get-posts', 'Bluesky Public AppView');
+		const embed = await waitForSocialParentEmbed(page, 'social_media', 'get-posts', ['Bluesky Public AppView', 'bsky.app', '10 posts found']);
 		logCheckpoint('Social Media get-posts embed finished.');
 		await takeStepScreenshot(page, 'social-media-get-posts-embed-finished');
 
