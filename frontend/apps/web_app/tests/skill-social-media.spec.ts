@@ -30,22 +30,6 @@ const {
 	verifySearchGrid
 } = require('./helpers/embed-test-helpers');
 
-async function waitForSocialParentEmbed(page: any, appId: string, skillId: string, fallbackTexts: string[]): Promise<any> {
-	const exact = page.locator('[data-testid="embed-preview"][data-app-id="' + appId + '"][data-skill-id="' + skillId + '"][data-status="finished"]').first();
-	const exactVisible = await exact.isVisible({ timeout: 5_000 }).catch(() => false);
-	if (exactVisible) return exact;
-
-	for (const fallbackText of fallbackTexts) {
-		const fallback = page.getByTestId('embed-preview').filter({ hasText: fallbackText }).first();
-		const fallbackVisible = await fallback.isVisible({ timeout: 5_000 }).catch(() => false);
-		if (fallbackVisible) return fallback;
-	}
-
-	const fallback = page.getByTestId('embed-preview').filter({ hasText: fallbackTexts[0] }).first();
-	await expect(fallback).toBeVisible({ timeout: 120_000 });
-	return fallback;
-}
-
 async function closeTopFullscreen(page: any): Promise<void> {
 	const overlays = page.getByTestId('embed-fullscreen-overlay');
 	const countBefore = await overlays.count();
@@ -105,8 +89,7 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		);
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'social-media-search');
 
-		await waitForEmbedFinished(page, 'social_media', 'search', 120_000).catch(() => null);
-		const embed = await waitForSocialParentEmbed(page, 'social_media', 'search', ['reddit_rss', '10 posts found']);
+		const embed = await waitForEmbedFinished(page, 'social_media', 'search', 180_000);
 		logCheckpoint('Social Media search embed finished.');
 		await takeStepScreenshot(page, 'social-media-search-embed-finished');
 
@@ -134,13 +117,12 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		await startNewChat(page, logCheckpoint);
 
 		const message = withLiveMockMarker(
-			'Get the latest Bluesky posts from the bsky.app profile using Social Media Get posts, then summarize the posts.',
+			'Use only the Social Media Get posts skill to fetch recent posts from the Reddit subreddit privacy. Platform reddit, page privacy, limit 10. Do not use web search. Then summarize the posts.',
 			'social_media_get_posts_web'
 		);
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'social-media-get-posts');
 
-		await waitForEmbedFinished(page, 'social_media', 'get-posts', 120_000).catch(() => null);
-		const embed = await waitForSocialParentEmbed(page, 'social_media', 'get-posts', ['Bluesky Public AppView', 'bsky.app', '10 posts found']);
+		const embed = await waitForEmbedFinished(page, 'social_media', 'get-posts', 240_000);
 		logCheckpoint('Social Media get-posts embed finished.');
 		await takeStepScreenshot(page, 'social-media-get-posts-embed-finished');
 
