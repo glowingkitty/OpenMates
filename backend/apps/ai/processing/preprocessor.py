@@ -69,6 +69,37 @@ FINANCIAL_REPO_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+
+def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
+    """Map common LLM-emitted skill identifier variants to valid IDs."""
+    skill_resolver_map: Dict[str, str] = {}
+
+    for valid_skill in available_skill_ids:
+        skill_resolver_map[valid_skill] = valid_skill
+
+        if "-" not in valid_skill:
+            skill_resolver_map[valid_skill.replace("-", "_")] = valid_skill
+            continue
+
+        app_id, skill_id = valid_skill.split("-", 1)
+        app_variants = {app_id, app_id.replace("_", "-")}
+        skill_variants = {skill_id, skill_id.replace("-", "_"), skill_id.replace("_", "-")}
+
+        for app_variant in app_variants:
+            for skill_variant in skill_variants:
+                skill_resolver_map[f"{app_variant}-{skill_variant}"] = valid_skill
+                skill_resolver_map[f"{app_variant}_{skill_variant}"] = valid_skill
+
+        # Handle duplicated segment pattern: app-skill-skill -> app-skill.
+        # Example: web-search-search -> web-search.
+        last_segment = skill_id.split("-")[-1].split("_")[-1]
+        for base_variant in list(skill_resolver_map.keys()):
+            if skill_resolver_map[base_variant] == valid_skill:
+                skill_resolver_map[f"{base_variant}-{last_segment}"] = valid_skill
+                skill_resolver_map[f"{base_variant}_{last_segment}"] = valid_skill
+
+    return skill_resolver_map
+
 # ---------------------------------------------------------------------------
 # Onboarding trigger phrases — multilingual (all 20 supported locales).
 #
@@ -2529,30 +2560,7 @@ async def handle_preprocessing(
         # When user did not specify skills, use preprocessing LLM selection.
         relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
         if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
-            # Build a robust skill name resolver to handle common LLM hallucinations
-            # This mirrors the tool_resolver_map pattern in main_processor.py
-            # Maps hallucinated skill names to valid skill identifiers
-            skill_resolver_map: Dict[str, str] = {}
-            
-            for valid_skill in available_skill_ids:
-                # Add exact match
-                skill_resolver_map[valid_skill] = valid_skill
-                
-                # Handle underscore variant: app_skill -> app-skill
-                underscore_variant = valid_skill.replace("-", "_")
-                skill_resolver_map[underscore_variant] = valid_skill
-                
-                # Handle duplicated segment pattern: app-skill-skill -> app-skill
-                # Example: web-search-search -> web-search
-                parts = valid_skill.split("-")
-                if len(parts) >= 2:
-                    # Create duplicated variant: web-search -> web-search-search
-                    duplicated = f"{valid_skill}-{parts[-1]}"
-                    skill_resolver_map[duplicated] = valid_skill
-                    
-                    # Also handle underscore with duplication: web_search_search -> web-search
-                    underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
-                    skill_resolver_map[underscore_duplicated] = valid_skill
+            skill_resolver_map = _build_skill_resolver_map(available_skill_ids)
             
             logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
             
