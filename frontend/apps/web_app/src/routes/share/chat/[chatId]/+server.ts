@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	const backendUrl = getBackendUrl(url);
 	let ogTitle = 'Shared Chat - OpenMates';
 	let ogDescription = 'View this shared conversation on OpenMates';
-	let ogImage = '/og-images/default-chat.png';
+	let ogImage = '/images/og-image.jpg';
 
 	try {
 		// Add cache-busting timestamp to ensure we get fresh data
