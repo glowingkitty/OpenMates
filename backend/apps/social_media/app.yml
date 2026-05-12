@@ -124,7 +124,7 @@ skills:
       or profiles. Supports Reddit subreddits through RSS feeds and Bluesky public
       AppView profile feeds. Use for profile monitoring, community research, and
       finding conversations to review manually.
-    stage: development
+    stage: production
     providers:
       - name: Reddit RSS
         no_api_key: true
@@ -193,7 +193,7 @@ skills:
       Omit platform to search every supported provider. Bluesky search may use
       Vault credentials from kv/data/providers/bluesky; Reddit search uses the
       provider-managed Webshare proxy when available.
-    stage: development
+    stage: production
     providers:
       - name: Bluesky Public AppView
         no_api_key: true
