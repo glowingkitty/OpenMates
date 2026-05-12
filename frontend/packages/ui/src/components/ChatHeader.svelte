@@ -166,8 +166,9 @@
   const TEASER_TILT_SCALE = 0.985;
   const TEASER_VERTICAL_EDGE_GAP = 10;
   const TEASER_MAX_WIDTH = 640;
-  const COMPACT_TEASER_PANEL_SECONDS = 7;
-  const COMPACT_TEASER_CYCLE_SECONDS = COMPACT_TEASER_PANEL_SECONDS * 2;
+  const COMPACT_TEASER_TEXT_SECONDS = 6;
+  const COMPACT_TEASER_VIDEO_SECONDS = 7;
+  const COMPACT_TEASER_CYCLE_SECONDS = COMPACT_TEASER_TEXT_SECONDS + COMPACT_TEASER_VIDEO_SECONDS;
   const MEDIUM_HEADER_WIDTH = 900;
   const MOBILE_HEADER_WIDTH = 730;
   const COMPACT_TEASER_HEADER_WIDTH = 960;
@@ -176,6 +177,14 @@
     const maxHeight = Math.max(0, chatHeaderHeight - TEASER_VERTICAL_EDGE_GAP * 2);
     const maxWidthByHeaderHeight = Math.floor(maxHeight * 16 / 9);
     return `min(${TEASER_MAX_WIDTH}px, 52%, ${maxWidthByHeaderHeight}px)`;
+  });
+
+  let compactTeaserTitleSize = $derived.by(() => {
+    if (!chatHeaderWidth || !chatHeaderHeight) return '28px';
+    const sizeByWidth = chatHeaderWidth * 0.032;
+    const sizeByHeight = chatHeaderHeight * 0.105;
+    const titleSize = Math.max(22, Math.min(34, sizeByWidth, sizeByHeight));
+    return `${Math.round(titleSize)}px`;
   });
 
   let isMediumHeader = $derived(chatHeaderWidth > 0 && chatHeaderWidth <= MEDIUM_HEADER_WIDTH);
@@ -644,7 +653,7 @@
       <div
         class="teaser-split-layout"
         class:is-video-active={isVideoActive}
-        style={`--compact-teaser-cycle-duration: ${COMPACT_TEASER_CYCLE_SECONDS}s;`}
+        style={`--compact-teaser-cycle-duration: ${COMPACT_TEASER_CYCLE_SECONDS}s; --compact-teaser-title-size: ${compactTeaserTitleSize};`}
       >
 
         <!-- Left column: fixed intro teaser copy -->
@@ -1768,7 +1777,7 @@
   }
 
   .is-compact-teaser-header .teaser-title {
-    font-size: clamp(1.55rem, 3.6vw, 2.25rem);
+    font-size: var(--compact-teaser-title-size, 28px);
     line-height: 1.18;
   }
 
@@ -1793,13 +1802,13 @@
 
   @keyframes mobileTeaserTextCycle {
     0%, 42% { opacity: 1; transform: translateY(0) scale(1); }
-    50%, 92% { opacity: 0; transform: translateY(-10px) scale(0.985); }
+    46.154%, 96% { opacity: 0; transform: translateY(-10px) scale(0.985); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   @keyframes mobileTeaserVideoCycle {
     0%, 42% { opacity: 0; transform: translateY(10px) scale(0.985); }
-    50%, 92% { opacity: 1; transform: translateY(0) scale(1); }
+    46.154%, 96% { opacity: 1; transform: translateY(0) scale(1); }
     100% { opacity: 0; transform: translateY(10px) scale(0.985); }
   }
 
