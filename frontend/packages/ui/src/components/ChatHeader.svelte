@@ -166,7 +166,7 @@
   const TEASER_TILT_SCALE = 0.985;
   const TEASER_VERTICAL_EDGE_GAP = 10;
   const TEASER_MAX_WIDTH = 640;
-  const COMPACT_TEASER_PANEL_SECONDS = 6;
+  const COMPACT_TEASER_PANEL_SECONDS = 7;
   const COMPACT_TEASER_CYCLE_SECONDS = COMPACT_TEASER_PANEL_SECONDS * 2;
   const MEDIUM_HEADER_WIDTH = 900;
   const MOBILE_HEADER_WIDTH = 730;
@@ -643,6 +643,7 @@
            on the right. The full MP4 is still mounted only after play click. -->
       <div
         class="teaser-split-layout"
+        class:is-video-active={isVideoActive}
         style={`--compact-teaser-cycle-duration: ${COMPACT_TEASER_CYCLE_SECONDS}s;`}
       >
 
@@ -1746,13 +1747,28 @@
     animation: mobileTeaserVideoCycle var(--compact-teaser-cycle-duration, 12s) infinite ease-in-out;
   }
 
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-left,
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-right {
+    animation: none;
+  }
+
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-left {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.985);
+  }
+
+  .is-compact-teaser-header .teaser-split-layout.is-video-active .teaser-split-right {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
   .is-compact-teaser-header .teaser-copy {
     align-items: flex-start;
     max-width: min(76vw, 460px);
   }
 
   .is-compact-teaser-header .teaser-title {
-    font-size: clamp(1.75rem, 4.2vw, 2.65rem);
+    font-size: clamp(1.55rem, 3.6vw, 2.25rem);
     line-height: 1.18;
   }
 
