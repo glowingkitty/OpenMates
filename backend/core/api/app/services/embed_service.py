@@ -2233,6 +2233,14 @@ class EmbedService:
             return "website", dict(result)
 
         enriched = dict(result)
+        if result.get("title") and "web_search_title" not in enriched:
+            enriched["web_search_title"] = result.get("title")
+        if result.get("description") and "web_search_description" not in enriched:
+            enriched["web_search_description"] = result.get("description")
+        if result.get("extra_snippets") and "web_search_extra_snippets" not in enriched:
+            enriched["web_search_extra_snippets"] = result.get("extra_snippets")
+        if result.get("page_age") and "web_search_page_age" not in enriched:
+            enriched["web_search_page_age"] = result.get("page_age")
         enriched.update(repo_payload)
         return "repo", enriched
 
