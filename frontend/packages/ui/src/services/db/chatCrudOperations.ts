@@ -176,11 +176,11 @@ export async function encryptChatForStorage(
         const existingChat = await dbInstance.getChat(chat.chat_id);
         if (options?.forceIncomingEncryptedChatKey) {
           if (existingChat?.encrypted_chat_key) {
-            addCandidateKey(
+            await addCandidateKey(
               dbInstance,
               chat.chat_id,
               existingChat.encrypted_chat_key,
-            ).catch(() => {});
+            );
           }
           chatKeyManager.injectKey(
             chat.chat_id,
