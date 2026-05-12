@@ -63,7 +63,7 @@ test.describe('App: Social Media / Skills: get-posts and search', () => {
 		await startNewChat(page, logCheckpoint);
 
 		const message = withLiveMockMarker(
-			'Search social media on Bluesky for OpenMates privacy AI. Use the Social Media Search skill and summarize what you find.',
+			'Search social media on Reddit for privacy. Use the Social Media Search skill and summarize what you find.',
 			'social_media_search_web'
 		);
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'social-media-search');
