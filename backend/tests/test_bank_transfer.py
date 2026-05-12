@@ -110,6 +110,11 @@ class TestWebhookSignatureVerification:
         svc._iban = "DE89370400440532013000"
         svc._bic = "COBADEFFXXX"
         svc._account_holder_name = "OpenMates GmbH"
+        svc._account_holder_address_line1 = "Sorauer Str. 19"
+        svc._account_holder_address_line2 = ""
+        svc._account_holder_postal_code = "10997"
+        svc._account_holder_city = "Berlin"
+        svc._account_holder_country = "Germany"
         svc.provider_name = "bank_transfer"
         return svc
 
@@ -336,6 +341,11 @@ class TestBankDetails:
         svc._iban = "DE89370400440532013000"
         svc._bic = "COBADEFFXXX"
         svc._account_holder_name = "OpenMates GmbH"
+        svc._account_holder_address_line1 = "Sorauer Str. 19"
+        svc._account_holder_address_line2 = ""
+        svc._account_holder_postal_code = "10997"
+        svc._account_holder_city = "Berlin"
+        svc._account_holder_country = "Germany"
 
         details = svc.get_bank_details()
 
@@ -343,12 +353,21 @@ class TestBankDetails:
         assert details["bic"] == "COBADEFFXXX"
         assert details["bank_name"] == "Revolut Bank UAB"
         assert details["account_holder_name"] == "OpenMates GmbH"
+        assert details["account_holder_address_line1"] == "Sorauer Str. 19"
+        assert details["account_holder_postal_code"] == "10997"
+        assert details["account_holder_city"] == "Berlin"
+        assert details["account_holder_country"] == "Germany"
 
     def test_defaults_when_unconfigured(self):
         svc = RevolutBusinessService.__new__(RevolutBusinessService)
         svc._iban = None
         svc._bic = None
         svc._account_holder_name = None
+        svc._account_holder_address_line1 = None
+        svc._account_holder_address_line2 = None
+        svc._account_holder_postal_code = None
+        svc._account_holder_city = None
+        svc._account_holder_country = None
 
         details = svc.get_bank_details()
 
@@ -356,3 +375,7 @@ class TestBankDetails:
         assert details["bic"] == ""
         assert details["bank_name"] == "Revolut Bank UAB"
         assert details["account_holder_name"] == ""
+        assert details["account_holder_address_line1"] == ""
+        assert details["account_holder_postal_code"] == ""
+        assert details["account_holder_city"] == ""
+        assert details["account_holder_country"] == ""

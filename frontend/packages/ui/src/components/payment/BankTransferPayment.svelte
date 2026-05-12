@@ -51,8 +51,22 @@
     let bic: string = $state('');
     let bankName: string = $state('');
     let accountHolderName: string = $state('');
+    let accountHolderAddressLine1: string = $state('');
+    let accountHolderAddressLine2: string = $state('');
+    let accountHolderPostalCode: string = $state('');
+    let accountHolderCity: string = $state('');
+    let accountHolderCountry: string = $state('');
     let amountEur: string = $state('');
     let expiresAt: string = $state('');
+
+    let accountHolderAddress = $derived(
+        [
+            accountHolderAddressLine1,
+            accountHolderAddressLine2,
+            [accountHolderPostalCode, accountHolderCity].filter(Boolean).join(' '),
+            accountHolderCountry,
+        ].filter(Boolean).join('\n')
+    );
 
     // Per-field copy feedback
     let copiedField: string = $state('');
@@ -97,6 +111,11 @@
             bic = data.bic;
             bankName = data.bank_name;
             accountHolderName = data.account_holder_name || '';
+            accountHolderAddressLine1 = data.account_holder_address_line1 || '';
+            accountHolderAddressLine2 = data.account_holder_address_line2 || '';
+            accountHolderPostalCode = data.account_holder_postal_code || '';
+            accountHolderCity = data.account_holder_city || '';
+            accountHolderCountry = data.account_holder_country || '';
             amountEur = data.amount_eur;
             expiresAt = data.expires_at;
 
@@ -187,6 +206,23 @@
                             title={copiedField === 'holder' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
                             aria-label={$text('settings.billing.copy')}
                             data-testid="copy-account-holder-btn"
+                        ><span class="copy-icon-inner"></span></button>
+                    </div>
+                </div>
+            {/if}
+
+            {#if accountHolderAddress}
+                <div class="detail-copyable" data-testid="bank-transfer-account-holder-address">
+                    <div class="detail-label">{$text('settings.billing.bank_transfer_account_holder_address')}</div>
+                    <div class="detail-value-row">
+                        <span class="detail-value selectable multiline">{accountHolderAddress}</span>
+                        <button
+                            class="copy-icon-btn"
+                            class:copied={copiedField === 'holder-address'}
+                            onclick={() => handleCopy('holder-address', accountHolderAddress)}
+                            title={copiedField === 'holder-address' ? $text('settings.billing.copied') : $text('settings.billing.copy')}
+                            aria-label={$text('settings.billing.copy')}
+                            data-testid="copy-account-holder-address-btn"
                         ><span class="copy-icon-inner"></span></button>
                     </div>
                 </div>
@@ -379,6 +415,11 @@
     .detail-value.monospace {
         font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Menlo', monospace;
         font-size: 0.8125rem;
+    }
+
+    .detail-value.multiline {
+        white-space: pre-line;
+        line-height: 1.4;
     }
 
     .reference-row .detail-value {
