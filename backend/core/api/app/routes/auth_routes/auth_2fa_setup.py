@@ -42,6 +42,15 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
+BACKUP_CODE_SIGNUP_STEPS = (
+    "/signup/one-time-codes",
+    "/signup/tfa-app-reminder",
+    "/signup/backup-codes",
+    "#signup/one-time-codes",
+    "#signup/tfa-app-reminder",
+    "#signup/backup-codes",
+)
+
 # Dependency to get encryption service (can be defined here or imported if moved)
 def get_encryption_service():
     return EncryptionService()
@@ -347,22 +356,20 @@ async def request_backup_codes(
         #
         # Two valid scenarios:
         # 1. Happy path: Cache exists with tfa_added_to_app=true (normal signup flow)
-        # 2. Recovery path: 2FA is enabled in profile AND user is at backup-codes step
-        #    (user logged out/in or cache expired after completing 2FA verification)
+        # 2. Recovery/race path: 2FA is enabled in profile AND user is in the late
+        #    2FA signup steps (user logged out/in, cache expired, or navigation
+        #    persisted after the backup-code request started)
         
         setup_data = await cache_service.get(f"2fa_setup:{user_id}")
         tfa_enabled = user_data.get("tfa_enabled", False)
         last_opened = user_data.get("last_opened", "")
-        is_at_backup_codes_step = (
-            last_opened.startswith("/signup/backup-codes") or 
-            last_opened.startswith("#signup/backup-codes")
-        )
+        is_late_2fa_signup_step = last_opened.startswith(BACKUP_CODE_SIGNUP_STEPS)
         
         # Allow if either:
         # - Cache exists with tfa_added_to_app (normal flow), OR
-        # - 2FA is enabled AND user is at backup codes step (recovery path)
+        # - 2FA is enabled AND user is in the late 2FA signup steps (recovery/race path)
         cache_ok = setup_data and setup_data.get("tfa_added_to_app")
-        recovery_ok = tfa_enabled and is_at_backup_codes_step
+        recovery_ok = tfa_enabled and is_late_2fa_signup_step
         
         if not (cache_ok or recovery_ok):
             logger.warning(
