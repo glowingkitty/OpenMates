@@ -120,7 +120,7 @@ social_media:
   verified_by_human: [en, de]
 social_media.description:
   context: Description for the Social Media app
-  en: Research posts, comments, and community conversations.
+  en: Research posts and community comments.
   de: Recherchiere Beiträge, Kommentare und Community-Gespräche.
   zh: 研究帖子、评论和社区对话。
   es: Investiga publicaciones, comentarios y conversaciones comunitarias.

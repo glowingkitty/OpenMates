@@ -150,6 +150,9 @@
      * Maps provider names like "Brave" to icon names like "brave".
      */
     function getProviderIconName(providerName: string): string {
+        if (providerName === 'Bluesky Public AppView') return 'bluesky';
+        if (providerName === 'Reddit RSS') return 'reddit';
+
         // Convert to lowercase and handle special cases
         const normalized = providerName.toLowerCase()
             .replace(/\s+/g, '_')
@@ -572,8 +575,10 @@
         color: rgba(255, 255, 255, 0.9);
         font-size: var(--font-size-small);
         line-height: 1.4;
-        /* Remove text truncation - show full description */
-        overflow: visible;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
         flex-grow: 1;
     }
     
@@ -610,4 +615,3 @@
     }
     
 </style>
-

@@ -1,7 +1,7 @@
 name_translation_key: social_media
 description_translation_key: social_media.description
 icon_image: |
-  social_media.svg
+  socialmedia.svg
 category: work
 last_updated: "2026-05-12"
 
@@ -118,7 +118,7 @@ skills:
   - id: get-posts
     name_translation_key: app_skills.social_media.get_posts
     description_translation_key: app_skills.social_media.get_posts.description
-    icon_image: social_media.svg
+    icon_image: socialmedia.svg
     preprocessor_hint: >
       Fetch recent social media posts from one or more specific platform pages
       or profiles. Supports Reddit subreddits through RSS feeds and Bluesky public
@@ -185,7 +185,7 @@ skills:
   - id: search
     name_translation_key: app_skills.social_media.search
     description_translation_key: app_skills.social_media.search.description
-    icon_image: social_media.svg
+    icon_image: socialmedia.svg
     preprocessor_hint: >
       Search supported social platforms for recent public posts around a topic.
       Use this for topic monitoring and broad discovery across pages/profiles,
