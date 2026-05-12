@@ -15,6 +15,11 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
+
+  const PROVIDER_FAVICONS = [
+    { match: 'deutsche bahn', url: 'https://www.bahn.de/favicon.ico' },
+    { match: 'flix', url: 'https://www.flixbus.com/favicon.ico' },
+  ];
   
   /**
    * Props for travel connection embed preview
@@ -50,6 +55,10 @@
     hasCancellation?: boolean;
     /** Carrier names */
     carriers?: string[];
+    /** Provider used for booking/search, e.g. Deutsche Bahn or FlixBus / FlixTrain */
+    bookingProvider?: string;
+    /** Primary provider/logo URL from the connection result */
+    airlineLogo?: string;
     /** IATA carrier codes (e.g., ['LH', 'BA']) for airline logos */
     carrierCodes?: string[];
     /** Number of bookable seats remaining */
@@ -79,6 +88,8 @@
     arrivalDelayMinutes,
     hasCancellation = false,
     carriers: carriersProp = [],
+    bookingProvider,
+    airlineLogo,
     carrierCodes: carrierCodesProp = [],
     bookableSeats,
     // isCheapest not used in redesigned preview — price is always green
@@ -93,8 +104,14 @@
   // value slips through from the renderer. Belt-and-suspenders with the
   // extractToonArray() fix in GroupRenderer.
   // carriersProp accepted for prop compatibility but carriers are not displayed in redesigned preview
-  let _carriers = $derived(Array.isArray(carriersProp) ? carriersProp : []);
-  let carrierCodes = $derived(Array.isArray(carrierCodesProp) ? carrierCodesProp : []);
+  function normalizeStringArray(value: string[] | string | undefined): string[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.length > 0) return [value];
+    return [];
+  }
+
+  let _carriers = $derived(normalizeStringArray(carriersProp as string[] | string | undefined));
+  let carrierCodes = $derived(normalizeStringArray(carrierCodesProp as string[] | string | undefined));
   
   // Format price for display
   let formattedPrice = $derived.by(() => {
@@ -105,7 +122,21 @@
     return `${currency} ${numPrice.toFixed(numPrice % 1 === 0 ? 0 : 2)}`;
   });
   
-  // Time formatting is handled by BasicInfosBar via routeDisplay + skillName
+  // BasicInfosBar shows the compact route title; the card itself shows travel times.
+  function formatTime(value?: string): string {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  let departureTime = $derived(formatTime(departure));
+  let arrivalTime = $derived(formatTime(_arrival));
+
+  let timeLine = $derived.by(() => {
+    if (departureTime && arrivalTime) return `${departureTime} → ${arrivalTime}`;
+    return departureTime || arrivalTime;
+  });
   
   // Format departure date for display (e.g., "Sat, Mar 28")
   let departureDate = $derived.by(() => {
@@ -144,6 +175,12 @@
       code,
       url: proxyImage(`https://images.kiwi.com/airlines/64/${code}.png`, MAX_WIDTH_AIRLINE_LOGO),
     }));
+  });
+
+  let providerFaviconUrl = $derived.by(() => {
+    if (airlineLogo) return airlineLogo;
+    const normalizedProvider = (bookingProvider || _carriers[0] || '').toLowerCase();
+    return PROVIDER_FAVICONS.find(provider => normalizedProvider.includes(provider.match))?.url || undefined;
   });
   
   // Stops label
@@ -209,6 +246,7 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
+  faviconUrl={providerFaviconUrl}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
@@ -242,6 +280,10 @@
         <div class="connection-route" data-testid="connection-route">
           <span class="route-text">{origin} → {destination}</span>
         </div>
+      {/if}
+
+      {#if timeLine}
+        <div class="connection-time" data-testid="connection-time">{timeLine}</div>
       {/if}
 
       <!-- Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" -->
@@ -351,6 +393,13 @@
 
   .route-text {
     font-weight: 600;
+  }
+
+  .connection-time {
+    font-size: 1rem;
+    color: var(--color-font-primary);
+    font-weight: 700;
+    line-height: 1.25;
   }
 
   /* Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" */

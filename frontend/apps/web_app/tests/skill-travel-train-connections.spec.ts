@@ -183,6 +183,16 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		expect(routeText).toContain('→');
 		logCheckpoint(`Preview route: ${routeText}`);
 
+		// Departure/arrival times should be visible directly in the preview card
+		const timeEl = previewDetails.getByTestId('connection-time');
+		await expect(timeEl).toBeVisible();
+		const timeText = await timeEl.textContent();
+		expect(timeText).toContain('→');
+		logCheckpoint(`Preview time: ${timeText}`);
+
+		// DB/Flix provider favicon should be available without opening fullscreen
+		await expect(firstPreview.getByTestId('embed-title-favicon')).toBeVisible();
+
 		// Meta line should show duration/stops
 		const metaEl = previewDetails.getByTestId('connection-meta');
 		await expect(metaEl).toBeVisible();

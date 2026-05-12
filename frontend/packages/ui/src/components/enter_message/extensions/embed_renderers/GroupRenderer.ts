@@ -3628,11 +3628,18 @@ export class GroupRenderer implements EmbedRenderer {
       "airplane";
     const tripType =
       decodedContent?.trip_type || decodedContent?.tripType || "one_way";
-    const origin = decodedContent?.origin || "";
-    const destination = decodedContent?.destination || "";
-    const departure = decodedContent?.departure || "";
-    const arrival = decodedContent?.arrival || "";
-    const duration = decodedContent?.duration || "";
+    const legs = Array.isArray(decodedContent?.legs) ? decodedContent.legs : [];
+    const firstLeg = legs[0];
+    const lastLeg = legs.at(-1);
+    const firstSegments = Array.isArray(firstLeg?.segments) ? firstLeg.segments : [];
+    const lastSegments = Array.isArray(lastLeg?.segments) ? lastLeg.segments : [];
+    const firstSegment = firstSegments[0];
+    const lastSegment = lastSegments.at(-1);
+    const origin = decodedContent?.origin || firstLeg?.origin || "";
+    const destination = decodedContent?.destination || lastLeg?.destination || "";
+    const departure = decodedContent?.departure || firstLeg?.departure || firstSegment?.departure_time || "";
+    const arrival = decodedContent?.arrival || lastLeg?.arrival || lastSegment?.arrival_time || "";
+    const duration = decodedContent?.duration || firstLeg?.duration || "";
     const stops = decodedContent?.stops ?? 0;
     // TOON serialization can flatten arrays into indexed keys or bare strings.
     // Use extractToonArray() for safe extraction (handles all 3 TOON forms).
@@ -3645,6 +3652,10 @@ export class GroupRenderer implements EmbedRenderer {
         : extractToonArray(decodedContent, "carrierCodes");
     const bookableSeats =
       decodedContent?.bookable_seats ?? decodedContent?.bookableSeats;
+    const bookingProvider =
+      decodedContent?.booking_provider ?? decodedContent?.bookingProvider;
+    const airlineLogo =
+      decodedContent?.airline_logo ?? decodedContent?.airlineLogo ?? firstSegment?.airline_logo;
     const isCheapest =
       decodedContent?.is_cheapest ?? decodedContent?.isCheapest ?? false;
     const status = (decodedContent?.status ||
@@ -3690,6 +3701,8 @@ export class GroupRenderer implements EmbedRenderer {
           duration,
           stops,
           carriers,
+          bookingProvider,
+          airlineLogo,
           carrierCodes,
           bookableSeats,
           isCheapest,
