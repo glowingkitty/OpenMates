@@ -1,5 +1,5 @@
 ---
-name: openmates:reproduce-first
+name: reproduce-first
 description: Reproduce a bug via an E2E spec (red) before any fix code, then verify green. Use at the start of any bug-fix session where a user-visible behavior is wrong.
 user-invocable: true
 argument-hint: "<issue-id | short description of the bug>"
@@ -7,13 +7,13 @@ argument-hint: "<issue-id | short description of the bug>"
 
 ## Instructions
 
-You are enforcing the test-first workflow from `.Codex/rules/testing.md`. No fix code may be written until a spec has reproduced the bug (red). Follow these steps **in order**:
+You are enforcing the test-first workflow from `.claude/rules/testing.md`. No fix code may be written until a spec has reproduced the bug (red). Follow these steps **in order**:
 
 ### Step 1 — Understand the bug
 
 Parse the argument:
-- If it looks like a Linear issue (`OPE-\d+`), call `mcp__linear__get_issue` + `mcp__linear__extract_images` + `mcp__linear__list_comments` for full context. Then follow the Linear pickup protocol from `.Codex/rules/linear-tasks.md` (move to In Progress, post pickup comment).
-- Otherwise treat the argument as a free-text description and ask the user any clarifying questions needed to reach a concrete reproduction path (max 3 questions, one at a time, per `.Codex/rules/planning.md`).
+- If it looks like a Linear issue (`OPE-\d+`), call `mcp__linear__get_issue` + `mcp__linear__extract_images` + `mcp__linear__list_comments` for full context. Then follow the Linear pickup protocol from `.claude/rules/linear-tasks.md` (move to In Progress, post pickup comment).
+- Otherwise treat the argument as a free-text description and ask the user any clarifying questions needed to reach a concrete reproduction path (max 3 questions, one at a time, per `.claude/rules/planning.md`).
 
 State your understanding in 2-3 sentences and get confirmation before continuing.
 
@@ -53,7 +53,7 @@ Post a Linear milestone comment (if a Linear issue is linked): "Reproduced in `<
 
 ### Step 4 — Fix the bug
 
-Only now write fix code. Keep the change minimal — just enough to turn the spec green. Follow the KISS/DRY rules from `AGENTS.md`. Do not refactor adjacent code.
+Only now write fix code. Keep the change minimal — just enough to turn the spec green. Follow the KISS/DRY rules from `CLAUDE.md`. Do not refactor adjacent code.
 
 ### Step 5 — Rerun the spec and confirm GREEN
 
@@ -69,14 +69,14 @@ The same spec MUST pass. This is the proof the fix works.
 ### Step 6 — Close the loop
 
 1. Summarize in 2-3 sentences what the bug was and how the fix closes it.
-2. If a Linear issue is linked, post the completion comment and update status per `.Codex/rules/linear-tasks.md`.
+2. If a Linear issue is linked, post the completion comment and update status per `.claude/rules/linear-tasks.md`.
 3. Deploy via `/deploy` or `sessions.py deploy`. The deploy gate will confirm the spec was run in this session.
 
 ## Rules
 
 - **No fix code before a red spec.** This is non-negotiable. If you catch yourself editing source files before Step 3, stop and restart at Step 2.
 - **Never suppress a failing test** to make it pass. Fix the underlying bug.
-- **Never run playwright/vitest locally** — always dispatch via `run_tests.py` (per `.Codex/rules/testing.md`).
+- **Never run playwright/vitest locally** — always dispatch via `run_tests.py` (per `.claude/rules/testing.md`).
 - **Use `data-testid` selectors only** when writing or extending specs — never CSS classes.
 - **One spec per bug** when reasonable. If the same fix closes multiple user-reported bugs, one spec covering the shared root cause is fine.
 - **Ask before creating new specs.** Extending is cheaper than creating; the user may know an existing spec you missed.

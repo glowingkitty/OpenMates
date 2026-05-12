@@ -1,5 +1,5 @@
 ---
-name: openmates:task-status
+name: task-status
 description: Show status overview of all auto-processed Linear tasks (poller sessions)
 user-invocable: true
 argument-hint: "[--all]"
@@ -24,7 +24,7 @@ You provide a quick status overview of all auto-processed Linear tasks spawned b
 3. For each session that has a `claude_session_id`, read the last 5 lines of the JSONL transcript to extract the latest activity:
 
 ```bash
-tail -5 ~/.Codex/projects/-home-superdev-projects-OpenMates/<claude_session_id>.jsonl
+tail -5 ~/.claude/projects/-home-superdev-projects-OpenMates/<claude_session_id>.jsonl
 ```
 
 Parse each line as JSON. Look for entries with `type: "assistant"` and extract the text content (may be a string or a list of `{type: "text", text: "..."}` objects). Take the last ~300 chars of the most recent assistant message.
@@ -51,4 +51,4 @@ If `--all` is passed or user asks for details, show the full last assistant mess
 ### No Sessions
 
 If the tracking file is empty or missing, say:
-"No auto-processed tasks currently tracked. Tasks appear here when the linear-poller spawns sessions for issues labeled `Codex-fix`, `Codex-research`, or `Codex-plan`."
+"No auto-processed tasks currently tracked. Tasks appear here when the linear-poller spawns sessions for issues labeled `claude-fix`, `claude-research`, or `claude-plan`."

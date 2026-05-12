@@ -1,5 +1,5 @@
 ---
-name: openmates:next-tasks
+name: next-tasks
 description: Pick the single highest-priority next task, clarify it, and start working on it
 user-invocable: true
 argument-hint: "[OPE-XXX]"
@@ -25,13 +25,13 @@ Build two lists:
 
 **Stale Status Tasks** — tasks whose Linear status doesn't match reality:
 - Task is "Todo" or "In Progress" in Linear but git shows commits that fix/complete it → suggest marking Done
-- Task has `Codex-is-working` label but no recent commits and no active session → suggest removing label
+- Task has `claude-is-working` label but no recent commits and no active session → suggest removing label
 - Task is "In Progress" but was completed in a previous session → suggest marking Done/In Review
 - Task is "Todo" but another task's commits address the same issue → suggest marking Done or linking
 
 **Available Next Tasks** — priority tasks that are:
 - Still in Todo status (genuinely not started)
-- Not labeled `Codex-is-working` (no active session)
+- Not labeled `claude-is-working` (no active session)
 - Not user-owned tasks (skip tasks where owner is "User" in the daily meeting summary)
 
 ### Step 3: Present Staleness Report
@@ -44,7 +44,7 @@ Show the user which tasks have stale statuses with evidence:
 | Task | Linear Status | Evidence | Suggested Action |
 |------|--------------|----------|-----------------|
 | OPE-XXX | In Progress | Commit abc1234 "fix: ..." merged | → Done |
-| OPE-XXX | Todo | Codex-is-working label, no commits in 2h | → Remove label, keep Todo |
+| OPE-XXX | Todo | claude-is-working label, no commits in 2h | → Remove label, keep Todo |
 ```
 
 Ask the user to confirm the status updates. Apply confirmed changes:

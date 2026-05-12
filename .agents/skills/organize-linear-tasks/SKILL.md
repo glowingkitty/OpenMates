@@ -1,5 +1,5 @@
 ---
-name: openmates:organize-linear-tasks
+name: organize-linear-tasks
 description: Audit and reorganize all open Linear tasks — detect ghosts, duplicates, stale items, and missing metadata
 user-invocable: true
 argument-hint: "[--quick] [--section N]"
@@ -181,14 +181,14 @@ Remove approved ghost tasks from your working set for subsequent sections.
 
 ---
 
-### Step 3.5: Section 1.5 — `Codex-is-working` Label Cleanup
+### Step 3.5: Section 1.5 — `claude-is-working` Label Cleanup
 
-Find tasks with the `Codex-is-working` label that are in Done, In Review, or Backlog status — these likely have stale labels from ended sessions.
+Find tasks with the `claude-is-working` label that are in Done, In Review, or Backlog status — these likely have stale labels from ended sessions.
 
 Present findings:
 
 ```
-## 1.5. Stale `Codex-is-working` Labels (N found)
+## 1.5. Stale `claude-is-working` Labels (N found)
 
 | # | Task | Title | Status | Label Should Be Removed? |
 |---|------|-------|--------|--------------------------|
@@ -197,7 +197,7 @@ Present findings:
 ```
 
 Use `AskUserQuestion`:
-- **all** — remove `Codex-is-working` from all listed
+- **all** — remove `claude-is-working` from all listed
 - **pick** — go through one by one
 - **skip** — leave as-is
 
@@ -424,7 +424,7 @@ Present a complete recap of everything changed during this audit:
 | Done tasks deleted | X | OPE-XX, OPE-YY |
 | In Review → Done | X | OPE-XX, OPE-YY |
 | Tasks closed (ghost) | X | OPE-XX, OPE-YY |
-| Codex-is-working cleaned | X | OPE-XX |
+| claude-is-working cleaned | X | OPE-XX |
 | Tasks deleted (stale) | X | OPE-XX |
 | Tasks merged (duplicate) | X | OPE-XX → merged into OPE-YY |
 | Titles/descriptions updated | X | OPE-XX, OPE-YY |

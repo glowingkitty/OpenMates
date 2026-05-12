@@ -1,5 +1,5 @@
 ---
-name: openmates:add-example-chat
+name: add-example-chat
 description: Create a new hardcoded example chat from a shared chat URL with encryption key
 user-invocable: true
 argument-hint: "<share-url-with-key>"

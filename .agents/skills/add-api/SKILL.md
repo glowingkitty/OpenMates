@@ -1,5 +1,5 @@
 ---
-name: openmates:add-api
+name: add-api
 description: Integrate a new external API provider (research, wrapper, test script, docs)
 user-invocable: true
 argument-hint: "<provider-name>"
@@ -95,7 +95,7 @@ Create `docs/apis/{provider_name}.md` with:
 
 ### Step 6: Check Privacy & Legal
 
-Read `.Codex/rules/privacy.md` and check if updates are needed:
+Read `.claude/rules/privacy.md` and check if updates are needed:
 - `shared/docs/privacy_policy.yml`
 - `i18n/sources/legal/privacy.yml`
 - `legal/buildLegalContent.ts`

@@ -34,6 +34,11 @@ const EDIT_POST_HOOKS = [
   "encryption-architecture-reminder.sh",
 ]
 
+const EDIT_POST_COMMANDS = [
+  ["bash", path.join(PROJECT_ROOT, "scripts", "lint-design-tokens.sh")],
+  ["bash", path.join(PROJECT_ROOT, "scripts", "lint-swift-design-tokens.sh")],
+]
+
 const SESSION_START_HOOKS = ["tdd-session-context.sh"]
 const SESSION_IDLE_HOOKS = ["check-uncommitted.sh"]
 
@@ -55,7 +60,28 @@ function filePathFromArgs(args) {
 }
 
 function commandFromArgs(args) {
-  return args?.command || args?.cmd || ""
+  return args?.command || args?.cmd || args?.patch || args?.patchText || ""
+}
+
+function toAbsolutePath(file) {
+  if (!file) return ""
+  return path.isAbsolute(file) ? file : path.join(PROJECT_ROOT, file)
+}
+
+function extractPatchFiles(args) {
+  const explicitPath = filePathFromArgs(args)
+  if (explicitPath) return [toAbsolutePath(explicitPath)]
+
+  const command = commandFromArgs(args)
+  if (!command) return []
+
+  const files = new Set()
+  for (const line of String(command).split("\n")) {
+    for (const prefix of ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "]) {
+      if (line.startsWith(prefix)) files.add(toAbsolutePath(line.slice(prefix.length).trim()))
+    }
+  }
+  return [...files].filter(Boolean).sort()
 }
 
 function claudePayload(eventName, tool, args, extra = {}) {
@@ -124,6 +150,43 @@ function runHooks(scripts, payload, options) {
   for (const script of scripts) runHook(script, payload, options)
 }
 
+function runHooksForEdit(scripts, eventName, args, options, extra = {}) {
+  const files = extractPatchFiles(args)
+  if (!files.length) {
+    runHooks(scripts, claudePayload(eventName, "Edit", args, extra), options)
+    return
+  }
+
+  for (const filePath of files) {
+    runHooks(scripts, claudePayload(eventName, "Edit", { ...args, file_path: filePath }, extra), options)
+  }
+}
+
+function runCommand(command, args, { blockOnFailure = true } = {}) {
+  const result = spawnSync(command, args, {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+    timeout: 120000,
+    env: {
+      ...process.env,
+      PROJECT_ROOT,
+    },
+  })
+
+  if (result.error) {
+    if (blockOnFailure) throw result.error
+    return
+  }
+
+  if (blockOnFailure && result.status && result.status !== 0) {
+    throw new Error(parseHookMessage(result.stderr || result.stdout) || `${command} failed`)
+  }
+}
+
+function runCommands(commands, options) {
+  for (const [command, ...args] of commands) runCommand(command, args, options)
+}
+
 exports.OpenMatesClaudeHooks = async () => {
   return {
     "tool.execute.before": async (input, output) => {
@@ -136,18 +199,15 @@ exports.OpenMatesClaudeHooks = async () => {
       }
 
       if (isEditTool(tool)) {
-        runHooks(EDIT_PRE_HOOKS, claudePayload("PreToolUse", "Edit", args), { blockOnFailure: true })
+        runHooksForEdit(EDIT_PRE_HOOKS, "PreToolUse", args, { blockOnFailure: true })
       }
     },
 
     "tool.execute.after": async (input, output) => {
       if (!isEditTool(input.tool)) return
 
-      runHooks(
-        EDIT_POST_HOOKS,
-        claudePayload("PostToolUse", "Edit", output.args || {}, { tool_response: output.result || null }),
-        { blockOnFailure: false },
-      )
+      runHooksForEdit(EDIT_POST_HOOKS, "PostToolUse", output.args || {}, { blockOnFailure: false }, { tool_response: output.result || null })
+      runCommands(EDIT_POST_COMMANDS, { blockOnFailure: true })
     },
 
     event: async ({ event }) => {

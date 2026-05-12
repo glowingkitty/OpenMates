@@ -1,6 +1,6 @@
 ---
-name: openmates:resume-tasks
-description: Discover interrupted Codex sessions from a crash and restore them in Zellij tabs
+name: resume-tasks
+description: Discover interrupted Claude Code sessions from a crash and restore them in Zellij tabs
 user-invocable: true
 argument-hint: "[--all] [session-id]"
 ---
@@ -11,7 +11,7 @@ argument-hint: "[--all] [session-id]"
 
 ## Instructions
 
-You help the user recover interrupted Codex sessions after a server crash or restart.
+You help the user recover interrupted Claude Code sessions after a server crash or restart.
 
 ### Step 1: Show Discovered Sessions
 
@@ -52,7 +52,7 @@ Launch them sequentially (each takes ~3s for Zellij to initialize).
 
 After restoring, print a summary table:
 
-| Zellij Session | Codex Session | Task | Attach Command |
+| Zellij Session | Claude Session | Task | Attach Command |
 |---|---|---|---|
 | restore-OPE-155 | 661bcc8f... | OPE-155 fix | `zellij attach restore-OPE-155` |
 

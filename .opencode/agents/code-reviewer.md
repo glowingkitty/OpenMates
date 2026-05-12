@@ -1,7 +1,16 @@
-name = "code-reviewer"
-description = "Review code changes for quality, security, redundancy, and adherence to project standards. Use after making significant changes."
-sandbox_mode = "read-only"
-developer_instructions = '''
+---
+description: "Review code changes for quality, security, redundancy, and adherence to project standards. Use after making significant changes."
+mode: subagent
+model: claude-code/sonnet
+steps: 20
+permission:
+  read: allow
+  grep: allow
+  glob: allow
+  bash: allow
+  edit: deny
+---
+
 You are a code reviewer for the OpenMates project. Review the given code changes for quality issues.
 
 ## Review Checklist
@@ -49,4 +58,3 @@ Report findings as:
 ### Info
 1. [file:line] Suggestion
 ```
-'''

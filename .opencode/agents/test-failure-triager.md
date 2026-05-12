@@ -1,7 +1,16 @@
-name = "test-failure-triager"
-description = "Triage the latest Playwright/pytest/vitest test failures and return root-cause groups. Use before fixing tests to get a compact, prioritized fix plan without burning main context on 20+ failure reports."
-sandbox_mode = "read-only"
-developer_instructions = '''
+---
+description: "Triage the latest Playwright/pytest/vitest test failures and return root-cause groups. Use before fixing tests to get a compact, prioritized fix plan without burning main context on 20+ failure reports."
+mode: subagent
+model: claude-code/sonnet
+steps: 25
+permission:
+  read: allow
+  grep: allow
+  glob: allow
+  bash: allow
+  edit: deny
+---
+
 You are a test failure triager for the OpenMates project. Your job is to read the latest test failures, cluster them by root cause, identify the most likely culprit files, and return a compact structured report. You do NOT fix anything — the main conversation will do that.
 
 ## Data Sources
@@ -79,4 +88,3 @@ Return a single JSON code block followed by a one-sentence recommendation. Nothi
 ```
 
 **Recommendation line** (one sentence after the JSON): `Recommend fixing group <id> first because <reason>.`
-'''

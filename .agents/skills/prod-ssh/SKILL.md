@@ -1,12 +1,12 @@
 ---
 name: prod-ssh
-description: Open, use, or close a temporary SSH session to the production server. Prod enforces 3FA (key + password + TOTP); this skill walks the operator through the manual steps needed to let Codex run commands on prod. Use when the user asks Codex to "ssh to prod", "check something on the prod server", "run X on production", or any task that requires shell access to prod.
+description: Open, use, or close a temporary SSH session to the production server. Prod enforces 3FA (key + password + TOTP); this skill walks the operator through the manual steps needed to let Claude run commands on prod. Use when the user asks Claude to "ssh to prod", "check something on the prod server", "run X on production", or any task that requires shell access to prod.
 user-invocable: true
 ---
 
 ## Purpose
 
-Prod SSH is locked behind **3 factors**: SSH key + account password + TOTP code. Codex cannot drive that flow unattended — the operator must open an access window on prod and enter the TOTP once per working session. This skill guides both sides through that handshake, after which Codex can run arbitrary commands via `scripts/prod-ssh.sh`.
+Prod SSH is locked behind **3 factors**: SSH key + account password + TOTP code. Claude cannot drive that flow unattended — the operator must open an access window on prod and enter the TOTP once per working session. This skill guides both sides through that handshake, after which Claude can run arbitrary commands via `scripts/prod-ssh.sh`.
 
 ## Decision: do you actually need prod SSH?
 
@@ -45,13 +45,13 @@ Then pipe it into the open command:
 echo "<code>" | ./scripts/prod-ssh.sh open
 ```
 
-The script reads the TOTP from stdin when no TTY is available (which is the case in Codex's Bash tool). The TOTP is never stored anywhere.
+The script reads the TOTP from stdin when no TTY is available (which is the case in Claude's Bash tool). The TOTP is never stored anywhere.
 
 **Important:** TOTP codes expire in ~30 seconds. Run the command immediately after the user pastes the code — don't do other work in between.
 
 ### 3. Run commands freely
 
-Once the master is open, Codex can run any remote command with no further prompts:
+Once the master is open, Claude can run any remote command with no further prompts:
 
 ```bash
 ./scripts/prod-ssh.sh "docker ps"
@@ -98,4 +98,4 @@ If these fail, tell the user and stop — don't try to work around:
 - Never log, echo, or paste the TOTP or password in chat or in commit messages.
 - Never write the TOTP to any file.
 - Do not ask the user to store the TOTP in `.env` — that defeats the second human-gate.
-- If Codex ever needs to run destructive commands on prod (restart services, delete files), confirm with the user first even inside an open master — the master bypasses auth, not judgement.
+- If Claude ever needs to run destructive commands on prod (restart services, delete files), confirm with the user first even inside an open master — the master bypasses auth, not judgement.
