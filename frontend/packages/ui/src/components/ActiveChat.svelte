@@ -4002,7 +4002,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Show whenever there are suggestions and the welcome screen is not active.
     // No longer requires messageInputFocused — suggestions are visible below the last
     // assistant message without the user having to click the input first.
-    let showFollowUpSuggestions = $derived(!showWelcome && followUpSuggestions.length > 0 && !(currentChat && isLegalChat(currentChat.chat_id)));
+    let followUpSuggestionsEnabled = $derived($userProfile.follow_up_suggestions_enabled !== false);
+    let showFollowUpSuggestions = $derived(
+        followUpSuggestionsEnabled && !showWelcome && followUpSuggestions.length > 0 && !(currentChat && isLegalChat(currentChat.chat_id))
+    );
 
     // Load and refresh the active focus ID whenever the current chat changes.
     // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.

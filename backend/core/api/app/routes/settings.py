@@ -4897,7 +4897,7 @@ async def update_ai_model_defaults(
     cache_service: CacheService = Depends(get_cache_service),
 ) -> SimpleSuccessResponse:
     """
-    Persist the user's preferred default AI models for simple and complex requests.
+    Persist the user's preferred default AI models and AI interaction preferences.
 
     These values are injected into user_preferences when a message is received and
     take precedence over auto-selection (ModelSelector), but are overridden by an
@@ -4923,11 +4923,14 @@ async def update_ai_model_defaults(
         'default_ai_model_simple': request_data.default_ai_model_simple,
         'default_ai_model_complex': request_data.default_ai_model_complex,
     }
+    if request_data.follow_up_suggestions_enabled is not None:
+        update_data['follow_up_suggestions_enabled'] = request_data.follow_up_suggestions_enabled
 
     logger.info(
         f"[AiModelDefaults] Updating default models for user {user_id}: "
         f"simple={request_data.default_ai_model_simple!r}, "
-        f"complex={request_data.default_ai_model_complex!r}"
+        f"complex={request_data.default_ai_model_complex!r}, "
+        f"follow_up_suggestions_enabled={request_data.follow_up_suggestions_enabled!r}"
     )
 
     try:

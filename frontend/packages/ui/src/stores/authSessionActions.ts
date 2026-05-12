@@ -629,7 +629,7 @@ export async function checkAuth(
             : userLanguage;
 
         updateProfile({
-          user_id: (data.user as any).id || null,
+          user_id: data.user.id || null,
           username: data.user.username,
           profile_image_url: data.user.profile_image_url,
           tfa_app_name: data.user.tfa_app_name,
@@ -654,6 +654,12 @@ export async function checkAuth(
           // Refund policy consent — used to skip redundant consent screens in settings
           has_accepted_refund_policy:
             data.user.has_accepted_refund_policy ?? false,
+          default_ai_model_simple:
+            data.user.default_ai_model_simple ?? null,
+          default_ai_model_complex:
+            data.user.default_ai_model_complex ?? null,
+          follow_up_suggestions_enabled:
+            data.user.follow_up_suggestions_enabled !== false,
         });
         // Apply server dark mode preference to the theme store.
         // applyServerDarkMode is a no-op when the user already has a local

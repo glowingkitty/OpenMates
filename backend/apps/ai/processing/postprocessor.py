@@ -235,6 +235,7 @@ async def handle_postprocessing(
     output_language: str = "en",
     user_system_language: str = "en",
     current_chat_title: Optional[str] = None,
+    follow_up_suggestions_enabled: bool = True,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -266,6 +267,7 @@ async def handle_postprocessing(
             regardless of which language individual chats were conducted in.
         current_chat_title: The current decrypted chat title (if available). Passed to the LLM so it
             can decide whether the title still fits the conversation. None for new chats (first message).
+        follow_up_suggestions_enabled: Whether active-chat follow-up suggestion chips should be returned.
 
     Returns:
         PostProcessingResult with suggestions, summaries, and metadata
@@ -496,15 +498,19 @@ async def handle_postprocessing(
     # Sanitize follow-up suggestions: allow skill + focus + app-only prefixes (no memory —
     # memory suggestions are handled by the automated Phase 2 memory generation step)
     raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
-    sanitized_follow_up = sanitize_suggestions(
-        suggestions=raw_follow_up,
-        valid_skill_ids=valid_skill_ids,
-        valid_focus_ids=valid_focus_ids,
-        valid_memory_ids=set(),  # Memory prefixes removed — handled by Phase 2
-        allow_memory_prefixes=False,
-        task_id=task_id,
-        valid_app_ids=available_app_set,
-    )
+    if follow_up_suggestions_enabled:
+        sanitized_follow_up = sanitize_suggestions(
+            suggestions=raw_follow_up,
+            valid_skill_ids=valid_skill_ids,
+            valid_focus_ids=valid_focus_ids,
+            valid_memory_ids=set(),  # Memory prefixes removed — handled by Phase 2
+            allow_memory_prefixes=False,
+            task_id=task_id,
+            valid_app_ids=available_app_set,
+        )
+    else:
+        sanitized_follow_up = []
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled by user preference")
 
     # Sanitize new chat suggestions: allow skill + focus + app-only prefixes (NO memory)
     raw_new_chat = llm_result.arguments.get("new_chat_request_suggestions", [])
@@ -969,4 +975,3 @@ async def translate_new_chat_suggestions(
             exc_info=True,
         )
         return suggestions
-

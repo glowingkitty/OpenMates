@@ -58,14 +58,6 @@ import { getSessionId } from "../utils/sessionId";
 let loginSessionGeneration = 0;
 
 /**
- * Returns the current login session generation.
- * Used by authSessionActions to capture before starting background logout.
- */
-function getLoginSessionGeneration(): number {
-  return loginSessionGeneration;
-}
-
-/**
  * Increments the login session generation counter.
  *
  * MUST be called by any login path that establishes a new authenticated session
@@ -302,7 +294,7 @@ export async function login(
             }
 
             updateProfile({
-              user_id: (data.user as any).id || null,
+              user_id: data.user.id || null,
               username: data.user.username,
               profile_image_url: data.user.profile_image_url,
               tfa_app_name: data.user.tfa_app_name,
@@ -336,6 +328,12 @@ export async function login(
                 data.user.push_notification_preferences ?? undefined,
               push_notification_banner_shown:
                 data.user.push_notification_banner_shown ?? false,
+              default_ai_model_simple:
+                data.user.default_ai_model_simple ?? null,
+              default_ai_model_complex:
+                data.user.default_ai_model_complex ?? null,
+              follow_up_suggestions_enabled:
+                data.user.follow_up_suggestions_enabled !== false,
             });
 
             // Apply server dark mode preference to the theme store.

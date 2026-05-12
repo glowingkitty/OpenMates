@@ -391,6 +391,12 @@ directus_users:
       nullable: true
       note: "User's preferred default model for complex AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-opus-4-7'). Settable via POST /v1/settings/ai-model-defaults."
 
+    follow_up_suggestions_enabled:
+      type: boolean
+      default: true
+      nullable: false
+      note: "Whether follow-up suggestion chips and proactive next-step prompts are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
+
     # Debug logging opt-in (OpenTelemetry Tier 3 tracing)
     debug_logging_opted_in:
       type: boolean

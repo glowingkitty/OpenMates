@@ -54,6 +54,12 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 logger = logging.getLogger(__name__)
 
+FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
+    "The user has turned off follow-up suggestions. Answer the request directly and avoid ending "
+    "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
+    "unless clarification is necessary to answer safely and correctly."
+)
+
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
 
@@ -1528,6 +1534,10 @@ async def handle_main_processing(
     if active_focus_prompt_text:
         prompt_parts.insert(0, f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---")
 
+    follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
+    if not follow_up_suggestions_enabled:
+        prompt_parts.append(FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION)
+
     # Enforce response language based on the preprocessor's detected output_language.
     # Appended last so it sits at the end of the system prompt where LLMs give it high
     # attention — this overrides any language the mate persona or instructions might imply.
@@ -2047,12 +2057,21 @@ async def handle_main_processing(
         # Inject budget warning if we've exceeded the soft limit
         iteration_system_prompt = full_system_prompt
         if budget_warning_injected:
+            if follow_up_suggestions_enabled:
+                budget_guidance = (
+                    "If you need more information to fully answer the user's question, suggest specific follow-up questions "
+                    "the user could ask, rather than making additional research calls.\n"
+                )
+            else:
+                budget_guidance = (
+                    "If you need more information to fully answer the user's question, state the limitation briefly "
+                    "without adding optional follow-up questions or suggested next prompts.\n"
+                )
             budget_warning = (
                 "\n\n--- IMPORTANT: Research Budget Limit ---\n"
                 "You have used most of your available research calls for this response. "
                 "Please provide the best possible answer using the information you have already gathered. "
-                "If you need more information to fully answer the user's question, suggest specific follow-up questions "
-                "the user could ask, rather than making additional research calls.\n"
+                f"{budget_guidance}"
                 "--- End Research Budget Warning ---\n"
             )
             iteration_system_prompt = full_system_prompt + budget_warning

@@ -484,6 +484,18 @@ class UserDatabaseService {
             "push_notification_banner_shown",
           );
         }
+        if ("default_ai_model_simple" in userData) {
+          store.put(userData.default_ai_model_simple ?? null, "default_ai_model_simple");
+        }
+        if ("default_ai_model_complex" in userData) {
+          store.put(userData.default_ai_model_complex ?? null, "default_ai_model_complex");
+        }
+        if ("follow_up_suggestions_enabled" in userData) {
+          store.put(
+            userData.follow_up_suggestions_enabled !== false,
+            "follow_up_suggestions_enabled",
+          );
+        }
       };
 
       lastOpenedRequest.onerror = () => {
@@ -619,6 +631,18 @@ class UserDatabaseService {
             "push_notification_banner_shown",
           );
         }
+        if ("default_ai_model_simple" in userData) {
+          store.put(userData.default_ai_model_simple ?? null, "default_ai_model_simple");
+        }
+        if ("default_ai_model_complex" in userData) {
+          store.put(userData.default_ai_model_complex ?? null, "default_ai_model_complex");
+        }
+        if ("follow_up_suggestions_enabled" in userData) {
+          store.put(
+            userData.follow_up_suggestions_enabled !== false,
+            "follow_up_suggestions_enabled",
+          );
+        }
       };
 
       transaction.oncomplete = () => {
@@ -738,6 +762,7 @@ class UserDatabaseService {
       );
       const disabledAiModelsRequest = store.get("disabled_ai_models");
       const disabledAiServersRequest = store.get("disabled_ai_servers");
+      const followUpSuggestionsEnabledRequest = store.get("follow_up_suggestions_enabled");
       const totalChatCountRequest = store.get("total_chat_count");
 
       idRequest.onsuccess = () => {
@@ -962,6 +987,13 @@ class UserDatabaseService {
             profile.disabled_ai_servers = undefined;
           }
         }
+      };
+
+      followUpSuggestionsEnabledRequest.onsuccess = () => {
+        profile.follow_up_suggestions_enabled =
+          followUpSuggestionsEnabledRequest.result !== undefined
+            ? !!followUpSuggestionsEnabledRequest.result
+            : true;
       };
 
       totalChatCountRequest.onsuccess = () => {
@@ -1336,6 +1368,12 @@ class UserDatabaseService {
         store.put(
           partialData.default_ai_model_complex,
           "default_ai_model_complex",
+        );
+      }
+      if (partialData.follow_up_suggestions_enabled !== undefined) {
+        store.put(
+          !!partialData.follow_up_suggestions_enabled,
+          "follow_up_suggestions_enabled",
         );
       }
 
