@@ -123,8 +123,12 @@ skills:
       Fetch recent social media posts from one or more specific platform pages
       or profiles. Supports Reddit subreddits through RSS feeds and Bluesky public
       AppView profile feeds. Use for profile monitoring, community research, and
-      finding conversations to review manually.
+      finding conversations to review manually. Costs 10 credits per request.
     stage: production
+    pricing:
+      per_unit:
+        credits: 10
+        unit_name: request
     providers:
       - name: Reddit RSS
         no_api_key: true
@@ -192,8 +196,12 @@ skills:
       not for monitoring a known profile; use Get posts for profile/page posts.
       Omit platform to search every supported provider. Bluesky search may use
       Vault credentials from kv/data/providers/bluesky; Reddit search uses the
-      provider-managed Webshare proxy when available.
+      provider-managed Webshare proxy when available. Costs 10 credits per request.
     stage: production
+    pricing:
+      per_unit:
+        credits: 10
+        unit_name: request
     providers:
       - name: Bluesky Public AppView
         no_api_key: true
