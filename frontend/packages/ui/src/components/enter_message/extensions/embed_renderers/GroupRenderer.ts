@@ -41,6 +41,7 @@ import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPr
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
+import SocialMediaPostEmbedPreview from "../../../embeds/social_media/SocialMediaPostEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
@@ -284,6 +285,16 @@ export class GroupRenderer implements EmbedRenderer {
         "nutrition-recipe",
         (item, embedData, decodedContent, content) =>
           this.renderNutritionRecipeComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "social-media-post",
+        (item, embedData, decodedContent, content) =>
+          this.renderSocialMediaPostComponent(
             item,
             embedData,
             decodedContent,
@@ -574,6 +585,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderShoppingProductItem(item, embedData, decodedContent);
       case "nutrition-recipe":
         return this.renderNutritionRecipeItem(item, embedData, decodedContent);
+      case "social-media-post":
+        return this.renderSocialMediaPostItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -4721,6 +4734,101 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         ${totalTime ? `<div class="embed-text-subline">${esc(totalTime)}</div>` : ""}
         ${difficulty ? `<div class="embed-text-subline">${esc(difficulty)}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * Render a social media post child embed using SocialMediaPostEmbedPreview.
+   */
+  private async renderSocialMediaPostComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping SocialMediaPostEmbedPreview mount - target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(SocialMediaPostEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          platform: decodedContent?.platform as string | undefined,
+          page: decodedContent?.page as string | undefined,
+          title: decodedContent?.title as string | undefined,
+          body: decodedContent?.body as string | undefined,
+          author: decodedContent?.author as string | undefined,
+          author_display_name: decodedContent?.author_display_name as string | undefined,
+          author_avatar_url: decodedContent?.author_avatar_url as string | undefined,
+          media_url: decodedContent?.media_url as string | undefined,
+          thumbnail_url: decodedContent?.thumbnail_url as string | undefined,
+          like_count: typeof decodedContent?.like_count === "number" ? decodedContent.like_count : undefined,
+          reply_count: typeof decodedContent?.reply_count === "number" ? decodedContent.reply_count : undefined,
+          repost_count: typeof decodedContent?.repost_count === "number" ? decodedContent.repost_count : undefined,
+          status: (embedData?.status || item.status || "finished") as
+            | "processing"
+            | "finished"
+            | "error",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted SocialMediaPostEmbedPreview:", {
+        embedId,
+        title: decodedContent?.title,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount SocialMediaPostEmbedPreview:",
+        err,
+      );
+      content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Social post preview unavailable</div>`;
+    }
+  }
+
+  /**
+   * HTML fallback renderer for social-media-post embeds.
+   */
+  private async renderSocialMediaPostItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const title = decodedContent?.title || "Social post";
+    const author = decodedContent?.author || decodedContent?.page || decodedContent?.platform || "";
+    const body = decodedContent?.body || "";
+
+    return `
+      <div class="embed-app-icon socialmedia">
+        <span class="icon icon_socialmedia"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${esc(String(title))}</div>
+        ${author ? `<div class="embed-text-subline">${esc(String(author))}</div>` : ""}
+        ${body ? `<div class="embed-text-subline">${esc(String(body)).slice(0, 140)}</div>` : ""}
       </div>
     `;
   }

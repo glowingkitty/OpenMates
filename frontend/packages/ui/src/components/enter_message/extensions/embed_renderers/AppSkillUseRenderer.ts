@@ -53,6 +53,8 @@ import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPrev
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
+import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
+import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 
 // Track mounted components for cleanup
@@ -512,6 +514,24 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For home search, render housing search preview using Svelte component
       if (appId === "home" && skillId === "search") {
         return this.renderHomeSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "social_media" && skillId === "get-posts") {
+        return this.renderSocialMediaGetPostsComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "social_media" && skillId === "search") {
+        return this.renderSocialMediaSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -1713,6 +1733,103 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         "[AppSkillUseRenderer] Error mounting ImagesSearchEmbedPreview:",
         error,
       );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render Social Media get-posts preview component.
+   */
+  private renderSocialMediaGetPostsComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    this.renderSocialMediaParentComponent(
+      SocialMediaGetPostsEmbedPreview,
+      attrs,
+      embedData,
+      decodedContent,
+      content,
+      "SocialMediaGetPostsEmbedPreview",
+    );
+  }
+
+  /**
+   * Render Social Media search preview component.
+   */
+  private renderSocialMediaSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    this.renderSocialMediaParentComponent(
+      SocialMediaSearchEmbedPreview,
+      attrs,
+      embedData,
+      decodedContent,
+      content,
+      "SocialMediaSearchEmbedPreview",
+    );
+  }
+
+  private renderSocialMediaParentComponent(
+    componentCtor: typeof SocialMediaGetPostsEmbedPreview | typeof SocialMediaSearchEmbedPreview,
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+    label: string,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Social Media";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const resultCount = typeof decodedContent?.result_count === "number" ? decodedContent.result_count : 0;
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(componentCtor, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          result_count: resultCount,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(`[AppSkillUseRenderer] Mounted ${label} component`);
+    } catch (error) {
+      console.error(`[AppSkillUseRenderer] Error mounting ${label}:`, error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }

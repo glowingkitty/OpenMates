@@ -1,0 +1,167 @@
+# backend/apps/ai/tasks/async_skill_continuation.py
+#
+# Generic continuation helpers for asynchronous skill completions.
+# Long-running app skills update embeds from worker tasks; these helpers let the
+# completed result re-enter the normal AI ask pipeline with the original chat
+# history instead of sending a hardcoded app-specific follow-up message.
+
+from __future__ import annotations
+
+import logging
+import json
+import time
+from typing import Any, Optional
+
+try:
+    from toon_format import encode as toon_encode
+except ImportError:  # pragma: no cover - test environments may not install optional TOON package
+    def toon_encode(value: Any) -> str:
+        return json.dumps(value, ensure_ascii=False)
+
+from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig, AskSkillRequest
+from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+logger = logging.getLogger(__name__)
+
+ASYNC_SKILL_CONTINUATION_TTL_SECONDS = 60 * 60 * 24
+ASYNC_SKILL_CONTINUATION_KEY_PREFIX = "async_skill_continuation"
+celery_app = None
+
+
+def async_skill_continuation_key(task_id: str) -> str:
+    """Return the cache key used to resume interpretation for an async skill task."""
+    return f"{ASYNC_SKILL_CONTINUATION_KEY_PREFIX}:{task_id}"
+
+
+async def cache_async_skill_continuation_context(
+    *,
+    cache_service: Any,
+    async_task_id: str,
+    request_data: AskSkillRequest,
+    app_id: str,
+    skill_id: str,
+    tool_name: str,
+    tool_arguments: dict[str, Any],
+) -> None:
+    """Store the original ask context for a later async skill completion."""
+    if not cache_service or not async_task_id:
+        return
+
+    context = {
+        "request_data": request_data.model_dump(mode="json"),
+        "app_id": app_id,
+        "skill_id": skill_id,
+        "tool_name": tool_name,
+        "tool_arguments": tool_arguments,
+        "cached_at": int(time.time()),
+    }
+    await cache_service.set(
+        async_skill_continuation_key(async_task_id),
+        context,
+        ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+    )
+
+
+async def dispatch_async_skill_continuation(
+    *,
+    cache_service: Any,
+    async_task_id: str,
+    completed_results: list[dict[str, Any]],
+    result_status: str = "finished",
+    request_metadata: Optional[dict[str, Any]] = None,
+) -> Optional[str]:
+    """Dispatch a normal AI ask task to interpret completed async skill results."""
+    if not cache_service or not async_task_id:
+        return None
+
+    cache_key = async_skill_continuation_key(async_task_id)
+    context = await cache_service.get(cache_key)
+    if not isinstance(context, dict):
+        logger.warning("Async skill continuation context missing for task %s", async_task_id)
+        return None
+
+    request_payload = context.get("request_data")
+    if not isinstance(request_payload, dict):
+        logger.warning("Async skill continuation context has invalid request_data for task %s", async_task_id)
+        return None
+
+    original_request = AskSkillRequest(**request_payload)
+    continuation_history = [
+        AIHistoryMessage(**(message.model_dump(mode="json") if hasattr(message, "model_dump") else message))
+        for message in original_request.message_history
+    ]
+    continuation_history.append(
+        AIHistoryMessage(
+            role="system",
+            content=_build_completed_tool_result_message(
+                context=context,
+                completed_results=completed_results,
+                result_status=result_status,
+                request_metadata=request_metadata or {},
+            ),
+            created_at=int(time.time()),
+        )
+    )
+
+    continuation_request = AskSkillRequest(
+        chat_id=original_request.chat_id,
+        message_id=original_request.message_id,
+        user_id=original_request.user_id,
+        user_id_hash=original_request.user_id_hash,
+        message_history=continuation_history,
+        chat_has_title=original_request.chat_has_title,
+        current_chat_title=original_request.current_chat_title,
+        is_incognito=original_request.is_incognito,
+        is_external=original_request.is_external,
+        mate_id=original_request.mate_id,
+        active_focus_id=original_request.active_focus_id,
+        user_preferences=original_request.user_preferences,
+        app_settings_memories_metadata=original_request.app_settings_memories_metadata,
+        mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
+        embed_file_path_index=original_request.embed_file_path_index,
+    )
+
+    app = _get_celery_app()
+    task_result = app.send_task(
+        name="apps.ai.tasks.skill_ask",
+        kwargs={
+            "request_data_dict": continuation_request.model_dump(mode="json"),
+            "skill_config_dict": AskSkillDefaultConfig().model_dump(mode="json"),
+        },
+        queue="app_ai",
+    )
+    await cache_service.delete(cache_key)
+    logger.info("Dispatched async skill continuation task %s for completed task %s", task_result.id, async_task_id)
+    return task_result.id
+
+
+def _get_celery_app() -> Any:
+    global celery_app
+    if celery_app is None:
+        from backend.core.api.app.tasks.celery_config import app as configured_app
+
+        celery_app = configured_app
+    return celery_app
+
+
+def _build_completed_tool_result_message(
+    *,
+    context: dict[str, Any],
+    completed_results: list[dict[str, Any]],
+    result_status: str,
+    request_metadata: dict[str, Any],
+) -> str:
+    tool_name = context.get("tool_name") or f"{context.get('app_id')}-{context.get('skill_id')}"
+    payload = {
+        "status": result_status,
+        "tool_name": tool_name,
+        "arguments": context.get("tool_arguments") or {},
+        "request_metadata": request_metadata,
+        "results": completed_results,
+    }
+    return (
+        "An asynchronous tool call requested earlier in this conversation has completed. "
+        "Use these completed tool results and the prior chat history to answer the user's original request now. "
+        "Do not ask the user to wait for this same tool result.\n\n"
+        f"Completed tool result (TOON):\n{toon_encode(payload)}"
+    )

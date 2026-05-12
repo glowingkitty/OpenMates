@@ -3555,9 +3555,36 @@ async def handle_main_processing(
                     # embed_id, task_id, or other technical fields that the LLM might
                     # echo back as raw JSON in its response to the user.
                     async_result = results[0]
+                    try:
+                        from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
+
+                        async_task_ids = []
+                        if async_result.get("task_id"):
+                            async_task_ids.append(async_result.get("task_id"))
+                        async_task_ids.extend(async_result.get("task_ids") or [])
+                        for async_task_id in async_task_ids:
+                            await cache_async_skill_continuation_context(
+                                cache_service=cache_service,
+                                async_task_id=async_task_id,
+                                request_data=request_data,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                tool_name=tool_name,
+                                tool_arguments=parsed_args if isinstance(parsed_args, dict) else {},
+                            )
+                        if async_task_ids:
+                            logger.info(
+                                f"{log_prefix} Cached async skill continuation context for "
+                                f"{len(async_task_ids)} task(s) from '{app_id}.{skill_id}'"
+                            )
+                    except Exception as continuation_cache_error:
+                        logger.error(
+                            f"{log_prefix} Failed to cache async skill continuation context: {continuation_cache_error}",
+                            exc_info=True,
+                        )
                     tool_result_content_str = json.dumps({
                         "status": "success",
-                        "message": "The image is now being generated and will appear in the chat automatically when ready. Briefly acknowledge this to the user."
+                        "message": "The requested async skill has started and will update the chat automatically when ready. Briefly acknowledge this to the user."
                     })
                     
                     # Publish "finished" skill status (the embed itself stays "processing")

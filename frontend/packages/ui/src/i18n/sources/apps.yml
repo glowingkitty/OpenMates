@@ -94,6 +94,54 @@ ai.skills.ask.description:
   sv: Fråga med text, bilder och annat media.
   he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
+social_media:
+  context: App name for the Social Media app
+  en: Social Media
+  de: Social Media
+  zh: 社交媒体
+  es: Redes sociales
+  fr: Réseaux sociaux
+  pt: Redes sociais
+  ru: Социальные сети
+  ja: ソーシャルメディア
+  ko: 소셜 미디어
+  it: Social media
+  tr: Sosyal medya
+  vi: Mạng xã hội
+  id: Media sosial
+  pl: Media społecznościowe
+  nl: Sociale media
+  ar: وسائل التواصل الاجتماعي
+  hi: सोशल मीडिया
+  th: โซเชียลมีเดีย
+  cs: Sociální média
+  sv: Sociala medier
+  he: מדיה חברתית
+  verified_by_human: [en, de]
+social_media.description:
+  context: Description for the Social Media app
+  en: Research posts, comments, and community conversations.
+  de: Recherchiere Beiträge, Kommentare und Community-Gespräche.
+  zh: 研究帖子、评论和社区对话。
+  es: Investiga publicaciones, comentarios y conversaciones comunitarias.
+  fr: Recherchez des publications, commentaires et conversations communautaires.
+  pt: Pesquise publicações, comentários e conversas da comunidade.
+  ru: Исследуйте публикации, комментарии и обсуждения сообществ.
+  ja: 投稿、コメント、コミュニティの会話を調査します。
+  ko: 게시물, 댓글, 커뮤니티 대화를 조사하세요.
+  it: Analizza post, commenti e conversazioni della community.
+  tr: Gönderileri, yorumları ve topluluk konuşmalarını araştırın.
+  vi: Nghiên cứu bài đăng, bình luận và cuộc trò chuyện cộng đồng.
+  id: Teliti postingan, komentar, dan percakapan komunitas.
+  pl: Badaj posty, komentarze i rozmowy społeczności.
+  nl: Onderzoek berichten, reacties en communitygesprekken.
+  ar: ابحث في المنشورات والتعليقات ومحادثات المجتمع.
+  hi: पोस्ट, टिप्पणियों और सामुदायिक बातचीत पर शोध करें।
+  th: ค้นคว้าโพสต์ ความคิดเห็น และบทสนทนาในชุมชน
+  cs: Zkoumejte příspěvky, komentáře a komunitní konverzace.
+  sv: Undersök inlägg, kommentarer och communitysamtal.
+  he: חקור פוסטים, תגובות ושיחות קהילה.
+  verified_by_human: [en, de]
 web:
   context: App name for the Web app
   en: Web

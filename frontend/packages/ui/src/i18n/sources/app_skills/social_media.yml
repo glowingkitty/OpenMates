@@ -1,0 +1,105 @@
+get_posts:
+  context: Skill name for fetching social media posts
+  en: Get posts
+  de: Beiträge abrufen
+  zh: 获取帖子
+  es: Obtener publicaciones
+  fr: Obtenir les publications
+  pt: Obter publicações
+  ru: Получить публикации
+  ja: 投稿を取得
+  ko: 게시물 가져오기
+  it: Recupera post
+  tr: Gönderileri al
+  vi: Lấy bài đăng
+  id: Ambil postingan
+  pl: Pobierz posty
+  nl: Berichten ophalen
+  ar: جلب المنشورات
+  hi: पोस्ट प्राप्त करें
+  th: ดึงโพสต์
+  cs: Získat příspěvky
+  sv: Hämta inlägg
+  he: קבל פוסטים
+  verified_by_human:
+    - en
+    - de
+
+get_posts.description:
+  context: Description for fetching social media posts
+  en: Fetch recent posts and comments from a social media page.
+  de: Rufe aktuelle Beiträge und Kommentare von einer Social-Media-Seite ab.
+  zh: 从社交媒体页面获取近期帖子和评论。
+  es: Obtén publicaciones y comentarios recientes de una página de redes sociales.
+  fr: Récupérez les publications et commentaires récents d’une page sociale.
+  pt: Busque publicações e comentários recentes de uma página de mídia social.
+  ru: Получайте свежие публикации и комментарии со страницы соцсети.
+  ja: ソーシャルメディアページの最近の投稿とコメントを取得します。
+  ko: 소셜 미디어 페이지의 최신 게시물과 댓글을 가져옵니다.
+  it: Recupera post e commenti recenti da una pagina social.
+  tr: Bir sosyal medya sayfasından son gönderileri ve yorumları alın.
+  vi: Lấy bài đăng và bình luận gần đây từ một trang mạng xã hội.
+  id: Ambil postingan dan komentar terbaru dari halaman media sosial.
+  pl: Pobierz najnowsze posty i komentarze ze strony społecznościowej.
+  nl: Haal recente berichten en reacties op van een socialmediapagina.
+  ar: اجلب المنشورات والتعليقات الحديثة من صفحة تواصل اجتماعي.
+  hi: किसी सोशल मीडिया पेज से हाल की पोस्ट और टिप्पणियां प्राप्त करें।
+  th: ดึงโพสต์และความคิดเห็นล่าสุดจากหน้าโซเชียลมีเดีย
+  cs: Získejte nejnovější příspěvky a komentáře ze stránky sociálních médií.
+  sv: Hämta nya inlägg och kommentarer från en social mediesida.
+  he: הבא פוסטים ותגובות אחרונים מדף ברשת חברתית.
+  verified_by_human:
+    - en
+    - de
+
+search:
+  context: Skill name for searching social media posts
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
+  verified_by_human:
+    - en
+
+search.description:
+  context: Description for searching social media posts
+  en: Search recent social media posts around a topic.
+  de: Suche aktuelle Social-Media-Beiträge zu einem Thema.
+  zh: 搜索某个主题的近期社交媒体帖子。
+  es: Busca publicaciones recientes en redes sociales sobre un tema.
+  fr: Recherchez des publications sociales récentes autour d’un sujet.
+  pt: Pesquise publicações recentes de mídia social sobre um tema.
+  ru: Ищите свежие публикации в соцсетях по теме.
+  ja: トピックに関する最近のソーシャルメディア投稿を検索します。
+  ko: 주제와 관련된 최신 소셜 미디어 게시물을 검색합니다.
+  it: Cerca post social recenti su un argomento.
+  tr: Bir konu hakkındaki son sosyal medya gönderilerini arayın.
+  vi: Tìm các bài đăng mạng xã hội gần đây về một chủ đề.
+  id: Cari postingan media sosial terbaru tentang suatu topik.
+  pl: Szukaj najnowszych postów społecznościowych wokół tematu.
+  nl: Zoek recente socialmediaberichten rond een onderwerp.
+  ar: ابحث عن منشورات حديثة على وسائل التواصل حول موضوع.
+  hi: किसी विषय पर हाल की सोशल मीडिया पोस्ट खोजें।
+  th: ค้นหาโพสต์โซเชียลมีเดียล่าสุดเกี่ยวกับหัวข้อหนึ่ง
+  cs: Hledejte nejnovější příspěvky na sociálních sítích k tématu.
+  sv: Sök efter nya inlägg i sociala medier om ett ämne.
+  he: חפש פוסטים אחרונים ברשתות חברתיות סביב נושא.
+  verified_by_human:
+    - en
