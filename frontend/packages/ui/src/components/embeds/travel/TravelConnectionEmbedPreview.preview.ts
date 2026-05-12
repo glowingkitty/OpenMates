@@ -19,6 +19,7 @@ const defaultProps = {
 	duration: '2h 30m',
 	stops: 0,
 	carriers: ['Lufthansa'],
+	bookingProvider: 'Lufthansa',
 	carrierCodes: ['LH'],
 	bookableSeats: 4,
 	isCheapest: true,
@@ -74,5 +75,36 @@ export const variants = {
 		...defaultProps,
 		id: 'preview-travel-connection-mobile',
 		isMobile: true
+	},
+
+	/** Train connection with provider favicon and explicit times */
+	deutscheBahn: {
+		...defaultProps,
+		id: 'preview-travel-connection-db',
+		transportMethod: 'train',
+		origin: 'Berlin Central Station',
+		destination: 'Hamburg Central Station',
+		departure: '2026-03-15T09:04:00+01:00',
+		arrival: '2026-03-15T10:46:00+01:00',
+		duration: '1h 42m',
+		carriers: ['Deutsche Bahn'],
+		bookingProvider: 'Deutsche Bahn',
+		carrierCodes: []
+	},
+
+	/** Flix connection with provider favicon and explicit times */
+	flixTrain: {
+		...defaultProps,
+		id: 'preview-travel-connection-flix',
+		transportMethod: 'train',
+		origin: 'Berlin Central Station',
+		destination: 'Stuttgart Flughafen/Messe',
+		departure: '2026-03-15T07:37:00+01:00',
+		arrival: '2026-03-15T14:22:00+01:00',
+		duration: '6h 45m',
+		stops: 1,
+		carriers: ['FlixTrain', 'FlixBus'],
+		bookingProvider: 'FlixBus / FlixTrain',
+		carrierCodes: []
 	}
 };

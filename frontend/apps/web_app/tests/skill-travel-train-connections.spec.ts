@@ -190,18 +190,14 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		expect(timeText).toContain('→');
 		logCheckpoint(`Preview time: ${timeText}`);
 
-		// DB/Flix provider favicon should be available without opening fullscreen
-		await expect(firstPreview.getByTestId('embed-title-favicon')).toBeVisible();
+		// DB/Flix provider favicon should be available in the preview card without opening fullscreen
+		await expect(previewDetails.getByTestId('airline-logos')).toBeVisible();
 
 		// Meta line should show duration/stops
 		const metaEl = previewDetails.getByTestId('connection-meta');
 		await expect(metaEl).toBeVisible();
 
-		// No airline logos for trains
-		const airlineLogos = previewDetails.getByTestId('airline-logos');
-		const hasAirlineLogos = await airlineLogos.isVisible({ timeout: 1000 }).catch(() => false);
-		expect(hasAirlineLogos).toBe(false);
-		logCheckpoint('No airline logos shown (correct for trains).');
+		logCheckpoint('Provider favicon shown in the preview card.');
 
 		await takeStepScreenshot(page, 'train-preview-verified');
 

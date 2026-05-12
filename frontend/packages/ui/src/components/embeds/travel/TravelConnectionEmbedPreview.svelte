@@ -167,20 +167,26 @@
     return parts.join(' · ');
   });
   
-  // Generate airline logo URLs from carrier codes via image proxy
-  let airlineLogos = $derived.by(() => {
-    if (!carrierCodes || carrierCodes.length === 0) return [];
-    // Show max 3 airline logos
-    return carrierCodes.slice(0, 3).map(code => ({
-      code,
-      url: proxyImage(`https://images.kiwi.com/airlines/64/${code}.png`, MAX_WIDTH_AIRLINE_LOGO),
-    }));
-  });
-
   let providerFaviconUrl = $derived.by(() => {
     if (airlineLogo) return airlineLogo;
     const normalizedProvider = (bookingProvider || _carriers[0] || '').toLowerCase();
     return PROVIDER_FAVICONS.find(provider => normalizedProvider.includes(provider.match))?.url || undefined;
+  });
+
+  let carrierLogos = $derived.by(() => {
+    if (transportMethod === 'airplane') {
+      if (carrierCodes.length > 0) {
+        return carrierCodes.slice(0, 3).map(code => ({
+          label: code,
+          url: proxyImage(`https://images.kiwi.com/airlines/64/${code}.png`, MAX_WIDTH_AIRLINE_LOGO),
+        }));
+      }
+      if (airlineLogo) return [{ label: bookingProvider || _carriers[0] || 'Airline', url: proxyImage(airlineLogo, MAX_WIDTH_AIRLINE_LOGO) }];
+      return [];
+    }
+
+    if (!providerFaviconUrl) return [];
+    return [{ label: bookingProvider || _carriers[0] || 'Provider', url: proxyImage(providerFaviconUrl, MAX_WIDTH_AIRLINE_LOGO) }];
   });
   
   // Stops label
@@ -246,7 +252,6 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
-  faviconUrl={providerFaviconUrl}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
@@ -259,14 +264,14 @@
         {/if}
       </div>
 
-      <!-- Airline logos row -->
-      {#if airlineLogos.length > 0}
+      <!-- Carrier/provider logos row -->
+      {#if carrierLogos.length > 0}
         <div class="airline-logos" data-testid="airline-logos">
-          {#each airlineLogos as logo}
+          {#each carrierLogos as logo}
             <img
               class="airline-logo"
               src={logo.url}
-              alt={logo.code}
+              alt={logo.label}
               width="22"
               height="22"
               loading="lazy"
