@@ -491,6 +491,11 @@ export async function handleSyncStatusResponseImpl(
       "[ChatSyncService] ✅ Cache primed! Attempting initial sync...",
     );
     serviceInstance.attemptInitialSync_FOR_HANDLERS_ONLY();
+  } else if (!is_primed) {
+    console.warn(
+      "[ChatSyncService] Cache not primed from sync status. Backend is re-warming. Scheduling status retry...",
+    );
+    serviceInstance.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
   } else {
     console.log("[ChatSyncService] Not starting sync:", {
       is_primed,
