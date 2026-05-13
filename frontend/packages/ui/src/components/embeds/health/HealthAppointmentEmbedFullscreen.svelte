@@ -20,6 +20,7 @@
   import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
+  import { authStore } from '../../../stores/authStore';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -464,7 +465,9 @@
 
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
-      <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedAppointment} testId="save-embed-cta" />
+      {#if $authStore.isAuthenticated}
+        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedAppointment} testId="save-embed-cta" />
+      {/if}
       {#if bookingUrl}
         <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', providerName)} onclick={handleOpenAppointment} testId="external-provider-cta" />
       {/if}

@@ -47,6 +47,10 @@
     showCopy?: boolean;
     /** Whether to show Download action */
     showDownload?: boolean;
+    /** Whether to show Add memory / Forget action */
+    showAddMemory?: boolean;
+    /** Add memory / Forget label */
+    addMemoryLabel?: string;
     /** Whether to show Deactivate action (for focus mode embeds) */
     showDeactivate?: boolean;
     /** Whether to show Details action (for focus mode embeds) */
@@ -63,6 +67,8 @@
     onCopy?: () => void;
     /** Callback when Download action is triggered */
     onDownload?: () => void;
+    /** Callback when Add memory / Forget action is triggered */
+    onAddMemory?: () => void;
     /** Callback when Deactivate action is triggered (focus mode) */
     onDeactivate?: () => void;
     /** Callback when Details action is triggered (focus mode) */
@@ -80,6 +86,8 @@
     showShare = true,
     showCopy = false,
     showDownload = false,
+    showAddMemory = false,
+    addMemoryLabel = 'Add memory',
     showDeactivate = false,
     showDetails = false,
     messageId = undefined,
@@ -88,6 +96,7 @@
     onShare,
     onCopy,
     onDownload,
+    onAddMemory,
     onDeactivate,
     onDetails
   }: Props = $props();
@@ -122,8 +131,8 @@
   });
 
   let menuElement = $state<HTMLDivElement>();
-  let adjustedX = $state(x);
-  let adjustedY = $state(y);
+  let adjustedX = $state(0);
+  let adjustedY = $state(0);
   let showBelow = $state(false); // Track whether menu should appear below clicked point
 
   /**
@@ -227,7 +236,7 @@
   /**
    * Action type for menu items
    */
-  type MenuAction = 'view' | 'share' | 'copy' | 'download' | 'deactivate' | 'details';
+  type MenuAction = 'view' | 'share' | 'copy' | 'download' | 'add-memory' | 'deactivate' | 'details';
 
   /**
    * Get the callback for a given action
@@ -238,6 +247,7 @@
       case 'share': return onShare;
       case 'copy': return onCopy;
       case 'download': return onDownload;
+      case 'add-memory': return onAddMemory;
       case 'deactivate': return onDeactivate;
       case 'details': return onDetails;
       default: return undefined;
@@ -395,6 +405,17 @@
       </button>
     {/if}
 
+    <!-- Add memory action - saves supported embeds to settings memories -->
+    {#if showAddMemory}
+      <button
+        class="menu-item add-memory"
+        onclick={(event) => handleButtonClick('add-memory', event)}
+      >
+        <div class="clickable-icon icon_settings"></div>
+        {addMemoryLabel}
+      </button>
+    {/if}
+
     <!-- Deactivate action - deactivates focus mode (focus mode embeds only) -->
     {#if showDeactivate}
       <button
@@ -525,6 +546,3 @@
     transform: scale(0.98);
   }
 </style>
-
-
-

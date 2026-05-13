@@ -36,7 +36,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
+  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { appSkillsStore } from '../stores/appSkillsStore';
+  import { buildSavedEmbedConfigFromDecodedContent, findSavedEmbedMemoryEntry, forgetEmbedMemory, saveEmbedMemory } from '../services/savedEmbedMemoryService';
   import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   import type { TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
@@ -1437,6 +1439,70 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     return null;
   }
 
+  function isSelectedEmbedMemorySupported(): boolean {
+    if (!selectedAppId || !selectedSkillId || !selectedDomEmbedId) return false;
+    return (
+      (selectedAppId === 'events' && selectedSkillId === 'event') ||
+      (selectedAppId === 'home' && selectedSkillId === 'listing') ||
+      (selectedAppId === 'travel' && (selectedSkillId === 'connection' || selectedSkillId === 'search_stays' || selectedSkillId === 'stay')) ||
+      (selectedAppId === 'health' && selectedSkillId === 'appointment')
+    );
+  }
+
+  function isSelectedEmbedSavedToMemory(): boolean {
+    if (!selectedDomEmbedId) return false;
+    for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
+      for (const entries of Object.values(appGroups)) {
+        if (entries.some((entry) => entry.item_value?.embed_id === selectedDomEmbedId)) return true;
+      }
+    }
+    return false;
+  }
+
+  async function handleToggleSelectedEmbedMemory() {
+    const embedId = selectedDomEmbedId;
+    const appId = selectedAppId;
+    const skillId = selectedSkillId;
+    if (!embedId || !appId || !skillId) return;
+
+    try {
+      const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+      const embedData = await resolveEmbed(embedId);
+      const decodedContent = embedData?.content
+        ? (typeof embedData.content === 'string'
+            ? await decodeToonContent(embedData.content)
+            : embedData.content as Record<string, unknown>)
+        : null;
+
+      if (!decodedContent) {
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Unable to save this embed. Missing embed content.');
+        return;
+      }
+
+      const config = buildSavedEmbedConfigFromDecodedContent({ appId, skillId, embedId, decodedContent });
+      if (!config) {
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('This embed cannot be saved to memories.');
+        return;
+      }
+
+      if (findSavedEmbedMemoryEntry($appSettingsMemoriesStore, config)) {
+        await forgetEmbedMemory(config);
+      } else {
+        await saveEmbedMemory(config);
+      }
+    } catch (error) {
+      console.error('[ChatMessage] Error toggling saved embed memory:', error);
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.error('Failed to update saved memory.');
+    } finally {
+      showMenu = false;
+      selectedNode = null;
+      selectedDomEmbedId = null;
+    }
+  }
+
   function inferEmbedShareType(): string {
     // Prefer app/skill detection for app-skill-use embeds
     if (selectedAppId === 'videos' && selectedSkillId === 'get_transcript') return 'video-transcript';
@@ -2611,6 +2677,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           (selectedAppId === 'docs') ||
           (selectedAppId === 'sheets')
         )}
+        {@const showAddMemoryAction = !isFocusMode && $authStore.isAuthenticated && isSelectedEmbedMemorySupported()}
+        {@const addMemoryActionLabel = isSelectedEmbedSavedToMemory() ? 'Forget' : 'Add memory'}
         <!-- 
           EmbedContextMenu uses callback props instead of Svelte events because
           the menu element is moved to document.body to escape stacking contexts,
@@ -2625,6 +2693,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           showShare={!isFocusMode}
           showCopy={showCopyAction}
           showDownload={showDownloadAction}
+          showAddMemory={showAddMemoryAction}
+          addMemoryLabel={addMemoryActionLabel}
           showDeactivate={isFocusMode}
           showDetails={isFocusMode}
           messageId={messageId}
@@ -2637,6 +2707,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           onShare={() => handleMenuAction('share')}
           onCopy={() => handleMenuAction('copy')}
           onDownload={() => handleMenuAction('download')}
+          onAddMemory={handleToggleSelectedEmbedMemory}
           onDeactivate={() => handleMenuAction('deactivate')}
           onDetails={() => handleMenuAction('details')}
         />

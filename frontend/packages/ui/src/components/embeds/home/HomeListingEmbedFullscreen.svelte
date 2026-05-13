@@ -21,6 +21,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { authStore } from '../../../stores/authStore';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -225,7 +226,9 @@
 >
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
-      <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedListing} testId="save-embed-cta" />
+      {#if $authStore.isAuthenticated}
+        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedListing} testId="save-embed-cta" />
+      {/if}
       {#if url}
         <EmbedHeaderCtaButton label="Open on {hostname}" onclick={handleOpenOnPlatform} testId="external-provider-cta" />
       {/if}
