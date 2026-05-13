@@ -13,25 +13,31 @@ from types import ModuleType
 
 import pytest
 
-celery_stub = ModuleType("celery")
-celery_stub.Celery = object
-sys.modules.setdefault("celery", celery_stub)
-celery_exceptions_stub = ModuleType("celery.exceptions")
-celery_exceptions_stub.Ignore = Exception
-celery_exceptions_stub.SoftTimeLimitExceeded = TimeoutError
-sys.modules.setdefault("celery.exceptions", celery_exceptions_stub)
-celery_states_stub = ModuleType("celery.states")
-celery_states_stub.REVOKED = "REVOKED"
-sys.modules.setdefault("celery.states", celery_states_stub)
-
 from backend.core.api.app.schemas.chat import AIHistoryMessage  # noqa: E402
-from backend.apps.ai.skills.ask_skill import AskSkillRequest  # noqa: E402
 
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "apps" / "ai" / "tasks" / "async_skill_continuation.py"
-_SPEC = importlib.util.spec_from_file_location("async_skill_continuation_under_test", _MODULE_PATH)
-async_skill_continuation = importlib.util.module_from_spec(_SPEC)
-assert _SPEC and _SPEC.loader
-_SPEC.loader.exec_module(async_skill_continuation)
+
+
+@pytest.fixture
+def async_skill_continuation(monkeypatch):
+    celery_stub = ModuleType("celery")
+    celery_stub.Celery = object
+    monkeypatch.setitem(sys.modules, "celery", celery_stub)
+
+    celery_exceptions_stub = ModuleType("celery.exceptions")
+    celery_exceptions_stub.Ignore = Exception
+    celery_exceptions_stub.SoftTimeLimitExceeded = TimeoutError
+    monkeypatch.setitem(sys.modules, "celery.exceptions", celery_exceptions_stub)
+
+    celery_states_stub = ModuleType("celery.states")
+    celery_states_stub.REVOKED = "REVOKED"
+    monkeypatch.setitem(sys.modules, "celery.states", celery_states_stub)
+
+    spec = importlib.util.spec_from_file_location("async_skill_continuation_under_test", _MODULE_PATH)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
 
 
 class _FakeCache:
@@ -66,7 +72,9 @@ class _FakeCeleryApp:
         return _FakeTaskSignature()
 
 
-def _request() -> AskSkillRequest:
+def _request():
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+
     return AskSkillRequest(
         chat_id="chat-1",
         message_id="message-1",
@@ -82,7 +90,7 @@ def _request() -> AskSkillRequest:
 
 
 @pytest.mark.asyncio
-async def test_cache_async_skill_continuation_context_stores_original_request():
+async def test_cache_async_skill_continuation_context_stores_original_request(async_skill_continuation):
     cache = _FakeCache()
 
     await async_skill_continuation.cache_async_skill_continuation_context(
@@ -102,7 +110,7 @@ async def test_cache_async_skill_continuation_context_stores_original_request():
 
 
 @pytest.mark.asyncio
-async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch):
+async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation):
     cache = _FakeCache()
     fake_celery_app = _FakeCeleryApp()
     monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
@@ -135,7 +143,7 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monkeypatch):
+async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monkeypatch, async_skill_continuation):
     cache = _FakeCache()
     fake_celery_app = _FakeCeleryApp()
     monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)

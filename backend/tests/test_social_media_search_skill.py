@@ -9,14 +9,20 @@ from types import ModuleType
 
 import pytest
 
-celery_stub = ModuleType("celery")
-celery_stub.Celery = object
-sys.modules.setdefault("celery", celery_stub)
-
 from backend.apps.social_media import search_collection  # noqa: E402
-from backend.apps.social_media.skills.search import SearchSkill  # noqa: E402
 from backend.shared.providers.bluesky.public import BlueskyPost, BlueskyResult  # noqa: E402
 from backend.shared.providers.reddit.rss import RedditRssPost, RedditRssResult  # noqa: E402
+
+
+@pytest.fixture
+def search_skill_class(monkeypatch):
+    celery_stub = ModuleType("celery")
+    celery_stub.Celery = object
+    monkeypatch.setitem(sys.modules, "celery", celery_stub)
+
+    from backend.apps.social_media.skills.search import SearchSkill
+
+    return SearchSkill
 
 
 class DummyApp:
@@ -41,8 +47,8 @@ class _FakeCeleryProducer:
         return _FakeTaskSignature(f"task-{len(self.sent)}")
 
 
-def make_skill(celery=None) -> SearchSkill:
-    return SearchSkill(
+def make_skill(search_skill_class, celery=None):
+    return search_skill_class(
         app=DummyApp(),
         app_id="social_media",
         skill_id="search",
@@ -53,9 +59,9 @@ def make_skill(celery=None) -> SearchSkill:
 
 
 @pytest.mark.asyncio
-async def test_search_skill_dispatches_celery_with_placeholder_embed():
+async def test_search_skill_dispatches_celery_with_placeholder_embed(search_skill_class):
     celery = _FakeCeleryProducer()
-    skill = make_skill(celery)
+    skill = make_skill(search_skill_class, celery)
     skill._current_chat_id = "chat-1"
     skill._current_message_id = "message-1"
 

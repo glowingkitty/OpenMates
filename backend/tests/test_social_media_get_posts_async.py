@@ -9,12 +9,18 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-celery_stub = ModuleType("celery")
-celery_stub.Celery = object
-sys.modules.setdefault("celery", celery_stub)
-
 from backend.apps.social_media import collection  # noqa: E402
-from backend.apps.social_media.skills.get_posts import GetPostsSkill  # noqa: E402
+
+
+@pytest.fixture
+def get_posts_skill_class(monkeypatch):
+    celery_stub = ModuleType("celery")
+    celery_stub.Celery = object
+    monkeypatch.setitem(sys.modules, "celery", celery_stub)
+
+    from backend.apps.social_media.skills.get_posts import GetPostsSkill
+
+    return GetPostsSkill
 
 
 class _FakeTaskSignature:
@@ -32,9 +38,9 @@ class _FakeCeleryProducer:
 
 
 @pytest.mark.asyncio
-async def test_get_posts_skill_dispatches_celery_with_placeholder_embed():
+async def test_get_posts_skill_dispatches_celery_with_placeholder_embed(get_posts_skill_class):
     celery = _FakeCeleryProducer()
-    skill = GetPostsSkill(
+    skill = get_posts_skill_class(
         app=None,
         app_id="social_media",
         skill_id="get-posts",
@@ -66,9 +72,9 @@ async def test_get_posts_skill_dispatches_celery_with_placeholder_embed():
 
 
 @pytest.mark.asyncio
-async def test_get_posts_skill_dispatches_one_task_per_placeholder_embed():
+async def test_get_posts_skill_dispatches_one_task_per_placeholder_embed(get_posts_skill_class):
     celery = _FakeCeleryProducer()
-    skill = GetPostsSkill(
+    skill = get_posts_skill_class(
         app=None,
         app_id="social_media",
         skill_id="get-posts",
