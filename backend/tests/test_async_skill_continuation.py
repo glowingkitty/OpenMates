@@ -7,6 +7,7 @@
 
 import sys
 import importlib.util
+import time
 from pathlib import Path
 from types import ModuleType
 
@@ -131,3 +132,42 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     assert "Completed tool result" in request_payload["message_history"][-1]["content"]
     assert "A useful post" in request_payload["message_history"][-1]["content"]
     assert cache.deleted == [async_skill_continuation.async_skill_continuation_key("async-task-1")]
+
+
+@pytest.mark.asyncio
+async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monkeypatch):
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache,
+        async_task_id="async-task-1",
+        request_data=_request(),
+        app_id="social_media",
+        skill_id="search",
+        tool_name="social_media-search",
+        tool_arguments={"requests": [{"query": "privacy AI"}]},
+        inline_wait_deadline=time.time() + 10,
+    )
+
+    task_id = await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache,
+        async_task_id="async-task-1",
+        completed_results=[{"title": "A useful post", "url": "https://example.com/post"}],
+        request_metadata={"query": "privacy AI", "provider": "bluesky_public"},
+    )
+
+    assert task_id is None
+    assert fake_celery_app.sent == []
+    completion_key = async_skill_continuation.async_skill_completion_key("async-task-1")
+    assert cache.values[completion_key]["value"]["results"][0]["title"] == "A useful post"
+
+    completion = await async_skill_continuation.wait_for_async_skill_completion(
+        cache_service=cache,
+        async_task_ids=["async-task-1"],
+        timeout_seconds=0.1,
+    )
+
+    assert completion["results"][0]["title"] == "A useful post"
+    assert async_skill_continuation.async_skill_completion_key("async-task-1") not in cache.values
+    assert async_skill_continuation.async_skill_continuation_key("async-task-1") not in cache.values

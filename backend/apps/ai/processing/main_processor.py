@@ -10,6 +10,7 @@ import zoneinfo
 import os
 import copy
 import hashlib
+import time
 from toon_format import encode
 
 # Import Pydantic models for type hinting
@@ -75,6 +76,12 @@ SOFT_LIMIT_SKILL_CALLS = 3
 # Force the LLM to answer with gathered information by setting tool_choice="none".
 # Maximum of 5 request attempts per assistant message to prevent excessive research loops.
 HARD_LIMIT_SKILL_CALLS = 5
+
+ASYNC_SKILL_INLINE_WAIT_SECONDS = 10.0
+ASYNC_SKILL_INLINE_WAIT_SKILLS = {
+    ("social_media", "search"),
+    ("social_media", "get-posts"),
+}
 
 
 # Characters LLM providers use instead of the canonical hyphen in tool names.
@@ -3574,13 +3581,18 @@ async def handle_main_processing(
                     # embed_id, task_id, or other technical fields that the LLM might
                     # echo back as raw JSON in its response to the user.
                     async_result = results[0]
+                    async_task_ids = []
+                    if async_result.get("task_id"):
+                        async_task_ids.append(async_result.get("task_id"))
+                    async_task_ids.extend(async_result.get("task_ids") or [])
+                    should_wait_inline = (app_id, skill_id) in ASYNC_SKILL_INLINE_WAIT_SKILLS
+                    inline_wait_deadline = time.time() + ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else None
                     try:
-                        from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
+                        from backend.apps.ai.tasks.async_skill_continuation import (
+                            cache_async_skill_continuation_context,
+                            wait_for_async_skill_completion,
+                        )
 
-                        async_task_ids = []
-                        if async_result.get("task_id"):
-                            async_task_ids.append(async_result.get("task_id"))
-                        async_task_ids.extend(async_result.get("task_ids") or [])
                         for async_task_id in async_task_ids:
                             await cache_async_skill_continuation_context(
                                 cache_service=cache_service,
@@ -3590,21 +3602,44 @@ async def handle_main_processing(
                                 skill_id=skill_id,
                                 tool_name=tool_name,
                                 tool_arguments=parsed_args if isinstance(parsed_args, dict) else {},
+                                inline_wait_deadline=inline_wait_deadline,
                             )
                         if async_task_ids:
                             logger.info(
                                 f"{log_prefix} Cached async skill continuation context for "
                                 f"{len(async_task_ids)} task(s) from '{app_id}.{skill_id}'"
                             )
+                        inline_completion = None
+                        if should_wait_inline and async_task_ids:
+                            logger.info(
+                                f"{log_prefix} Waiting up to {ASYNC_SKILL_INLINE_WAIT_SECONDS:.0f}s for "
+                                f"async skill '{app_id}.{skill_id}' to finish inline"
+                            )
+                            inline_completion = await wait_for_async_skill_completion(
+                                cache_service=cache_service,
+                                async_task_ids=async_task_ids,
+                                timeout_seconds=ASYNC_SKILL_INLINE_WAIT_SECONDS,
+                            )
+                        if inline_completion:
+                            tool_result_content_str = encode(inline_completion)
+                            logger.info(
+                                f"{log_prefix} Async skill '{app_id}.{skill_id}' finished during inline wait; "
+                                "passing completed results to LLM"
+                            )
+                        else:
+                            tool_result_content_str = json.dumps({
+                                "status": "success",
+                                "message": "The requested async skill has started and will update the chat automatically when ready. Briefly acknowledge this to the user."
+                            })
                     except Exception as continuation_cache_error:
                         logger.error(
                             f"{log_prefix} Failed to cache async skill continuation context: {continuation_cache_error}",
                             exc_info=True,
                         )
-                    tool_result_content_str = json.dumps({
-                        "status": "success",
-                        "message": "The requested async skill has started and will update the chat automatically when ready. Briefly acknowledge this to the user."
-                    })
+                        tool_result_content_str = json.dumps({
+                            "status": "success",
+                            "message": "The requested async skill has started and will update the chat automatically when ready. Briefly acknowledge this to the user."
+                        })
                     
                     # Publish "finished" skill status (the embed itself stays "processing")
                     # This tells the frontend that the skill call completed (dispatched successfully)

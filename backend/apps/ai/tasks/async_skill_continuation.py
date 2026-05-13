@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 import json
 import time
 from typing import Any, Optional
@@ -25,12 +26,18 @@ logger = logging.getLogger(__name__)
 
 ASYNC_SKILL_CONTINUATION_TTL_SECONDS = 60 * 60 * 24
 ASYNC_SKILL_CONTINUATION_KEY_PREFIX = "async_skill_continuation"
+ASYNC_SKILL_COMPLETION_KEY_PREFIX = "async_skill_completion"
 celery_app = None
 
 
 def async_skill_continuation_key(task_id: str) -> str:
     """Return the cache key used to resume interpretation for an async skill task."""
     return f"{ASYNC_SKILL_CONTINUATION_KEY_PREFIX}:{task_id}"
+
+
+def async_skill_completion_key(task_id: str) -> str:
+    """Return the cache key used by inline waits for completed async skill results."""
+    return f"{ASYNC_SKILL_COMPLETION_KEY_PREFIX}:{task_id}"
 
 
 async def cache_async_skill_continuation_context(
@@ -42,6 +49,7 @@ async def cache_async_skill_continuation_context(
     skill_id: str,
     tool_name: str,
     tool_arguments: dict[str, Any],
+    inline_wait_deadline: Optional[float] = None,
 ) -> None:
     """Store the original ask context for a later async skill completion."""
     if not cache_service or not async_task_id:
@@ -55,6 +63,8 @@ async def cache_async_skill_continuation_context(
         "tool_arguments": tool_arguments,
         "cached_at": int(time.time()),
     }
+    if inline_wait_deadline is not None:
+        context["inline_wait_deadline"] = inline_wait_deadline
     await cache_service.set(
         async_skill_continuation_key(async_task_id),
         context,
@@ -78,6 +88,21 @@ async def dispatch_async_skill_continuation(
     context = await cache_service.get(cache_key)
     if not isinstance(context, dict):
         logger.warning("Async skill continuation context missing for task %s", async_task_id)
+        return None
+
+    inline_wait_deadline = context.get("inline_wait_deadline")
+    if isinstance(inline_wait_deadline, (int, float)) and time.time() <= inline_wait_deadline:
+        await cache_service.set(
+            async_skill_completion_key(async_task_id),
+            _build_completed_tool_result_payload(
+                context=context,
+                completed_results=completed_results,
+                result_status=result_status,
+                request_metadata=request_metadata or {},
+            ),
+            ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+        )
+        logger.info("Cached async skill completion for inline wait: %s", async_task_id)
         return None
 
     request_payload = context.get("request_data")
@@ -135,6 +160,31 @@ async def dispatch_async_skill_continuation(
     return task_result.id
 
 
+async def wait_for_async_skill_completion(
+    *,
+    cache_service: Any,
+    async_task_ids: list[str],
+    timeout_seconds: float,
+    poll_interval_seconds: float = 0.25,
+) -> Optional[dict[str, Any]]:
+    """Wait briefly for an async worker to publish completed results for inline use."""
+    if not cache_service or not async_task_ids or timeout_seconds <= 0:
+        return None
+
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() <= deadline:
+        for async_task_id in async_task_ids:
+            cache_key = async_skill_completion_key(async_task_id)
+            completion = await cache_service.get(cache_key)
+            if isinstance(completion, dict):
+                await cache_service.delete(cache_key)
+                await cache_service.delete(async_skill_continuation_key(async_task_id))
+                return completion
+        await asyncio.sleep(poll_interval_seconds)
+
+    return None
+
+
 def _get_celery_app() -> Any:
     global celery_app
     if celery_app is None:
@@ -151,17 +201,32 @@ def _build_completed_tool_result_message(
     result_status: str,
     request_metadata: dict[str, Any],
 ) -> str:
-    tool_name = context.get("tool_name") or f"{context.get('app_id')}-{context.get('skill_id')}"
-    payload = {
-        "status": result_status,
-        "tool_name": tool_name,
-        "arguments": context.get("tool_arguments") or {},
-        "request_metadata": request_metadata,
-        "results": completed_results,
-    }
+    payload = _build_completed_tool_result_payload(
+        context=context,
+        completed_results=completed_results,
+        result_status=result_status,
+        request_metadata=request_metadata,
+    )
     return (
         "An asynchronous tool call requested earlier in this conversation has completed. "
         "Use these completed tool results and the prior chat history to answer the user's original request now. "
         "Do not ask the user to wait for this same tool result.\n\n"
         f"Completed tool result (TOON):\n{toon_encode(payload)}"
     )
+
+
+def _build_completed_tool_result_payload(
+    *,
+    context: dict[str, Any],
+    completed_results: list[dict[str, Any]],
+    result_status: str,
+    request_metadata: dict[str, Any],
+) -> dict[str, Any]:
+    tool_name = context.get("tool_name") or f"{context.get('app_id')}-{context.get('skill_id')}"
+    return {
+        "status": result_status,
+        "tool_name": tool_name,
+        "arguments": context.get("tool_arguments") or {},
+        "request_metadata": request_metadata,
+        "results": completed_results,
+    }
