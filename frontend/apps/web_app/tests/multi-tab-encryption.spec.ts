@@ -315,6 +315,24 @@ async function assertChatDecryptedCorrectly(
 	logFn(`Chat decrypted correctly in ${sessionLabel} -- no errors.`);
 }
 
+async function assertActiveChatHeaderVisible(
+	page: any,
+	sessionLabel: string,
+	logFn: (msg: string) => void
+): Promise<void> {
+	logFn(`Asserting decrypted active chat header is visible in ${sessionLabel}...`);
+
+	const headerTitle = page.getByTestId('chat-header-title').first();
+	await expect(headerTitle).toBeVisible({ timeout: 30000 });
+	const titleText = (await headerTitle.innerText()).trim();
+	if (!titleText || /untitled chat/i.test(titleText)) {
+		throw new Error(`[${sessionLabel}] Active chat header title did not decrypt: "${titleText}"`);
+	}
+
+	await expect(page.getByTestId('chat-header-icon').first()).toBeVisible({ timeout: 10000 });
+	logFn(`Active chat header visible in ${sessionLabel}: "${titleText}".`);
+}
+
 // ---- Delete active chat ----
 
 async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promise<void> {
@@ -652,6 +670,7 @@ test('TEST-03: close originating tab, open fresh tab, messages decrypt from IDB 
 			logsFresh,
 			logFresh
 		);
+		await assertActiveChatHeaderVisible(freshTab, 'FRESH-TAB', logFresh);
 		await assertChatKeyInvariants(freshTab, chatId, 'FRESH-TAB', logFresh);
 
 		// Verify: zero decryption errors

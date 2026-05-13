@@ -3147,6 +3147,89 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatHeaderRenderKey += 1;
     }
 
+    async function refreshActiveChatHeaderFromStoredChat(chatId: string, reason: string) {
+        if (!currentChat || currentChat.chat_id !== chatId) return;
+
+        try {
+            const storedChat = await chatDB.getChat(chatId);
+            if (!storedChat) return;
+
+            currentChat = { ...currentChat, ...storedChat };
+
+            if (storedChat.is_incognito) {
+                const incognitoCategory = storedChat.category || null;
+                if (incognitoCategory) {
+                    activeChatDecryptedTitle = typeof storedChat.title === 'string' ? storedChat.title : '';
+                    activeChatDecryptedCategory = incognitoCategory;
+                    activeChatDecryptedIcon = storedChat.icon?.split(',')[0]?.trim() || null;
+                    activeChatDecryptedSummary = null;
+                }
+                return;
+            }
+
+            const hasHeaderMetadata =
+                storedChat.encrypted_title ||
+                storedChat.encrypted_category ||
+                storedChat.encrypted_icon ||
+                storedChat.encrypted_chat_summary ||
+                storedChat.category ||
+                storedChat.icon;
+            if (!hasHeaderMetadata) return;
+
+            const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+            let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatId);
+            if (!chatKey && storedChat.encrypted_chat_key) {
+                try {
+                    chatKey = await decryptChatKeyWithMasterKey(storedChat.encrypted_chat_key);
+                    if (chatKey) {
+                        chatDB.setChatKey(chatId, chatKey);
+                    }
+                } catch (keyErr) {
+                    console.error(`[ActiveChat] ${reason}: Failed to decrypt chat key from stored metadata: chat_id=${chatId} field=encrypted_chat_key`, keyErr);
+                }
+            }
+
+            if (!chatKey) {
+                console.warn(`[ActiveChat] ${reason}: No chat key available while refreshing stored header metadata for`, chatId);
+                return;
+            }
+
+            let decryptedTitle = activeChatDecryptedTitle;
+            let decryptedCategory = activeChatDecryptedCategory;
+            let decryptedIcon = activeChatDecryptedIcon;
+            let decryptedSummary = activeChatDecryptedSummary;
+
+            if (storedChat.encrypted_title) {
+                try { decryptedTitle = await decryptWithChatKey(storedChat.encrypted_title, chatKey, { chatId, fieldName: 'encrypted_title' }) ?? ''; } catch { /* keep previous */ }
+            }
+            if (storedChat.encrypted_category) {
+                try { decryptedCategory = await decryptWithChatKey(storedChat.encrypted_category, chatKey, { chatId, fieldName: 'encrypted_category' }); } catch { /* keep previous */ }
+            } else if (storedChat.category) {
+                decryptedCategory = storedChat.category;
+            }
+            if (storedChat.encrypted_icon) {
+                try { decryptedIcon = await decryptWithChatKey(storedChat.encrypted_icon, chatKey, { chatId, fieldName: 'encrypted_icon' }); } catch { /* keep previous */ }
+            } else if (storedChat.icon) {
+                decryptedIcon = storedChat.icon.split(',')[0]?.trim() || null;
+            }
+            if (storedChat.encrypted_chat_summary) {
+                try { decryptedSummary = await decryptWithChatKey(storedChat.encrypted_chat_summary, chatKey, { chatId, fieldName: 'encrypted_chat_summary' }); } catch { /* keep previous */ }
+            }
+
+            activeChatDecryptedTitle = decryptedTitle ?? '';
+            activeChatDecryptedCategory = decryptedCategory;
+            activeChatDecryptedIcon = decryptedIcon;
+            activeChatDecryptedSummary = decryptedSummary;
+
+            if (activeChatDecryptedTitle && activeChatDecryptedCategory) {
+                isNewChatGeneratingTitle = false;
+                console.info(`[ActiveChat] ${reason}: Refreshed active chat header from stored metadata:`, activeChatDecryptedTitle, activeChatDecryptedCategory, activeChatDecryptedIcon);
+            }
+        } catch (error) {
+            console.error(`[ActiveChat] ${reason}: Failed to refresh active chat header from IndexedDB:`, error);
+        }
+    }
+
     // ─── Credits restoration detection ─────────────────────────────────────────
     //
     // When a chat is in the credits-error state (isNewChatCreditsError=true) and the
@@ -6610,6 +6693,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // SAFETY NET: messagesUpdated flag is set (e.g. by batch sync) but no inline
             // messages were provided in the event.  Reload from IndexedDB so the display
             // never goes stale after a sync writes new/updated messages to the DB.
+            // Also refresh/decrypt stored chat metadata. Key-mismatch recovery can update
+            // encrypted title/category/icon in IndexedDB before the follow-up message sync
+            // emits this metadata-less event, leaving the active header stuck on placeholders.
+            await refreshActiveChatHeaderFromStoredChat(currentChat.chat_id, 'handleChatUpdated messagesUpdated');
             //
             // Guard: skip IDB reload if in-flight messages are active (demo→real conversion).
             // The IDB contains demo history alongside the new message — reloading would cause
