@@ -119,6 +119,33 @@ def _canonicalize_tool_name(name: str) -> str:
     return out
 
 
+def _build_async_skill_pending_tool_result(
+    *,
+    async_result: Dict[str, Any],
+    async_task_ids: List[str],
+    app_id: str,
+    skill_id: str,
+    inline_wait_seconds: float,
+) -> Dict[str, Any]:
+    """Build the LLM-visible result when an async skill is still running."""
+    result: Dict[str, Any] = {
+        "status": "processing",
+        "app_id": app_id,
+        "skill_id": skill_id,
+        "message": (
+            f"The requested skill is still processing after waiting {inline_wait_seconds:.0f} seconds. "
+            "Tell the user it is still running and will update the chat when ready."
+        ),
+    }
+    if async_result.get("embed_id"):
+        result["embed_id"] = async_result.get("embed_id")
+    if async_result.get("task_id"):
+        result["task_id"] = async_result.get("task_id")
+    if async_task_ids:
+        result["task_ids"] = async_task_ids
+    return result
+
+
 def _hash_skill_arguments(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> str:
     """
     Create a deterministic hash of skill arguments for deduplication.
@@ -3576,10 +3603,8 @@ async def handle_main_processing(
                         )
                 
                 if is_async_skill:
-                    # For async skills, provide a clean tool result for the LLM.
-                    # IMPORTANT: Only include a human-readable message - do NOT include
-                    # embed_id, task_id, or other technical fields that the LLM might
-                    # echo back as raw JSON in its response to the user.
+                    # For async skills, either pass completed results after a short inline
+                    # wait or preserve task identifiers so API/chat consumers can track it.
                     async_result = results[0]
                     async_task_ids = []
                     if async_result.get("task_id"):
@@ -3627,19 +3652,29 @@ async def handle_main_processing(
                                 "passing completed results to LLM"
                             )
                         else:
-                            tool_result_content_str = json.dumps({
-                                "status": "success",
-                                "message": "The requested async skill has started and will update the chat automatically when ready. Briefly acknowledge this to the user."
-                            })
+                            tool_result_content_str = json.dumps(
+                                _build_async_skill_pending_tool_result(
+                                    async_result=async_result,
+                                    async_task_ids=async_task_ids,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    inline_wait_seconds=ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else 0,
+                                )
+                            )
                     except Exception as continuation_cache_error:
                         logger.error(
                             f"{log_prefix} Failed to cache async skill continuation context: {continuation_cache_error}",
                             exc_info=True,
                         )
-                        tool_result_content_str = json.dumps({
-                            "status": "success",
-                            "message": "The requested async skill has started and will update the chat automatically when ready. Briefly acknowledge this to the user."
-                        })
+                        tool_result_content_str = json.dumps(
+                            _build_async_skill_pending_tool_result(
+                                async_result=async_result,
+                                async_task_ids=async_task_ids,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                inline_wait_seconds=ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else 0,
+                            )
+                        )
                     
                     # Publish "finished" skill status (the embed itself stays "processing")
                     # This tells the frontend that the skill call completed (dispatched successfully)
