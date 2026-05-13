@@ -89,6 +89,7 @@
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
+    import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
@@ -116,6 +117,17 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
+    import { OPENMATES_EVENTS, type OpenMatesEvent } from '../data/openmatesEvents';
+    import { getApiEndpoint } from '../config/api';
+    import {
+        getReminderByTargetChatId,
+        getReminderByTargetEmbedId,
+        getSavedEmbedContinueCandidates,
+        sortContinuePriorityItems,
+        type ActiveReminderForContinue,
+        type ContinuePriority,
+        type SavedEmbedContinueCandidate,
+    } from '../services/continueCarouselService';
     import type {
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -2601,8 +2613,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         summary: string | null;
         /** Decrypted draft preview text — set only for draft-only chats (no title, no messages). */
         draftPreview: string | null;
+        event?: OpenMatesEvent;
     };
+
+    type PriorityChatContinueItem = RecentChatMeta & {
+        kind: 'chat';
+        priority: ContinuePriority;
+    };
+
+    type PriorityContinueItem = PriorityChatContinueItem | SavedEmbedContinueCandidate;
+
     let recentChats = $state<RecentChatMeta[]>([]);
+    let priorityContinueItems = $state<PriorityContinueItem[]>([]);
+    let priorityContinueChatIds = $derived.by(() => new Set(
+        priorityContinueItems
+            .filter((item): item is PriorityChatContinueItem => item.kind === 'chat')
+            .map((item) => item.chat.chat_id)
+    ));
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
     // Set to true the first time the user manually scrolls the carousel so
     // that reactive effects don't snap it back to the initial position.
@@ -2614,6 +2641,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Debounce timer for carousel refreshes — prevents redundant IndexedDB reads
     // during rapid sync events (matching Chats.svelte's 300ms debounce pattern).
     let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let _priorityRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    async function buildRecentChatMeta(chat: Chat): Promise<RecentChatMeta> {
+        const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
+        let draftPreview: string | null = null;
+
+        if (isDraftOnly) {
+            try {
+                const toDecrypt = chat.encrypted_draft_preview || chat.encrypted_draft_md;
+                if (toDecrypt) {
+                    draftPreview = await decryptWithMasterKey(toDecrypt);
+                }
+            } catch {
+                draftPreview = null;
+            }
+        }
+
+        if (chat.title) {
+            return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, draftPreview };
+        }
+
+        try {
+            const meta = await chatMetadataCache.getDecryptedMetadata(chat);
+            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
+        } catch {
+            return { chat, title: null, category: null, icon: null, summary: null, draftPreview };
+        }
+    }
 
     /**
      * Load up to RECENT_CHATS_TOTAL recent real chats from IndexedDB.
@@ -2644,40 +2699,68 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const topChats = remaining.slice(0, limit);
 
             const metas: RecentChatMeta[] = await Promise.all(
-                topChats.map(async (chat) => {
-                    // Draft-only chat: no title, has encrypted draft content
-                    // Decrypt the preview so the carousel can show "Draft: {preview}"
-                    // instead of "Untitled chat"
-                    const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
-                    let draftPreview: string | null = null;
-
-                    if (isDraftOnly) {
-                        try {
-                            // Prefer the shorter preview; fall back to full draft markdown
-                            const toDecrypt = chat.encrypted_draft_preview || chat.encrypted_draft_md;
-                            if (toDecrypt) {
-                                draftPreview = await decryptWithMasterKey(toDecrypt);
-                            }
-                        } catch {
-                            draftPreview = null;
-                        }
-                    }
-
-                    if (chat.title) {
-                        return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, draftPreview };
-                    }
-                    try {
-                        const meta = await chatMetadataCache.getDecryptedMetadata(chat);
-                        return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
-                    } catch {
-                        return { chat, title: null, category: null, icon: null, summary: null, draftPreview };
-                    }
-                })
+                topChats.map((chat) => buildRecentChatMeta(chat))
             );
             recentChats = metas;
         } catch (err) {
             console.warn('[ActiveChat] Failed to load recent chats:', err);
         }
+    }
+
+    async function fetchContinueReminders(): Promise<ActiveReminderForContinue[]> {
+        const params = new URLSearchParams({
+            include_recent_fired: 'true',
+            upcoming_hours: '24',
+            recent_hours: '12',
+        });
+        const response = await fetch(getApiEndpoint(`/v1/settings/reminders?${params.toString()}`), {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`Reminder lookup failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.success ? (data.reminders || []) : [];
+    }
+
+    async function loadPriorityContinueItems(): Promise<void> {
+        if (!$authStore.isAuthenticated || !showWelcome) return;
+
+        try {
+            const nowMs = Date.now();
+            const reminders = await fetchContinueReminders();
+            const remindersByChatId = getReminderByTargetChatId(reminders, nowMs);
+            const remindersByEmbedId = getReminderByTargetEmbedId(reminders, nowMs);
+
+            const chatItems: PriorityChatContinueItem[] = [];
+            await chatDB.init();
+            const currentActiveChatId = activeChatStore.get();
+            for (const [chatId, { priority }] of remindersByChatId.entries()) {
+                if (currentActiveChatId === chatId || isPublicChat(chatId)) continue;
+                const chat = await chatDB.getChat(chatId);
+                if (!chat) continue;
+                const meta = await buildRecentChatMeta(chat);
+                chatItems.push({ ...meta, kind: 'chat', priority });
+            }
+
+            const embedItems = getSavedEmbedContinueCandidates($appSettingsMemoriesStore, remindersByEmbedId, nowMs);
+            priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
+        } catch (err) {
+            console.warn('[ActiveChat] Failed to load priority continue items:', err);
+            priorityContinueItems = [];
+        }
+    }
+
+    function loadPriorityContinueItemsDebounced(): void {
+        if (_priorityRefreshTimer) clearTimeout(_priorityRefreshTimer);
+        _priorityRefreshTimer = setTimeout(() => {
+            _priorityRefreshTimer = null;
+            loadPriorityContinueItems().then(() => {
+                if (!recentChatsScrolledByUser) centerFirstRecentChat();
+            });
+        }, 300);
     }
 
     /**
@@ -2718,7 +2801,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             };
         });
 
-        // 2. Example chats (static, always available, no legal chats)
+        // 2. Public events — same hardcoded event embeds as the sidebar, before examples.
+        const eventMetas: RecentChatMeta[] = OPENMATES_EVENTS
+            .filter((event) => !hasOpenMatesEventEnded(event))
+            .map((event) => ({
+                chat: {
+                    chat_id: `event:${event.embed_id}`,
+                    title: event.title,
+                    encrypted_title: null,
+                    messages_v: 0,
+                    title_v: 0,
+                    last_edited_overall_timestamp: Math.floor(new Date(event.date_start).getTime() / 1000) || 0,
+                    unread_count: 0,
+                    created_at: 0,
+                    updated_at: 0,
+                    category: 'events',
+                    icon: 'calendar-days',
+                },
+                title: event.title,
+                category: 'events',
+                icon: 'calendar-days',
+                summary: formatOpenMatesEventSummary(event),
+                draftPreview: null,
+                event,
+            }));
+
+        // 3. Example chats (static, always available, no legal chats)
         const communityMetas: RecentChatMeta[] = getAllExampleChats().map((chat) => ({
             chat,
             title: chat.title ?? null,
@@ -2728,7 +2836,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             draftPreview: null,
         }));
 
-        return [...introMetas, ...communityMetas];
+        return [...introMetas, ...eventMetas, ...communityMetas];
     }
 
     // State for non-authenticated users' intro + example chats scroll list
@@ -2757,10 +2865,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
+        void $appSettingsMemoriesStore.entriesByApp;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
             recentChats = [];
+            priorityContinueItems = [];
             nonAuthRecentChats = [];
             return;
         }
@@ -2768,8 +2878,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             nonAuthRecentChats = [];
             recentChatsScrolledByUser = false;
             loadRecentChatsDebounced();
+            loadPriorityContinueItemsDebounced();
         } else {
             recentChats = [];
+            priorityContinueItems = [];
             recentChatsScrolledByUser = false;
             nonAuthRecentChats = loadNonAuthRecentChats();
             centerFirstRecentChat();
@@ -2782,6 +2894,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const el = recentChatsScrollEl;
         void recentChats.length;
+        void priorityContinueItems.length;
         void nonAuthRecentChats.length;
         void resumeChatData;
         if (!el) return;
@@ -2809,6 +2922,77 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await loadChat(chat);
         window.dispatchEvent(new CustomEvent('globalChatSelected', {
             bubbles: true, composed: true, detail: { chatId: chat.chat_id }
+        }));
+    }
+
+    async function handleOpenPriorityEmbed(item: SavedEmbedContinueCandidate): Promise<void> {
+        try {
+            const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+            const { embedStore } = await import('../services/embedStore');
+            const embedData = await resolveEmbed(item.embedId);
+            if (!embedData) {
+                notificationStore.error('Saved item is not available on this device yet.');
+                return;
+            }
+
+            const decodedContent = await decodeToonContent(embedData.content);
+            const embedEntry = await embedStore.get(`embed:${item.embedId}`);
+            const embedRecord = typeof embedEntry === 'object' && embedEntry !== null ? embedEntry as Record<string, unknown> : null;
+            const rawType = String(embedRecord?.type || embedRecord?.embed_type || embedData.type || 'app-skill-use');
+            const autoConvertedTypes = ['code', 'code-code', 'sheet', 'sheets-sheet', 'math-plot', 'document', 'docs-doc'];
+
+            document.dispatchEvent(new CustomEvent('embedfullscreen', {
+                detail: {
+                    embedId: item.embedId,
+                    embedData,
+                    decodedContent,
+                    embedType: autoConvertedTypes.includes(rawType) ? rawType : 'app-skill-use',
+                    attrs: {
+                        type: rawType,
+                        contentRef: `embed:${item.embedId}`,
+                        status: embedData.status || 'finished',
+                    },
+                },
+                bubbles: true,
+            }));
+        } catch (error) {
+            console.error('[ActiveChat] Failed to open priority embed:', error);
+            notificationStore.error('Failed to open saved item.');
+        }
+    }
+
+    function hasOpenMatesEventEnded(event: OpenMatesEvent): boolean {
+        const endDate = new Date(event.date_end || event.date_start);
+        return Number.isNaN(endDate.getTime()) || endDate.getTime() < Date.now();
+    }
+
+    function formatOpenMatesEventSummary(event: OpenMatesEvent): string | null {
+        const start = new Date(event.date_start);
+        const date = Number.isNaN(start.getTime())
+            ? ''
+            : start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        const time = Number.isNaN(start.getTime())
+            ? ''
+            : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        return [date, time, event.venue?.city].filter(Boolean).join(' · ') || event.summary || null;
+    }
+
+    function openOpenMatesEventEmbed(event: OpenMatesEvent): void {
+        phasedSyncState.markUserMadeExplicitChoice();
+        document.dispatchEvent(new CustomEvent('embedfullscreen', {
+            bubbles: true,
+            cancelable: true,
+            detail: {
+                embedId: event.embed_id,
+                embedType: 'events-event',
+                attrs: {},
+                embedData: {
+                    embed_id: event.embed_id,
+                    type: 'events-event',
+                    status: 'finished',
+                },
+                decodedContent: event,
+            },
         }));
     }
 
@@ -9052,6 +9236,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 carouselInvalidationCounter++;
                 console.debug('[ActiveChat] Removed deleted chat from carousel:', chat_id);
             }
+            priorityContinueItems = priorityContinueItems.filter(item => item.kind !== 'chat' || item.chat.chat_id !== chat_id);
 
             // ─── Resume card: clear if it shows the deleted chat ─────────────
             if (resumeChatData?.chat_id === chat_id) {
@@ -9112,6 +9297,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (showWelcome) {
                 console.debug('[ActiveChat] syncComplete — refreshing carousel and resume card');
                 carouselInvalidationCounter++;
+                loadPriorityContinueItemsDebounced();
                 const lastOpened = $userProfile.last_opened;
                 if (lastOpened && !isPublicChat(lastOpened)) {
                     loadResumeChatFromDB(lastOpened);
@@ -9135,6 +9321,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (showWelcome) {
                     console.debug('[ActiveChat] Tab foregrounded — refreshing carousel and resume card');
                     carouselInvalidationCounter++;
+                    loadPriorityContinueItemsDebounced();
                     const lastOpened = $userProfile.last_opened;
                     if (lastOpened && !isPublicChat(lastOpened)) {
                         loadResumeChatFromDB(lastOpened);
@@ -9143,6 +9330,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }, 1500);
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        const priorityCarouselInvalidatedHandler = (() => {
+            if (showWelcome) {
+                loadPriorityContinueItemsDebounced();
+            }
+        }) as EventListenerCallback;
+        window.addEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
+        window.addEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
+        chatSyncService.addEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
 
         // ─── Chat Compression event handlers ─────────────────────────────────────────
         // When the AI worker detects a long chat history, it triggers compression before
@@ -9590,8 +9786,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
             chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
+            window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
+            chatSyncService.removeEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
             if (_visibilityTimer) clearTimeout(_visibilityTimer);
             if (_carouselRefreshTimer) clearTimeout(_carouselRefreshTimer);
+            if (_priorityRefreshTimer) clearTimeout(_priorityRefreshTimer);
             window.removeEventListener('preprocessingStep', preprocessingStepHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListenerCallback);
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
@@ -9867,7 +10067,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {/each}
                                     </h2>
                                     <!-- Subtitle: "Continue where you left off" when resume chat or recent chats, "Explore OpenMates:" for non-auth scrollable list, else default prompt -->
-                                    {#if resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
+                                    {#if priorityContinueItems.length > 0 || resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
                                         <p>{$text('chats.resume_last_chat.title')}</p>
                                     {:else if !$authStore.isAuthenticated}
                                         <p>{$text('chats.explore_openmates.title')}</p>
@@ -9882,14 +10082,93 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
 
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
-                            {#if resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
+                            {#if priorityContinueItems.length > 0 || resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
                                 <div
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
+                                    <!-- Reminder/date-priority items outrank the normal last-opened and pinned chat order in this welcome carousel only. -->
+                                    {#each priorityContinueItems as item (item.kind === 'chat' ? `chat:${item.chat.chat_id}` : `embed:${item.embedId}`)}
+                                        {@const priorityCategory = item.category || 'general_knowledge'}
+                                        {@const priorityGradientColors = getCategoryGradientColors(priorityCategory)}
+                                        {@const priorityIconName = getValidIconName(item.icon || '', priorityCategory)}
+                                        {@const PriorityIconComponent = getLucideIcon(priorityIconName)}
+                                        {@const PriorityPillIcon = getLucideIcon(item.priority.reason.startsWith('reminder') ? 'bell' : 'clock')}
+                                        {#if isTallViewport}
+                                            <button
+                                                class="resume-chat-large-card continue-priority-card"
+                                                data-testid="continue-priority-card"
+                                                data-priority-reason={item.priority.reason}
+                                                data-item-kind={item.kind}
+                                                style={getResumeCardGradientStyle(priorityGradientColors)}
+                                                onclick={() => item.kind === 'chat' ? handleOpenRecentChat(item.chat) : handleOpenPriorityEmbed(item)}
+                                                oncontextmenu={(e) => { if (item.kind === 'chat') handleResumeCardContextMenu(e, item.chat); }}
+                                                ontouchstart={(e) => { if (item.kind === 'chat') handleResumeCardTouchStart(e, item.chat); }}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
+                                                type="button"
+                                            >
+                                                <div class="continue-priority-pill" data-testid="continue-priority-pill">
+                                                    <PriorityPillIcon size={12} color="white" />
+                                                    <span>{item.priority.label}</span>
+                                                </div>
+                                                <div class="resume-large-orbs" aria-hidden="true">
+                                                    <div class="resume-orb resume-orb-1"></div>
+                                                    <div class="resume-orb resume-orb-2"></div>
+                                                    <div class="resume-orb resume-orb-3"></div>
+                                                </div>
+                                                {#if PriorityIconComponent}
+                                                    <div class="resume-large-deco resume-large-deco-left">
+                                                        <PriorityIconComponent size={80} color="white" />
+                                                    </div>
+                                                    <div class="resume-large-deco resume-large-deco-right">
+                                                        <PriorityIconComponent size={80} color="white" />
+                                                    </div>
+                                                {/if}
+                                                <div class="resume-large-content">
+                                                    {#if PriorityIconComponent}
+                                                        <div class="resume-large-icon">
+                                                            <PriorityIconComponent size={32} color="white" />
+                                                        </div>
+                                                    {/if}
+                                                    <span class="resume-large-title" data-testid="resume-large-title">{item.title || $text('common.untitled_chat')}</span>
+                                                    {#if item.summary}
+                                                        <p class="resume-large-summary">{item.summary}</p>
+                                                    {/if}
+                                                </div>
+                                            </button>
+                                        {:else}
+                                            {@const ChevronRight = getLucideIcon('chevron-right')}
+                                            <button
+                                                class="resume-chat-card continue-priority-card"
+                                                data-testid="continue-priority-card"
+                                                data-priority-reason={item.priority.reason}
+                                                data-item-kind={item.kind}
+                                                style={getResumeCardGradientStyle(priorityGradientColors)}
+                                                onclick={() => item.kind === 'chat' ? handleOpenRecentChat(item.chat) : handleOpenPriorityEmbed(item)}
+                                                oncontextmenu={(e) => { if (item.kind === 'chat') handleResumeCardContextMenu(e, item.chat); }}
+                                                ontouchstart={(e) => { if (item.kind === 'chat') handleResumeCardTouchStart(e, item.chat); }}
+                                                ontouchmove={handleResumeCardTouchMove}
+                                                ontouchend={handleResumeCardTouchEnd}
+                                                type="button"
+                                            >
+                                                <div class="resume-chat-compact-icon">
+                                                    <PriorityIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+                                                </div>
+                                                <div class="resume-chat-content continue-priority-content">
+                                                    <span class="continue-priority-pill compact" data-testid="continue-priority-pill">{item.priority.label}</span>
+                                                    <span class="resume-chat-title" data-testid="resume-chat-title">{item.title || $text('common.untitled_chat')}</span>
+                                                </div>
+                                                <div class="resume-chat-arrow">
+                                                    <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
+                                                </div>
+                                            </button>
+                                        {/if}
+                                    {/each}
+
                                     <!-- ── Primary resume card (most recent / last-opened) ── -->
-                                    {#if resumeChatData}
+                                    {#if resumeChatData && !priorityContinueChatIds.has(resumeChatData.chat_id)}
                                         {#if isTallViewport && !resumeChatIsCreditsError}
                                             {@const category = resumeChatCategory || 'general_knowledge'}
                                             {@const gradientColors = getCategoryGradientColors(category)}
@@ -9989,7 +10268,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <!-- ── Additional recent chats (scrollable after primary card) ── -->
                                     <!-- Dedup: skip any chat already shown as the resume card to prevent
                                          duplicates when loadRecentChats and resumeChatData use different sources -->
-                                    {#each recentChats.filter(m => m.chat.chat_id !== resumeChatData?.chat_id) as meta, i (meta.chat.chat_id)}
+                                    {#each recentChats.filter(m => m.chat.chat_id !== resumeChatData?.chat_id && !priorityContinueChatIds.has(m.chat.chat_id)) as meta, i (meta.chat.chat_id)}
                                         {@const tilt = recentChatTiltStates[i]}
                                         {@const isDraft = !!meta.draftPreview && !meta.title}
                                         {@const category = meta.category || 'general_knowledge'}
@@ -10001,9 +10280,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <button
                                                 class="resume-chat-card resume-chat-draft-card" data-testid="resume-chat-draft-card"
                                                 data-chat-id={meta.chat.chat_id}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
-                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
-                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => { if (!meta.event) handleResumeCardContextMenu(e, meta.chat); }}
+                                                ontouchstart={(e) => { if (!meta.event) handleResumeCardTouchStart(e, meta.chat); }}
                                                 ontouchmove={handleResumeCardTouchMove}
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
@@ -10026,9 +10305,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 style={cardStyle}
                                                 data-chat-id={meta.chat.chat_id}
                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
-                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
-                                                ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
+                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
+                                                oncontextmenu={(e) => { if (!meta.event) handleResumeCardContextMenu(e, meta.chat); }}
+                                                ontouchstart={(e) => { if (!meta.event) handleResumeCardTouchStart(e, meta.chat); }}
                                                 ontouchmove={handleResumeCardTouchMove}
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 onmouseenter={(e) => tilt?.onMouseEnter(e)}
@@ -11542,6 +11821,52 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .resume-card-pin-badge :global(svg) {
         transform: rotate(45deg);
+    }
+
+    .continue-priority-card {
+        border-color: rgba(255, 255, 255, 0.28);
+        box-shadow:
+            0 12px 30px rgba(255, 149, 0, 0.16),
+            0 8px 24px rgba(0, 0, 0, 0.16),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .continue-priority-pill {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: var(--z-index-raised-4);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        max-width: calc(100% - 24px);
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.28);
+        color: white;
+        font-size: var(--font-size-xxs);
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    .continue-priority-pill.compact {
+        position: static;
+        max-width: 100%;
+        width: fit-content;
+        margin-bottom: 2px;
+        padding: 3px 7px;
+        font-size: 10px;
+    }
+
+    .continue-priority-content {
+        display: flex;
+        flex-direction: column;
     }
 
     .resume-chat-compact-icon {

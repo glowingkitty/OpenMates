@@ -3985,7 +3985,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{/if}
 				
 				<!-- 4. Static chat groups that appear before Events -->
-				{#each orderedStaticChatGroups.filter(([k]) => ['shared_by_others', 'intro', 'examples'].includes(k)) as [groupKey, groupItems] (groupKey)}
+				{#each orderedStaticChatGroups.filter(([k]) => ['shared_by_others', 'intro'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 				{/each}
 
@@ -4016,7 +4016,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{/if}
 
 				<!-- 6. Static chat groups that appear after Events -->
-				{#each orderedStaticChatGroups.filter(([k]) => ['announcements', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
+				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'announcements', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 				{/each}
 			</div>

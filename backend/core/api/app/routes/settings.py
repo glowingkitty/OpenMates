@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request, Security
+from fastapi import APIRouter, HTTPException, Depends, Request, Security, Query
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 import logging
@@ -51,8 +51,9 @@ class ActiveReminderItem(BaseModel):
     prompt_preview: str = Field(description="First 100 chars of the reminder prompt")
     trigger_at: int = Field(description="Unix timestamp when reminder fires")
     trigger_at_formatted: str = Field(description="Human-readable trigger time")
-    target_type: str = Field(description="new_chat or existing_chat")
+    target_type: str = Field(description="new_chat, existing_chat, or embed")
     target_chat_id: Optional[str] = Field(default=None, description="Target chat ID for chat reminders")
+    target_embed_id: Optional[str] = Field(default=None, description="Target embed ID for embed reminders")
     is_repeating: bool = Field(default=False)
     status: str = Field(default="pending")
 
@@ -69,6 +70,9 @@ class ActiveRemindersResponse(BaseModel):
 @limiter.limit("30/minute")
 async def get_active_reminders(
     request: Request,
+    include_recent_fired: bool = Query(False, description="Include fired reminders from the recent window"),
+    upcoming_hours: int = Query(0, ge=0, le=168, description="When >0, only include pending reminders due within this many hours"),
+    recent_hours: int = Query(12, ge=1, le=168, description="Recent fired reminder lookback window"),
     current_user: User = Depends(get_current_user),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
@@ -87,10 +91,20 @@ async def get_active_reminders(
         reminders = []
         if directus_service:
             try:
-                reminders = await directus_service.reminder.get_user_reminders(
+                pending_reminders = await directus_service.reminder.get_user_reminders(
                     hashed_user_id=hashed_uid,
                     status_filter="pending",
+                    limit=1000,
                 )
+                reminders.extend(pending_reminders)
+
+                if include_recent_fired:
+                    fired_reminders = await directus_service.reminder.get_user_reminders(
+                        hashed_user_id=hashed_uid,
+                        status_filter="fired",
+                        limit=1000,
+                    )
+                    reminders.extend(fired_reminders)
             except Exception as db_err:
                 logger.error(f"Failed to query reminders from DB: {db_err}", exc_info=True)
                 reminders = []
@@ -105,6 +119,10 @@ async def get_active_reminders(
         # Process each reminder - decrypt prompts and format for display
         reminder_list = []
         
+        current_time = int(time.time())
+        upcoming_cutoff = current_time + upcoming_hours * 3600 if upcoming_hours > 0 else None
+        recent_cutoff = current_time - recent_hours * 3600
+
         for reminder in reminders:
             try:
                 reminder_id = reminder.get("id") or reminder.get("reminder_id", "")
@@ -114,19 +132,29 @@ async def get_active_reminders(
                 timezone = reminder.get("timezone", "UTC")
                 target_type = reminder.get("target_type", "new_chat")
                 target_chat_id = None
+                target_embed_id = None
                 repeat_config = reminder.get("repeat_config")
                 reminder_status = reminder.get("status", "pending")
 
-                # Decrypt the target chat ID so settings can render and open the
-                # specific chat for chat reminders. This endpoint is authenticated
-                # and already scoped to the reminder owner.
+                if upcoming_cutoff is not None and reminder_status == "pending" and trigger_at > upcoming_cutoff:
+                    continue
+                if include_recent_fired and reminder_status == "fired" and trigger_at < recent_cutoff:
+                    continue
+
+                # Decrypt the target identifier so settings and the welcome carousel can
+                # render the specific chat/embed. This endpoint is authenticated and scoped
+                # to the reminder owner.
                 encrypted_target_chat_id = reminder.get("encrypted_target_chat_id")
                 if encrypted_target_chat_id and vault_key_id:
                     try:
-                        target_chat_id = await encryption_service.decrypt_with_user_key(
+                        decrypted_target_id = await encryption_service.decrypt_with_user_key(
                             ciphertext=encrypted_target_chat_id,
                             key_id=vault_key_id
                         )
+                        if target_type == "embed":
+                            target_embed_id = decrypted_target_id
+                        else:
+                            target_chat_id = decrypted_target_id
                     except Exception as e:
                         logger.warning(f"Could not decrypt reminder target chat {reminder_id}: {e}")
                 
@@ -156,6 +184,7 @@ async def get_active_reminders(
                     trigger_at_formatted=trigger_at_formatted,
                     target_type=target_type,
                     target_chat_id=target_chat_id,
+                    target_embed_id=target_embed_id,
                     is_repeating=repeat_config is not None,
                     status=reminder_status
                 ).model_dump())
