@@ -19,9 +19,6 @@ lxml==6.1.0
 # Image processing and validation
 Pillow==12.2.0
 
-# Caching
-diskcache==5.6.3
-
 # URL parsing and validation
 validators==0.34.0
 
@@ -41,4 +38,3 @@ structlog==24.4.0
 
 # Type hints
 typing-extensions==4.12.2
-
