@@ -233,6 +233,17 @@ let _chatUpdatedFlushPending = false;
 
 	// --- Reactive Computations for Display ---
 
+	function hasEventEnded(event: OpenMatesEvent): boolean {
+		const endDate = new Date(event.date_end || event.date_start);
+		if (Number.isNaN(endDate.getTime())) {
+			console.warn('[Chats] Event has invalid date and will be hidden from sidebar:', event.id);
+			return true;
+		}
+		return endDate.getTime() < Date.now();
+	}
+
+	let visibleOpenMatesEvents = $derived(OPENMATES_EVENTS.filter(event => !hasEventEnded(event)));
+
 	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
 	// 
 	// ARCHITECTURE:
@@ -3979,10 +3990,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				{/each}
 
 				<!-- 5. Events are hardcoded embeds, not chats. They open the event fullscreen directly. -->
-				{#if OPENMATES_EVENTS.length > 0}
+				{#if visibleOpenMatesEvents.length > 0}
 					<div class="chat-group events-group" data-testid="events-group">
 						<h2 class="group-title" data-testid="group-title">Events</h2>
-						{#each OPENMATES_EVENTS as event (event.embed_id)}
+						{#each visibleOpenMatesEvents as event (event.embed_id)}
 							<button
 								type="button"
 								class="event-list-item"
