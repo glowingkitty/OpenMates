@@ -154,6 +154,9 @@ class BaseTransportProvider(ABC):
     and return results in the unified ConnectionResult format.
     """
 
+    provider_id: str = ""
+    supported_countries: Optional[set[str]] = None
+
     @abstractmethod
     async def search_connections(
         self,

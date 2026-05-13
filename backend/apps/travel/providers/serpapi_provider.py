@@ -472,6 +472,9 @@ class SerpApiProvider(BaseTransportProvider):
             SerpAPI key from Vault. If not provided, falls back to env vars.
     """
 
+    provider_id = "google_flights"
+    supported_countries = None
+
     def __init__(self, secrets_manager: Optional["SecretsManager"] = None) -> None:
         self._secrets_manager = secrets_manager
 

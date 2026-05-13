@@ -267,7 +267,10 @@ skills:
     preprocessor_hint: >
       Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices).
       Use when user asks about flights, train connections, or travel between cities on a specific date.
-      Set transport_methods to ["airplane"] for flights or ["train"] for trains (Deutsche Bahn).
+      Set transport_methods to ["airplane"] for flights or ["train"] for trains.
+      If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix.
+      If no provider is specified, all providers for the selected transport method are searched.
+      Add countries with ISO 3166-1 alpha-2 route country codes when clear; country matching uses OR semantics.
       Costs 25 credits per search.
     stage: production
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
@@ -279,6 +282,9 @@ skills:
         display_name: Google
       - name: Deutsche Bahn
         display_name: Deutsche Bahn
+        no_api_key: true
+      - name: Flix
+        display_name: FlixBus / FlixTrain
         no_api_key: true
     exclude_fields_for_llm:
       - type
@@ -332,7 +338,7 @@ skills:
                 type: array
                 description: >
                   Transport types to search. Supported: "airplane" (worldwide via Google Flights),
-                  "train" (Germany + select European routes via Deutsche Bahn).
+                  "train" (Germany + select European routes via Deutsche Bahn and FlixTrain).
                   IMPORTANT: Set to ["train"] when user asks about trains, rail, or Deutsche Bahn.
                 items:
                   type: string
@@ -343,6 +349,28 @@ skills:
                     - boat
                 default:
                   - airplane
+              providers:
+                type: array
+                description: >
+                  Optional provider IDs to search. Use "google_flights" for flights,
+                  "deutsche_bahn" for Deutsche Bahn / ICE / Bahn.de / Sparpreis train searches,
+                  and "flix" for FlixBus / FlixTrain. If omitted, all providers for the
+                  selected transport method are used, then filtered by countries if provided.
+                items:
+                  type: string
+                  enum:
+                    - google_flights
+                    - deutsche_bahn
+                    - flix
+              countries:
+                type: array
+                description: >
+                  ISO 3166-1 alpha-2 country codes involved in the route, inferred from
+                  origin, destination, and known stops. Country matching is OR: a provider
+                  is relevant when it supports at least one listed country. Google Flights
+                  is global and remains eligible for airplane searches in all countries.
+                items:
+                  type: string
               passengers:
                 type: integer
                 description: Number of adult passengers.

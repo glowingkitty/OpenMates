@@ -38,12 +38,22 @@ def make_skill() -> Any:
 
 
 class FakeTransportProvider(BaseTransportProvider):
-    def __init__(self, results: List[ConnectionResult]) -> None:
+    def __init__(
+        self,
+        results: List[ConnectionResult],
+        provider_id: str = "google_flights",
+        supported_methods: Optional[set[str]] = None,
+        supported_countries: Optional[set[str]] = None,
+    ) -> None:
         self.results = results
+        self.provider_id = provider_id
+        self.supported_methods = supported_methods or {"airplane"}
+        self.supported_countries = supported_countries
         self.requested_max_results: Optional[int] = None
+        self.calls = 0
 
     def supports_transport_method(self, method: str) -> bool:
-        return method == "airplane"
+        return method in self.supported_methods
 
     async def search_connections(
         self,
@@ -60,6 +70,7 @@ class FakeTransportProvider(BaseTransportProvider):
         include_airlines: Optional[List[str]] = None,
         exclude_airlines: Optional[List[str]] = None,
     ) -> List[ConnectionResult]:
+        self.calls += 1
         self.requested_max_results = max_results
         return self.results[:max_results]
 
@@ -136,7 +147,12 @@ def bypass_external_sanitizer(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(search_module, "sanitize_long_text_fields_in_payload", passthrough)
 
 
-@pytest.mark.asyncio
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.mark.anyio
 async def test_search_connections_defaults_to_twenty_results() -> None:
     provider = FakeTransportProvider([
         make_connection(i, f"2026-06-01 {i % 24:02d}:00", f"2026-06-01 {(i + 2) % 24:02d}:00")
@@ -158,7 +174,7 @@ async def test_search_connections_defaults_to_twenty_results() -> None:
     assert len(results) == 20
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_search_connections_clamps_requested_results_to_fifty() -> None:
     provider = FakeTransportProvider([
         make_connection(i, f"2026-06-01 {i % 24:02d}:00", f"2026-06-01 {(i + 2) % 24:02d}:00")
@@ -180,7 +196,7 @@ async def test_search_connections_clamps_requested_results_to_fifty() -> None:
     assert len(results) == 50
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_search_connections_overfetches_and_filters_before_final_cap() -> None:
     provider = FakeTransportProvider([
         make_connection(0, "2026-06-01 06:00", "2026-06-01 08:00"),
@@ -228,3 +244,74 @@ def test_search_connections_filters_duration_and_layovers() -> None:
 
     assert [result["total_price"] for result in results[0]] == ["100"]
     assert [result["total_price"] for result in results[1]] == ["102"]
+
+
+def test_search_connections_provider_matching_uses_all_transport_providers_by_default() -> None:
+    from backend.apps.travel.skills.search_connections import _get_providers_for_request
+
+    db = FakeTransportProvider(
+        [], provider_id="deutsche_bahn", supported_methods={"train"}, supported_countries={"DE"}
+    )
+    flix = FakeTransportProvider(
+        [], provider_id="flix", supported_methods={"train"}, supported_countries={"DE"}
+    )
+    flights = FakeTransportProvider(
+        [], provider_id="google_flights", supported_methods={"airplane"}, supported_countries=None
+    )
+
+    matched = _get_providers_for_request([db, flix, flights], ["train"])
+
+    assert [provider.provider_id for provider in matched] == ["deutsche_bahn", "flix"]
+
+
+def test_search_connections_provider_matching_respects_explicit_provider() -> None:
+    from backend.apps.travel.skills.search_connections import _get_providers_for_request
+
+    db = FakeTransportProvider(
+        [], provider_id="deutsche_bahn", supported_methods={"train"}, supported_countries={"DE"}
+    )
+    flix = FakeTransportProvider(
+        [], provider_id="flix", supported_methods={"train"}, supported_countries={"DE"}
+    )
+
+    matched = _get_providers_for_request([db, flix], ["train"], requested_providers=["deutsche_bahn"])
+
+    assert [provider.provider_id for provider in matched] == ["deutsche_bahn"]
+
+
+def test_search_connections_provider_country_matching_uses_or_semantics() -> None:
+    from backend.apps.travel.skills.search_connections import _get_providers_for_request
+
+    db = FakeTransportProvider(
+        [], provider_id="deutsche_bahn", supported_methods={"train"}, supported_countries={"DE"}
+    )
+    other_train = FakeTransportProvider(
+        [], provider_id="flix", supported_methods={"train"}, supported_countries={"FR"}
+    )
+    flights = FakeTransportProvider(
+        [], provider_id="google_flights", supported_methods={"airplane"}, supported_countries=None
+    )
+
+    matched = _get_providers_for_request([db, other_train, flights], ["train"], countries=["FR", "PT"])
+
+    assert [provider.provider_id for provider in matched] == ["flix"]
+
+
+def test_search_connections_country_matching_keeps_global_providers() -> None:
+    from backend.apps.travel.skills.search_connections import _get_providers_for_request
+
+    flights = FakeTransportProvider(
+        [], provider_id="google_flights", supported_methods={"airplane"}, supported_countries=None
+    )
+
+    matched = _get_providers_for_request([flights], ["airplane"], countries=["FR", "PT"])
+
+    assert [provider.provider_id for provider in matched] == ["google_flights"]
+
+
+def test_train_provider_country_metadata_includes_cross_border_routes() -> None:
+    from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
+    from backend.apps.travel.providers.flix_provider import FlixProvider
+
+    assert DeutscheBahnProvider.supported_countries >= {"AT", "BE", "CH", "CZ", "DE", "FR", "NL"}
+    assert FlixProvider(supported_methods={"train"}).supported_countries == {"AT", "CH", "DE", "NL"}

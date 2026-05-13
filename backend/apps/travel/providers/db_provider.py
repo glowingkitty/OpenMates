@@ -33,6 +33,26 @@ from backend.shared.providers.deutsche_bahn import (
 
 logger = logging.getLogger(__name__)
 
+DB_SUPPORTED_COUNTRIES = {
+    "AT",
+    "BE",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "FR",
+    "HR",
+    "HU",
+    "IT",
+    "LU",
+    "NL",
+    "PL",
+    "SE",
+    "SI",
+    "SK",
+    "UA",
+}
+
 # Travel class mapping: OpenMates → DB API
 _CLASS_MAP = {
     "economy": "KLASSE_2",
@@ -388,6 +408,8 @@ class DeutscheBahnProvider(BaseTransportProvider):
     - One-way per API call (round trips require two calls)
     """
 
+    provider_id = "deutsche_bahn"
+    supported_countries = DB_SUPPORTED_COUNTRIES
     SUPPORTED_METHODS = {"train"}
 
     def supports_transport_method(self, method: str) -> bool:
