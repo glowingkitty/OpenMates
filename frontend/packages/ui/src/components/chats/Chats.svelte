@@ -39,6 +39,7 @@
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
 	import { copyToClipboard } from '../../utils/clipboardUtils';
+	import { OPENMATES_EVENTS, type OpenMatesEvent } from '../../data/openmatesEvents';
 
 	// --- Category circle imports (used by the sticky active-chat pin) ---
 	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
@@ -47,70 +48,6 @@
 	import { chatNavigationStore, setChatNavigationList, releaseChatNavigationOwnership } from '../../stores/chatNavigationStore';
 
 	const dispatch = createEventDispatcher();
-
-	interface HardcodedEventEmbed {
-		embed_id: string;
-		id: string;
-		provider: string;
-		title: string;
-		description: string;
-		url: string;
-		date_start: string;
-		date_end: string;
-		timezone: string;
-		event_type: string;
-		venue: {
-			name: string;
-			address: string;
-			city: string;
-			country: string;
-			lat: number;
-			lon: number;
-		};
-		organizer: {
-			name: string;
-			slug: string;
-		};
-		rsvp_count: number;
-		is_paid: boolean;
-		image_url: string;
-	}
-
-	const OPENMATES_EVENTS: HardcodedEventEmbed[] = [
-		{
-			embed_id: 'event:luma:2159uo8z',
-			id: '2159uo8z',
-			provider: 'luma',
-			title: 'OpenMates Meetup',
-			description: `A lot of exciting new changes have happened in the recent months regarding OpenMates.org. To make it not just a more privacy & safety focused open source alternative to ChatGPT, Claude, OpenClaw etc., but to build AI team mates that are also more useful and reliable for everyday tasks like finding doctor appointments, apartments, events, flights and train connection, as well as planning and building projects and so much more.
-
-Effectively building the next generation operating system for a wide range of daily tasks & learning. All while ensuring that user interests are put first in every architecture and design decision, NOT advertisers.
-
-Now, with the first 200 active users, many more visitors, and close to 8000 git commits, let’s come together to talk about the next steps of OpenMate and to move OpenMates from a single person project to a team effort.
-
-If you are a user, developer, designer, storyteller / marketing enthusiast or community builder or just are curious about the project - feel free to join the meetup and contribute in building a real alternative to big tech :)`,
-			url: 'https://luma.com/2159uo8z',
-			date_start: '2026-05-19T19:00:00+02:00',
-			date_end: '2026-05-19T21:00:00+02:00',
-			timezone: 'Europe/Berlin',
-			event_type: 'IN_PERSON',
-			venue: {
-				name: 'xHain Lichtung',
-				address: 'Grünberger Str. 20',
-				city: 'Berlin',
-				country: 'Germany',
-				lat: 52.5126727,
-				lon: 13.450224,
-			},
-			organizer: {
-				name: 'OpenMates Meetup Group',
-				slug: 'openmates',
-			},
-			rsvp_count: 1,
-			is_paid: false,
-			image_url: 'https://images.lumacdn.com/uploads/xl/0c9da73e-8fd7-4a03-90ea-fa047af921f8.png',
-		},
-	];
 
 // --- Debounce timer for updateChatListFromDB calls ---
 let updateChatListDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -2778,7 +2715,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         }
     }
 
-	function formatEventListMeta(event: HardcodedEventEmbed): string {
+	function formatEventListMeta(event: OpenMatesEvent): string {
 		const start = new Date(event.date_start);
 		const date = Number.isNaN(start.getTime())
 			? ''
@@ -2789,7 +2726,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		return [date, time, event.venue.city].filter(Boolean).join(' · ');
 	}
 
-	function openEventEmbed(event: HardcodedEventEmbed): void {
+	function openEventEmbed(event: OpenMatesEvent): void {
 		phasedSyncState.markUserMadeExplicitChoice();
 		document.dispatchEvent(new CustomEvent('embedfullscreen', {
 			bubbles: true,
@@ -2812,7 +2749,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		}
 	}
 
-	function handleEventKeyDown(keyboardEvent: KeyboardEvent, event: HardcodedEventEmbed): void {
+	function handleEventKeyDown(keyboardEvent: KeyboardEvent, event: OpenMatesEvent): void {
 		if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
 			keyboardEvent.preventDefault();
 			openEventEmbed(event);

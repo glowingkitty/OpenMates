@@ -516,8 +516,9 @@
 <style>
   .event-image {
     width: 100%;
-    height: 190px;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
+    display: block;
     border-radius: var(--radius-5);
   }
 

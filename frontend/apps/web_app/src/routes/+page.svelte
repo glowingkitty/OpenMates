@@ -15,6 +15,7 @@
 		settingsDeepLink,
 		activeChatStore, // Import for deep linking
 		activeEmbedStore, // Import for embed deep linking
+		getOpenMatesEventBySlug,
 		phasedSyncState, // Import phased sync state store
 		messageHighlightStore, // Import message highlight store for deep linking
 		websocketStatus, // Import WebSocket status store
@@ -739,6 +740,27 @@
 		// Wait a bit for ActiveChat component to be ready and register event listeners
 		// This ensures the embedfullscreen event listener is registered
 		await new Promise((resolve) => setTimeout(resolve, 300));
+
+		const openMatesEvent = getOpenMatesEventBySlug(embedId);
+		if (openMatesEvent) {
+			document.dispatchEvent(
+				new CustomEvent('embedfullscreen', {
+					detail: {
+						embedId: openMatesEvent.embed_id,
+						embedType: 'events-event',
+						embedData: {
+							embed_id: openMatesEvent.embed_id,
+							type: 'events-event',
+							status: 'finished'
+						},
+						decodedContent: openMatesEvent,
+						attrs: {}
+					},
+					bubbles: true
+				})
+			);
+			return;
+		}
 
 		// Dispatch embedfullscreen event to open the embed in fullscreen
 		// This reuses the same system that opens embeds when clicking on embed previews
