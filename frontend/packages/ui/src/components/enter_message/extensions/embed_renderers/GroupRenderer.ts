@@ -41,7 +41,9 @@ import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPr
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
+import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaPostEmbedPreview from "../../../embeds/social_media/SocialMediaPostEmbedPreview.svelte";
+import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
@@ -1090,6 +1092,11 @@ export class GroupRenderer implements EmbedRenderer {
       item.status ||
       "processing") as "processing" | "finished" | "error";
     const taskId = decodedContent?.task_id;
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const resultCount =
+      typeof decodedContent?.result_count === "number"
+        ? decodedContent.result_count
+        : 0;
     const results = decodedContent?.results || [];
     const childEmbedIds = Array.isArray(embedData?.embed_ids)
       ? embedData.embed_ids
@@ -1574,6 +1581,44 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results,
             taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "social_media" && skillId === "get-posts") {
+        const component = mount(SocialMediaGetPostsEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Social Media",
+            result_count: resultCount,
+            status: status as "processing" | "finished" | "error" | "cancelled",
+            taskId,
+            skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "social_media" && skillId === "search") {
+        const component = mount(SocialMediaSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Social Media",
+            result_count: resultCount,
+            status: status as "processing" | "finished" | "error" | "cancelled",
+            taskId,
+            skillTaskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
@@ -3643,11 +3688,12 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent?.trip_type || decodedContent?.tripType || "one_way";
     const legs = Array.isArray(decodedContent?.legs) ? decodedContent.legs : [];
     const firstLeg = legs[0];
-    const lastLeg = legs.at(-1);
+    const lastLeg = legs.length > 0 ? legs[legs.length - 1] : undefined;
     const firstSegments = Array.isArray(firstLeg?.segments) ? firstLeg.segments : [];
     const lastSegments = Array.isArray(lastLeg?.segments) ? lastLeg.segments : [];
     const firstSegment = firstSegments[0];
-    const lastSegment = lastSegments.at(-1);
+    const lastSegment =
+      lastSegments.length > 0 ? lastSegments[lastSegments.length - 1] : undefined;
     const origin = decodedContent?.origin || firstLeg?.origin || "";
     const destination = decodedContent?.destination || lastLeg?.destination || "";
     const departure = decodedContent?.departure || firstLeg?.departure || firstSegment?.departure_time || "";
