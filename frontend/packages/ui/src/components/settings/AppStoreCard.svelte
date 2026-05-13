@@ -305,6 +305,7 @@
     class="app-store-card app-card"
     data-testid="app-store-card"
     class:app-unavailable={isUnavailable}
+    class:has-skill-providers={isSkillCard && orderedProviders.length > 0}
     role="menuitem"
     tabindex="0"
     aria-label={appName}
@@ -418,16 +419,19 @@
     }
     
     /* When displaying a skill card with providers, move content up */
-    /* This creates more space at the bottom for the larger 30px provider icons */
-    .app-store-card:has(.skill-providers) {
+    /* Skill provider rows need more vertical room than regular app cards. */
+    .app-store-card.has-skill-providers {
+        height: 154px;
+        min-height: 154px;
+        max-height: 154px;
         padding-top: 5px; /* Reduce from 25px to move content up */
     }
     
-    .app-store-card:has(.skill-providers) .app-header-row {
+    .app-store-card.has-skill-providers .app-header-row {
         margin-top: var(--spacing-0); /* Move up from original 6px to create space below */
     }
     
-    .app-store-card:has(.skill-providers) .app-card-description {
+    .app-store-card.has-skill-providers .app-card-description {
         margin-top: var(--spacing-0); /* Move up to create space below for provider icons */
     }
     
