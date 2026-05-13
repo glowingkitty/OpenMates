@@ -418,21 +418,25 @@
         padding-top: 25px;
     }
     
-    /* When displaying a skill card with providers, move content up */
-    /* Skill provider rows need more vertical room than regular app cards. */
+    /* Skill cards keep the regular card height; compact internal spacing to fit provider icons. */
     .app-store-card.has-skill-providers {
-        height: 154px;
-        min-height: 154px;
-        max-height: 154px;
-        padding-top: 5px; /* Reduce from 25px to move content up */
+        padding: 5px 1rem 6px;
     }
     
     .app-store-card.has-skill-providers .app-header-row {
-        margin-top: var(--spacing-0); /* Move up from original 6px to create space below */
+        margin-top: var(--spacing-0);
+        margin-bottom: var(--spacing-1);
     }
     
     .app-store-card.has-skill-providers .app-card-description {
-        margin-top: var(--spacing-0); /* Move up to create space below for provider icons */
+        margin-top: var(--spacing-0);
+        line-height: 1.25;
+        flex-grow: 0;
+    }
+
+    .app-store-card.has-skill-providers .skill-providers {
+        gap: var(--spacing-2);
+        margin-top: 2px;
     }
     
     /* Greyed-out state for unavailable apps (unhealthy/unknown health status) */
