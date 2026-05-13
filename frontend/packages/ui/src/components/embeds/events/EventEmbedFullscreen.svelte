@@ -424,6 +424,7 @@
   {onClose}
   skillIconName="event"
   showSkillIcon={true}
+  showShare={$authStore.isAuthenticated}
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}
   {hasPreviousEmbed}
@@ -433,7 +434,7 @@
   {mapCenter}
   mapZoom={13}
   {mapMarkers}
-  onCalendar={event.date_start ? handleAddToCalendar : undefined}
+  onCalendar={$authStore.isAuthenticated && event.date_start ? handleAddToCalendar : undefined}
   currentEmbedId={embedId}
 >
   {#snippet embedHeaderCta()}

@@ -106,6 +106,7 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
@@ -2985,7 +2986,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             detail: {
                 embedId: event.embed_id,
                 embedType: 'events-event',
-                attrs: {},
+                attrs: {
+                    type: 'events-event',
+                    contentRef: `embed:${event.embed_id}`,
+                    status: 'finished',
+                },
                 embedData: {
                     embed_id: event.embed_id,
                     type: 'events-event',
@@ -10403,7 +10408,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {@const gradientColors = getCategoryGradientColors(category)}
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
-                                        {#if isTallViewport}
+                                        {#if meta.event}
+                                            <EventEmbedPreview
+                                                id={meta.event.embed_id}
+                                                event={meta.event}
+                                                isMobile={false}
+                                                onFullscreen={() => openOpenMatesEventEmbed(meta.event!)}
+                                            />
+                                        {:else if isTallViewport}
                                             {@const bgStyle = getResumeCardGradientStyle(gradientColors)}
                                             {@const cardStyle = tilt?.tiltTransform
                                                 ? `${bgStyle}; transform: ${tilt.tiltTransform}`
