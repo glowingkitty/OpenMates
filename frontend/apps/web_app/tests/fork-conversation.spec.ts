@@ -162,7 +162,7 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 10. Send second message ──────────────────────────────────────────────
 	await messageEditor.click();
-	await page.keyboard.type(withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'));
+	await page.keyboard.insertText(withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'));
 	log('Typed second message.');
 
 	await sendButton.click();
