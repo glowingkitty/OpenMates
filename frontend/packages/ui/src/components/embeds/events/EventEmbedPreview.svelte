@@ -206,9 +206,6 @@
       <div class="event-content-row">
         <!-- Text content (left side) -->
         <div class="event-text">
-          <!-- Event title -->
-          <div class="event-title">{event.title || ''}</div>
-
           <!-- Date + location -->
           <div class="event-meta">
             {#if eventDate}
@@ -279,38 +276,18 @@
     min-height: 0;
     height: 100%;
     width: 100%;
+    gap: var(--spacing-4);
+    margin-right: calc(-1 * var(--spacing-10));
   }
 
   .event-text {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
-    flex: 0 1 55%;
+    flex: 1 1 auto;
     min-width: 0;
     align-self: center;
     padding: 2px 0;
-  }
-
-  /* ── Event title ─────────────────────────────────────────────────────────── */
-
-  .event-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.35;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-
-  .event-preview-details.mobile .event-title {
-    font-size: 0.8125rem;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
   }
 
   /* ── Meta: date + location ───────────────────────────────────────────────── */
@@ -358,7 +335,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-events-start, #a20000);
-    color: var(--color-grey-0); /* intentional: always white on brand colour */
+    color: #fff; /* intentional: always white on brand colour */
   }
 
   .event-type-badge.online {
@@ -384,10 +361,10 @@
   /* ── Image (right side) ──────────────────────────────────────────────────── */
 
   .event-preview-image {
-    flex: 1;
+    flex: 0 0 auto;
+    aspect-ratio: 1 / 1;
     min-width: 0;
-    height: 171px;
-    transform: translateX(20px);
+    height: 100%;
     overflow: hidden;
   }
 
@@ -395,6 +372,6 @@
     width: 100%;
     height: 100%;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
   }
 </style>

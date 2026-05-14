@@ -543,7 +543,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-events-start, #a20000);
-    color: var(--color-grey-0); /* intentional: always white on brand colour */
+    color: #fff; /* intentional: always white on brand colour */
   }
 
   .event-type-badge.online {
