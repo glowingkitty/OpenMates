@@ -2,18 +2,19 @@
      Renders saved embeds in the welcome-screen continue carousel.
      Tall viewports should preserve the embed's real preview component rather than
      flattening it into the generic resume-card treatment. The component resolves
-     encrypted stored embed content locally, while saved event embeds render
-     directly from their saved memory payload so they never degrade to a generic
-     carousel card while the embed store is still warming up.
+     encrypted stored embed content locally. Saved event embeds always render the
+     event preview, using saved memory as a fallback and enriching it with the
+     decrypted child embed payload when IndexedDB has it.
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import type { Component } from 'svelte';
     import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import { embedStore } from '../services/embedStore';
     import { decodeToonContent, resolveEmbed } from '../services/embedResolver';
     import { embedPreviewRegistry } from '../services/embedPreviewRegistry';
+    import { chatSyncService } from '../services/chatSyncService';
     import type { EmbedStoreEntry } from '../message_parsing/types';
 
     interface EventPreviewData {
@@ -57,17 +58,29 @@
         title: string;
         itemValue: Record<string, unknown>;
         fallbackStyle: string;
+        priorityLabel: string;
         onFallbackOpen: () => void;
     }
 
-    let { appId, embedId, title, itemValue, fallbackStyle, onFallbackOpen }: Props = $props();
+    let { appId, embedId, title, itemValue, fallbackStyle, priorityLabel, onFallbackOpen }: Props = $props();
 
     let previewComponent = $state<{ component: unknown; props: Record<string, unknown> } | null>(null);
+    let resolvedEventContent = $state<Record<string, unknown> | null>(null);
     let isLoading = $state(true);
 
     onMount(() => {
         void loadPreview();
+        chatSyncService.addEventListener('embedUpdated', handleEmbedUpdated as EventListener);
     });
+
+    onDestroy(() => {
+        chatSyncService.removeEventListener('embedUpdated', handleEmbedUpdated as EventListener);
+    });
+
+    function handleEmbedUpdated(event: CustomEvent<{ embed_id?: string }>): void {
+        if (event.detail?.embed_id !== embedId) return;
+        void loadPreview();
+    }
 
     async function loadPreview(): Promise<void> {
         isLoading = true;
@@ -82,6 +95,10 @@
             if (!decodedContent) {
                 previewComponent = null;
                 return;
+            }
+
+            if (appId === 'events') {
+                resolvedEventContent = extractEventContent(decodedContent as Record<string, unknown>);
             }
 
             const indexedEmbedEntry = await getEmbedEntry();
@@ -117,8 +134,20 @@
         return appEmbeds.find((entry) => entry.contentRef === `embed:${embedId}`) ?? null;
     }
 
+    function extractEventContent(decodedContent: Record<string, unknown>): Record<string, unknown> {
+        const nestedEvent = decodedContent.event;
+        if (nestedEvent && typeof nestedEvent === 'object' && !Array.isArray(nestedEvent)) {
+            return {
+                ...decodedContent,
+                ...(nestedEvent as Record<string, unknown>),
+            };
+        }
+        return decodedContent;
+    }
+
     function getSavedEventPreviewData(): EventPreviewData {
         return {
+            ...(resolvedEventContent ?? {}),
             ...itemValue,
             embed_id: embedId,
             title: typeof itemValue.title === 'string' ? itemValue.title : title,
@@ -164,6 +193,9 @@
 </script>
 
 <div class="saved-embed-continue-preview" data-testid="saved-embed-continue-preview" data-embed-id={embedId}>
+    <div class="saved-embed-priority-pill" data-testid="continue-priority-pill">
+        <span>{priorityLabel}</span>
+    </div>
     {#if appId === 'events'}
         <EventEmbedPreview
             id={embedId}
@@ -190,6 +222,29 @@
         position: relative;
         flex-shrink: 0;
         pointer-events: auto;
+    }
+
+    .saved-embed-priority-pill {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: var(--z-index-raised-4);
+        display: inline-flex;
+        align-items: center;
+        max-width: calc(100% - 24px);
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.28);
+        color: white;
+        font-size: var(--font-size-xxs);
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     }
 
     .saved-embed-continue-preview :global(.unified-embed-preview) {

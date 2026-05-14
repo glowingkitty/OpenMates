@@ -10152,6 +10152,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 title={item.title || $text('common.untitled_chat')}
                                                 itemValue={item.itemValue}
                                                 fallbackStyle={getResumeCardGradientStyle(priorityGradientColors)}
+                                                priorityLabel={item.priority.label}
                                                 onFallbackOpen={() => handleOpenPriorityEmbed(item)}
                                             />
                                         {:else if isTallViewport && priorityChat}
