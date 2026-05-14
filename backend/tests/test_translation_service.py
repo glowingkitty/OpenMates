@@ -78,9 +78,38 @@ def test_translation_service_falls_back_to_yaml_when_generated_json_missing(tmp_
     # override the YAML sources/locales directories.
     monkeypatch.setenv("TRANSLATIONS_DIR", str(locales_dir))
     monkeypatch.setenv("TRANSLATIONS_SOURCES_DIR", str(sources_dir))
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
     _clear_translation_caches()
 
     service = TranslationService()
 
     assert service.get_nested_translation("app_skills.web.search") == "YAML fallback description"
     assert "app_skills" in TranslationService._class_yaml_cache
+
+
+def test_translation_service_requires_generated_json_outside_development(tmp_path, monkeypatch):
+    locales_dir = tmp_path / "locales"
+    sources_dir = tmp_path / "sources"
+    locales_dir.mkdir()
+    sources_dir.mkdir()
+
+    (sources_dir / "app_skills.yml").write_text(
+        "web.search:\n  en: Should not load from YAML in production\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TRANSLATIONS_DIR", str(locales_dir))
+    monkeypatch.setenv("TRANSLATIONS_SOURCES_DIR", str(sources_dir))
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    _clear_translation_caches()
+
+    service = TranslationService()
+
+    try:
+        service.get_translations("en")
+    except RuntimeError as exc:
+        assert "Generated locale JSON is required" in str(exc)
+    else:
+        raise AssertionError("Production runtime must fail when generated locale JSON is missing")
+
+    assert TranslationService._class_yaml_cache == {}

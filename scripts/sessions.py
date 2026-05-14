@@ -3136,6 +3136,22 @@ def _run_translation_validation() -> tuple[int, str, str]:
     return result.returncode, result.stdout, result.stderr
 
 
+def _run_translation_build() -> tuple[int, str, str]:
+    """
+    Generate ignored locale JSON artifacts from YAML sources before validation.
+    Returns (returncode, stdout, stderr).
+    """
+    import subprocess
+    result = subprocess.run(
+        ["npm", "run", "build:translations"],
+        cwd=os.path.join(os.path.dirname(__file__), "..", "frontend", "packages", "ui"),
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
 def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     """Show deployment plan: files to commit, lint status, suggested commands."""
     data = _load_sessions()
@@ -3344,8 +3360,20 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     elif lint_flags and no_verify:
         print("Lint: SKIPPED (--no-verify)")
 
-    # 1b. Translation validation — hard-fail if any $text() key is missing from en.json
+    # 1b. Translation build + validation — generated JSON is ignored by git but
+    # required at runtime, so deploy must refresh it before validation/restart.
     if _has_frontend_files(to_commit):
+        print("Generating locale JSON (build:translations)...")
+        rc, stdout, stderr = _run_translation_build()
+        if rc != 0:
+            print("TRANSLATION BUILD FAILED — aborting deploy:", file=sys.stderr)
+            if stdout:
+                print(stdout, file=sys.stderr)
+            if stderr:
+                print(stderr, file=sys.stderr)
+            sys.exit(1)
+        print("Translations build: PASSED")
+
         print("Running translation validation (validate:locales)...")
         rc, stdout, stderr = _run_translation_validation()
         step4_error = "❌ Found" in stdout and "not found in en.json" in stdout

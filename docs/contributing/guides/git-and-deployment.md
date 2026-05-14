@@ -115,6 +115,8 @@ For ad-hoc fixes without a formal issue ID, the Symptom/Cause/Fix block is still
 3. `git commit -m "<type>: <description>"`
 4. `git push origin dev`
 
+**If translation YAML files were modified**, run `cd frontend/packages/ui && npm run build:translations` before restarting backend services. The generated locale JSON files are ignored by git but are required runtime artifacts mounted at `/translations`; production must not fall back to parsing YAML on worker startup.
+
 **If backend files were modified** (`.py`, `Dockerfile`, `docker-compose.yml`, config `.yml`), rebuild affected services.
 
 **Concurrent Session Check (CRITICAL):** Before rebuilding, check the Docker Rebuild Lock via `sessions.py`:
