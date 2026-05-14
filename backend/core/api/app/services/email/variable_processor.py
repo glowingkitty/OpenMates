@@ -3,8 +3,6 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
-logger.setLevel(logging.DEBUG)
-
 def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
     """
     Process template variables and set appropriate defaults
@@ -57,15 +55,15 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
     if 'refund_deep_link_url' in processed_context and processed_context.get('refund_deep_link_url'):
         # Use the deep link URL as refund_link
         processed_context['refund_link'] = processed_context['refund_deep_link_url']
-        logger.debug(f"Using refund_deep_link_url as refund_link: {processed_context['refund_link'][:50]}...")
+        logger.debug("Using refund_deep_link_url as refund_link")
     elif 'refund_link' not in processed_context or not processed_context.get('refund_link'):
         # Fallback to mailto link only if deep link is not available and refund_link is not set
         processed_context['refund_link'] = f"mailto:{support_email}?subject=Refund%20Request"
-        logger.debug(f"Using default mailto refund_link: {processed_context['refund_link']}")
+        logger.debug("Using default mailto refund_link")
         
     if 'mailto_link_report_email' not in processed_context or not processed_context['mailto_link_report_email']:
         processed_context['mailto_link_report_email'] = f"mailto:{support_email}?subject=Suspicious%20Email%20Report"
-        logger.debug(f"Using default mailto_link_report_email: {processed_context['mailto_link_report_email']}")
+        logger.debug("Using default mailto_link_report_email")
     
     # Set block list URL for users to submit their email to be blocked
     # This replaces the mailto link in "did_not_request_email" translation
@@ -126,9 +124,9 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
                 from urllib.parse import quote
                 encoded_email = quote(default_email)
                 processed_context['block_list_url'] = f"{base_url}#email={encoded_email}"
-                logger.debug(f"No email found in context, using default email for blocklist URL: {default_email}")
+                logger.debug("No email found in context, using preview blocklist URL")
             
-            logger.debug(f"Set block_list_url={processed_context['block_list_url']}")
+            logger.debug("Set block_list_url")
         except Exception as e:
             # If we can't determine the URL, use a fallback
             processed_context['block_list_url'] = "https://openmates.org/block-email"
