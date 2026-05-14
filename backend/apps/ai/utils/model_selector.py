@@ -24,6 +24,7 @@ LLM_PROVIDER_FILES = [
     "openai.yml",
     "google.yml",
     "mistral.yml",
+    "deepseek.yml",
     "alibaba.yml",
     "zai.yml",
 ]

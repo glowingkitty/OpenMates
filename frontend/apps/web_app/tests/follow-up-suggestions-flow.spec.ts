@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -29,15 +28,14 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { expectNoFollowUpSuggestions } = require('./helpers/llm-eval');
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -60,6 +58,51 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+async function navigateToAiSettings(page: any, log: (message: string, metadata?: Record<string, unknown>) => void): Promise<void> {
+	const settingsToggle = page.locator('#settings-menu-toggle');
+	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
+	await settingsToggle.click();
+
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+
+	const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
+	await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
+	await aiMenuItem.click();
+
+	await expect(page.getByTestId('ai-settings')).toBeVisible({ timeout: 8000 });
+	log('AI settings page loaded.');
+}
+
+async function closeSettings(page: any, log: (message: string, metadata?: Record<string, unknown>) => void): Promise<void> {
+	const closeButton = page.getByTestId('icon-button-close');
+	if (await closeButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await closeButton.click();
+		log('Closed settings.');
+	}
+}
+
+async function setFollowUpSuggestions(
+	page: any,
+	enabled: boolean,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+): Promise<void> {
+	const toggleWrapper = page.getByTestId('follow-up-suggestions-toggle');
+	await expect(toggleWrapper).toBeVisible({ timeout: 10000 });
+	const checkbox = toggleWrapper.locator('input[type="checkbox"]');
+	const isChecked = await checkbox.evaluate((el: HTMLInputElement) => el.checked);
+	if (isChecked !== enabled) {
+		await toggleWrapper.click();
+		await expect(async () => {
+			const nextChecked = await checkbox.evaluate((el: HTMLInputElement) => el.checked);
+			expect(nextChecked).toBe(enabled);
+		}).toPass({ timeout: 10000 });
+		log(`Set follow-up suggestions ${enabled ? 'on' : 'off'}.`);
+	} else {
+		log(`Follow-up suggestions already ${enabled ? 'on' : 'off'}.`);
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Test: Follow-up suggestions appear and clicking one populates editor
@@ -137,7 +180,7 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	log('Follow-up suggestions wrapper visible.');
 
 	// Verify at least one suggestion chip is present
-	const suggestionChips = page.locator('button.suggestion-item');
+	const suggestionChips = page.getByTestId('follow-up-suggestion-item');
 	const chipCount = await suggestionChips.count();
 	log(`Number of suggestion chips: ${chipCount}`);
 	expect(chipCount).toBeGreaterThan(0);
@@ -179,4 +222,88 @@ test('shows follow-up suggestion chips after AI response and clicking one fills 
 	}
 
 	log('Test complete.');
+});
+
+test('disables follow-up suggestions in settings and avoids proactive follow-up prompts', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(360000);
+
+	page.on('console', (msg: any) =>
+		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`)
+	);
+	page.on('request', (req: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] >> ${req.method()} ${req.url()}`)
+	);
+	page.on('response', (res: any) =>
+		networkActivities.push(`[${new Date().toISOString()}] << ${res.status()} ${res.url()}`)
+	);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('FOLLOW_UP_SUGGESTIONS_DISABLED');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	try {
+		await navigateToAiSettings(page, log);
+		await screenshot(page, 'ai-settings-open');
+		await setFollowUpSuggestions(page, false, log);
+		await screenshot(page, 'follow-up-suggestions-disabled');
+		await closeSettings(page, log);
+
+		const newChatButton = page.getByTestId('new-chat-button');
+		if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await newChatButton.click();
+			await page.waitForTimeout(1500);
+		}
+
+		const message = 'Explain why Saturn has rings in three concise bullet points.';
+		const messageEditor = page.getByTestId('message-editor');
+		await expect(messageEditor).toBeVisible({ timeout: 10000 });
+		await messageEditor.click();
+		await page.keyboard.type(withMockMarker(message, 'follow_up_suggestions_disabled'));
+
+		const sendButton = page.locator('[data-action="send-message"]');
+		await expect(sendButton).toBeEnabled();
+		await sendButton.click();
+		log('Message sent with follow-up suggestions disabled.');
+
+		const assistantMessage = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+		await expect(async () => {
+			const msgText = await assistantMessage.textContent();
+			expect((msgText || '').trim().length).toBeGreaterThan(20);
+		}).toPass({ timeout: 60000, intervals: [2000, 3000, 5000] });
+		await screenshot(page, 'ai-response-no-follow-ups');
+
+		await messageEditor.click();
+		await expect(page.getByTestId('suggestions-wrapper')).not.toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('follow-up-suggestion-item')).toHaveCount(0, { timeout: 15000 });
+		log('Verified follow-up suggestion chips are not visible.');
+
+		const assistantText = (await assistantMessage.textContent()) || '';
+		const evaluation = await expectNoFollowUpSuggestions(page, assistantText, log);
+		log('Verified assistant text did not include proactive follow-up suggestions.', evaluation);
+	} finally {
+		await navigateToAiSettings(page, log).catch(() => undefined);
+		await setFollowUpSuggestions(page, true, log).catch(() => undefined);
+		await closeSettings(page, log).catch(() => undefined);
+
+		const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+		if (await activeChatItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await activeChatItem.click({ button: 'right' });
+			const deleteButton = page.getByTestId('chat-context-delete');
+			if (await deleteButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+				await deleteButton.click();
+				await deleteButton.click();
+				log('Test chat deleted.');
+			}
+		}
+	}
 });

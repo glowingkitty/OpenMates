@@ -69,6 +69,37 @@ FINANCIAL_REPO_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+
+def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
+    """Map common LLM-emitted skill identifier variants to valid IDs."""
+    skill_resolver_map: Dict[str, str] = {}
+
+    for valid_skill in available_skill_ids:
+        skill_resolver_map[valid_skill] = valid_skill
+
+        if "-" not in valid_skill:
+            skill_resolver_map[valid_skill.replace("-", "_")] = valid_skill
+            continue
+
+        app_id, skill_id = valid_skill.split("-", 1)
+        app_variants = {app_id, app_id.replace("_", "-")}
+        skill_variants = {skill_id, skill_id.replace("-", "_"), skill_id.replace("_", "-")}
+
+        for app_variant in app_variants:
+            for skill_variant in skill_variants:
+                skill_resolver_map[f"{app_variant}-{skill_variant}"] = valid_skill
+                skill_resolver_map[f"{app_variant}_{skill_variant}"] = valid_skill
+
+        # Handle duplicated segment pattern: app-skill-skill -> app-skill.
+        # Example: web-search-search -> web-search.
+        last_segment = skill_id.split("-")[-1].split("_")[-1]
+        for base_variant in list(skill_resolver_map.keys()):
+            if skill_resolver_map[base_variant] == valid_skill:
+                skill_resolver_map[f"{base_variant}-{last_segment}"] = valid_skill
+                skill_resolver_map[f"{base_variant}_{last_segment}"] = valid_skill
+
+    return skill_resolver_map
+
 # ---------------------------------------------------------------------------
 # Onboarding trigger phrases — multilingual (all 20 supported locales).
 #
@@ -476,6 +507,130 @@ async def translate_chat_title(
         return title
 
 
+async def translate_chat_summary(
+    task_id: str,
+    summary: str,
+    target_language: str,
+    secrets_manager: "SecretsManager",
+) -> str:
+    """
+    Translate a chat summary into the user's system/UI language via an isolated LLM call.
+
+    Summary metadata can inherit the chat language from German-heavy or multilingual
+    history even when the main prompt asks for the UI language. Keeping this separate
+    from the full conversation context prevents that language bleed.
+    """
+    if not summary or not summary.strip():
+        return summary
+
+    logger.info(
+        f"[Task ID: {task_id}] [TranslateSummary] Translating chat summary to '{target_language}'"
+    )
+
+    language_names = {
+        "en": "English", "de": "German", "fr": "French", "es": "Spanish",
+        "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+        "ru": "Russian", "ja": "Japanese", "zh": "Chinese", "ko": "Korean",
+        "ar": "Arabic", "tr": "Turkish", "sv": "Swedish", "no": "Norwegian",
+        "da": "Danish", "fi": "Finnish", "cs": "Czech", "ro": "Romanian",
+        "hu": "Hungarian", "el": "Greek", "he": "Hebrew", "hi": "Hindi",
+        "uk": "Ukrainian",
+    }
+    language_name = language_names.get(target_language, target_language.upper())
+
+    translation_tool = {
+        "type": "function",
+        "function": {
+            "name": "translate_summary",
+            "description": (
+                f"Translate a chat summary into {language_name} ({target_language}). "
+                "Preserve the exact meaning and keep it concise (max 20 words). "
+                "Return only the translated summary text."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "translated_summary": {
+                        "type": "string",
+                        "description": (
+                            f"The summary translated into {language_name}. "
+                            "Must be concise (max 20 words) and preserve the original meaning."
+                        ),
+                    }
+                },
+                "required": ["translated_summary"],
+            },
+        },
+    }
+
+    system_message = (
+        f"You are a professional translation engine. "
+        f"Translate the given chat summary into {language_name} ({target_language}). "
+        f"Rules:\n"
+        f"- Preserve the exact meaning of the summary\n"
+        f"- Keep it concise (max 20 words)\n"
+        f"- Use natural phrasing in {language_name}\n"
+        f"- Do NOT add explanations or extra context"
+    )
+
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": f"Translate this chat summary to {language_name}:\n\n{summary}"},
+    ]
+
+    model_id = "mistral/mistral-small-2506"
+
+    try:
+        from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
+        translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+
+        llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            task_id=task_id,
+            model_id=model_id,
+            message_history=messages,
+            tool_definition=translation_tool,
+            secrets_manager=secrets_manager,
+            user_app_settings_and_memories_metadata=None,
+            dynamic_context=None,
+            fallback_models=translation_fallbacks,
+        )
+
+        if llm_result.error_message:
+            logger.error(
+                f"[Task ID: {task_id}] [TranslateSummary] LLM call failed: {llm_result.error_message}. "
+                f"Falling back to original summary."
+            )
+            return summary
+
+        if llm_result.arguments is None:
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateSummary] LLM returned None arguments. "
+                f"Falling back to original summary."
+            )
+            return summary
+
+        translated = llm_result.arguments.get("translated_summary", "")
+
+        if not translated or not isinstance(translated, str) or not translated.strip():
+            logger.warning(
+                f"[Task ID: {task_id}] [TranslateSummary] Empty or invalid translated_summary. "
+                f"Falling back to original summary."
+            )
+            return summary
+
+        logger.info(
+            f"[Task ID: {task_id}] [TranslateSummary] Successfully translated summary to '{target_language}'"
+        )
+        return translated.strip()
+
+    except Exception as e:
+        logger.error(
+            f"[Task ID: {task_id}] [TranslateSummary] Unexpected error during translation: {e}",
+            exc_info=True,
+        )
+        return summary
+
+
 class PreprocessingResult(BaseModel):
     """
     Defines the Pydantic model for the output structure of the preprocessing step.
@@ -792,6 +947,11 @@ async def handle_preprocessing(
     """
     log_prefix = f"Preprocessor (ChatID: {request_data.chat_id}, MsgID: {request_data.message_id}):"
     logger.info(f"{log_prefix} Starting preprocessing.")
+    user_system_language = (
+        request_data.user_preferences.get("language", "en")
+        if request_data.user_preferences
+        else "en"
+    )
 
     # --- Credit Check (skip if payment disabled - self-hosted mode) ---
     # Check if payment is enabled before performing credit checks
@@ -1438,15 +1598,10 @@ async def handle_preprocessing(
         # Call A (main tool): needs the full dynamic_context.
         # Include the user's UI language so the title is generated in the user's preferred language,
         # regardless of the language the user is chatting in (mirrors how chat_summary works).
-        user_system_language_for_title = (
-            request_data.user_preferences.get("language", "en")
-            if request_data.user_preferences
-            else "en"
-        )
         fast_dynamic_context = {
             "CATEGORIES_LIST": available_categories_list,
             "CURRENT_DATE_TIME": date_time_str,
-            "USER_SYSTEM_LANGUAGE": user_system_language_for_title,
+            "USER_SYSTEM_LANGUAGE": user_system_language,
         }
 
         logger.info(f"{log_prefix} Firing Call A (fast UI) and Call B (routing) in parallel.")
@@ -2405,30 +2560,7 @@ async def handle_preprocessing(
         # When user did not specify skills, use preprocessing LLM selection.
         relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
         if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
-            # Build a robust skill name resolver to handle common LLM hallucinations
-            # This mirrors the tool_resolver_map pattern in main_processor.py
-            # Maps hallucinated skill names to valid skill identifiers
-            skill_resolver_map: Dict[str, str] = {}
-            
-            for valid_skill in available_skill_ids:
-                # Add exact match
-                skill_resolver_map[valid_skill] = valid_skill
-                
-                # Handle underscore variant: app_skill -> app-skill
-                underscore_variant = valid_skill.replace("-", "_")
-                skill_resolver_map[underscore_variant] = valid_skill
-                
-                # Handle duplicated segment pattern: app-skill-skill -> app-skill
-                # Example: web-search-search -> web-search
-                parts = valid_skill.split("-")
-                if len(parts) >= 2:
-                    # Create duplicated variant: web-search -> web-search-search
-                    duplicated = f"{valid_skill}-{parts[-1]}"
-                    skill_resolver_map[duplicated] = valid_skill
-                    
-                    # Also handle underscore with duplication: web_search_search -> web-search
-                    underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
-                    skill_resolver_map[underscore_duplicated] = valid_skill
+            skill_resolver_map = _build_skill_resolver_map(available_skill_ids)
             
             logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
             
@@ -2779,29 +2911,31 @@ async def handle_preprocessing(
         error_message=None
     )
 
-    # Translate the chat title into the user's system/UI language when the conversation was
-    # detected in a different language. This mirrors the translate_chat_summary /
-    # translate_new_chat_suggestions pattern: an isolated LLM call with no conversation
-    # context cannot be affected by language bleed, making it far more reliable than
-    # relying on the USER_SYSTEM_LANGUAGE instruction in the fast_preprocess_request_tool
-    # prompt (which the model frequently ignores when the entire message is in a foreign language).
-    #
-    # Only fires on first messages (when title is freshly generated) and only when the
-    # detected conversation language differs from the user's UI language.
-    if (
-        is_first_message
-        and final_result.title
-        and final_result.output_language
-        and user_system_language_for_title != final_result.output_language
-    ):
+    # Always normalize metadata into the user's system/UI language through isolated
+    # translation calls. The output_language detector can be wrong on follow-ups, and
+    # prompt instructions can be overridden by language-heavy chat history.
+    if final_result.chat_summary:
         logger.info(
-            f"{log_prefix} Conversation language '{final_result.output_language}' differs "
-            f"from UI language '{user_system_language_for_title}' — translating chat title."
+            f"{log_prefix} Ensuring chat summary is in UI language '{user_system_language}'."
+        )
+        translated_summary = await translate_chat_summary(
+            task_id=f"{request_data.chat_id}_{request_data.message_id}_summary_translate",
+            summary=final_result.chat_summary,
+            target_language=user_system_language,
+            secrets_manager=secrets_manager,
+        )
+        final_result.chat_summary = translated_summary
+
+    # Only fires on first messages because existing chat title updates are handled by
+    # post-processing, which applies the same unconditional metadata normalization.
+    if is_first_message and final_result.title:
+        logger.info(
+            f"{log_prefix} Ensuring chat title is in UI language '{user_system_language}'."
         )
         translated_title = await translate_chat_title(
             task_id=f"{request_data.chat_id}_{request_data.message_id}_title_translate",
             title=final_result.title,
-            target_language=user_system_language_for_title,
+            target_language=user_system_language,
             secrets_manager=secrets_manager,
         )
         final_result.title = translated_title

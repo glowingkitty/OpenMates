@@ -1,0 +1,40 @@
+{
+  "fixture_id": "share_chat_flow",
+  "recorded_at": "2026-05-13T10:25:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "What is the capital of France?",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Capital of France",
+    "icon_names": ["globe"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked about the capital of France",
+    "chat_tags": ["geography", "general-knowledge"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Capital of France"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "The capital of France is **Paris**. Paris is the country's political, cultural, and economic center, and it is widely known for landmarks such as the Eiffel Tower, the Louvre, and Notre-Dame.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 44,
+    "completion_tokens": 43,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}

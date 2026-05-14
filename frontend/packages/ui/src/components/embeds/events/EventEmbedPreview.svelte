@@ -83,16 +83,20 @@
 
   // ── Display helpers ──────────────────────────────────────────────────────────
 
+  interface EventDateParts {
+    date: string;
+    time: string;
+  }
+
   /**
-   * Format a date_start ISO string to a short readable date+time.
+   * Format a date_start ISO string to short readable date and time lines.
    * Shows relative day labels for today/tomorrow.
-   * Examples: "Today, Mar 13 - 5:30 PM", "Sat, Mar 15 - 7:00 PM"
    */
-  function formatEventDate(dateStr: string | undefined): string {
-    if (!dateStr) return '';
+  function formatEventDateParts(dateStr: string | undefined): EventDateParts {
+    if (!dateStr) return { date: '', time: '' };
     try {
       const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
+      if (isNaN(d.getTime())) return { date: '', time: '' };
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -106,11 +110,11 @@
       const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
       if (dateOnly.getTime() === startOfToday.getTime()) {
-        return `Today, ${monthDay} - ${time}`;
+        return { date: `Today, ${monthDay}`, time };
       }
 
       if (dateOnly.getTime() === startOfTomorrow.getTime()) {
-        return `Tomorrow, ${monthDay} - ${time}`;
+        return { date: `Tomorrow, ${monthDay}`, time };
       }
 
       const dayLabel =
@@ -122,9 +126,9 @@
             })
           : monthDay;
 
-      return `${dayLabel} - ${time}`;
+      return { date: dayLabel, time };
     } catch {
-      return '';
+      return { date: '', time: '' };
     }
   }
 
@@ -155,7 +159,7 @@
   }
 
   // Derived display values
-  let eventDate     = $derived(formatEventDate(event.date_start));
+  let eventDateParts = $derived(formatEventDateParts(event.date_start));
   let eventLocation = $derived(getEventLocation(event));
   let isOnline      = $derived(event.event_type === 'ONLINE');
   let isPaid        = $derived(event.is_paid ?? false);
@@ -201,18 +205,22 @@
   showSkillIcon={false}
   hasFullWidthImage={!!eventImageUrl && !event.title}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="event-preview-details" class:mobile={isMobileLayout}>
+  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout = false })}
+    <div class="event-preview-details" class:mobile={isMobileLayout} class:large={isLargeLayout}>
       <div class="event-content-row">
         <!-- Text content (left side) -->
         <div class="event-text">
-          <!-- Event title -->
-          <div class="event-title">{event.title || ''}</div>
+          {#if isLargeLayout}
+            <div class="event-title">{event.title || ''}</div>
+          {/if}
 
           <!-- Date + location -->
           <div class="event-meta">
-            {#if eventDate}
-              <span class="event-date">{eventDate}</span>
+            {#if eventDateParts.date}
+              <span class="event-date">{eventDateParts.date}</span>
+            {/if}
+            {#if eventDateParts.time}
+              <span class="event-time">{eventDateParts.time}</span>
             {/if}
             {#if eventLocation}
               <span class="event-location">{eventLocation}</span>
@@ -266,6 +274,7 @@
     height: 100%;
     width: 100%;
     justify-content: center;
+    text-align: left;
   }
 
   .event-preview-details.mobile {
@@ -279,38 +288,35 @@
     min-height: 0;
     height: 100%;
     width: 100%;
+    gap: var(--spacing-4);
+    margin-right: calc(-1 * var(--spacing-10));
   }
 
   .event-text {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: var(--spacing-2);
-    flex: 0 1 55%;
+    flex: 1 1 auto;
     min-width: 0;
     align-self: center;
     padding: 2px 0;
   }
 
-  /* ── Event title ─────────────────────────────────────────────────────────── */
+  /* ── Event title (large preview only) ────────────────────────────────────── */
 
   .event-title {
-    font-size: 0.875rem;
-    font-weight: 600;
+    font-size: 1.1rem;
+    font-weight: 700;
     color: var(--color-grey-100);
-    line-height: 1.35;
+    line-height: 1.25;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
-  }
-
-  .event-preview-details.mobile .event-title {
-    font-size: 0.8125rem;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
   }
 
   /* ── Meta: date + location ───────────────────────────────────────────────── */
@@ -321,13 +327,19 @@
     gap: 1px;
   }
 
-  .event-date {
-    font-size: 0.75rem;
+  .event-date,
+  .event-time {
+    font-size: 0.875rem;
     color: var(--color-grey-70);
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .event-preview-details.large .event-date,
+  .event-preview-details.large .event-time {
+    font-size: 1rem;
   }
 
   .event-location {
@@ -358,7 +370,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-events-start, #a20000);
-    color: var(--color-grey-0); /* intentional: always white on brand colour */
+    color: #fff; /* intentional: always white on brand colour */
   }
 
   .event-type-badge.online {
@@ -384,10 +396,10 @@
   /* ── Image (right side) ──────────────────────────────────────────────────── */
 
   .event-preview-image {
-    flex: 1;
+    flex: 0 0 auto;
+    aspect-ratio: 1 / 1;
     min-width: 0;
-    height: 171px;
-    transform: translateX(20px);
+    height: 100%;
     overflow: hidden;
   }
 
@@ -395,6 +407,6 @@
     width: 100%;
     height: 100%;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
   }
 </style>

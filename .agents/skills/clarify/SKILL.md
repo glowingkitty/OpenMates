@@ -1,5 +1,5 @@
 ---
-name: openmates:clarify
+name: clarify
 description: Run a structured 5-round Q&A to fully understand a bug or feature request before writing any code. Outputs a Task Brief with user flow, acceptance criteria, scope, edge cases, affected areas, and open questions. Use at the start of any non-trivial session.
 user-invocable: true
 argument-hint: "<bug description | feature idea | Linear issue ID>"

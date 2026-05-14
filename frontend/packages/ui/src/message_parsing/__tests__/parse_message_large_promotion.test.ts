@@ -17,6 +17,15 @@ function parseAssistant(markdown: string): any {
   });
 }
 
+function findInlineEmbeds(nodes: any[]): any[] {
+  const out: any[] = [];
+  for (const node of nodes || []) {
+    if (node?.type === "embedInline") out.push(node);
+    if (Array.isArray(node?.content)) out.push(...findInlineEmbeds(node.content));
+  }
+  return out;
+}
+
 describe("parse_message assistant large promotion", () => {
   it("promotes a single sheet embed to embedPreviewLarge", () => {
     const doc = parseAssistant(
@@ -241,5 +250,21 @@ describe("parse_message assistant large promotion", () => {
       "/images/legal/3.svg",
       "/images/legal/4.svg",
     ]);
+  });
+
+  it("does not expose non-domain embed refs as inline display text", () => {
+    const doc = parseAssistant("Best option: [ice-0800-PsB](embed:ice-0800-PsB)");
+    const inline = findInlineEmbeds(doc.content || [])[0];
+
+    expect(inline?.attrs?.embedRef).toBe("ice-0800-PsB");
+    expect(inline?.attrs?.displayText).toBe("ICE 08:00");
+  });
+
+  it("derives a safe label for empty non-domain inline embed links", () => {
+    const doc = parseAssistant("Best option: [](embed:flixtrain-1423-3VT)");
+    const inline = findInlineEmbeds(doc.content || [])[0];
+
+    expect(inline?.attrs?.embedRef).toBe("flixtrain-1423-3VT");
+    expect(inline?.attrs?.displayText).toBe("FlixTrain 14:23");
   });
 });

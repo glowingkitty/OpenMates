@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_RESULTS = 20
 MAX_RESULTS_LIMIT = 50
 FILTER_OVERFETCH_MULTIPLIER = 3
+VALID_PROVIDER_IDS = {"google_flights", "deutsche_bahn", "flix"}
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +70,16 @@ class SearchConnectionsRequestItem(BaseModel):
         description="Transport types to search. Supported: 'airplane' (worldwide via Google Flights), "
         "'train' (Germany + select European routes via Deutsche Bahn and FlixTrain), "
         "'bus' (FlixBus / Greyhound network where available).",
+    )
+    providers: Optional[List[str]] = Field(
+        default=None,
+        description="Optional provider IDs to search. Supported: google_flights, deutsche_bahn, flix. "
+        "If omitted, all providers for the selected transport method are used, then filtered by countries if provided.",
+    )
+    countries: Optional[List[str]] = Field(
+        default=None,
+        description="Optional ISO 3166-1 alpha-2 country codes involved in the route. "
+        "Country matching uses OR semantics: a country-limited provider is eligible if any requested country is supported.",
     )
     passengers: int = Field(default=1, description="Number of adult passengers.")
     children: int = Field(
@@ -236,17 +247,45 @@ def _create_providers(
     return providers
 
 
-def _get_providers_for_methods(
+def _get_providers_for_request(
     all_providers: List[BaseTransportProvider],
     transport_methods: List[str],
+    requested_providers: Optional[List[str]] = None,
+    countries: Optional[List[str]] = None,
 ) -> List[BaseTransportProvider]:
-    """Return providers that support at least one of the requested transport methods."""
+    """Return providers matching transport methods, optional provider IDs, and route countries."""
+    provider_values = requested_providers if isinstance(requested_providers, list) else []
+    country_values = countries if isinstance(countries, list) else []
+    requested_provider_ids = {
+        str(provider).strip().lower()
+        for provider in provider_values
+        if str(provider).strip().lower() in VALID_PROVIDER_IDS
+    }
+    requested_countries = {
+        str(country).strip().upper()
+        for country in country_values
+        if re.match(r"^[A-Za-z]{2}$", str(country).strip())
+    }
+    has_provider_filter = bool(provider_values)
+
     matched: List[BaseTransportProvider] = []
     for provider in all_providers:
-        for method in transport_methods:
-            if provider.supports_transport_method(method):
-                matched.append(provider)
-                break
+        provider_id = getattr(provider, "provider_id", "")
+        if has_provider_filter and provider_id not in requested_provider_ids:
+            logger.info("Skipping provider %s because it was not requested", provider_id or type(provider).__name__)
+            continue
+        if not any(provider.supports_transport_method(method) for method in transport_methods):
+            continue
+        provider_countries = getattr(provider, "supported_countries", None)
+        if requested_countries and provider_countries is not None and not requested_countries.intersection(provider_countries):
+            logger.info(
+                "Skipping provider %s because countries %s do not match supported countries %s",
+                provider_id or type(provider).__name__,
+                sorted(requested_countries),
+                sorted(provider_countries),
+            )
+            continue
+        matched.append(provider)
     return matched
 
 
@@ -394,6 +433,8 @@ class SearchConnectionsSkill(BaseSkill):
         # Extract parameters with defaults
         legs = req.get("legs", [])
         transport_methods = req.get("transport_methods", ["airplane"])
+        requested_providers = req.get("providers")
+        countries = req.get("countries")
         passengers = req.get("passengers", 1)
         children = req.get("children", 0)
         infants_in_seat = req.get("infants_in_seat", 0)
@@ -428,7 +469,12 @@ class SearchConnectionsSkill(BaseSkill):
             transport_methods = ["airplane"]
 
         # Find matching providers
-        matched_providers = _get_providers_for_methods(all_providers, transport_methods)
+        matched_providers = _get_providers_for_request(
+            all_providers,
+            transport_methods,
+            requested_providers=requested_providers,
+            countries=countries,
+        )
         if not matched_providers:
             return (request_id, [], f"No providers available for transport methods: {transport_methods}")
 

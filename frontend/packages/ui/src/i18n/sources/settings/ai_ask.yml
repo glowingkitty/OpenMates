@@ -276,6 +276,71 @@ ai_ask_settings.auto_select_description:
   cs: Automaticky vybírá nejlepší model na základě složitosti dotazu a preferencí.
   sv: Väljer automatiskt den bästa modellen baserat på din frågekomplexitet och inställningar.
 
+ai_ask_settings.follow_up_suggestions:
+  context: Label for follow-up suggestions toggle
+  en: Follow-up suggestions
+  de: Folgefragen-Vorschläge
+  ar: اقتراحات المتابعة
+  he: הצעות המשך
+  verified_by_human: []
+  zh: 后续建议
+  es: Sugerencias de seguimiento
+  fr: Suggestions de suivi
+  pt: Sugestões de acompanhamento
+  ru: Предложения продолжения
+  ja: フォローアップ候補
+  ko: 후속 제안
+  it: Suggerimenti di follow-up
+  tr: Takip önerileri
+  vi: Gợi ý tiếp theo
+  id: Saran tindak lanjut
+  pl: Sugestie dalszych pytań
+  nl: Vervolgsuggesties
+  hi: फ़ॉलो-अप सुझाव
+  th: คำแนะนำต่อเนื่อง
+  cs: Následné návrhy
+  sv: Uppföljningsförslag
+
+ai_ask_settings.follow_up_suggestions_description:
+  context: Description for follow-up suggestions toggle
+  en: Shows suggested next prompts after assistant replies. Turn this off if you prefer direct answers without proactive next-step prompts.
+  de: Zeigt nach Antworten des Assistenten Vorschläge für nächste Prompts. Deaktiviere dies, wenn du direkte Antworten ohne proaktive nächste Schritte bevorzugst.
+  ar: يعرض مطالبات مقترحة بعد ردود المساعد. أوقف هذا إذا كنت تفضل إجابات مباشرة دون مطالبات استباقية للخطوة التالية.
+  he: מציג הצעות להודעות המשך אחרי תשובות העוזר. כבה זאת אם ברצונך בתשובות ישירות ללא הצעות יזומות לשלב הבא.
+  verified_by_human: []
+  zh: 在助手回复后显示建议的下一步提示。如果你更喜欢没有主动下一步提示的直接回答，可以关闭此选项。
+  es: Muestra sugerencias de próximos mensajes después de las respuestas del asistente. Desactívalo si prefieres respuestas directas sin sugerencias proactivas.
+  fr: Affiche des suggestions de prochains messages après les réponses de l'assistant. Désactivez cette option si vous préférez des réponses directes sans suggestions proactives.
+  pt: Mostra sugestões de próximos prompts após as respostas do assistente. Desative se preferir respostas diretas sem sugestões proativas.
+  ru: Показывает предлагаемые следующие запросы после ответов ассистента. Отключите, если предпочитаете прямые ответы без проактивных подсказок.
+  ja: アシスタントの返信後に次のプロンプト候補を表示します。能動的な次の提案なしで直接的な回答を希望する場合はオフにしてください。
+  ko: 어시스턴트 답변 후 다음 프롬프트 제안을 표시합니다. 능동적인 다음 단계 제안 없이 직접적인 답변을 원하면 끄세요.
+  it: Mostra suggerimenti per i prossimi prompt dopo le risposte dell'assistente. Disattivalo se preferisci risposte dirette senza suggerimenti proattivi.
+  tr: Asistan yanıtlarından sonra önerilen sonraki istemleri gösterir. Proaktif sonraki adım önerileri olmadan doğrudan yanıtlar istiyorsanız kapatın.
+  vi: Hiển thị gợi ý lời nhắc tiếp theo sau phản hồi của trợ lý. Tắt nếu bạn muốn câu trả lời trực tiếp không có gợi ý chủ động.
+  id: Menampilkan saran prompt berikutnya setelah asisten menjawab. Matikan jika Anda lebih suka jawaban langsung tanpa saran langkah berikutnya.
+  pl: Pokazuje sugerowane kolejne prompty po odpowiedziach asystenta. Wyłącz, jeśli wolisz bezpośrednie odpowiedzi bez proaktywnych sugestii.
+  nl: Toont voorgestelde volgende prompts na antwoorden van de assistent. Schakel dit uit als u directe antwoorden zonder proactieve vervolgstappen wilt.
+  hi: असिस्टेंट के जवाबों के बाद सुझाए गए अगले प्रॉम्प्ट दिखाता है। यदि आप सक्रिय अगले-चरण सुझावों के बिना सीधे उत्तर पसंद करते हैं, तो इसे बंद करें।
+  th: แสดงพรอมป์ถัดไปที่แนะนำหลังจากผู้ช่วยตอบ ปิดหากคุณต้องการคำตอบโดยตรงโดยไม่มีคำแนะนำขั้นตอนถัดไปเชิงรุก
+  cs: Zobrazuje navržené další prompty po odpovědích asistenta. Vypněte, pokud preferujete přímé odpovědi bez proaktivních návrhů dalších kroků.
+  sv: Visar föreslagna nästa prompter efter assistentens svar. Stäng av om du föredrar direkta svar utan proaktiva nästa steg.
+
+ai_ask_settings.follow_up_suggestions_enabled:
+  context: Success toast when follow-up suggestions are enabled
+  en: Follow-up suggestions enabled.
+  de: Folgefragen-Vorschläge aktiviert.
+
+ai_ask_settings.follow_up_suggestions_disabled:
+  context: Success toast when follow-up suggestions are disabled
+  en: Follow-up suggestions disabled.
+  de: Folgefragen-Vorschläge deaktiviert.
+
+ai_ask_settings.follow_up_suggestions_save_error:
+  context: Error toast when follow-up suggestions preference cannot be saved
+  en: Could not save follow-up suggestions setting.
+  de: Einstellung für Folgefragen-Vorschläge konnte nicht gespeichert werden.
+
 ai_ask_settings.manual_select_note:
   context: Note about manual model selection via @ mention
   en: You can always manually select a model using @mention in the chat.

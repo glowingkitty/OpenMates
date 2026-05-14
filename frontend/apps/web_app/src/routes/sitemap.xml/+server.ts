@@ -8,6 +8,7 @@
 //     - The example chat listing index page (/example/)
 //     - Each individual example chat SEO page (/example/{slug})
 //     - Intro chat SEO pages (/intro/{slug})
+//     - Public event pages (/events/{slug})
 //     - Documentation pages (/docs/{slug})
 //
 //   Example chats are hardcoded in the frontend — no backend API calls needed.
@@ -16,7 +17,7 @@
 //   The robots.txt at /robots.txt already points to this sitemap.
 
 import type { RequestHandler } from './$types';
-import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, LEGAL_CHATS } from '@repo/ui';
+import { getAllExampleChatData, getAllActiveNewsletterChats, newsletterKindFromChatId, LEGAL_CHATS, getAllOpenMatesEvents } from '@repo/ui';
 import docsData from '$lib/generated/docs-data.json';
 import type { DocFolder, DocStructure } from '$lib/types/docs';
 
@@ -116,6 +117,13 @@ export const GET: RequestHandler = async ({ url }) => {
 		})
 		.filter((u): u is string => u !== null);
 
+	const eventUrls = getAllOpenMatesEvents().map((event) => `  <url>
+    <loc>${siteOrigin}/events/${event.slug}</loc>
+    <lastmod>${BUILD_DATE}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>`);
+
 	// Documentation pages from statically bundled docs-data.json
 	const docsUrls: string[] = [];
 	function collectDocSlugs(folder: DocFolder | DocStructure) {
@@ -136,6 +144,7 @@ ${docsUrls.join('\n')}
 ${legalUrls.join('\n')}
 ${exampleUrls.join('\n')}
 ${newsletterUrls.join('\n')}
+${eventUrls.join('\n')}
 </urlset>`;
 
 	return new Response(xml, {

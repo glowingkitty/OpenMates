@@ -15,7 +15,6 @@
     import AppStoreCard from './AppStoreCard.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
-    import SettingsItem from '../SettingsItem.svelte';
     import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, SkillMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -154,7 +153,7 @@
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.skills.title')} icon="skill" />
                 <p class="section-description">{$text('settings.app_store.skills.section_description')}</p>
-                <div class="items-scroll-container">
+                <div class="items-scroll-container" data-testid="settings-skill-cards-scroll">
                     <div class="items-scroll">
                         {#each skills as skill (skill.id)}
                             {@const skillApp = skillToAppMetadata(skill, appId, app)}
@@ -175,7 +174,7 @@
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
                 <p class="section-description">{$text('settings.app_store.settings_memories.section_description')}</p>
-                <div class="items-scroll-container">
+                <div class="items-scroll-container" data-testid="settings-memory-cards-scroll">
                     <div class="items-scroll">
                         {#each memoryFields as category (category.id)}
                             {@const categoryApp: AppMetadata = {
@@ -206,7 +205,7 @@
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.focus_modes.title')} icon="focus" />
                 <p class="section-description">{$text('settings.app_store.focus_modes.section_description')}</p>
-                <div class="items-scroll-container">
+                <div class="items-scroll-container" data-testid="settings-focus-cards-scroll">
                     <div class="items-scroll">
                         {#each focusModes as focusMode (focusMode.id)}
                             {@const focusModeApp: AppMetadata = {
@@ -360,4 +359,3 @@
         background: var(--button-hover-background, #e0e0e0);
     }
 </style>
-

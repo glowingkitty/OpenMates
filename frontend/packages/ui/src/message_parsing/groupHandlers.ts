@@ -1069,6 +1069,31 @@ export class GroupHandlerRegistry {
         "footer",
       ]),
     );
+    this.register(
+      new BaseGroupHandler("social-media-post", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "platform",
+        "page",
+        "title",
+        "body",
+        "author",
+        "author_display_name",
+        "author_avatar_url",
+        "url",
+        "published_at",
+        "like_count",
+        "reply_count",
+        "repost_count",
+        "quote_count",
+        "media_url",
+        "thumbnail_url",
+        "external_url",
+        "external_title",
+      ]),
+    );
   }
 
   /**

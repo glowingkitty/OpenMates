@@ -49,7 +49,7 @@ async def handle_encrypted_chat_metadata(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("encrypted_chat_metadata", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -150,6 +150,56 @@ async def handle_encrypted_chat_metadata(
                 logger.debug(f"Chat {chat_id} not found in DB, using client flag chat_has_title: {chat_has_title_from_client}")
 
             # ---------------------------------------------------------------------
+            # Chat key conflict detection (server-side guardrail)
+            # ---------------------------------------------------------------------
+            # If the chat already has an encrypted_chat_key, we must NOT broadcast a
+            # different key unless rotation is explicitly requested. This prevents
+            # a single device from corrupting the chat key across other devices.
+            existing_chat_key = None
+            if encrypted_chat_key and not allow_chat_key_rotation:
+                try:
+                    cached_chat = await cache_service.get_chat_list_item_data(user_id, chat_id)
+                    if cached_chat and getattr(cached_chat, "encrypted_chat_key", None):
+                        existing_chat_key = cached_chat.encrypted_chat_key
+                except Exception as cache_error:
+                    logger.warning(
+                        f"Failed to read cached chat key for chat {chat_id} (will fall back to Directus): {cache_error}",
+                        exc_info=True
+                    )
+
+                if not existing_chat_key:
+                    try:
+                        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                        if chat_metadata:
+                            existing_chat_key = chat_metadata.get("encrypted_chat_key")
+                    except Exception as directus_error:
+                        logger.warning(
+                            f"Failed to read Directus chat key for chat {chat_id}: {directus_error}",
+                            exc_info=True
+                        )
+
+                if existing_chat_key and existing_chat_key != encrypted_chat_key:
+                    logger.warning(
+                        f"[CHAT_KEY_GUARD] ⚠️ Incoming encrypted_chat_key for chat {chat_id} does not match existing key. "
+                        f"Rejecting encrypted payload to protect stored ciphertext. "
+                        f"(allow_chat_key_rotation=False)"
+                    )
+                    await manager.send_personal_message(
+                        {
+                            "type": "chat_key_mismatch",
+                            "payload": {
+                                "chat_id": chat_id,
+                                "message_id": message_id,
+                                "code": "chat_key_mismatch",
+                                "message": "Chat encryption key mismatch. Reload the chat key and retry.",
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+
+            # ---------------------------------------------------------------------
             # History Injection Flow (e.g. Duplication from Demo)
             # ---------------------------------------------------------------------
             # If the payload includes a message_history with encrypted content,
@@ -182,52 +232,6 @@ async def handle_encrypted_chat_metadata(
                                 user_id
                             ]
                         )
-
-            # ---------------------------------------------------------------------
-            # Chat key conflict detection (server-side guardrail)
-            # ---------------------------------------------------------------------
-
-            # ---------------------------------------------------------------------
-            # Chat key conflict detection (server-side guardrail)
-            # ---------------------------------------------------------------------
-
-            # ---------------------------------------------------------------------
-            # Chat key conflict detection (server-side guardrail)
-            # ---------------------------------------------------------------------
-            # If the chat already has an encrypted_chat_key, we must NOT broadcast a
-            # different key unless rotation is explicitly requested. This prevents
-            # a single device from corrupting the chat key across other devices.
-            existing_chat_key = None
-            if encrypted_chat_key and not allow_chat_key_rotation:
-                try:
-                    cached_chat = await cache_service.get_chat_list_item_data(user_id, chat_id)
-                    if cached_chat and getattr(cached_chat, "encrypted_chat_key", None):
-                        existing_chat_key = cached_chat.encrypted_chat_key
-                except Exception as cache_error:
-                    logger.warning(
-                        f"Failed to read cached chat key for chat {chat_id} (will fall back to Directus): {cache_error}",
-                        exc_info=True
-                    )
-
-                if not existing_chat_key:
-                    try:
-                        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                        if chat_metadata:
-                            existing_chat_key = chat_metadata.get("encrypted_chat_key")
-                    except Exception as directus_error:
-                        logger.warning(
-                            f"Failed to read Directus chat key for chat {chat_id}: {directus_error}",
-                            exc_info=True
-                        )
-
-                if existing_chat_key and existing_chat_key != encrypted_chat_key:
-                    logger.warning(
-                        f"[CHAT_KEY_GUARD] ⚠️ Incoming encrypted_chat_key for chat {chat_id} does not match existing key. "
-                        f"Blocking key broadcast to protect other devices. "
-                        f"(allow_chat_key_rotation=False)"
-                    )
-                    # Drop the incoming key from further processing to avoid broadcast corruption.
-                    encrypted_chat_key = None
 
             # Store encrypted user message if provided
             # CRITICAL: Check if we have both message_id and encrypted_content

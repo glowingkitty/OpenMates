@@ -413,6 +413,7 @@
           {@const iconInfo = resolveSuggestionIcon(suggestion.appId, suggestion.subId)}
           <button
             class="suggestion-item"
+            data-testid="follow-up-suggestion-item"
             onmousedown={(event) => {
               event.preventDefault();
             }}

@@ -15,6 +15,7 @@
 		settingsDeepLink,
 		activeChatStore, // Import for deep linking
 		activeEmbedStore, // Import for embed deep linking
+		getOpenMatesEventBySlug,
 		phasedSyncState, // Import phased sync state store
 		messageHighlightStore, // Import message highlight store for deep linking
 		websocketStatus, // Import WebSocket status store
@@ -134,6 +135,25 @@
 		return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 	}
 
+	function isInsideScrollableHorizontalElement(target: EventTarget | null): boolean {
+		let element = target instanceof Element ? target : null;
+
+		while (element && element !== document.body && element !== document.documentElement) {
+			const styles = window.getComputedStyle(element);
+			const canScrollHorizontally =
+				(styles.overflowX === 'auto' || styles.overflowX === 'scroll') &&
+				element.scrollWidth > element.clientWidth;
+
+			if (canScrollHorizontally) {
+				return true;
+			}
+
+			element = element.parentElement;
+		}
+
+		return false;
+	}
+
 	function resetEdgeSwipe(): void {
 		edgeSwipeTarget = null;
 		edgeSwipeStartX = 0;
@@ -191,6 +211,11 @@
 		const viewportWidth = window.innerWidth;
 		edgeSwipeStartX = touch.clientX;
 		edgeSwipeStartY = touch.clientY;
+
+		if (isInsideScrollableHorizontalElement(event.target)) {
+			resetEdgeSwipe();
+			return;
+		}
 
 		if (edgeSwipeStartX <= EDGE_SWIPE_START_WIDTH_PX && !$panelState.isActivityHistoryOpen) {
 			edgeSwipeTarget = 'open-chats';
@@ -424,7 +449,7 @@
 				window.dispatchEvent(globalChatSelectedEvent);
 
 				if (embedId) {
-					await handleEmbedDeepLink(embedId);
+					await handleEmbedDeepLink(embedId, true);
 				}
 				return;
 			}
@@ -482,7 +507,7 @@
 						console.debug(
 							`[+page.svelte] Opening embed ${embedId} after loading public chat ${chatId}`
 						);
-						await handleEmbedDeepLink(embedId);
+						await handleEmbedDeepLink(embedId, true);
 					}
 					return;
 				} else if (retries > 0) {
@@ -549,7 +574,7 @@
 							console.debug(
 								`[+page.svelte] Opening embed ${embedId} after loading sessionStorage chat ${chatId}`
 							);
-							await handleEmbedDeepLink(embedId);
+							await handleEmbedDeepLink(embedId, true);
 						}
 						return;
 					} else if (retries > 0) {
@@ -601,7 +626,7 @@
 							console.debug(
 								`[+page.svelte] Opening embed ${embedId} after loading chat ${chatId} from IndexedDB`
 							);
-							await handleEmbedDeepLink(embedId);
+							await handleEmbedDeepLink(embedId, true);
 						}
 						return; // Success - exit
 					} else if (retries > 0) {
@@ -702,7 +727,7 @@
 	 * Handle embed deep linking from URL
 	 * Opens the embed in fullscreen mode when #embed-id={embedId} is in the URL
 	 */
-	async function handleEmbedDeepLink(embedId: string) {
+	async function handleEmbedDeepLink(embedId: string, hasChatContext = false) {
 		console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
 
 		// Mark that a deep link was processed
@@ -716,11 +741,34 @@
 		// This ensures the embedfullscreen event listener is registered
 		await new Promise((resolve) => setTimeout(resolve, 300));
 
+		const openMatesEvent = getOpenMatesEventBySlug(embedId);
+		if (openMatesEvent) {
+			document.dispatchEvent(
+				new CustomEvent('embedfullscreen', {
+					detail: {
+						embedId: openMatesEvent.embed_id,
+						embedType: 'events-event',
+						hasChatContext,
+						embedData: {
+							embed_id: openMatesEvent.embed_id,
+							type: 'events-event',
+							status: 'finished'
+						},
+						decodedContent: openMatesEvent,
+						attrs: {}
+					},
+					bubbles: true
+				})
+			);
+			return;
+		}
+
 		// Dispatch embedfullscreen event to open the embed in fullscreen
 		// This reuses the same system that opens embeds when clicking on embed previews
 		const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
 			detail: {
 				embedId: embedId,
+				hasChatContext,
 				// Let handleEmbedFullscreen load and decode the embed content
 				embedData: null,
 				decodedContent: null,

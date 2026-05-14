@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 BOOKING_LINK_REL = "shop:search"
 SOURCE_PROVIDER = "flix"
 DEFAULT_LOCALE = "en"
+FLIXTRAIN_SUPPORTED_COUNTRIES = {"AT", "CH", "DE", "NL"}
 
 
 def _format_date_for_flix(date_value: str) -> str:
@@ -262,6 +263,8 @@ class FlixProvider(BaseTransportProvider):
 
     def __init__(self, supported_methods: Optional[Set[str]] = None) -> None:
         self.supported_methods = supported_methods or {"bus", "train"}
+        self.provider_id = SOURCE_PROVIDER
+        self.supported_countries = FLIXTRAIN_SUPPORTED_COUNTRIES if self.supported_methods == {"train"} else None
         self._location_cache: Dict[tuple[str, bool], Dict[str, Any]] = {}
 
     def supports_transport_method(self, method: str) -> bool:

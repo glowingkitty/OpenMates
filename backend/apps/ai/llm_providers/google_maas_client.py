@@ -139,7 +139,7 @@ async def invoke_google_maas_chat_completions(
 
     Args:
         task_id: Unique identifier for the task (Celery task ID)
-        model_id: The MaaS model ID including publisher prefix (e.g., "deepseek-ai/deepseek-v3.2-maas")
+        model_id: The MaaS model ID including publisher prefix.
         messages: List of message objects with role and content (OpenAI format)
         secrets_manager: SecretsManager instance for retrieving credentials
         temperature: Sampling temperature (default: 0.7)

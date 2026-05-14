@@ -150,6 +150,9 @@
      * Maps provider names like "Brave" to icon names like "brave".
      */
     function getProviderIconName(providerName: string): string {
+        if (providerName === 'Bluesky Public AppView') return 'bluesky';
+        if (providerName === 'Reddit RSS') return 'reddit';
+
         // Convert to lowercase and handle special cases
         const normalized = providerName.toLowerCase()
             .replace(/\s+/g, '_')
@@ -302,6 +305,7 @@
     class="app-store-card app-card"
     data-testid="app-store-card"
     class:app-unavailable={isUnavailable}
+    class:has-skill-providers={isSkillCard && orderedProviders.length > 0}
     role="menuitem"
     tabindex="0"
     aria-label={appName}
@@ -414,18 +418,25 @@
         padding-top: 25px;
     }
     
-    /* When displaying a skill card with providers, move content up */
-    /* This creates more space at the bottom for the larger 30px provider icons */
-    .app-store-card:has(.skill-providers) {
-        padding-top: 5px; /* Reduce from 25px to move content up */
+    /* Skill cards keep the regular card height; compact internal spacing to fit provider icons. */
+    .app-store-card.has-skill-providers {
+        padding: 5px 1rem 6px;
     }
     
-    .app-store-card:has(.skill-providers) .app-header-row {
-        margin-top: var(--spacing-0); /* Move up from original 6px to create space below */
+    .app-store-card.has-skill-providers .app-header-row {
+        margin-top: var(--spacing-0);
+        margin-bottom: var(--spacing-1);
     }
     
-    .app-store-card:has(.skill-providers) .app-card-description {
-        margin-top: var(--spacing-0); /* Move up to create space below for provider icons */
+    .app-store-card.has-skill-providers .app-card-description {
+        margin-top: var(--spacing-0);
+        line-height: 1.25;
+        flex-grow: 0;
+    }
+
+    .app-store-card.has-skill-providers .skill-providers {
+        gap: var(--spacing-2);
+        margin-top: 2px;
     }
     
     /* Greyed-out state for unavailable apps (unhealthy/unknown health status) */
@@ -572,8 +583,10 @@
         color: rgba(255, 255, 255, 0.9);
         font-size: var(--font-size-small);
         line-height: 1.4;
-        /* Remove text truncation - show full description */
-        overflow: visible;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
         flex-grow: 1;
     }
     
@@ -610,4 +623,3 @@
     }
     
 </style>
-

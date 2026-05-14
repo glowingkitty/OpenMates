@@ -54,6 +54,7 @@ apps:
   images:            { start: "#001a30", end: "#1a5a8f", dark_end: "#4db8ff", legacy: true }  # Legacy alias for photos
   publishing:        { start: "#49021f", end: "#eb2d5c" }
   socialmedia:       { start: "#044595", end: "#0281fa" }
+  social_media:      { start: "#044595", end: "#0281fa" }
   projectmanagement: { start: "#a84647", end: "#f16e6f" }
   messages:          { start: "#5861e5", end: "#62b3e0" }
   books:             { start: "#c06a18", end: "#f0aa4a" }

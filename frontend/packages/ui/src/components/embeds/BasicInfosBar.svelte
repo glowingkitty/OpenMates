@@ -229,7 +229,7 @@
   </div>
 {:else}
   <!-- Desktop Layout: Horizontal bar (61px height, 30px rounded edges, grey-20 background) -->
-  <div class="basic-infos-bar desktop">
+  <div class="basic-infos-bar desktop" class:noSkillIcon={!showSkillIcon}>
     <!-- App icon in gradient circle (always show app icon, not favicon) -->
     <div class="app-icon-circle {appId}" data-testid="app-icon-circle" style={appGradientStyle}>
       <div class="icon_rounded {appId}"></div>
@@ -307,6 +307,10 @@
     padding: 0 0 0 0;
     flex-shrink: 0;
     z-index: var(--z-index-raised);
+  }
+
+  .basic-infos-bar.desktop.noSkillIcon {
+    gap: var(--spacing-3);
   }
   
   /* App icon circle: 61x61px with gradient background, contains 26x26px icon */
@@ -476,6 +480,11 @@
   .basic-infos-bar .skill-icon[data-skill-icon="nutrition"] {
     -webkit-mask-image: url('@openmates/ui/static/icons/nutrition.svg');
     mask-image: url('@openmates/ui/static/icons/nutrition.svg');
+  }
+
+  .basic-infos-bar .skill-icon[data-skill-icon="socialmedia"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/socialmedia.svg');
+    mask-image: url('@openmates/ui/static/icons/socialmedia.svg');
   }
 
   /* Status text container */

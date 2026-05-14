@@ -13,7 +13,9 @@ try:
         _contains_onboarding_trigger_in_user_history,
         _contains_repo_search_intent_in_user_history,
         ONBOARDING_TRIGGER_PHRASES,
+        translate_chat_summary,
     )
+    from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
@@ -170,3 +172,34 @@ class TestContainsRepoSearchIntent:
             _user_msg("Thanks"),
         ]
         assert _contains_repo_search_intent_in_user_history(history) is False
+
+
+@pytest.mark.anyio
+async def test_translate_chat_summary_uses_isolated_translation(monkeypatch):
+    captured = {}
+
+    async def fake_call_preprocessing_llm(**kwargs):
+        captured.update(kwargs)
+        return LLMPreprocessingCallResult(
+            arguments={"translated_summary": "User creates German application documents."}
+        )
+
+    monkeypatch.setattr(
+        "backend.apps.ai.processing.preprocessor.call_preprocessing_llm",
+        fake_call_preprocessing_llm,
+    )
+
+    result = await translate_chat_summary(
+        task_id="test-summary-translate",
+        summary="Nutzer erstellt deutsche Bewerbungsunterlagen.",
+        target_language="en",
+        secrets_manager=None,
+    )
+
+    assert result == "User creates German application documents."
+    assert captured["message_history"][0]["role"] == "system"
+    assert "English" in captured["message_history"][0]["content"]
+    assert captured["message_history"][1] == {
+        "role": "user",
+        "content": "Translate this chat summary to English:\n\nNutzer erstellt deutsche Bewerbungsunterlagen.",
+    }

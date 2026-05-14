@@ -17,6 +17,7 @@
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
+  import { authStore } from '../../../stores/authStore';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -423,6 +424,7 @@
   {onClose}
   skillIconName="event"
   showSkillIcon={true}
+  showShare={$authStore.isAuthenticated}
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}
   {hasPreviousEmbed}
@@ -432,12 +434,14 @@
   {mapCenter}
   mapZoom={13}
   {mapMarkers}
-  onCalendar={event.date_start ? handleAddToCalendar : undefined}
+  onCalendar={$authStore.isAuthenticated && event.date_start ? handleAddToCalendar : undefined}
   currentEmbedId={embedId}
 >
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
-      <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedEvent} testId="save-embed-cta" />
+      {#if $authStore.isAuthenticated}
+        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedEvent} testId="save-embed-cta" />
+      {/if}
       {#if event.url && openButtonText}
         <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} testId="external-provider-cta" />
       {/if}
@@ -516,8 +520,9 @@
 <style>
   .event-image {
     width: 100%;
-    height: 190px;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
+    display: block;
     border-radius: var(--radius-5);
   }
 
@@ -538,7 +543,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--color-app-events-start, #a20000);
-    color: var(--color-grey-0); /* intentional: always white on brand colour */
+    color: #fff; /* intentional: always white on brand colour */
   }
 
   .event-type-badge.online {

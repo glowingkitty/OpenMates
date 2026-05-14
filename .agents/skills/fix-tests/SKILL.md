@@ -1,5 +1,5 @@
 ---
-name: openmates:fix-tests
+name: fix-tests
 description: Read latest test failures and fix them — reads daily run results, categorizes failures by root cause, and fixes each group
 user-invocable: true
 argument-hint: "[--rerun] [spec-name]"

@@ -15,6 +15,8 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingAppId: String?
     @Published var pendingPairToken: String?
     @Published var pendingInspirationId: String?
+    @Published var pendingNewChat = false
+    @Published var pendingSearch = false
 
     func handle(url: URL) {
         if url.scheme == "openmates" {
@@ -28,6 +30,10 @@ final class DeepLinkHandler: ObservableObject {
         guard let host = url.host else { return }
 
         switch host {
+        case "new-chat", "newchat":
+            pendingNewChat = true
+        case "search":
+            pendingSearch = true
         case "chat":
             pendingChatId = url.pathComponents.last
         case "share":
@@ -68,6 +74,10 @@ final class DeepLinkHandler: ObservableObject {
             pendingShareChatId = String(path.dropFirst("/share/chat/".count))
         } else if path.hasPrefix("/share/embed/") {
             // Embed share - open in browser for now
+        } else if path == "/new-chat" || path == "/newchat" {
+            pendingNewChat = true
+        } else if path == "/search" {
+            pendingSearch = true
         } else if path.hasPrefix("/pair") {
             // /pair?code=TOKEN or /pair/TOKEN
             if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -103,5 +113,7 @@ final class DeepLinkHandler: ObservableObject {
         pendingAppId = nil
         pendingPairToken = nil
         pendingInspirationId = nil
+        pendingNewChat = false
+        pendingSearch = false
     }
 }

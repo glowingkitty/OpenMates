@@ -18,7 +18,6 @@ struct EmbedPreviewCard: View {
         static let expandedInfoBarOffset: CGFloat = 15
         static let expandedBottomOutset: CGFloat = 30
         static let cornerRadius: CGFloat = 30
-        static let faviconSize: CGFloat = 20
     }
 
     let embed: EmbedRecord
@@ -141,7 +140,7 @@ struct EmbedPreviewCard: View {
     // MARK: - Content area
 
     private var contentArea: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             Color.grey25
 
             if embed.status == .processing {
@@ -151,8 +150,14 @@ struct EmbedPreviewCard: View {
             } else if embed.status == .cancelled {
                 cancelledView
             } else {
-                EmbedContentView(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords)
+                EmbedContentView(
+                    embed: embed,
+                    mode: .preview,
+                    allEmbedRecords: allEmbedRecords,
+                    previewVariant: variant
+                )
                     .padding(.horizontal, hasFullWidthDetails ? 0 : .spacing20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -192,48 +197,14 @@ struct EmbedPreviewCard: View {
     // MARK: - Status bar (mirrors BasicInfosBar.svelte)
 
     private var statusBar: some View {
-        HStack(spacing: .spacing5) {
-            AppIconView(appId: appId, size: 61)
-                .accessibilityHidden(true)
-
-            if let faviconURL, let url = URL(string: faviconURL) {
-                CachedRemoteImage(url: url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: { Color.clear }
-                .frame(width: Constants.faviconSize, height: Constants.faviconSize)
-                .clipShape(RoundedRectangle(cornerRadius: .radius1))
-                .accessibilityHidden(true)
-            } else if showsSkillIcon {
-                Icon(skillIconName, size: 29)
-                    .foregroundStyle(Color.grey70)
-                    .accessibilityHidden(true)
-            }
-
-            VStack(alignment: .leading, spacing: 0) {
-                Text(statusTitle)
-                    .font(.omP)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey100)
-                    .lineLimit(statusSubtitle == nil ? 2 : 1)
-
-                if let statusSubtitle {
-                    Text(statusSubtitle)
-                        .font(.omP)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Color.grey70)
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .frame(height: 61)
-        .padding(.trailing, .spacing5)
-        .background(Color.grey30)
-        .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
+        EmbedBasicInfoBar(
+            appId: appId,
+            skillIconName: skillIconName,
+            title: statusTitle,
+            subtitle: statusSubtitle,
+            faviconURL: faviconURL,
+            showSkillIcon: showsSkillIcon
+        )
     }
 
     private var appId: String {
@@ -262,7 +233,12 @@ struct EmbedPreviewCard: View {
     }
 
     private var showsSkillIcon: Bool {
-        if embedType == .codeCode || embedType == .webWebsite || embedType == .videosVideo || embedType == .imagesImageResult {
+        if embedType == .codeCode
+            || embedType == .webWebsite
+            || embedType == .videosVideo
+            || embedType == .imagesImageResult
+            || embedType == .eventsEvent
+            || embedType == .travelConnection {
             return false
         }
         return true
@@ -272,9 +248,10 @@ struct EmbedPreviewCard: View {
         if embedType == .webWebsite {
             return websiteUsesFullWidthImage
         }
-        return embedType == .image
+        return embedType == .codeCode
+            || embedType == .image
             || embedType == .imagesImageResult
-            || embedType?.isComposite == true
+            || embedType == .imagesSearch
             || (embed.isAppSkillUse && appId == "images")
     }
 
@@ -286,6 +263,22 @@ struct EmbedPreviewCard: View {
         }
         if embedType == .imagesImageResult {
             return sourceDomain ?? embedType?.displayName ?? embed.type
+        }
+        if embedType == .eventsEvent {
+            return firstString(in: embed.rawData ?? [:], keys: ["title", "name"])
+                ?? embedType?.displayName
+                ?? embed.type
+        }
+        if embedType == .travelConnection {
+            let raw = embed.rawData ?? [:]
+            let origin = firstString(in: raw, keys: ["origin_code", "departure_airport_code", "from_code", "origin"])
+            let destination = firstString(in: raw, keys: ["destination_code", "arrival_airport_code", "to_code", "destination"])
+            if let origin, let destination {
+                return "\(origin) → \(destination)"
+            }
+            return firstString(in: raw, keys: ["title", "route"])
+                ?? embedType?.displayName
+                ?? embed.type
         }
         if embed.isAppSkillUse {
             return skillDisplayName
@@ -322,13 +315,17 @@ struct EmbedPreviewCard: View {
             return language.isEmpty ? nil : formatLanguageName(language)
         }
         if let provider = embed.rawData?["provider"]?.value as? String, !provider.isEmpty {
-            return "via \(provider)"
+            return "\(AppStrings.via) \(provider)"
         }
         return nil
     }
 
     private var faviconURL: String? {
-        firstString(in: embed.rawData ?? [:], keys: ["favicon_url", "favicon", "meta_url_favicon"])
+        let raw = embed.rawData ?? [:]
+        return EmbedFieldReader.proxiedImageURL(
+            firstString(in: raw, keys: ["favicon_url", "favicon", "meta_url_favicon"]),
+            maxWidth: 64
+        ) ?? EmbedFieldReader.proxiedFaviconURL(pageURL: firstString(in: raw, keys: ["source_page_url", "url"]))
     }
 
     private var websiteUsesFullWidthImage: Bool {
@@ -350,8 +347,10 @@ struct EmbedPreviewCard: View {
         let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? "web"
         let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? "search"
         switch (appId, skillId) {
-        case ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
+        case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
             return LocalizationManager.shared.text("common.search")
+        case ("travel", "search_connections"):
+            return "Search connections"
         case ("code", "get_docs"):
             return LocalizationManager.shared.text("common.docs")
         default:

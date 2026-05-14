@@ -10,6 +10,7 @@ import zoneinfo
 import os
 import copy
 import hashlib
+import time
 from toon_format import encode
 
 # Import Pydantic models for type hinting
@@ -54,6 +55,12 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 logger = logging.getLogger(__name__)
 
+FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
+    "The user has turned off follow-up suggestions. Answer the request directly and avoid ending "
+    "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
+    "unless clarification is necessary to answer safely and correctly."
+)
+
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
 
@@ -69,6 +76,12 @@ SOFT_LIMIT_SKILL_CALLS = 3
 # Force the LLM to answer with gathered information by setting tool_choice="none".
 # Maximum of 5 request attempts per assistant message to prevent excessive research loops.
 HARD_LIMIT_SKILL_CALLS = 5
+
+ASYNC_SKILL_INLINE_WAIT_SECONDS = 10.0
+ASYNC_SKILL_INLINE_WAIT_SKILLS = {
+    ("social_media", "search"),
+    ("social_media", "get-posts"),
+}
 
 
 # Characters LLM providers use instead of the canonical hyphen in tool names.
@@ -104,6 +117,33 @@ def _canonicalize_tool_name(name: str) -> str:
     for sep in _TOOL_NAME_SEPARATORS:
         out = out.replace(sep, "-")
     return out
+
+
+def _build_async_skill_pending_tool_result(
+    *,
+    async_result: Dict[str, Any],
+    async_task_ids: List[str],
+    app_id: str,
+    skill_id: str,
+    inline_wait_seconds: float,
+) -> Dict[str, Any]:
+    """Build the LLM-visible result when an async skill is still running."""
+    result: Dict[str, Any] = {
+        "status": "processing",
+        "app_id": app_id,
+        "skill_id": skill_id,
+        "message": (
+            f"The requested skill is still processing after waiting {inline_wait_seconds:.0f} seconds. "
+            "Tell the user it is still running and will update the chat when ready."
+        ),
+    }
+    if async_result.get("embed_id"):
+        result["embed_id"] = async_result.get("embed_id")
+    if async_result.get("task_id"):
+        result["task_id"] = async_result.get("task_id")
+    if async_task_ids:
+        result["task_ids"] = async_task_ids
+    return result
 
 
 def _hash_skill_arguments(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> str:
@@ -1528,6 +1568,10 @@ async def handle_main_processing(
     if active_focus_prompt_text:
         prompt_parts.insert(0, f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---")
 
+    follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
+    if not follow_up_suggestions_enabled:
+        prompt_parts.append(FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION)
+
     # Enforce response language based on the preprocessor's detected output_language.
     # Appended last so it sits at the end of the system prompt where LLMs give it high
     # attention — this overrides any language the mate persona or instructions might imply.
@@ -2047,12 +2091,21 @@ async def handle_main_processing(
         # Inject budget warning if we've exceeded the soft limit
         iteration_system_prompt = full_system_prompt
         if budget_warning_injected:
+            if follow_up_suggestions_enabled:
+                budget_guidance = (
+                    "If you need more information to fully answer the user's question, suggest specific follow-up questions "
+                    "the user could ask, rather than making additional research calls.\n"
+                )
+            else:
+                budget_guidance = (
+                    "If you need more information to fully answer the user's question, state the limitation briefly "
+                    "without adding optional follow-up questions or suggested next prompts.\n"
+                )
             budget_warning = (
                 "\n\n--- IMPORTANT: Research Budget Limit ---\n"
                 "You have used most of your available research calls for this response. "
                 "Please provide the best possible answer using the information you have already gathered. "
-                "If you need more information to fully answer the user's question, suggest specific follow-up questions "
-                "the user could ask, rather than making additional research calls.\n"
+                f"{budget_guidance}"
                 "--- End Research Budget Warning ---\n"
             )
             iteration_system_prompt = full_system_prompt + budget_warning
@@ -3550,15 +3603,78 @@ async def handle_main_processing(
                         )
                 
                 if is_async_skill:
-                    # For async skills, provide a clean tool result for the LLM.
-                    # IMPORTANT: Only include a human-readable message - do NOT include
-                    # embed_id, task_id, or other technical fields that the LLM might
-                    # echo back as raw JSON in its response to the user.
+                    # For async skills, either pass completed results after a short inline
+                    # wait or preserve task identifiers so API/chat consumers can track it.
                     async_result = results[0]
-                    tool_result_content_str = json.dumps({
-                        "status": "success",
-                        "message": "The image is now being generated and will appear in the chat automatically when ready. Briefly acknowledge this to the user."
-                    })
+                    async_task_ids = []
+                    if async_result.get("task_id"):
+                        async_task_ids.append(async_result.get("task_id"))
+                    async_task_ids.extend(async_result.get("task_ids") or [])
+                    should_wait_inline = (app_id, skill_id) in ASYNC_SKILL_INLINE_WAIT_SKILLS
+                    inline_wait_deadline = time.time() + ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else None
+                    try:
+                        from backend.apps.ai.tasks.async_skill_continuation import (
+                            cache_async_skill_continuation_context,
+                            wait_for_async_skill_completion,
+                        )
+
+                        for async_task_id in async_task_ids:
+                            await cache_async_skill_continuation_context(
+                                cache_service=cache_service,
+                                async_task_id=async_task_id,
+                                request_data=request_data,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                tool_name=tool_name,
+                                tool_arguments=parsed_args if isinstance(parsed_args, dict) else {},
+                                inline_wait_deadline=inline_wait_deadline,
+                            )
+                        if async_task_ids:
+                            logger.info(
+                                f"{log_prefix} Cached async skill continuation context for "
+                                f"{len(async_task_ids)} task(s) from '{app_id}.{skill_id}'"
+                            )
+                        inline_completion = None
+                        if should_wait_inline and async_task_ids:
+                            logger.info(
+                                f"{log_prefix} Waiting up to {ASYNC_SKILL_INLINE_WAIT_SECONDS:.0f}s for "
+                                f"async skill '{app_id}.{skill_id}' to finish inline"
+                            )
+                            inline_completion = await wait_for_async_skill_completion(
+                                cache_service=cache_service,
+                                async_task_ids=async_task_ids,
+                                timeout_seconds=ASYNC_SKILL_INLINE_WAIT_SECONDS,
+                            )
+                        if inline_completion:
+                            tool_result_content_str = encode(inline_completion)
+                            logger.info(
+                                f"{log_prefix} Async skill '{app_id}.{skill_id}' finished during inline wait; "
+                                "passing completed results to LLM"
+                            )
+                        else:
+                            tool_result_content_str = json.dumps(
+                                _build_async_skill_pending_tool_result(
+                                    async_result=async_result,
+                                    async_task_ids=async_task_ids,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    inline_wait_seconds=ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else 0,
+                                )
+                            )
+                    except Exception as continuation_cache_error:
+                        logger.error(
+                            f"{log_prefix} Failed to cache async skill continuation context: {continuation_cache_error}",
+                            exc_info=True,
+                        )
+                        tool_result_content_str = json.dumps(
+                            _build_async_skill_pending_tool_result(
+                                async_result=async_result,
+                                async_task_ids=async_task_ids,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                inline_wait_seconds=ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else 0,
+                            )
+                        )
                     
                     # Publish "finished" skill status (the embed itself stays "processing")
                     # This tells the frontend that the skill call completed (dispatched successfully)

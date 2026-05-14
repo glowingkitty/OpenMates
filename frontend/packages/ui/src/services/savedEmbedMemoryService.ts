@@ -12,6 +12,7 @@ import { getApiUrl } from '../config/api';
 import { notificationStore } from '../stores/notificationStore';
 import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
 import { userProfile } from '../stores/userProfile';
+import { authStore } from '../stores/authStore';
 
 export type SavedEmbedKind =
   | 'event'
@@ -37,6 +38,13 @@ export interface SavedEmbedConfig {
   reminderPromptTitle?: string;
 }
 
+interface BuildSavedEmbedConfigOptions {
+  appId: string | null;
+  skillId: string | null;
+  embedId: string;
+  decodedContent: Record<string, unknown>;
+}
+
 interface SavedMemoryEntry {
   id: string;
   item_key: string;
@@ -58,6 +66,216 @@ const DEFAULT_OFFSETS_MINUTES: Record<SavedEmbedKind, number[]> = {
 
 function getTimezone(): string {
   return get(userProfile).timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function formatAppointmentSlot(iso: string | undefined): string {
+  if (!iso) return '';
+  try {
+    const dt = new Date(iso);
+    return dt.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
+      + ' | '
+      + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return iso;
+  }
+}
+
+function getSlotDate(iso: string | undefined): string {
+  if (!iso) return '';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso.split('T')[0] || iso;
+  return parsed.toISOString().split('T')[0];
+}
+
+function parseEventVenue(content: Record<string, unknown>): string {
+  const venue = content.venue;
+  if (venue && typeof venue === 'object') {
+    const v = venue as Record<string, unknown>;
+    return [v.name, v.address, v.city, v.state, v.country]
+      .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+      .join('\n');
+  }
+
+  return [content.venue_name, content.venue_address, content.venue_city, content.venue_state, content.venue_country]
+    .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+    .join('\n');
+}
+
+function getEventProviderLabel(provider: string | undefined): string {
+  switch (provider?.toLowerCase()) {
+    case 'meetup': return 'Meetup';
+    case 'luma': return 'Luma';
+    case 'eventbrite': return 'Eventbrite';
+    case 'classictic': return 'Classictic';
+    case 'berlin_philharmonic': return 'Berlin Philharmonic';
+    case 'bachtrack': return 'Bachtrack';
+    default: return provider || '';
+  }
+}
+
+export function buildSavedEmbedConfigFromDecodedContent({
+  appId,
+  skillId,
+  embedId,
+  decodedContent,
+}: BuildSavedEmbedConfigOptions): SavedEmbedConfig | null {
+  if (!embedId) return null;
+
+  if (appId === 'events' && skillId === 'event') {
+    const title = asString(decodedContent.title) || 'Event';
+    const provider = asString(decodedContent.provider);
+    const eventType = asString(decodedContent.event_type);
+    const venueAddress = parseEventVenue(decodedContent);
+    return {
+      kind: 'event',
+      appId: 'events',
+      itemType: 'saved_events',
+      itemKey: `saved_events.${asString(decodedContent.id) || asString(decodedContent.url) || title}`,
+      title,
+      reminderDateTime: asString(decodedContent.date_start) || null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId,
+        title,
+        provider: getEventProviderLabel(provider) || provider || '',
+        url: asString(decodedContent.url) || '',
+        date_start: asString(decodedContent.date_start) || '',
+        date_end: asString(decodedContent.date_end) || '',
+        location: eventType === 'ONLINE' ? 'Online event' : venueAddress,
+        notes: '',
+      },
+    };
+  }
+
+  if (appId === 'home' && skillId === 'listing') {
+    const title = asString(decodedContent.title) || 'Listing';
+    const url = asString(decodedContent.url) || '';
+    const size = asNumber(decodedContent.size_sqm);
+    const rooms = asNumber(decodedContent.rooms);
+    const notes = [
+      size ? `${size} m\u00B2` : '',
+      rooms ? `${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : '',
+      asString(decodedContent.listing_type),
+    ].filter(Boolean).join(' | ');
+    return {
+      kind: 'home_listing',
+      appId: 'home',
+      itemType: 'saved_listings',
+      itemKey: `saved_listings.${url || title}`,
+      title,
+      reminderDateTime: asString(decodedContent.available_from) || null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId,
+        title,
+        url,
+        provider: asString(decodedContent.provider) || '',
+        price_label: asString(decodedContent.price_label) || '',
+        address: asString(decodedContent.address) || '',
+        available_from: asString(decodedContent.available_from) || '',
+        notes,
+      },
+    };
+  }
+
+  if (appId === 'travel' && (skillId === 'stay' || skillId === 'search_stays')) {
+    const title = asString(decodedContent.name) || 'Stay';
+    const url = asString(decodedContent.link) || '';
+    const currency = asString(decodedContent.currency) || 'EUR';
+    const totalPrice = asNumber(decodedContent.extracted_total_rate);
+    const nightPrice = asNumber(decodedContent.extracted_rate_per_night);
+    const nearbyPlaces = Array.isArray(decodedContent.nearby_places) ? decodedContent.nearby_places : [];
+    const amenities = Array.isArray(decodedContent.amenities) ? decodedContent.amenities : [];
+    return {
+      kind: 'travel_stay',
+      appId: 'travel',
+      itemType: 'saved_stays',
+      itemKey: `saved_stays.${asString(decodedContent.hash) || url || title}`,
+      title,
+      reminderDateTime: null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId,
+        name: title,
+        property_type: asString(decodedContent.property_type) || '',
+        url,
+        price: totalPrice != null ? `${currency} ${Math.round(totalPrice)}` : (nightPrice != null ? `${currency} ${Math.round(nightPrice)}/night` : ''),
+        rating: asNumber(decodedContent.overall_rating),
+        location: nearbyPlaces
+          .map((place) => place && typeof place === 'object' ? asString((place as Record<string, unknown>).name) : undefined)
+          .filter(Boolean)
+          .join(', '),
+        notes: amenities.filter((item): item is string => typeof item === 'string').slice(0, 8).join(', '),
+      },
+    };
+  }
+
+  if (appId === 'travel' && skillId === 'connection') {
+    const title = asString(decodedContent.route_display) || asString(decodedContent.title) || 'Travel connection';
+    const legs = Array.isArray(decodedContent.legs) ? decodedContent.legs as Array<Record<string, unknown>> : [];
+    const firstLeg = legs[0] || {};
+    const lastLeg = legs.length > 0 ? legs[legs.length - 1] : {};
+    const bookingUrl = asString(decodedContent.booking_url) || '';
+    return {
+      kind: 'travel_connection',
+      appId: 'travel',
+      itemType: 'saved_connections',
+      itemKey: `saved_connections.${asString(decodedContent.hash) || bookingUrl || title}`,
+      title,
+      reminderDateTime: asString(decodedContent.departure) || asString(firstLeg.departure) || null,
+      reminderPromptTitle: title,
+      itemValue: {
+        embed_id: embedId,
+        title,
+        transport_method: asString(decodedContent.transport_method) || '',
+        origin: asString(decodedContent.origin) || asString(firstLeg.origin) || '',
+        destination: asString(decodedContent.destination) || asString(lastLeg.destination) || '',
+        departure: asString(decodedContent.departure) || asString(firstLeg.departure) || '',
+        arrival: asString(decodedContent.arrival) || asString(lastLeg.arrival) || '',
+        booking_url: bookingUrl,
+        provider: asString(decodedContent.booking_provider) || '',
+        notes: [asString(decodedContent.trip_type), asString(decodedContent.price), asString(decodedContent.duration)].filter(Boolean).join(' | '),
+      },
+    };
+  }
+
+  if (appId === 'health' && skillId === 'appointment') {
+    const slot = asString(decodedContent.slot_datetime);
+    const title = asString(decodedContent.name) || asString(decodedContent.speciality) || 'Appointment';
+    const bookingUrl = asString(decodedContent.booking_url) || asString(decodedContent.practice_url) || '';
+    return {
+      kind: 'health_appointment',
+      appId: 'health',
+      itemType: 'appointments',
+      itemKey: `appointments.${bookingUrl || title}.${slot || ''}`,
+      title,
+      reminderDateTime: slot,
+      reminderPromptTitle: `${title}${slot ? ` at ${formatAppointmentSlot(slot)}` : ''}`,
+      itemValue: {
+        embed_id: embedId,
+        title: slot ? formatAppointmentSlot(slot) : title,
+        appointment_type: 'doctor_visit',
+        where: [asString(decodedContent.name), asString(decodedContent.speciality)].filter(Boolean).join(' | '),
+        date: getSlotDate(slot),
+        notes: [asString(decodedContent.address), bookingUrl].filter(Boolean).join('\n'),
+      },
+    };
+  }
+
+  return null;
 }
 
 function getReminderOffsets(kind: SavedEmbedKind): number[] {
@@ -224,6 +442,8 @@ export async function saveEmbedMemory(config: SavedEmbedConfig): Promise<void> {
 }
 
 export function promptToSaveEmbedMemory(config: SavedEmbedConfig): void {
+  if (!get(authStore).isAuthenticated) return;
+
   let notificationId = '';
   notificationId = notificationStore.addNotificationWithOptions('info', {
     title: 'Save this item?',

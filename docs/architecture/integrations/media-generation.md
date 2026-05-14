@@ -16,6 +16,12 @@ key_files:
 
 > System for generating OG images, social graphics, and Instagram content using real app screenshots via device-framed iframes and Playwright capture.
 
+## Design Source Of Truth
+
+All generated media must follow the root [`DESIGN.md`](../../../DESIGN.md). This applies to screenshot templates, social graphics, product videos, and any future Remotion compositions.
+
+Agents working on video or media generation must check `DESIGN.md` before creating visual output and must update it when introducing reusable video, Remotion, social, or print design rules.
+
 ## Why This Exists
 
 Marketing assets (OG images, Instagram posts/stories/carousels) need to show the actual app UI. Instead of hand-maintained mock components that drift from reality, device frames contain iframes that load the real app in media mode (`?media=1`), ensuring screenshots always match the current UI.

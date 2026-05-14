@@ -276,6 +276,17 @@ struct ChatView: View {
         bannerCreatedAt ?? viewModel.chat?.createdDate ?? viewModel.chat?.updatedDate
     }
 
+    private var followUpSuggestionCategory: String? {
+        if case .loaded(_, let appId, _) = effectiveBannerState {
+            return appId
+        }
+        return viewModel.chat?.category ?? viewModel.chat?.appId
+    }
+
+    private var followUpSuggestionIcon: String? {
+        publicChatIconName(for: chatId) ?? viewModel.chat?.icon
+    }
+
     // MARK: - Embed fullscreen helper
 
     private var chatTopBar: some View {
@@ -458,8 +469,8 @@ struct ChatView: View {
                                 if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(
                                         suggestions: viewModel.followUpSuggestions,
-                                        category: viewModel.chat?.category,
-                                        icon: viewModel.chat?.icon
+                                        category: followUpSuggestionCategory,
+                                        icon: followUpSuggestionIcon
                                     ) { suggestion in
                                         messageText = suggestion
                                     }
@@ -1039,6 +1050,23 @@ struct MessageBubble: View {
         return message.content ?? ""
     }
 
+    private var topLevelAppSkillEmbeds: [EmbedRecord] {
+        let directParents = embeds.filter { $0.isAppSkillUse }
+        if !directParents.isEmpty { return directParents }
+
+        return EmbedRecord.deduplicatedById(
+            Array(allEmbedRecords.values),
+            context: "chatView.topLevelAppSkillEmbeds"
+        )
+        .filter { record in
+            record.isAppSkillUse && displayContent.contains(record.id)
+        }
+    }
+
+    private var hiddenInlineEmbedIds: Set<String> {
+        Set(topLevelAppSkillEmbeds.map(\.id))
+    }
+
     // MARK: - Assistant avatar with AI badge
 
     private static let openMatesOfficialChatIds: Set<String> = [
@@ -1177,12 +1205,35 @@ struct MessageBubble: View {
                             .foregroundStyle(LinearGradient.primary)
                             .padding(.bottom, .spacing1)
 
+                        if !topLevelAppSkillEmbeds.isEmpty {
+                            VStack(alignment: .leading, spacing: .spacing3) {
+                                Text("\(topLevelAppSkillEmbeds.count) app skill\(topLevelAppSkillEmbeds.count == 1 ? "" : "s") used:")
+                                    .font(.omXs)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(Color.fontTertiary)
+
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    LazyHStack(spacing: .spacing3) {
+                                        ForEach(Array(topLevelAppSkillEmbeds.reversed())) { embed in
+                                            EmbedPreviewCard(embed: embed, allEmbedRecords: allEmbedRecords) {
+                                                onEmbedTap(embed)
+                                            }
+                                            .frame(width: 300, height: 200)
+                                        }
+                                    }
+                                }
+                                .frame(height: 200)
+                            }
+                            .padding(.bottom, .spacing2)
+                        }
+
                         RichMarkdownView(
                             content: displayContent,
                             isUserMessage: false,
                             onOpenPublicChat: onOpenPublicChat,
                             embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
                             allEmbedRecords: allEmbedRecords,
+                            hiddenEmbedIds: hiddenInlineEmbedIds,
                             onEmbedTap: onEmbedTap
                         )
                     }

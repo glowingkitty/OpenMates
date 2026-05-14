@@ -1,5 +1,5 @@
 ---
-name: openmates:daily-meeting
+name: daily-meeting
 description: Run the daily standup meeting — review yesterday, assess health, set priorities
 user-invocable: true
 argument-hint: "[dry-run]"
@@ -11,7 +11,7 @@ You are running the OpenMates daily standup meeting. This is a **step-by-step co
 
 ### Step 1: Gather Data (Inline)
 
-Gather all data sources directly using Bash and Read tools. Do NOT call `_daily_meeting_helper.py run-meeting` — that launches a separate Codex session.
+Gather all data sources directly using Bash and Read tools. Do NOT call `_daily_meeting_helper.py run-meeting` — that launches a separate Claude session.
 
 **Error handling:** If any source fails, record `[DATA UNAVAILABLE: <source> — <error>]` and continue. Never abort the meeting due to a single data source failure.
 

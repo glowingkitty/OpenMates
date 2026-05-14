@@ -1,0 +1,40 @@
+{
+  "fixture_id": "follow_up_suggestions_disabled",
+  "recorded_at": "2026-05-12T21:55:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Explain why Saturn has rings",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Saturn's Rings",
+    "icon_names": ["planet"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked why Saturn has rings",
+    "chat_tags": ["space", "science"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Saturn's Rings"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "- Saturn's rings are mostly made of ice particles, rocky debris, and dust orbiting the planet.\n- The material likely came from shattered moons, comet impacts, or leftover debris captured by Saturn's strong gravity.\n- The rings remain spread out because Saturn's gravity and nearby moons constantly shape the particles into thin, bright bands.",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 58,
+    "completion_tokens": 68,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}

@@ -1419,6 +1419,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             if default_model_complex:
                 user_preferences_dict["default_ai_model_complex"] = default_model_complex
                 logger.debug(f"Including default complex model '{default_model_complex}' in AI request for user {user_id}")
+            follow_up_suggestions_enabled = user_data_for_prefs.get("follow_up_suggestions_enabled")
+            user_preferences_dict["follow_up_suggestions_enabled"] = (
+                True if follow_up_suggestions_enabled is None else bool(follow_up_suggestions_enabled)
+            )
+            logger.debug(
+                f"Including follow_up_suggestions_enabled={user_preferences_dict['follow_up_suggestions_enabled']} "
+                f"in AI request for user {user_id}"
+            )
         
         mentioned_settings_memories_cleartext = message_payload_from_client.get("mentioned_settings_memories_cleartext")
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):

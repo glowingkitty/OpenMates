@@ -58,3 +58,80 @@ def test_get_child_embed_type_uses_code_search_repos_fallback_when_cache_empty()
     ))
 
     assert child_type == "repo"
+
+
+def test_web_search_github_repo_result_uses_repo_child_type():
+    child_type = EmbedService._get_per_result_child_type(
+        "website",
+        {"url": "https://github.com/openmates/example"},
+        "web",
+        "search",
+    )
+
+    assert child_type == "repo"
+
+
+def test_non_repo_github_url_stays_website_child_type():
+    child_type = EmbedService._get_per_result_child_type(
+        "website",
+        {"url": "https://github.com/openmates/example/issues"},
+        "web",
+        "search",
+    )
+
+    assert child_type == "website"
+
+
+def test_repo_enrichment_preserves_web_search_snippets(monkeypatch):
+    async def fake_build_github_repo_embed(url):
+        assert url == "https://github.com/openmates/example"
+        return {
+            "url": "https://github.com/openmates/example",
+            "full_name": "openmates/example",
+            "name": "example",
+            "description": "Repository API description",
+            "license_spdx_id": "MIT",
+            "stars": 42,
+        }
+
+    monkeypatch.setattr(
+        "backend.core.api.app.services.embed_service.build_github_repo_embed",
+        fake_build_github_repo_embed,
+    )
+
+    child_type, enriched = _run(EmbedService._enrich_repo_result_if_needed(
+        "repo",
+        {
+            "url": "https://github.com/openmates/example",
+            "title": "OpenMates example on GitHub",
+            "description": "Web search snippet description",
+            "extra_snippets": ["First snippet", "Second snippet"],
+            "page_age": "2 weeks ago",
+        },
+    ))
+
+    assert child_type == "repo"
+    assert enriched["full_name"] == "openmates/example"
+    assert enriched["description"] == "Repository API description"
+    assert enriched["web_search_title"] == "OpenMates example on GitHub"
+    assert enriched["web_search_description"] == "Web search snippet description"
+    assert enriched["web_search_extra_snippets"] == ["First snippet", "Second snippet"]
+    assert enriched["web_search_page_age"] == "2 weeks ago"
+
+
+def test_repo_enrichment_falls_back_to_website_when_github_metadata_missing(monkeypatch):
+    async def fake_build_github_repo_embed(_url):
+        return None
+
+    monkeypatch.setattr(
+        "backend.core.api.app.services.embed_service.build_github_repo_embed",
+        fake_build_github_repo_embed,
+    )
+
+    child_type, enriched = _run(EmbedService._enrich_repo_result_if_needed(
+        "repo",
+        {"url": "https://github.com/openmates/example", "description": "Search snippet"},
+    ))
+
+    assert child_type == "website"
+    assert enriched == {"url": "https://github.com/openmates/example", "description": "Search snippet"}

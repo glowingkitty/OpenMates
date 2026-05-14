@@ -39,6 +39,7 @@
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
 	import { copyToClipboard } from '../../utils/clipboardUtils';
+	import { OPENMATES_EVENTS, type OpenMatesEvent } from '../../data/openmatesEvents';
 
 	// --- Category circle imports (used by the sticky active-chat pin) ---
 	import { getCategoryGradientColors, getFallbackIconForCategory, getLucideIcon } from '../../utils/categoryUtils';
@@ -231,6 +232,17 @@ let _chatUpdatedFlushPending = false;
 	});
 
 	// --- Reactive Computations for Display ---
+
+	function hasEventEnded(event: OpenMatesEvent): boolean {
+		const endDate = new Date(event.date_end || event.date_start);
+		if (Number.isNaN(endDate.getTime())) {
+			console.warn('[Chats] Event has invalid date and will be hidden from sidebar:', event.id);
+			return true;
+		}
+		return endDate.getTime() < Date.now();
+	}
+
+	let visibleOpenMatesEvents = $derived(OPENMATES_EVENTS.filter(event => !hasEventEnded(event)));
 
 	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
 	// 
@@ -2706,13 +2718,59 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 	}
 }
 
- /** Handles keydown events on chat items for accessibility (Enter/Space to select). */
+	/** Handles keydown events on chat items for accessibility (Enter/Space to select). */
     function handleKeyDown(event: KeyboardEvent, chat: ChatType) {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             handleChatClick(chat);
         }
     }
+
+	function formatEventListMeta(event: OpenMatesEvent): string {
+		const start = new Date(event.date_start);
+		const date = Number.isNaN(start.getTime())
+			? ''
+			: start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+		const time = Number.isNaN(start.getTime())
+			? ''
+			: start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+		return [date, time, event.venue.city].filter(Boolean).join(' · ');
+	}
+
+	function openEventEmbed(event: OpenMatesEvent): void {
+		phasedSyncState.markUserMadeExplicitChoice();
+		document.dispatchEvent(new CustomEvent('embedfullscreen', {
+			bubbles: true,
+			cancelable: true,
+			detail: {
+				embedId: event.embed_id,
+				embedType: 'events-event',
+				hasChatContext: false,
+				attrs: {
+					type: 'events-event',
+					contentRef: `embed:${event.embed_id}`,
+					status: 'finished',
+				},
+				embedData: {
+					embed_id: event.embed_id,
+					type: 'events-event',
+					status: 'finished',
+				},
+				decodedContent: event,
+			},
+		}));
+
+		if (window.innerWidth < 730) {
+			handleClose();
+		}
+	}
+
+	function handleEventKeyDown(keyboardEvent: KeyboardEvent, event: OpenMatesEvent): void {
+		if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+			keyboardEvent.preventDefault();
+			openEventEmbed(event);
+		}
+	}
 
     /**
      * Handle chat item click with keyboard modifier support
@@ -3931,8 +3989,39 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					</div>
 				{/if}
 				
-				<!-- 4. Other static chat groups (shared_by_others, intro, examples, legal) -->
-				{#each orderedStaticChatGroups.filter(([k]) => k !== 'incognito') as [groupKey, groupItems] (groupKey)}
+				<!-- 4. Static chat groups that appear before Events -->
+				{#each orderedStaticChatGroups.filter(([k]) => ['shared_by_others', 'intro'].includes(k)) as [groupKey, groupItems] (groupKey)}
+					{@render chatGroupSnippet(groupKey, groupItems)}
+				{/each}
+
+				<!-- 5. Events are hardcoded embeds, not chats. They open the event fullscreen directly. -->
+				{#if visibleOpenMatesEvents.length > 0}
+					<div class="chat-group events-group" data-testid="events-group">
+						<h2 class="group-title" data-testid="group-title">Events</h2>
+						{#each visibleOpenMatesEvents as event (event.embed_id)}
+							<button
+								type="button"
+								class="event-list-item"
+								data-testid="event-list-item"
+								onclick={() => openEventEmbed(event)}
+								onkeydown={(keyboardEvent) => handleEventKeyDown(keyboardEvent, event)}
+								aria-label={`Open event: ${event.title}`}
+							>
+								<span class="event-list-date" aria-hidden="true">
+									<span>{new Date(event.date_start).toLocaleDateString(undefined, { month: 'short' })}</span>
+									<strong>{new Date(event.date_start).getDate()}</strong>
+								</span>
+								<span class="event-list-body">
+									<span class="event-list-title">{event.title}</span>
+									<span class="event-list-meta">{formatEventListMeta(event)}</span>
+								</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- 6. Static chat groups that appear after Events -->
+				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'announcements', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
 				{/each}
 			</div>
@@ -4224,6 +4313,88 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
     .chat-item.incognito.active {
         background-color: var(--color-grey-35);
+    }
+
+    .events-group {
+        gap: var(--spacing-2);
+    }
+
+    .event-list-item {
+        all: unset;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-6);
+        box-sizing: border-box;
+        width: 100%;
+        padding: var(--spacing-5) 15px;
+        border-radius: var(--radius-3);
+        cursor: pointer;
+        transition: background-color var(--duration-fast) var(--easing-default);
+    }
+
+    @media (hover: hover) {
+        .event-list-item:hover {
+            background-color: var(--color-grey-25);
+        }
+    }
+
+    .event-list-item:focus-visible {
+        outline: 2px solid var(--color-primary-focus);
+        outline-offset: 2px;
+        background-color: var(--color-grey-25);
+    }
+
+    .event-list-date {
+        flex: 0 0 42px;
+        height: 42px;
+        border-radius: var(--radius-3);
+        background: linear-gradient(135deg, var(--color-app-events-start, #a20000), var(--color-app-events-end, #ff6b3d));
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .event-list-date span {
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #fff;
+    }
+
+    .event-list-date strong {
+        font-size: 1.15rem;
+        font-weight: 800;
+        margin-top: 2px;
+        color: #fff;
+    }
+
+    .event-list-body {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .event-list-title {
+        color: var(--color-text-primary);
+        font-size: 0.95rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .event-list-meta {
+        color: var(--color-grey-60);
+        font-size: 0.8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     /* Improve focus visibility */

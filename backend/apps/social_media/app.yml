@@ -1,10 +1,260 @@
 name_translation_key: social_media
 description_translation_key: social_media.description
 icon_image: |
-  social_media.svg
+  socialmedia.svg
 category: work
-last_updated: '2025-11-17'
+last_updated: "2026-05-12"
 
+embed_types:
+  - id: get-posts
+    category: app-skill-use
+    skill_id: get-posts
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: social_post
+    child_frontend_type: social-media-post
+    groupable: true
+    preview_component: social_media/SocialMediaGetPostsEmbedPreview.svelte
+    fullscreen_component: social_media/SocialMediaGetPostsEmbedFullscreen.svelte
+    child_preview_component: social_media/SocialMediaPostEmbedPreview.svelte
+    child_fullscreen_component: social_media/SocialMediaPostEmbedFullscreen.svelte
+    icon: socialmedia
+    gradient_var: "--color-app-socialmedia"
+    i18n_namespace: embeds.social_media.get_posts
+    content_fields:
+      - name: query
+        type: string
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+        required: true
+      - name: embed_ids
+        type: string
+        description: "Pipe-delimited child embed IDs (TOON tabular format)"
+    child_content_fields:
+      - name: platform
+        type: string
+        required: true
+      - name: page
+        type: string
+      - name: title
+        type: string
+        required: true
+      - name: body
+        type: string
+      - name: author
+        type: string
+      - name: url
+        type: string
+        required: true
+      - name: published_at
+        type: string
+      - name: like_count
+        type: number
+      - name: reply_count
+        type: number
+      - name: repost_count
+        type: number
+      - name: comments
+        type: array
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: social_post
+    child_frontend_type: social-media-post
+    groupable: true
+    preview_component: social_media/SocialMediaSearchEmbedPreview.svelte
+    fullscreen_component: social_media/SocialMediaSearchEmbedFullscreen.svelte
+    child_preview_component: social_media/SocialMediaPostEmbedPreview.svelte
+    child_fullscreen_component: social_media/SocialMediaPostEmbedFullscreen.svelte
+    icon: socialmedia
+    gradient_var: "--color-app-socialmedia"
+    i18n_namespace: embeds.social_media.search
+    content_fields:
+      - name: query
+        type: string
+        required: true
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+        required: true
+      - name: embed_ids
+        type: string
+        description: "Pipe-delimited child embed IDs (TOON tabular format)"
+    child_content_fields:
+      - name: platform
+        type: string
+        required: true
+      - name: page
+        type: string
+      - name: title
+        type: string
+        required: true
+      - name: body
+        type: string
+      - name: author
+        type: string
+      - name: url
+        type: string
+        required: true
+      - name: published_at
+        type: string
+      - name: like_count
+        type: number
+      - name: reply_count
+        type: number
+      - name: repost_count
+        type: number
+      - name: comments
+        type: array
+
+skills:
+  - id: get-posts
+    name_translation_key: app_skills.social_media.get_posts
+    description_translation_key: app_skills.social_media.get_posts.description
+    icon_image: socialmedia.svg
+    preprocessor_hint: >
+      Fetch recent social media posts from one or more specific platform pages
+      or profiles. Supports Reddit subreddits through RSS feeds and Bluesky public
+      AppView profile feeds. Use for profile monitoring, community research, and
+      finding conversations to review manually. Costs 10 credits per request.
+    stage: production
+    pricing:
+      per_unit:
+        credits: 10
+        unit_name: request
+    providers:
+      - name: Reddit RSS
+        no_api_key: true
+      - name: Bluesky Public AppView
+        no_api_key: true
+    class_path: backend.apps.social_media.skills.get_posts.GetPostsSkill
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of social post fetch requests. For Reddit, page is the subreddit
+            name without r/ (for example: privacy, selfhosted, buildinpublic).
+            For Bluesky profile posts, page is the actor handle.
+          items:
+            type: object
+            properties:
+              id:
+                description: Optional caller-supplied ID for correlating responses.
+              platform:
+                type: string
+                description: Social platform to fetch from.
+                enum:
+                  - bluesky
+                  - reddit
+                default: reddit
+              page:
+                type: string
+                description: Platform page/profile identifier. For Reddit, this is the subreddit name. For Bluesky, this is an actor handle for profile feeds.
+              sort:
+                type: string
+                description: Post listing sort. Reddit supports new/hot/rising/top. Bluesky profile feeds ignore this value.
+                enum:
+                  - new
+                  - hot
+                  - rising
+                  - top
+                default: new
+              limit:
+                type: integer
+                description: Number of posts to fetch per page.
+                minimum: 1
+                maximum: 25
+                default: 10
+              include_comments:
+                type: boolean
+                description: Whether to fetch comments for returned posts.
+                default: true
+              comments_limit:
+                type: integer
+                description: Number of comments to fetch per post.
+                minimum: 0
+                maximum: 25
+                default: 5
+      required:
+        - requests
+  - id: search
+    name_translation_key: app_skills.social_media.search
+    description_translation_key: app_skills.social_media.search.description
+    icon_image: socialmedia.svg
+    preprocessor_hint: >
+      Search supported social platforms for recent public posts around a topic.
+      Use this for topic monitoring and broad discovery across pages/profiles,
+      not for monitoring a known profile; use Get posts for profile/page posts.
+      Omit platform to search every supported provider. Bluesky search may use
+      Vault credentials from kv/data/providers/bluesky; Reddit search uses the
+      provider-managed Webshare proxy when available. Costs 10 credits per request.
+    stage: production
+    pricing:
+      per_unit:
+        credits: 10
+        unit_name: request
+    providers:
+      - name: Bluesky Public AppView
+        no_api_key: true
+      - name: Reddit RSS
+        no_api_key: true
+    class_path: backend.apps.social_media.skills.search.SearchSkill
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of social post search requests. For Bluesky, query is the topic
+            to search and author optionally restricts results to a specific handle.
+          items:
+            type: object
+            properties:
+              id:
+                description: Optional caller-supplied ID for correlating responses.
+              platform:
+                type: string
+                description: Social platform to search. Omit or use all to search every supported provider.
+                enum:
+                  - all
+                  - bluesky
+                  - reddit
+                default: all
+              query:
+                type: string
+                description: Topic or search query to find posts around.
+              sort:
+                type: string
+                description: Search sort. Bluesky supports latest/top; Reddit maps latest to new.
+                enum:
+                  - latest
+                  - top
+                  - new
+                  - hot
+                  - relevance
+                default: latest
+              limit:
+                type: integer
+                description: Number of posts to fetch per search.
+                minimum: 1
+                maximum: 25
+                default: 10
+              author:
+                type: string
+                description: Optional platform profile/handle filter. For Bluesky, this maps to the author filter.
+            required:
+              - query
+      required:
+        - requests
 
 focuses:
   - id: content_calendar_strategist

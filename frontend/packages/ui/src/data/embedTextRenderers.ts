@@ -66,6 +66,7 @@ import { renderShoppingSearch, renderShoppingProduct } from '../components/embed
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
+import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -108,6 +109,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:reminder:list-reminders': renderReminder,
 	'app:reminder:cancel-reminder': renderReminder,
 	'app:audio:transcribe': renderAudioTranscribe,
+	'app:social_media:get-posts': renderSocialMediaGetPosts,
+	'app:social_media:search': renderSocialMediaSearch,
 
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,
@@ -131,6 +134,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
 	'nutrition-recipe': renderNutritionRecipe,
+	'social-media-post': renderSocialMediaPost,
 	'focus-mode-activation': (c) => {
 		const name = str(c.focus_mode_name) ?? '';
 		return `**Focus Mode**${name ? ` — ${name}` : ''}`;

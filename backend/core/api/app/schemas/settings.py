@@ -159,12 +159,17 @@ class AiModelDefaultsRequest(BaseModel):
         default=None,
         description="Default model for complex requests. Null = auto-select. Format: 'provider/model_id'."
     )
+    follow_up_suggestions_enabled: Optional[bool] = Field(
+        default=None,
+        description="Whether AI chat follow-up suggestion chips and proactive next-step prompts are enabled. Omit to leave unchanged."
+    )
 
     class Config:
         json_schema_extra = {
             "example": {
                 "default_ai_model_simple": "anthropic/claude-haiku-4-5-20251001",
-                "default_ai_model_complex": "anthropic/claude-opus-4-7"
+                "default_ai_model_complex": "anthropic/claude-opus-4-7",
+                "follow_up_suggestions_enabled": True
             }
         }
 

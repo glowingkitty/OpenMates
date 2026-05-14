@@ -13,6 +13,7 @@ final class AuthManager: ObservableObject {
     @Published var currentUser: UserProfile?
     @Published var error: String?
     @Published private(set) var webSocketToken: String?
+    @Published private(set) var sessionValidationState: SessionValidationState = .initializing
 
     private let api = APIClient.shared
     private let crypto = CryptoManager.shared
@@ -45,6 +46,15 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    enum SessionValidationState: Equatable {
+        case initializing
+        case offlineAuthenticated
+        case validating
+        case onlineAuthenticated
+        case requiresReauthentication(reason: String)
+        case unauthenticated
+    }
+
     /// Cached password for master key derivation after login.
     /// Cleared after successful key unwrap. Needed because the login response
     /// includes the user's encrypted_key which we unwrap with PBKDF2(password, salt).
@@ -67,6 +77,7 @@ final class AuthManager: ObservableObject {
     }
 
     private func validateSessionAgainstServer(keepOfflineSessionOnFailure: Bool) async {
+        sessionValidationState = .validating
         do {
             let response: SessionResponse = try await api.request(
                 .post,
@@ -82,6 +93,7 @@ final class AuthManager: ObservableObject {
                 }
                 currentUser = user
                 webSocketToken = response.wsToken
+                sessionValidationState = .onlineAuthenticated
                 cacheAuthenticatedUser(user)
                 if response.needsDeviceVerification == true,
                    let type = response.deviceVerificationType {
@@ -90,13 +102,30 @@ final class AuthManager: ObservableObject {
                     state = .authenticated
                 }
             } else {
-                await forceLocalLogout(reason: response.reAuthReason ?? response.reAuthRequired ?? "session_invalid")
+                let reason = response.reAuthReason ?? response.reAuthRequired ?? "session_invalid"
+                guard currentUser != nil else {
+                    webSocketToken = nil
+                    sessionValidationState = .unauthenticated
+                    state = .unauthenticated
+                    return
+                }
+                if keepOfflineSessionOnFailure,
+                   !Self.requiresDestructiveLocalLogout(reason: reason) {
+                    webSocketToken = nil
+                    sessionValidationState = .requiresReauthentication(reason: reason)
+                    state = .authenticated
+                    print("[Auth] Session validation requires re-auth reason=\(reason); preserving cached encrypted session")
+                    return
+                }
+                await forceLocalLogout(reason: reason)
             }
         } catch {
             webSocketToken = nil
             if keepOfflineSessionOnFailure {
+                sessionValidationState = .offlineAuthenticated
                 print("[Auth] Session validation unavailable; keeping cached offline session: \(error.localizedDescription)")
             } else {
+                sessionValidationState = .unauthenticated
                 state = .unauthenticated
             }
         }
@@ -286,6 +315,7 @@ final class AuthManager: ObservableObject {
         currentUser = user
         try await crypto.saveMasterKey(masterKey, for: user.id)
         cacheAuthenticatedUser(user)
+        sessionValidationState = .onlineAuthenticated
         state = .authenticated
     }
 
@@ -304,6 +334,7 @@ final class AuthManager: ObservableObject {
         webSocketToken = response.wsToken
         currentUser = user
         cacheAuthenticatedUser(user)
+        sessionValidationState = .onlineAuthenticated
         state = .authenticated
     }
 
@@ -329,6 +360,7 @@ final class AuthManager: ObservableObject {
 
         webSocketToken = nil
         currentUser = nil
+        sessionValidationState = .unauthenticated
         state = .unauthenticated
     }
 
@@ -346,6 +378,7 @@ final class AuthManager: ObservableObject {
         Self.clearCachedUser()
         webSocketToken = nil
         currentUser = nil
+        sessionValidationState = .unauthenticated
         state = .unauthenticated
     }
 
@@ -379,6 +412,7 @@ final class AuthManager: ObservableObject {
         webSocketToken = response.wsToken
         currentUser = user
         cacheAuthenticatedUser(user)
+        sessionValidationState = .onlineAuthenticated
 
         // Clear sensitive data
         pendingPassword = nil
@@ -389,16 +423,19 @@ final class AuthManager: ObservableObject {
 
     private func restoreCachedSessionForStartup() async -> Bool {
         guard let user = Self.cachedUser() else {
+            sessionValidationState = .unauthenticated
             state = .unauthenticated
             return false
         }
         guard (try? await crypto.loadMasterKey(for: user.id)) != nil else {
             Self.clearCachedUser()
+            sessionValidationState = .unauthenticated
             state = .unauthenticated
             return false
         }
         currentUser = user
         webSocketToken = nil
+        sessionValidationState = .offlineAuthenticated
         state = .authenticated
         print("[Auth] Restored cached session for offline startup")
         return true
@@ -477,6 +514,15 @@ final class AuthManager: ObservableObject {
     private static func clearCachedUser() {
         UserDefaults.standard.removeObject(forKey: cachedUserDefaultsKey)
         OpenMatesSharedEnvironment.defaults.removeObject(forKey: cachedUserDefaultsKey)
+    }
+
+    private static func requiresDestructiveLocalLogout(reason: String) -> Bool {
+        let normalized = reason.lowercased()
+        return normalized.contains("revoked")
+            || normalized.contains("logout")
+            || normalized.contains("deleted")
+            || normalized.contains("disabled")
+            || normalized.contains("banned")
     }
 }
 

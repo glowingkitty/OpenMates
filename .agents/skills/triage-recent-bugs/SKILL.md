@@ -1,5 +1,5 @@
 ---
-name: openmates:triage-recent-bugs
+name: triage-recent-bugs
 description: Discover recent user-reported bugs on Linear, investigate them in parallel, replicate, fix, deploy, and verify end-to-end — composing issue-forensics, encryption-flow-tracer, and test-failure-triager.
 user-invocable: true
 argument-hint: "[hours=2]"
@@ -54,10 +54,10 @@ For each issue, in parallel:
 mcp__linear__save_issue
   id: "OPE-XX"
   state: "In Progress"
-  labels: ["Bug", "Codex-is-working"]
+  labels: ["Bug", "claude-is-working"]
 ```
 
-Then post a pickup comment with the session ID (`mcp__linear__save_comment`). **Do not skip the pickup comment** — this is required by `.Codex/rules/linear-tasks.md`.
+Then post a pickup comment with the session ID (`mcp__linear__save_comment`). **Do not skip the pickup comment** — this is required by `.claude/rules/linear-tasks.md`.
 
 ### Step 5: Parallel forensics
 
@@ -77,7 +77,7 @@ Build a table: `| Issue | Category | Suspect file:line | Blast radius | Effort |
 
 ### Step 7: Test-first per fix (mandatory)
 
-For each fix, follow `.Codex/rules/testing.md`:
+For each fix, follow `.claude/rules/testing.md`:
 1. Run `sessions.py check-tests --session <id>` to find existing specs.
 2. If a spec exists: run it first (`run_tests.py --spec <name>`) to confirm it reproduces the bug.
 3. If none exists: propose a minimal repro test (pytest unit, vitest unit, or Playwright spec). **Wait for user confirmation.**
@@ -147,7 +147,7 @@ For each fixed issue, in parallel:
    - Files changed
    - Commit SHA
    - Test evidence ("CI vitest run 24150665520 → 218/218 passed, +3 new tests")
-2. `mcp__linear__save_issue` with `state: "In Review"` and remove `Codex-is-working` label.
+2. `mcp__linear__save_issue` with `state: "In Review"` and remove `claude-is-working` label.
 
 ### Step 13: End session
 

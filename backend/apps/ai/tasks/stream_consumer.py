@@ -26,6 +26,12 @@ from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
+from backend.apps.ai.utils.embed_display_text import (
+    EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
+    derive_display_text_from_embed_ref as _derive_display_text_from_embed_ref,
+    derive_embed_display_title as _derive_embed_display_title,
+    is_bad_embed_display_text as _is_bad_embed_display_text,
+)
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
@@ -200,18 +206,15 @@ def _extract_source_citations(
 # Negative lookbehind ensures we skip source-quote blockquotes (handled by _SOURCE_QUOTE_PATTERN).
 # Group 1 = display text, Group 2 = embed_ref slug.
 _INLINE_EMBED_LINK_PATTERN = re.compile(
-    r'(?<!^>\s)\[([^\]]+)\]\(embed:([^)]+)\)'
+    r'(?<!^>\s)\[([^\]]*)\]\(embed:([^)]+)\)'
 )
 
-# Regex to detect embed_ref-like display text — domain.tld-XYZ or slug-XYZ patterns
-# where XYZ is a 2-4 character alphanumeric random suffix.
-_EMBED_REF_SUFFIX_PATTERN = re.compile(r'-[a-zA-Z0-9]{2,4}$')
-
 # Regex to detect bare embed ref brackets that are missing the (embed:...) parenthetical.
-# Matches: [domain.tld-XYZ] where the bracketed content has a dot and looks like an embed_ref.
+# Matches: [domain.tld-XYZ] or [carrier-0800-XYZ] where the bracketed content
+# looks like an embed_ref.
 # Negative lookahead (?!\() ensures we only match brackets NOT already followed by (...).
 # Example: [news.ycombinator.com-ANo] → should become [Hacker News](embed:news.ycombinator.com-ANo)
-_BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+\.[^\]\s]+)\](?!\()')
+_BARE_EMBED_REF_PATTERN = re.compile(r'\[([^\]\s]+-[a-zA-Z0-9]{2,4})\](?!\()')
 
 # Regex to detect mixed URL+embed patterns where the LLM wrote both a markdown
 # https:// link and an (embed:ref) parenthetical for the same anchor.
@@ -544,55 +547,6 @@ async def _verify_and_strip_bad_quotes(
     return aggregated_response
 
 
-def _is_bad_embed_display_text(display_text: str, embed_ref: str) -> bool:
-    """
-    Detect whether the LLM used the embed_ref slug (or a fragment of it) as the
-    visible display text in an inline embed link.
-
-    Returns True when the display text is NOT a proper human-readable description
-    but instead one of these anti-patterns:
-      1. Exact match: display == embed_ref  (e.g. "macrumors.com-MvT")
-      2. Suffix only: display == random suffix  (e.g. "MvT")
-      3. Domain-with-suffix: display looks like "domain.tld-XYZ"
-      4. Bare domain: display == embed_ref minus suffix  (e.g. "macrumors.com")
-
-    The function is intentionally conservative — it only flags clearly bad patterns.
-    A display text like "New MacBook Pro" would never match any of these.
-    """
-    dt = display_text.strip()
-    ref = embed_ref.strip()
-
-    if not dt or not ref:
-        return False
-
-    # 1. Exact match — display IS the full embed_ref
-    if dt == ref:
-        return True
-
-    # 2. Suffix only — display is just the random 2-4 char code at the end
-    suffix_match = _EMBED_REF_SUFFIX_PATTERN.search(ref)
-    if suffix_match:
-        suffix_without_dash = suffix_match.group(0)[1:]  # strip leading "-"
-        if dt == suffix_without_dash:
-            return True
-
-        # 3. Domain-with-suffix — display looks like "domain.tld-XYZ" (has a dot + ends
-        #    with the same random suffix as the embed_ref)
-        if '.' in dt and _EMBED_REF_SUFFIX_PATTERN.search(dt):
-            # Strip suffix from both and compare the base
-            dt_base = _EMBED_REF_SUFFIX_PATTERN.sub('', dt)
-            ref_base = _EMBED_REF_SUFFIX_PATTERN.sub('', ref)
-            if dt_base == ref_base:
-                return True
-
-        # 4. Bare domain — display is the embed_ref with the suffix stripped
-        ref_base = _EMBED_REF_SUFFIX_PATTERN.sub('', ref)
-        if dt == ref_base:
-            return True
-
-    return False
-
-
 async def _fix_bad_embed_display_text(
     aggregated_response: str,
     tool_calls_info: Optional[List[Dict[str, Any]]],
@@ -726,9 +680,13 @@ async def _fix_bad_embed_display_text(
                             child_decoded = decode(child_toon)
                             if isinstance(child_decoded, dict):
                                 child_ref = child_decoded.get("embed_ref")
-                                child_title = child_decoded.get("title", "")
-                                if child_ref and child_title:
-                                    embed_ref_to_title[child_ref] = child_title
+                                if child_ref:
+                                    child_title = _derive_embed_display_title(
+                                        child_decoded,
+                                        child_ref,
+                                    )
+                                    if child_title:
+                                        embed_ref_to_title[child_ref] = child_title
                         except Exception:
                             continue
 
@@ -757,8 +715,8 @@ async def _fix_bad_embed_display_text(
         new_display = embed_ref_to_title.get(embed_ref)
 
         if not new_display:
-            # Fallback: strip the random suffix to show just the domain/base
-            new_display = _EMBED_REF_SUFFIX_PATTERN.sub('', embed_ref)
+            # Fallback: derive a compact user-facing label without exposing the raw ref.
+            new_display = _derive_display_text_from_embed_ref(embed_ref)
 
         if new_display and new_display != old_display:
             new_link = f"[{new_display}](embed:{embed_ref})"
@@ -791,7 +749,7 @@ async def _fix_bad_embed_display_text(
         for match in reversed(current_bare_matches):
             embed_ref = match.group(1)
             full_match = match.group(0)
-            display = embed_ref_to_title.get(embed_ref) or _EMBED_REF_SUFFIX_PATTERN.sub('', embed_ref)
+            display = embed_ref_to_title.get(embed_ref) or _derive_display_text_from_embed_ref(embed_ref)
             new_link = f"[{display}](embed:{embed_ref})"
             modified = modified[:match.start()] + new_link + modified[match.end():]
             bare_fixed += 1
@@ -1389,7 +1347,7 @@ async def _handle_normal_billing(
         user_input_tokens = usage.user_input_tokens
         system_prompt_tokens = usage.system_prompt_tokens
         # For third-party models hosted on Google Vertex AI (MaaS), use the original provider for pricing
-        # e.g., "deepseek/deepseek-v3.2" -> provider_name = "deepseek", not "google"
+        # e.g., "deepseek/deepseek-v4-pro" -> provider_name = "deepseek", not "together"
         # This ensures we look up pricing from the model's actual provider config file
         try:
             selected_full_model = preprocessing_result.selected_main_llm_model_id or "google/unknown"

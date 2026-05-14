@@ -18,6 +18,7 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import Foundation
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -137,7 +138,12 @@ enum MarkdownParser {
                     codeLines.append(lines[i])
                     i += 1
                 }
-                blocks.append(.codeBlock(language: language, code: codeLines.joined(separator: "\n")))
+                let code = codeLines.joined(separator: "\n")
+                if let embed = parseFencedEmbedReference(language: language, code: code) {
+                    blocks.append(.embedGroup([embed]))
+                } else {
+                    blocks.append(.codeBlock(language: language, code: code))
+                }
                 continue
             }
 
@@ -273,6 +279,23 @@ enum MarkdownParser {
         return MarkdownEmbedReference(value: String(line[start..<end]), isRef: true, isLargePreview: true)
     }
 
+    private static func parseFencedEmbedReference(language: String?, code: String) -> MarkdownEmbedReference? {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let language, !language.isEmpty, language.lowercased() != "json" {
+            return nil
+        }
+        guard let data = trimmed.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object["type"] is String,
+              let embedId = object["embed_id"] as? String,
+              !embedId.isEmpty else {
+            return nil
+        }
+        let isLargePreview = object["large_preview"] as? Bool ?? object["is_large_preview"] as? Bool ?? false
+        return MarkdownEmbedReference(value: embedId, isRef: false, isLargePreview: isLargePreview)
+    }
+
     private static func parseTableRow(_ line: String) -> [String] {
         line.split(separator: "|")
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -288,6 +311,7 @@ struct RichMarkdownView: View {
     let onOpenPublicChat: ((String) -> Void)?
     let embedLookup: [String: EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
+    let hiddenEmbedIds: Set<String>
     let onEmbedTap: ((EmbedRecord) -> Void)?
     private let blocks: [MarkdownBlock]
 
@@ -297,6 +321,7 @@ struct RichMarkdownView: View {
         onOpenPublicChat: ((String) -> Void)? = nil,
         embedLookup: [String: EmbedRecord] = [:],
         allEmbedRecords: [String: EmbedRecord] = [:],
+        hiddenEmbedIds: Set<String> = [],
         onEmbedTap: ((EmbedRecord) -> Void)? = nil
     ) {
         self.content = content
@@ -304,6 +329,7 @@ struct RichMarkdownView: View {
         self.onOpenPublicChat = onOpenPublicChat
         self.embedLookup = embedLookup
         self.allEmbedRecords = allEmbedRecords
+        self.hiddenEmbedIds = hiddenEmbedIds
         self.onEmbedTap = onEmbedTap
         self.blocks = MarkdownParser.parse(content)
     }
@@ -370,7 +396,9 @@ struct RichMarkdownView: View {
             DemoRichGroupView(kind: kind, onOpenPublicChat: onOpenPublicChat)
 
         case .embedGroup(let references):
-            let embeds = references.compactMap(resolveEmbed)
+            let embeds = references
+                .compactMap(resolveEmbed)
+                .filter { !hiddenEmbedIds.contains($0.id) }
             if !embeds.isEmpty {
                 if references.first?.isLargePreview == true {
                     LargeEmbedPreviewCarousel(embeds: embeds, allEmbedRecords: allEmbedRecords) { embed in

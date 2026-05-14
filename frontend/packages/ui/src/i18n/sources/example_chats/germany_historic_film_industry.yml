@@ -1,0 +1,1362 @@
+title:
+  context: Title of example chat about Germany and Berlin as historic film-production centers
+  en: "Germany's historic film industry"
+  de: "Deutschlands historische Filmindustrie"
+  zh: "德国历史上的电影产业"
+  es: "La histórica industria cinematográfica alemana"
+  fr: "L’industrie cinématographique historique de l’Allemagne"
+  pt: "A histórica indústria cinematográfica alemã"
+  ru: "Историческая киноиндустрия Германии"
+  ja: "ドイツの歴史的な映画産業"
+  ko: "독일의 역사적인 영화 산업"
+  it: "La storica industria cinematografica tedesca"
+  tr: "Almanya’nın tarihî film endüstrisi"
+  vi: "Ngành công nghiệp điện ảnh lịch sử của Đức"
+  id: "Industri film historis Jerman"
+  pl: "Historyczny przemysł filmowy Niemiec"
+  nl: "De historische Duitse filmindustrie"
+  ar: "صناعة السينما التاريخية في ألمانيا"
+  hi: "जर्मनी का ऐतिहासिक फिल्म उद्योग"
+  th: "อุตสาหกรรมภาพยนตร์ประวัติศาสตร์ของเยอรมนี"
+  cs: "Historický filmový průmysl Německa"
+  sv: "Tysklands historiska filmindustri"
+  he: "תעשיית הקולנוע ההיסטורית של גרמניה"
+  verified_by_human: []
+
+summary:
+  context: Summary of example chat about Weimar cinema, Studio Babelsberg, German Expressionism, and Hollywood
+  en: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  de: "Eine Diskussion über Deutschlands Filmindustrie der 1920er, Berlins Einfluss, Studio Babelsberg, den deutschen Expressionismus und wie der Aufstieg des Nationalsozialismus Talente nach Hollywood trieb."
+  zh: "讨论德国 1920 年代电影产业、柏林的影响、巴贝尔斯贝格制片厂、德国表现主义，以及纳粹崛起如何将人才推向好莱坞。"
+  es: "Una conversación sobre la industria cinematográfica alemana de los años veinte, la influencia de Berlín, Studio Babelsberg, el expresionismo alemán y cómo el ascenso del nazismo desplazó talento a Hollywood."
+  fr: "Une discussion sur l’industrie cinématographique allemande des années 1920, l’influence de Berlin, Studio Babelsberg, l’expressionnisme allemand et la manière dont la montée du nazisme a déplacé les talents vers Hollywood."
+  pt: "Uma conversa sobre a indústria cinematográfica alemã dos anos 1920, a influência de Berlim, o Studio Babelsberg, o expressionismo alemão e como a ascensão do nazismo levou talentos para Hollywood."
+  ru: "Обсуждение немецкой киноиндустрии 1920-х годов, влияния Берлина, Studio Babelsberg, немецкого экспрессионизма и того, как приход нацизма переместил таланты в Голливуд."
+  ja: "1920年代のドイツ映画産業、ベルリンの影響、Studio Babelsberg、ドイツ表現主義、そしてナチズムの台頭が才能をハリウッドへ移した経緯についての会話。"
+  ko: "1920년대 독일 영화 산업, 베를린의 영향, Studio Babelsberg, 독일 표현주의, 그리고 나치즘의 부상이 인재를 할리우드로 이동시킨 과정에 대한 대화입니다."
+  it: "Una discussione sull’industria cinematografica tedesca degli anni Venti, l’influenza di Berlino, Studio Babelsberg, l’espressionismo tedesco e come l’ascesa del nazismo spostò talenti verso Hollywood."
+  tr: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  vi: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  id: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  pl: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  nl: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  ar: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  hi: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  th: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  cs: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  sv: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  he: "A discussion of Germany's 1920s film industry, Berlin's influence, Studio Babelsberg, German Expressionism, and how the rise of Nazism shifted talent to Hollywood."
+  verified_by_human: []
+
+user_message_1:
+  context: User asks whether Germany and Berlin used to be bigger in movie production than the United States
+  en: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  de: "Ich habe gehört, dass Deutschland und Berlin früher in der Filmproduktion viel größer waren als die USA?"
+  zh: "我听说德国和柏林以前在电影制作上比美国重要得多？"
+  es: "¿He oído que Alemania y Berlín antes eran mucho más grandes que Estados Unidos en producción cinematográfica?"
+  fr: "J’ai entendu dire que l’Allemagne et Berlin étaient autrefois beaucoup plus importants que les États-Unis dans la production de films ?"
+  pt: "Ouvi dizer que a Alemanha e Berlim costumavam ser muito maiores na produção cinematográfica do que os EUA?"
+  ru: "Я слышал, что Германия и Берлин раньше были намного крупнее США в кинопроизводстве?"
+  ja: "ドイツやベルリンは、かつて映画製作でアメリカよりずっと大きな存在だったと聞きましたが？"
+  ko: "예전에 독일과 베를린이 영화 제작에서 미국보다 훨씬 더 큰 존재였다고 들었어요?"
+  it: "Ho sentito che la Germania e Berlino un tempo erano molto più importanti degli Stati Uniti nella produzione cinematografica?"
+  tr: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  vi: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  id: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  pl: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  nl: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  ar: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  hi: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  th: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  cs: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  sv: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  he: "I heard Germany and Berlin used to be much bigger in movie production than the US?"
+  verified_by_human: []
+
+assistant_message_1:
+  context: Assistant explains Germany and Berlin as major 1920s film centers. JSON tool-call blocks and embed references must stay unchanged.
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    Das ist ein faszinierendes Kapitel der Filmgeschichte! Du hast recht: In den **1920er-Jahren**, besonders während der [Weimarer Republik](wiki:Weimar_Republic), war Deutschland mit Berlin als Zentrum der einzige echte globale Konkurrent Hollywoods. In künstlerischer Innovation und technischem Prestige war es nach Ansicht vieler Historiker sogar weiter als die US-Industrie dieser Zeit.
+    
+    Darum wurde Berlin für ein goldenes Jahrzehnt zur Filmhauptstadt:
+    
+    ### 1. Das "Hollywood an der Spree"
+    Berlin bekam den Spitznamen **"Hollywood an der Spree"** wegen seiner riesigen Produktionsinfrastruktur. Im Mittelpunkt stand [Studio Babelsberg](wiki:Babelsberg_Studio), gegründet 1912 und bis heute das **älteste Großfilmstudio der Welt**.
+    
+    Hollywood produzierte mengenmäßig mehr Filme, aber Deutschlands [UFA](wiki:UFA_GmbH) gehörte zu den technisch fortschrittlichsten Studios überhaupt. Sie prägte die "entfesselte Kamera", aufwendige Kran- und Dollyfahrten sowie Spezialeffekte, die das moderne Kino beeinflussten.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. Die Geburt visueller Meisterwerke
+    Viele der einflussreichsten Stummfilme kamen aus Deutschland. Der [deutsche Expressionismus](wiki:German_Expressionism) nutzte verzerrte Kulissen, dramatische Schatten und psychologische Tiefe und prägte später Horror, Science-Fiction und [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)s wegweisender Science-Fiction-Film mit gewaltigen Sets und Bildern, mit denen Hollywood kaum mithalten konnte.
+    *   **[Das Cabinet des Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** Ein Film, der die Bildsprache von Horror und Noir mitbegründete.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)s inoffizielle *Dracula*-Adaption, bis heute einer der visuell eindrucksvollsten Horrorfilme.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Warum sich das änderte
+    Berlins Dominanz schwand Anfang der 1930er-Jahre aus zwei Hauptgründen:
+    
+    1.  **Wirtschaftskrise:** Die Weltwirtschaftskrise traf Deutschland hart, und teure Epen wie *Metropolis* brachten Studios fast in den Bankrott.
+    2.  **Aufstieg des Nationalsozialismus:** Nach 1933 flohen viele jüdische und regimekritische Künstler in die USA.
+    
+    Regisseure wie [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder) und [Ernst Lubitsch](wiki:Ernst_Lubitsch) sowie Stars wie [Marlene Dietrich](wiki:Marlene_Dietrich) brachten den Berliner Stil nach Hollywood. Deshalb verdanken der amerikanische Noir der 1940er und der Universal-Horror so viel dem deutschen Kino der 1920er.
+    
+    ### 4. Babelsberg heute
+    [Studio Babelsberg](wiki:Babelsberg_Studio) ist weiterhin aktiv. Seit den 2000ern wurden dort Produktionen wie *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)* und *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* gedreht.
+    
+    **Hast du einige dieser Stummfilmklassiker gesehen, oder interessieren dich eher moderne Filme, die in Berlin gedreht wurden?** Ich kann dir auch helfen, sie zum Streamen zu finden oder eine [Erinnerung](/#settings/apps/reminder) für eine Doku zu setzen.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    这是一段非常迷人的电影史！你说得对，在 **1920 年代**，尤其是 [魏玛共和国](wiki:Weimar_Republic) 时期，以柏林为中心的德国确实是好莱坞唯一真正的全球竞争者。在艺术创新和技术声望上，许多电影史学者甚至认为它当时比美国电影工业更先进。
+    
+    以下是柏林为何在那个黄金十年成为电影之都：
+    
+    ### 1. “施普雷河畔的好莱坞”
+    柏林因庞大的电影制作基础设施被称为 **“施普雷河畔的好莱坞”**。核心是 [巴贝尔斯贝格电影制片厂](wiki:Babelsberg_Studio)，它创立于 1912 年，至今仍是**世界上最古老的大型电影制片厂**。
+    
+    好莱坞在产量上更多，但德国的 [UFA](wiki:UFA_GmbH) 是当时技术最先进的制片厂之一。它开创了“解放的摄影机”、复杂的摇臂和轨道运动，以及影响现代电影制作的特效技术。
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. 视觉杰作的诞生
+    默片时代许多最有影响力的作品来自德国。[德国表现主义](wiki:German_Expressionism) 通过扭曲布景、强烈阴影和心理深度，定义了后来的恐怖片、科幻片和 [黑色电影](wiki:Film_noir)。
+    
+    *   **[大都会](wiki:Metropolis_(1927_film)) (1927)：** [弗里茨·朗](wiki:Fritz_Lang) 的科幻里程碑，拥有好莱坞当时几乎难以匹敌的巨型布景和影像。
+    *   **[卡里加里博士的小屋](wiki:The_Cabinet_of_Dr._Caligari) (1920)：** 帮助发明恐怖片与黑色电影视觉语言的作品。
+    *   **[诺斯费拉图](wiki:Nosferatu) (1922)：** [F.W. 茂瑙](wiki:F.W._Murnau) 对 *Dracula* 的非官方改编，至今仍是最震撼的恐怖电影之一。
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. 为什么局面改变了
+    柏林的主导地位在 1930 年代初逐渐衰落，主要有两个原因：
+    
+    1.  **经济危机：** 大萧条重创德国，像 *Metropolis* 这样昂贵的史诗片几乎拖垮制片厂。
+    2.  **纳粹崛起：** 1933 年后，许多犹太裔和反纳粹艺术家逃往美国。
+    
+    [弗里茨·朗](wiki:Fritz_Lang)、[比利·怀尔德](wiki:Billy_Wilder)、[恩斯特·刘别谦](wiki:Ernst_Lubitsch) 等导演，以及 [玛琳·黛德丽](wiki:Marlene_Dietrich) 等明星，把柏林风格带到了好莱坞。这也是 1940 年代美国黑色电影和环球恐怖片深受 1920 年代德国电影影响的原因。
+    
+    ### 4. 今天的巴贝尔斯贝格
+    [巴贝尔斯贝格电影制片厂](wiki:Babelsberg_Studio) 仍在运营。2000 年代以来，*[布达佩斯大饭店](wiki:The_Grand_Budapest_Hotel)*、*[无耻混蛋](wiki:Inglourious_Basterds)* 和 *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* 等作品都曾在那里拍摄。
+    
+    **你看过这些默片经典吗，还是更想了解在柏林拍摄的现代电影？** 我也可以帮你找到观看渠道，或设置一个[提醒](/#settings/apps/reminder)去查相关纪录片。
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    ¡Es una parte fascinante de la historia del cine! Tienes razón: durante los **años veinte**, especialmente en la época de la [República de Weimar](wiki:Weimar_Republic), Alemania, con Berlín como centro, fue el único competidor global real de Hollywood. En innovación artística y prestigio técnico, muchos historiadores dirían incluso que estaba por delante de la industria estadounidense de entonces.
+    
+    Así fue como Berlín se convirtió durante una década dorada en una capital del cine:
+    
+    ### 1. El "Hollywood del Spree"
+    Berlín recibió el apodo de **"Hollywood del Spree"** por su enorme infraestructura de producción. En el centro estaba [Studio Babelsberg](wiki:Babelsberg_Studio), fundado en 1912 y todavía el **estudio cinematográfico a gran escala más antiguo del mundo**.
+    
+    Hollywood producía más películas en volumen, pero la [UFA](wiki:UFA_GmbH) alemana estaba entre los estudios más avanzados técnicamente. Pionera de la "cámara desencadenada", los movimientos elaborados de grúa y dolly, y efectos especiales que moldearon el cine moderno.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. El nacimiento de obras maestras visuales
+    Muchas de las películas más influyentes del cine mudo fueron alemanas. El [expresionismo alemán](wiki:German_Expressionism) usó decorados distorsionados, sombras dramáticas y profundidad psicológica para definir después el terror, la ciencia ficción y el [cine negro](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** La película de ciencia ficción fundamental de [Fritz Lang](wiki:Fritz_Lang), con decorados e imágenes que Hollywood apenas podía igualar.
+    *   **[El gabinete del Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** Una obra que ayudó a inventar el lenguaje visual del terror y el noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** La adaptación no oficial de *Dracula* de [F.W. Murnau](wiki:F.W._Murnau), todavía una de las películas de terror más impactantes.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Por qué cambió
+    El dominio de Berlín se desvaneció a comienzos de los años treinta por dos razones principales:
+    
+    1.  **Crisis económica:** La Gran Depresión golpeó duramente a Alemania, y epopeyas caras como *Metropolis* casi arruinaron a los estudios.
+    2.  **Ascenso del nazismo:** Después de 1933, muchos artistas judíos y antinazis huyeron a Estados Unidos.
+    
+    Directores como [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder) y [Ernst Lubitsch](wiki:Ernst_Lubitsch), junto con estrellas como [Marlene Dietrich](wiki:Marlene_Dietrich), llevaron el estilo berlinés a Hollywood. Por eso el noir estadounidense de los cuarenta y el terror de Universal deben tanto al cine alemán de los veinte.
+    
+    ### 4. Babelsberg hoy
+    [Studio Babelsberg](wiki:Babelsberg_Studio) sigue activo. Desde los años 2000, producciones como *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)* y *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* se han rodado allí.
+    
+    **¿Has visto alguno de esos clásicos mudos, o te interesan más las películas modernas rodadas en Berlín?** También puedo ayudarte a encontrar dónde verlos o crear un [recordatorio](/#settings/apps/reminder) para buscar un documental.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    C’est un chapitre fascinant de l’histoire du cinéma ! Tu as raison : dans les **années 1920**, surtout pendant la [République de Weimar](wiki:Weimar_Republic), l’Allemagne centrée sur Berlin était le seul véritable concurrent mondial d’Hollywood. En innovation artistique et en prestige technique, beaucoup d’historiens diraient même qu’elle était alors plus avancée que l’industrie américaine.
+    
+    Voici pourquoi Berlin est devenue une capitale du cinéma pendant cette décennie dorée :
+    
+    ### 1. Le "Hollywood sur la Spree"
+    Berlin a reçu le surnom de **"Hollywood sur la Spree"** grâce à son immense infrastructure de production. Au centre se trouvait [Studio Babelsberg](wiki:Babelsberg_Studio), fondé en 1912 et toujours le **plus ancien grand studio de cinéma du monde**.
+    
+    Hollywood produisait plus de films en quantité, mais l’[UFA](wiki:UFA_GmbH) allemande faisait partie des studios les plus avancés techniquement. Elle a popularisé la "caméra déchaînée", les mouvements complexes de grue et de dolly, ainsi que des effets spéciaux qui ont façonné le cinéma moderne.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. La naissance de chefs-d’œuvre visuels
+    Nombre des films muets les plus influents étaient allemands. L’[expressionnisme allemand](wiki:German_Expressionism) utilisait des décors déformés, des ombres dramatiques et une profondeur psychologique qui ont marqué l’horreur, la science-fiction et le [film noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927) :** Le jalon de science-fiction de [Fritz Lang](wiki:Fritz_Lang), avec des décors et des images qu’Hollywood pouvait à peine égaler.
+    *   **[Le Cabinet du docteur Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920) :** Un film qui a contribué à inventer le langage visuel de l’horreur et du noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922) :** L’adaptation non officielle de *Dracula* par [F.W. Murnau](wiki:F.W._Murnau), encore l’un des films d’horreur les plus saisissants.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Pourquoi cela a changé
+    La domination berlinoise a décliné au début des années 1930 pour deux raisons principales :
+    
+    1.  **Crise économique :** La Grande Dépression a durement frappé l’Allemagne, et des épopées coûteuses comme *Metropolis* ont presque ruiné les studios.
+    2.  **Montée du nazisme :** Après 1933, de nombreux artistes juifs et antinazis ont fui vers les États-Unis.
+    
+    Des réalisateurs comme [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder) et [Ernst Lubitsch](wiki:Ernst_Lubitsch), ainsi que des stars comme [Marlene Dietrich](wiki:Marlene_Dietrich), ont apporté le style berlinois à Hollywood. C’est pourquoi le film noir américain des années 1940 et l’horreur Universal doivent tant au cinéma allemand des années 1920.
+    
+    ### 4. Babelsberg aujourd’hui
+    [Studio Babelsberg](wiki:Babelsberg_Studio) est toujours actif. Depuis les années 2000, des productions comme *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)* et *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* y ont été tournées.
+    
+    **As-tu déjà vu certains de ces classiques muets, ou t’intéresses-tu plutôt aux films modernes tournés à Berlin ?** Je peux aussi t’aider à trouver où les regarder ou créer un [rappel](/#settings/apps/reminder) pour chercher un documentaire.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    É uma parte fascinante da história do cinema! Tens razão: durante os **anos 1920**, especialmente na época da [República de Weimar](wiki:Weimar_Republic), a Alemanha, centrada em Berlim, foi a única concorrente global real de Hollywood. Em inovação artística e prestígio técnico, muitos historiadores diriam até que estava à frente da indústria dos EUA naquele momento.
+    
+    Foi assim que Berlim se tornou uma capital cinematográfica durante uma década dourada:
+    
+    ### 1. A "Hollywood no Spree"
+    Berlim recebeu o apelido de **"Hollywood no Spree"** por causa da sua enorme infraestrutura de produção. No centro estava o [Studio Babelsberg](wiki:Babelsberg_Studio), fundado em 1912 e ainda o **mais antigo grande estúdio de cinema do mundo**.
+    
+    Hollywood produzia mais filmes em quantidade, mas a [UFA](wiki:UFA_GmbH) alemã estava entre os estúdios tecnicamente mais avançados. Ela pioneirou a "câmara liberta", movimentos elaborados de grua e dolly, e efeitos especiais que moldaram o cinema moderno.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. O nascimento de obras-primas visuais
+    Muitos dos filmes mudos mais influentes eram alemães. O [expressionismo alemão](wiki:German_Expressionism) usou cenários distorcidos, sombras dramáticas e profundidade psicológica para definir mais tarde o terror, a ficção científica e o [film noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** O marco de ficção científica de [Fritz Lang](wiki:Fritz_Lang), com cenários e imagens que Hollywood mal conseguia igualar.
+    *   **[O Gabinete do Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** Um filme que ajudou a inventar a linguagem visual do terror e do noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** A adaptação não oficial de *Dracula* por [F.W. Murnau](wiki:F.W._Murnau), ainda um dos filmes de terror mais marcantes.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Porque mudou
+    O domínio de Berlim enfraqueceu no início dos anos 1930 por duas razões principais:
+    
+    1.  **Crise económica:** A Grande Depressão atingiu duramente a Alemanha, e épicos caros como *Metropolis* quase levaram estúdios à falência.
+    2.  **Ascensão do nazismo:** Depois de 1933, muitos artistas judeus e antinazistas fugiram para os Estados Unidos.
+    
+    Realizadores como [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder) e [Ernst Lubitsch](wiki:Ernst_Lubitsch), além de estrelas como [Marlene Dietrich](wiki:Marlene_Dietrich), levaram o estilo berlinense para Hollywood. Por isso o noir americano dos anos 1940 e o terror da Universal devem tanto ao cinema alemão dos anos 1920.
+    
+    ### 4. Babelsberg hoje
+    O [Studio Babelsberg](wiki:Babelsberg_Studio) continua ativo. Desde os anos 2000, produções como *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)* e *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* foram filmadas lá.
+    
+    **Já viste algum desses clássicos mudos, ou interessam-te mais os filmes modernos rodados em Berlim?** Também posso ajudar a encontrar onde vê-los ou criar um [lembrete](/#settings/apps/reminder) para procurar um documentário.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    Это увлекательная часть истории кино! Вы правы: в **1920-е годы**, особенно во времена [Веймарской республики](wiki:Weimar_Republic), Германия с центром в Берлине была единственным настоящим мировым конкурентом Голливуда. По художественным инновациям и техническому престижу многие историки даже считают её более передовой, чем американскую индустрию того времени.
+    
+    Вот почему Берлин на золотое десятилетие стал кинематографической столицей:
+    
+    ### 1. "Голливуд на Шпрее"
+    Берлин получил прозвище **"Голливуд на Шпрее"** благодаря огромной производственной инфраструктуре. В центре был [Studio Babelsberg](wiki:Babelsberg_Studio), основанный в 1912 году и до сих пор являющийся **старейшей крупной киностудией в мире**.
+    
+    Голливуд выпускал больше фильмов по количеству, но немецкая [UFA](wiki:UFA_GmbH) была одной из самых технически продвинутых студий. Она развивала "раскованную камеру", сложные движения кранов и тележек, а также спецэффекты, повлиявшие на современное кино.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. Рождение визуальных шедевров
+    Многие из самых влиятельных фильмов немой эпохи были немецкими. [Немецкий экспрессионизм](wiki:German_Expressionism) использовал искажённые декорации, драматические тени и психологическую глубину, сформировав будущие хоррор, научную фантастику и [film noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** веха научной фантастики [Фрица Ланга](wiki:Fritz_Lang) с грандиозными декорациями и образами, с которыми Голливуд едва мог соперничать.
+    *   **[Кабинет доктора Калигари](wiki:The_Cabinet_of_Dr._Caligari) (1920):** фильм, помогший изобрести визуальный язык хоррора и нуара.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** неофициальная адаптация *Dracula* от [F.W. Murnau](wiki:F.W._Murnau), до сих пор один из самых впечатляющих фильмов ужасов.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Почему всё изменилось
+    Доминирование Берлина ослабло в начале 1930-х по двум главным причинам:
+    
+    1.  **Экономический кризис:** Великая депрессия тяжело ударила по Германии, а дорогие эпопеи вроде *Metropolis* почти разорили студии.
+    2.  **Приход нацизма:** После 1933 года многие еврейские и антинацистские художники бежали в США.
+    
+    Режиссёры [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), [Ernst Lubitsch](wiki:Ernst_Lubitsch), а также звёзды вроде [Marlene Dietrich](wiki:Marlene_Dietrich) перенесли берлинский стиль в Голливуд. Поэтому американский нуар 1940-х и хорроры Universal так многим обязаны немецкому кино 1920-х.
+    
+    ### 4. Babelsberg сегодня
+    [Studio Babelsberg](wiki:Babelsberg_Studio) всё ещё работает. С 2000-х там снимались *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)* и *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)*.
+    
+    **Вы видели эти классические немые фильмы или больше интересуетесь современными картинами, снятыми в Берлине?** Я также могу помочь найти, где их посмотреть, или поставить [напоминание](/#settings/apps/reminder) найти документальный фильм.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3f242ede-30f8-44e1-9419-9f832e457982", "app_id": "web", "skill_id": "search", "query": "German cinema vs Hollywood history 1920s production volume influence", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "4dc639be-e6f2-40a8-99f5-f0dc0884cb4c", "app_id": "web", "skill_id": "search", "query": "history of Babelsberg Studio vs Hollywood 1920s", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "012d5852-9cb8-4e79-a145-75bfba159a17", "app_id": "images", "skill_id": "search", "query": "Babelsberg Studio 1920s historical photo", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "6b9178c9-9e57-4d13-8cb8-b89ed5888927", "app_id": "images", "skill_id": "search", "query": "Metropolis 1927 movie poster or set design", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9c18f45f-b54f-42c5-ba58-32dbc15dc549", "app_id": "images", "skill_id": "search", "query": "German Expressionism film stills Caligari Nosferatu", "provider": "Brave"}
+    ```
+    
+    That’s a fascinating piece of film history! You’re right that during the **1920s**, especially the [Weimar Republic](wiki:Weimar_Republic) era, Germany centered on Berlin was the only true global competitor to Hollywood. In artistic innovation and technical prestige, many historians would even call it more advanced than the US industry at the time.
+    
+    Here’s why Berlin became a cinematic capital for a golden decade:
+    
+    ### 1. The "Hollywood on the Spree"
+    Berlin earned the nickname **"Hollywood on the Spree"** because of its huge production infrastructure. At the center was [Studio Babelsberg](wiki:Babelsberg_Studio), founded in 1912 and still the **oldest large-scale film studio in the world**.
+    
+    Hollywood produced more films by volume, but Germany’s [UFA](wiki:UFA_GmbH) was among the most technically advanced studios anywhere. It pioneered the "unchained camera," elaborate crane and dolly movement, and special effects that shaped modern filmmaking.
+    
+    [!](embed:portlandgermanfilmfestival.com-7p8)
+    [!](embed:studiobabelsberg.com-PK8)
+    
+    ### 2. The birth of visual masterpieces
+    Many of the silent era’s most influential films were German. [German Expressionism](wiki:German_Expressionism) used distorted sets, dramatic shadows, and psychological depth to define later horror, science fiction, and [Film Noir](wiki:Film_noir).
+    
+    *   **[Metropolis](wiki:Metropolis_(1927_film)) (1927):** [Fritz Lang](wiki:Fritz_Lang)’s landmark science fiction film, with enormous sets and imagery Hollywood could barely match.
+    *   **[The Cabinet of Dr. Caligari](wiki:The_Cabinet_of_Dr._Caligari) (1920):** A film that helped invent the visual language of horror and noir.
+    *   **[Nosferatu](wiki:Nosferatu) (1922):** [F.W. Murnau](wiki:F.W._Murnau)’s unofficial *Dracula* adaptation, still one of cinema’s most striking horror films.
+    
+    [!](embed:dailyartmagazine.com-9Tk)
+    
+    ### 3. Why it changed
+    Berlin’s dominance faded in the early 1930s for two main reasons:
+    
+    1.  **Economic crisis:** The Great Depression hit Germany hard, and expensive epics like *Metropolis* nearly bankrupted studios.
+    2.  **The rise of Nazism:** After 1933, many Jewish and anti-Nazi artists fled to the United States.
+    
+    Directors like [Fritz Lang](wiki:Fritz_Lang), [Billy Wilder](wiki:Billy_Wilder), and [Ernst Lubitsch](wiki:Ernst_Lubitsch), plus stars like [Marlene Dietrich](wiki:Marlene_Dietrich), brought the Berlin style to Hollywood. That is one reason 1940s American noir and Universal horror owe so much to 1920s German cinema.
+    
+    ### 4. Babelsberg today
+    [Studio Babelsberg](wiki:Babelsberg_Studio) is still active. Since the 2000s, productions such as *[The Grand Budapest Hotel](wiki:The_Grand_Budapest_Hotel)*, *[Inglourious Basterds](wiki:Inglourious_Basterds)*, and *[John Wick: Chapter 4](wiki:John_Wick:_Chapter_4)* have filmed there.
+    
+    **Have you seen any of those silent classics, or are you more interested in modern films shot in Berlin?** I can also help find where to watch them or set a [reminder](/#settings/apps/reminder) to look up a documentary.
+  verified_by_human: []
+
+follow_up_1:
+  context: Follow-up suggestion 1 for the German cinema history example chat
+  en: "[ai] Explain why German cinema declined in the 1930s"
+  de: "[ai] Explain why German cinema declined in the 1930s"
+  zh: "[ai] Explain why German cinema declined in the 1930s"
+  es: "[ai] Explain why German cinema declined in the 1930s"
+  fr: "[ai] Explain why German cinema declined in the 1930s"
+  pt: "[ai] Explain why German cinema declined in the 1930s"
+  ru: "[ai] Explain why German cinema declined in the 1930s"
+  ja: "[ai] Explain why German cinema declined in the 1930s"
+  ko: "[ai] Explain why German cinema declined in the 1930s"
+  it: "[ai] Explain why German cinema declined in the 1930s"
+  tr: "[ai] Explain why German cinema declined in the 1930s"
+  vi: "[ai] Explain why German cinema declined in the 1930s"
+  id: "[ai] Explain why German cinema declined in the 1930s"
+  pl: "[ai] Explain why German cinema declined in the 1930s"
+  nl: "[ai] Explain why German cinema declined in the 1930s"
+  ar: "[ai] Explain why German cinema declined in the 1930s"
+  hi: "[ai] Explain why German cinema declined in the 1930s"
+  th: "[ai] Explain why German cinema declined in the 1930s"
+  cs: "[ai] Explain why German cinema declined in the 1930s"
+  sv: "[ai] Explain why German cinema declined in the 1930s"
+  he: "[ai] Explain why German cinema declined in the 1930s"
+  verified_by_human: []
+
+follow_up_2:
+  context: Follow-up suggestion 2 for the German cinema history example chat
+  en: "[videos-search] Find documentaries about the golden age of German cinema"
+  de: "[videos-search] Find documentaries about the golden age of German cinema"
+  zh: "[videos-search] Find documentaries about the golden age of German cinema"
+  es: "[videos-search] Find documentaries about the golden age of German cinema"
+  fr: "[videos-search] Find documentaries about the golden age of German cinema"
+  pt: "[videos-search] Find documentaries about the golden age of German cinema"
+  ru: "[videos-search] Find documentaries about the golden age of German cinema"
+  ja: "[videos-search] Find documentaries about the golden age of German cinema"
+  ko: "[videos-search] Find documentaries about the golden age of German cinema"
+  it: "[videos-search] Find documentaries about the golden age of German cinema"
+  tr: "[videos-search] Find documentaries about the golden age of German cinema"
+  vi: "[videos-search] Find documentaries about the golden age of German cinema"
+  id: "[videos-search] Find documentaries about the golden age of German cinema"
+  pl: "[videos-search] Find documentaries about the golden age of German cinema"
+  nl: "[videos-search] Find documentaries about the golden age of German cinema"
+  ar: "[videos-search] Find documentaries about the golden age of German cinema"
+  hi: "[videos-search] Find documentaries about the golden age of German cinema"
+  th: "[videos-search] Find documentaries about the golden age of German cinema"
+  cs: "[videos-search] Find documentaries about the golden age of German cinema"
+  sv: "[videos-search] Find documentaries about the golden age of German cinema"
+  he: "[videos-search] Find documentaries about the golden age of German cinema"
+  verified_by_human: []
+
+follow_up_3:
+  context: Follow-up suggestion 3 for the German cinema history example chat
+  en: "[images-search] Show me more posters from German Expressionist films"
+  de: "[images-search] Show me more posters from German Expressionist films"
+  zh: "[images-search] Show me more posters from German Expressionist films"
+  es: "[images-search] Show me more posters from German Expressionist films"
+  fr: "[images-search] Show me more posters from German Expressionist films"
+  pt: "[images-search] Show me more posters from German Expressionist films"
+  ru: "[images-search] Show me more posters from German Expressionist films"
+  ja: "[images-search] Show me more posters from German Expressionist films"
+  ko: "[images-search] Show me more posters from German Expressionist films"
+  it: "[images-search] Show me more posters from German Expressionist films"
+  tr: "[images-search] Show me more posters from German Expressionist films"
+  vi: "[images-search] Show me more posters from German Expressionist films"
+  id: "[images-search] Show me more posters from German Expressionist films"
+  pl: "[images-search] Show me more posters from German Expressionist films"
+  nl: "[images-search] Show me more posters from German Expressionist films"
+  ar: "[images-search] Show me more posters from German Expressionist films"
+  hi: "[images-search] Show me more posters from German Expressionist films"
+  th: "[images-search] Show me more posters from German Expressionist films"
+  cs: "[images-search] Show me more posters from German Expressionist films"
+  sv: "[images-search] Show me more posters from German Expressionist films"
+  he: "[images-search] Show me more posters from German Expressionist films"
+  verified_by_human: []
+
+follow_up_4:
+  context: Follow-up suggestion 4 for the German cinema history example chat
+  en: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  de: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  zh: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  es: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  fr: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  pt: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  ru: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  ja: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  ko: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  it: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  tr: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  vi: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  id: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  pl: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  nl: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  ar: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  hi: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  th: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  cs: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  sv: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  he: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  verified_by_human: []
+
+follow_up_5:
+  context: Follow-up suggestion 5 for the German cinema history example chat
+  en: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  de: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  zh: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  es: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  fr: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  pt: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  ru: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  ja: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  ko: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  it: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  tr: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  vi: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  id: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  pl: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  nl: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  ar: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  hi: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  th: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  cs: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  sv: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  he: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  verified_by_human: []
+
+follow_up_6:
+  context: Follow-up suggestion 6 for the German cinema history example chat
+  en: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  de: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  zh: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  es: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  fr: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  pt: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  ru: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  ja: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  ko: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  it: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  tr: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  vi: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  id: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  pl: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  nl: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  ar: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  hi: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  th: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  cs: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  sv: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  he: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  verified_by_human: []

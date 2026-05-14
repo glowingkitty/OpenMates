@@ -175,8 +175,7 @@ test.describe('App: Travel / Skill: search_connections', () => {
 		expect(timeText).toContain('→');
 		logCheckpoint(`Preview time: ${timeText}`);
 
-		// Airline logo/favicon should be available without opening fullscreen
-		await expect(firstPreview.getByTestId('embed-title-favicon')).toBeVisible();
+		// Airline logo should be available in the preview card without opening fullscreen
 		await expect(previewDetails.getByTestId('airline-logos')).toBeVisible();
 
 		// Meta line should show duration/stops info

@@ -56,7 +56,7 @@ struct AppSkillUseRenderer: View {
     private var skillTitle: String {
         switch (appId, skillId) {
         case ("web", "search"), ("news", "search"): return "Search"
-        case ("images", "search"), ("videos", "search"): return "Search"
+        case ("events", "search"), ("images", "search"), ("videos", "search"): return "Search"
         case ("code", "get_docs"): return "Docs"
         case ("web", "read"): return "Read"
         case ("math", "calculate"): return "Calculate"
@@ -85,6 +85,8 @@ struct AppSkillUseRenderer: View {
                     return type == .imagesImageResult || type == .image
                 case "videos":
                     return type == .videosVideo
+                case "events":
+                    return type == .eventsEvent
                 default:
                     return child.appId == appId
                 }
@@ -102,10 +104,31 @@ struct AppSkillUseRenderer: View {
     }
 
     private var preview: AnyView {
-        if appId == "images", !childEmbeds.isEmpty {
-            AnyView(imagesSearchPreview)
+        let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
+        if appId == "web", skillId == "search" {
+            return AnyView(WebSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "web", skillId == "read" {
+            return AnyView(WebReadEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "images", skillId == "search" {
+            return AnyView(ImagesSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
+            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "images", skillId == "view" {
+            return AnyView(ImageEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "code", skillId == "get_docs" {
+            return AnyView(CodeGetDocsEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "events", skillId == "search" {
+            return AnyView(EventsSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "travel", skillId == "search_connections" {
+            return AnyView(TravelSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "travel", skillId == "search_stays" {
+            return AnyView(TravelStaysEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "travel", skillId == "price_calendar" {
+            return AnyView(TravelPriceCalendarEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "images", !childEmbeds.isEmpty {
+            return AnyView(imagesSearchPreview)
         } else {
-            AnyView(textSearchPreview)
+            return AnyView(textSearchPreview)
         }
     }
 
@@ -170,31 +193,55 @@ struct AppSkillUseRenderer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
+    @ViewBuilder
     private var fullscreen: some View {
-        VStack(alignment: .leading, spacing: .spacing6) {
-            if !childEmbeds.isEmpty {
-                if appId == "images" {
-                    LazyVGrid(columns: [GridItem(.flexible())], spacing: .spacing5) {
-                        ForEach(childEmbeds) { child in
-                            ImageResultFullscreenCard(embed: child) {
-                                onOpenEmbed(child)
+        let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
+        if appId == "web", skillId == "search" {
+            WebSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "web", skillId == "read" {
+            WebReadEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "images", skillId == "search" {
+            ImagesSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
+            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "images", skillId == "view" {
+            ImageEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "code", skillId == "get_docs" {
+            CodeGetDocsEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "events", skillId == "search" {
+            EventsSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "travel", skillId == "search_connections" {
+            TravelSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "travel", skillId == "search_stays" {
+            TravelStaysEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "travel", skillId == "price_calendar" {
+            TravelPriceCalendarEmbedRenderer(data: data, mode: .fullscreen)
+        } else {
+            VStack(alignment: .leading, spacing: .spacing6) {
+                if !childEmbeds.isEmpty {
+                    if appId == "images" {
+                        LazyVGrid(columns: [GridItem(.flexible())], spacing: .spacing5) {
+                            ForEach(childEmbeds) { child in
+                                ImageResultFullscreenCard(embed: child) {
+                                    onOpenEmbed(child)
+                                }
+                            }
+                        }
+                    } else {
+                        LazyVStack(spacing: .spacing4) {
+                            ForEach(childEmbeds) { child in
+                                SearchResultFullscreenRow(embed: child, appId: appId) {
+                                    onOpenEmbed(child)
+                                }
                             }
                         }
                     }
                 } else {
-                    LazyVStack(spacing: .spacing4) {
-                        ForEach(childEmbeds) { child in
-                            SearchResultFullscreenRow(embed: child, appId: appId) {
-                                onOpenEmbed(child)
-                            }
-                        }
-                    }
+                    Text(LocalizationManager.shared.text("embeds.search_no_results"))
+                        .font(.omP)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontSecondary)
                 }
-            } else {
-                Text(LocalizationManager.shared.text("embeds.search_no_results"))
-                    .font(.omP)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontSecondary)
             }
         }
     }
@@ -245,7 +292,7 @@ struct AppSkillUseRenderer: View {
     private var faviconEmbeds: [EmbedRecord] {
         uniqueEmbedsBySource(childEmbeds.filter { child in
             let raw = child.rawData ?? [:]
-            return firstString(in: raw, keys: ["favicon", "favicon_url", "meta_url_favicon"]) != nil
+            return faviconURL(for: raw) != nil
         })
     }
 
@@ -267,7 +314,7 @@ struct AppSkillUseRenderer: View {
 
     private func faviconView(for child: EmbedRecord) -> some View {
         let raw = child.rawData ?? [:]
-        let favicon = firstString(in: raw, keys: ["favicon", "favicon_url", "meta_url_favicon"])
+        let favicon = faviconURL(for: raw)
         return ZStack {
             Circle().fill(Color.grey0)
             if let favicon, let url = URL(string: favicon) {
@@ -286,7 +333,7 @@ struct AppSkillUseRenderer: View {
     @ViewBuilder
     private func childThumbnail(for child: EmbedRecord) -> some View {
         let raw = child.rawData ?? [:]
-        let imageURL = firstString(in: raw, keys: [
+        let imageURL = imageURL(for: raw, keys: [
             "thumbnail_url", "thumbnail", "image_url", "image", "thumbnail_original", "meta_url_favicon", "favicon"
         ])
         if let imageURL, let url = URL(string: imageURL) {
@@ -329,6 +376,18 @@ struct AppSkillUseRenderer: View {
         }
         return nil
     }
+
+    private func imageURL(for data: [String: AnyCodable], keys: [String], maxWidth: Int = 520) -> String? {
+        guard let raw = firstString(in: data, keys: keys) else { return nil }
+        return EmbedFieldReader.proxiedImageURL(raw, maxWidth: maxWidth)
+    }
+
+    private func faviconURL(for data: [String: AnyCodable]) -> String? {
+        EmbedFieldReader.proxiedImageURL(
+            firstString(in: data, keys: ["favicon", "favicon_url", "meta_url_favicon"]),
+            maxWidth: 64
+        ) ?? EmbedFieldReader.proxiedFaviconURL(pageURL: firstString(in: data, keys: ["source_page_url", "url"]))
+    }
 }
 
 private struct SearchResultFullscreenRow: View {
@@ -344,10 +403,14 @@ private struct SearchResultFullscreenRow: View {
         firstString(["description", "snippet", "text", "content"])
     }
     private var imageURL: String? {
-        firstString(["thumbnail_original", "thumbnail_url", "preview_image_url", "image_url", "image", "url"])
+        EmbedFieldReader.proxiedImageURL(
+            firstString(["thumbnail_original", "thumbnail_url", "preview_image_url", "image_url", "image", "url"]),
+            maxWidth: 520
+        )
     }
     private var favicon: String? {
-        firstString(["meta_url_favicon", "favicon", "favicon_url"])
+        EmbedFieldReader.proxiedImageURL(firstString(["meta_url_favicon", "favicon", "favicon_url"]), maxWidth: 64)
+            ?? EmbedFieldReader.proxiedFaviconURL(pageURL: firstString(["source_page_url", "url"]))
     }
 
     var body: some View {
@@ -428,9 +491,12 @@ private struct ImageResultFullscreenCard: View {
         firstString(["source", "source_domain"]) ?? host(from: firstString(["source_page_url", "url"])) ?? "Image"
     }
     private var imageURL: String? {
-        firstString(["image_url", "thumbnail_url", "thumbnail_original", "image"])
+        EmbedFieldReader.proxiedImageURL(firstString(["image_url", "thumbnail_url", "thumbnail_original", "image"]), maxWidth: 520)
     }
-    private var favicon: String? { firstString(["favicon_url", "favicon", "meta_url_favicon"]) }
+    private var favicon: String? {
+        EmbedFieldReader.proxiedImageURL(firstString(["favicon_url", "favicon", "meta_url_favicon"]), maxWidth: 64)
+            ?? EmbedFieldReader.proxiedFaviconURL(pageURL: firstString(["source_page_url", "url"]))
+    }
 
     var body: some View {
         Button(action: onTap) {

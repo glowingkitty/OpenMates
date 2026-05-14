@@ -1,5 +1,5 @@
 ---
-name: openmates:fix-next-test
+name: fix-next-test
 description: Pick the next priority failing test, investigate root cause, fix it, and verify — one test at a time
 user-invocable: true
 argument-hint: "[spec-name] [--skip-session] [--rerun-only]"

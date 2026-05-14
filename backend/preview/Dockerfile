@@ -4,7 +4,7 @@
 # and extracting URL metadata (Open Graph).
 #
 # Build:
-#   docker build -t openmates-preview .
+#   docker build -t openmates-preview -f backend/preview/Dockerfile .
 #
 # Run:
 #   docker run -p 8080:8080 -v preview-cache:/app/cache openmates-preview
@@ -44,13 +44,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy requirements first (for better caching)
-COPY requirements.txt .
+COPY backend/preview/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code and shared provider modules used by preview routes
+COPY backend/preview/ .
+COPY backend/shared /app/backend/shared
 
 # Create cache directory with correct permissions
 RUN mkdir -p /app/cache && \
@@ -70,4 +71,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Workers configurable via UVICORN_WORKERS env var (default: 4)
 # Each worker can process 1 image at a time, so 4 workers = 4 concurrent image processing
 CMD sh -c "python -m uvicorn main:app --host 0.0.0.0 --port 8080 --workers ${UVICORN_WORKERS:-4}"
-

@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.base_skill import BaseSkill
 from backend.apps.shopping.providers.amazon_provider import (
     search_products as amazon_search,
@@ -204,6 +205,7 @@ class SearchProductsSkill(BaseSkill):
             skill_name="SearchProductsSkill",
             logger=logger,
             secrets_manager=secrets_manager,
+            cache_service=kwargs.get("cache_service"),
         )
 
         # 4. Group results by request ID
@@ -339,6 +341,25 @@ class SearchProductsSkill(BaseSkill):
                 result["country"] = pagination.get("country")
                 result["amazon_domain"] = pagination.get("amazon_domain")
             results.append(result)
+
+        try:
+            results = await sanitize_long_text_fields_in_payload(
+                payload=results,
+                task_id=f"shopping_search_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=kwargs.get("cache_service"),
+                min_chars=40,
+                max_parallel=3,
+            )
+        except Exception as sanitize_error:
+            logger.error(
+                "Shopping content sanitization failed provider=%s query=%r: %s",
+                provider,
+                query,
+                sanitize_error,
+                exc_info=True,
+            )
+            return (request_id, [], "Content sanitization failed")
 
         logger.info(
             "Shopping search provider=%s query=%r → %d products (total=%d)",

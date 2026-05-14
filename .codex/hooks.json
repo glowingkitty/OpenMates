@@ -1,16 +1,76 @@
 {
   "hooks": {
-    "PostToolUse": [
+    "SessionStart": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "startup|resume|clear",
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/lint-design-tokens.sh"
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" SessionStart",
+            "statusMessage": "Loading OpenMates session context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" PreToolUse",
+            "timeout": 30,
+            "statusMessage": "Checking OpenMates policies"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" PostToolUse",
+            "timeout": 120,
+            "statusMessage": "Running OpenMates post-edit hooks"
+          }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/lint-design-tokens.sh\""
           },
           {
             "type": "command",
-            "command": "bash scripts/lint-swift-design-tokens.sh"
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/lint-swift-design-tokens.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" UserPromptSubmit",
+            "timeout": 10,
+            "statusMessage": "Checking OpenMates prompt context"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" Stop",
+            "timeout": 30,
+            "statusMessage": "Checking OpenMates worktree state"
           }
         ]
       }

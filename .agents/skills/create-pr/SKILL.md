@@ -1,5 +1,5 @@
 ---
-name: openmates:pullrequest
+name: create-pr
 description: Create a pull request from dev to main with proper formatting and draft release
 user-invocable: true
 disable-model-invocation: false

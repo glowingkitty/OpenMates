@@ -26,6 +26,7 @@
   //   streaming embed card arrives after this inline link was already rendered.
 
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
+  import { resolveEmbedDisplayText } from '../../utils/embedDisplayText';
 
   interface Props {
     /** Short slug from the LLM (e.g. "ryanair-0600-k8D") */
@@ -104,6 +105,8 @@
       : '',
   );
 
+  let effectiveDisplayText = $derived(resolveEmbedDisplayText(displayText, embedRef));
+
   /**
    * Open embed fullscreen on click.
    * Resolves embed_ref → embed_id at click time (lazy resolution handles the case
@@ -163,7 +166,7 @@
     <span class="icon_rounded {effectiveAppId || ''}"></span>
   </span>
   <!-- Solid-colour display text — colour adapts to light/dark mode via CSS -->
-  <span class="embed-inline-text" class:has-app-color={!!effectiveAppId} style={textColorVarsStyle}>{displayText}</span>
+  <span class="embed-inline-text" class:has-app-color={!!effectiveAppId} style={textColorVarsStyle}>{effectiveDisplayText}</span>
 </span>
 
 <style>

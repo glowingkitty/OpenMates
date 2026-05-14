@@ -344,9 +344,7 @@ describe("ChatKeyManager — queue-and-flush", () => {
     // Fill the queue (MAX = 50)
     const promises: Promise<void>[] = [];
     for (let i = 0; i < 50; i++) {
-      promises.push(
-        mgr.queueOperation("chat-1", `op-${i}`, async () => {}),
-      );
+      promises.push(mgr.queueOperation("chat-1", `op-${i}`, async () => {}));
     }
     // 51st op should reject immediately
     await expect(
@@ -738,7 +736,11 @@ describe("ChatKeyManager — deadlock prevention", () => {
 // ---------------------------------------------------------------------------
 
 // Capture BroadcastChannel messages for assertion
-const broadcastMessages: Array<{ type: string; chatId?: string; encryptedChatKey?: string }> = [];
+const broadcastMessages: Array<{
+  type: string;
+  chatId?: string;
+  encryptedChatKey?: string;
+}> = [];
 
 // Mock BroadcastChannel so we can observe postMessage calls
 vi.stubGlobal(
@@ -783,7 +785,13 @@ describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", ()
     // The manager registers onmessage in the constructor, so we trigger it via the channel
     const bc = (mgr as any).broadcastChannel;
     expect(bc).not.toBeNull();
-    bc.onmessage!({ data: { type: "keyLoaded", chatId: "chat-1", encryptedChatKey: "encrypted-from-other-tab" } } as MessageEvent);
+    bc.onmessage!({
+      data: {
+        type: "keyLoaded",
+        chatId: "chat-1",
+        encryptedChatKey: "encrypted-from-other-tab",
+      },
+    } as MessageEvent);
 
     // Wait for the async receiveKeyFromServer to complete
     await new Promise((r) => setTimeout(r, 10));
@@ -799,7 +807,13 @@ describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", ()
 
     // No pending ops for chat-1 — keyLoaded should be a no-op
     const bc = (mgr as any).broadcastChannel;
-    bc.onmessage!({ data: { type: "keyLoaded", chatId: "chat-1", encryptedChatKey: "encrypted-from-other-tab" } } as MessageEvent);
+    bc.onmessage!({
+      data: {
+        type: "keyLoaded",
+        chatId: "chat-1",
+        encryptedChatKey: "encrypted-from-other-tab",
+      },
+    } as MessageEvent);
 
     await new Promise((r) => setTimeout(r, 10));
 
@@ -815,7 +829,13 @@ describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", ()
     mgr.injectKey("chat-1", makeKey(42), "master_key");
 
     const bc = (mgr as any).broadcastChannel;
-    bc.onmessage!({ data: { type: "keyLoaded", chatId: "chat-1", encryptedChatKey: "encrypted-from-other-tab" } } as MessageEvent);
+    bc.onmessage!({
+      data: {
+        type: "keyLoaded",
+        chatId: "chat-1",
+        encryptedChatKey: "encrypted-from-other-tab",
+      },
+    } as MessageEvent);
 
     await new Promise((r) => setTimeout(r, 10));
 
@@ -828,7 +848,9 @@ describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", ()
     await mgr.createAndPersistKey("chat-new");
 
     // Should have broadcast a keyLoaded message
-    const keyLoadedMsgs = broadcastMessages.filter((m) => m.type === "keyLoaded");
+    const keyLoadedMsgs = broadcastMessages.filter(
+      (m) => m.type === "keyLoaded",
+    );
     expect(keyLoadedMsgs.length).toBe(1);
     expect(keyLoadedMsgs[0].chatId).toBe("chat-new");
     expect(keyLoadedMsgs[0].encryptedChatKey).toBe("encrypted-dummy");
@@ -841,7 +863,9 @@ describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", ()
     broadcastMessages.length = 0;
     await mgr.receiveKeyFromServer("chat-1", "encrypted-from-server");
 
-    const keyLoadedMsgs = broadcastMessages.filter((m) => m.type === "keyLoaded");
+    const keyLoadedMsgs = broadcastMessages.filter(
+      (m) => m.type === "keyLoaded",
+    );
     expect(keyLoadedMsgs.length).toBe(1);
     expect(keyLoadedMsgs[0].chatId).toBe("chat-1");
     expect(keyLoadedMsgs[0].encryptedChatKey).toBe("encrypted-from-server");
@@ -862,7 +886,9 @@ describe("ChatKeyManager — BroadcastChannel keyLoaded (KEYS-06 cross-tab)", ()
     await ssrMgr.createAndPersistKey("chat-ssr");
 
     // No broadcast should have occurred
-    const keyLoadedMsgs = broadcastMessages.filter((m) => m.type === "keyLoaded");
+    const keyLoadedMsgs = broadcastMessages.filter(
+      (m) => m.type === "keyLoaded",
+    );
     expect(keyLoadedMsgs.length).toBe(0);
 
     // Restore
@@ -1199,7 +1225,10 @@ describe("SYNC-01: key_received acknowledgment", () => {
     vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(serverKey);
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const result = await mgr.receiveKeyFromServer("chat-conflict", "server-encrypted-key");
+    const result = await mgr.receiveKeyFromServer(
+      "chat-conflict",
+      "server-encrypted-key",
+    );
 
     // Local key must be returned unchanged
     expect(result).toEqual(localKey);
@@ -1294,6 +1323,81 @@ describe("SYNC-02: BroadcastChannel cross-tab key propagation", () => {
     expect(keyLoadedMsgs.length).toBe(1);
     expect(keyLoadedMsgs[0].chatId).toBe("encrypt-chat");
     expect(keyLoadedMsgs[0].encryptedChatKey).toBe("encrypted-new-key");
+  });
+});
+
+describe("ChatKeyManager — authoritative key recovery", () => {
+  let mgr: ChatKeyManager;
+
+  beforeEach(() => {
+    broadcastMessages.length = 0;
+    mgr = new ChatKeyManager();
+  });
+
+  afterEach(() => {
+    mgr.clearAll();
+  });
+
+  it("accepts a server key as authoritative during explicit mismatch recovery", async () => {
+    const { decryptChatKeyWithMasterKey } = await import("../../cryptoService");
+    const localKey = makeKey(1);
+    const serverKey = makeKey(2);
+    const candidates: string[] = [];
+    let persistedPrimary: string | null = null;
+
+    mgr.injectKey("chat-1", localKey, "master_key");
+    mgr.setEncryptedChatKeyFetcher(async () => "old-local-encrypted-key");
+    mgr.setCandidateKeyPersister(async (_chatId, encryptedKey) => {
+      candidates.push(encryptedKey);
+    });
+    mgr.setEncryptedChatKeyPersister(async (_chatId, encryptedKey) => {
+      persistedPrimary = encryptedKey;
+    });
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(serverKey);
+
+    const accepted = await mgr.acceptServerKeyForMismatch(
+      "chat-1",
+      "server-encrypted-key",
+    );
+
+    expect(accepted).toEqual(serverKey);
+    expect(mgr.getKeySync("chat-1")).toEqual(serverKey);
+    expect(mgr.getProvenance("chat-1")?.source).toBe("server_sync");
+    expect(candidates).toEqual(["old-local-encrypted-key"]);
+    expect(persistedPrimary).toBe("server-encrypted-key");
+  });
+
+  it("finds and promotes a candidate by ciphertext fingerprint", async () => {
+    const { decryptChatKeyWithMasterKey, computeKeyFingerprint4Bytes } =
+      await import("../../cryptoService");
+    const localKey = makeKey(1);
+    const candidateKey = makeKey(9);
+    const fingerprintHex = Array.from(computeKeyFingerprint4Bytes(candidateKey))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    let persistedPrimary: string | null = null;
+
+    mgr.injectKey("chat-1", localKey, "master_key");
+    mgr.setCandidateKeyFetcher(async () => ["candidate-encrypted-key"]);
+    mgr.setEncryptedChatKeyPersister(async (_chatId, encryptedKey) => {
+      persistedPrimary = encryptedKey;
+    });
+    vi.mocked(decryptChatKeyWithMasterKey).mockResolvedValue(candidateKey);
+
+    const candidate = await mgr.findCandidateKeyByFingerprint(
+      "chat-1",
+      fingerprintHex,
+    );
+
+    expect(candidate?.key).toEqual(candidateKey);
+    mgr.promoteCandidateKey(
+      "chat-1",
+      candidate!,
+      "fingerprint_mismatch_recovery",
+    );
+
+    expect(mgr.getKeySync("chat-1")).toEqual(candidateKey);
+    expect(persistedPrimary).toBe("candidate-encrypted-key");
   });
 });
 

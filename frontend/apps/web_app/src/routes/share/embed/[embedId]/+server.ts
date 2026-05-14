@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	const backendUrl = getBackendUrl(url);
 	let ogTitle = 'Shared Embed - OpenMates';
 	let ogDescription = 'View this shared content on OpenMates';
-	let ogImage = '/og-images/default-embed.png';
+	let ogImage = '/images/og-image.jpg';
 
 	try {
 		// Add cache-busting timestamp to ensure we get fresh data

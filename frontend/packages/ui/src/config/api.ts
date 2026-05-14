@@ -185,7 +185,7 @@ export const apiEndpoints = {
     chatStats: "/v1/settings/chats", // GET: total chat count for Settings > Account > Chats
     previewOldChats: "/v1/settings/chats/preview", // GET: count of chats older than N days (preview before delete)
     deleteOldChats: "/v1/settings/chats/delete-old", // POST: permanently delete chats older than N days
-    aiModelDefaults: "/v1/settings/ai-model-defaults", // Persist default AI model preferences (simple/complex)
+    aiModelDefaults: "/v1/settings/ai-model-defaults", // Persist default AI model preferences and interaction toggles
     software_update: {
       check: "/v1/settings/software_update/check", // Check for software updates
       install: "/v1/settings/software_update/install", // Install software update

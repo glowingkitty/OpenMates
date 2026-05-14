@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.base_skill import BaseSkill
 from backend.apps.nutrition.providers.rewe_recipe_provider import (
     FILTER_TAGS,
@@ -281,6 +282,24 @@ class SearchRecipesSkill(BaseSkill):
                 result = recipe.to_result_dict()
                 result["total_available"] = total
                 results.append(result)
+
+            try:
+                results = await sanitize_long_text_fields_in_payload(
+                    payload=results,
+                    task_id=f"recipe_search_{request_id}",
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service,
+                    min_chars=40,
+                    max_parallel=3,
+                )
+            except Exception as sanitize_error:
+                logger.error(
+                    "Recipe content sanitization failed for request %s: %s",
+                    request_id,
+                    sanitize_error,
+                    exc_info=True,
+                )
+                return (request_id, [], "Content sanitization failed")
 
             logger.info(
                 "Recipe search filters=%r → %d recipes (total=%d, %d cached)",

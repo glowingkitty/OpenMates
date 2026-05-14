@@ -18,6 +18,19 @@ import UIKit
 #endif
 
 #if os(iOS)
+extension AppQuickAction {
+    init?(shortcutItem: UIApplicationShortcutItem) {
+        switch shortcutItem.type {
+        case "org.openmates.newchat":
+            self = .newChat
+        case "org.openmates.search":
+            self = .search
+        default:
+            return nil
+        }
+    }
+}
+
 class SceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(
         _ scene: UIScene,
@@ -41,6 +54,11 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         for activity in connectionOptions.userActivities {
             handleUserActivity(activity)
         }
+
+        if let shortcutItem = connectionOptions.shortcutItem,
+           let action = AppQuickAction(shortcutItem: shortcutItem) {
+            AppQuickActionCenter.shared.perform(action)
+        }
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
@@ -62,13 +80,11 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         _ windowScene: UIWindowScene,
         performActionFor shortcutItem: UIApplicationShortcutItem
     ) async -> Bool {
-        switch shortcutItem.type {
-        case "org.openmates.newchat":
-            NotificationCenter.default.post(name: .newChat, object: nil)
-            return true
-        default:
+        guard let action = AppQuickAction(shortcutItem: shortcutItem) else {
             return false
         }
+        AppQuickActionCenter.shared.perform(action)
+        return true
     }
 
     // MARK: - Handoff handler

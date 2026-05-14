@@ -1,5 +1,5 @@
 ---
-name: openmates:add-embed-type
+name: add-embed-type
 description: Scaffold and register a new embed type (components, theme, icons, i18n, renderer)
 user-invocable: true
 argument-hint: "<appId> <skillId> <SkillName>"

@@ -22,6 +22,7 @@ import {
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
   clearCryptoKeyCache,
+  computeKeyFingerprint4Bytes,
 } from "../cryptoService";
 import { clearDecryptionFailureCache } from "../db/decryptionFailureCache";
 
@@ -49,6 +50,12 @@ export interface KeyProvenance {
   timestamp: number;
   /** First 8 hex chars of SHA-256 hash of the key bytes (for comparison, not security) */
   keyFingerprint: string;
+}
+
+export interface CandidateChatKey {
+  key: Uint8Array;
+  encryptedChatKey: string;
+  fingerprintHex: string;
 }
 
 /** A queued operation waiting for a chat key to become available */
@@ -116,6 +123,12 @@ function keysAreEqual(a: Uint8Array, b: Uint8Array): boolean {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function fingerprint4BytesHex(key: Uint8Array): string {
+  return Array.from(computeKeyFingerprint4Bytes(key))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 // ---------------------------------------------------------------------------
@@ -204,9 +217,8 @@ export class ChatKeyManager {
     | null = null;
 
   /** Callback to fetch candidate_encrypted_keys array from IDB for a given chatId */
-  private fetchCandidateKeysFn:
-    | ((chatId: string) => Promise<string[]>)
-    | null = null;
+  private fetchCandidateKeysFn: ((chatId: string) => Promise<string[]>) | null =
+    null;
 
   /** Callback to persist a new candidate key blob to IDB (appended to array, max 5) */
   private persistCandidateKeyFn:
@@ -336,7 +348,9 @@ export class ChatKeyManager {
    * On success: promotes the winning candidate to primary in both memory and IDB,
    * broadcasts to other tabs, and notifies the server to correct its stored key.
    */
-  private async tryDecryptWithCandidates(chatId: string): Promise<Uint8Array | null> {
+  private async tryDecryptWithCandidates(
+    chatId: string,
+  ): Promise<Uint8Array | null> {
     if (!this.fetchCandidateKeysFn) return null;
 
     let candidates: string[];
@@ -354,7 +368,8 @@ export class ChatKeyManager {
         if (!key) continue;
 
         const candidateFp = computeKeyFingerprint(key);
-        const existingFp = this.provenances.get(chatId)?.keyFingerprint ?? "none";
+        const existingFp =
+          this.provenances.get(chatId)?.keyFingerprint ?? "none";
         console.warn(
           `[ChatKeyManager] ✅ CANDIDATE KEY PROMOTED for chat ${chatId}: ` +
             `candidate[${i}] fp=${candidateFp} succeeded where primary fp=${existingFp} failed. ` +
@@ -368,7 +383,10 @@ export class ChatKeyManager {
         // Persist the corrected blob as the new primary encrypted_chat_key in IDB
         if (this.persistEncryptedChatKeyFn) {
           this.persistEncryptedChatKeyFn(chatId, blob).catch((err) =>
-            console.warn(`[ChatKeyManager] Failed to persist promoted candidate for ${chatId}:`, err),
+            console.warn(
+              `[ChatKeyManager] Failed to persist promoted candidate for ${chatId}:`,
+              err,
+            ),
           );
         }
 
@@ -384,6 +402,101 @@ export class ChatKeyManager {
       }
     }
     return null;
+  }
+
+  async findCandidateKeyByFingerprint(
+    chatId: string,
+    fingerprintHex: string,
+  ): Promise<CandidateChatKey | null> {
+    if (!this.fetchCandidateKeysFn) return null;
+
+    let candidates: string[];
+    try {
+      candidates = await this.fetchCandidateKeysFn(chatId);
+    } catch {
+      return null;
+    }
+
+    for (const encryptedChatKey of candidates) {
+      const key = await decryptChatKeyWithMasterKey(encryptedChatKey);
+      if (!key) continue;
+
+      const candidateFingerprintHex = fingerprint4BytesHex(key);
+      if (candidateFingerprintHex === fingerprintHex) {
+        return {
+          key,
+          encryptedChatKey,
+          fingerprintHex: candidateFingerprintHex,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  promoteCandidateKey(
+    chatId: string,
+    candidate: CandidateChatKey,
+    reason: string,
+  ): void {
+    this.injectKey(chatId, candidate.key, "master_key", true);
+    this.flushPendingOps(chatId, candidate.key);
+
+    if (this.persistEncryptedChatKeyFn) {
+      this.persistEncryptedChatKeyFn(chatId, candidate.encryptedChatKey).catch(
+        (err) =>
+          console.warn(
+            `[ChatKeyManager] Failed to persist promoted candidate for ${chatId}:`,
+            err,
+          ),
+      );
+    }
+
+    this.broadcastKeyLoaded(chatId, candidate.encryptedChatKey);
+    this.sendCandidatePromotionToServer(
+      chatId,
+      candidate.encryptedChatKey,
+      `${candidate.fingerprintHex} ${reason}`,
+    );
+  }
+
+  async acceptServerKeyForMismatch(
+    chatId: string,
+    encryptedChatKey: string,
+  ): Promise<Uint8Array | null> {
+    const serverKey = await decryptChatKeyWithMasterKey(encryptedChatKey);
+    if (!serverKey) return null;
+
+    const existingEncryptedKey = this.fetchEncryptedChatKey
+      ? await this.fetchEncryptedChatKey(chatId).catch(() => null)
+      : null;
+    if (
+      existingEncryptedKey &&
+      existingEncryptedKey !== encryptedChatKey &&
+      this.persistCandidateKeyFn
+    ) {
+      this.persistCandidateKeyFn(chatId, existingEncryptedKey).catch((err) =>
+        console.warn(
+          `[ChatKeyManager] Failed to persist previous key candidate for ${chatId}:`,
+          err,
+        ),
+      );
+    }
+
+    this.injectKey(chatId, serverKey, "server_sync", true);
+    this.flushPendingOps(chatId, serverKey);
+
+    if (this.persistEncryptedChatKeyFn) {
+      this.persistEncryptedChatKeyFn(chatId, encryptedChatKey).catch((err) =>
+        console.warn(
+          `[ChatKeyManager] Failed to persist authoritative server key for ${chatId}:`,
+          err,
+        ),
+      );
+    }
+
+    this.broadcastKeyLoaded(chatId, encryptedChatKey);
+    return serverKey;
   }
 
   /**
@@ -406,11 +519,17 @@ export class ChatKeyManager {
             chat_key_rotation_reason: `candidate_key_promoted fp=${candidateFp}`,
           })
           .catch((err: unknown) =>
-            console.warn(`[ChatKeyManager] Failed to sync promoted candidate key for ${chatId}:`, err),
+            console.warn(
+              `[ChatKeyManager] Failed to sync promoted candidate key for ${chatId}:`,
+              err,
+            ),
           );
       })
       .catch((err: unknown) =>
-        console.warn(`[ChatKeyManager] Failed to import websocketService for candidate sync:`, err),
+        console.warn(
+          `[ChatKeyManager] Failed to import websocketService for candidate sync:`,
+          err,
+        ),
       );
   }
 
@@ -453,9 +572,7 @@ export class ChatKeyManager {
    * Register the function that fetches candidate_encrypted_keys from IDB.
    * Called once during ChatDatabase initialization.
    */
-  setCandidateKeyFetcher(
-    fetcher: (chatId: string) => Promise<string[]>,
-  ): void {
+  setCandidateKeyFetcher(fetcher: (chatId: string) => Promise<string[]>): void {
     this.fetchCandidateKeysFn = fetcher;
   }
 
@@ -639,7 +756,8 @@ export class ChatKeyManager {
           // Re-check: another tab may have created the key while we waited
           const existing = this.keys.get(chatId);
           if (existing) {
-            const encryptedChatKey = await encryptChatKeyWithMasterKey(existing);
+            const encryptedChatKey =
+              await encryptChatKeyWithMasterKey(existing);
             return {
               chatKey: existing,
               encryptedChatKey: encryptedChatKey!,
@@ -736,7 +854,11 @@ export class ChatKeyManager {
 
         console.warn(
           `[ChatKeyManager] Failed to decrypt chat key for ${chatId} — ` +
-            `master key, hidden chat decryptors, and all ${await this.fetchCandidateKeysFn?.(chatId).then(c => c.length).catch(() => 0)} candidate(s) failed`,
+            `master key, hidden chat decryptors, and all ${await this.fetchCandidateKeysFn?.(
+              chatId,
+            )
+              .then((c) => c.length)
+              .catch(() => 0)} candidate(s) failed`,
         );
         this.states.set(chatId, "failed");
         return null;
@@ -814,7 +936,10 @@ export class ChatKeyManager {
           // (e.g. corrupted by a prior race), tryDecryptWithCandidates will recover it.
           if (this.persistCandidateKeyFn) {
             this.persistCandidateKeyFn(chatId, encryptedChatKey).catch((err) =>
-              console.warn(`[ChatKeyManager] Failed to persist candidate key for ${chatId}:`, err),
+              console.warn(
+                `[ChatKeyManager] Failed to persist candidate key for ${chatId}:`,
+                err,
+              ),
             );
           }
           return existing;
@@ -953,7 +1078,9 @@ export class ChatKeyManager {
   onKeyReady(listener: (chatId: string) => void): () => void {
     this.keyReadyListeners.push(listener);
     return () => {
-      this.keyReadyListeners = this.keyReadyListeners.filter((l) => l !== listener);
+      this.keyReadyListeners = this.keyReadyListeners.filter(
+        (l) => l !== listener,
+      );
     };
   }
 
@@ -986,7 +1113,10 @@ export class ChatKeyManager {
         try {
           listener(chatId);
         } catch (err) {
-          console.error(`[ChatKeyManager] keyReady listener error for ${chatId}:`, err);
+          console.error(
+            `[ChatKeyManager] keyReady listener error for ${chatId}:`,
+            err,
+          );
         }
       }
     }
@@ -1270,7 +1400,9 @@ export class ChatKeyManager {
       this.deferredClearAll = true;
       // Still broadcast immediately so other tabs begin their own deferred clear
       if (broadcast) {
-        this.broadcastChannel?.postMessage({ type: "clearAll" } satisfies CrossTabMessage);
+        this.broadcastChannel?.postMessage({
+          type: "clearAll",
+        } satisfies CrossTabMessage);
       }
       return;
     }
@@ -1278,7 +1410,9 @@ export class ChatKeyManager {
     // Broadcast BEFORE clearing so other tabs receive the message while this
     // tab is still alive (prevents timing issues on tab close)
     if (broadcast) {
-      this.broadcastChannel?.postMessage({ type: "clearAll" } satisfies CrossTabMessage);
+      this.broadcastChannel?.postMessage({
+        type: "clearAll",
+      } satisfies CrossTabMessage);
     }
 
     // Reject all pending operations
@@ -1399,7 +1533,9 @@ export class ChatKeyManager {
     }
     console.debug(
       `[ChatKeyManager] Bulk-injected ${injected} chat keys (source=${source})` +
-        (skipped > 0 ? `, skipped ${skipped} (already loaded from higher-priority source)` : ""),
+        (skipped > 0
+          ? `, skipped ${skipped} (already loaded from higher-priority source)`
+          : ""),
     );
   }
 }

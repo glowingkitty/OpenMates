@@ -81,6 +81,9 @@ export interface UserProfile {
   // Format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
   default_ai_model_simple?: string | null;
   default_ai_model_complex?: string | null;
+  // AI chat follow-up suggestion chips and proactive next-step prompts.
+  // Synced cross-device via Directus + Redis cache with the AI model defaults endpoint.
+  follow_up_suggestions_enabled?: boolean;
   // Total chat count as reported by the server during Phase 3 sync.
   // Stored in IndexedDB so it persists across sessions without a server round-trip.
   // Used by: ActiveChat.svelte overflow "+N" counter, SettingsAccountChats.svelte display.

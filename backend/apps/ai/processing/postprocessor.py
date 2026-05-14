@@ -235,6 +235,7 @@ async def handle_postprocessing(
     output_language: str = "en",
     user_system_language: str = "en",
     current_chat_title: Optional[str] = None,
+    follow_up_suggestions_enabled: bool = True,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -266,6 +267,7 @@ async def handle_postprocessing(
             regardless of which language individual chats were conducted in.
         current_chat_title: The current decrypted chat title (if available). Passed to the LLM so it
             can decide whether the title still fits the conversation. None for new chats (first message).
+        follow_up_suggestions_enabled: Whether active-chat follow-up suggestion chips should be returned.
 
     Returns:
         PostProcessingResult with suggestions, summaries, and metadata
@@ -496,15 +498,19 @@ async def handle_postprocessing(
     # Sanitize follow-up suggestions: allow skill + focus + app-only prefixes (no memory —
     # memory suggestions are handled by the automated Phase 2 memory generation step)
     raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
-    sanitized_follow_up = sanitize_suggestions(
-        suggestions=raw_follow_up,
-        valid_skill_ids=valid_skill_ids,
-        valid_focus_ids=valid_focus_ids,
-        valid_memory_ids=set(),  # Memory prefixes removed — handled by Phase 2
-        allow_memory_prefixes=False,
-        task_id=task_id,
-        valid_app_ids=available_app_set,
-    )
+    if follow_up_suggestions_enabled:
+        sanitized_follow_up = sanitize_suggestions(
+            suggestions=raw_follow_up,
+            valid_skill_ids=valid_skill_ids,
+            valid_focus_ids=valid_focus_ids,
+            valid_memory_ids=set(),  # Memory prefixes removed — handled by Phase 2
+            allow_memory_prefixes=False,
+            task_id=task_id,
+            valid_app_ids=available_app_set,
+        )
+    else:
+        sanitized_follow_up = []
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled by user preference")
 
     # Sanitize new chat suggestions: allow skill + focus + app-only prefixes (NO memory)
     raw_new_chat = llm_result.arguments.get("new_chat_request_suggestions", [])
@@ -545,16 +551,16 @@ async def handle_postprocessing(
     else:
         postproc_updated_title = None
 
-    # Translate the chat summary into the user's system/UI language when the conversation
-    # was conducted in a different language. This mirrors the translate_new_chat_suggestions
-    # pattern: an isolated call with no conversation context avoids language bleed reliably.
+    # Translate the chat summary into the user's system/UI language. This mirrors the
+    # translate_new_chat_suggestions pattern: an isolated call with no conversation context
+    # avoids language bleed reliably.
     # The system prompt already instructs the LLM to use user_system_language, but that
     # instruction is frequently overridden when the entire conversation history is in a
     # foreign language. The post-hoc translation call is the reliable enforcement layer.
-    if postproc_chat_summary and output_language != user_system_language:
+    if postproc_chat_summary:
         logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Conversation language '{output_language}' differs "
-            f"from UI language '{user_system_language}' — translating chat summary."
+            f"[Task ID: {task_id}] [PostProcessor] Ensuring chat summary is in "
+            f"UI language '{user_system_language}'."
         )
         postproc_chat_summary = await translate_chat_summary(
             task_id=task_id,
@@ -565,9 +571,10 @@ async def handle_postprocessing(
 
     # Translate the updated title into the user's system/UI language (same pattern as chat_summary).
     # Reuses translate_chat_summary since it's the same isolated translation pattern.
-    if postproc_updated_title and output_language != user_system_language:
+    if postproc_updated_title:
         logger.info(
-            f"[Task ID: {task_id}] [PostProcessor] Translating updated_chat_title to '{user_system_language}'"
+            f"[Task ID: {task_id}] [PostProcessor] Ensuring updated_chat_title is in "
+            f"UI language '{user_system_language}'"
         )
         postproc_updated_title = await translate_chat_summary(
             task_id=task_id,
@@ -968,5 +975,3 @@ async def translate_new_chat_suggestions(
             exc_info=True,
         )
         return suggestions
-
-

@@ -39,8 +39,8 @@ services:
   preview:
     container_name: preview
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: backend/preview/Dockerfile
     restart: unless-stopped
 
     # Load environment variables from root .env file

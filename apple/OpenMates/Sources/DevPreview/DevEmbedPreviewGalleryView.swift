@@ -139,10 +139,11 @@ private struct DevEmbedPreviewSkillSection: View {
             }
 
             DevEmbedDisplayBlock(title: "Fullscreen") {
-                EmbedFullscreenView(
-                    embed: skill.primaryEmbed,
-                    childEmbeds: skill.childEmbeds,
-                    allEmbedRecords: skill.allRecords
+                EmbedFullscreenContainer(
+                    embeds: [skill.primaryEmbed],
+                    initialEmbedId: skill.primaryEmbed.id,
+                    allEmbedRecords: skill.allRecords,
+                    chatId: nil
                 )
                 .frame(height: 620)
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))

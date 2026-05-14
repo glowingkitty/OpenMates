@@ -319,9 +319,11 @@ backend/tests/output/
 # Claude Code — worktree runtime state (empty dirs managed by sessions.py)
 .claude/worktrees/
 
-# OpenCode AI editor local state; keep repo plugins trackable.
+# OpenCode AI editor local state; keep repo plugins and agent mirrors trackable.
 .opencode/*
 !.opencode/
+!.opencode/agents/
+!.opencode/agents/*.md
 !.opencode/plugins/
 !.opencode/plugins/openmates-claude-hooks.js
 
