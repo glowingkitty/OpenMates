@@ -309,7 +309,7 @@ provider_groups:
         privacy_policy: https://cloud.google.com/terms/cloud-privacy-notice
         location: US
         used_for:
-          - hosting third-party open models on Google Vertex AI Model-as-a-Service (for example DeepSeek V3.2). This is separate from Google Gemini; the model weights are third-party but the inference runs on Google infrastructure via an OpenAI-compatible endpoint.
+          - hosting third-party open models on Google Vertex AI Model-as-a-Service. This is separate from Google Gemini; the model weights are third-party but the inference runs on Google infrastructure via an OpenAI-compatible endpoint.
         data_shared:
           - Chat messages with PII placeholders substituted client-side
       together_ai:

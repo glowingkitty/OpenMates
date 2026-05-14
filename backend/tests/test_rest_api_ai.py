@@ -2,8 +2,8 @@
 #
 # Integration tests for the AI app skills:
 #   - ai/ask (default model)
-#   - ai/ask targeting DeepSeek V3.2 via @ai-model override
-#   - ai/ask multi-turn conversation with DeepSeek V3.2
+#   - ai/ask targeting DeepSeek V4 Pro via @ai-model override
+#   - ai/ask multi-turn conversation with DeepSeek V4 Pro
 #   - ai/ask triggering image generation (images-generate via preprocessing)
 #
 # Execution:
@@ -53,26 +53,26 @@ def test_execute_skill_ask(api_client):
 
 
 @pytest.mark.integration
-def test_execute_skill_ask_deepseek_v3_2(api_client):
+def test_execute_skill_ask_deepseek_v4_pro(api_client):
     """
-    Test executing the 'ai/ask' skill targeting DeepSeek V3.2 specifically.
+    Test executing the 'ai/ask' skill targeting DeepSeek V4 Pro specifically.
 
-    Validates that the google_maas_client.py OpenAI-compatible API client
-    correctly routes requests to Google Vertex AI MaaS for DeepSeek V3.2.
+    Validates that the Together AI OpenAI-compatible API client correctly
+    routes requests to Together for DeepSeek V4 Pro.
     Uses the @ai-model: override syntax to force model selection.
     """
     payload = {
         "messages": [
             {
                 "role": "user",
-                "content": "What is the capital of France? @ai-model:deepseek-v3.2",
+                "content": "What is the capital of France? @ai-model:deepseek-v4-pro",
             }
         ],
         "stream": False,
     }
 
     print(
-        "\n[DEEPSEEK TEST] Sending request targeting DeepSeek V3.2 "
+        "\n[DEEPSEEK TEST] Sending request targeting DeepSeek V4 Pro "
         "via @ai-model override..."
     )
     try:
@@ -80,7 +80,7 @@ def test_execute_skill_ask_deepseek_v3_2(api_client):
             "/v1/apps/ai/skills/ask", json=payload, timeout=60.0
         )
         assert response.status_code == 200, (
-            f"DeepSeek V3.2 skill execution failed with status "
+            f"DeepSeek V4 Pro skill execution failed with status "
             f"{response.status_code}: {response.text}"
         )
 
@@ -144,29 +144,29 @@ def test_execute_skill_ask_deepseek_v3_2(api_client):
             )
 
         print(
-            "[DEEPSEEK TEST] PASSED - DeepSeek V3.2 via Google MaaS "
+            "[DEEPSEEK TEST] PASSED - DeepSeek V4 Pro via Together AI "
             "is working correctly!"
         )
 
     except httpx.TimeoutException:
         print(
-            "\n[TIMEOUT] DeepSeek V3.2 request timed out after 60 seconds."
+            "\n[TIMEOUT] DeepSeek V4 Pro request timed out after 60 seconds."
         )
-        pytest.fail("DeepSeek V3.2 request timed out after 60 seconds")
+        pytest.fail("DeepSeek V4 Pro request timed out after 60 seconds")
 
 
 @pytest.mark.integration
 def test_execute_skill_ask_deepseek_multi_turn(api_client):
     """
-    Test multi-turn conversation with DeepSeek V3.2.
+    Test multi-turn conversation with DeepSeek V4 Pro.
     Sends a two-message conversation to verify context handling through the
-    google_maas_client.py OpenAI-compatible endpoint.
+    Together AI OpenAI-compatible endpoint.
     """
     payload = {
         "messages": [
             {
                 "role": "user",
-                "content": "Remember this number: 42. @ai-model:deepseek-v3.2",
+                "content": "Remember this number: 42. @ai-model:deepseek-v4-pro",
             },
             {
                 "role": "assistant",
@@ -182,7 +182,7 @@ def test_execute_skill_ask_deepseek_multi_turn(api_client):
 
     print(
         "\n[DEEPSEEK MULTI-TURN] Testing multi-turn conversation "
-        "with DeepSeek V3.2..."
+        "with DeepSeek V4 Pro..."
     )
     try:
         response = api_client.post(

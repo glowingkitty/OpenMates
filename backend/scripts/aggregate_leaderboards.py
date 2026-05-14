@@ -369,7 +369,7 @@ def _normalize_openrouter_slug(slug: str) -> str:
             s = s[:-len(suffix)]
 
     # Normalize version separators: dots to dashes (e.g., "4.5" -> "4-5", "v3.2" -> "v3-2")
-    # This handles "claude-sonnet-4.5" vs "claude-sonnet-4-5" and "deepseek-v3.2" vs "deepseek-v3-2"
+    # This handles forms like "claude-sonnet-4.5" vs "claude-sonnet-4-5".
     s = re.sub(r'(\d+)\.(\d+)', r'\1-\2', s)
 
     return s

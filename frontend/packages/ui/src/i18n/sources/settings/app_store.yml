@@ -2429,29 +2429,54 @@ ai.skill.ask.model.claude_opus_4_6:
   he: Claude Opus 4.6
   verified_by_human: []
 
-ai.skill.ask.model.deepseek_v3.2:
-  context: Display name for the DeepSeek V3.2 AI model, shown as the settings page title when navigating directly to this model
-  en: DeepSeek V3.2
-  de: DeepSeek V3.2
-  zh: DeepSeek V3.2
-  es: DeepSeek V3.2
-  fr: DeepSeek V3.2
-  pt: DeepSeek V3.2
-  ru: DeepSeek V3.2
-  ja: DeepSeek V3.2
-  ko: DeepSeek V3.2
-  it: DeepSeek V3.2
-  tr: DeepSeek V3.2
-  vi: DeepSeek V3.2
-  id: DeepSeek V3.2
-  pl: DeepSeek V3.2
-  nl: DeepSeek V3.2
-  ar: DeepSeek V3.2
-  hi: DeepSeek V3.2
-  th: DeepSeek V3.2
-  cs: DeepSeek V3.2
-  sv: DeepSeek V3.2
-  he: DeepSeek V3.2
+ai.skill.ask.model.deepseek_v4_pro:
+  context: Display name for the DeepSeek V4 Pro AI model, shown as the settings page title when navigating directly to this model
+  en: DeepSeek V4 Pro
+  de: DeepSeek V4 Pro
+  zh: DeepSeek V4 Pro
+  es: DeepSeek V4 Pro
+  fr: DeepSeek V4 Pro
+  pt: DeepSeek V4 Pro
+  ru: DeepSeek V4 Pro
+  ja: DeepSeek V4 Pro
+  ko: DeepSeek V4 Pro
+  it: DeepSeek V4 Pro
+  tr: DeepSeek V4 Pro
+  vi: DeepSeek V4 Pro
+  id: DeepSeek V4 Pro
+  pl: DeepSeek V4 Pro
+  nl: DeepSeek V4 Pro
+  ar: DeepSeek V4 Pro
+  hi: DeepSeek V4 Pro
+  th: DeepSeek V4 Pro
+  cs: DeepSeek V4 Pro
+  sv: DeepSeek V4 Pro
+  he: DeepSeek V4 Pro
+  verified_by_human: []
+
+ai.skill.ask.model.deepseek_v4_flash:
+  context: Display name for the DeepSeek V4 Flash AI model, shown as the settings page title when navigating directly to this model
+  en: DeepSeek V4 Flash
+  de: DeepSeek V4 Flash
+  zh: DeepSeek V4 Flash
+  es: DeepSeek V4 Flash
+  fr: DeepSeek V4 Flash
+  pt: DeepSeek V4 Flash
+  ru: DeepSeek V4 Flash
+  ja: DeepSeek V4 Flash
+  ko: DeepSeek V4 Flash
+  it: DeepSeek V4 Flash
+  tr: DeepSeek V4 Flash
+  vi: DeepSeek V4 Flash
+  id: DeepSeek V4 Flash
+  pl: DeepSeek V4 Flash
+  nl: DeepSeek V4 Flash
+  ar: DeepSeek V4 Flash
+  hi: DeepSeek V4 Flash
+  th: DeepSeek V4 Flash
+  cs: DeepSeek V4 Flash
+  sv: DeepSeek V4 Flash
+  he: DeepSeek V4 Flash
   verified_by_human: []
 
 ai.skill.ask.model.gemini_3_flash_preview:

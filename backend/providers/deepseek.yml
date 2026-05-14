@@ -1,6 +1,6 @@
 # backend/providers/deepseek.yml
 # DeepSeek provider configuration.
-# DeepSeek models can be accessed via Google Vertex AI (MaaS) as primary, with OpenRouter as fallback.
+# DeepSeek models can be accessed via Together AI or OpenRouter depending on model availability.
 
 provider_id: "deepseek"
 name: "DeepSeek"
@@ -8,49 +8,96 @@ description: "DeepSeek AI - High-performance reasoning and agent models"
 logo_svg: "logos/deepseek.svg"
 
 models:
-  - id: "deepseek-v3.2"
-    name: "DeepSeek V3.2"
-    description: "DeepSeek-V3.2 harmonizes high computational efficiency with superior reasoning and agent performance. Features DeepSeek Sparse Attention (DSA), scalable reinforcement learning, and large-scale agentic task synthesis. Primary: Google Vertex AI; Fallback: OpenRouter."
+  - id: "deepseek-v4-pro"
+    name: "DeepSeek V4 Pro"
+    description: "DeepSeek V4 Pro is a large-scale Mixture-of-Experts model with 1.6T total parameters, 49B activated parameters, hybrid attention, and a 512K-token Together context window. Primary: Together AI direct API; Fallback: OpenRouter."
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-12-01" # Model release date (DeepSeek V3.2 release)
+    release_date: "2026-04-23" # Model release date from OpenRouter/Together listing
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "deepseek-v3.2"
-      openrouter: "deepseek/deepseek-v3.2"
+      openrouter: "deepseek/deepseek-v4-pro"
     input_types:
       - text
     output_types:
       - text
-    default_server: "google_maas" # Google Vertex AI MaaS uses OpenAI-compatible API (not Gemini)
+    default_server: "together" # Use Together directly; OpenRouter is fallback only
     servers:
-      - id: "google_maas"
-        name: "Google Vertex AI (MaaS)"
-        model_id: "deepseek-ai/deepseek-v3.2-maas" # Google Vertex AI MaaS model identifier (publisher/model-id format)
-        region: "EU" # Server region for UI display
+      - id: "together"
+        name: "Together AI"
+        model_id: "deepseek-ai/DeepSeek-V4-Pro"
+        region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
-        model_id: "deepseek/deepseek-v3.2" # OpenRouter's model identifier (fallback)
+        model_id: "deepseek/deepseek-v4-pro"
         region: "US" # Server region for UI display
     pricing:
       tokens:
         input:
-          per_credit_unit: 600 # Based on $0.56/M input (Google Vertex AI): 333.33 / 0.56 = 595, rounded to 600
+          per_credit_unit: 150 # Based on $2.10/M input (Together AI): 333.33 / 2.10 = 158.7, rounded down
         output:
-          per_credit_unit: 200 # Based on $1.68/M output (Google Vertex AI): 333.33 / 1.68 = 198, rounded to 200
+          per_credit_unit: 75 # Based on $4.40/M output (Together AI): 333.33 / 4.40 = 75.8, rounded down
     costs:
       input_per_million_token:
-        price: 0.56
+        price: 2.10
         currency: USD
-        max_context: 163840
+        max_context: 524288
       output_per_million_token:
-        price: 1.68
+        price: 4.40
         currency: USD
-        max_context: 163840
+        max_context: 524288
+      cache_read_per_million_token:
+        price: 0.20
+        currency: USD
     features:
-      knowledge_cutoff: "2025-01"
-      max_output_tokens: 65536
+      knowledge_cutoff: "2026-04"
+      max_output_tokens: 524288
+      tool_use: true
+      streaming: true
+
+  - id: "deepseek-v4-flash"
+    name: "DeepSeek V4 Flash"
+    description: "DeepSeek V4 Flash is an efficiency-optimized Mixture-of-Experts model with 284B total parameters, 13B activated parameters, hybrid attention, and a 1M-token context window. Served through OpenRouter with AtlasCloud preferred as the primary upstream provider."
+    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2026-04-23" # Model release date from OpenRouter
+    allow_auto_select: true
+    reasoning: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      openrouter: "deepseek/deepseek-v4-flash"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "openrouter" # OpenRouter routes to AtlasCloud first via provider_overrides
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "deepseek/deepseek-v4-flash"
+        region: "US" # Server region for UI display
+    provider_overrides:
+      order: ["atlas-cloud"] # Try AtlasCloud first through OpenRouter provider routing
+      allow_fallbacks: true # Keep OpenRouter fallback routing if AtlasCloud is unavailable
+      require_parameters: true # Avoid providers that ignore requested tools/parameters
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 2350 # Based on $0.14/M input (AtlasCloud via OpenRouter): 333.33 / 0.14 = 2381, rounded down
+        output:
+          per_credit_unit: 1190 # Based on $0.28/M output (AtlasCloud via OpenRouter): 333.33 / 0.28 = 1190
+    costs:
+      input_per_million_token:
+        price: 0.14
+        currency: USD
+        max_context: 1048576
+      output_per_million_token:
+        price: 0.28
+        currency: USD
+        max_context: 1048576
+    features:
+      knowledge_cutoff: "2026-04"
+      max_output_tokens: 131072
       tool_use: true
       streaming: true
 
@@ -64,6 +111,6 @@ models:
 #
 # Simplified: tokens_per_credit = 333.33 / your_cost_per_million
 #
-# Examples for DeepSeek V3.2:
-# - Input ($0.25/M): 333.33 / 0.25 = 1333 tokens/credit -> round to 1300
-# - Output ($0.38/M): 333.33 / 0.38 = 877 tokens/credit -> round to 875
+# Examples:
+# - Input ($0.14/M): 333.33 / 0.14 = 2381 tokens/credit -> round to 2350
+# - Output ($0.28/M): 333.33 / 0.28 = 1190 tokens/credit
