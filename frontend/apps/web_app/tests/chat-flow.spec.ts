@@ -600,6 +600,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
 	await expect(sendButton).toBeEnabled({ timeout: 5000 });
+	const messageSendStartedAt = Date.now();
 	await sendButton.click();
 	logChatCheckpoint('Sent message: "Capital of Germany?"');
 	await takeStepScreenshot(page, '03-message-sent');
@@ -623,6 +624,10 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Waiting for assistant response...');
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toContainText('Berlin', { timeout: 45000 });
+	const messageResponseMs = Date.now() - messageSendStartedAt;
+	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
+	logChatCheckpoint(`Message response latency: ${messageResponseMs}ms`, { messageResponseMs });
+	expect(messageResponseMs, 'Chat response should avoid the previous 9s translation cold-start delay').toBeLessThan(30000);
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed "Berlin" in assistant response.');
 
