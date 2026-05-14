@@ -48,6 +48,7 @@ import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -471,6 +472,7 @@ class SearchSkill(BaseSkill):
         secrets_manager: SecretsManager,
         file_path_index: Dict[str, str],
         user_vault_key_id: Optional[str],
+        cache_service: Optional[Any] = None,
     ) -> tuple[Any, List[Dict[str, Any]], str, Optional[str]]:
         """
         Process one search request and return (request_id, results, provider, error_msg).
@@ -578,6 +580,15 @@ class SearchSkill(BaseSkill):
                         result.get("image_url") or result.get("source_page_url") or ""
                     )
 
+            results = await sanitize_long_text_fields_in_payload(
+                payload=results,
+                task_id=f"images_search_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+                min_chars=40,
+                max_parallel=3,
+            )
+
             logger.info(
                 "%s Completed: %d results via %s", log_prefix, len(results), provider
             )
@@ -639,6 +650,7 @@ class SearchSkill(BaseSkill):
 
         file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
         user_vault_key_id: Optional[str] = kwargs.get("user_vault_key_id")
+        cache_service = kwargs.get("cache_service")
 
         # Normalise request IDs (use provided id or index+1)
         normalised: List[tuple[Any, Dict[str, Any]]] = []
@@ -655,6 +667,7 @@ class SearchSkill(BaseSkill):
                 secrets_manager=secrets_manager,
                 file_path_index=file_path_index,
                 user_vault_key_id=user_vault_key_id,
+                cache_service=cache_service,
             )
             for req_id, req in normalised
         ]

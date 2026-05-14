@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
+from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
 from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
 from backend.apps.social_media.search_collection import SearchResponseItem, collect_search_results
 from backend.apps.social_media.tasks.get_posts_task import WEBSHARE_UNAVAILABLE_WARNING, _get_webshare_proxy_url, _send_embed
@@ -64,6 +65,14 @@ async def _async_search(task: BaseServiceTask, app_id: str, skill_id: str, argum
         elapsed_seconds = (datetime.now(timezone.utc) - started).total_seconds()
         total_requests = sum(item.request_count for item in results)
         post_results = _flatten_search_results(results)
+        post_results = await sanitize_long_text_fields_in_payload(
+            payload=post_results,
+            task_id=f"social_search_{task_id}",
+            secrets_manager=task._secrets_manager,
+            cache_service=task._cache_service,
+            min_chars=40,
+            max_parallel=3,
+        )
         providers = sorted({item.provider for item in results if item.provider})
 
         embed_service = EmbedService(
