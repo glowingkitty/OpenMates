@@ -449,7 +449,7 @@
 				window.dispatchEvent(globalChatSelectedEvent);
 
 				if (embedId) {
-					await handleEmbedDeepLink(embedId);
+					await handleEmbedDeepLink(embedId, true);
 				}
 				return;
 			}
@@ -507,7 +507,7 @@
 						console.debug(
 							`[+page.svelte] Opening embed ${embedId} after loading public chat ${chatId}`
 						);
-						await handleEmbedDeepLink(embedId);
+						await handleEmbedDeepLink(embedId, true);
 					}
 					return;
 				} else if (retries > 0) {
@@ -574,7 +574,7 @@
 							console.debug(
 								`[+page.svelte] Opening embed ${embedId} after loading sessionStorage chat ${chatId}`
 							);
-							await handleEmbedDeepLink(embedId);
+							await handleEmbedDeepLink(embedId, true);
 						}
 						return;
 					} else if (retries > 0) {
@@ -626,7 +626,7 @@
 							console.debug(
 								`[+page.svelte] Opening embed ${embedId} after loading chat ${chatId} from IndexedDB`
 							);
-							await handleEmbedDeepLink(embedId);
+							await handleEmbedDeepLink(embedId, true);
 						}
 						return; // Success - exit
 					} else if (retries > 0) {
@@ -727,7 +727,7 @@
 	 * Handle embed deep linking from URL
 	 * Opens the embed in fullscreen mode when #embed-id={embedId} is in the URL
 	 */
-	async function handleEmbedDeepLink(embedId: string) {
+	async function handleEmbedDeepLink(embedId: string, hasChatContext = false) {
 		console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
 
 		// Mark that a deep link was processed
@@ -748,6 +748,7 @@
 					detail: {
 						embedId: openMatesEvent.embed_id,
 						embedType: 'events-event',
+						hasChatContext,
 						embedData: {
 							embed_id: openMatesEvent.embed_id,
 							type: 'events-event',
@@ -767,6 +768,7 @@
 		const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
 			detail: {
 				embedId: embedId,
+				hasChatContext,
 				// Let handleEmbedFullscreen load and decode the embed content
 				embedData: null,
 				decodedContent: null,

@@ -2745,6 +2745,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			detail: {
 				embedId: event.embed_id,
 				embedType: 'events-event',
+				hasChatContext: false,
 				attrs: {
 					type: 'events-event',
 					contentRef: `embed:${event.embed_id}`,
