@@ -7,6 +7,7 @@ import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
+import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
 // Note: We don't use markdown-it-katex or other math plugins for rendering because we extract math formulas
 // ourselves and convert them to TipTap Mathematics nodes. This gives us better control
 // over the LaTeX formula preservation for TipTap's Mathematics extension.
@@ -887,11 +888,7 @@ function convertNodeToTiptap(node: Node): any {
         let linkContent = content;
         if (linkContent.length === 0 && finalHref.startsWith("embed:")) {
           const rawRef = finalHref.slice("embed:".length);
-          // Try to extract domain from ref (e.g. "techcrunch.com-AOq" → "techcrunch.com")
-          const domainMatch = rawRef.match(
-            /^([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/,
-          );
-          const fallbackText = domainMatch ? domainMatch[1] : rawRef;
+          const fallbackText = deriveEmbedDisplayTextFromRef(rawRef);
           linkContent = [{ type: "text", text: fallbackText }];
         } else if (linkContent.length === 0) {
           linkContent = [{ type: "text", text: finalHref }];

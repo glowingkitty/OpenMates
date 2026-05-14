@@ -16,6 +16,7 @@
 import { mount, unmount } from "svelte";
 import EmbedInlineLink from "../components/embeds/EmbedInlineLink.svelte";
 import { embedStore } from "../services/embedStore";
+import { resolveEmbedDisplayText } from "./embedDisplayText";
 
 // ──────────────────────────────────────────────────────────────
 // Constants
@@ -27,7 +28,7 @@ import { embedStore } from "../services/embedStore";
  *   [1] = display text
  *   [2] = embed_ref slug
  */
-const EMBED_LINK_MARKDOWN_RE = /\[([^\]]+)\]\(embed:([^)]+)\)/g;
+const EMBED_LINK_MARKDOWN_RE = /\[([^\]]*)\]\(embed:([^)]+)\)/g;
 
 /**
  * Regex matching `<a href="embed:some-ref">display text</a>` in HTML.
@@ -38,21 +39,6 @@ const EMBED_LINK_MARKDOWN_RE = /\[([^\]]+)\]\(embed:([^)]+)\)/g;
  */
 const EMBED_LINK_HTML_RE =
   /<a\s[^>]*href=["']embed:([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-
-/**
- * When the LLM uses a short placeholder like [>](embed:ref) or omits the
- * display text entirely, derive a human-readable label from the embed ref.
- * The ref typically contains a domain (e.g. "housinganywhere.com-J12") —
- * extract the domain portion. Falls back to the full ref.
- * Note: "!" is excluded (handled separately as embedPreviewLarge).
- */
-function resolveDisplayText(displayText: string, embedRef: string): string {
-  if (displayText.length > 3) return displayText;
-  const domainMatch = embedRef.match(
-    /^([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/
-  );
-  return domainMatch ? domainMatch[1] : embedRef;
-}
 
 /** CSS class for placeholder spans that will be hydrated with EmbedInlineLink */
 const EMBED_PLACEHOLDER_CLASS = "embed-inline-placeholder";
@@ -112,7 +98,7 @@ export function replaceEmbedLinksInText(text: string): string | null {
   while ((match = EMBED_LINK_MARKDOWN_RE.exec(text)) !== null) {
     // Escape the text between the previous match and this one
     result += escapeHtml(text.slice(lastIndex, match.index));
-    const displayText = resolveDisplayText(match[1], match[2]);
+    const displayText = resolveEmbedDisplayText(match[1], match[2]);
     const embedRef = match[2];
     result += buildPlaceholderSpan(embedRef, displayText);
     lastIndex = match.index + match[0].length;
@@ -143,7 +129,7 @@ export function convertEmbedAnchorsToSpans(html: string): string {
     (_match, embedRef: string, innerHtml: string) => {
       // Strip any inner HTML tags from the display text (keep plain text only)
       const rawDisplayText = innerHtml.replace(/<[^>]*>/g, "").trim();
-      return buildPlaceholderSpan(embedRef, resolveDisplayText(rawDisplayText, embedRef));
+      return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, embedRef));
     },
   );
 }
@@ -266,7 +252,7 @@ export function convertMarkdownEmbedLinksInHtml(html: string): string {
   return html.replace(
     EMBED_LINK_MARKDOWN_RE,
     (_match: string, rawDisplayText: string, embedRef: string) => {
-      return buildPlaceholderSpan(embedRef, resolveDisplayText(rawDisplayText, embedRef));
+      return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, embedRef));
     },
   );
 }

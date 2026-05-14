@@ -9,6 +9,7 @@ import { handleStreamingSemantics } from "./streamingSemantics";
 import { enhanceDocumentWithEmbeds } from "./documentEnhancement";
 import { groupConsecutiveEmbedsInDocument } from "./embedGrouping";
 import { migrateEmbedNodes, needsMigration } from "./migration";
+import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
 
 // ─── Inline embed-link conversion ─────────────────────────────────────────────
 //
@@ -199,20 +200,11 @@ function convertEmbedLinksInNode(
       // Parse optional #L line-range fragment from the embed ref.
       const { cleanRef, lineStart, lineEnd } = _parseLineFragment(rawRef);
 
-      // When the LLM omits the display text ([](embed:ref)) or uses a
-      // short placeholder like [>](embed:ref) or [>>](embed:ref), derive a
-      // human-readable label from the embed ref slug.  The ref typically
-      // contains a domain (e.g. "techcrunch.com-AOq") — extract the domain
-      // portion.  Falls back to the full ref if no domain pattern is found.
+      // When the LLM omits display text ([](embed:ref)) or uses a technical
+      // ref as text, derive a safe user-facing label instead of showing the
+      // raw embed_ref slug.
       // Note: [!](embed:ref) is handled above as embedPreviewLarge.
-      let resolvedDisplayText = displayText;
-      if (resolvedDisplayText.length <= 3) {
-        // Try to extract domain from ref (e.g. "cnbc.com-qDe" → "cnbc.com")
-        const domainMatch = cleanRef.match(
-          /^([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/,
-        );
-        resolvedDisplayText = domainMatch ? domainMatch[1] : cleanRef;
-      }
+      const resolvedDisplayText = resolveEmbedDisplayText(displayText, cleanRef);
 
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —

@@ -16,7 +16,6 @@ import pytest
 
 try:
     from backend.apps.ai.tasks.stream_consumer import (
-        _is_bad_embed_display_text,
         _fix_bad_embed_display_text,
         _fix_mixed_url_embed_references,
         _INLINE_EMBED_LINK_PATTERN,
@@ -24,12 +23,17 @@ try:
         _MIXED_URL_EMBED_PATTERN,
         _EMBED_REF_SUFFIX_PATTERN,
     )
+    from backend.apps.ai.utils.embed_display_text import (
+        derive_display_text_from_embed_ref,
+        derive_embed_display_title,
+        is_bad_embed_display_text,
+    )
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
 
 # ---------------------------------------------------------------------------
-# _is_bad_embed_display_text — pure function, no async needed
+# is_bad_embed_display_text — pure function, no async needed
 # ---------------------------------------------------------------------------
 
 
@@ -39,80 +43,92 @@ class TestIsBadEmbedDisplayText:
     # --- Pattern 1: Exact match (display == embed_ref) ---
 
     def test_exact_match_domain_ref(self):
-        assert _is_bad_embed_display_text("macrumors.com-MvT", "macrumors.com-MvT") is True
+        assert is_bad_embed_display_text("macrumors.com-MvT", "macrumors.com-MvT") is True
 
     def test_exact_match_slug_ref(self):
-        assert _is_bad_embed_display_text("eiffel-tower-p2R", "eiffel-tower-p2R") is True
+        assert is_bad_embed_display_text("eiffel-tower-p2R", "eiffel-tower-p2R") is True
 
     # --- Pattern 2: Suffix only (display == random suffix) ---
 
     def test_suffix_only_3char(self):
-        assert _is_bad_embed_display_text("MvT", "macrumors.com-MvT") is True
+        assert is_bad_embed_display_text("MvT", "macrumors.com-MvT") is True
 
     def test_suffix_only_2char(self):
-        assert _is_bad_embed_display_text("k8", "wikipedia.org-k8") is True
+        assert is_bad_embed_display_text("k8", "wikipedia.org-k8") is True
 
     def test_suffix_only_4char(self):
-        assert _is_bad_embed_display_text("x4F2", "ryanair-0600-x4F2") is True
+        assert is_bad_embed_display_text("x4F2", "ryanair-0600-x4F2") is True
 
     # --- Pattern 3: Domain-with-suffix (display has dot + same suffix base) ---
 
     def test_domain_with_suffix(self):
-        assert _is_bad_embed_display_text("computerweekly.com-Kzy", "computerweekly.com-Kzy") is True
+        assert is_bad_embed_display_text("computerweekly.com-Kzy", "computerweekly.com-Kzy") is True
 
     def test_domain_with_different_suffix_same_base(self):
         """Both have same base domain, different suffix — still matches because exact match."""
-        assert _is_bad_embed_display_text("news.ycombinator.com-ANo", "news.ycombinator.com-ANo") is True
+        assert is_bad_embed_display_text("news.ycombinator.com-ANo", "news.ycombinator.com-ANo") is True
 
     # --- Pattern 4: Bare domain (display == embed_ref minus suffix) ---
 
     def test_bare_domain(self):
-        assert _is_bad_embed_display_text("macrumors.com", "macrumors.com-MvT") is True
+        assert is_bad_embed_display_text("macrumors.com", "macrumors.com-MvT") is True
 
     def test_bare_domain_subdomain(self):
-        assert _is_bad_embed_display_text("news.ycombinator.com", "news.ycombinator.com-ANo") is True
+        assert is_bad_embed_display_text("news.ycombinator.com", "news.ycombinator.com-ANo") is True
 
     def test_bare_slug_no_domain(self):
-        assert _is_bad_embed_display_text("eiffel-tower", "eiffel-tower-p2R") is True
+        assert is_bad_embed_display_text("eiffel-tower", "eiffel-tower-p2R") is True
 
     # --- Good display text (should NOT be flagged) ---
 
     def test_proper_title(self):
-        assert _is_bad_embed_display_text("New MacBook Pro", "macrumors.com-MvT") is False
+        assert is_bad_embed_display_text("New MacBook Pro", "macrumors.com-MvT") is False
 
     def test_proper_descriptive_text(self):
-        assert _is_bad_embed_display_text("Hacker News", "news.ycombinator.com-ANo") is False
+        assert is_bad_embed_display_text("Hacker News", "news.ycombinator.com-ANo") is False
 
     def test_proper_place_name(self):
-        assert _is_bad_embed_display_text("Eiffel Tower", "eiffel-tower-p2R") is False
+        assert is_bad_embed_display_text("Eiffel Tower", "eiffel-tower-p2R") is False
 
     def test_proper_article_title(self):
-        assert _is_bad_embed_display_text("UK cybersecurity firms report record revenue", "computerweekly.com-Kzy") is False
+        assert is_bad_embed_display_text("UK cybersecurity firms report record revenue", "computerweekly.com-Kzy") is False
 
     def test_proper_flight_description(self):
-        assert _is_bad_embed_display_text("Ryanair 06:00 flight", "ryanair-0600-x4F") is False
+        assert is_bad_embed_display_text("Ryanair 06:00 flight", "ryanair-0600-x4F") is False
 
     # --- Edge cases ---
 
     def test_empty_display_text(self):
-        assert _is_bad_embed_display_text("", "macrumors.com-MvT") is False
+        assert is_bad_embed_display_text("", "macrumors.com-MvT") is True
 
     def test_empty_embed_ref(self):
-        assert _is_bad_embed_display_text("Some Text", "") is False
+        assert is_bad_embed_display_text("Some Text", "") is False
 
     def test_both_empty(self):
-        assert _is_bad_embed_display_text("", "") is False
+        assert is_bad_embed_display_text("", "") is False
 
     def test_whitespace_only(self):
-        assert _is_bad_embed_display_text("   ", "macrumors.com-MvT") is False
+        assert is_bad_embed_display_text("   ", "macrumors.com-MvT") is True
+
+    def test_empty_display_text_is_bad_inline_label(self):
+        assert is_bad_embed_display_text("", "ice-0800-PsB") is True
+
+    def test_large_preview_marker_is_not_bad(self):
+        assert is_bad_embed_display_text("!", "ice-0800-PsB") is False
+
+    def test_non_domain_connection_ref_exact_match(self):
+        assert is_bad_embed_display_text("ice-0800-PsB", "ice-0800-PsB") is True
+
+    def test_non_domain_connection_ref_base_match(self):
+        assert is_bad_embed_display_text("ice-0800", "ice-0800-PsB") is True
 
     def test_no_suffix_in_ref(self):
         """If embed_ref has no recognizable suffix, patterns 2-4 don't apply."""
-        assert _is_bad_embed_display_text("example", "example") is True  # Still exact match
+        assert is_bad_embed_display_text("example", "example") is True  # Still exact match
 
     def test_display_partial_overlap_not_flagged(self):
         """Display text that partially overlaps but is clearly different content."""
-        assert _is_bad_embed_display_text("MacRumors Article About MvT", "macrumors.com-MvT") is False
+        assert is_bad_embed_display_text("MacRumors Article About MvT", "macrumors.com-MvT") is False
 
 
 # ---------------------------------------------------------------------------
@@ -227,10 +243,10 @@ class TestInlineEmbedLinkPattern:
 
     def test_no_match_empty_brackets(self):
         text = "[](embed:test-ref)"
-        # Empty display text still matches the regex (empty group 1)
         match = _INLINE_EMBED_LINK_PATTERN.search(text)
-        # Pattern requires [^\]]+ so empty brackets shouldn't match
-        assert match is None
+        assert match is not None
+        assert match.group(1) == ""
+        assert match.group(2) == "test-ref"
 
 
 class TestBareEmbedRefPattern:
@@ -255,10 +271,16 @@ class TestBareEmbedRefPattern:
         assert match is None
 
     def test_no_match_plain_text_brackets(self):
-        """Plain text in brackets without a dot should not match."""
+        """Plain text in brackets without an embed-ref suffix should not match."""
         text = "[some text here] more words"
         match = _BARE_EMBED_REF_PATTERN.search(text)
         assert match is None
+
+    def test_matches_non_domain_connection_ref(self):
+        text = "See [ice-0800-PsB] here."
+        match = _BARE_EMBED_REF_PATTERN.search(text)
+        assert match is not None
+        assert match.group(1) == "ice-0800-PsB"
 
     def test_no_match_text_with_spaces(self):
         """Brackets with spaces should not match (pattern requires no spaces)."""
@@ -323,6 +345,35 @@ class TestEmbedRefSuffixPattern:
     def test_no_match_single_char(self):
         """Single char suffix should not match (min is 2)."""
         assert _EMBED_REF_SUFFIX_PATTERN.search("example.com-a") is None
+
+
+class TestDeriveEmbedDisplayText:
+    """Tests for safe display-text derivation from technical embed refs."""
+
+    def test_domain_ref_uses_domain(self):
+        assert derive_display_text_from_embed_ref("computerweekly.com-Kzy") == "computerweekly.com"
+
+    def test_connection_ref_uses_carrier_and_time(self):
+        assert derive_display_text_from_embed_ref("ice-0800-PsB") == "ICE 08:00"
+
+    def test_flixtrain_ref_uses_brand_casing(self):
+        assert derive_display_text_from_embed_ref("flixtrain-1423-3VT") == "FlixTrain 14:23"
+
+    def test_unknown_ref_never_returns_raw_suffix(self):
+        assert derive_display_text_from_embed_ref("travel-result-Ab1") == "Travel Result"
+
+    def test_connection_child_title_from_fields(self):
+        child = {
+            "embed_ref": "ice-0800-PsB",
+            "operator": "ICE",
+            "departure": "2026-06-04T08:00:00",
+            "arrival": "2026-06-04T13:26:00",
+        }
+        assert derive_embed_display_title(child, "ice-0800-PsB") == "ICE 08:00-13:26"
+
+    def test_bad_title_falls_back_to_ref_label(self):
+        child = {"title": "ice-0800-PsB"}
+        assert derive_embed_display_title(child, "ice-0800-PsB") == "ICE 08:00"
 
 
 # ---------------------------------------------------------------------------
