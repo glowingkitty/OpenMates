@@ -63,8 +63,8 @@ If you are a user, developer, designer, storyteller / marketing enthusiast or co
       address: "Grünberger Str. 18, 10243 Berlin",
       city: "Berlin",
       country: "Germany",
-      lat: 52.5126727,
-      lon: 13.450224,
+      lat: 52.512778392359216,
+      lon: 13.449996888857694,
     },
     organizer: {
       name: "OpenMates Meetup Group",
