@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import re
+import time
 import yaml
 from typing import Dict, Any, Optional
 
@@ -94,6 +95,11 @@ class TranslationService:
         languages_to_load = languages or ("en",)
         for lang in languages_to_load:
             self.get_translations(lang=lang)
+
+    def _requires_generated_locale_json(self) -> bool:
+        """Return True when runtime must use prebuilt locale JSON."""
+        server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+        return server_environment not in {"development", "test", "testing"}
     
     def _load_all_yaml_files(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -308,6 +314,14 @@ class TranslationService:
             TranslationService._class_translations_cache[lang] = generated_translations
             logger.info(f"Loaded generated translations for language '{lang}' into shared cache")
             return generated_translations
+
+        if self._requires_generated_locale_json():
+            locale_path = os.path.join(self.locales_dir or "", f"{lang}.json")
+            raise RuntimeError(
+                f"Generated locale JSON is required in SERVER_ENVIRONMENT={os.getenv('SERVER_ENVIRONMENT')} "
+                f"but was not loadable for language '{lang}' at {locale_path}. "
+                "Run `cd frontend/packages/ui && npm run build:translations` before starting backend services."
+            )
         
         try:
             # Load all YAML files
@@ -349,6 +363,11 @@ class TranslationService:
             return None
 
         locale_path = os.path.join(self.locales_dir, f"{lang}.json")
+        logger.info(
+            "Loading generated locale JSON for language '%s' from %s",
+            lang,
+            locale_path,
+        )
         if not os.path.exists(locale_path):
             logger.warning(
                 "Generated locale JSON not found for language '%s' at %s; falling back to YAML sources",
@@ -358,8 +377,11 @@ class TranslationService:
             return None
 
         try:
+            start_time = time.perf_counter()
             with open(locale_path, 'r', encoding='utf-8') as f:
                 translations = json.load(f)
+            elapsed = time.perf_counter() - start_time
+            file_size_bytes = os.path.getsize(locale_path)
         except Exception as e:
             logger.error(
                 "Failed to load generated locale JSON for language '%s' at %s: %s; falling back to YAML sources",
@@ -378,6 +400,13 @@ class TranslationService:
             )
             return None
 
+        logger.info(
+            "Loaded generated locale JSON for language '%s' from %s in %.3fs (%d bytes)",
+            lang,
+            locale_path,
+            elapsed,
+            file_size_bytes,
+        )
         return translations
     
     def _replace_variables_in_translations(self, translations: Dict[str, Any], variables: Dict[str, Any]) -> Dict[str, Any]:

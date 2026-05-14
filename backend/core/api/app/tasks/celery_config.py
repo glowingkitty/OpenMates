@@ -601,7 +601,7 @@ async def prewarm_ai_services():
 
 
 def warm_translation_cache() -> None:
-    """Pre-load translations in each Celery child process before tasks run."""
+    """Pre-load translations before Celery tasks can hit translation lookups."""
     start_time = time.perf_counter()
     try:
         translation_service = TranslationService()
@@ -868,6 +868,20 @@ def enforce_queue_restrictions(sender, instance, **kwargs):
                 logger.warning("[QUEUE_ENFORCEMENT] Failed to cancel consumer for queue '%s': %s", queue_name, e)
     else:
         logger.info("[QUEUE_ENFORCEMENT] Worker is already subscribed only to designated queues")
+
+
+@signals.celeryd_after_setup.connect
+def warm_parent_translation_cache(sender, instance, **kwargs):
+    """
+    Warm translations in the Celery parent before prefork children are created.
+
+    The class-level translation cache is inherited by forked children, so this
+    prevents every child from parsing YAML if generated locale JSON is missing.
+    Child-process warmup remains below as a cheap safety net for non-prefork
+    pools and recycled children.
+    """
+    logger.info("[PERF] Warming translation cache in Celery parent process")
+    warm_translation_cache()
 
 
 # Configure logging on worker start as well
