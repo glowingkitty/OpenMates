@@ -443,6 +443,7 @@ export async function saveEmbedMemory(config: SavedEmbedConfig): Promise<void> {
 
 export function promptToSaveEmbedMemory(config: SavedEmbedConfig): void {
   if (!get(authStore).isAuthenticated) return;
+  if (isEmbedMemorySaved(config)) return;
 
   let notificationId = '';
   notificationId = notificationStore.addNotificationWithOptions('info', {
