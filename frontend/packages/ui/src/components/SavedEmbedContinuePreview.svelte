@@ -2,29 +2,65 @@
      Renders saved embeds in the welcome-screen continue carousel.
      Tall viewports should preserve the embed's real preview component rather than
      flattening it into the generic resume-card treatment. The component resolves
-     encrypted stored embed content locally and falls back to a compact branded
-     card only when no preview resolver exists for the embed type.
+     encrypted stored embed content locally, while saved event embeds render
+     directly from their saved memory payload so they never degrade to a generic
+     carousel card while the embed store is still warming up.
 -->
 
 <script lang="ts">
     import { onMount } from 'svelte';
     import type { Component } from 'svelte';
+    import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import { embedStore } from '../services/embedStore';
     import { decodeToonContent, resolveEmbed } from '../services/embedResolver';
     import { embedPreviewRegistry } from '../services/embedPreviewRegistry';
     import type { EmbedStoreEntry } from '../message_parsing/types';
-    import type { ContinuePriority } from '../services/continueCarouselService';
+
+    interface EventPreviewData {
+        embed_id: string;
+        id?: string;
+        provider?: string;
+        title?: string;
+        description?: string;
+        url?: string;
+        date_start?: string;
+        date_end?: string;
+        timezone?: string;
+        event_type?: string;
+        venue?: {
+            name?: string;
+            address?: string;
+            city?: string;
+            state?: string;
+            country?: string;
+            lat?: number;
+            lon?: number;
+        };
+        organizer?: {
+            id?: string;
+            name?: string;
+            slug?: string;
+        };
+        rsvp_count?: number;
+        is_paid?: boolean;
+        fee?: {
+            amount?: number;
+            currency?: string;
+        };
+        image_url?: string | null;
+        cover_url?: string | null;
+    }
 
     interface Props {
         appId: string;
         embedId: string;
         title: string;
-        priority: ContinuePriority;
+        itemValue: Record<string, unknown>;
         fallbackStyle: string;
         onFallbackOpen: () => void;
     }
 
-    let { appId, embedId, title, priority, fallbackStyle, onFallbackOpen }: Props = $props();
+    let { appId, embedId, title, itemValue, fallbackStyle, onFallbackOpen }: Props = $props();
 
     let previewComponent = $state<{ component: unknown; props: Record<string, unknown> } | null>(null);
     let isLoading = $state(true);
@@ -81,6 +117,14 @@
         return appEmbeds.find((entry) => entry.contentRef === `embed:${embedId}`) ?? null;
     }
 
+    function getSavedEventPreviewData(): EventPreviewData {
+        return {
+            ...itemValue,
+            embed_id: embedId,
+            title: typeof itemValue.title === 'string' ? itemValue.title : title,
+        } as EventPreviewData;
+    }
+
     // Svelte's dynamic component type requires `any` here because registry entries
     // point at heterogeneous components with different required prop contracts.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,11 +164,14 @@
 </script>
 
 <div class="saved-embed-continue-preview" data-testid="saved-embed-continue-preview" data-embed-id={embedId}>
-    <div class="continue-priority-pill saved-embed-pill" data-testid="continue-priority-pill">
-        <span>{priority.label}</span>
-    </div>
-
-    {#if isLoading}
+    {#if appId === 'events'}
+        <EventEmbedPreview
+            id={embedId}
+            event={getSavedEventPreviewData()}
+            isMobile={false}
+            onFullscreen={onFallbackOpen}
+        />
+    {:else if isLoading}
         <button class="saved-embed-loading" style={fallbackStyle} type="button" onclick={onFallbackOpen}>
             <span>{title}</span>
         </button>
@@ -147,31 +194,6 @@
 
     .saved-embed-continue-preview :global(.unified-embed-preview) {
         text-align: left;
-    }
-
-    .saved-embed-pill {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        z-index: var(--z-index-raised-4);
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        max-width: calc(100% - 24px);
-        padding: 5px 9px;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.28);
-        color: white;
-        font-size: var(--font-size-xxs);
-        font-weight: 700;
-        line-height: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-        pointer-events: none;
     }
 
     .saved-embed-loading {
