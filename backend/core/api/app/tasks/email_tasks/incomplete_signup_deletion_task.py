@@ -12,6 +12,8 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import stripe
+
 from backend.core.api.app.services.email_delivery_guard import send_email_once
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -27,10 +29,12 @@ INITIAL_NOTICE_AFTER_DAYS = 14
 SECOND_NOTICE_AFTER_DAYS = 7
 FINAL_NOTICE_AFTER_DAYS = 13
 DELETE_AFTER_FINAL_NOTICE_DAYS = 1
+PENDING_BANK_TRANSFER_GRACE_DAYS = 7
 ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
 ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE = "/newsletter-assets/intro-thumbnail-{lang}.jpg"
 SEND_DELAY_SECONDS = float(os.getenv("INCOMPLETE_SIGNUP_EMAIL_SEND_DELAY_SECONDS", "0.25"))
 SUPPORTED_TEMPLATE_LANGS = {"en", "de"}
+STRIPE_SECRET_PATH = "kv/data/providers/stripe"
 TRANSLATION_SERVICE = TranslationService()
 
 
@@ -68,6 +72,7 @@ def process_incomplete_signup_deletions(
     max_users: int | None = None,
     max_actions: int | None = None,
     days_ahead: int = 0,
+    include_details: bool = False,
 ) -> dict:
     """Daily sweep for incomplete signup deletion reminders and due deletions."""
     return asyncio.run(
@@ -77,6 +82,7 @@ def process_incomplete_signup_deletions(
             max_users=max_users,
             max_actions=max_actions,
             days_ahead=days_ahead,
+            include_details=include_details,
         )
     )
 
@@ -87,6 +93,7 @@ async def process_incomplete_signup_deletions_preview(
     max_users: int | None = None,
     max_actions: int | None = None,
     days_ahead: int = 0,
+    include_details: bool = False,
 ) -> dict:
     """Preview helper for scripts/tests: evaluate due work without sending or deleting."""
     return await _async_process_incomplete_signup_deletions(
@@ -95,6 +102,7 @@ async def process_incomplete_signup_deletions_preview(
         max_users=max_users,
         max_actions=max_actions,
         days_ahead=days_ahead,
+        include_details=include_details,
     )
 
 
@@ -132,6 +140,10 @@ def _signup_started_at(user: dict[str, Any]) -> datetime | None:
     )
 
 
+def _iso(value: datetime | None) -> str | None:
+    return value.isoformat() if value else None
+
+
 async def _get_stage_deliveries(task: BaseServiceTask, user_id: str) -> dict[str, dict[str, Any]]:
     rows = await task.directus_service.get_items(
         "email_deliveries",
@@ -151,7 +163,52 @@ async def _get_stage_deliveries(task: BaseServiceTask, user_id: str) -> dict[str
     return {row.get("stage"): row for row in rows if row.get("stage")}
 
 
-async def _has_completed_credit_source(task: BaseServiceTask, user_id: str) -> bool:
+def _stripe_payment_intent_has_credit_purchase(customer_id: str) -> bool:
+    for payment_intent in stripe.PaymentIntent.list(customer=customer_id, limit=100).auto_paging_iter():
+        metadata = getattr(payment_intent, "metadata", {}) or {}
+        if payment_intent.status == "succeeded" and metadata.get("purchase_type") == "credits":
+            return True
+    return False
+
+
+async def _has_successful_stripe_credit_payment(
+    task: BaseServiceTask,
+    customer_id: str | None,
+    email: str | None,
+) -> bool:
+    if not customer_id and not email:
+        return False
+
+    key_name = "production_secret_key" if os.getenv("SERVER_ENVIRONMENT", "development").lower() == "production" else "sandbox_secret_key"
+    api_key = await task.secrets_manager.get_secret(STRIPE_SECRET_PATH, key_name)
+    if not api_key:
+        raise RuntimeError(f"Missing Stripe secret {key_name}")
+
+    previous_api_key = stripe.api_key
+    stripe.api_key = api_key
+    try:
+        checked_customer_ids: set[str] = set()
+        if customer_id:
+            checked_customer_ids.add(customer_id)
+            if _stripe_payment_intent_has_credit_purchase(customer_id):
+                return True
+        if email:
+            for customer in stripe.Customer.list(email=email.strip().lower(), limit=100).auto_paging_iter():
+                found_customer_id = getattr(customer, "id", None)
+                if found_customer_id and found_customer_id not in checked_customer_ids:
+                    checked_customer_ids.add(found_customer_id)
+                    if _stripe_payment_intent_has_credit_purchase(found_customer_id):
+                        return True
+    finally:
+        stripe.api_key = previous_api_key
+    return False
+
+
+async def _completed_credit_source(task: BaseServiceTask, user: dict[str, Any]) -> str | None:
+    user_id = user.get("id")
+    if not user_id:
+        return None
+
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
     invoices = await task.directus_service.get_items(
@@ -164,14 +221,96 @@ async def _has_completed_credit_source(task: BaseServiceTask, user_id: str) -> b
         admin_required=True,
     )
     if invoices:
-        return True
+        return "invoice"
 
     redeemed_gift_cards = await task.directus_service.get_items(
         "redeemed_gift_cards",
         params={"filter": {"user_id_hash": {"_eq": user_id_hash}}, "fields": "id", "limit": 1},
         admin_required=True,
     )
-    return bool(redeemed_gift_cards)
+    if redeemed_gift_cards:
+        return "redeemed_gift_card"
+
+    return None
+
+
+async def _has_recent_pending_bank_transfer(task: BaseServiceTask, user_id: str, now: datetime) -> bool:
+    cutoff = now - timedelta(days=PENDING_BANK_TRANSFER_GRACE_DAYS)
+    rows = await task.directus_service.get_items(
+        "pending_bank_transfers",
+        params={
+            "filter": {
+                "_and": [
+                    {"user_id": {"_eq": user_id}},
+                    {"order_type": {"_eq": "credit_purchase"}},
+                    {"status": {"_in": ["pending", "admin_review"]}},
+                ],
+            },
+            "fields": "id,created_at,expires_at,status",
+            "limit": -1,
+        },
+        admin_required=True,
+    )
+    for row in rows:
+        created_at = _parse_datetime(row.get("created_at"))
+        expires_at = _parse_datetime(row.get("expires_at"))
+        if (expires_at and expires_at >= now) or (created_at and created_at >= cutoff):
+            return True
+    return False
+
+
+async def _account_protection_source(
+    task: BaseServiceTask,
+    user: dict[str, Any],
+    email: str | None,
+    now: datetime,
+) -> str | None:
+    completed_credit_source = await _completed_credit_source(task, user)
+    if completed_credit_source:
+        return completed_credit_source
+    user_id = user.get("id")
+    if user_id and await _has_recent_pending_bank_transfer(task, user_id, now):
+        return "pending_bank_transfer"
+    if await _has_successful_stripe_credit_payment(task, user.get("stripe_customer_id"), email):
+        return "stripe_payment_intent"
+    return None
+
+
+async def _has_completed_credit_source(task: BaseServiceTask, user_id: str) -> bool:
+    return bool(await _completed_credit_source(task, {"id": user_id}))
+
+
+def _append_detail(stats: dict[str, Any], key: str, user: dict[str, Any], **extra: Any) -> None:
+    if key not in stats:
+        return
+    stats[key].append({
+        "user_id": user.get("id"),
+        "account_id": user.get("account_id"),
+        "signup_started_at": _iso(_signup_started_at(user)),
+        "last_access": _iso(_parse_datetime(user.get("last_access"))),
+        "last_online_timestamp": user.get("last_online_timestamp"),
+        "language": user.get("language"),
+        **extra,
+    })
+
+
+def _record_due_action(
+    stats: dict[str, Any],
+    user: dict[str, Any],
+    action: str,
+    deliveries: dict[str, dict[str, Any]],
+    now: datetime,
+) -> None:
+    _append_detail(
+        stats,
+        "due_actions",
+        user,
+        action=action,
+        as_of=_iso(now),
+        existing_stages=sorted(deliveries.keys()),
+        first_notice_at=_iso(_delivery_time(deliveries.get("14d"))),
+        final_notice_at=_iso(_delivery_time(deliveries.get("1d"))),
+    )
 
 
 async def _mark_signup_completed(task: BaseServiceTask, user_id: str, reason: str) -> None:
@@ -347,11 +486,13 @@ async def _async_process_incomplete_signup_deletions(
     max_users: int | None = None,
     max_actions: int | None = None,
     days_ahead: int = 0,
+    include_details: bool = False,
 ) -> dict:
     stats = {
         "checked": 0,
         "skipped_not_due": 0,
         "skipped_safety_completed": 0,
+        "skipped_safety_unknown": 0,
         "skipped_missing_email": 0,
         "sent_14d": 0,
         "sent_7d": 0,
@@ -363,6 +504,9 @@ async def _async_process_incomplete_signup_deletions(
         "max_actions": max_actions,
         "stopped_by_limit": None,
     }
+    if include_details:
+        stats["due_actions"] = []
+        stats["safety_skips"] = []
     now = datetime.now(timezone.utc) + timedelta(days=days_ahead)
     cutoff = now - timedelta(days=INITIAL_NOTICE_AFTER_DAYS)
 
@@ -373,7 +517,7 @@ async def _async_process_incomplete_signup_deletions(
             users = await task.directus_service.get_items(
                 "directus_users",
                 params={
-                    "fields": "id,status,is_admin,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_username",
+                    "fields": "id,status,is_admin,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_username,stripe_customer_id",
                     "filter": {
                         "_and": [
                             {"status": {"_eq": "active"}},
@@ -405,10 +549,56 @@ async def _async_process_incomplete_signup_deletions(
                     stats["skipped_not_due"] += 1
                     continue
 
-                if await _has_completed_credit_source(task, user_id):
+                try:
+                    completed_credit_source = await _completed_credit_source(task, user)
+                except Exception as safety_exc:
+                    logger.error(
+                        "Could not verify local credit-source safety for incomplete signup user %s; skipping action",
+                        user_id[:8],
+                        exc_info=True,
+                    )
+                    stats["skipped_safety_unknown"] += 1
+                    _append_detail(stats, "safety_skips", user, reason="local_credit_source_lookup_failed", error=str(safety_exc))
+                    continue
+
+                if completed_credit_source:
                     if not dry_run:
-                        await _mark_signup_completed(task, user_id, "completed_credit_source")
+                        await _mark_signup_completed(task, user_id, f"completed_credit_source:{completed_credit_source}")
                     stats["skipped_safety_completed"] += 1
+                    _append_detail(stats, "safety_skips", user, reason="completed_credit_source", paid_source=completed_credit_source)
+                    continue
+
+                try:
+                    if await _has_recent_pending_bank_transfer(task, user_id, now):
+                        stats["skipped_safety_completed"] += 1
+                        _append_detail(stats, "safety_skips", user, reason="account_protected", paid_source="pending_bank_transfer")
+                        continue
+                except Exception as safety_exc:
+                    logger.error(
+                        "Could not verify pending bank-transfer safety for incomplete signup user %s; skipping action",
+                        user_id[:8],
+                        exc_info=True,
+                    )
+                    stats["skipped_safety_unknown"] += 1
+                    _append_detail(stats, "safety_skips", user, reason="pending_bank_transfer_lookup_failed", error=str(safety_exc))
+                    continue
+
+                deliveries = await _get_stage_deliveries(task, user_id)
+                first_notice_at = _delivery_time(deliveries.get("14d"))
+                final_notice_at = _delivery_time(deliveries.get("1d"))
+
+                action = None
+                if not first_notice_at:
+                    action = "send_14d"
+                elif final_notice_at and now >= final_notice_at + timedelta(days=DELETE_AFTER_FINAL_NOTICE_DAYS):
+                    action = "delete_account"
+                elif not final_notice_at and now >= first_notice_at + timedelta(days=FINAL_NOTICE_AFTER_DAYS):
+                    action = "send_1d"
+                elif "7d" not in deliveries and now >= first_notice_at + timedelta(days=SECOND_NOTICE_AFTER_DAYS):
+                    action = "send_7d"
+
+                if not action:
+                    stats["skipped_not_due"] += 1
                     continue
 
                 email, username = await _decrypt_email_and_username(task, user)
@@ -416,13 +606,27 @@ async def _async_process_incomplete_signup_deletions(
                     stats["skipped_missing_email"] += 1
                     continue
 
-                deliveries = await _get_stage_deliveries(task, user_id)
-                first_notice_at = _delivery_time(deliveries.get("14d"))
-                final_notice_at = _delivery_time(deliveries.get("1d"))
+                try:
+                    if await _has_successful_stripe_credit_payment(task, user.get("stripe_customer_id"), email):
+                        if not dry_run:
+                            await _mark_signup_completed(task, user_id, "completed_credit_source:stripe_payment_intent")
+                        stats["skipped_safety_completed"] += 1
+                        _append_detail(stats, "safety_skips", user, reason="completed_credit_source", paid_source="stripe_payment_intent")
+                        continue
+                except Exception as safety_exc:
+                    logger.error(
+                        "Could not verify Stripe credit-source safety for incomplete signup user %s; skipping action",
+                        user_id[:8],
+                        exc_info=True,
+                    )
+                    stats["skipped_safety_unknown"] += 1
+                    _append_detail(stats, "safety_skips", user, reason="stripe_lookup_failed", error=str(safety_exc))
+                    continue
 
-                if not first_notice_at:
+                if action == "send_14d":
                     if dry_run:
                         stats["sent_14d"] += 1
+                        _record_due_action(stats, user, "send_14d", deliveries, now)
                         if max_actions is not None and _actions_count(stats) >= max_actions:
                             stats["stopped_by_limit"] = "max_actions"
                             return stats
@@ -434,37 +638,10 @@ async def _async_process_incomplete_signup_deletions(
                             return stats
                     continue
 
-                if "7d" not in deliveries and now >= first_notice_at + timedelta(days=SECOND_NOTICE_AFTER_DAYS):
-                    if dry_run:
-                        stats["sent_7d"] += 1
-                        if max_actions is not None and _actions_count(stats) >= max_actions:
-                            stats["stopped_by_limit"] = "max_actions"
-                            return stats
-                        continue
-                    if await _send_reminder(task, user, "7d", email, username):
-                        stats["sent_7d"] += 1
-                        if max_actions is not None and _actions_count(stats) >= max_actions:
-                            stats["stopped_by_limit"] = "max_actions"
-                            return stats
-                    continue
-
-                if not final_notice_at and now >= first_notice_at + timedelta(days=FINAL_NOTICE_AFTER_DAYS):
-                    if dry_run:
-                        stats["sent_1d"] += 1
-                        if max_actions is not None and _actions_count(stats) >= max_actions:
-                            stats["stopped_by_limit"] = "max_actions"
-                            return stats
-                        continue
-                    if await _send_reminder(task, user, "1d", email, username):
-                        stats["sent_1d"] += 1
-                        if max_actions is not None and _actions_count(stats) >= max_actions:
-                            stats["stopped_by_limit"] = "max_actions"
-                            return stats
-                    continue
-
-                if final_notice_at and now >= final_notice_at + timedelta(days=DELETE_AFTER_FINAL_NOTICE_DAYS):
+                if action == "delete_account":
                     if dry_run:
                         stats["deleted"] += 1
+                        _record_due_action(stats, user, "delete_account", deliveries, now)
                         if max_actions is not None and _actions_count(stats) >= max_actions:
                             stats["stopped_by_limit"] = "max_actions"
                             return stats
@@ -478,7 +655,35 @@ async def _async_process_incomplete_signup_deletions(
                         stats["delete_failed"] += 1
                     continue
 
-                stats["skipped_not_due"] += 1
+                if action == "send_1d":
+                    if dry_run:
+                        stats["sent_1d"] += 1
+                        _record_due_action(stats, user, "send_1d", deliveries, now)
+                        if max_actions is not None and _actions_count(stats) >= max_actions:
+                            stats["stopped_by_limit"] = "max_actions"
+                            return stats
+                        continue
+                    if await _send_reminder(task, user, "1d", email, username):
+                        stats["sent_1d"] += 1
+                        if max_actions is not None and _actions_count(stats) >= max_actions:
+                            stats["stopped_by_limit"] = "max_actions"
+                            return stats
+                    continue
+
+                if action == "send_7d":
+                    if dry_run:
+                        stats["sent_7d"] += 1
+                        _record_due_action(stats, user, "send_7d", deliveries, now)
+                        if max_actions is not None and _actions_count(stats) >= max_actions:
+                            stats["stopped_by_limit"] = "max_actions"
+                            return stats
+                        continue
+                    if await _send_reminder(task, user, "7d", email, username):
+                        stats["sent_7d"] += 1
+                        if max_actions is not None and _actions_count(stats) >= max_actions:
+                            stats["stopped_by_limit"] = "max_actions"
+                            return stats
+                    continue
 
             if len(users) < USER_PAGE_SIZE:
                 break

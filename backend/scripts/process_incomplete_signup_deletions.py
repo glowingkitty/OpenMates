@@ -15,6 +15,7 @@ def _parse_args() -> argparse.Namespace:
         epilog=(
             "Examples:\n"
             "  Preview tomorrow: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --dry-run\n"
+            "  Preview exact actions in 6 days: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --dry-run --days-ahead 6 --details --json\n"
             "  Send first 2 due emails: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --send --max-actions 2 --confirm-send"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -31,6 +32,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-users", type=int, default=None, help="Optional maximum number of users to scan")
     parser.add_argument("--max-actions", type=int, default=None, help="Stop after this many sends/deletions")
     parser.add_argument("--confirm-send", action="store_true", help="Required with --send to avoid accidental bulk delivery")
+    parser.add_argument("--details", action="store_true", help="Include per-user due actions and safety skips in the result")
     parser.add_argument("--json", action="store_true", help="Print raw JSON stats instead of the human-readable summary")
     parser.add_argument("--verbose", action="store_true", help="Show INFO logs from the underlying services")
     return parser.parse_args()
@@ -65,15 +67,32 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
 
     skipped_not_due = int(result.get("skipped_not_due") or 0)
     skipped_safety_completed = int(result.get("skipped_safety_completed") or 0)
+    skipped_safety_unknown = int(result.get("skipped_safety_unknown") or 0)
     skipped_missing_email = int(result.get("skipped_missing_email") or 0)
-    if skipped_not_due or skipped_safety_completed or skipped_missing_email:
+    if skipped_not_due or skipped_safety_completed or skipped_safety_unknown or skipped_missing_email:
         lines.extend(["", "Skipped:"])
         if skipped_not_due:
             lines.append(f"- {skipped_not_due} not due yet")
         if skipped_safety_completed:
             lines.append(f"- {skipped_safety_completed} purchased credits or redeemed a gift card")
+        if skipped_safety_unknown:
+            lines.append(f"- {skipped_safety_unknown} skipped because credit-source safety could not be verified")
         if skipped_missing_email:
             lines.append(f"- {skipped_missing_email} had no decryptable email address")
+
+    if result.get("due_actions"):
+        lines.extend(["", "Due actions:"])
+        for action in result["due_actions"]:
+            lines.append(
+                f"- {action.get('action')} user={action.get('user_id')} "
+                f"account={action.get('account_id')} stages={','.join(action.get('existing_stages') or [])}"
+            )
+
+    if result.get("safety_skips"):
+        lines.extend(["", "Safety skips:"])
+        for skip in result["safety_skips"]:
+            source = skip.get("paid_source") or skip.get("reason")
+            lines.append(f"- user={skip.get('user_id')} account={skip.get('account_id')} source={source}")
 
     delete_failed = int(result.get("delete_failed") or 0)
     if delete_failed:
@@ -152,6 +171,7 @@ def main() -> int:
         max_users=args.max_users,
         max_actions=args.max_actions,
         days_ahead=args.days_ahead,
+        include_details=args.details,
     )
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
