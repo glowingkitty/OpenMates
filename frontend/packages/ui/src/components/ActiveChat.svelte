@@ -107,6 +107,7 @@
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
     import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
+    import SavedEmbedContinuePreview from './SavedEmbedContinuePreview.svelte';
     import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
@@ -2782,7 +2783,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!recentChatsScrollEl) return;
         await tick();
         const container = recentChatsScrollEl;
-        const firstItem = container.querySelector('.resume-chat-large-card, .resume-chat-card') as HTMLElement | null;
+        const firstItem = container.querySelector('.saved-embed-continue-preview, .resume-chat-large-card, .resume-chat-card') as HTMLElement | null;
         if (!firstItem) return;
         const containerWidth = container.offsetWidth;
         const itemLeft = firstItem.offsetLeft;
@@ -2951,13 +2952,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const embedRecord = typeof embedEntry === 'object' && embedEntry !== null ? embedEntry as Record<string, unknown> : null;
             const rawType = String(embedRecord?.type || embedRecord?.embed_type || embedData.type || 'app-skill-use');
             const autoConvertedTypes = ['code', 'code-code', 'sheet', 'sheets-sheet', 'math-plot', 'document', 'docs-doc'];
+            const embedType = rawType === 'events-event' || item.appId === 'events'
+                ? 'events-event'
+                : autoConvertedTypes.includes(rawType)
+                    ? rawType
+                    : 'app-skill-use';
 
             document.dispatchEvent(new CustomEvent('embedfullscreen', {
                 detail: {
                     embedId: item.embedId,
                     embedData,
                     decodedContent,
-                    embedType: autoConvertedTypes.includes(rawType) ? rawType : 'app-skill-use',
+                    embedType,
                     attrs: {
                         type: rawType,
                         contentRef: `embed:${item.embedId}`,
@@ -3741,6 +3747,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             parts.push(`transform: ${resumeLargeCardTiltTransform}`);
         }
         return parts.join('; ');
+    }
+
+    function getAppGradientColors(appId: string | null | undefined): { start: string; end: string } | null {
+        if (!appId || !/^[a-z0-9_-]+$/.test(appId)) return null;
+        return {
+            start: `var(--color-app-${appId}-start, #4867cd)`,
+            end: `var(--color-app-${appId}-end, #a0beff)`,
+        };
+    }
+
+    function getContinueGradientColors(
+        category: string | null | undefined,
+        appId?: string | null,
+    ): { start: string; end: string } | null {
+        return (category ? getCategoryGradientColors(category) : null) ?? getAppGradientColors(appId);
     }
 
     function handleResumeLargeCardMouseEnter(e: MouseEvent) {
@@ -10116,21 +10137,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 >
                                     <!-- Reminder/date-priority items outrank the normal last-opened and pinned chat order in this welcome carousel only. -->
                                     {#each priorityContinueItems as item (item.kind === 'chat' ? `chat:${item.chat.chat_id}` : `embed:${item.embedId}`)}
-                                        {@const priorityCategory = item.category || 'general_knowledge'}
-                                        {@const priorityGradientColors = getCategoryGradientColors(priorityCategory)}
-                                        {@const priorityIconName = getValidIconName(item.icon || '', priorityCategory)}
+                                        {@const priorityCategory = item.category}
+                                        {@const priorityIconCategory = priorityCategory || 'general_knowledge'}
+                                        {@const priorityAppId = item.kind === 'embed' ? item.appId : null}
+                                        {@const priorityGradientColors = getContinueGradientColors(priorityCategory, priorityAppId)}
+                                        {@const priorityIconName = getValidIconName(item.icon || '', priorityIconCategory)}
                                         {@const PriorityIconComponent = getLucideIcon(priorityIconName)}
                                         {@const PriorityPillIcon = getLucideIcon(item.priority.reason.startsWith('reminder') ? 'bell' : 'clock')}
-                                        {#if isTallViewport}
+                                        {@const priorityChat = item.kind === 'chat' ? item.chat : null}
+                                        {#if item.kind === 'embed' && isTallViewport}
+                                            <SavedEmbedContinuePreview
+                                                appId={item.appId}
+                                                embedId={item.embedId}
+                                                title={item.title || $text('common.untitled_chat')}
+                                                priority={item.priority}
+                                                fallbackStyle={getResumeCardGradientStyle(priorityGradientColors)}
+                                                onFallbackOpen={() => handleOpenPriorityEmbed(item)}
+                                            />
+                                        {:else if isTallViewport && priorityChat}
                                             <button
                                                 class="resume-chat-large-card continue-priority-card"
                                                 data-testid="continue-priority-card"
                                                 data-priority-reason={item.priority.reason}
                                                 data-item-kind={item.kind}
                                                 style={getResumeCardGradientStyle(priorityGradientColors)}
-                                                onclick={() => item.kind === 'chat' ? handleOpenRecentChat(item.chat) : handleOpenPriorityEmbed(item)}
-                                                oncontextmenu={(e) => { if (item.kind === 'chat') handleResumeCardContextMenu(e, item.chat); }}
-                                                ontouchstart={(e) => { if (item.kind === 'chat') handleResumeCardTouchStart(e, item.chat); }}
+                                                onclick={() => handleOpenRecentChat(priorityChat)}
+                                                oncontextmenu={(e) => handleResumeCardContextMenu(e, priorityChat)}
+                                                ontouchstart={(e) => handleResumeCardTouchStart(e, priorityChat)}
                                                 ontouchmove={handleResumeCardTouchMove}
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"

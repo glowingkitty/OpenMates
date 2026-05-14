@@ -20,8 +20,6 @@
  * ──────────────────────────────────────────────────────────────────────────────────────────
  */
 
-import type { Component } from "svelte";
-
 // ── Types ────────────────────────────────────────────────────────────────────
 
 /**
@@ -50,7 +48,7 @@ export interface EmbedPreviewContext {
 
 type PreviewResolver = (
   ctx: EmbedPreviewContext,
-) => Promise<{ component: Component; props: Record<string, unknown> } | null>;
+) => Promise<{ component: unknown; props: Record<string, unknown> } | null>;
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
@@ -200,6 +198,28 @@ const videoTranscriptResolver: PreviewResolver = async ({
 };
 resolvers.set("app:videos:get_transcript", videoTranscriptResolver);
 resolvers.set("app:videos:get-transcript", videoTranscriptResolver); // hyphen alias
+
+// ── App-skill-use: events / event ─────────────────────────────────────────────
+
+const eventResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/events/EventEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      event: decodedContent,
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("app:events:event", eventResolver);
+resolvers.set("events-event", eventResolver);
 
 // ── App-skill-use: maps / search ──────────────────────────────────────────────
 
@@ -552,7 +572,7 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
  */
 async function resolve(
   ctx: EmbedPreviewContext,
-): Promise<{ component: Component; props: Record<string, unknown> } | null> {
+): Promise<{ component: unknown; props: Record<string, unknown> } | null> {
   const key = deriveKey(ctx);
 
   if (!key) {
