@@ -221,14 +221,14 @@
     .saved-embed-continue-preview {
         position: relative;
         flex-shrink: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
         pointer-events: auto;
     }
 
     .saved-embed-priority-pill {
+        position: absolute;
+        top: -34px;
+        left: 0;
+        z-index: 20;
         display: inline-flex;
         align-items: center;
         max-width: 300px;
@@ -244,6 +244,7 @@
         text-overflow: ellipsis;
         backdrop-filter: blur(8px);
         border: 1px solid rgba(255, 255, 255, 0.2);
+        pointer-events: none;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
         text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     }
