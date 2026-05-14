@@ -295,23 +295,6 @@ provider: Brave Search`,
       ],
     },
     {
-      embed_id: "58fecc3e-0cfb-4770-a1dc-754729d5e7e5",
-      type: "image_result",
-      content: `type: image_result
-title: Metropolis Sci-Fi Movie Poster Shower Curtain
-source_page_url: "https://gcfphotography.com/featured/metropolis-1927-nomad-art-and-design.html?product=poster"
-image_url: "https://render.fineartamerica.com/images/rendered/default/shower-curtain/images-medium-5/metropolis-1927-nomad-art-and-design.jpg?&targetx=0&targety=-97&imagewidth=787&imageheight=1013&modelwidth=787&modelheight=819&backgroundcolor=262728&orientation=0"
-thumbnail_url: "https://imgs.search.brave.com/2UJr6Y4dx305THU_L2Z2iHwH1ndGhun1FS7pQvJekzc/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9yZW5k/ZXIuZmluZWFydGFt/ZXJpY2EuY29tL2lt/YWdlcy9yZW5kZXJl/ZC9kZWZhdWx0L3No/b3dlci1jdXJ0YWlu/L2ltYWdlcy1tZWRp/dW0tNS9tZXRyb3Bv/bGlzLTE5Mjctbm9t/YWQtYXJ0LWFuZC1k/ZXNpZ24uanBnPyZ0/YXJnZXR4PTAmdGFy/Z2V0eT0tOTcmaW1h/Z2V3aWR0aD03ODcm/aW1hZ2VoZWlnaHQ9/MTAxMyZtb2RlbHdp/ZHRoPTc4NyZtb2Rl/bGhlaWdodD04MTkm/YmFja2dyb3VuZGNv/bG9yPTI2MjcyOCZv/cmllbnRhdGlvbj0w"
-source: gcfphotography.com
-favicon_url: "https://imgs.search.brave.com/JGizfZrc3BGLs_G9Mvj9jLRiumHPQvABdHNjTNIr8p0/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOGY5MDQ3MzFk/MzhiMzYyZDE1MWI3/NDBlYTMxOGU4ODQy/MGQ5NTAxNjdhMWVk/YTQxNWY0M2RkMmI4/ZTI5MWVlYS9nY2Zw/aG90b2dyYXBoeS5j/b20v"
-hash: 1e3a9ebf84379366
-embed_ref: gcfphotography.com-dSE
-app_id: images
-skill_id: search`,
-      parent_embed_id: "6b9178c9-9e57-4d13-8cb8-b89ed5888927",
-      embed_ids: null,
-    },
-    {
       embed_id: "94788153-5b5a-4db8-8f56-71e34a1ada19",
       type: "image_result",
       content: `type: image_result
@@ -401,15 +384,14 @@ skill_id: search`,
       type: "app_skill_use",
       content: `app_id: images
 skill_id: search
-result_count: 6
-embed_ids: 58fecc3e-0cfb-4770-a1dc-754729d5e7e5|94788153-5b5a-4db8-8f56-71e34a1ada19|37b60207-025d-4a10-a5c0-37dcd15ef649|d3dab440-d8c3-471d-92f0-79ef299932f2|c40d623f-a8fc-4481-b294-6ec21a22d45c|e8753394-3503-4bda-800c-a940ff7a5452
+result_count: 5
+embed_ids: 94788153-5b5a-4db8-8f56-71e34a1ada19|37b60207-025d-4a10-a5c0-37dcd15ef649|d3dab440-d8c3-471d-92f0-79ef299932f2|c40d623f-a8fc-4481-b294-6ec21a22d45c|e8753394-3503-4bda-800c-a940ff7a5452
 status: finished
 query: Metropolis 1927 movie poster or set design
 id: 2
 provider: Brave Search`,
       parent_embed_id: null,
       embed_ids: [
-        "58fecc3e-0cfb-4770-a1dc-754729d5e7e5",
         "94788153-5b5a-4db8-8f56-71e34a1ada19",
         "37b60207-025d-4a10-a5c0-37dcd15ef649",
         "d3dab440-d8c3-471d-92f0-79ef299932f2",
