@@ -59,8 +59,8 @@ If you are a user, developer, designer, storyteller / marketing enthusiast or co
     timezone: "Europe/Berlin",
     event_type: "IN_PERSON",
     venue: {
-      name: "xHain Lichtung",
-      address: "Grünberger Str. 20",
+      name: "New xHain rooms (direct street access, huge glass windows)",
+      address: "Grünberger Str. 18, 10243 Berlin",
       city: "Berlin",
       country: "Germany",
       lat: 52.5126727,
