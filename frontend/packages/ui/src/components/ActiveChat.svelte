@@ -11744,6 +11744,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-align: left;
     }
 
+    @media (min-height: 800px) {
+        .recent-chats-scroll-container {
+            padding: 35px 48px 12px calc(50% - 150px);
+        }
+    }
+
     /* "+N" overflow pill matching card height */
     .recent-chat-overflow {
         display: flex;
