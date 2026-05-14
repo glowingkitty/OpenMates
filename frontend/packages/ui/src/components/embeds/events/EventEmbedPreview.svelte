@@ -274,6 +274,7 @@
     height: 100%;
     width: 100%;
     justify-content: center;
+    text-align: left;
   }
 
   .event-preview-details.mobile {
@@ -294,6 +295,7 @@
   .event-text {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: var(--spacing-2);
     flex: 1 1 auto;
     min-width: 0;

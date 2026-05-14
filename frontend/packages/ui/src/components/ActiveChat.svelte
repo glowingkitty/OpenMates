@@ -11704,6 +11704,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-shrink: 0;
     }
 
+    /* Real embed previews inside the centered welcome carousel keep their own layout alignment.
+       Only the custom chat resume cards should inherit the centered welcome-card typography. */
+    .recent-chats-scroll-container :global(.unified-embed-preview) {
+        text-align: left;
+    }
+
     /* "+N" overflow pill matching card height */
     .recent-chat-overflow {
         display: flex;
