@@ -180,7 +180,7 @@ importers:
         version: 10.1.8(eslint@9.35.0)
       eslint-config-turbo:
         specifier: ^2.3.4
-        version: 2.5.6(eslint@9.35.0)(turbo@2.7.3)
+        version: 2.5.6(eslint@9.35.0)(turbo@2.9.12)
       eslint-plugin-svelte:
         specifier: ^2.46.1
         version: 2.46.1(eslint@9.35.0)(svelte@5.54.0)
@@ -393,8 +393,8 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
       uuid:
-        specifier: ^13.0.1
-        version: 13.0.2
+        specifier: ^14.0.0
+        version: 14.0.0
       vite:
         specifier: ^7.3.2
         version: 7.3.2(@types/node@24.5.2)(terser@5.44.0)(yaml@2.8.3)
@@ -2525,6 +2525,36 @@ packages:
 
   '@tsconfig/svelte@5.0.5':
     resolution: {integrity: sha512-48fAnUjKye38FvMiNOj0J9I/4XlQQiZlpe9xaNPfe8vy2Y1hFBt8g1yqf2EGjVvHavo4jf2lC+TQyENCr4BJBQ==}
+
+  '@turbo/darwin-64@2.9.12':
+    resolution: {integrity: sha512-eu3eFRmE9NjgZ0wPdRJ44l+LGSeIky+tz5ZQd8zQkw/Yqi+BM7wq+8nbabeoiVUcICi/IZweMOKl/MCmkrd1+g==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@turbo/darwin-arm64@2.9.12':
+    resolution: {integrity: sha512-RUkAE404z/J8NsyrUosMcBaXT6M4bRFxTQrmkDQBLQVXaC8Jl0e9bMvYDSX0GW7Ffm2m3j9y7RXgR1foeUAM9w==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@turbo/linux-64@2.9.12':
+    resolution: {integrity: sha512-InIUtH7cw/vqXNX1Gr7QgWfmw3ct08pV5CpfdEOR48z2u2rzdmpIuk00B/Q2xCb0PMWtKgiMQynfuphmEuUyTQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@turbo/linux-arm64@2.9.12':
+    resolution: {integrity: sha512-lC6nD//Xh67fmJM0LKaLsg74Wry0aYrgMklpiNgCbUaMdPIOqj0A00iri3NU7Lb7pZHx8ViisgpeDKlpSgFUCA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@turbo/windows-64@2.9.12':
+    resolution: {integrity: sha512-conYri8VUl72JOdYnLDPYwzqbPcY5ECoHmo9FWoKznemhaAIilj4maHqs9Uar0aKfNoZIULniy+6iWaLtLO34A==}
+    cpu: [x64]
+    os: [win32]
+
+  '@turbo/windows-arm64@2.9.12':
+    resolution: {integrity: sha512-XoR4bsg62/L/esRVcmoMESEiNZ36+YmyjYGLpoqk8nwMgXzzVjNOgX0lRSz5w/U/ajLGv3nhMsS0Q2QOdvp2AQ==}
+    cpu: [arm64]
+    os: [win32]
 
   '@types/cacheable-request@6.0.3':
     resolution: {integrity: sha512-IQ3EbTzGxIigb1I3qPZc1rWJnH0BmSKv5QYTalEwweFvyBDLSAe24zP0le/hyi7ecGfZVlIVAg4BZqb8WBwKqw==}
@@ -5765,6 +5795,10 @@ packages:
     resolution: {integrity: sha512-+HjKlP4OfYk+qzvWNETA3cUO5UuK6b5MSc2UJOKyvBceKucQoQGb2g7HlC2H1GHdkfKrk4YF1VPvROkhVZDDLQ==}
     hasBin: true
 
+  turbo@2.9.12:
+    resolution: {integrity: sha512-lCPgus1NuTiBdaITWqzSH/Ff6HVL8HHGBtOXHg1dHRfcshN79XkygSdh0M6g8b0td91ILLG5MTkLOkp5UvyPJw==}
+    hasBin: true
+
   tweetnacl@1.0.3:
     resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
 
@@ -5916,8 +5950,8 @@ packages:
     deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
-  uuid@13.0.2:
-    resolution: {integrity: sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw==}
+  uuid@14.0.0:
+    resolution: {integrity: sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==}
     hasBin: true
 
   validate-npm-package-license@3.0.4:
@@ -8324,6 +8358,24 @@ snapshots:
 
   '@tsconfig/svelte@5.0.5': {}
 
+  '@turbo/darwin-64@2.9.12':
+    optional: true
+
+  '@turbo/darwin-arm64@2.9.12':
+    optional: true
+
+  '@turbo/linux-64@2.9.12':
+    optional: true
+
+  '@turbo/linux-arm64@2.9.12':
+    optional: true
+
+  '@turbo/windows-64@2.9.12':
+    optional: true
+
+  '@turbo/windows-arm64@2.9.12':
+    optional: true
+
   '@types/cacheable-request@6.0.3':
     dependencies:
       '@types/http-cache-semantics': 4.0.4
@@ -9619,11 +9671,11 @@ snapshots:
     dependencies:
       eslint: 9.35.0
 
-  eslint-config-turbo@2.5.6(eslint@9.35.0)(turbo@2.7.3):
+  eslint-config-turbo@2.5.6(eslint@9.35.0)(turbo@2.9.12):
     dependencies:
       eslint: 9.35.0
-      eslint-plugin-turbo: 2.5.6(eslint@9.35.0)(turbo@2.7.3)
-      turbo: 2.7.3
+      eslint-plugin-turbo: 2.5.6(eslint@9.35.0)(turbo@2.9.12)
+      turbo: 2.9.12
 
   eslint-plugin-svelte@2.46.1(eslint@9.35.0)(svelte@5.54.0):
     dependencies:
@@ -9644,11 +9696,11 @@ snapshots:
     transitivePeerDependencies:
       - ts-node
 
-  eslint-plugin-turbo@2.5.6(eslint@9.35.0)(turbo@2.7.3):
+  eslint-plugin-turbo@2.5.6(eslint@9.35.0)(turbo@2.9.12):
     dependencies:
       dotenv: 16.0.3
       eslint: 9.35.0
-      turbo: 2.7.3
+      turbo: 2.9.12
 
   eslint-scope@7.2.2:
     dependencies:
@@ -10662,7 +10714,7 @@ snapshots:
       roughjs: 4.6.6
       stylis: 4.3.6
       ts-dedent: 2.2.0
-      uuid: 13.0.2
+      uuid: 14.0.0
 
   micromatch@4.0.8:
     dependencies:
@@ -11907,6 +11959,15 @@ snapshots:
       turbo-windows-64: 2.7.3
       turbo-windows-arm64: 2.7.3
 
+  turbo@2.9.12:
+    optionalDependencies:
+      '@turbo/darwin-64': 2.9.12
+      '@turbo/darwin-arm64': 2.9.12
+      '@turbo/linux-64': 2.9.12
+      '@turbo/linux-arm64': 2.9.12
+      '@turbo/windows-64': 2.9.12
+      '@turbo/windows-arm64': 2.9.12
+
   tweetnacl@1.0.3: {}
 
   type-check@0.4.0:
@@ -12057,7 +12118,7 @@ snapshots:
 
   uuid@10.0.0: {}
 
-  uuid@13.0.2: {}
+  uuid@14.0.0: {}
 
   validate-npm-package-license@3.0.4:
     dependencies:
