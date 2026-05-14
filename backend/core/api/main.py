@@ -494,9 +494,7 @@ async def lifespan(app: FastAPI):
     # This ensures translations are ready before any requests come in
     logger.info("Pre-loading translations into cache...")
     try:
-        # Pre-load English translations (default language)
-        # This will load all YAML files and convert them to JSON structure, storing in class-level cache
-        app.state.translation_service.get_translations(lang="en")
+        app.state.translation_service.warm_cache("en")
         logger.info("Translations pre-loaded successfully into shared cache.")
     except Exception as e:
         logger.error(f"Failed to pre-load translations during startup: {e}", exc_info=True)

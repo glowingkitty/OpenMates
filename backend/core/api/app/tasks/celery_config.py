@@ -4,6 +4,7 @@ import os
 import logging
 import sys
 import importlib
+import time
 from typing import Optional
 from urllib.parse import quote
 import asyncio
@@ -16,6 +17,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.request_context import set_request_id
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
+from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService as _CacheService
 
@@ -598,6 +600,20 @@ async def prewarm_ai_services():
             logger.info("[PERF] SecretsManager closed after AI pre-warming")
 
 
+def warm_translation_cache() -> None:
+    """Pre-load translations in each Celery child process before tasks run."""
+    start_time = time.perf_counter()
+    try:
+        translation_service = TranslationService()
+        translation_service.warm_cache("en")
+    except Exception as e:
+        logger.error("[PERF] Translation cache warmup failed: %s", e, exc_info=True)
+        return
+
+    elapsed = time.perf_counter() - start_time
+    logger.info("[PERF] Translation cache warmup completed in %.3fs", elapsed)
+
+
 # ===========================================================================
 # CELERY SIGNAL HANDLERS - Task lifecycle monitoring for reliability
 # ===========================================================================
@@ -893,6 +909,8 @@ def init_worker_process(*args, **kwargs):
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
+
+    warm_translation_cache()
 
     # OPE-342: Build the in-process SkillRegistry for this worker process.
     # Workers used to HTTP-POST to app-{id}:8000 containers; now they import

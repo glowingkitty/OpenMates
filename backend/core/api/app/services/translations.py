@@ -14,6 +14,24 @@ class TranslationService:
     _class_yaml_cache: Dict[str, Dict[str, Any]] = {}  # Cache for loaded YAML files (shared across languages)
     
     def __init__(self):
+        # Generated locale JSON is the runtime format. YAML remains the source of truth
+        # for authors, but parsing every YAML source costs several seconds in workers.
+        self.locales_dir = os.getenv("TRANSLATIONS_DIR")
+        if not self.locales_dir:
+            current_file = os.path.abspath(__file__)
+            if current_file.startswith('/app/'):
+                self.locales_dir = "/app/frontend/packages/ui/src/i18n/locales"
+            else:
+                project_root = os.path.dirname(
+                    os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+                    )
+                )
+                self.locales_dir = os.path.join(
+                    project_root,
+                    "frontend", "packages", "ui", "src", "i18n", "locales"
+                )
+
         # Try to get translations directory from environment variable first
         # Default to YAML sources directory (source of truth)
         self.sources_dir = os.getenv("TRANSLATIONS_SOURCES_DIR")
@@ -42,7 +60,11 @@ class TranslationService:
                     "frontend", "packages", "ui", "src", "i18n", "sources"
                 )
         
-        logger.info(f"Translation service initialized with YAML sources directory: {self.sources_dir}")
+        logger.info(
+            "Translation service initialized with locales directory: %s, YAML sources directory: %s",
+            self.locales_dir,
+            self.sources_dir,
+        )
     
     def get_translations(self, lang: str = "en", variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -66,6 +88,12 @@ class TranslationService:
         processed_translations = self._replace_variables_in_translations(raw_translations, variables)
         
         return processed_translations
+
+    def warm_cache(self, *languages: str) -> None:
+        """Load runtime translations into this process' shared cache."""
+        languages_to_load = languages or ("en",)
+        for lang in languages_to_load:
+            self.get_translations(lang=lang)
     
     def _load_all_yaml_files(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -274,6 +302,12 @@ class TranslationService:
         # Check if translations are already cached in class-level cache
         if lang in TranslationService._class_translations_cache:
             return TranslationService._class_translations_cache[lang]
+
+        generated_translations = self._load_generated_locale_json(lang)
+        if generated_translations is not None:
+            TranslationService._class_translations_cache[lang] = generated_translations
+            logger.info(f"Loaded generated translations for language '{lang}' into shared cache")
+            return generated_translations
         
         try:
             # Load all YAML files
@@ -302,6 +336,49 @@ class TranslationService:
                 # If English file is missing, return empty dict
                 logger.error("English translation file not found")
                 return {}
+
+    def _load_generated_locale_json(self, lang: str) -> Optional[Dict[str, Any]]:
+        """
+        Load generated locale JSON for runtime use.
+
+        YAML files are authoring sources and can be expensive to parse in Celery
+        child processes. Generated JSON keeps runtime startup fast while preserving
+        YAML fallback for development environments that have not built translations.
+        """
+        if not self.locales_dir:
+            return None
+
+        locale_path = os.path.join(self.locales_dir, f"{lang}.json")
+        if not os.path.exists(locale_path):
+            logger.warning(
+                "Generated locale JSON not found for language '%s' at %s; falling back to YAML sources",
+                lang,
+                locale_path,
+            )
+            return None
+
+        try:
+            with open(locale_path, 'r', encoding='utf-8') as f:
+                translations = json.load(f)
+        except Exception as e:
+            logger.error(
+                "Failed to load generated locale JSON for language '%s' at %s: %s; falling back to YAML sources",
+                lang,
+                locale_path,
+                str(e),
+            )
+            return None
+
+        if not isinstance(translations, dict):
+            logger.error(
+                "Generated locale JSON for language '%s' at %s is %s, expected dict; falling back to YAML sources",
+                lang,
+                locale_path,
+                type(translations).__name__,
+            )
+            return None
+
+        return translations
     
     def _replace_variables_in_translations(self, translations: Dict[str, Any], variables: Dict[str, Any]) -> Dict[str, Any]:
         """
