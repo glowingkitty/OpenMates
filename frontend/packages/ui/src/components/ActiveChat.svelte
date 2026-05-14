@@ -274,6 +274,8 @@
         highlightQuoteText?: string | null;
         /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
         focusLineRange?: { start: number; end: number } | null;
+        /** Whether this fullscreen was opened from a chat, not as a standalone embed link. */
+        hasChatContext?: boolean;
     } | null;
 
     type EmbedFullscreenEventDetail = {
@@ -294,6 +296,8 @@
         highlightQuoteText?: string | null;
         /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
         focusLineRange?: { start: number; end: number } | null;
+        /** Whether this fullscreen was opened from a chat, not as a standalone embed link. */
+        hasChatContext?: boolean;
     };
 
     type AiMessageChunkPayload = {
@@ -1284,6 +1288,7 @@
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange } = detail;
+        const hasChatContext = detail.hasChatContext ?? !!currentChat?.chat_id;
 
         // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
         if (showWikiFullscreen) {
@@ -1306,8 +1311,8 @@
         // Moving the call here, synchronously, ensures the guard is live before the hash write,
         // so the resulting hashchange is blocked immediately.
         if (embedId) {
-            activeEmbedStore.setActiveEmbed(embedId, currentChat?.chat_id ?? null);
-            console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', currentChat?.chat_id);
+            activeEmbedStore.setActiveEmbed(embedId, hasChatContext ? (currentChat?.chat_id ?? null) : null);
+            console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', hasChatContext ? currentChat?.chat_id : null);
         }
         
         // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data.
@@ -1612,8 +1617,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             highlightQuoteText: highlightQuoteText ?? null,
             // Forwarded from EmbedInlineLink when a code embed link has a #L42 / #L10-L20 suffix.
             // CodeEmbedFullscreen uses this to highlight + auto-scroll to the target lines.
-            focusLineRange: focusLineRange ?? null
+            focusLineRange: focusLineRange ?? null,
+            hasChatContext
         };
+        fullscreenHasChatContext = hasChatContext;
         showEmbedFullscreen = true;
         
         // If this was triggered by a source quote click, set the search highlight store
@@ -1666,8 +1673,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             codeLineHighlightStore.set(null);
         }
         
+        const hadChatContext = fullscreenHasChatContext;
+
         showEmbedFullscreen = false;
         embedFullscreenData = null;
+        fullscreenHasChatContext = false;
 
         // Clear any active app-store skill example so the $effect doesn't
         // immediately re-mount the synthetic embed.
@@ -1689,7 +1699,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // header (title + summary) until the chat is reopened. The activeChatStore value
         // is already correct (set when the chat was opened), so we only need to restore
         // the URL hash for bookmarkability.
-        if (currentChat && currentChat.chat_id) {
+        if (hadChatContext && currentChat && currentChat.chat_id) {
             history.replaceState(null, '', `#chat-id=${currentChat.chat_id}`);
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
@@ -3963,14 +3973,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
     // User can click this to temporarily hide the chat and show only the embed fullscreen
     let forceOverlayMode = $state(false);
+    let fullscreenHasChatContext = $state(false);
     
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND a fullscreen is open (embed or wiki) AND not forcing overlay mode
-    let showSideBySideFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && !forceOverlayMode);
+    // Only use side-by-side when ultra-wide AND the fullscreen was opened from a chat.
+    let showSideBySideFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData))) && !forceOverlayMode);
 
     // Determine if we should show the "Show Chat" button in fullscreen embed views
     // Shows when ultra-wide screen has a fullscreen open but chat is hidden (forceOverlayMode)
-    let showChatButtonInFullscreen = $derived(isUltraWide && ((showEmbedFullscreen && embedFullscreenData) || (showWikiFullscreen && wikiFullscreenData)) && forceOverlayMode);
+    let showChatButtonInFullscreen = $derived(isUltraWide && (((showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) || (showWikiFullscreen && wikiFullscreenData))) && forceOverlayMode);
     
     // ===========================================
     // Side-by-side Animation System
@@ -9939,7 +9950,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
                     {#if showWelcome}
-                        <div class="daily-inspiration-area" class:welcome-hiding={hideWelcomeForKeyboard}>
+                        <div
+                            class="daily-inspiration-area"
+                            class:welcome-hiding={hideWelcomeForKeyboard}
+                            inert={hideWelcomeForKeyboard}
+                        >
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
@@ -9952,7 +9967,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          On the welcome screen (showWelcome=true): rendered in normal document flow
                          below the daily inspiration banner (top-buttons-flow class removes position:absolute).
                          On the active chat screen (showWelcome=false): absolutely positioned at top. -->
-                    <div class="top-buttons" class:top-buttons-flow={showWelcome} class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}>
+                    <div
+                        class="top-buttons"
+                        class:top-buttons-flow={showWelcome}
+                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
+                        inert={showWelcome && hideWelcomeForKeyboard}
+                    >
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
@@ -10061,6 +10081,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div
                             class="center-content"
                             class:welcome-hiding={hideWelcomeForKeyboard}
+                            inert={hideWelcomeForKeyboard}
                             bind:this={welcomeContentEl}
                         >
                             <div class="team-profile">
@@ -12543,6 +12564,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         pointer-events: none;
         visibility: hidden;
         transition: opacity 200ms ease, visibility 0s 200ms;
+    }
+
+    .center-content.welcome-hiding *,
+    .top-buttons.welcome-hiding * {
+        pointer-events: none !important;
     }
 
     /* Add styles for left and right button containers */
