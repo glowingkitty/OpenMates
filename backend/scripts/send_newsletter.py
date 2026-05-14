@@ -96,6 +96,8 @@ import os
 import re
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -157,6 +159,8 @@ AUTOPLAY_VIDEO_PARAM = "autoplay-video"
 INTRO_THUMBNAIL_PATH_TEMPLATE = (
     "frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-{lang}.jpg"
 )
+HERO_IMAGE_MAX_BYTES = 2_000_000
+HERO_IMAGE_CACHE: Dict[str, Optional[str]] = {}
 
 
 # ── Status bar ──────────────────────────────────────────────────────────────
@@ -309,12 +313,52 @@ def _intro_thumbnail_data_uri(lang: str) -> Optional[str]:
     return f"data:image/jpeg;base64,{encoded}"
 
 
+def _remote_image_data_uri(url: str) -> Optional[str]:
+    """Fetch a remote newsletter hero image and embed it as a data URI."""
+    if not url:
+        return None
+    if url in HERO_IMAGE_CACHE:
+        return HERO_IMAGE_CACHE[url]
+
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "OpenMates newsletter renderer"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            content_type = response.headers.get_content_type() or "image/png"
+            if not content_type.startswith("image/"):
+                logger.warning("Hero image URL did not return an image: %s (%s)", url, content_type)
+                HERO_IMAGE_CACHE[url] = None
+                return None
+
+            data = response.read(HERO_IMAGE_MAX_BYTES + 1)
+            if len(data) > HERO_IMAGE_MAX_BYTES:
+                logger.warning("Hero image too large to embed: %s", url)
+                HERO_IMAGE_CACHE[url] = None
+                return None
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        logger.warning("Failed to fetch hero image %s: %s", url, exc)
+        HERO_IMAGE_CACHE[url] = None
+        return None
+
+    encoded = base64.b64encode(data).decode("ascii")
+    data_uri = f"data:{content_type};base64,{encoded}"
+    HERO_IMAGE_CACHE[url] = data_uri
+    return data_uri
+
+
 def render_body_html(
     body_md: str,
     video_url: str,
     thumbnail_data_uri: Optional[str],
+    hero_data_uri: Optional[str],
+    hero_link_url: Optional[str],
+    cta_url: Optional[str],
+    cta_text: Optional[str],
     meta: Dict[str, Any],
-    alt_text: str,
+    video_alt_text: str,
+    hero_alt_text: str,
 ) -> str:
     """Render the markdown body and swap ``[video]`` for a clickable thumbnail.
 
@@ -326,13 +370,14 @@ def render_body_html(
     body_html = md.render(body_md)
 
     video = meta.get("video") or {}
-    body_html = re.sub(r"<p>\s*\[cta\]\s*</p>", "", body_html)
+    body_html = _inject_hero_image_html(body_html, hero_data_uri, hero_link_url, hero_alt_text)
+    body_html = _inject_cta_html(body_html, cta_url, cta_text)
 
     if not video or not thumbnail_data_uri:
         return re.sub(r"<p>\s*\[video\]\s*</p>", "", body_html)
 
     safe_href = html.escape(video_url, quote=True)
-    safe_alt = html.escape(alt_text, quote=True)
+    safe_alt = html.escape(video_alt_text, quote=True)
     # ``data:image/jpeg;base64,…`` embeds the bytes directly into the HTML so
     # the image ships inside the message body itself — no external request,
     # no CID attachment (Brevo drops the ``contentId`` field in transit).
@@ -348,6 +393,58 @@ def render_body_html(
     if placeholder_re.search(body_html):
         return placeholder_re.sub(thumbnail_html, body_html, count=1)
     return thumbnail_html + "\n" + body_html
+
+
+def _inject_hero_image_html(
+    body_html: str,
+    hero_data_uri: Optional[str],
+    hero_link_url: Optional[str],
+    alt_text: str,
+) -> str:
+    placeholder_re = re.compile(r"<p>\s*\[image\]\s*</p>")
+    if not hero_data_uri:
+        return placeholder_re.sub("", body_html)
+
+    safe_alt = html.escape(alt_text, quote=True)
+    image_html = (
+        f'<img src="{hero_data_uri}" alt="{safe_alt}" width="400" '
+        f'style="max-width:100%;height:auto;display:block;border:0;border-radius:16px;" />'
+    )
+    if hero_link_url:
+        safe_href = html.escape(hero_link_url, quote=True)
+        image_html = f'<a href="{safe_href}" style="display:inline-block;text-decoration:none;">{image_html}</a>'
+    image_html = f'<p style="text-align:center;">{image_html}</p>'
+
+    if placeholder_re.search(body_html):
+        return placeholder_re.sub(image_html, body_html, count=1)
+    return image_html + "\n" + body_html
+
+
+def _inject_cta_html(
+    body_html: str,
+    cta_url: Optional[str],
+    cta_text: Optional[str],
+) -> str:
+    placeholder_re = re.compile(r"<p>\s*\[cta\]\s*</p>")
+    if not cta_url or not cta_text:
+        return placeholder_re.sub("", body_html)
+
+    safe_href = html.escape(cta_url, quote=True)
+    safe_text = html.escape(cta_text)
+    button_html = (
+        '<p style="text-align:center;margin:18px 0 28px 0;">'
+        f'<a href="{safe_href}" '
+        'style="background-color:#ff553b;border-radius:20px;color:#ffffff;'
+        'display:inline-block;font-family:Arial, Helvetica, sans-serif;'
+        'font-size:16px;font-weight:bold;line-height:20px;'
+        'padding:13px 22px;text-decoration:none;'
+        'box-shadow:0 4px 4px rgba(0,0,0,0.25);">'
+        f'{safe_text}</a></p>'
+    )
+
+    if placeholder_re.search(body_html):
+        return placeholder_re.sub(button_html, body_html, count=1)
+    return body_html
 
 
 DEV_WEBAPP_BASE = "https://app.dev.openmates.org"
@@ -505,12 +602,28 @@ def build_context(
     video = manifest.get("video") or {}
     video_url = _video_link_for_manifest(manifest, base_url)
     thumb_uri = _intro_thumbnail_data_uri(lang) if video.get("intro_fullscreen") else None
+    hero = manifest.get("hero_image") or {}
+    hero_data_uri = _remote_image_data_uri(hero.get("url")) if hero.get("url") else None
+    hero_link_url = hero.get("link_url") or manifest.get("cta_url")
     subtitle = (manifest.get("subtitle") or {}).get(lang)
     # Alt text cannot contain the brand name — the MJML brand-name processor
     # rewrites "OpenMates" into nested HTML which mangles any attribute value.
-    alt_text = "Watch the update video"
-    body_html = render_body_html(body_md, video_url, thumb_uri, manifest, alt_text)
+    video_alt_text = "Watch the update video"
+    hero_alt_text = hero.get("alt") or "Newsletter image"
+    body_html = render_body_html(
+        body_md,
+        video_url,
+        thumb_uri,
+        hero_data_uri,
+        hero_link_url,
+        manifest.get("cta_url"),
+        (manifest.get("cta_text") or {}).get(lang),
+        manifest,
+        video_alt_text,
+        hero_alt_text,
+    )
     cta_text = (manifest.get("cta_text") or {}).get(lang)
+    cta_in_body = bool(re.search(r"^\s*\[cta\]\s*$", body_md, flags=re.MULTILINE))
     # Registered users get a link to manage newsletter category toggles;
     # non-registered subscribers get a simple unsubscribe link.
     manage_settings_url = f"{base_url}/#settings/newsletter" if is_registered else None
@@ -521,9 +634,10 @@ def build_context(
     # dev/prod split is honored without patching every call site.
     return {
         "newsletter_content": body_html,
+        "newsletter_title": (manifest.get("title") or {}).get(lang) or (manifest.get("title") or {}).get("en") or (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en"),
         "newsletter_subtitle": subtitle,
-        "cta_url": manifest.get("cta_url"),
-        "cta_text": cta_text,
+        "cta_url": None if cta_in_body else manifest.get("cta_url"),
+        "cta_text": None if cta_in_body else cta_text,
         "show_social_media": False,
         "manage_settings_url": manage_settings_url,
         "unsubscribe_url": unsubscribe_url if not is_registered else None,
@@ -543,6 +657,7 @@ async def send_one(
     base_url: str,
     unsubscribe_url: Optional[str],
     is_registered: bool = False,
+    stage: Optional[str] = None,
 ) -> bool:
     body_md = load_body_text(manifest, recipient_lang) or load_body_text(manifest, "en")
     if body_md is None:
@@ -566,6 +681,7 @@ async def send_one(
         context=context,
         subject=subject,
         lang=lang,
+        stage=stage,
         attachments=None,
     )
     if status == "already_reserved":
@@ -642,7 +758,10 @@ async def run(args: argparse.Namespace) -> int:
         f"use --base-url to override)"
     )
     landing_url = build_landing_url(manifest, base_url)
-    logger.info(f"Landing URL: {landing_url}")
+    if manifest.get("chat_id"):
+        logger.info(f"Landing URL: {landing_url}")
+    else:
+        logger.info("No newsletter landing page configured for this issue (chat_id is empty).")
 
     # Thumbnails are rendered per-recipient in ``send_one`` so EN and DE users
     # receive the matching localized intro frame. Caching happens inside
@@ -683,14 +802,17 @@ async def run(args: argparse.Namespace) -> int:
         )
         lang = args.lang or "en"
         success = await send_one(
+            directus=directus,
             email_template_service=email_template_service,
             manifest=manifest,
+            subscriber_id=f"test:{args.test_to}",
             recipient_email=args.test_to,
             recipient_lang=lang,
             darkmode=False,
             base_url=base_url,
             unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/TEST-TOKEN",
             is_registered=True,
+            stage=f"test-{lang}-{int(time.time())}",
         )
         logger.info("Test send: %s", "OK" if success else "FAILED")
         return 0 if success else 1
@@ -736,14 +858,17 @@ async def run(args: argparse.Namespace) -> int:
         )
         for preview_lang in SUPPORTED_LANGS:
             ok = await send_one(
+                directus=directus,
                 email_template_service=email_template_service,
                 manifest=manifest,
+                subscriber_id=f"preview:{args.admin_email}",
                 recipient_email=args.admin_email,
                 recipient_lang=preview_lang,
                 darkmode=False,
                 base_url=base_url,
                 unsubscribe_url=f"{base_url}/#settings/newsletter/unsubscribe/PREVIEW-TOKEN",
                 is_registered=True,
+                stage=f"preview-{preview_lang}-{int(time.time())}",
             )
             if not ok:
                 logger.error(f"Failed to send {preview_lang.upper()} preview email — aborting.")
@@ -766,7 +891,7 @@ async def run(args: argparse.Namespace) -> int:
     # not be deployed yet but the admin is iterating).
     env = os.getenv("SERVER_ENVIRONMENT", os.getenv("ENVIRONMENT", "production")).lower()
     is_dev = env in ("development", "dev", "test") or "localhost" in base_url
-    if not is_dev:
+    if not is_dev and manifest.get("chat_id"):
         logger.info(f"Checking landing page liveness: {landing_url}")
         if not await check_landing_page_live(landing_url):
             logger.error(
@@ -774,6 +899,8 @@ async def run(args: argparse.Namespace) -> int:
                 "Deploy the page to prod before broadcasting — recipients will 404."
             )
             return 2
+    elif not manifest.get("chat_id"):
+        logger.info("Skipping landing page liveness check because this issue is email-only.")
 
     subscribers = await fetch_subscribers(directus)
     if args.limit:

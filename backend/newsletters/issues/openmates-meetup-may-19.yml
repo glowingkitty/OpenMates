@@ -1,0 +1,25 @@
+slug: openmates-meetup-may-19
+kind: announcements
+category: updates_and_announcements
+demo_chat_category: news
+chat_id: null
+subject:
+  en: Join the OpenMates Meetup on May 19 in Berlin
+  de: Komm zum OpenMates Meetup am 19. Mai in Berlin
+title:
+  en: Join our meetup in Berlin!
+  de: Komm zu unserem Meetup in Berlin!
+subtitle:
+  en: Tuesday, May 19 at 19:00
+  de: Dienstag, 19. Mai um 19:00 Uhr
+cta_url: https://luma.com/2159uo8z
+cta_text:
+  en: RSVP on Luma
+  de: Auf Luma anmelden
+body_i18n_key: demo_chats.announcements_openmates_meetup_may_19.message
+video: null
+hero_image:
+  url: https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/uploads/xl/0c9da73e-8fd7-4a03-90ea-fa047af921f8.png
+  link_url: https://luma.com/2159uo8z
+  alt: OpenMates Meetup on May 19 in Berlin
+sent_at: null

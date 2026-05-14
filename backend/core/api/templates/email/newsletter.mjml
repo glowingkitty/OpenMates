@@ -1,6 +1,6 @@
 <mjml>
   <mj-head>
-    <mj-title>{{ t.email.newsletter.title.text }}</mj-title>
+    <mj-title>{{ newsletter_title if newsletter_title else t.email.newsletter.title.text }}</mj-title>
     <mj-attributes>
       <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3"/>
       {% if darkmode %}
@@ -19,14 +19,14 @@
     
     <!-- Main Content -->
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
-      <mj-section padding-bottom="10px">
+      <mj-section padding-bottom="0">
         <mj-column>
           <mj-image width="50px" height="50px" src="icons/mail.png" align="center" alt="Email icon" css-class="email-icon-50" />
-          <mj-text font-size="30px">
-            <mark>{{ t.email.newsletter.title.text }}</mark>
+          <mj-text font-size="30px" padding-bottom="8px">
+            <mark>{{ newsletter_title if newsletter_title else t.email.newsletter.title.text }}</mark>
           </mj-text>
           {% if newsletter_subtitle %}
-          <mj-text font-size="22px" padding-bottom="30px">
+          <mj-text font-size="22px" padding-bottom="8px">
             {{ newsletter_subtitle }}
           </mj-text>
           {% endif %}
@@ -34,7 +34,7 @@
       </mj-section>
       
       <!-- Newsletter Content (left-aligned, regular weight) -->
-      <mj-section padding="20px 0">
+      <mj-section padding="0">
         <mj-column>
           {% if newsletter_content %}
           <mj-text align="left" font-weight="normal" padding-bottom="20px">
@@ -54,11 +54,13 @@
         <mj-column>
           <mj-button 
             href="{{ cta_url }}" 
-            background-color="#6364FF" 
+            background-color="#ff553b" 
             color="#ffffff"
-            border-radius="8px"
+            border-radius="20px"
             font-size="16px"
+            font-weight="bold"
             padding="12px 20px"
+            inner-padding="13px 22px"
           >
             {{ cta_text }}
           </mj-button>

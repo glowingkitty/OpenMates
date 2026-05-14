@@ -147,6 +147,7 @@ def _strip_markers(body: str) -> str:
     fields and the CTA lives only in the email template, so both markers
     would render as literal text in the chat UI."""
     body = re.sub(r"^\s*\[video\]\s*$", "", body, flags=re.MULTILINE)
+    body = re.sub(r"^\s*\[image\]\s*$", "", body, flags=re.MULTILINE)
     body = re.sub(r"^\s*\[cta\]\s*$", "", body, flags=re.MULTILINE)
     return body.strip()
 
@@ -211,6 +212,7 @@ def load_issue_inputs(issue_dir: Path) -> Dict[str, Any]:
             raise ValueError(f"{body_path.name} frontmatter must set `subject`")
         bodies[lang] = {
             "subject": str(subject).strip(),
+            "title": str(front.get("title") or subject).strip(),
             "subtitle": (front.get("subtitle") or "").strip() or None,
             "cta_text": (front.get("cta_text") or "").strip() or None,
             "raw_body": body,
@@ -250,8 +252,9 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
         "kind": kind,  # "announcements" | "tips"
         "category": inputs["category"],
         "demo_chat_category": demo_cat,
-        "chat_id": f"{kind}-{slug}",
+        "chat_id": f"{kind}-{slug}" if meta.get("publish_chat", True) else None,
         "subject": {lang: _field(lang, "subject") for lang in SUPPORTED_LANGS},
+        "title": {lang: _field(lang, "title") for lang in SUPPORTED_LANGS},
         "subtitle": {lang: _field(lang, "subtitle") for lang in SUPPORTED_LANGS},
         "cta_url": meta.get("cta_url"),
         "cta_text": {lang: _cta(lang) for lang in SUPPORTED_LANGS},
@@ -261,6 +264,7 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
         # the fullscreen embed (via ``#intro-video``). Or provide hosted video
         # URLs for a standalone thumbnail. Missing → no video in email.
         "video": _build_video_section(meta.get("video")) if meta.get("video") else None,
+        "hero_image": meta.get("hero_image"),
         # Empty until send_newsletter.py broadcasts this issue. Prevents
         # accidental double-sends without an explicit --resend-confirm flag.
         "sent_at": None,
@@ -275,6 +279,9 @@ def write_issue_manifest(inputs: Dict[str, Any]) -> Path:
 
 def write_demo_chat_ts(inputs: Dict[str, Any]) -> Path:
     """Emit the TypeScript ``DemoChat`` file used by the frontend."""
+    if not inputs["meta"].get("publish_chat", True):
+        raise ValueError("write_demo_chat_ts called for publish_chat=false")
+
     slug = inputs["slug"]
     meta = inputs["meta"]
     kind, _ = CATEGORY_TO_KIND[inputs["category"]]
@@ -440,6 +447,10 @@ def register_in_store(inputs: Dict[str, Any]) -> None:
     import + a single registration (the second run overwrites its own
     lines between the BEGIN/END markers).
     """
+    if not inputs["meta"].get("publish_chat", True):
+        logger.info("Skipping newsletterChatStore registration for %s (publish_chat=false)", inputs["slug"])
+        return
+
     slug = inputs["slug"]
     kind, _ = CATEGORY_TO_KIND[inputs["category"]]
     snake_slug = _snake(slug)
@@ -534,15 +545,21 @@ def main() -> int:
     kind, _ = CATEGORY_TO_KIND[inputs["category"]]
 
     write_issue_manifest(inputs)
-    write_demo_chat_ts(inputs)
+    if inputs["meta"].get("publish_chat", True):
+        write_demo_chat_ts(inputs)
+    else:
+        logger.info("Skipping DemoChat generation for %s (publish_chat=false)", slug)
     write_i18n_yml(inputs)
     register_in_store(inputs)
 
     logger.info("=" * 72)
     logger.info(f"Published {kind}-{slug}")
     logger.info("Next: review the diff, commit, `sessions.py deploy` to auto-deploy dev.")
-    logger.info(f"Dev URL (after deploy): https://app.dev.openmates.org/{kind}/{slug}")
-    logger.info(f"Prod URL (after merge to main): https://openmates.org/{kind}/{slug}")
+    if inputs["meta"].get("publish_chat", True):
+        logger.info(f"Dev URL (after deploy): https://app.dev.openmates.org/{kind}/{slug}")
+        logger.info(f"Prod URL (after merge to main): https://openmates.org/{kind}/{slug}")
+    else:
+        logger.info("Email-only issue: no web announcement chat/page will be published.")
     logger.info("=" * 72)
 
     if args.test_to:
