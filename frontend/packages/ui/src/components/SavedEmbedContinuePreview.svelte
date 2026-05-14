@@ -193,6 +193,9 @@
 </script>
 
 <div class="saved-embed-continue-preview" data-testid="saved-embed-continue-preview" data-embed-id={embedId}>
+    <div class="saved-embed-priority-pill" data-testid="continue-priority-pill">
+        <span>{priorityLabel}</span>
+    </div>
     {#if appId === 'events'}
         <EventEmbedPreview
             id={embedId}
@@ -212,26 +215,23 @@
             <span>{title}</span>
         </button>
     {/if}
-    <div class="saved-embed-priority-pill" data-testid="continue-priority-pill">
-        <span>{priorityLabel}</span>
-    </div>
 </div>
 
 <style>
     .saved-embed-continue-preview {
         position: relative;
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
         pointer-events: auto;
     }
 
     .saved-embed-priority-pill {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        z-index: 20;
         display: inline-flex;
         align-items: center;
-        max-width: calc(100% - 24px);
+        max-width: 300px;
         padding: 5px 9px;
         border-radius: 999px;
         background: rgba(0, 0, 0, 0.28);
@@ -244,7 +244,6 @@
         text-overflow: ellipsis;
         backdrop-filter: blur(8px);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        pointer-events: none;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
         text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     }
