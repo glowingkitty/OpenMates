@@ -2830,7 +2830,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     category: 'events',
                     icon: 'calendar-days',
                 },
-                title: event.title,
+                title: formatOpenMatesEventContinueTitle(event),
                 category: 'events',
                 icon: 'calendar-days',
                 summary: formatOpenMatesEventSummary(event),
@@ -2992,6 +2992,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             ? ''
             : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
         return [date, time, event.venue?.city].filter(Boolean).join(' · ') || event.summary || null;
+    }
+
+    function formatOpenMatesEventContinueTitle(event: OpenMatesEvent): string {
+        const start = new Date(event.date_start);
+        const date = Number.isNaN(start.getTime())
+            ? ''
+            : start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return date ? `${date}: ${event.title}` : event.title;
     }
 
     function openOpenMatesEventEmbed(event: OpenMatesEvent): void {
@@ -3762,7 +3770,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         category: string | null | undefined,
         appId?: string | null,
     ): { start: string; end: string } | null {
-        return (category ? getCategoryGradientColors(category) : null) ?? getAppGradientColors(appId);
+        return getAppGradientColors(appId) ?? (category ? getCategoryGradientColors(category) : null);
     }
 
     function handleResumeLargeCardMouseEnter(e: MouseEvent) {
@@ -10461,7 +10469,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
                                         {@const tilt = nonAuthChatTiltStates[i]}
                                         {@const category = meta.category || 'general_knowledge'}
-                                        {@const gradientColors = getCategoryGradientColors(category)}
+                                        {@const gradientColors = getContinueGradientColors(category, meta.event ? 'events' : null)}
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
                                         {#if meta.event && isTallViewport}
@@ -11969,6 +11977,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex: 1;
         min-width: 0;
         overflow: hidden;
+        text-align: left;
     }
 
     /* Credits-error variant of the resume card content — mirrors Chat.svelte draft-only-layout */
@@ -11986,6 +11995,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         font-size: null;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.96);
+        text-align: left;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
