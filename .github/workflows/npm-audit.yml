@@ -1,0 +1,31 @@
+# .github/workflows/npm-audit.yml
+#
+# Scheduled npm advisory check for the pnpm workspace. This catches advisories
+# that appear after a dependency has already entered the lockfile.
+#
+# Architecture: docs/architecture/github-actions-ci.md
+
+name: "NPM Audit"
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Audit pnpm workspace
+        run: pnpm audit --audit-level moderate

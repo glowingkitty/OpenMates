@@ -40,8 +40,7 @@ jobs:
           node-version: "20"
       - uses: pnpm/action-setup@v4
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-        working-directory: frontend
+        run: pnpm install --frozen-lockfile
       - name: Run UI package tests
         id: ui_tests
         continue-on-error: true

@@ -1,0 +1,30 @@
+# .github/workflows/dependency-review.yml
+#
+# Reviews dependency graph changes in pull requests so lockfile and manifest
+# changes get an automated security gate before they reach dev.
+#
+# Architecture: docs/architecture/github-actions-ci.md
+
+name: "Dependency Review"
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "**/package.json"
+      - "**/package-lock.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
