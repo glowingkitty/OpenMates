@@ -447,6 +447,9 @@ def server_stats_summary_body(stats_payload: dict[str, object] | None, warning: 
     fetched_at = str(stats_payload.get("fetched_at") or raw_data.get("generated_at") or "unknown time")
     lifetime = sections.get("lifetime_revenue") if isinstance(sections.get("lifetime_revenue"), dict) else {}
     stripe_revenue = sections.get("stripe_revenue") if isinstance(sections.get("stripe_revenue"), dict) else {}
+    bank_transfer_revenue = (
+        sections.get("bank_transfer_revenue") if isinstance(sections.get("bank_transfer_revenue"), dict) else {}
+    )
     invoices = sections.get("invoices") if isinstance(sections.get("invoices"), dict) else {}
     revenue = sections.get("revenue") if isinstance(sections.get("revenue"), dict) else {}
     user_growth = sections.get("user_growth") if isinstance(sections.get("user_growth"), dict) else {}
@@ -461,18 +464,31 @@ def server_stats_summary_body(stats_payload: dict[str, object] | None, warning: 
     paying_customers = max(invoice_buyers, known_paying_users)
     conversion = f"{paying_customers * 100 / registered_accounts:.1f}%" if registered_accounts else "n/a"
     stripe_all_time = stripe_revenue.get("all_time_eur") if "error" not in stripe_revenue else None
-    lifetime_revenue = stripe_all_time if isinstance(stripe_all_time, (int, float)) else lifetime.get("total_eur")
-    revenue_source = "Stripe" if isinstance(stripe_all_time, (int, float)) else "tracked stats"
+    bank_transfer_all_time = (
+        bank_transfer_revenue.get("all_time_eur") if "error" not in bank_transfer_revenue else None
+    )
+    revenue_parts = []
+    if isinstance(stripe_all_time, (int, float)):
+        revenue_parts.append(("Stripe", stripe_all_time))
+    if isinstance(bank_transfer_all_time, (int, float)) and bank_transfer_all_time > 0:
+        revenue_parts.append(("bank transfers", bank_transfer_all_time))
+    lifetime_revenue = sum(amount for _, amount in revenue_parts) if revenue_parts else lifetime.get("total_eur")
+    revenue_source = " + ".join(label for label, _ in revenue_parts) if revenue_parts else "tracked stats"
+    revenue_source_detail = ", ".join(
+        f"{label} {_format_eur(amount)}" for label, amount in revenue_parts
+    )
     revenue_trend = revenue.get("trend_14d") if isinstance(revenue.get("trend_14d"), list) else []
     engagement_trend = engagement.get("trend_14d") if isinstance(engagement.get("trend_14d"), list) else []
     days = len(revenue_trend) or len(engagement_trend) or 14
 
-    revenue_row_label = "Revenue" if isinstance(stripe_all_time, (int, float)) else "App-tracked revenue"
+    revenue_row_label = "Revenue" if revenue_parts else "App-tracked revenue"
     revenue_row_value = (
         f"{_format_eur(lifetime_revenue)} lifetime ({revenue_source}), "
         f"{paying_customers:,} paid users"
     )
-    if not isinstance(stripe_all_time, (int, float)):
+    if revenue_source_detail:
+        revenue_row_value += f"; {revenue_source_detail}"
+    if not revenue_parts:
         revenue_row_value += "; not authoritative Stripe lifetime"
 
     rows = [
@@ -487,6 +503,12 @@ def server_stats_summary_body(stats_payload: dict[str, object] | None, warning: 
     ]
     if isinstance(stripe_revenue.get("ytd_eur"), (int, float)):
         rows.append(f"| Stripe YTD | {_format_eur(stripe_revenue.get('ytd_eur'))} |")
+    if isinstance(bank_transfer_revenue.get("ytd_eur"), (int, float)):
+        rows.append(
+            "| Bank transfer YTD | "
+            f"{_format_eur(bank_transfer_revenue.get('ytd_eur'))}, "
+            f"{_format_count(bank_transfer_revenue.get('ytd_transfers'))} completed transfers |"
+        )
     rows.extend([
         (
             f"| App-tracked last {days} days | "
@@ -535,6 +557,23 @@ def server_stats_summary_body(stats_payload: dict[str, object] | None, warning: 
                 f"| {month.get('month', '?')} | "
                 f"{_format_eur(month.get('revenue_eur'))} | "
                 f"{_format_count(month.get('transactions'))} |"
+            )
+    bank_transfer_monthly = (
+        bank_transfer_revenue.get("monthly") if isinstance(bank_transfer_revenue.get("monthly"), list) else []
+    )
+    if bank_transfer_monthly:
+        lines.append("")
+        lines.append("**Bank Transfer Monthly Revenue (last 6 months)**")
+        lines.append("")
+        lines.append("| Month | Revenue | Transfers |")
+        lines.append("| --- | ---: | ---: |")
+        for month in bank_transfer_monthly[-6:]:
+            if not isinstance(month, dict):
+                continue
+            lines.append(
+                f"| {month.get('month', '?')} | "
+                f"{_format_eur(month.get('revenue_eur'))} | "
+                f"{_format_count(month.get('transfers'))} |"
             )
     return "\n".join(lines)
 
