@@ -3675,28 +3675,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track whether this runtime is touch-capable (phone/tablet).
     let isTouchEnvironment = $state(false);
 
-    // Track viewport height for small-screen adjustments (e.g. hide suggestions on short screens).
+    // Track viewport dimensions for small-screen adjustments (e.g. compact continue cards).
     // Initialised at mount and kept in sync via resize listener in onMount below.
+    let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
     let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
 
-    /** Keep viewportHeight reactive on window resize. Registered/cleaned up in onMount. */
+    /** Keep viewport dimensions reactive on window resize. Registered/cleaned up in onMount. */
     function handleViewportResize() {
         // iOS Safari keyboard open/close can emit transient resize values that
         // trigger layout oscillation. While the input is focused, keep the
-        // previous viewportHeight stable.
+        // previous viewport dimensions stable.
         if (messageInputFocused && isTouchEnvironment) {
             return;
         }
+        viewportWidth = window.innerWidth;
         viewportHeight = window.innerHeight;
     }
 
     /**
-     * True when the viewport is tall enough to comfortably show the large
-     * ChatEmbedPreview-style gradient card for the resume-chat link.
-     * Threshold: ≥800px covers iPad vertical (768–1024px) and large monitors.
-     * Below this threshold the compact horizontal card is shown instead.
+     * True when the viewport can comfortably show large continue cards.
+     * Tall phones should still use compact cards so saved embeds don't dominate
+     * the welcome screen.
      */
-    let isTallViewport = $derived(viewportHeight >= 800);
+    let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
 
     // Hover tilt effect for the large welcome-screen chat preview card.
     // Mirrors UnifiedEmbedPreview's 3D hover behavior.
@@ -10406,14 +10407,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 </div>
                                             </button>
                                         {:else}
-                                            <!-- Compact card for short viewports -->
+                                            <!-- Compact card for short or narrow viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(gradientColors)}
                                                 data-chat-id={meta.chat.chat_id}
                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}
@@ -10463,7 +10464,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {@const gradientColors = getCategoryGradientColors(category)}
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
-                                        {#if meta.event}
+                                        {#if meta.event && isTallViewport}
                                             <EventEmbedPreview
                                                 id={meta.event.embed_id}
                                                 event={meta.event}
@@ -10516,12 +10517,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 </div>
                                             </button>
                                         {:else}
-                                            <!-- Compact card for short viewports -->
+                                            <!-- Compact card for short or narrow viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(gradientColors)}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}
