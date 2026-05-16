@@ -141,9 +141,9 @@ test('empty local IndexedDB with cold server cache keeps sync pending instead of
 		consoleLogs.push(`[${message.type()}] ${message.text()}`);
 	});
 
+	await installColdCacheWebSocketInterceptor(page);
 	await loginToTestAccount(page, logCheckpoint, async () => undefined, { waitForEditor: true });
 	await clearLocalChatIndexedDb(page);
-	await installColdCacheWebSocketInterceptor(page);
 
 	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('load');
