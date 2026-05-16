@@ -233,6 +233,7 @@ test('empty local IndexedDB with cold server cache keeps sync pending instead of
 
 	await page.goto(getE2EDebugUrl('/?empty-idb-recovery=1'));
 	await page.waitForLoadState('load');
+	expect(await page.evaluate(() => window.WebSocket.name)).toBe('ColdCacheWebSocket');
 	await clearLocalChatIndexedDb(page);
 	await expectLocalChatsCleared(page);
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
