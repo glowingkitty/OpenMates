@@ -1,0 +1,42 @@
+# .github/workflows/supply-chain-guard.yml
+#
+# Fails CI if workflow changes reintroduce dependency install patterns that
+# resolve fresh package versions during supply-chain incidents. Keep installs
+# lockfile-frozen unless a reviewer intentionally updates the lockfile.
+#
+# Architecture: docs/architecture/github-actions-ci.md
+
+name: "Supply Chain Guard"
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  pull_request:
+    branches: [dev]
+    paths:
+      - ".github/workflows/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject non-frozen pnpm installs
+        run: |
+          if grep -R --line-number -- '--no-frozen-lockfil[e]' .github/workflows; then
+            echo "::error::Use pnpm install --frozen-lockfile in CI workflows."
+            exit 1
+          fi

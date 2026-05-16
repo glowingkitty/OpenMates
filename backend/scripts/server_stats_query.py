@@ -155,8 +155,15 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
     inv = sections.get("invoices") or {}
     if "error" not in lr and lr:
         stripe_rev = sections.get("stripe_revenue") or {}
+        bank_rev = sections.get("bank_transfer_revenue") or {}
         stripe_all_time = stripe_rev.get("all_time_eur") if "error" not in stripe_rev else None
-        total_eur = stripe_all_time if isinstance(stripe_all_time, (int, float)) else lr.get("total_eur", 0)
+        bank_all_time = bank_rev.get("all_time_eur") if "error" not in bank_rev else None
+        revenue_parts = []
+        if isinstance(stripe_all_time, (int, float)):
+            revenue_parts.append(("Stripe", stripe_all_time))
+        if isinstance(bank_all_time, (int, float)) and bank_all_time > 0:
+            revenue_parts.append(("bank transfers", bank_all_time))
+        total_eur = sum(amount for _, amount in revenue_parts) if revenue_parts else lr.get("total_eur", 0)
         tracked_total_eur = lr.get("total_eur", 0)
         total_purchases = lr.get("total_purchases", 0)
         lifetime_buyers = (inv or {}).get("lifetime_unique_buyers", 0)
@@ -166,12 +173,19 @@ def _print_prod_stats_text(sections: dict, date: str) -> None:
             pct = f" ({lifetime_buyers * 100 / total_users:.1f}% of users)"
 
         lines.append("**Revenue — Lifetime**")
-        source = "Stripe" if isinstance(stripe_all_time, (int, float)) else "tracked server stats"
+        source = " + ".join(label for label, _ in revenue_parts) if revenue_parts else "tracked server stats"
         lines.append(f"- Total revenue: EUR {total_eur:,.2f} ({source})")
+        for label, amount in revenue_parts:
+            lines.append(f"- {label.capitalize()} revenue: EUR {amount:,.2f}")
         if isinstance(stripe_all_time, (int, float)) and abs(stripe_all_time - tracked_total_eur) >= 0.01:
             lines.append(f"- App-tracked revenue: EUR {tracked_total_eur:,.2f} (Directus counter; incomplete for lifetime)")
         if isinstance(stripe_rev.get("ytd_eur"), (int, float)):
             lines.append(f"- Stripe YTD revenue: EUR {stripe_rev.get('ytd_eur'):,.2f}")
+        if isinstance(bank_rev.get("ytd_eur"), (int, float)):
+            lines.append(
+                f"- Bank transfer YTD revenue: EUR {bank_rev.get('ytd_eur'):,.2f} "
+                f"({bank_rev.get('ytd_transfers', 0)} transfers)"
+            )
         lines.append(f"- Total purchases: {total_purchases:,}")
         lines.append(f"- Paying customers: {lifetime_buyers}{pct}")
         if total_purchases > 0 and not isinstance(stripe_all_time, (int, float)):

@@ -15,7 +15,38 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24  # Ships with npm 11.x (Trusted Publishing requires >=11.5.1)
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI
+        run: pnpm --filter openmates build
+
+      - name: Run CLI tests
+        run: pnpm --filter openmates test
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openmates-cli-dist
+          path: frontend/packages/openmates-cli/dist/
+          if-no-files-found: error
+          retention-days: 1
+
   publish:
+    needs: build-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,18 +59,10 @@ jobs:
           node-version: 24  # Ships with npm 11.x (Trusted Publishing requires >=11.5.1)
           registry-url: https://registry.npmjs.org
 
-      - name: Install dependencies
-        run: |
-          cd frontend/packages/openmates-cli && npm install
-          cd ../secret-scanner && npm install
-
-      - name: Build CLI
-        working-directory: frontend/packages/openmates-cli
-        run: npm run build
-
-      - name: Run CLI tests
-        working-directory: frontend/packages/openmates-cli
-        run: npm test
+      - uses: actions/download-artifact@v4
+        with:
+          name: openmates-cli-dist
+          path: frontend/packages/openmates-cli/dist
 
       - name: Bump prerelease version (dev only)
         if: github.ref == 'refs/heads/dev'

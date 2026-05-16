@@ -63,8 +63,7 @@ jobs:
       - uses: pnpm/action-setup@v4
 
       - name: Install frontend deps
-        run: pnpm install --no-frozen-lockfile
-        working-directory: frontend
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

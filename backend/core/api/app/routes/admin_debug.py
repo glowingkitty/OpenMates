@@ -2211,6 +2211,13 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def _directus_aggregate_value(row: Dict[str, Any], aggregate: str, field: str) -> int:
+    value = row.get(aggregate) or {}
+    if isinstance(value, dict):
+        return _safe_int(value.get(field))
+    return 0
+
+
 @router.get("/server-stats", include_in_schema=False)
 @limiter.limit("30/minute")
 async def get_server_stats(
@@ -2261,6 +2268,93 @@ async def get_server_stats(
     except Exception as e:
         logger.error(f"Stripe revenue query failed: {e}", exc_info=True)
         result["sections"]["stripe_revenue"] = {"error": str(e)}
+
+    # ── Successful Bank Transfer Revenue ────────────────────────────────
+    # SEPA transfers arrive through Revolut Business and never appear in
+    # Stripe balance transactions, so aggregate completed transfer records too.
+    try:
+        transfers_url = f"{directus_service.base_url}/items/pending_bank_transfers"
+        completed_filter = {
+            "filter[status][_eq]": "completed",
+            "filter[currency][_eq]": "eur",
+            "filter[received_amount_cents][_nnull]": "true",
+        }
+
+        all_time_resp = await directus_service._make_api_request(
+            "GET",
+            transfers_url,
+            params={
+                **completed_filter,
+                "aggregate[sum]": "received_amount_cents",
+                "aggregate[count]": "id",
+            },
+        )
+        all_time_cents = 0
+        transfer_count = 0
+        if all_time_resp.status_code == 200:
+            rows = all_time_resp.json().get("data", []) or []
+            if rows:
+                all_time_cents = _directus_aggregate_value(rows[0], "sum", "received_amount_cents")
+                transfer_count = _directus_aggregate_value(rows[0], "count", "id")
+
+        ytd_resp = await directus_service._make_api_request(
+            "GET",
+            transfers_url,
+            params={
+                **completed_filter,
+                "filter[completed_at][_gte]": f"{today.year}-01-01T00:00:00+00:00",
+                "aggregate[sum]": "received_amount_cents",
+                "aggregate[count]": "id",
+            },
+        )
+        ytd_cents = 0
+        ytd_count = 0
+        if ytd_resp.status_code == 200:
+            rows = ytd_resp.json().get("data", []) or []
+            if rows:
+                ytd_cents = _directus_aggregate_value(rows[0], "sum", "received_amount_cents")
+                ytd_count = _directus_aggregate_value(rows[0], "count", "id")
+
+        monthly_resp = await directus_service._make_api_request(
+            "GET",
+            transfers_url,
+            params=[
+                *completed_filter.items(),
+                ("aggregate[sum]", "received_amount_cents"),
+                ("aggregate[count]", "id"),
+                ("groupBy[]", "year(completed_at)"),
+                ("groupBy[]", "month(completed_at)"),
+                ("sort[]", "year(completed_at)"),
+                ("sort[]", "month(completed_at)"),
+                ("limit", "-1"),
+            ],
+        )
+        monthly = []
+        if monthly_resp.status_code == 200:
+            for row in monthly_resp.json().get("data", []) or []:
+                year = row.get("completed_at_year")
+                month = row.get("completed_at_month")
+                if year is None or month is None:
+                    continue
+                monthly.append(
+                    {
+                        "month": f"{int(year):04d}-{int(month):02d}",
+                        "revenue_eur": _directus_aggregate_value(row, "sum", "received_amount_cents") / 100.0,
+                        "transfers": _directus_aggregate_value(row, "count", "id"),
+                    }
+                )
+
+        result["sections"]["bank_transfer_revenue"] = {
+            "ytd_eur": ytd_cents / 100.0,
+            "all_time_eur": all_time_cents / 100.0,
+            "transfers": transfer_count,
+            "ytd_transfers": ytd_count,
+            "monthly": monthly,
+            "source": "completed_pending_bank_transfers",
+        }
+    except Exception as e:
+        logger.error(f"Bank transfer revenue query failed: {e}", exc_info=True)
+        result["sections"]["bank_transfer_revenue"] = {"error": str(e)}
 
     # ── Server Stats — 14 day trend + yesterday snapshot ─────────────────
     try:

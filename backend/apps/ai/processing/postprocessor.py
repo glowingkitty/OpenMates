@@ -19,6 +19,15 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 
 logger = logging.getLogger(__name__)
 
+DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
+
+
+def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
+    """Prefer a non-Mistral utility fallback when direct Mistral is degraded."""
+    return [DEEPSEEK_V4_FLASH_FALLBACK] + [
+        fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK
+    ]
+
 
 def extract_available_skills(
     discovered_apps: Dict[str, AppYAML],
@@ -439,7 +448,9 @@ async def handle_postprocessing(
     # Resolve fallback providers from the model's provider config (e.g. openrouter)
     # so that post-processing is resilient to Mistral API timeouts/outages,
     # the same way the preprocessor handles fallbacks.
-    postprocess_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+    postprocess_fallbacks = _with_deepseek_utility_fallback(
+        resolve_fallback_servers_from_provider_config(model_id)
+    )
 
     # Call the LLM with function calling
     llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
@@ -749,7 +760,9 @@ async def translate_chat_summary(
     ]
 
     model_id = "mistral/mistral-small-2506"
-    translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+    translation_fallbacks = _with_deepseek_utility_fallback(
+        resolve_fallback_servers_from_provider_config(model_id)
+    )
 
     try:
         llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
@@ -909,7 +922,9 @@ async def translate_new_chat_suggestions(
     ]
 
     model_id = "mistral/mistral-small-2506"
-    translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+    translation_fallbacks = _with_deepseek_utility_fallback(
+        resolve_fallback_servers_from_provider_config(model_id)
+    )
 
     try:
         llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(

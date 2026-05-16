@@ -2830,7 +2830,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     category: 'events',
                     icon: 'calendar-days',
                 },
-                title: event.title,
+                title: formatOpenMatesEventContinueTitle(event),
                 category: 'events',
                 icon: 'calendar-days',
                 summary: formatOpenMatesEventSummary(event),
@@ -2992,6 +2992,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             ? ''
             : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
         return [date, time, event.venue?.city].filter(Boolean).join(' · ') || event.summary || null;
+    }
+
+    function formatOpenMatesEventContinueTitle(event: OpenMatesEvent): string {
+        const start = new Date(event.date_start);
+        const date = Number.isNaN(start.getTime())
+            ? ''
+            : start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return date ? `${date}: ${event.title}` : event.title;
     }
 
     function openOpenMatesEventEmbed(event: OpenMatesEvent): void {
@@ -3675,28 +3683,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track whether this runtime is touch-capable (phone/tablet).
     let isTouchEnvironment = $state(false);
 
-    // Track viewport height for small-screen adjustments (e.g. hide suggestions on short screens).
+    // Track viewport dimensions for small-screen adjustments (e.g. compact continue cards).
     // Initialised at mount and kept in sync via resize listener in onMount below.
+    let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
     let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
 
-    /** Keep viewportHeight reactive on window resize. Registered/cleaned up in onMount. */
+    /** Keep viewport dimensions reactive on window resize. Registered/cleaned up in onMount. */
     function handleViewportResize() {
         // iOS Safari keyboard open/close can emit transient resize values that
         // trigger layout oscillation. While the input is focused, keep the
-        // previous viewportHeight stable.
+        // previous viewport dimensions stable.
         if (messageInputFocused && isTouchEnvironment) {
             return;
         }
+        viewportWidth = window.innerWidth;
         viewportHeight = window.innerHeight;
     }
 
     /**
-     * True when the viewport is tall enough to comfortably show the large
-     * ChatEmbedPreview-style gradient card for the resume-chat link.
-     * Threshold: ≥800px covers iPad vertical (768–1024px) and large monitors.
-     * Below this threshold the compact horizontal card is shown instead.
+     * True when the viewport can comfortably show large continue cards.
+     * Tall phones should still use compact cards so saved embeds don't dominate
+     * the welcome screen.
      */
-    let isTallViewport = $derived(viewportHeight >= 800);
+    let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
 
     // Hover tilt effect for the large welcome-screen chat preview card.
     // Mirrors UnifiedEmbedPreview's 3D hover behavior.
@@ -3761,7 +3770,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         category: string | null | undefined,
         appId?: string | null,
     ): { start: string; end: string } | null {
-        return (category ? getCategoryGradientColors(category) : null) ?? getAppGradientColors(appId);
+        return getAppGradientColors(appId) ?? (category ? getCategoryGradientColors(category) : null);
     }
 
     function handleResumeLargeCardMouseEnter(e: MouseEvent) {
@@ -10406,14 +10415,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 </div>
                                             </button>
                                         {:else}
-                                            <!-- Compact card for short viewports -->
+                                            <!-- Compact card for short or narrow viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(gradientColors)}
                                                 data-chat-id={meta.chat.chat_id}
                                                 data-pinned={meta.chat.pinned ? 'true' : 'false'}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}
@@ -10460,10 +10469,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
                                         {@const tilt = nonAuthChatTiltStates[i]}
                                         {@const category = meta.category || 'general_knowledge'}
-                                        {@const gradientColors = getCategoryGradientColors(category)}
+                                        {@const gradientColors = getContinueGradientColors(category, meta.event ? 'events' : null)}
                                         {@const iconName = getValidIconName(meta.icon || '', category)}
                                         {@const IconComponent = getLucideIcon(iconName)}
-                                        {#if meta.event}
+                                        {#if meta.event && isTallViewport}
                                             <EventEmbedPreview
                                                 id={meta.event.embed_id}
                                                 event={meta.event}
@@ -10516,12 +10525,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 </div>
                                             </button>
                                         {:else}
-                                            <!-- Compact card for short viewports -->
+                                            <!-- Compact card for short or narrow viewports -->
                                             {@const ChevronRight = getLucideIcon('chevron-right')}
                                             <button
                                                 class="resume-chat-card" data-testid="resume-chat-card"
                                                 style={getResumeCardGradientStyle(gradientColors)}
-                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                                onclick={() => meta.event ? openOpenMatesEventEmbed(meta.event) : handleOpenRecentChat(meta.chat)}
                                                 oncontextmenu={(e) => handleResumeCardContextMenu(e, meta.chat)}
                                                 ontouchstart={(e) => handleResumeCardTouchStart(e, meta.chat)}
                                                 ontouchmove={handleResumeCardTouchMove}
@@ -11968,6 +11977,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex: 1;
         min-width: 0;
         overflow: hidden;
+        text-align: left;
     }
 
     /* Credits-error variant of the resume card content — mirrors Chat.svelte draft-only-layout */
@@ -11985,6 +11995,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         font-size: null;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.96);
+        text-align: left;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

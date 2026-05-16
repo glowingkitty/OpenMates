@@ -51,8 +51,7 @@ jobs:
           node-version: "20"
       - uses: pnpm/action-setup@v4
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-        working-directory: frontend
+        run: pnpm install --frozen-lockfile
       - name: Build openmates CLI (required by cli-skills-* specs)
         run: pnpm --filter openmates build
         working-directory: frontend

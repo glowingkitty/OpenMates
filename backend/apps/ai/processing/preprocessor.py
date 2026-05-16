@@ -8,6 +8,7 @@
 
 import logging
 import re
+import time
 from typing import Dict, Any, List, Optional
 import datetime # For current date/time in system prompt
 
@@ -55,6 +56,7 @@ logger = logging.getLogger(__name__)
 ONBOARDING_SUPPORT_CATEGORY = "onboarding_support"
 ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
+DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 
 REPO_SEARCH_ACTION_PATTERN = re.compile(
     r"\b(search|find|look\s+for|discover|show\s+me|list|recommend|suggest)\b",
@@ -68,6 +70,13 @@ FINANCIAL_REPO_PATTERN = re.compile(
     r"\b(repo\s+rate|reverse\s+repo|repurchase\s+agreement)\b",
     re.IGNORECASE,
 )
+
+
+def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
+    """Prefer a non-Mistral utility fallback when direct Mistral is degraded."""
+    return [DEEPSEEK_V4_FLASH_FALLBACK] + [
+        fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK
+    ]
 
 
 def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
@@ -458,7 +467,9 @@ async def translate_chat_title(
 
     try:
         from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-        translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+        translation_fallbacks = _with_deepseek_utility_fallback(
+            resolve_fallback_servers_from_provider_config(model_id)
+        )
 
         llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
             task_id=task_id,
@@ -582,7 +593,9 @@ async def translate_chat_summary(
 
     try:
         from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-        translation_fallbacks = resolve_fallback_servers_from_provider_config(model_id)
+        translation_fallbacks = _with_deepseek_utility_fallback(
+            resolve_fallback_servers_from_provider_config(model_id)
+        )
 
         llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
             task_id=task_id,
@@ -1528,7 +1541,9 @@ async def handle_preprocessing(
     # Resolve fallback servers from provider config instead of hardcoded list in app.yml
     # This allows fallback servers to be configured in provider YAML files (e.g., mistral.yml)
     from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-    preprocessing_fallbacks = resolve_fallback_servers_from_provider_config(preprocessing_model)
+    preprocessing_fallbacks = _with_deepseek_utility_fallback(
+        resolve_fallback_servers_from_provider_config(preprocessing_model)
+    )
 
     logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.")
     if preprocessing_fallbacks:
@@ -1611,7 +1626,19 @@ async def handle_preprocessing(
         # fast_tool_definition was set at line 614.  The assert narrows the type for Pyright.
         assert fast_tool_definition is not None, "fast_tool_definition must be set before parallel calls"
 
-        call_a_coro = call_preprocessing_llm(
+        async def _timed_preprocessing_call(
+            call_name: str,
+            call_coro: Any,
+        ) -> LLMPreprocessingCallResult:
+            started_at = time.perf_counter()
+            try:
+                return await call_coro
+            finally:
+                elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+                logger.info(f"{log_prefix} Preprocessing {call_name} completed in {elapsed_ms}ms.")
+
+        parallel_calls_started_at = time.perf_counter()
+        call_a_coro = _timed_preprocessing_call("Call A (fast UI)", call_preprocessing_llm(
             task_id=f"{request_data.chat_id}_{request_data.message_id}_A",
             model_id=preprocessing_model,
             fallback_models=preprocessing_fallbacks,
@@ -1620,8 +1647,8 @@ async def handle_preprocessing(
             secrets_manager=secrets_manager,
             user_app_settings_and_memories_metadata=None,  # fast tool doesn't need memories
             dynamic_context=fast_dynamic_context,
-        )
-        call_b_coro = call_preprocessing_llm(
+        ))
+        call_b_coro = _timed_preprocessing_call("Call B (routing)", call_preprocessing_llm(
             task_id=f"{request_data.chat_id}_{request_data.message_id}_B",
             model_id=preprocessing_model,
             fallback_models=preprocessing_fallbacks,
@@ -1630,9 +1657,14 @@ async def handle_preprocessing(
             secrets_manager=secrets_manager,
             user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
             dynamic_context=dynamic_context,
-        )
+        ))
 
         call_a_result, call_b_result = await _asyncio.gather(call_a_coro, call_b_coro)
+        parallel_calls_elapsed_ms = int((time.perf_counter() - parallel_calls_started_at) * 1000)
+        logger.info(
+            f"{log_prefix} Preprocessing Call A/B parallel LLM calls completed in "
+            f"{parallel_calls_elapsed_ms}ms."
+        )
 
         # Handle Call A failure — fast UI fields missing means we cannot safely show the chat
         # title or perform safety checks on those fields; treat as hard failure.
@@ -2911,53 +2943,28 @@ async def handle_preprocessing(
         error_message=None
     )
 
-    # Always normalize metadata into the user's system/UI language through isolated
-    # translation calls. The output_language detector can be wrong on follow-ups, and
-    # prompt instructions can be overridden by language-heavy chat history.
-    if final_result.chat_summary:
+    # Do not translate metadata in the critical preprocessing path. The main processor
+    # can start as soon as routing/safety/model metadata is ready; translated title or
+    # summary cleanup must be asynchronous and non-blocking. Same-language metadata is
+    # already correct, and cross-language cleanup can happen after main processing starts.
+    user_id_uuid_for_events = request_data.user_id
+    chat_id_for_events = request_data.chat_id
+    if final_result.output_language == user_system_language:
         logger.info(
-            f"{log_prefix} Ensuring chat summary is in UI language '{user_system_language}'."
+            f"{log_prefix} Skipping metadata translation: output_language matches UI language "
+            f"('{user_system_language}')."
         )
-        translated_summary = await translate_chat_summary(
-            task_id=f"{request_data.chat_id}_{request_data.message_id}_summary_translate",
-            summary=final_result.chat_summary,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-        final_result.chat_summary = translated_summary
-
-    # Only fires on first messages because existing chat title updates are handled by
-    # post-processing, which applies the same unconditional metadata normalization.
-    if is_first_message and final_result.title:
+    else:
         logger.info(
-            f"{log_prefix} Ensuring chat title is in UI language '{user_system_language}'."
+            f"{log_prefix} Deferring metadata translation out of preprocessing critical path "
+            f"(chat_lang='{final_result.output_language}', ui_lang='{user_system_language}')."
         )
-        translated_title = await translate_chat_title(
-            task_id=f"{request_data.chat_id}_{request_data.message_id}_title_translate",
-            title=final_result.title,
-            target_language=user_system_language,
-            secrets_manager=secrets_manager,
-        )
-        final_result.title = translated_title
 
-    logger.info(f"{log_prefix} Preprocessing finished.")
-
-    # --- Emit real-time preprocessing step events ---
-    # These events allow the frontend to display a step-by-step animated overview of what
-    # the preprocessor decided: title generated, mate selected, model selected.
-    # Each step is only shown when it actually ran — skipped steps are silently omitted.
-    # Steps are published in sequence after the full result is assembled so the data is correct.
+    # Emit title_generated immediately with the core preprocessing title. The frontend
+    # listens to this event to display the chat title banner.
     if preprocessing_stream_channel and cache_service:
         try:
-            # user_id_uuid is included in all step events so the WebSocket listener can
-            # route the event to the correct user via ConnectionManager without a hash lookup.
-            # chat_id is included so the frontend can refresh the active chat metadata on step arrival.
-            user_id_uuid_for_events = request_data.user_id
-            chat_id_for_events = request_data.chat_id
-
-            # Step 1: Chat title (only relevant for new chats)
             if not is_new_chat:
-                # Existing chat: title generation step was skipped — emit but frontend will not render it
                 await _emit_preprocessing_step(
                     cache_service=cache_service,
                     channel=preprocessing_stream_channel,
@@ -2969,7 +2976,6 @@ async def handle_preprocessing(
                     log_prefix=log_prefix
                 )
             elif final_result.title:
-                # New chat and title was generated
                 await _emit_preprocessing_step(
                     cache_service=cache_service,
                     channel=preprocessing_stream_channel,
@@ -2981,7 +2987,6 @@ async def handle_preprocessing(
                     log_prefix=log_prefix
                 )
             else:
-                # New chat but no title returned (unexpected) — still skip gracefully
                 await _emit_preprocessing_step(
                     cache_service=cache_service,
                     channel=preprocessing_stream_channel,
@@ -2992,7 +2997,19 @@ async def handle_preprocessing(
                     skip_reason="no_title_returned",
                     log_prefix=log_prefix
                 )
+        except Exception as _e_title_step:
+            logger.warning(
+                f"{log_prefix} Error emitting title_generated step event (non-fatal): {_e_title_step}",
+                exc_info=True,
+            )
 
+    logger.info(f"{log_prefix} Preprocessing finished.")
+
+    # --- Emit remaining real-time preprocessing step events (mate + model) ---
+    # title_generated was already emitted above. Mate and model events follow with
+    # the core preprocessing data; translation is intentionally not a gate here.
+    if preprocessing_stream_channel and cache_service:
+        try:
             # Step 2: Mate selection
             # Skipped if user provided @mate: override or request_data had an explicit mate_id
             mate_was_user_override = bool(user_overrides and user_overrides.mate_id)
