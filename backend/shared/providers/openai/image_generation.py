@@ -112,7 +112,6 @@ async def generate_image_openai(
             size=size,
             quality=openai_quality,
             n=1,
-            response_format="b64_json",
         )
         return _extract_image_bytes(response)
 
@@ -122,6 +121,5 @@ async def generate_image_openai(
         size=size,
         quality=openai_quality,
         n=1,
-        response_format="b64_json",
     )
     return _extract_image_bytes(response)
