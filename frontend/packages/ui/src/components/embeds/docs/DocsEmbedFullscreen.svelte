@@ -137,6 +137,7 @@
     );
   let docxS3Key = $derived(typeof dc.docx_s3_key === 'string' ? dc.docx_s3_key : undefined);
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : undefined);
+  let highlightQuoteText = $derived(data.highlightQuoteText ?? null);
   let previewPageUrls = $derived(
       dc.preview_page_urls && typeof dc.preview_page_urls === 'object'
         ? dc.preview_page_urls as Record<string, string>
@@ -401,6 +402,52 @@
     };
   });
   let embedLinkCleanup: (() => void) | undefined;
+
+  // Highlight and scroll to text fragments opened from embed:ref#text=... links.
+  $effect(() => {
+    void sanitizedHtml;
+    const quote = highlightQuoteText?.trim();
+    if (!contentEl) return;
+    if (!quote) {
+      clearDocumentHighlights();
+      return;
+    }
+    const raf = requestAnimationFrame(() => highlightDocumentText(quote));
+    return () => cancelAnimationFrame(raf);
+  });
+
+  function clearDocumentHighlights() {
+    if (!contentEl) return;
+    contentEl.querySelectorAll('span.embed-doc-text-highlight').forEach((el) => {
+      const parent = el.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+      parent.normalize();
+    });
+  }
+
+  function highlightDocumentText(quote: string) {
+    if (!contentEl) return;
+    clearDocumentHighlights();
+    const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    const lowerQuote = quote.toLowerCase();
+    while (node) {
+      const textValue = node.nodeValue || '';
+      const index = textValue.toLowerCase().indexOf(lowerQuote);
+      if (index !== -1) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + quote.length);
+        const marker = document.createElement('span');
+        marker.className = 'embed-doc-text-highlight';
+        range.surroundContents(marker);
+        marker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      node = walker.nextNode() as Text | null;
+    }
+  }
 
   // =============================================
   // Page Break Spacer Injection
@@ -1074,6 +1121,12 @@ ${downloadHtmlContent}
 
   .doc-page-content :global(a:hover) {
     color: #0b3a8a;
+  }
+
+  .doc-page-content :global(.embed-doc-text-highlight) {
+    background: color-mix(in srgb, var(--color-button-primary) 30%, transparent);
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-button-primary) 18%, transparent);
   }
 
   .doc-page-content :global(hr) {

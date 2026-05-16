@@ -2,7 +2,7 @@
 // Main entry point for the unified message parsing architecture
 // Handles both write_mode (editing) and read_mode (display) parsing
 
-import { ParseMessageOptions } from "./types";
+import type { ParseMessageOptions } from "./types";
 import { markdownToTipTap } from "./serializers";
 import { parseEmbedNodes } from "./embedParsing";
 import { handleStreamingSemantics } from "./streamingSemantics";
@@ -10,6 +10,7 @@ import { enhanceDocumentWithEmbeds } from "./documentEnhancement";
 import { groupConsecutiveEmbedsInDocument } from "./embedGrouping";
 import { migrateEmbedNodes, needsMigration } from "./migration";
 import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
+import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
 
 // ─── Inline embed-link conversion ─────────────────────────────────────────────
 //
@@ -101,34 +102,6 @@ function collectEmbedAppIds(doc: any): string | null {
  * Pass 2 inner: walk a node and convert embed: link marks to embedInline nodes.
  * Uses the pre-collected `fallbackAppId` when the live ref index has no entry.
  */
-/**
- * Parse a #L line-range fragment from an embed: href suffix.
- * Supports:
- *   #L42        → { start: 42, end: 42 }
- *   #L10-L20    → { start: 10, end: 20 }
- *   #L10-20     → { start: 10, end: 20 }  (alternate form)
- * Returns null when no valid #L fragment is present.
- */
-function _parseLineFragment(raw: string): {
-  cleanRef: string;
-  lineStart: number | null;
-  lineEnd: number | null;
-} {
-  const lineMatch = raw.match(/#L(\d+)(?:-L?(\d+))?$/);
-  if (!lineMatch) {
-    return { cleanRef: raw, lineStart: null, lineEnd: null };
-  }
-  const cleanRef = raw.slice(0, raw.lastIndexOf("#"));
-  const lineStart = parseInt(lineMatch[1], 10);
-  const lineEnd = lineMatch[2] ? parseInt(lineMatch[2], 10) : lineStart;
-  // Normalise reversed ranges
-  return {
-    cleanRef,
-    lineStart: Math.min(lineStart, lineEnd),
-    lineEnd: Math.max(lineStart, lineEnd),
-  };
-}
-
 function convertEmbedLinksInNode(
   node: any,
   fallbackAppId: string | null,
@@ -180,7 +153,7 @@ function convertEmbedLinksInNode(
       // display text. This becomes a block-level embedPreviewLarge node.
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
-        const { cleanRef } = _parseLineFragment(rawRef);
+        const { cleanRef } = parseEmbedLinkTarget(rawRef);
         const resolvedId = _getEmbedStore()?.resolveByRef(cleanRef) ?? null;
         const resolvedAppId =
           _getEmbedStore()?.resolveAppIdByRef(cleanRef) ?? null;
@@ -198,7 +171,7 @@ function convertEmbedLinksInNode(
 
       // ── Standard inline embed link: [display text](embed:ref) ────────────
       // Parse optional #L line-range fragment from the embed ref.
-      const { cleanRef, lineStart, lineEnd } = _parseLineFragment(rawRef);
+      const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } = parseEmbedLinkTarget(rawRef);
 
       // When the LLM omits display text ([](embed:ref)) or uses a technical
       // ref as text, derive a safe user-facing label instead of showing the
@@ -224,6 +197,8 @@ function convertEmbedLinksInNode(
           appId,
           focusLineStart: lineStart,
           focusLineEnd: lineEnd,
+          highlightQuoteText,
+          focusSheetRange: sheetRange,
         },
       };
     }

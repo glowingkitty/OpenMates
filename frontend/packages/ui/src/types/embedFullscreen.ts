@@ -19,6 +19,8 @@ export interface EmbedFullscreenRawData {
 	highlightQuoteText?: string | null;
 	/** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
 	focusLineRange?: { start: number; end: number } | null;
+	/** Sheet cell/range to highlight in sheet fullscreen (from #cell/#range suffix) */
+	focusSheetRange?: string | null;
 }
 
 /** Common props ALL fullscreen components share (passed as top-level props, not inside data) */

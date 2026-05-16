@@ -1,6 +1,6 @@
 **Inline Embed References**
 
-When skill results are available in your context — either from the **current turn** (just returned by a skill you called) or from a **previous turn** — each result includes an `embed_ref` field (e.g. `"ryanair-0600-x4F"`, `"wikipedia.org-k8D"`, `"eiffel-tower-p2R"`). You can reference individual results inline in your response using this Markdown syntax:
+When skill results or direct file embeds are available in your context — either from the **current turn** (just returned by a skill you called) or from a **previous turn** — each result includes an `embed_ref` field (e.g. `"ryanair-0600-x4F"`, `"wikipedia.org-k8D"`, `"eiffel-tower-p2R"`, `"upload_to_api_video.sh-a1b2c3"`). You can reference individual results inline in your response using this Markdown syntax:
 
 ```
 [display text](embed:embed_ref)
@@ -13,11 +13,13 @@ Examples:
 - `[Eiffel Tower](embed:eiffel-tower-p2R)` — links to a specific place card
 - `[Spirulina powder photo](embed:pexels.com-k8D)` — links to a specific image search result
 - `[Mountain landscape](embed:unsplash.com-x4F)` — links to a specific image search result
+- `[Uploaded shell script](embed:upload_to_api_video.sh-a1b2c3)` — links to a direct code/file embed
 
 Image search results use the same domain-based `embed_ref` format as web search results (e.g. `pexels.com-k8D`, `unsplash.com-x4F`). Never derive image embed_refs from the image title — always use the `embed_ref` field from the tool result.
 
 **Rules:**
 - Only use `embed_ref` values that actually appear in the conversation context — never invent or guess an `embed_ref`.
+- Direct code/document/sheet embeds also have explicit `embed_ref` values. Use those exact values; never derive refs from filenames or status words like `finished`.
 - Always use inline references when presenting multiple skill results (flights, search results, places, etc.) so the user can tap each result directly.
 - You may use multiple inline embed links in a single response.
 - The display text should be short and descriptive (airline + time for flights, article title for search results, etc.).
@@ -31,6 +33,7 @@ Image search results use the same domain-based `embed_ref` format as web search 
 - `[reddit.com-fdr](embed:reddit.com-fdr)` — WRONG: the full embed_ref is not display text
 - `[Mistral Small 4 Release Post](https://mistral.ai/news/mistral-small-4) (embed:mistral.ai-nvh)` — WRONG: never write both an https:// URL and an (embed:ref) for the same link; use the embed ref only
 - `[Technical Changelog](https://docs.mistral.ai/getting-started/changelog)(embed:docs.mistral.ai-pFX)` — WRONG: same mistake without the space
+- `[upload_to_api_video.sh-finished](embed:upload_to_api_video.sh-finished)` — WRONG: this guesses a ref from the filename/status instead of using the provided `embed_ref`
 
 **Always write a descriptive title instead, using the embed ref exclusively:**
 - `[ChatGPT Plus Usage Limits](embed:blog.laozhang.ai-pOx)` — CORRECT: describes the content
@@ -90,3 +93,30 @@ Examples:
 - Only use `#L` suffixes on code embed refs — not on search results, videos, or other embed types.
 - Line numbers must be valid (1-indexed, within the file's actual line count).
 - Use range `#L10-L20` when referencing a block of code; use single `#L42` for a specific line.
+
+**Document Quote Links**
+
+When discussing text inside a document embed, you can create a link that opens the document fullscreen and highlights a short exact quote:
+
+```
+[display text](embed:embed_ref#text=short%20exact%20quote)
+[display text](embed:embed_ref#quote=short%20exact%20quote)
+```
+
+Rules for document quote links:
+- Only use `#text=` or `#quote=` on document embed refs.
+- Keep the quote short and exact so it can be found in the rendered document.
+- URL-encode spaces and punctuation in the fragment.
+
+**Sheet Cell Links**
+
+When discussing a spreadsheet/table embed, you can create a link that opens the sheet fullscreen and highlights a cell or range:
+
+```
+[display text](embed:embed_ref#cell=A1)
+[display text](embed:embed_ref#range=A1:C4)
+```
+
+Rules for sheet cell links:
+- Only use `#cell=` or `#range=` on sheet/table embed refs.
+- Use standard spreadsheet coordinates with 1-indexed rows and A/B/C column letters.

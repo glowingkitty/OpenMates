@@ -87,6 +87,47 @@ class EmbedService:
         self.directus_service = directus_service
         self.encryption_service = encryption_service
 
+    @staticmethod
+    def _slugify_direct_ref_base(value: Any, fallback: str) -> str:
+        """Return a compact, readable embed_ref base while preserving filename dots."""
+        raw = str(value or fallback).strip().lower()
+        raw = re.sub(r"\s+", "-", raw)
+        raw = re.sub(r"[^a-z0-9._-]+", "-", raw)
+        raw = re.sub(r"-+", "-", raw).strip("-._")
+        return (raw or fallback)[:48].rstrip("-._") or fallback
+
+    @staticmethod
+    def _direct_embed_app_skill(embed_type: str) -> Tuple[str, str]:
+        """Map direct embed types to app/skill metadata used for indexing and refs."""
+        mapping = {
+            "code": ("code", "code"),
+            "sheet": ("sheets", "sheet"),
+            "document": ("docs", "document"),
+            "mail": ("mail", "email"),
+            "math-plot": ("math", "plot"),
+        }
+        return mapping.get(embed_type, (embed_type, embed_type))
+
+    @staticmethod
+    def _generate_direct_embed_ref(
+        embed_type: str,
+        embed_id: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Generate a stable human-readable embed_ref for direct embeds."""
+        metadata = metadata or {}
+        candidate = (
+            metadata.get("embed_ref")
+            or metadata.get("filename")
+            or metadata.get("title")
+            or metadata.get("subject")
+            or metadata.get("name")
+        )
+        fallback = embed_type.replace("_", "-") or "embed"
+        base = EmbedService._slugify_direct_ref_base(candidate, fallback)
+        suffix = (embed_id or "")[:6]
+        return f"{base}-{suffix}" if suffix and not base.endswith(f"-{suffix}") else base
+
     async def create_processing_embed_placeholder(
         self,
         app_id: str,
@@ -428,6 +469,11 @@ class EmbedService:
 
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "code",
+                embed_id,
+                {"filename": filename, "language": language},
+            )
 
             # Create minimal placeholder content with language and filename.
             # app_id and skill_id are included so the frontend can index this embed
@@ -439,6 +485,7 @@ class EmbedService:
                 "language": language or "",
                 "code": "",  # Empty initially, will be updated as code streams
                 "filename": filename,
+                "embed_ref": embed_ref,
                 "status": "processing",
                 "line_count": 0  # Will be updated when content is finalized
             }
@@ -555,13 +602,16 @@ class EmbedService:
                     existing_content = decode(existing_toon)
                     language = existing_content.get("language", "")
                     filename = existing_content.get("filename")
+                    embed_ref = existing_content.get("embed_ref")
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing code embed content: {e}")
                     language = ""
                     filename = None
+                    embed_ref = None
             else:
                 language = ""
                 filename = None
+                embed_ref = None
 
             # Create updated content with new code
             # Calculate line count for display (count all lines including empty ones)
@@ -576,6 +626,11 @@ class EmbedService:
                 "language": language,
                 "code": code_content,
                 "filename": filename,
+                "embed_ref": embed_ref or self._generate_direct_embed_ref(
+                    "code",
+                    embed_id,
+                    {"filename": filename, "language": language},
+                ),
                 "status": status,
                 "line_count": line_count
             }
@@ -683,6 +738,11 @@ class EmbedService:
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "sheet",
+                embed_id,
+                {"title": title},
+            )
 
             # Placeholder content — table markdown will be accumulated as rows stream.
             # app_id and skill_id are included so the frontend can index this embed
@@ -693,6 +753,7 @@ class EmbedService:
                 "skill_id": "sheet",
                 "table": "",           # Raw markdown table, accumulated row by row
                 "title": title or "",
+                "embed_ref": embed_ref,
                 "status": "processing",
                 "row_count": 0,
                 "col_count": 0,
@@ -798,8 +859,21 @@ class EmbedService:
                     try:
                         existing_content = decode(existing_toon)
                         title = existing_content.get("title", "")
+                        embed_ref = existing_content.get("embed_ref")
                     except Exception:
                         title = ""
+                        embed_ref = None
+                else:
+                    embed_ref = None
+            else:
+                existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+                embed_ref = None
+                if existing_toon:
+                    try:
+                        existing_content = decode(existing_toon)
+                        embed_ref = existing_content.get("embed_ref")
+                    except Exception:
+                        embed_ref = None
 
             # app_id / skill_id are preserved across updates so the embed remains
             # visible in My Embeds under the "sheets" app after finalization.
@@ -809,6 +883,11 @@ class EmbedService:
                 "skill_id": "sheet",
                 "table": table_content,
                 "title": title or "",
+                "embed_ref": embed_ref or self._generate_direct_embed_ref(
+                    "sheet",
+                    embed_id,
+                    {"title": title},
+                ),
                 "status": status,
                 "row_count": row_count,
                 "col_count": col_count,
@@ -902,6 +981,7 @@ class EmbedService:
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref("math-plot", embed_id)
 
             # Placeholder content — plot_spec will be filled in when the closing fence arrives.
             # app_id and skill_id are included so the frontend can index this embed
@@ -911,6 +991,7 @@ class EmbedService:
                 "app_id": "math",
                 "skill_id": "plot",
                 "plot_spec": "",   # Raw expression from the plot block, filled in at finalization
+                "embed_ref": embed_ref,
                 "status": "processing",
             }
 
@@ -1002,6 +1083,15 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Math-plot embed {embed_id} not found in cache, cannot update")
                 return False
 
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            embed_ref = None
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                    embed_ref = existing_content.get("embed_ref")
+                except Exception:
+                    embed_ref = None
+
             # app_id / skill_id are preserved across updates so the embed remains
             # visible in My Embeds under the "math" app after finalization.
             updated_content = {
@@ -1009,6 +1099,7 @@ class EmbedService:
                 "app_id": "math",
                 "skill_id": "plot",
                 "plot_spec": expression,
+                "embed_ref": embed_ref or self._generate_direct_embed_ref("math-plot", embed_id),
                 "status": status,
             }
 
@@ -1083,6 +1174,11 @@ class EmbedService:
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "mail",
+                embed_id,
+                {"subject": subject, "title": subject},
+            )
 
             placeholder_content = {
                 "type": "mail",
@@ -1092,6 +1188,7 @@ class EmbedService:
                 "subject": subject,
                 "content": "",
                 "footer": "",
+                "embed_ref": embed_ref,
                 "status": "processing",
             }
 
@@ -1179,6 +1276,15 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Mail embed {embed_id} not found in cache, cannot update")
                 return False
 
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            embed_ref = None
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                    embed_ref = existing_content.get("embed_ref")
+                except Exception:
+                    embed_ref = None
+
             updated_content = {
                 "type": "mail",
                 "app_id": "mail",
@@ -1187,6 +1293,11 @@ class EmbedService:
                 "subject": subject,
                 "content": content,
                 "footer": footer,
+                "embed_ref": embed_ref or self._generate_direct_embed_ref(
+                    "mail",
+                    embed_id,
+                    {"subject": subject, "title": subject},
+                ),
                 "status": status,
             }
 
@@ -1285,6 +1396,11 @@ class EmbedService:
 
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "document",
+                embed_id,
+                {"title": title},
+            )
 
             # Create minimal placeholder content for document embed.
             # app_id and skill_id are included so the frontend can index this embed
@@ -1296,6 +1412,7 @@ class EmbedService:
                 "docx_model": {},
                 "title": title,
                 "filename": None,
+                "embed_ref": embed_ref,
                 "status": "processing",
                 "word_count": 0  # Will be updated when content is finalized
             }
@@ -1426,6 +1543,13 @@ class EmbedService:
                             docx_model = existing_content.get("docx_model")
                     except Exception as e:
                         logger.warning(f"{log_prefix} Failed to decode existing document embed content: {e}")
+            else:
+                existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+                if existing_toon:
+                    try:
+                        existing_content = decode(existing_toon)
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Failed to decode existing document embed content: {e}")
 
             if docx_model is None:
                 docx_model = {}
@@ -1460,6 +1584,11 @@ class EmbedService:
                 "docx_model": docx_model,
                 "title": title,
                 "filename": filename,
+                "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                    "document",
+                    embed_id,
+                    {"filename": filename, "title": title},
+                ),
                 "status": status,
                 "word_count": word_count
             }
@@ -1619,13 +1748,21 @@ class EmbedService:
             
             # Generate embed ID
             embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "code",
+                embed_id,
+                {"filename": filename, "language": language},
+            )
             
             # Create embed content structure
             embed_content = {
                 "type": "code",
+                "app_id": "code",
+                "skill_id": "code",
                 "language": language,
                 "code": code_content,
                 "filename": filename,
+                "embed_ref": embed_ref,
                 "status": "finished",
                 "line_count": code_content.count('\n') + 1 if code_content else 0
             }
@@ -1984,7 +2121,8 @@ class EmbedService:
                 # check whether the TOON content already contains an embed_ref that was
                 # injected by create_embeds_from_skill_results().  If so, strip the raw
                 # embed_id (UUID) so the LLM never sees it and return the embed_ref as-is.
-                # If no embed_ref is present, pass through unchanged.
+                # If no embed_ref is present on a direct generated embed (code/sheet/docs/etc.),
+                # synthesize a deterministic ref so old chats can still be referenced.
                 embed_ref_in_toon = decoded.get("embed_ref")
                 if embed_ref_in_toon and isinstance(embed_ref_in_toon, str):
                     # Strip internal fields the LLM should not see, but keep content fields.
@@ -2001,6 +2139,26 @@ class EmbedService:
                         f"{log_prefix} Passed embed_ref through for embed {embed_id}: "
                         f"embed_ref={embed_ref!r}, type={embed_type!r}, "
                         f"app_id={app_id!r}, skill_id={skill_id!r}"
+                    )
+                    return filtered_toon, embed_ref
+                direct_types = {"code", "sheet", "document", "mail", "math-plot"}
+                if embed_type in direct_types:
+                    inferred_app_id, inferred_skill_id = self._direct_embed_app_skill(embed_type)
+                    filtered = {
+                        k: v for k, v in decoded.items()
+                        if k not in self._TOON_LLM_STRIP_FIELDS and k != "embed_id"
+                    }
+                    filtered.setdefault("app_id", app_id or inferred_app_id)
+                    filtered.setdefault("skill_id", skill_id or inferred_skill_id)
+                    embed_ref = self._unique_embed_ref(
+                        self._generate_direct_embed_ref(embed_type, embed_id, filtered),
+                        seen_embed_refs,
+                    )
+                    filtered["embed_ref"] = embed_ref
+                    filtered_toon = encode(filtered)
+                    logger.debug(
+                        f"{log_prefix} Synthesized embed_ref for direct embed {embed_id}: "
+                        f"embed_ref={embed_ref!r}, type={embed_type!r}"
                     )
                     return filtered_toon, embed_ref
                 # No embed_ref in TOON — pass through as-is, no embed_ref exposed.

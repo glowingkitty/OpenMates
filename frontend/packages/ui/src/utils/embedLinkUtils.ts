@@ -17,6 +17,7 @@ import { mount, unmount } from "svelte";
 import EmbedInlineLink from "../components/embeds/EmbedInlineLink.svelte";
 import { embedStore } from "../services/embedStore";
 import { resolveEmbedDisplayText } from "./embedDisplayText";
+import { parseEmbedLinkTarget } from "./embedFragmentUtils";
 
 // ──────────────────────────────────────────────────────────────
 // Constants
@@ -46,6 +47,10 @@ const EMBED_PLACEHOLDER_CLASS = "embed-inline-placeholder";
 /** Data attribute names used on placeholder spans */
 const DATA_EMBED_REF = "data-embed-ref";
 const DATA_DISPLAY_TEXT = "data-display-text";
+const DATA_FOCUS_LINE_START = "data-focus-line-start";
+const DATA_FOCUS_LINE_END = "data-focus-line-end";
+const DATA_HIGHLIGHT_QUOTE_TEXT = "data-highlight-quote-text";
+const DATA_FOCUS_SHEET_RANGE = "data-focus-sheet-range";
 
 // ──────────────────────────────────────────────────────────────
 // Conversion: Markdown → HTML with placeholder spans
@@ -69,8 +74,18 @@ function escapeHtml(str: string): string {
  * The display text is shown as fallback content inside the span, so even before
  * hydration (or if JS fails) the user sees readable text.
  */
-function buildPlaceholderSpan(embedRef: string, displayText: string): string {
-  return `<span class="${EMBED_PLACEHOLDER_CLASS}" ${DATA_EMBED_REF}="${escapeHtml(embedRef)}" ${DATA_DISPLAY_TEXT}="${escapeHtml(displayText)}">${escapeHtml(displayText)}</span>`;
+function buildPlaceholderSpan(rawEmbedRef: string, displayText: string): string {
+  const parsed = parseEmbedLinkTarget(rawEmbedRef);
+  const attrs = [
+    `class="${EMBED_PLACEHOLDER_CLASS}"`,
+    `${DATA_EMBED_REF}="${escapeHtml(parsed.cleanRef)}"`,
+    `${DATA_DISPLAY_TEXT}="${escapeHtml(displayText)}"`,
+  ];
+  if (parsed.lineStart != null) attrs.push(`${DATA_FOCUS_LINE_START}="${parsed.lineStart}"`);
+  if (parsed.lineEnd != null) attrs.push(`${DATA_FOCUS_LINE_END}="${parsed.lineEnd}"`);
+  if (parsed.highlightQuoteText) attrs.push(`${DATA_HIGHLIGHT_QUOTE_TEXT}="${escapeHtml(parsed.highlightQuoteText)}"`);
+  if (parsed.sheetRange) attrs.push(`${DATA_FOCUS_SHEET_RANGE}="${escapeHtml(parsed.sheetRange)}"`);
+  return `<span ${attrs.join(" ")}>${escapeHtml(displayText)}</span>`;
 }
 
 /**
@@ -98,8 +113,8 @@ export function replaceEmbedLinksInText(text: string): string | null {
   while ((match = EMBED_LINK_MARKDOWN_RE.exec(text)) !== null) {
     // Escape the text between the previous match and this one
     result += escapeHtml(text.slice(lastIndex, match.index));
-    const displayText = resolveEmbedDisplayText(match[1], match[2]);
     const embedRef = match[2];
+    const displayText = resolveEmbedDisplayText(match[1], parseEmbedLinkTarget(embedRef).cleanRef);
     result += buildPlaceholderSpan(embedRef, displayText);
     lastIndex = match.index + match[0].length;
   }
@@ -129,7 +144,7 @@ export function convertEmbedAnchorsToSpans(html: string): string {
     (_match, embedRef: string, innerHtml: string) => {
       // Strip any inner HTML tags from the display text (keep plain text only)
       const rawDisplayText = innerHtml.replace(/<[^>]*>/g, "").trim();
-      return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, embedRef));
+      return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, parseEmbedLinkTarget(embedRef).cleanRef));
     },
   );
 }
@@ -166,6 +181,10 @@ export function hydrateEmbedLinks(
   placeholders.forEach((span) => {
     const embedRef = span.getAttribute(DATA_EMBED_REF);
     const displayText = span.getAttribute(DATA_DISPLAY_TEXT);
+    const focusLineStartRaw = span.getAttribute(DATA_FOCUS_LINE_START);
+    const focusLineEndRaw = span.getAttribute(DATA_FOCUS_LINE_END);
+    const highlightQuoteText = span.getAttribute(DATA_HIGHLIGHT_QUOTE_TEXT);
+    const focusSheetRange = span.getAttribute(DATA_FOCUS_SHEET_RANGE);
 
     if (!embedRef || !displayText) return;
 
@@ -183,6 +202,10 @@ export function hydrateEmbedLinks(
           displayText,
           appId,
           embedId: null, // Resolved lazily on click
+          focusLineStart: focusLineStartRaw ? Number(focusLineStartRaw) : null,
+          focusLineEnd: focusLineEndRaw ? Number(focusLineEndRaw) : null,
+          highlightQuoteText,
+          focusSheetRange,
         },
       });
       instances.push(instance);
@@ -252,7 +275,7 @@ export function convertMarkdownEmbedLinksInHtml(html: string): string {
   return html.replace(
     EMBED_LINK_MARKDOWN_RE,
     (_match: string, rawDisplayText: string, embedRef: string) => {
-      return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, embedRef));
+      return buildPlaceholderSpan(embedRef, resolveEmbedDisplayText(rawDisplayText, parseEmbedLinkTarget(embedRef).cleanRef));
     },
   );
 }
