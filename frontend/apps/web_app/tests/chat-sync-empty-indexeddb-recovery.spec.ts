@@ -88,7 +88,7 @@ async function expectLocalChatsCleared(page: any): Promise<void> {
 }
 
 async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
-	await page.addInitScript(() => {
+	await page.context().addInitScript(() => {
 		const OriginalWebSocket = window.WebSocket;
 
 		class ColdCacheWebSocket extends OriginalWebSocket {
@@ -160,7 +160,7 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 }
 
 async function installEmptyChatDbOnBoot(page: any): Promise<void> {
-	await page.addInitScript(() => {
+	await page.context().addInitScript(() => {
 		window.addEventListener(
 			'DOMContentLoaded',
 			() => {
