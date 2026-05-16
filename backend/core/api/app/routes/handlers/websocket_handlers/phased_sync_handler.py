@@ -13,6 +13,12 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 
+PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
+    "encrypted_chat_key",
+    "encrypted_icon",
+    "encrypted_category",
+)
+
 
 async def _fetch_new_chat_suggestions(
     cache_service: CacheService,
@@ -284,6 +290,64 @@ def _build_chat_details_from_directus_metadata(
     }
 
 
+def _merge_partial_cache_chat_details(
+    cached_details: Dict[str, Any],
+    directus_details: Optional[Dict[str, Any]],
+    *,
+    prefer_directus_versions: bool = False,
+) -> Dict[str, Any]:
+    """
+    Fill missing Phase 1a cache metadata from Directus fallback data.
+
+    Redis can hold list-item data while the versions key has expired. In that
+    partial-cache state Phase 1a still needs complete encrypted header metadata;
+    otherwise the client stores null title/icon/category and the chat header has
+    nothing to decrypt.
+    """
+    if not directus_details:
+        return cached_details
+
+    merged = dict(cached_details)
+    for field, directus_value in directus_details.items():
+        if merged.get(field) is None and directus_value is not None:
+            merged[field] = directus_value
+
+    if prefer_directus_versions:
+        for field in ("messages_v", "title_v"):
+            directus_value = directus_details.get(field)
+            if directus_value is not None:
+                merged[field] = directus_value
+
+    return merged
+
+
+def _count_directus_filled_metadata_fields(
+    cached_details: Dict[str, Any], directus_details: Optional[Dict[str, Any]]
+) -> int:
+    """Count encrypted Phase 1a fields that Directus can fill for partial cache data."""
+    if not directus_details:
+        return 0
+
+    fields = ("encrypted_title",) + PHASE1_REQUIRED_ENCRYPTED_FIELDS
+    return sum(
+        1
+        for field in fields
+        if cached_details.get(field) is None and directus_details.get(field) is not None
+    )
+
+
+def _phase1_metadata_invariant_violations(chat_details: Dict[str, Any]) -> List[str]:
+    """Return missing encrypted metadata fields that make Phase 1a unsafe to store."""
+    missing = [
+        field
+        for field in PHASE1_REQUIRED_ENCRYPTED_FIELDS
+        if not chat_details.get(field)
+    ]
+    if (chat_details.get("title_v") or 0) > 0 and not chat_details.get("encrypted_title"):
+        missing.append("encrypted_title")
+    return missing
+
+
 async def _handle_phase1_sync(
     manager: ConnectionManager,
     cache_service: CacheService,
@@ -393,10 +457,21 @@ async def _handle_phase1_sync(
         batch_versions = await cache_service.get_batch_chat_versions(user_id, phase1_chat_ids)
 
         # Collect IDs that need Directus fallback
-        directus_needed = [
-            cid for cid in phase1_chat_ids
-            if not batch_list_items.get(cid) or not batch_versions.get(cid)
-        ]
+        directus_needed = []
+        for cid in phase1_chat_ids:
+            cached_item = batch_list_items.get(cid)
+            cached_ver = batch_versions.get(cid)
+            cached_title = getattr(cached_item, "title", None) if cached_item else None
+            cached_key = getattr(cached_item, "encrypted_chat_key", None) if cached_item else None
+            title_version = getattr(cached_ver, "title_v", 0) if cached_ver else 0
+
+            if (
+                not cached_item
+                or not cached_ver
+                or not cached_key
+                or (title_version > 0 and not cached_title)
+            ):
+                directus_needed.append(cid)
 
         directus_metadata_map: Dict[str, Dict[str, Any]] = {}
         if directus_needed:
@@ -409,16 +484,34 @@ async def _handle_phase1_sync(
         last_chat_details = None
         recent_chat_metadata: List[Dict[str, Any]] = []
         valid_phase1_ids: List[str] = []
+        partial_cache_filled_count = 0
+        invariant_violation_count = 0
 
         for cid in phase1_chat_ids:
             cached_item = batch_list_items.get(cid)
             cached_ver = batch_versions.get(cid)
             chat_details = None
 
+            directus_details = None
+            if cid in directus_metadata_map:
+                directus_details = _build_chat_details_from_directus_metadata(
+                    directus_metadata_map[cid], cid
+                )
+
             if cached_item:
-                chat_details = await _build_chat_details_from_cache(cached_item, cached_ver, cid)
-            elif cid in directus_metadata_map:
-                chat_details = _build_chat_details_from_directus_metadata(directus_metadata_map[cid], cid)
+                cached_details = await _build_chat_details_from_cache(
+                    cached_item, cached_ver, cid
+                )
+                partial_cache_filled_count += _count_directus_filled_metadata_fields(
+                    cached_details, directus_details
+                )
+                chat_details = _merge_partial_cache_chat_details(
+                    cached_details,
+                    directus_details,
+                    prefer_directus_versions=cached_ver is None,
+                )
+            elif directus_details:
+                chat_details = directus_details
             else:
                 # Individual Directus fallback (rare — batch already tried)
                 try:
@@ -431,6 +524,21 @@ async def _handle_phase1_sync(
             if not chat_details:
                 logger.warning(f"Phase 1a: Could not fetch metadata for chat {cid}, skipping")
                 continue
+
+            missing_fields = _phase1_metadata_invariant_violations(chat_details)
+            if missing_fields:
+                invariant_violation_count += 1
+                logger.warning(
+                    "[PHASE1_METADATA_INVARIANT] Chat %s missing %s after cache/directus merge "
+                    "(title_v=%s, messages_v=%s, cache_item=%s, cache_versions=%s, directus_fallback=%s)",
+                    cid,
+                    ",".join(missing_fields),
+                    chat_details.get("title_v"),
+                    chat_details.get("messages_v"),
+                    bool(cached_item),
+                    bool(cached_ver),
+                    bool(directus_details),
+                )
 
             valid_phase1_ids.append(cid)
             if cid == last_opened_id:
@@ -466,7 +574,9 @@ async def _handle_phase1_sync(
             f"[PHASE1a_COMPLETE] ✅ Phase 1a sync for user {user_id[:8]}...: "
             f"last_chat={'yes' if last_chat_details else 'no'}, "
             f"recent_metadata={len(recent_chat_metadata)}, "
-            f"{len(new_chat_suggestions)} suggestions, {len(daily_inspirations)} inspirations"
+            f"{len(new_chat_suggestions)} suggestions, {len(daily_inspirations)} inspirations, "
+            f"partial_cache_fields_filled={partial_cache_filled_count}, "
+            f"metadata_invariant_violations={invariant_violation_count}"
         )
 
         return valid_phase1_ids
