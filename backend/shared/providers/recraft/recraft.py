@@ -2,9 +2,9 @@
 #
 # Recraft API client for image generation and image-to-SVG vectorization.
 #
-# Recraft V4 supports two output modes via the same /v1/images/generations endpoint:
-#   - Raster: recraftv4 ($0.04/image, 1024×1024) and recraftv4_pro ($0.25/image, 2048×2048)
-#   - Vector: recraftv4_vector ($0.08/image) and recraftv4_pro_vector ($0.30/image, 4MP)
+# Recraft V4.1 supports two output modes via the same /v1/images/generations endpoint:
+#   - Raster: recraftv4_1 ($0.04/image) and recraftv4_1_pro ($0.25/image)
+#   - Vector: recraftv4_1_vector ($0.08/image) and recraftv4_1_pro_vector ($0.30/image)
 #
 # Recraft also provides a separate vectorization endpoint:
 #   - POST /v1/images/vectorize — converts a raster image (PNG/JPG/WEBP) to SVG ($0.01/request)
@@ -26,12 +26,12 @@ logger = logging.getLogger(__name__)
 RECRAFT_API_BASE = "https://external.api.recraft.ai/v1"
 
 # Model IDs for vector generation
-RECRAFT_MODEL_DEFAULT = "recraftv4_vector"      # 1MP,  $0.08/image — default quality SVG
-RECRAFT_MODEL_MAX = "recraftv4_pro_vector"      # 4MP,  $0.30/image — max quality SVG
+RECRAFT_MODEL_DEFAULT = "recraftv4_1_vector"      # $0.08/image — default quality SVG
+RECRAFT_MODEL_MAX = "recraftv4_1_pro_vector"      # $0.30/image — max quality SVG
 
 # Model IDs for raster (PNG/JPG) generation
-RECRAFT_RASTER_MODEL_DEFAULT = "recraftv4"      # 1024×1024, $0.04/image — default quality raster
-RECRAFT_RASTER_MODEL_MAX = "recraftv4_pro"      # 2048×2048, $0.25/image — max quality raster
+RECRAFT_RASTER_MODEL_DEFAULT = "recraftv4_1"      # $0.04/image — default quality raster
+RECRAFT_RASTER_MODEL_MAX = "recraftv4_1_pro"      # $0.25/image — max quality raster
 
 
 async def generate_vector_recraft(
@@ -42,7 +42,7 @@ async def generate_vector_recraft(
     style_id: Optional[str] = None,
 ) -> bytes:
     """
-    Generate an SVG vector image using the Recraft V4 API.
+    Generate an SVG vector image using the Recraft V4.1 API.
 
     Calls POST /v1/images/generations with a vector model, fetches the resulting
     SVG file from the returned URL, and returns the raw SVG bytes.
@@ -51,8 +51,8 @@ async def generate_vector_recraft(
         prompt:          Text description of the desired vector image.
         secrets_manager: SecretsManager instance for Vault API key retrieval.
         model_id:        Recraft model to use. One of:
-                           - "recraftv4_vector"     (default, 1MP, $0.08)
-                           - "recraftv4_pro_vector" (max quality, 4MP, $0.30)
+                           - "recraftv4_1_vector"     (default, $0.08)
+                           - "recraftv4_1_pro_vector" (max quality, $0.30)
         size:            Aspect ratio in "w:h" format (e.g. "1:1", "16:9").
                          Recraft accepts both "WxH" and "w:h" — we pass "w:h" directly.
 
@@ -150,8 +150,8 @@ async def generate_raster_recraft(
     image from the returned URL, and returns the raw PNG bytes.
 
     Available raster models:
-      - "recraftv4"     ($0.04/image, 1024×1024) — fast, cost-effective
-      - "recraftv4_pro" ($0.25/image, 2048×2048) — high-resolution, print-ready
+      - "recraftv4_1"     ($0.04/image) — fast, cost-effective
+      - "recraftv4_1_pro" ($0.25/image) — high-resolution, print-ready
 
     Both models use the same endpoint as vector generation; the model ID controls
     whether a raster or vector image is produced.
@@ -160,8 +160,8 @@ async def generate_raster_recraft(
         prompt:          Text description of the desired image.
         secrets_manager: SecretsManager instance for Vault API key retrieval.
         model_id:        Recraft raster model to use. One of:
-                           - "recraftv4"     (default, 1024×1024, $0.04)
-                           - "recraftv4_pro" (max quality, 2048×2048, $0.25)
+                           - "recraftv4_1"     (default, $0.04)
+                           - "recraftv4_1_pro" (max quality, $0.25)
         size:            Aspect ratio in "w:h" format (e.g. "1:1", "16:9").
                          Supported aspects for V4: 1:1, 2:1, 1:2, 3:2, 2:3,
                          4:3, 3:4, 5:4, 4:5, 6:10, 14:10, 10:14, 16:9, 9:16.

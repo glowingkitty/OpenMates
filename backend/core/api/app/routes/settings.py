@@ -24,6 +24,7 @@ from backend.core.api.app.utils.invite_code import get_signup_requirements
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
+from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
@@ -4916,6 +4917,37 @@ async def update_auto_delete_chats(
 # ─── AI Model Default Preferences ────────────────────────────────────────────
 
 
+def _validate_app_skill_model_defaults(defaults: Dict[str, Optional[str]]) -> Dict[str, str]:
+    cleaned: Dict[str, str] = {}
+    for skill_key, model_ref in defaults.items():
+        if not isinstance(skill_key, str) or "." not in skill_key:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid app skill key '{skill_key}': must be in 'app.skill' format.",
+            )
+        if model_ref is None:
+            continue
+        if not isinstance(model_ref, str) or "/" not in model_ref:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid model ID for '{skill_key}': must be in 'provider/model_id' format.",
+            )
+        provider_id, model_id = model_ref.split("/", 1)
+        model_config = config_manager.get_model_pricing(provider_id, model_id)
+        if not model_config:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown model '{model_ref}' for '{skill_key}'.",
+            )
+        if model_config.get("for_app_skill") != skill_key:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model '{model_ref}' cannot be used for '{skill_key}'.",
+            )
+        cleaned[skill_key] = model_ref
+    return cleaned
+
+
 @router.post("/ai-model-defaults", response_model=SimpleSuccessResponse, include_in_schema=False)
 @limiter.limit("30/minute")
 async def update_ai_model_defaults(
@@ -4948,17 +4980,29 @@ async def update_ai_model_defaults(
                 detail=f"Invalid model ID for '{field_name}': must be in 'provider/model_id' format (e.g. 'anthropic/claude-haiku-4-5-20251001')."
             )
 
-    update_data = {
-        'default_ai_model_simple': request_data.default_ai_model_simple,
-        'default_ai_model_complex': request_data.default_ai_model_complex,
-    }
-    if request_data.follow_up_suggestions_enabled is not None:
+    provided_fields = request_data.model_fields_set
+
+    cleaned_app_skill_models: Optional[Dict[str, str]] = None
+    if "default_app_skill_models" in provided_fields:
+        cleaned_app_skill_models = _validate_app_skill_model_defaults(
+            request_data.default_app_skill_models or {}
+        )
+
+    update_data = {}
+    if "default_ai_model_simple" in provided_fields:
+        update_data['default_ai_model_simple'] = request_data.default_ai_model_simple
+    if "default_ai_model_complex" in provided_fields:
+        update_data['default_ai_model_complex'] = request_data.default_ai_model_complex
+    if "default_app_skill_models" in provided_fields:
+        update_data['default_app_skill_models'] = cleaned_app_skill_models
+    if "follow_up_suggestions_enabled" in provided_fields and request_data.follow_up_suggestions_enabled is not None:
         update_data['follow_up_suggestions_enabled'] = request_data.follow_up_suggestions_enabled
 
     logger.info(
         f"[AiModelDefaults] Updating default models for user {user_id}: "
         f"simple={request_data.default_ai_model_simple!r}, "
         f"complex={request_data.default_ai_model_complex!r}, "
+        f"app_skill_models={cleaned_app_skill_models!r}, "
         f"follow_up_suggestions_enabled={request_data.follow_up_suggestions_enabled!r}"
     )
 

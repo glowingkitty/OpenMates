@@ -90,6 +90,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "timezone": user_data.get("timezone"),  # IANA timezone (e.g., 'Europe/Berlin'), auto-detected from browser
             "default_ai_model_simple": user_data.get("default_ai_model_simple"),
             "default_ai_model_complex": user_data.get("default_ai_model_complex"),
+            "default_app_skill_models": user_data.get("default_app_skill_models") or {},
             "follow_up_suggestions_enabled": user_data.get("follow_up_suggestions_enabled", True),
             "tfa_last_used": user_data.get("tfa_last_used"),  # Include 2FA last used timestamp
             "consent_privacy_and_apps_default_settings": user_data.get("consent_privacy_and_apps_default_settings"),

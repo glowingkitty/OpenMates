@@ -490,6 +490,12 @@ class UserDatabaseService {
         if ("default_ai_model_complex" in userData) {
           store.put(userData.default_ai_model_complex ?? null, "default_ai_model_complex");
         }
+        if ("default_app_skill_models" in userData) {
+          store.put(
+            JSON.stringify(userData.default_app_skill_models ?? {}),
+            "default_app_skill_models",
+          );
+        }
         if ("follow_up_suggestions_enabled" in userData) {
           store.put(
             userData.follow_up_suggestions_enabled !== false,
@@ -637,6 +643,12 @@ class UserDatabaseService {
         if ("default_ai_model_complex" in userData) {
           store.put(userData.default_ai_model_complex ?? null, "default_ai_model_complex");
         }
+        if ("default_app_skill_models" in userData) {
+          store.put(
+            JSON.stringify(userData.default_app_skill_models ?? {}),
+            "default_app_skill_models",
+          );
+        }
         if ("follow_up_suggestions_enabled" in userData) {
           store.put(
             userData.follow_up_suggestions_enabled !== false,
@@ -762,6 +774,7 @@ class UserDatabaseService {
       );
       const disabledAiModelsRequest = store.get("disabled_ai_models");
       const disabledAiServersRequest = store.get("disabled_ai_servers");
+      const defaultAppSkillModelsRequest = store.get("default_app_skill_models");
       const followUpSuggestionsEnabledRequest = store.get("follow_up_suggestions_enabled");
       const totalChatCountRequest = store.get("total_chat_count");
 
@@ -985,6 +998,23 @@ class UserDatabaseService {
               e,
             );
             profile.disabled_ai_servers = undefined;
+          }
+        }
+      };
+
+      defaultAppSkillModelsRequest.onsuccess = () => {
+        if (defaultAppSkillModelsRequest.result) {
+          try {
+            profile.default_app_skill_models =
+              typeof defaultAppSkillModelsRequest.result === "string"
+                ? JSON.parse(defaultAppSkillModelsRequest.result)
+                : defaultAppSkillModelsRequest.result;
+          } catch (e) {
+            console.warn(
+              "[UserDatabase] Failed to parse default_app_skill_models:",
+              e,
+            );
+            profile.default_app_skill_models = undefined;
           }
         }
       };
@@ -1368,6 +1398,12 @@ class UserDatabaseService {
         store.put(
           partialData.default_ai_model_complex,
           "default_ai_model_complex",
+        );
+      }
+      if (partialData.default_app_skill_models !== undefined) {
+        store.put(
+          JSON.stringify(partialData.default_app_skill_models),
+          "default_app_skill_models",
         );
       }
       if (partialData.follow_up_suggestions_enabled !== undefined) {

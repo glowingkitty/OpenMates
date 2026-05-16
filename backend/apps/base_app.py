@@ -24,6 +24,7 @@ from backend.shared.python_schemas.app_metadata_schemas import (
     AppMemoryFieldDefinition
 )
 from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.utils.config_manager import config_manager
 from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
 
 logger = logging.getLogger(__name__)
@@ -377,9 +378,24 @@ class BaseApp:
             # e.g. images-view uses this to look up the embed in Redis by file_path (original filename)
             file_path_index = request_body.get("_file_path_index")
 
-            # Initialize skill instance
-            # Extract full_model_reference from skill_definition
+            # Initialize skill instance. Server-side AI processing may inject a
+            # validated model override for user-configurable app skill defaults.
             full_model_ref = skill_definition.full_model_reference
+            full_model_ref_override = request_body.get("_full_model_reference_override")
+            if isinstance(full_model_ref_override, str) and "/" in full_model_ref_override:
+                provider_id, model_id = full_model_ref_override.split("/", 1)
+                model_config = config_manager.get_model_pricing(provider_id, model_id)
+                expected_skill = f"{self.id}.{skill_definition.id}"
+                if model_config and model_config.get("for_app_skill") == expected_skill:
+                    full_model_ref = full_model_ref_override
+                    logger.info(
+                        f"Using model override for skill '{expected_skill}': {full_model_ref_override}"
+                    )
+                else:
+                    logger.warning(
+                        f"Ignoring invalid model override '{full_model_ref_override}' for skill "
+                        f"'{expected_skill}'."
+                    )
 
             # Resolve translation keys to actual translated strings for BaseSkill initialization
             # BaseSkill expects skill_name and skill_description as strings, not translation keys

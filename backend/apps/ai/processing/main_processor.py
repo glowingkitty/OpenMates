@@ -33,6 +33,7 @@ from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, Op
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.config_manager import config_manager
 
 # Import services for type hinting
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -60,6 +61,43 @@ FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
     "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
     "unless clarification is necessary to answer safely and correctly."
 )
+
+
+def _resolve_app_skill_model_override(
+    user_preferences: Optional[Dict[str, Any]],
+    app_id: str,
+    skill_id: str,
+    log_prefix: str,
+) -> Optional[str]:
+    defaults = (user_preferences or {}).get("default_app_skill_models")
+    if not isinstance(defaults, dict):
+        return None
+
+    skill_key = f"{app_id}.{skill_id}"
+    model_ref = defaults.get(skill_key)
+    if not model_ref:
+        return None
+    if not isinstance(model_ref, str) or "/" not in model_ref:
+        logger.warning(
+            f"{log_prefix} Ignoring invalid default_app_skill_models[{skill_key!r}]: {model_ref!r}"
+        )
+        return None
+
+    provider_id, model_id = model_ref.split("/", 1)
+    model_config = config_manager.get_model_pricing(provider_id, model_id)
+    if not model_config:
+        logger.warning(
+            f"{log_prefix} Ignoring unknown app skill model override for {skill_key}: {model_ref}"
+        )
+        return None
+    if model_config.get("for_app_skill") != skill_key:
+        logger.warning(
+            f"{log_prefix} Ignoring app skill model override {model_ref} for {skill_key}; "
+            f"model belongs to {model_config.get('for_app_skill')!r}."
+        )
+        return None
+
+    return model_ref
 
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
@@ -3506,6 +3544,20 @@ async def handle_main_processing(
                     if embed_file_path_index:
                         skill_arguments = skill_arguments.copy()
                         skill_arguments["_file_path_index"] = embed_file_path_index
+
+                    model_override = _resolve_app_skill_model_override(
+                        getattr(request_data, "user_preferences", None),
+                        app_id,
+                        skill_id,
+                        log_prefix,
+                    )
+                    if model_override:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_full_model_reference_override"] = model_override
+                        logger.info(
+                            f"{log_prefix} Applying app skill model override for "
+                            f"{app_id}.{skill_id}: {model_override}"
+                        )
 
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
