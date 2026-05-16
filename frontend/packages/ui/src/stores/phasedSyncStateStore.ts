@@ -142,6 +142,18 @@ export const phasedSyncState = {
   },
 
   /**
+   * Mark sync as pending again when the server reports that chats exist but the
+   * cache is still warming. This keeps the UI in recovery mode instead of
+   * treating an empty local IndexedDB as final state.
+   */
+  markSyncPending: () => {
+    update((state) => ({
+      ...state,
+      initialSyncCompleted: false,
+    }));
+  },
+
+  /**
    * Set the Phase 1 chat ID that was received from the server.
    * This is the "last opened" chat from the server.
    */
