@@ -114,7 +114,11 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 						'phase_1_last_chat_ready',
 						'phase_1b_chat_content_ready',
 						'phase_2_last_20_chats_ready',
+						'background_message_sync',
 						'phase_3_last_100_chats_ready',
+						'chat_content_batch_response',
+						'load_more_chats_response',
+						'sync_metadata_chats_response',
 						'phased_sync_complete'
 					]);
 
