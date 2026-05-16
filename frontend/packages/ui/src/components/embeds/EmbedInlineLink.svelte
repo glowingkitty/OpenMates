@@ -59,6 +59,12 @@
 
   let { embedRef, embedId = null, displayText, appId = null, focusLineStart = null, focusLineEnd = null, highlightQuoteText = null, focusSheetRange = null }: Props = $props();
 
+  type RepairState = 'idle' | 'repairing' | 'resolved' | 'broken';
+  const DIRECT_EMBED_REF_RE = /-[0-9a-f]{6}$/i;
+
+  let repairState = $state<RepairState>('idle');
+  let isDirectRepairableRef = $derived(DIRECT_EMBED_REF_RE.test(embedRef));
+
   // Reactively resolve the effective appId.
   //
   // $embedRefIndexVersion is a Svelte auto-subscription to the embedRefIndexVersion
@@ -80,15 +86,17 @@
     // Whenever registerEmbedRef() increments this store, Svelte re-runs this
     // derived and picks up the newly available appId — no full re-parse needed.
     void $embedRefIndexVersion;
-    return appId ?? embedStore.resolveAppIdByRef(embedRef);
+    return appId ?? embedStore.resolveAppIdByRef(embedRef) ?? (focusLineStart != null && repairState !== 'broken' ? 'code' : null);
   });
 
   // Badge gradient (circular icon background) — unchanged from original design.
-  // Falls back to neutral grey when appId is unknown.
+  // Grey is reserved for refs we already tried and failed to repair.
   let gradientStyle = $derived(
     effectiveAppId
       ? `background: var(--color-app-${effectiveAppId});`
-      : 'background: var(--color-grey-30);',
+      : repairState === 'broken'
+        ? 'background: var(--color-grey-30);'
+        : 'background: var(--color-button-primary);',
   );
 
   // Solid text colour — switches between START (dark) and END (light) colours
@@ -111,6 +119,35 @@
 
   let effectiveDisplayText = $derived(resolveEmbedDisplayText(displayText, embedRef));
 
+  $effect(() => {
+    void $embedRefIndexVersion;
+
+    if (embedId || embedStore.resolveByRef(embedRef)) {
+      repairState = 'resolved';
+      return;
+    }
+
+    if (!isDirectRepairableRef) {
+      repairState = 'idle';
+      return;
+    }
+
+    let cancelled = false;
+    repairState = 'repairing';
+
+    embedStore.resolveByRefDeep(embedRef).then((resolvedEmbedId) => {
+      if (cancelled) return;
+      repairState = resolvedEmbedId ? 'resolved' : 'broken';
+    }).catch((error) => {
+      console.warn(`[EmbedInlineLink] Failed to repair embed_ref "${embedRef}"`, error);
+      if (!cancelled) repairState = 'broken';
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  });
+
   /**
    * Open embed fullscreen on click.
    * Resolves embed_ref → embed_id at click time (lazy resolution handles the case
@@ -127,10 +164,11 @@
     e.preventDefault();
     e.stopPropagation();
 
-    // Resolve embed_ref to embed_id (lazy, in case it arrived after first render)
-    const resolvedEmbedId = embedId || embedStore.resolveByRef(embedRef);
+    // Resolve embed_ref to embed_id. The deep path repairs cold direct refs after reload.
+    const resolvedEmbedId = embedId || await embedStore.resolveByRefDeep(embedRef);
 
     if (!resolvedEmbedId) {
+      repairState = isDirectRepairableRef ? 'broken' : repairState;
       console.warn(
         `[EmbedInlineLink] Cannot open fullscreen: embed_ref "${embedRef}" not yet resolved`,
       );
@@ -166,13 +204,13 @@
 </script>
 
 <!-- Inline badge + link, rendered as a <span> so it flows within text -->
-<span class="embed-inline-link" role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
+<span class="embed-inline-link" class:embed-inline-link--broken={repairState === 'broken'} role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
   <!-- Small circular app-icon badge -->
   <span class="embed-inline-badge" style={gradientStyle} aria-hidden="true">
     <span class="icon_rounded {effectiveAppId || ''}"></span>
   </span>
   <!-- Solid-colour display text — colour adapts to light/dark mode via CSS -->
-  <span class="embed-inline-text" class:has-app-color={!!effectiveAppId} style={textColorVarsStyle}>{effectiveDisplayText}</span>
+  <span class="embed-inline-text" class:has-app-color={!!effectiveAppId} class:broken={repairState === 'broken'} style={textColorVarsStyle}>{effectiveDisplayText}</span>
 </span>
 
 <style>
@@ -196,6 +234,10 @@
 
   .embed-inline-link:hover {
     opacity: 0.8;
+  }
+
+  .embed-inline-link--broken {
+    cursor: not-allowed;
   }
 
   /* 20 px circular gradient badge — mirrors .app-icon-circle from BasicInfosBar.svelte
@@ -269,6 +311,10 @@
     font-size: inherit;
     font-weight: 500;
     line-height: inherit;
+    color: var(--color-button-primary);
+  }
+
+  .embed-inline-text.broken {
     color: var(--color-grey-60);
   }
 
@@ -276,7 +322,15 @@
     color: var(--_link-color-light);
   }
 
+  .embed-inline-text.has-app-color.broken {
+    color: var(--color-grey-60);
+  }
+
   :global([data-theme="dark"]) .embed-inline-text.has-app-color {
     color: var(--_link-color-dark);
+  }
+
+  :global([data-theme="dark"]) .embed-inline-text.has-app-color.broken {
+    color: var(--color-grey-60);
   }
 </style>

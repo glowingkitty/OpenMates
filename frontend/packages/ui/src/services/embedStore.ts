@@ -55,6 +55,7 @@ interface EmbedRefEntry {
 const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
+const DIRECT_EMBED_REF_ID_PREFIX_RE = /^[0-9a-f]{6}$/i;
 
 // Reactive version counter — incremented on every registerEmbedRef() call.
 // EmbedInlineLink.svelte subscribes to this Svelte store so it re-derives
@@ -251,6 +252,93 @@ export class EmbedStore {
       return foundParentEmbedId;
     }
     return null;
+  }
+
+  private extractDirectEmbedIdPrefix(embedRef: string): string | null {
+    const separatorIndex = embedRef.lastIndexOf("-");
+    if (separatorIndex === -1) return null;
+
+    const suffix = embedRef.slice(separatorIndex + 1);
+    return DIRECT_EMBED_REF_ID_PREFIX_RE.test(suffix) ? suffix.toLowerCase() : null;
+  }
+
+  private getEntryEmbedId(entry: EmbedStoreEntry): string | null {
+    if (entry.embed_id) return this.normalizeEmbedId(entry.embed_id);
+    return this.extractEmbedIdFromContentRef(entry.contentRef);
+  }
+
+  private collectDirectRefCandidatesFromEntries(
+    entries: EmbedStoreEntry[],
+    embedIdPrefix: string,
+  ): string[] {
+    const candidates = new Set<string>();
+    for (const entry of entries) {
+      if (entry.status === "error" || entry.status === "cancelled") continue;
+
+      const embedId = this.getEntryEmbedId(entry);
+      if (embedId?.toLowerCase().startsWith(embedIdPrefix)) {
+        candidates.add(embedId);
+      }
+    }
+    return Array.from(candidates);
+  }
+
+  private collectDirectRefCandidatesFromCache(embedIdPrefix: string): string[] {
+    return this.collectDirectRefCandidatesFromEntries(
+      Array.from(embedCache.values()),
+      embedIdPrefix,
+    );
+  }
+
+  private async collectDirectRefCandidatesFromIndexedDb(
+    embedIdPrefix: string,
+  ): Promise<string[]> {
+    try {
+      const transaction = await chatDB.getTransaction(
+        [EMBEDS_STORE_NAME],
+        "readonly",
+      );
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      const allEntries = await new Promise<EmbedStoreEntry[]>(
+        (resolve, reject) => {
+          const request = store.getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        },
+      );
+
+      return this.collectDirectRefCandidatesFromEntries(allEntries, embedIdPrefix);
+    } catch (error) {
+      console.debug(
+        "[EmbedStore] Failed to scan IndexedDB for direct embed_ref lookup:",
+        error,
+      );
+      return [];
+    }
+  }
+
+  private async extractRefFromResolvedEmbed(
+    embed: Record<string, unknown> | string | undefined,
+  ): Promise<{ embedRef: string | null; appId: string | null }> {
+    if (!embed) return { embedRef: null, appId: null };
+
+    let decodedSource: unknown = embed;
+    if (typeof embed === "object" && typeof embed.content === "string") {
+      decodedSource = await decodeToonContentLocal(embed.content);
+    } else if (typeof embed === "string") {
+      decodedSource = await decodeToonContentLocal(embed);
+    }
+
+    if (!decodedSource || typeof decodedSource !== "object") {
+      return { embedRef: null, appId: null };
+    }
+
+    const decoded = decodedSource as Record<string, unknown>;
+    return {
+      embedRef: typeof decoded.embed_ref === "string" ? decoded.embed_ref : null,
+      appId: typeof decoded.app_id === "string" ? decoded.app_id : null,
+    };
   }
 
   private async findParentEmbedIdInIndexedDb(
@@ -2598,6 +2686,47 @@ export class EmbedStore {
    */
   resolveByRef(embedRef: string): string | null {
     return embedRefToIdIndex.get(embedRef)?.embedId ?? null;
+  }
+
+  /**
+   * Resolve an embed_ref, repairing cold direct refs by verifying decrypted content.
+   *
+   * Direct embed refs are generated as `<slug>-<first6EmbedIdChars>`. After a
+   * reload the in-memory ref index is empty, but synced encrypted embed rows still
+   * contain the plaintext embed_id. We use the suffix only to find candidates, then
+   * decrypt and verify the embedded TOON still contains the exact requested ref.
+   */
+  async resolveByRefDeep(embedRef: string): Promise<string | null> {
+    const indexedEmbedId = this.resolveByRef(embedRef);
+    if (indexedEmbedId) return indexedEmbedId;
+
+    const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
+    if (!embedIdPrefix) return null;
+
+    const candidates = new Set<string>(
+      this.collectDirectRefCandidatesFromCache(embedIdPrefix),
+    );
+    for (const embedId of await this.collectDirectRefCandidatesFromIndexedDb(
+      embedIdPrefix,
+    )) {
+      candidates.add(embedId);
+    }
+
+    for (const candidateEmbedId of Array.from(candidates)) {
+      const resolvedEmbed = await this.get(`embed:${candidateEmbedId}`);
+
+      const registeredEmbedId = this.resolveByRef(embedRef);
+      if (registeredEmbedId) return registeredEmbedId;
+
+      const { embedRef: verifiedRef, appId } =
+        await this.extractRefFromResolvedEmbed(resolvedEmbed);
+      if (verifiedRef === embedRef) {
+        this.registerEmbedRef(embedRef, candidateEmbedId, appId);
+        return candidateEmbedId;
+      }
+    }
+
+    return null;
   }
 
   /**
