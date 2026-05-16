@@ -1954,6 +1954,7 @@ async def _consume_main_processing_stream(
     secrets_manager: Optional[SecretsManager] = None,
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
     user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax
+    skill_config_dict: Optional[Dict[str, Any]] = None,
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -2073,7 +2074,8 @@ async def _consume_main_processing_stream(
         secrets_manager=secrets_manager, # Pass SecretsManager
         cache_service=cache_service, # Pass CacheService for skill status publishing
         always_include_skills=always_include_skills,  # Pass always-include skills from config
-        user_overrides=user_overrides  # Pass user overrides for skip-permission logic
+        user_overrides=user_overrides,  # Pass user overrides for skip-permission logic
+        skill_config_dict=skill_config_dict,
     )
 
     stream_chunk_count = 0

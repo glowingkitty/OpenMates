@@ -89,6 +89,22 @@ def _request():
     )
 
 
+def _skill_config_dict():
+    return {
+        "enable_auto_model_selection": False,
+        "default_llms": {
+            "preprocessing_model": "mistral/small",
+            "main_processing_simple": "google/gemini-flash",
+            "main_processing_complex": "google/gemini-pro",
+        },
+        "preprocessing_thresholds": {
+            "harmful_content_score": 7,
+            "misuse_risk_score": 7,
+        },
+        "always_include_skills": ["web-search"],
+    }
+
+
 @pytest.mark.asyncio
 async def test_cache_async_skill_continuation_context_stores_original_request(async_skill_continuation):
     cache = _FakeCache()
@@ -97,6 +113,7 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
         cache_service=cache,
         async_task_id="async-task-1",
         request_data=_request(),
+        skill_config_dict=_skill_config_dict(),
         app_id="social_media",
         skill_id="search",
         tool_name="social_media-search",
@@ -106,6 +123,7 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
     key = async_skill_continuation.async_skill_continuation_key("async-task-1")
     assert cache.values[key]["ttl"] == async_skill_continuation.ASYNC_SKILL_CONTINUATION_TTL_SECONDS
     assert cache.values[key]["value"]["request_data"]["chat_id"] == "chat-1"
+    assert cache.values[key]["value"]["skill_config_dict"]["default_llms"]["preprocessing_model"] == "mistral/small"
     assert cache.values[key]["value"]["tool_name"] == "social_media-search"
 
 
@@ -118,6 +136,7 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
         cache_service=cache,
         async_task_id="async-task-1",
         request_data=_request(),
+        skill_config_dict=_skill_config_dict(),
         app_id="social_media",
         skill_id="search",
         tool_name="social_media-search",
@@ -135,10 +154,13 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     assert fake_celery_app.sent[0]["name"] == "apps.ai.tasks.skill_ask"
     assert fake_celery_app.sent[0]["queue"] == "app_ai"
     request_payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
+    skill_config_payload = fake_celery_app.sent[0]["kwargs"]["skill_config_dict"]
     assert request_payload["chat_id"] == "chat-1"
     assert request_payload["message_history"][-1]["role"] == "system"
     assert "Completed tool result" in request_payload["message_history"][-1]["content"]
     assert "A useful post" in request_payload["message_history"][-1]["content"]
+    assert skill_config_payload["default_llms"]["preprocessing_model"] == "mistral/small"
+    assert skill_config_payload["always_include_skills"] == ["web-search"]
     assert cache.deleted == [async_skill_continuation.async_skill_continuation_key("async-task-1")]
 
 
@@ -151,6 +173,7 @@ async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monke
         cache_service=cache,
         async_task_id="async-task-1",
         request_data=_request(),
+        skill_config_dict=_skill_config_dict(),
         app_id="social_media",
         skill_id="search",
         tool_name="social_media-search",

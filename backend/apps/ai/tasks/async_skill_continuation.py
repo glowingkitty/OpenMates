@@ -11,7 +11,10 @@ import logging
 import asyncio
 import json
 import time
+import os
 from typing import Any, Optional
+
+import yaml
 
 try:
     from toon_format import encode as toon_encode
@@ -19,7 +22,7 @@ except ImportError:  # pragma: no cover - test environments may not install opti
     def toon_encode(value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
 
-from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig, AskSkillRequest
+from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 
 logger = logging.getLogger(__name__)
@@ -45,6 +48,7 @@ async def cache_async_skill_continuation_context(
     cache_service: Any,
     async_task_id: str,
     request_data: AskSkillRequest,
+    skill_config_dict: Optional[dict[str, Any]] = None,
     app_id: str,
     skill_id: str,
     tool_name: str,
@@ -57,6 +61,7 @@ async def cache_async_skill_continuation_context(
 
     context = {
         "request_data": request_data.model_dump(mode="json"),
+        "skill_config_dict": skill_config_dict or {},
         "app_id": app_id,
         "skill_id": skill_id,
         "tool_name": tool_name,
@@ -111,6 +116,14 @@ async def dispatch_async_skill_continuation(
         return None
 
     original_request = AskSkillRequest(**request_payload)
+    skill_config_payload = context.get("skill_config_dict")
+    if not isinstance(skill_config_payload, dict):
+        logger.warning("Async skill continuation context has invalid skill_config_dict for task %s", async_task_id)
+        skill_config_payload = {}
+    if not skill_config_payload.get("default_llms"):
+        logger.warning("Async skill continuation context missing ask skill config for task %s; loading app.yml fallback", async_task_id)
+        skill_config_payload = _load_ask_skill_config_from_app_yml()
+
     continuation_history = [
         AIHistoryMessage(**(message.model_dump(mode="json") if hasattr(message, "model_dump") else message))
         for message in original_request.message_history
@@ -151,7 +164,7 @@ async def dispatch_async_skill_continuation(
         name="apps.ai.tasks.skill_ask",
         kwargs={
             "request_data_dict": continuation_request.model_dump(mode="json"),
-            "skill_config_dict": AskSkillDefaultConfig().model_dump(mode="json"),
+            "skill_config_dict": skill_config_payload,
         },
         queue="app_ai",
     )
@@ -192,6 +205,24 @@ def _get_celery_app() -> Any:
 
         celery_app = configured_app
     return celery_app
+
+
+def _load_ask_skill_config_from_app_yml() -> dict[str, Any]:
+    """Load the ask skill config needed to run continuation tasks safely."""
+    app_yml_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app.yml")
+    try:
+        with open(app_yml_path, "r", encoding="utf-8") as file:
+            app_config = yaml.safe_load(file) or {}
+    except Exception as exc:
+        logger.error("Failed to load ask skill config from %s: %s", app_yml_path, exc, exc_info=True)
+        return {}
+
+    for skill in app_config.get("skills", []):
+        if skill.get("id") == "ask":
+            default_config = skill.get("skill_config")
+            return default_config if isinstance(default_config, dict) else {}
+    logger.error("Ask skill config not found in %s", app_yml_path)
+    return {}
 
 
 def _build_completed_tool_result_message(

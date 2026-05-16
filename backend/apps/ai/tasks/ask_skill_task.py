@@ -1593,6 +1593,7 @@ async def _async_process_ai_skill_ask_task(
         thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
 
         try:
+            skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
             aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
                 task_id=task_id,
                 request_data=request_data,
@@ -1610,7 +1611,8 @@ async def _async_process_ai_skill_ask_task(
                 # This is a safety net for critical skills like web-search that should be available
                 # for follow-up queries even when preprocessing fails to detect the user's intent.
                 always_include_skills=skill_config.always_include_skills if skill_config else None,
-                user_overrides=user_overrides  # Pass user overrides for skip-permission logic on mentioned keys
+                user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
+                skill_config_dict=skill_config_dict,
             )
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 

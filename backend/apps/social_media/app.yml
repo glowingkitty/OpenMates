@@ -72,7 +72,7 @@ embed_types:
     fullscreen_component: social_media/SocialMediaSearchEmbedFullscreen.svelte
     child_preview_component: social_media/SocialMediaPostEmbedPreview.svelte
     child_fullscreen_component: social_media/SocialMediaPostEmbedFullscreen.svelte
-    icon: socialmedia
+    icon: search
     gradient_var: "--color-app-socialmedia"
     i18n_namespace: embeds.social_media.search
     content_fields:
@@ -189,7 +189,7 @@ skills:
   - id: search
     name_translation_key: app_skills.social_media.search
     description_translation_key: app_skills.social_media.search.description
-    icon_image: socialmedia.svg
+    icon_image: search.svg
     preprocessor_hint: >
       Search supported social platforms for recent public posts around a topic.
       Use this for topic monitoring and broad discovery across pages/profiles,

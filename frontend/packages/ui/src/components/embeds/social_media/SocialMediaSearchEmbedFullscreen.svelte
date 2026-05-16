@@ -57,7 +57,7 @@
 <SearchResultsTemplate
   appId="social_media"
   skillId="search"
-  skillIconName="socialmedia"
+  skillIconName="search"
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}
   {onClose}
