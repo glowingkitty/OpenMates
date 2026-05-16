@@ -116,7 +116,7 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 					}
 
 					const messageType = parsed?.type ?? parsed?.event;
-					const blockedSyncCompletionTypes = new Set([
+					const blockedSyncPayloadTypes = new Set([
 						'initial_sync_response',
 						'cache_primed',
 						'phase_1_last_chat_ready',
@@ -130,7 +130,7 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 						'phased_sync_complete'
 					]);
 
-					if (blockedSyncCompletionTypes.has(messageType)) {
+					if (blockedSyncPayloadTypes.has(messageType)) {
 						return;
 					}
 
