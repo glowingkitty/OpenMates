@@ -1322,6 +1322,7 @@ export class ChatSynchronizationService extends EventTarget {
           "Chat sync is still recovering. Please keep this tab open while we reload your chats.",
           10000,
         );
+        this.cacheStatusRetryCount = 0;
         this.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
         return;
       }

@@ -5,11 +5,13 @@
 // The frontend must retry after backend rewarming instead of staying empty.
 
 import { describe, expect, it, vi } from "vitest";
+import { get } from "svelte/store";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import {
   ChatSynchronizationService as ChatSynchronizationServiceClass,
 } from "../chatSyncService";
 import { handleSyncStatusResponseImpl } from "../chatSyncServiceHandlersPhasedSync";
+import { phasedSyncState } from "../../stores/phasedSyncStateStore";
 
 type ServiceStub = {
   cachePrimed_FOR_HANDLERS_ONLY: boolean;
@@ -50,6 +52,7 @@ function createService(overrides: Partial<ServiceStub> = {}): ServiceStub {
 describe("handleSyncStatusResponseImpl", () => {
   it("retries cache status when sync status reports an unprimed cache", async () => {
     const service = createService();
+    phasedSyncState.markSyncCompleted();
 
     await handleSyncStatusResponseImpl(service as unknown as ChatSynchronizationService, {
       is_primed: false,
@@ -59,8 +62,11 @@ describe("handleSyncStatusResponseImpl", () => {
 
     expect(service.cachePrimed_FOR_HANDLERS_ONLY).toBe(false);
     expect(service.cacheStatusServerChatCount_FOR_HANDLERS_ONLY).toBe(1);
+    expect(get(phasedSyncState).initialSyncCompleted).toBe(false);
     expect(service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(1);
     expect(service.attemptInitialSync_FOR_HANDLERS_ONLY).not.toHaveBeenCalled();
+
+    phasedSyncState.reset();
   });
 
   it("starts initial sync when sync status reports a primed cache", async () => {

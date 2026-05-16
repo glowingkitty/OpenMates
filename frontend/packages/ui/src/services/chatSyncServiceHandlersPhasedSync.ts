@@ -493,6 +493,9 @@ export async function handleSyncStatusResponseImpl(
     );
     serviceInstance.attemptInitialSync_FOR_HANDLERS_ONLY();
   } else if (!is_primed) {
+    if (chat_count > 0) {
+      phasedSyncState.markSyncPending();
+    }
     console.warn(
       "[ChatSyncService] Cache not primed from sync status. Backend is re-warming. Scheduling status retry...",
     );
