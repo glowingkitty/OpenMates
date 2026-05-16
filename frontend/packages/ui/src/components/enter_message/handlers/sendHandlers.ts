@@ -36,6 +36,7 @@ import {
   type PersonalDataEntry,
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
+import { isPrivacyVideoDemoMode } from "../../../demoMode";
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -1484,6 +1485,12 @@ export async function handleSend(
 
     uiSpan.end();
 
+    if (isPrivacyVideoDemoMode()) {
+      messagePayload.status = "synced";
+      console.info("[handleSend] Privacy video demo mode: skipping backend send");
+      return;
+    }
+
     // OTel: WebSocket send span (encryption + WS dispatch happens inside sendNewMessage)
     const wsSpan = tracer.startSpan('message.send.ws_send');
     // CRITICAL: Notify backend about the active chat BEFORE sending the message
@@ -1904,7 +1911,7 @@ export function createKeyboardHandlingExtension() {
             // (which would fail because WebSocket requires authentication)
             const isAuthenticated = get(authStore).isAuthenticated;
 
-            if (!isAuthenticated) {
+            if (!isAuthenticated && !isPrivacyVideoDemoMode()) {
               // Dispatch sign-up event instead of send event for unauthenticated users
               // This triggers the sign-up flow which saves the draft and opens signup interface
               const signUpEvent = new Event("custom-sign-up-click", {

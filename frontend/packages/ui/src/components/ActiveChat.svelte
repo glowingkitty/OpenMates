@@ -83,6 +83,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { isPrivacyVideoDemoMode, privacyVideoDemoAssistantHiddenResponse, privacyVideoDemoAssistantResponse } from '../demoMode';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -4365,6 +4366,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
     let piiRevealed = $derived(currentChat?.chat_id ? (piiRevealedMap.get(currentChat.chat_id) ?? false) : false);
 
+    $effect(() => {
+        if (!isPrivacyVideoDemoMode() || !currentChat?.chat_id) return;
+        const targetContent = piiRevealed ? privacyVideoDemoAssistantResponse : privacyVideoDemoAssistantHiddenResponse;
+        let changed = false;
+        const nextMessages = currentMessages.map((currentMessage) => {
+            if (currentMessage.role !== 'assistant' || currentMessage.content !== privacyVideoDemoAssistantResponse && currentMessage.content !== privacyVideoDemoAssistantHiddenResponse) {
+                return currentMessage;
+            }
+            if (currentMessage.content === targetContent) return currentMessage;
+            changed = true;
+            return { ...currentMessage, content: targetContent };
+        });
+        if (changed) {
+            currentMessages = nextMessages;
+            chatHistoryRef?.updateMessages(currentMessages);
+        }
+    });
+
     /**
      * Cumulative PII mappings from all user messages in the current chat.
      * Mirrors the same derivation in ChatHistory.svelte so that embed components
@@ -5581,6 +5600,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatHistoryRef.updateMessages(currentMessages, isNewChatProcessing);
         }
         showWelcome = false;
+
+        if (isPrivacyVideoDemoMode() && message.role === 'user') {
+            const demoAssistantMessage: ChatMessageModel = {
+                message_id: `${message.chat_id.slice(-10)}-${crypto.randomUUID()}`,
+                chat_id: message.chat_id,
+                role: 'assistant',
+                content: privacyVideoDemoAssistantHiddenResponse,
+                status: 'streaming',
+                created_at: Math.floor(Date.now() / 1000) + 1,
+                sender_name: 'assistant',
+                encrypted_content: null,
+                user_message_id: message.message_id,
+                pii_mappings: message.pii_mappings,
+            };
+
+            setTimeout(() => {
+                if (currentChat?.chat_id !== message.chat_id) return;
+                currentMessages = [...currentMessages, demoAssistantMessage];
+                processingPhase = null;
+                chatHistoryRef?.updateMessages(currentMessages);
+            }, 900);
+
+            setTimeout(() => {
+                if (currentChat?.chat_id !== message.chat_id) return;
+                currentMessages = currentMessages.map((currentMessage) => (
+                    currentMessage.message_id === demoAssistantMessage.message_id
+                        ? { ...currentMessage, status: 'synced' }
+                        : currentMessage
+                ));
+                chatHistoryRef?.updateMessages(currentMessages);
+            }, 1900);
+        }
 
         // The message is already saved to DB by sendHandlers.ts (or chatSyncService for the message part)
         // if it's a new chat, the chat metadata (including the first message) is saved.
