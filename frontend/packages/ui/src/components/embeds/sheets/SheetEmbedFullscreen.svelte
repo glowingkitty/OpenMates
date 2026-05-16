@@ -123,6 +123,7 @@
       : typeof attrs?.cols === 'number' ? attrs.cols as number
       : 0
     );
+  let focusSheetRange = $derived(data.focusSheetRange ?? null);
   let versionNumber = $derived(
       typeof dc.version_number === 'number' ? dc.version_number
       : data.embedData?.version_number ?? 1
@@ -269,6 +270,7 @@
   // After the table DOM renders, find placeholder spans and mount
   // EmbedInlineLink Svelte components into them for interactivity.
   let tableContainerEl: HTMLDivElement | undefined = $state(undefined);
+  let focusedCells = $state<Set<string>>(new Set());
   
   $effect(() => {
     // Re-run whenever displayRows or tableContainerEl changes
@@ -276,6 +278,52 @@
     const cleanup = hydrateEmbedLinks(tableContainerEl);
     return cleanup;
   });
+
+  $effect(() => {
+    void displayRows;
+    const range = focusSheetRange;
+    if (!tableContainerEl || !range) {
+      focusedCells = new Set();
+      return;
+    }
+    focusedCells = parseSheetRange(range);
+    const raf = requestAnimationFrame(() => {
+      tableContainerEl?.querySelector('.sheet-cell-highlight')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'center',
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  });
+
+  function columnLettersToIndex(letters: string): number {
+    return letters.toUpperCase().split('').reduce((acc, char) => acc * 26 + char.charCodeAt(0) - 64, 0) - 1;
+  }
+
+  function parseCellRef(ref: string): { row: number; col: number } | null {
+    const match = ref.trim().toUpperCase().match(/^([A-Z]+)(\d+)$/);
+    if (!match) return null;
+    return { col: columnLettersToIndex(match[1]), row: Number(match[2]) - 1 };
+  }
+
+  function parseSheetRange(range: string): Set<string> {
+    const [startRaw, endRaw = startRaw] = range.split(':');
+    const start = parseCellRef(startRaw);
+    const end = parseCellRef(endRaw);
+    if (!start || !end) return new Set();
+    const cells = new Set<string>();
+    const minRow = Math.min(start.row, end.row);
+    const maxRow = Math.max(start.row, end.row);
+    const minCol = Math.min(start.col, end.col);
+    const maxCol = Math.max(start.col, end.col);
+    for (let row = minRow; row <= maxRow; row += 1) {
+      for (let col = minCol; col <= maxCol; col += 1) {
+        cells.add(`${row}:${col}`);
+      }
+    }
+    return cells;
+  }
   
   /**
    * Copy table as TSV to clipboard.
@@ -346,6 +394,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  skipInitialScrollReset={!!focusSheetRange}
 >
   {#snippet content()}
     <div class="sheet-fullscreen">
@@ -467,14 +516,14 @@
               {#each displayRows as row, rowIndex}
                 <tr>
                   <td class="row-num">{rowIndex + 1}</td>
-                  {#each row as cell}
+                  {#each row as cell, colIndex}
                     {@const embedHtml = replaceEmbedLinksInText(cell.content)}
                     {#if embedHtml}
                       <!-- Cell contains embed links — render as HTML with placeholders -->
                       <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-                      <td>{@html embedHtml}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{@html embedHtml}</td>
                     {:else}
-                      <td>{cell.content}</td>
+                      <td class:sheet-cell-highlight={focusedCells.has(`${rowIndex}:${colIndex}`)}>{cell.content}</td>
                     {/if}
                   {/each}
                 </tr>
@@ -502,7 +551,7 @@
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, content) => {
+        onVersionSelect={(version, _content) => {
           console.log('[SheetEmbedFullscreen] Version selected:', version);
         }}
       />
@@ -668,6 +717,11 @@
     text-align: left;
     vertical-align: top;
     color: var(--color-font-primary);
+  }
+
+  .spreadsheet td.sheet-cell-highlight {
+    background: color-mix(in srgb, var(--color-button-primary) 24%, var(--color-grey-0));
+    box-shadow: inset 0 0 0 2px var(--color-button-primary);
   }
   
   /* ── Header rows ─────────────────────────────────────── */

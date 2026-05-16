@@ -1,7 +1,7 @@
 ---
 description: "Deep SEO audit of openmates.org — crawls the production sitemap, checks every page for meta tags, validates JSON-LD, audits OG images, and scores internal link structure. Use for periodic SEO health checks, after major deploys, or when the daily meeting SEO smoke test flags issues. Returns a prioritized report with specific file paths and fixes."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 30
 permission:
   read: allow

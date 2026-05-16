@@ -275,6 +275,8 @@
         highlightQuoteText?: string | null;
         /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
         focusLineRange?: { start: number; end: number } | null;
+        /** Sheet cell/range to highlight in sheet fullscreen (from #cell/#range suffix) */
+        focusSheetRange?: string | null;
         /** Whether this fullscreen was opened from a chat, not as a standalone embed link. */
         hasChatContext?: boolean;
     } | null;
@@ -297,6 +299,8 @@
         highlightQuoteText?: string | null;
         /** Line range to highlight in a code embed fullscreen (from #L42 / #L10-L20 suffix) */
         focusLineRange?: { start: number; end: number } | null;
+        /** Sheet cell/range to highlight in sheet fullscreen (from #cell/#range suffix) */
+        focusSheetRange?: string | null;
         /** Whether this fullscreen was opened from a chat, not as a standalone embed link. */
         hasChatContext?: boolean;
     };
@@ -1066,6 +1070,7 @@
             focusChildEmbedId: null,
             highlightQuoteText: null,
             focusLineRange: null,
+            focusSheetRange: null,
         };
         showEmbedFullscreen = true;
     });
@@ -1288,7 +1293,7 @@
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
-        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange } = detail;
+        const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange } = detail;
         const hasChatContext = detail.hasChatContext ?? !!currentChat?.chat_id;
 
         // Close any open Wikipedia fullscreen first (mutual exclusivity — only one at a time)
@@ -1441,7 +1446,9 @@
             showEmbedFullscreen &&
             embedFullscreenData?.embedId === embedId &&
             embedFullscreenData?.embedType === resolvedEmbedType &&
-            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null);
+            (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null) &&
+            (embedFullscreenData?.focusSheetRange ?? null) === (focusSheetRange ?? null) &&
+            JSON.stringify(embedFullscreenData?.focusLineRange ?? null) === JSON.stringify(focusLineRange ?? null);
         if (alreadyOpenSameChild) {
             console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
                 embedId,
@@ -1619,6 +1626,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Forwarded from EmbedInlineLink when a code embed link has a #L42 / #L10-L20 suffix.
             // CodeEmbedFullscreen uses this to highlight + auto-scroll to the target lines.
             focusLineRange: focusLineRange ?? null,
+            focusSheetRange: focusSheetRange ?? null,
             hasChatContext
         };
         fullscreenHasChatContext = hasChatContext;
@@ -10961,7 +10969,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
                 <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
                      (same embedId, same type) must still re-mount the fullscreen so it opens the correct child. -->
-                {#key `${embedFullscreenData.embedId}:${embedFullscreenData.focusChildEmbedId ?? ''}`}
+                {#key `${embedFullscreenData.embedId}:${embedFullscreenData.focusChildEmbedId ?? ''}:${embedFullscreenData.focusSheetRange ?? ''}:${embedFullscreenData.focusLineRange?.start ?? ''}-${embedFullscreenData.focusLineRange?.end ?? ''}`}
                 <!-- Data-driven embed fullscreen routing via embedFullscreenResolver.
                      Each component receives a standardized `data` prop and extracts its own fields.
                      Architecture: docs/architecture/frontend/data-driven-embed-fullscreen-routing.md -->
@@ -10981,6 +10989,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     restoreFromPip: embedFullscreenData.restoreFromPip,
                                     highlightQuoteText: embedFullscreenData.highlightQuoteText,
                                     focusLineRange: embedFullscreenData.focusLineRange,
+                                    focusSheetRange: embedFullscreenData.focusSheetRange,
                                 }}
                                 embedId={embedFullscreenData.embedId}
                                 onClose={handleCloseEmbedFullscreen}

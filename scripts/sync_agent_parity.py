@@ -2,9 +2,9 @@
 """Synchronize OpenMates agent-tool compatibility files.
 
 Claude Code remains the canonical authoring format for project skills,
-subagents, and hook scripts. This helper generates the Codex/OpenCode mirror
-files that use different metadata formats while preserving the same workflow
-instructions. Run with `--check` in validation paths to detect drift.
+subagents, and Codex hook scripts. This helper generates the Codex/OpenCode
+mirror files that use different metadata formats while preserving the same
+workflow instructions. Run with `--check` in validation paths to detect drift.
 """
 
 from __future__ import annotations
@@ -24,13 +24,12 @@ OPENCODE_AGENTS_DIR = REPO_ROOT / ".opencode" / "agents"
 CLAUDE_HOOKS_DIR = REPO_ROOT / ".claude" / "hooks"
 CODEX_HOOKS_DIR = REPO_ROOT / ".codex" / "hooks"
 CODEX_HOOK_BRIDGE = CODEX_HOOKS_DIR / "claude-hook-bridge.sh"
-OPENCODE_HOOK_PLUGIN = REPO_ROOT / ".opencode" / "plugins" / "openmates-claude-hooks.js"
-
 FRONTMATTER_BOUNDARY = "---"
+OPENCODE_SUBAGENT_MODEL = "openai/gpt-5.5"
 MODEL_MAP = {
-    "haiku": "claude-code/haiku",
-    "sonnet": "claude-code/sonnet",
-    "opus": "claude-code/opus",
+    "haiku": OPENCODE_SUBAGENT_MODEL,
+    "sonnet": OPENCODE_SUBAGENT_MODEL,
+    "opus": OPENCODE_SUBAGENT_MODEL,
 }
 NON_CLAUDE_HOOK_COMMANDS = {
     "lint-design-tokens.sh": REPO_ROOT / "scripts" / "lint-design-tokens.sh",
@@ -162,10 +161,9 @@ def render_opencode_agent(source: Path) -> str:
         FRONTMATTER_BOUNDARY,
         f"description: {yaml_scalar(description)}",
         "mode: subagent",
+        f"model: {MODEL_MAP.get(metadata.get('model', ''), OPENCODE_SUBAGENT_MODEL)}",
     ]
 
-    if model := metadata.get("model"):
-        lines.append(f"model: {MODEL_MAP.get(model, model)}")
     if max_turns := metadata.get("maxTurns"):
         lines.append(f"steps: {max_turns}")
 
@@ -245,9 +243,7 @@ def validate_hooks() -> list[str]:
             problems.append(f"Codex hook mirror drifted from Claude source: {codex_hook}")
 
     bridge_text = CODEX_HOOK_BRIDGE.read_text()
-    plugin_text = OPENCODE_HOOK_PLUGIN.read_text()
     referenced_hooks = set(re.findall(r'"([a-z0-9.-]+\.sh)"', bridge_text))
-    referenced_hooks.update(re.findall(r'"([a-z0-9.-]+\.sh)"', plugin_text))
     for hook_name in sorted(referenced_hooks):
         if hook_name == CODEX_HOOK_BRIDGE.name:
             continue

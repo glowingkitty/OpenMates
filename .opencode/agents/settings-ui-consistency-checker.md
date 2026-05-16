@@ -1,7 +1,7 @@
 ---
 description: "Lint-style auditor for OpenMates settings screens. Verifies use of the 26 canonical settings/elements components, absence of inline CSS and hardcoded colors, presence of data-testid attributes, and privacy-policy file updates when new third-party providers are introduced. Use when touching files under frontend/packages/ui/src/components/settings/**, reviewing a settings PR, or adding a new settings screen. Cheapest agent to run; fires on every settings change."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 15
 permission:
   read: allow

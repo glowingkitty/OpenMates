@@ -2505,9 +2505,6 @@ export async function handleEmbedUpdateImpl(
       const isNowFinished =
         payload.status === "finished" || payload.status === "completed";
 
-      // Update status to finished
-      existingEmbed.status = payload.status;
-
       // Store child embed IDs if provided (for composite embeds)
       if (payload.child_embed_ids && payload.child_embed_ids.length > 0) {
         existingEmbed.embed_ids = payload.child_embed_ids;
@@ -2546,8 +2543,9 @@ export async function handleEmbedUpdateImpl(
             `content still contains "processing" status. The send_embed_data event with actual content should handle storage.`,
         );
 
-        // existingEmbed.status was already updated above (line 1268)
-        // Since memory-only embeds are references, this update persists in the cache
+        // Keep the cached placeholder in `processing`. If we mark it finished here,
+        // the final send_embed_data event gets rejected as an invalid finished->finished
+        // transition and the real content never replaces the loading preview.
 
         // Dispatch event for UI refresh (status changed, but content still loading)
         serviceInstance.dispatchEvent(
@@ -2563,7 +2561,12 @@ export async function handleEmbedUpdateImpl(
           }),
         );
         return; // CRITICAL: Early return - don't call embedStore.put() with placeholder content
-      } else if (wasProcessing && isNowFinished && existingEmbed.content) {
+      }
+
+      // Update status only once the cached content is no longer the processing placeholder.
+      existingEmbed.status = payload.status;
+
+      if (wasProcessing && isNowFinished && existingEmbed.content) {
         console.info(
           `[ChatSyncService:AI] embed_update: Transitioning ${payload.embed_id} from processing to finished - encrypting and persisting keys`,
         );

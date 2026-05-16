@@ -48,6 +48,7 @@ from backend.shared.python_utils.url_normalizer import (
     extract_urls_from_content,
     sanitize_text_urls_with_safeguard,
 )
+from backend.shared.python_utils.markdown_links import iter_markdown_links
 
 logger = logging.getLogger(__name__)
 
@@ -762,6 +763,116 @@ async def _fix_bad_embed_display_text(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Fixed {bare_fixed} bare embed bracket(s)"
             )
 
+    return modified
+
+
+async def _strip_invalid_inline_embed_links(
+    aggregated_response: str,
+    tool_calls_info: Optional[List[Dict[str, Any]]],
+    cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService],
+    encryption_service: Optional[EncryptionService],
+    user_vault_key_id: Optional[str],
+    known_valid_refs: Optional[set[str]] = None,
+    log_prefix: str = "",
+) -> str:
+    """Downgrade non-quote inline embed links whose embed_ref is not real."""
+    if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
+        return aggregated_response
+
+    matches = list(_INLINE_EMBED_LINK_PATTERN.finditer(aggregated_response))
+    if not matches:
+        return aggregated_response
+
+    all_embed_ids: List[str] = []
+    json_block_pattern = re.compile(
+        r'```json\s*\n\s*\{[^}]*"embed_id"\s*:\s*"([^"]+)"[^}]*\}\s*\n\s*```'
+    )
+    for m in json_block_pattern.finditer(aggregated_response):
+        all_embed_ids.append(m.group(1))
+
+    if tool_calls_info:
+        for tc in tool_calls_info:
+            eid = tc.get("embed_id")
+            if eid:
+                all_embed_ids.append(eid)
+            parent_eid = tc.get("parent_embed_id")
+            if parent_eid:
+                all_embed_ids.append(parent_eid)
+            eids = tc.get("embed_ids")
+            if isinstance(eids, list):
+                all_embed_ids.extend(eids)
+            child_ids = tc.get("child_embed_ids")
+            if isinstance(child_ids, list):
+                all_embed_ids.extend(child_ids)
+
+    all_embed_ids = list({eid for eid in all_embed_ids if isinstance(eid, str) and eid})
+    if not all_embed_ids and not known_valid_refs:
+        return aggregated_response
+
+    from backend.core.api.app.services.embed_service import EmbedService
+    from toon_format import decode
+
+    embed_service = EmbedService(
+        cache_service=cache_service,
+        directus_service=directus_service,
+        encryption_service=encryption_service,
+    )
+
+    valid_refs: set[str] = set(known_valid_refs or set())
+    for embed_id in all_embed_ids:
+        try:
+            toon = await embed_service._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if not toon:
+                continue
+            decoded = decode(toon)
+            if not isinstance(decoded, dict):
+                continue
+            ref = decoded.get("embed_ref")
+            if isinstance(ref, str) and ref:
+                valid_refs.add(ref)
+
+            child_ids_raw = decoded.get("embed_ids")
+            child_ids: List[str] = []
+            if isinstance(child_ids_raw, str):
+                child_ids = [cid.strip() for cid in child_ids_raw.split("|") if cid.strip()]
+            elif isinstance(child_ids_raw, list):
+                child_ids = [cid for cid in child_ids_raw if isinstance(cid, str)]
+
+            for child_id in child_ids:
+                child_toon = await embed_service._get_cached_embed_toon(child_id, user_vault_key_id, log_prefix)
+                if not child_toon:
+                    continue
+                child_decoded = decode(child_toon)
+                if isinstance(child_decoded, dict):
+                    child_ref = child_decoded.get("embed_ref")
+                    if isinstance(child_ref, str) and child_ref:
+                        valid_refs.add(child_ref)
+        except Exception as e:
+            logger.debug(f"{log_prefix} [EMBED_REF_VALIDATE] Could not inspect embed {embed_id}: {e}")
+
+    if not valid_refs:
+        return aggregated_response
+
+    modified = aggregated_response
+    stripped = 0
+    for match in reversed(matches):
+        line_start = aggregated_response.rfind('\n', 0, match.start()) + 1
+        line_prefix = aggregated_response[line_start:match.start()].lstrip()
+        if line_prefix.startswith('>'):
+            continue
+        embed_ref_with_fragment = match.group(2)
+        clean_ref = embed_ref_with_fragment.split("#", 1)[0]
+        if clean_ref in valid_refs:
+            continue
+        display_text = match.group(1) or _derive_display_text_from_embed_ref(clean_ref)
+        modified = modified[:match.start()] + display_text + modified[match.end():]
+        stripped += 1
+
+    if stripped:
+        logger.warning(
+            f"{log_prefix} [EMBED_REF_VALIDATE] Stripped {stripped} invalid inline embed link(s)"
+        )
     return modified
 
 
@@ -4271,9 +4382,11 @@ async def _consume_main_processing_stream(
     # refs against Wikipedia; replace any (wiki:BadTitle) with plain text so the user
     # never sees a clickable link that 404s. Valid links pass through unchanged and
     # render as wiki inline nodes on the frontend.
-    import re as _re_wiki
-    _wiki_pattern = _re_wiki.compile(r"\[([^\]]+)\]\(wiki:([^)]+)\)")
-    _matches = _wiki_pattern.findall(aggregated_response)
+    _wiki_links = [
+        link for link in iter_markdown_links(aggregated_response)
+        if link.href.startswith("wiki:")
+    ]
+    _matches = [(link.label, link.href.removeprefix("wiki:")) for link in _wiki_links]
     if _matches:
         _unique_titles = list({title for _text, title in _matches})
         logger.info(
@@ -4290,11 +4403,19 @@ async def _consume_main_processing_stream(
                     f"{log_prefix} Stripping {len(_invalid_titles)} invalid wiki link(s): "
                     f"{_invalid_titles[:5]}{'...' if len(_invalid_titles) > 5 else ''}"
                 )
-                # Replace [text](wiki:BadTitle) with just `text`
-                def _strip_invalid(m: _re_wiki.Match) -> str:
-                    text, title = m.group(1), m.group(2)
-                    return text if title in _invalid_titles else m.group(0)
-                _corrected = _wiki_pattern.sub(_strip_invalid, aggregated_response)
+                # Replace [text](wiki:BadTitle) with just `text`.
+                _parts = []
+                _cursor = 0
+                _invalid_title_set = set(_invalid_titles)
+                for _link in _wiki_links:
+                    _title = _link.href.removeprefix("wiki:")
+                    if _title not in _invalid_title_set:
+                        continue
+                    _parts.append(aggregated_response[_cursor:_link.full_start])
+                    _parts.append(_link.label)
+                    _cursor = _link.full_end
+                _parts.append(aggregated_response[_cursor:])
+                _corrected = "".join(_parts)
                 if _corrected != aggregated_response:
                     aggregated_response = _corrected
                     final_response_chunks = [_corrected]
@@ -4404,6 +4525,7 @@ async def _consume_main_processing_stream(
                 directus_service=directus_service,
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
+                known_valid_refs=set((getattr(request_data, "embed_file_path_index", None) or {}).keys()),
                 log_prefix=log_prefix,
             )
             if verified_response != aggregated_response:
@@ -4464,6 +4586,40 @@ async def _consume_main_processing_stream(
             # Don't fail the response if display text fix fails
             logger.error(
                 f"{log_prefix} [EMBED_DISPLAY_FIX] Error during display text fix: {e}",
+                exc_info=True
+            )
+
+    # --- Inline Embed Ref Validation ---
+    # Downgrade normal inline embed links whose refs do not map to embeds produced
+    # by this response. Source quotes have their stricter verifier above.
+    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        try:
+            ref_validated_response = await _strip_invalid_inline_embed_links(
+                aggregated_response=aggregated_response,
+                tool_calls_info=tool_calls_info,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            if ref_validated_response != aggregated_response:
+                aggregated_response = ref_validated_response
+                final_response_chunks = [aggregated_response]
+
+                if cache_service:
+                    ref_fix_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 4,
+                        is_final=False, model_name=stream_model_name
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, ref_fix_payload, log_prefix,
+                        f"Published response with invalid embed refs stripped "
+                        f"(length: {len(aggregated_response)})"
+                    )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} [EMBED_REF_VALIDATE] Error during inline embed ref validation: {e}",
                 exc_info=True
             )
 

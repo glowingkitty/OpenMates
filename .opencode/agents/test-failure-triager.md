@@ -1,7 +1,7 @@
 ---
 description: "Triage the latest Playwright/pytest/vitest test failures and return root-cause groups. Use before fixing tests to get a compact, prioritized fix plan without burning main context on 20+ failure reports."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 25
 permission:
   read: allow

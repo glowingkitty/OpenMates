@@ -93,10 +93,10 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 ## OpenCode Behavior
 
 - Prefer OpenCode-native config in `opencode.json` for this repo.
-- Existing Claude Code skills in `.claude/skills/` are intentionally retained; OpenCode can discover them through Claude compatibility.
+- Existing Claude Code skills in `.claude/skills/` are intentionally retained; OpenCode uses the `.agents/skills/` mirror and must not call the Claude Code runtime.
 - Codex discovers repo skills from `.agents/skills/`. Keep `.agents/skills/` as the Codex/OpenCode-compatible mirror of `.claude/skills/`, using Agent Skills compliant names (`lowercase-hyphenated`, matching the folder name).
 - Do not add project skills under `.codex/skills/` or `.opencode/skills/` unless a tool-specific override is explicitly needed; use `.agents/skills/` for shared skills.
-- Existing Claude Code hooks are bridged for OpenCode by `.opencode/plugins/openmates-claude-hooks.js`; update the bridge instead of duplicating hook logic.
+- OpenCode must not load the Claude Code provider or Claude hook bridge; generated `.opencode/agents/` subagents use `openai/gpt-5.5`.
 - Existing Claude Code hooks are bridged for Codex by `.codex/hooks/claude-hook-bridge.sh` and `.codex/hooks.json`; update that bridge instead of duplicating hook logic.
 - Claude Code remains the canonical authoring format for project skills, subagents, and hook scripts. Run `python3 scripts/sync_agent_parity.py` after changing `.claude/skills/` or `.claude/agents/`, and run `python3 scripts/sync_agent_parity.py --check` to verify `.agents/skills/`, `.codex/agents/`, `.opencode/agents/`, and hook adapters are in sync.
 - Do not add GSD/Get-Shit-Done workflows, commands, hooks, or agents to this repo.

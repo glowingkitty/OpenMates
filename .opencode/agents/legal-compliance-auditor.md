@@ -1,6 +1,7 @@
 ---
 description: "Twice-weekly legal & compliance scanner for OpenMates. Runs unattended via cron (Mon full scan, Thu commit-delta scan). Produces a Top 10 prioritized list of legal/compliance recommendations spanning GDPR, EU AI Act, ePrivacy/DDG, consumer protection, and related frameworks, scored by severity × urgency / effort. Writes to docs/architecture/compliance/top-10-recommendations.md and logs/nightly-reports/legal-compliance.json for the daily meeting."
 mode: subagent
+model: openai/gpt-5.5
 permission:
   read: allow
   grep: allow

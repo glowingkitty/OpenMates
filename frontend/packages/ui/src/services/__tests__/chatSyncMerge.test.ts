@@ -82,4 +82,30 @@ describe("chat sync merge", () => {
     expect(merged.encrypted_draft_md).toBe("local-draft-k1");
     expect(merged.messages_v).toBe(6);
   });
+
+  it("preserves local encrypted header metadata when Phase 1a sends partial cache data", async () => {
+    const localChat = makeChat({
+      encrypted_title: "local-title-from-idb",
+      encrypted_icon: "local-icon-from-idb",
+      encrypted_category: "local-category-from-idb",
+      encrypted_chat_key: "same-key",
+      title_v: 1,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "same-key",
+      encrypted_title: null,
+      encrypted_icon: null,
+      encrypted_category: null,
+      messages_v: 4,
+      title_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_title).toBe("local-title-from-idb");
+    expect(merged.encrypted_icon).toBe("local-icon-from-idb");
+    expect(merged.encrypted_category).toBe("local-category-from-idb");
+    expect(merged.title_v).toBe(1);
+  });
 });

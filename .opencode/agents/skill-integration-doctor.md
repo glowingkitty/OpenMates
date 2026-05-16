@@ -1,7 +1,7 @@
 ---
 description: "Diagnose per-skill breakage across 33 app modules by enforcing the BaseSkill / BaseApp contract. Use when a specific skill by name is failing (events-search, travel-stays, shopping, nutrition-search, etc.), when a failing spec matches `skill-*.spec.ts`, or when errors mention \"skill not found\", \"schema mismatch\", \"no_api_key\", or \"provider missing\". Pre-loaded with the BaseSkill contract and recent skill rules."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 25
 permission:
   read: allow

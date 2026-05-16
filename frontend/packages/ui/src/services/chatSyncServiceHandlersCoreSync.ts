@@ -9,6 +9,10 @@ import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import {
+  hasEncryptedChatKeyMismatch,
+  mergeServerChatWithLocal,
+} from "./chatSyncMerge";
 import type {
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
@@ -276,51 +280,61 @@ export async function handlePhase1LastChatImpl(
     await chatDB.init();
 
     // Helper to build Chat from server metadata
-    const buildChat = (
+    const buildChat = async (
       details: Partial<Chat> & { id: string },
-    ): Chat => ({
-      ...details,
-      chat_id: details.id,
-      encrypted_title: details.encrypted_title ?? null,
-      messages_v: details.messages_v ?? 0,
-      title_v: details.title_v ?? 0,
-      draft_v: details.draft_v ?? 0,
-      encrypted_draft_md: details.encrypted_draft_md ?? null,
-      encrypted_draft_preview: details.encrypted_draft_preview ?? null,
-      last_edited_overall_timestamp:
-        details.last_edited_overall_timestamp ??
-        details.updated_at ??
-        Math.floor(Date.now() / 1000),
-      unread_count: details.unread_count ?? 0,
-      created_at: details.created_at ?? Math.floor(Date.now() / 1000),
-      updated_at: details.updated_at ?? Math.floor(Date.now() / 1000),
-      user_id: currentUserId,
-      encrypted_chat_key: details.encrypted_chat_key ?? null,
-      encrypted_icon: details.encrypted_icon ?? null,
-      encrypted_category: details.encrypted_category ?? null,
-      encrypted_active_focus_id: details.encrypted_active_focus_id ?? null,
-      is_shared: details.is_shared,
-      is_private: details.is_private,
-    }) as Chat;
+    ): Promise<{ chat: Chat; keyMismatch: boolean }> => {
+      const existingChat = await chatDB.getChat(details.id);
+      const keyMismatch = hasEncryptedChatKeyMismatch(details, existingChat);
+
+      if (keyMismatch) {
+        console.warn(
+          `[ChatSyncService:CoreSync] Phase 1a - chat key mismatch for ${details.id}; ` +
+            `server key will be used and local message content will be re-synced`,
+        );
+        if (details.encrypted_chat_key) {
+          await chatKeyManager.acceptServerKeyForMismatch(
+            details.id,
+            details.encrypted_chat_key,
+          );
+        } else {
+          chatKeyManager.removeKey(details.id);
+        }
+      }
+
+      return {
+        chat: await mergeServerChatWithLocal(
+          details,
+          existingChat,
+          currentUserId,
+        ),
+        keyMismatch,
+      };
+    };
 
     // Collect all chats to decrypt: last-opened + recent metadata
     const allPhase1Chats: Chat[] = [];
 
     if (payload.chat_details && payload.chat_id) {
-      const lastChat = buildChat({
+      const { chat: lastChat, keyMismatch } = await buildChat({
         ...payload.chat_details,
         id: payload.chat_id,
       } as Partial<Chat> & { id: string });
       allPhase1Chats.push(lastChat);
-      await chatDB.addChat(lastChat, undefined, { isFromSync: true });
+      await chatDB.addChat(lastChat, undefined, {
+        isFromSync: true,
+        forceIncomingEncryptedChatKey: keyMismatch,
+      });
       chatListCache.upsertChat(lastChat);
     }
 
     if (payload.recent_chat_metadata) {
       for (const meta of payload.recent_chat_metadata) {
-        const chat = buildChat(meta);
+        const { chat, keyMismatch } = await buildChat(meta);
         allPhase1Chats.push(chat);
-        await chatDB.addChat(chat, undefined, { isFromSync: true });
+        await chatDB.addChat(chat, undefined, {
+          isFromSync: true,
+          forceIncomingEncryptedChatKey: keyMismatch,
+        });
         chatListCache.upsertChat(chat);
       }
     }

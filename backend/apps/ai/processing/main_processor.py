@@ -77,6 +77,16 @@ SOFT_LIMIT_SKILL_CALLS = 3
 # Maximum of 5 request attempts per assistant message to prevent excessive research loops.
 HARD_LIMIT_SKILL_CALLS = 5
 
+INVALID_TOOL_FALLBACK_MESSAGE = (
+    "I found relevant information, but I could not complete every requested action automatically. "
+    "Here is the best answer I can provide from the available results."
+)
+
+INVALID_TOOL_RESULT_REASON = (
+    "This requested action is not available in the selected tool set. Continue using available "
+    "completed results. Do not mention unavailable internal tools to the user."
+)
+
 ASYNC_SKILL_INLINE_WAIT_SECONDS = 10.0
 ASYNC_SKILL_INLINE_WAIT_SKILLS = {
     ("social_media", "search"),
@@ -117,6 +127,51 @@ def _canonicalize_tool_name(name: str) -> str:
     for sep in _TOOL_NAME_SEPARATORS:
         out = out.replace(sep, "-")
     return out
+
+
+def _format_tool_call_for_history(tool_call: Any) -> Dict[str, Any]:
+    """Return provider-compatible tool-call history without executing it."""
+    return {
+        "id": tool_call.tool_call_id,
+        "type": "function",
+        "function": {
+            "name": tool_call.function_name,
+            "arguments": tool_call.function_arguments_raw,
+        },
+        **(
+            {"thought_signature": tool_call.thought_signature}
+            if hasattr(tool_call, "thought_signature") and tool_call.thought_signature
+            else {}
+        ),
+    }
+
+
+def _append_tool_call_turn_to_history(
+    message_history: List[Dict[str, Any]],
+    tool_calls: List[Any],
+    rejected_tool_calls: List[Tuple[Any, Dict[str, Any]]],
+    assistant_content: Optional[str],
+) -> None:
+    """Append matched tool_use/tool_result pairs required by LLM APIs.
+
+    Invalid tool calls are protocol bookkeeping only: they are not executed and
+    never get user-visible embeds, but providers still require the streamed
+    tool_use to be paired with a tool_result before the next model call.
+    """
+    rejected_calls = [tool_call for tool_call, _ in rejected_tool_calls]
+    assistant_message_tool_calls = [
+        _format_tool_call_for_history(tool_call)
+        for tool_call in [*tool_calls, *rejected_calls]
+    ]
+    assistant_message: Dict[str, Any] = {
+        "role": "assistant",
+        "content": assistant_content or None,
+        "tool_calls": assistant_message_tool_calls,
+    }
+    message_history.append(assistant_message)
+
+    for _, rejection_message in rejected_tool_calls:
+        message_history.append(rejection_message)
 
 
 def _build_async_skill_pending_tool_result(
@@ -2272,10 +2327,7 @@ async def handle_main_processing(
                         "name": raw_function_name,
                         "content": json.dumps({
                             "status": "rejected",
-                            "reason": (
-                                "Tool not available. Only preselected tools may be used. "
-                                "Do not retry this call."
-                            ),
+                            "reason": INVALID_TOOL_RESULT_REASON,
                         }),
                     }
                     hallucinated_tool_calls_this_turn.append((chunk, rejection_tool_message))
@@ -2673,13 +2725,30 @@ async def handle_main_processing(
             # response.  Force one more LLM iteration with tool_choice="none"
             # so the model is compelled to produce a text answer.
             if hallucinated_rejections_this_turn > 0 and not final_buffered_text_for_turn.strip():
-                logger.warning(
-                    f"{log_prefix} [HALLUCINATION_RECOVERY] All {hallucinated_rejections_this_turn} "
-                    f"tool call(s) this turn were rejected and no text was produced. "
-                    f"Forcing one more iteration with tool_choice='none' to generate a response."
+                _append_tool_call_turn_to_history(
+                    current_message_history,
+                    tool_calls=[],
+                    rejected_tool_calls=hallucinated_tool_calls_this_turn,
+                    assistant_content=None,
                 )
+
+                has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
+                if has_retry_iteration:
+                    logger.warning(
+                        f"{log_prefix} [HALLUCINATION_RECOVERY] All {hallucinated_rejections_this_turn} "
+                        f"tool call(s) this turn were rejected and no text was produced. "
+                        f"Forcing one more iteration with tool_choice='none' to generate a response."
+                    )
+                    force_no_tools = True
+                    continue
+
+                logger.error(
+                    f"{log_prefix} [HALLUCINATION_RECOVERY] Final iteration produced only rejected "
+                    f"tool call(s). Emitting deterministic fallback text so the response is not embed-only."
+                )
+                yield INVALID_TOOL_FALLBACK_MESSAGE
                 force_no_tools = True
-                continue
+                break
             break
 
         # This iteration produced tool calls — the loop will continue with at least one
@@ -2695,34 +2764,15 @@ async def handle_main_processing(
 
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
         
-        assistant_message_content_for_history = final_buffered_text_for_turn
-        # Format tool calls for message history
-        # CRITICAL: Include thought_signature for Gemini 3 thinking models - required for multi-turn function calling
-        # CRITICAL: Include hallucinated (rejected) calls so their deferred
-        # tool_result messages have matching tool_use blocks. Without this
-        # pairing, Bedrock crashes with "toolResult count exceeds toolUse
-        # count" and Gemini crashes with "missing thought_signature".
-        _hallucinated_tcs = [tc for tc, _ in hallucinated_tool_calls_this_turn]
-        _combined_tcs = list(tool_calls_for_this_turn) + _hallucinated_tcs
-        assistant_message_tool_calls_formatted = [
-            {
-                "id": tc.tool_call_id,
-                "type": "function",
-                "function": {"name": tc.function_name, "arguments": tc.function_arguments_raw},
-                # Include thought_signature if present (for Gemini 3 thinking models)
-                **({"thought_signature": tc.thought_signature} if hasattr(tc, 'thought_signature') and tc.thought_signature else {})
-            }
-            for tc in _combined_tcs
-        ]
-        assistant_message: Dict[str, Any] = {"role": "assistant", "content": assistant_message_content_for_history or None, "tool_calls": assistant_message_tool_calls_formatted}
-        current_message_history.append(assistant_message)
-
-        # Append the deferred rejection tool_result messages for each
-        # hallucinated call. They now pair correctly with the tool_use blocks
-        # added above. Keep this immediately after the assistant message so
-        # they sit next to the calls they reject.
-        for _rejected_tc, _rejection_msg in hallucinated_tool_calls_this_turn:
-            current_message_history.append(_rejection_msg)
+        # Append valid tool calls plus rejected hallucinated calls as matched
+        # tool_use/tool_result pairs. Rejected calls are hidden protocol
+        # bookkeeping; valid calls still execute normally below.
+        _append_tool_call_turn_to_history(
+            current_message_history,
+            tool_calls=list(tool_calls_for_this_turn),
+            rejected_tool_calls=hallucinated_tool_calls_this_turn,
+            assistant_content=final_buffered_text_for_turn,
+        )
 
         # === FOCUS MODE EXCLUSIVITY GUARD ===
         # When activate_focus_mode is in the tool-call batch, it MUST run

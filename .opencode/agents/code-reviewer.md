@@ -1,7 +1,7 @@
 ---
 description: "Review code changes for quality, security, redundancy, and adherence to project standards. Use after making significant changes."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 20
 permission:
   read: allow

@@ -43,6 +43,7 @@ import {
 } from "../../../stores/personalDataStore";
 import { get } from "svelte/store";
 import type { EmbedType } from "../../../message_parsing/types";
+import { generateDirectEmbedRef } from "../../../utils/embedFragmentUtils";
 
 /**
  * Result of creating a code embed
@@ -273,11 +274,15 @@ export async function createCodeEmbed(
   // This ensures that sharing the embed key (via a share link) does NOT expose
   // PII originals; only the owner's master key can decrypt the pii_mappings.
   const lineCount = codeContent.split("\n").length;
+  const embedRef = generateDirectEmbedRef("code", embed_id, { filename });
   const embedContent = {
     type: "code",
+    app_id: "code",
+    skill_id: "code",
     language: language,
     code: codeContent, // Redacted code — placeholders where PII was
     filename: filename || null,
+    embed_ref: embedRef,
     status: "finished",
     line_count: lineCount,
   };
@@ -331,6 +336,7 @@ export async function createCodeEmbed(
   // fall back to an inline embed rather than inserting a dangling reference that
   // GroupRenderer can never resolve (which would show an empty code preview).
   await embedStore.put(`embed:${embed_id}`, embedData, "code-code");
+  embedStore.registerEmbedRef(embedRef, embed_id, "code");
   console.info(
     "[codeEmbedService] Stored code embed in EmbedStore:",
     embed_id,

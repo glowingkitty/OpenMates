@@ -8,10 +8,11 @@ from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from typing import Any, Optional
 import re
 
+from backend.shared.python_utils.markdown_links import MarkdownLink, iter_markdown_links
+
 logger = logging.getLogger(__name__)
-MARKDOWN_URL_PATTERN = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
 PLAIN_URL_PATTERN = re.compile(r"https?://[^\s<>()]+")
-URL_TRAILING_PUNCTUATION = ",.;:!?)]}\"'"
+URL_TRAILING_PUNCTUATION = ",.;:!?)]}\"'`"
 
 
 def _get_safeguard_client():
@@ -36,17 +37,32 @@ def extract_urls_from_text(text: str) -> set[str]:
         return set()
 
     urls: set[str] = set()
-    for match in MARKDOWN_URL_PATTERN.finditer(text):
-        url, _trailing = _strip_url_trailing_punctuation(match.group(2))
-        if url:
-            urls.add(url)
+    markdown_links = list(iter_markdown_links(text))
+    for link in markdown_links:
+        if not link.href.startswith(("http://", "https://")):
+            continue
+        urls.add(link.href)
 
-    for match in PLAIN_URL_PATTERN.finditer(text):
-        url, _trailing = _strip_url_trailing_punctuation(match.group(0))
-        if url:
-            urls.add(url)
+    for segment in _text_segments_outside_markdown_links(text, markdown_links):
+        for match in PLAIN_URL_PATTERN.finditer(segment):
+            url, _trailing = _strip_url_trailing_punctuation(match.group(0))
+            if url:
+                urls.add(url)
 
     return urls
+
+
+def _text_segments_outside_markdown_links(text: str, links: list[MarkdownLink]) -> list[str]:
+    """Return text segments that are outside full markdown link spans."""
+    segments: list[str] = []
+    cursor = 0
+    for link in links:
+        if cursor < link.full_start:
+            segments.append(text[cursor:link.full_start])
+        cursor = max(cursor, link.full_end)
+    if cursor < len(text):
+        segments.append(text[cursor:])
+    return segments
 
 
 def extract_urls_from_content(value: Any) -> set[str]:
@@ -285,8 +301,15 @@ async def sanitize_text_urls_with_safeguard(
                 f"{log_prefix} URL safety batch failed closed: {verdict.error}"
             )
 
-    async def _clean_url_token(token: str, *, markdown_label: Optional[str] = None) -> str:
-        token, trailing = _strip_url_trailing_punctuation(token)
+    async def _clean_url_token(
+        token: str,
+        *,
+        markdown_label: Optional[str] = None,
+        strip_trailing: bool = True,
+    ) -> str:
+        trailing = ""
+        if strip_trailing:
+            token, trailing = _strip_url_trailing_punctuation(token)
 
         if token not in source_urls:
             logger.warning(
@@ -299,55 +322,27 @@ async def sanitize_text_urls_with_safeguard(
             return markdown_label if markdown_label else "[link removed]" + trailing
         return token + trailing
 
-    markdown_matches = list(MARKDOWN_URL_PATTERN.finditer(text))
-    sanitized_parts: list[str] = []
-    cursor = 0
-    protected_original_spans = {(match.start(2), match.end(2)) for match in markdown_matches}
+    markdown_links = list(iter_markdown_links(text))
+    if not markdown_links:
+        return await _sanitize_plain_url_segment(text, _clean_url_token)
 
-    for match in markdown_matches:
-        sanitized_parts.append(text[cursor:match.start()])
-        label = match.group(1)
-        url = match.group(2)
-        cleaned_url = await _clean_url_token(url, markdown_label=label)
-        if cleaned_url == label:
-            sanitized_parts.append(label)
+    parts: list[str] = []
+    cursor = 0
+    for link in markdown_links:
+        segment = text[cursor:link.full_start]
+        parts.append(await _sanitize_plain_url_segment(segment, _clean_url_token))
+        if link.href.startswith(("http://", "https://")):
+            cleaned_url = await _clean_url_token(
+                link.href,
+                markdown_label=link.label,
+                strip_trailing=False,
+            )
+            parts.append(link.label if cleaned_url == link.label else f"[{link.label}]({cleaned_url})")
         else:
-            sanitized_parts.append(f"[{label}]({cleaned_url})")
-        cursor = match.end()
-
-    sanitized_parts.append(text[cursor:])
-    markdown_sanitized = "".join(sanitized_parts)
-
-    plain_parts: list[str] = []
-    cursor = 0
-    for match in PLAIN_URL_PATTERN.finditer(text):
-        if any(start <= match.start() and match.end() <= end for start, end in protected_original_spans):
-            continue
-        plain_parts.append(text[cursor:match.start()])
-        plain_parts.append(await _clean_url_token(match.group(0)))
-        cursor = match.end()
-    plain_parts.append(text[cursor:])
-    plain_sanitized = "".join(plain_parts)
-
-    # If no plain URLs were changed, preserve the markdown pass output. If both
-    # forms changed in the same text, process markdown first then plain on the
-    # original text's non-markdown spans to avoid double-checking link targets.
-    if plain_sanitized == text:
-        return markdown_sanitized
-    if markdown_sanitized == text:
-        return plain_sanitized
-
-    combined_parts: list[str] = []
-    cursor = 0
-    for match in MARKDOWN_URL_PATTERN.finditer(text):
-        segment = text[cursor:match.start()]
-        combined_parts.append(await _sanitize_plain_url_segment(segment, _clean_url_token))
-        label = match.group(1)
-        cleaned_url = await _clean_url_token(match.group(2), markdown_label=label)
-        combined_parts.append(label if cleaned_url == label else f"[{label}]({cleaned_url})")
-        cursor = match.end()
-    combined_parts.append(await _sanitize_plain_url_segment(text[cursor:], _clean_url_token))
-    return "".join(combined_parts)
+            parts.append(text[link.full_start:link.full_end])
+        cursor = link.full_end
+    parts.append(await _sanitize_plain_url_segment(text[cursor:], _clean_url_token))
+    return "".join(parts)
 
 
 async def _sanitize_plain_url_segment(segment: str, clean_url_token: Any) -> str:

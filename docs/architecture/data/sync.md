@@ -1,10 +1,11 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-05-16
 key_files:
   - frontend/packages/ui/src/services/chatSyncService*.ts
   - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
   - backend/core/api/app/routes/websockets.py
+  - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
   - backend/core/api/app/routes/debug_sync.py
   - backend/core/api/app/tasks/user_cache_tasks.py
   - backend/core/api/app/services/cache_chat_mixin.py
@@ -75,6 +76,19 @@ Directus (encrypted) → Redis cache → WebSocket (encrypted) → IndexedDB (en
 - WebSocket event: `phase_1_last_chat_ready`
 - **Only phase that triggers auto-navigation** — phases 2/3 update sidebar only
 - Embeds loaded alongside messages via `_load_and_cache_embeds_for_chats()` in [user_cache_tasks.py](../../backend/core/api/app/tasks/user_cache_tasks.py)
+
+#### Phase 1 Metadata Invariant
+
+Phase 1a may read Redis while the cache is only partially warm. The backend must treat a Redis list item without matching versions, encrypted chat key, or titled-chat encrypted title as incomplete and fill missing fields from Directus before sending `phase_1_last_chat_ready`.
+
+Required invariant for every Phase 1a chat payload:
+
+- `encrypted_chat_key` is present for private encrypted chats.
+- `encrypted_icon` and `encrypted_category` are present when available in Directus/cache.
+- If `title_v > 0`, `encrypted_title` is present.
+- Partial cache fields may be filled from Directus, but cached versions stay authoritative unless the versions key is missing.
+
+Client-side Phase 1a handling must use the shared chat metadata merge policy (`mergeServerChatWithLocal`) rather than writing server payloads directly over IndexedDB. This prevents null/incomplete sync payloads from erasing locally valid encrypted metadata and keeps key-mismatch handling consistent with Phase 2/3.
 
 ### Phase 2: Last 20 Chats
 

@@ -933,13 +933,25 @@ export async function insertCodeFile(
     );
   }
 
-  // Insert the embed reference block into the editor
-  // The reference block (e.g. ```json\n{"type":"code","embed_id":"..."}\n```)
-  // is what the message serializer uses to load the embed from EmbedStore
+  const lineCount = fileContent.split("\n").length;
+
+  // Insert a real embed node in the editor. The serializer will still emit the
+  // canonical JSON reference on send because contentRef uses the embed:<id> form.
   editor
     .chain()
     .focus()
-    .insertContent(result.embedReference)
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "code-code",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        filename: file.name,
+        language,
+        lineCount,
+      },
+    })
     .insertContent(" ")
     .run();
 

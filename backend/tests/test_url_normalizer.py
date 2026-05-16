@@ -11,10 +11,12 @@ import pytest
 from backend.shared.python_utils import url_normalizer
 from backend.shared.python_utils.url_normalizer import (
     extract_urls_from_content,
+    extract_urls_from_text,
     sanitize_url_remove_fragment,
     sanitize_url_remove_query_and_fragment,
     sanitize_text_urls_with_safeguard,
 )
+from backend.shared.python_utils.markdown_links import iter_markdown_links
 
 
 class _FakeSafeguard:
@@ -116,6 +118,21 @@ def test_extract_urls_from_content_recurses_source_payloads() -> None:
     }
 
 
+def test_extract_urls_from_text_strips_inline_code_backtick() -> None:
+    text = "POST to `https://ws.api.video/videos`."
+
+    assert extract_urls_from_text(text) == {"https://ws.api.video/videos"}
+
+
+def test_markdown_link_scanner_keeps_balanced_parentheses() -> None:
+    links = list(iter_markdown_links("Read [Bash](wiki:Bash_(Unix_shell)) and [docs](https://example.com/a_(b))."))
+
+    assert [(link.label, link.href) for link in links] == [
+        ("Bash", "wiki:Bash_(Unix_shell)"),
+        ("docs", "https://example.com/a_(b)"),
+    ]
+
+
 @pytest.mark.asyncio
 async def test_safeguard_url_processing_keeps_safe_url_with_params(monkeypatch) -> None:
     text = "Read https://example.com/page?ref=public#intro."
@@ -184,6 +201,54 @@ async def test_safeguard_url_processing_keeps_assistant_url_found_in_sources(
 
     assert result == text
     assert fake.calls == [["https://docs.example.com/original"]]
+
+
+@pytest.mark.asyncio
+async def test_safeguard_keeps_source_backed_inline_code_url(monkeypatch) -> None:
+    text = "POST to `https://ws.api.video/videos`."
+    fake = _FakeSafeguard()
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(
+        text,
+        secrets_manager=object(),
+        allowed_source_urls={"https://ws.api.video/videos"},
+    )
+
+    assert result == text
+    assert fake.calls == [["https://ws.api.video/videos"]]
+
+
+@pytest.mark.asyncio
+async def test_safeguard_removes_assistant_created_inline_code_url(monkeypatch) -> None:
+    text = "POST to `https://evil.example.com/secret`."
+    fake = _FakeSafeguard()
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(
+        text,
+        secrets_manager=object(),
+        allowed_source_urls={"https://ws.api.video/videos"},
+    )
+
+    assert result == "POST to `[link removed]`."
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_safeguard_keeps_source_backed_markdown_url_with_parentheses(monkeypatch) -> None:
+    text = "Read [docs](https://example.com/path_(x))."
+    fake = _FakeSafeguard()
+    monkeypatch.setattr(url_normalizer, "_get_safeguard_client", lambda: fake)
+
+    result = await sanitize_text_urls_with_safeguard(
+        text,
+        secrets_manager=object(),
+        allowed_source_urls={"https://example.com/path_(x)"},
+    )
+
+    assert result == text
+    assert fake.calls == [["https://example.com/path_(x)"]]
 
 
 @pytest.mark.asyncio

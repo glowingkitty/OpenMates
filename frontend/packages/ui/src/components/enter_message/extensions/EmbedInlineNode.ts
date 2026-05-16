@@ -76,6 +76,14 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
       focusLineEnd: {
         default: null,
       },
+      /** Text snippet to highlight in document fullscreen. */
+      highlightQuoteText: {
+        default: null,
+      },
+      /** Sheet cell/range to highlight in sheet fullscreen. */
+      focusSheetRange: {
+        default: null,
+      },
     };
   },
 
@@ -99,6 +107,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
         "data-app-id": HTMLAttributes.appId,
         "data-focus-line-start": HTMLAttributes.focusLineStart,
         "data-focus-line-end": HTMLAttributes.focusLineEnd,
+        "data-highlight-quote-text": HTMLAttributes.highlightQuoteText,
+        "data-focus-sheet-range": HTMLAttributes.focusSheetRange,
         class: "embed-inline-node",
         contenteditable: "false",
       }),
@@ -126,6 +136,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
             appId: node.attrs.appId as string | null,
             focusLineStart: node.attrs.focusLineStart as number | null,
             focusLineEnd: node.attrs.focusLineEnd as number | null,
+            highlightQuoteText: node.attrs.highlightQuoteText as string | null,
+            focusSheetRange: node.attrs.focusSheetRange as string | null,
           },
         }) as Record<string, unknown>;
       } catch (err) {
@@ -144,6 +156,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
         appId: node.attrs.appId,
         focusLineStart: node.attrs.focusLineStart,
         focusLineEnd: node.attrs.focusLineEnd,
+        highlightQuoteText: node.attrs.highlightQuoteText,
+        focusSheetRange: node.attrs.focusSheetRange,
       };
 
       return {
@@ -163,7 +177,9 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
             newAttrs.displayText === currentAttrs.displayText &&
             newAttrs.appId === currentAttrs.appId &&
             newAttrs.focusLineStart === currentAttrs.focusLineStart &&
-            newAttrs.focusLineEnd === currentAttrs.focusLineEnd
+            newAttrs.focusLineEnd === currentAttrs.focusLineEnd &&
+            newAttrs.highlightQuoteText === currentAttrs.highlightQuoteText &&
+            newAttrs.focusSheetRange === currentAttrs.focusSheetRange
           ) {
             return true; // Accept update, no DOM changes needed
           }
@@ -176,6 +192,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
             appId: newAttrs.appId,
             focusLineStart: newAttrs.focusLineStart,
             focusLineEnd: newAttrs.focusLineEnd,
+            highlightQuoteText: newAttrs.highlightQuoteText,
+            focusSheetRange: newAttrs.focusSheetRange,
           };
 
           if (svelteInstance) {
@@ -196,6 +214,8 @@ export const EmbedInlineNode = Node.create<EmbedInlineNodeOptions>({
                 appId: newAttrs.appId as string | null,
                 focusLineStart: newAttrs.focusLineStart as number | null,
                 focusLineEnd: newAttrs.focusLineEnd as number | null,
+                highlightQuoteText: newAttrs.highlightQuoteText as string | null,
+                focusSheetRange: newAttrs.focusSheetRange as string | null,
               },
             }) as Record<string, unknown>;
           } catch (err) {

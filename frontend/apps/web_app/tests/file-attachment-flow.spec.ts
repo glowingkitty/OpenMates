@@ -42,13 +42,10 @@ export {};
  *
  * CODE/TEXT FILES (.py, .js, .ts, etc.) — AUTHENTICATED PATH:
  *   - PII detection runs client-side, then the code is stored in IndexedDB (EmbedStore).
- *   - The editor inserts a TEXT REFERENCE (NOT a TipTap embed node):
- *       ```json\n{"type":"code","embed_id":"..."}\n```
- *   - This text is rendered as a formatted code block in the editor, NOT as an
- *     .embed-full-width-wrapper. The reference is only turned into a rendered embed
- *     when the message is sent and parsed by the read-mode parser.
- *   - So the correct check for code files in the editor is text content presence,
- *     not the NodeView wrapper.
+ *   - The editor inserts a real TipTap embed node (type="code-code") so users see
+ *     a code preview card immediately, not the internal JSON reference block.
+ *   - On send, tipTapToCanonicalMarkdown serializes the embed node back to the
+ *     canonical JSON reference for backend/LLM processing.
  *
  * Console warn/error logs are captured throughout each test and saved to
  * playwright-artifacts/console-warnings-file-attach-{testId}.json when any occur.
@@ -313,10 +310,10 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 });
 
 // ---------------------------------------------------------------------------
-// Test 2: Attach Python file → verify code reference in editor → send
+// Test 2: Attach Python file → verify code embed in editor/chat → send
 // ---------------------------------------------------------------------------
 
-test('attaches a Python code file, shows code reference in editor, and sends successfully', async ({
+test('attaches a Python code file, renders a code embed, and sends without JSON leakage', async ({
 	page
 }: {
 	page: any;
@@ -350,11 +347,8 @@ test('attaches a Python code file, shows code reference in editor, and sends suc
 	await openNewChat(page, log);
 	await screenshot(page, 'new-chat-ready');
 
-	// Attach the Python file.
-	// AUTHENTICATED PATH: code files go through PII detection + IndexedDB storage,
-	// then the editor receives a TEXT REFERENCE (not a TipTap embed node):
-	//   ```json\n{"type":"code","embed_id":"..."}\n```
-	// This renders as a formatted code block in the editor (not an .embed-full-width-wrapper).
+	// Attach the Python file. Authenticated code files should render as a real
+	// code-code embed in the editor, not as the internal JSON reference block.
 	await attachFiles(page, [SAMPLE_PY], log);
 	// Allow time for async PII detection + IndexedDB write + editor insert
 	await page.waitForTimeout(5000);
@@ -364,13 +358,15 @@ test('attaches a Python code file, shows code reference in editor, and sends suc
 	// Save any warn/error logs captured during file attachment
 	saveWarnErrorLogs('code', 'after_file_attach');
 
-	// Verify the code embed reference appeared in the editor.
-	// The reference is inserted as text in the TipTap document: a code block
-	// containing JSON with "type":"code" and "embed_id". We check for:
-	// 1. The editor has non-empty content (has content indicator)
-	// 2. The send button is enabled (meaning there's content to send)
-	// This confirms the code file was processed and inserted into the editor.
+	// Verify a rendered code embed appeared in the editor. This is the regression
+	// guard for code uploads leaking raw ```json embed references to users.
 	const editor = page.getByTestId('message-editor');
+	const codeEmbedInEditor = editor.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	);
+	await expect(codeEmbedInEditor).toBeVisible({ timeout: 20000 });
+	await expect(editor).not.toContainText('```json');
+	await expect(editor).not.toContainText('"embed_id"');
 
 	// The send button only appears when the editor has content.
 	// Use [data-action="send-message"] for a stable selector.
@@ -386,7 +382,7 @@ test('attaches a Python code file, shows code reference in editor, and sends suc
 	log(`Editor content after code attach: "${editorContent?.substring(0, 100)}"`);
 	expect(editorContent).toBeTruthy();
 
-	log('Code embed reference inserted into editor (send button enabled).');
+	log('Code embed rendered in editor (send button enabled).');
 	await screenshot(page, 'code-embed-in-editor');
 
 	// Add text and send
@@ -413,6 +409,21 @@ test('attaches a Python code file, shows code reference in editor, and sends suc
 
 	await screenshot(page, 'code-message-in-chat');
 	log('User message visible in chat after sending code file.');
+
+	const userMessage = page.getByTestId('message-user').last();
+	const codeEmbedInChat = userMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	);
+	await expect(codeEmbedInChat).toBeVisible({ timeout: 20000 });
+
+	const visibleUserTextOutsideEmbeds = await userMessage.evaluate((el: HTMLElement) => {
+		const clone = el.cloneNode(true) as HTMLElement;
+		clone.querySelectorAll('[data-testid="embed-full-width-wrapper"]').forEach((embed) => embed.remove());
+		return clone.textContent || '';
+	});
+	expect(visibleUserTextOutsideEmbeds).not.toContain('```json');
+	expect(visibleUserTextOutsideEmbeds).not.toContain('"embed_id"');
+	log('Code embed rendered in sent user message without raw JSON leakage.');
 
 	// Save final warn/error log snapshot
 	log(`Final console warn/error count: ${warnErrorLogs.length}`);

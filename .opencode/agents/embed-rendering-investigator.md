@@ -1,7 +1,7 @@
 ---
 description: "Diagnose embed preview/fullscreen rendering bugs, registry mismatches, decryption races, and design-token drift across 30+ embed types. Use for \"embed not rendering\", \"wrong color in embed\", \"embed type not found\", \"fullscreen doesn't open\", \"embed stuck on loading\", or any failing embed/preview/cli-skills spec. Pre-loaded with the UnifiedEmbed architecture and ds-* token rules."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 25
 permission:
   read: allow

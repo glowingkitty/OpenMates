@@ -14,6 +14,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import katex from 'katex';
   import functionPlot from 'function-plot';
+  import { normalizePlotExpression } from './plotExpression';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
@@ -159,7 +160,7 @@
       .filter(line => line && !line.startsWith('#'))
       .map(line => {
         const match = line.match(/^(?:[a-zA-Z_]\w*\s*\([^)]*\)\s*=|y\s*=)\s*(.+)$/);
-        return { fn: match ? match[1].trim() : line };
+        return { fn: normalizePlotExpression(match ? match[1].trim() : line) };
       })
       .filter(d => d.fn.length > 0);
   }

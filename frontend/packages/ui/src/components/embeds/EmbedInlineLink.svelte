@@ -51,9 +51,13 @@
      * null when focusLineStart is null.
      */
     focusLineEnd?: number | null;
+    /** For document embeds: text snippet to highlight after opening fullscreen. */
+    highlightQuoteText?: string | null;
+    /** For sheet embeds: cell or range (A1 or A1:C4) to highlight after opening fullscreen. */
+    focusSheetRange?: string | null;
   }
 
-  let { embedRef, embedId = null, displayText, appId = null, focusLineStart = null, focusLineEnd = null }: Props = $props();
+  let { embedRef, embedId = null, displayText, appId = null, focusLineStart = null, focusLineEnd = null, highlightQuoteText = null, focusSheetRange = null }: Props = $props();
 
   // Reactively resolve the effective appId.
   //
@@ -152,6 +156,8 @@
           focusLineRange: focusLineStart != null
             ? { start: focusLineStart, end: focusLineEnd ?? focusLineStart }
             : undefined,
+          highlightQuoteText: highlightQuoteText ?? undefined,
+          focusSheetRange: focusSheetRange ?? undefined,
         },
         bubbles: true,
       }),

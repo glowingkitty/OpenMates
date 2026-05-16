@@ -1,7 +1,7 @@
 ---
 description: "Investigate WebSocket/phased-sync/message-ordering bugs across the chatSyncService* family and backend websockets.py. Use for \"message duplicated\", \"ai_typing spinner stuck\", \"chat list empty after refresh\", \"re-sync loop\", WS pong timeouts, or any cold-boot/logout sync regression. Pre-loaded with the 7-handler file map and known race zones."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 35
 permission:
   read: allow
