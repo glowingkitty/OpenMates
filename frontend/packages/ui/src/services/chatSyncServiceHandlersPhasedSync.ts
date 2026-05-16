@@ -468,6 +468,7 @@ export async function handleSyncStatusResponseImpl(
       serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY,
   });
 
+  serviceInstance.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = chat_count;
   serviceInstance.cachePrimed_FOR_HANDLERS_ONLY = is_primed;
 
   // Dispatch event to Chats.svelte (converting is_primed → cache_primed for backward compatibility)

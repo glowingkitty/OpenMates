@@ -92,6 +92,7 @@ export class ChatSynchronizationService extends EventTarget {
   // This handles reconnection after long disconnects where the primed_flag TTL expired.
   private cacheStatusRetryTimer: NodeJS.Timeout | null = null;
   private cacheStatusRetryCount = 0;
+  private cacheStatusServerChatCount = 0;
   private readonly CACHE_STATUS_RETRY_INTERVAL_MS = 3000; // Poll every 3 seconds
   private readonly CACHE_STATUS_MAX_RETRIES = 10; // Give up after 30 seconds (10 * 3s)
 
@@ -1276,6 +1277,9 @@ export class ChatSynchronizationService extends EventTarget {
   public set initialSyncAttempted_FOR_HANDLERS_ONLY(value: boolean) {
     this.initialSyncAttempted = value;
   }
+  public set cacheStatusServerChatCount_FOR_HANDLERS_ONLY(value: number) {
+    this.cacheStatusServerChatCount = value;
+  }
   /** Mark that a full phased sync completed this session. Reconnects will skip re-sync. */
   public markInitialSyncCompleted(): void {
     this.hasCompletedInitialSync = true;
@@ -1306,13 +1310,26 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     if (this.cacheStatusRetryCount >= this.CACHE_STATUS_MAX_RETRIES) {
-      console.warn(
-        `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}). ` +
-          `Cache never became primed. Dispatching synthetic sync complete to unblock UI.`,
-      );
       this.clearCacheStatusRetry();
-      // Unblock the UI rather than leaving it stuck on "Loading chats..." forever.
-      // The user can manually refresh if needed.
+
+      if (this.cacheStatusServerChatCount > 0) {
+        console.error(
+          `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}) ` +
+            `but server reports ${this.cacheStatusServerChatCount} chat(s). Keeping sync pending and retrying ` +
+            `instead of marking an empty local DB as complete.`,
+        );
+        notificationStore.error(
+          "Chat sync is still recovering. Please keep this tab open while we reload your chats.",
+          10000,
+        );
+        this.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
+        return;
+      }
+
+      console.warn(
+        `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}) ` +
+          `and server reports no chats. Dispatching synthetic sync complete to unblock UI.`,
+      );
       this.dispatchSyncTimeoutComplete("timeout");
       return;
     }

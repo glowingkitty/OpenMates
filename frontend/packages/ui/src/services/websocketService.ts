@@ -592,6 +592,42 @@ class WebSocketService extends EventTarget {
               );
             }
 
+            if (messageType === "error") {
+              const errorMessage =
+                typeof messagePayload?.message === "string"
+                  ? messagePayload.message
+                  : typeof messagePayload === "string"
+                    ? messagePayload
+                    : "";
+              const normalizedErrorMessage = errorMessage.toLowerCase();
+              const isAuthError =
+                normalizedErrorMessage.includes("authentication failed") ||
+                normalizedErrorMessage.includes("please log in again") ||
+                normalizedErrorMessage.includes("session expired") ||
+                normalizedErrorMessage.includes("invalid token") ||
+                normalizedErrorMessage.includes("unauthorized");
+
+              if (isAuthError) {
+                console.error(
+                  "[WebSocketService] Received authentication error message from server. Dispatching authError.",
+                );
+                websocketStatus.setError(
+                  errorMessage || "Authentication failed. Please log in again.",
+                  "error",
+                );
+                this.dispatchEvent(
+                  new CustomEvent("authError", {
+                    detail: { reason: errorMessage || "Authentication failed" },
+                  }),
+                );
+                this.ws?.close(
+                  status.WS_1008_POLICY_VIOLATION,
+                  "Authentication failed",
+                );
+                return;
+              }
+            }
+
             // 🔍 STREAMING DEBUG: Log WebSocket message reception for ai_message_update
             if (messageType === "ai_message_update") {
               const seq = messagePayload?.sequence || "unknown";

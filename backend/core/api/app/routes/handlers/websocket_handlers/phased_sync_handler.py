@@ -1098,6 +1098,18 @@ async def handle_sync_status_request(
             # Get current chat count from cache
             chat_ids = await cache_service.get_chat_ids_versions(user_id, with_scores=False)
             chat_count = len(chat_ids) if chat_ids else 0
+
+            # If the primed flag expired, Redis may temporarily under-report the user's
+            # server state. Use Directus as the source of truth for status so clients
+            # never treat an empty local IndexedDB as final while chats still exist.
+            if not cache_primed:
+                db_chat_count = await directus_service.chat.get_user_chat_count(user_id)
+                if db_chat_count > chat_count:
+                    logger.warning(
+                        f"[SYNC_DEBUG] Cache status DB fallback for user {user_id}: "
+                        f"cache_chat_count={chat_count}, db_chat_count={db_chat_count}"
+                    )
+                    chat_count = db_chat_count
         
             logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
         
