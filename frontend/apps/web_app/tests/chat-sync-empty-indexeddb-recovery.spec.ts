@@ -56,6 +56,37 @@ async function clearLocalChatIndexedDb(page: any): Promise<void> {
 	});
 }
 
+async function expectLocalChatsCleared(page: any): Promise<void> {
+	const chatCount = await page.evaluate(async () => {
+		return await new Promise<number>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+
+			request.onerror = () => reject(request.error ?? new Error('Failed to open chats_db'));
+			request.onsuccess = () => {
+				const db = request.result;
+				if (!db.objectStoreNames.contains('chats')) {
+					db.close();
+					resolve(0);
+					return;
+				}
+
+				const transaction = db.transaction(['chats'], 'readonly');
+				const countRequest = transaction.objectStore('chats').count();
+				countRequest.onerror = () => {
+					db.close();
+					reject(countRequest.error ?? new Error('Failed to count local chats'));
+				};
+				countRequest.onsuccess = () => {
+					db.close();
+					resolve(countRequest.result);
+				};
+			};
+		});
+	});
+
+	expect(chatCount).toBe(0);
+}
+
 async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 	await page.addInitScript(() => {
 		const OriginalWebSocket = window.WebSocket;
@@ -148,8 +179,9 @@ test('empty local IndexedDB with cold server cache keeps sync pending instead of
 	await installColdCacheWebSocketInterceptor(page);
 	await loginToTestAccount(page, logCheckpoint, async () => undefined, { waitForEditor: true });
 	await clearLocalChatIndexedDb(page);
+	await expectLocalChatsCleared(page);
 
-	await page.goto(getE2EDebugUrl('/'));
+	await page.goto(getE2EDebugUrl('/?empty-idb-recovery=1'));
 	await page.waitForLoadState('load');
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
 
