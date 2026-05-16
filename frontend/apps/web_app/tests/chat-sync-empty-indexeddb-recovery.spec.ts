@@ -155,6 +155,53 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 	});
 }
 
+async function installEmptyChatDbOnBoot(page: any): Promise<void> {
+	await page.addInitScript(() => {
+		window.addEventListener(
+			'DOMContentLoaded',
+			() => {
+				void new Promise<void>((resolve, reject) => {
+					const request = indexedDB.open('chats_db');
+
+					request.onerror = () => reject(request.error ?? new Error('Failed to open chats_db'));
+					request.onsuccess = () => {
+						const db = request.result;
+						const storesToClear = [
+							'chats',
+							'messages',
+							'embeds',
+							'embed_keys',
+							'new_chat_suggestions',
+							'daily_inspirations'
+						].filter((storeName) => db.objectStoreNames.contains(storeName));
+
+						if (storesToClear.length === 0) {
+							db.close();
+							resolve();
+							return;
+						}
+
+						const transaction = db.transaction(storesToClear, 'readwrite');
+						transaction.onerror = () => {
+							db.close();
+							reject(transaction.error ?? new Error('Failed to clear local chat stores'));
+						};
+						transaction.oncomplete = () => {
+							db.close();
+							resolve();
+						};
+
+						for (const storeName of storesToClear) {
+							transaction.objectStore(storeName).clear();
+						}
+					};
+				});
+			},
+			{ once: true }
+		);
+	});
+}
+
 async function ensureSidebarOpen(page: any): Promise<void> {
 	const activityHistory = page.getByTestId('activity-history-wrapper');
 	if (await activityHistory.isVisible().catch(() => false)) return;
@@ -178,11 +225,12 @@ test('empty local IndexedDB with cold server cache keeps sync pending instead of
 
 	await installColdCacheWebSocketInterceptor(page);
 	await loginToTestAccount(page, logCheckpoint, async () => undefined, { waitForEditor: true });
-	await clearLocalChatIndexedDb(page);
-	await expectLocalChatsCleared(page);
+	await installEmptyChatDbOnBoot(page);
 
 	await page.goto(getE2EDebugUrl('/?empty-idb-recovery=1'));
 	await page.waitForLoadState('load');
+	await clearLocalChatIndexedDb(page);
+	await expectLocalChatsCleared(page);
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
 
 	await ensureSidebarOpen(page);
