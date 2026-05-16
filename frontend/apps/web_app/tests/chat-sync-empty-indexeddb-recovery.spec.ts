@@ -91,19 +91,27 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 	await page.context().addInitScript(() => {
 		const OriginalWebSocket = window.WebSocket;
 
-		class ColdCacheWebSocket extends OriginalWebSocket {
-			set onmessage(handler: ((this: WebSocket, ev: MessageEvent) => any) | null) {
+		function ColdCacheWebSocket(this: WebSocket, ...args: ConstructorParameters<typeof WebSocket>) {
+			const socket = new OriginalWebSocket(...args);
+			let currentMessageHandler: ((this: WebSocket, ev: MessageEvent) => any) | null = null;
+
+			Object.defineProperty(socket, 'onmessage', {
+				configurable: true,
+				get() {
+					return currentMessageHandler;
+				},
+				set(handler: ((this: WebSocket, ev: MessageEvent) => any) | null) {
+					currentMessageHandler = handler;
 				if (!handler) {
-					super.onmessage = handler;
 					return;
 				}
 
-				super.onmessage = (event: MessageEvent) => {
+					socket.addEventListener('message', (event: MessageEvent) => {
 					let parsed: any;
 					try {
 						parsed = JSON.parse(String(event.data));
 					} catch {
-						handler.call(this, event);
+						handler.call(socket, event);
 						return;
 					}
 
@@ -140,21 +148,27 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 							}
 						};
 						handler.call(
-							this,
+							socket,
 							new MessageEvent('message', { data: JSON.stringify(coldCacheMessage) })
 						);
 						return;
 					}
 
-					handler.call(this, event);
-				};
+					handler.call(socket, event);
+				});
 			}
+			});
+
+			return socket;
 		}
+
+		Object.setPrototypeOf(ColdCacheWebSocket, OriginalWebSocket);
+		ColdCacheWebSocket.prototype = OriginalWebSocket.prototype;
 
 		Object.defineProperty(window, 'WebSocket', {
 			configurable: true,
 			writable: true,
-			value: ColdCacheWebSocket
+			value: ColdCacheWebSocket as typeof WebSocket
 		});
 	});
 }
