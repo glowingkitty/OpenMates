@@ -26,6 +26,57 @@ const noopScreenshot = async (_page: any, _label: string): Promise<void> => {};
 /** No-op log function for when logging isn't needed */
 const noopLog = (_message: string, _metadata?: Record<string, unknown>): void => {};
 
+async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
+	const authDom = authSignal.waitFor({ state: 'visible', timeout })
+		.then(() => true)
+		.catch(() => false);
+
+	const editorVisible = page.getByTestId('message-editor').waitFor({ state: 'visible', timeout })
+		.then(() => true)
+		.catch(() => false);
+
+	return Promise.race([authDom, editorVisible]);
+}
+
+async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promise<boolean> {
+	const loginResponse = page.waitForResponse(
+		async (response: any) => {
+			if (!response.url().includes('/v1/auth/login') || response.request().method() !== 'POST') {
+				return false;
+			}
+
+			try {
+				const data = await response.json();
+				return response.ok() && data?.success === true && data?.tfa_required !== true;
+			} catch {
+				return false;
+			}
+		},
+		{ timeout: 20000 }
+	).then(() => 'response' as const).catch(() => false as const);
+
+	const authUi = waitForAuthenticatedUi(page, authSignal).then((success) => success ? 'ui' as const : false as const);
+	const firstSignal = await Promise.race([loginResponse, authUi]);
+
+	if (firstSignal === 'ui') {
+		return true;
+	}
+
+	if (firstSignal !== 'response') {
+		return false;
+	}
+
+	if (await waitForAuthenticatedUi(page, authSignal, 8000)) {
+		return true;
+	}
+
+	// The backend may have accepted the OTP and set cookies while the modal missed
+	// the client-side auth transition. Reload once and let startup auth initialize.
+	await page.goto(getE2EDebugUrl('/'));
+	await page.waitForLoadState('load');
+	return waitForAuthenticatedUi(page, authSignal, 20000);
+}
+
 /**
  * Login to the test account with email, password, and 2FA OTP.
  * Checks "Stay logged in" so keys are persisted to IndexedDB.
@@ -196,16 +247,16 @@ async function loginToTestAccount(
 			}
 
 			await expect(submitLoginButton).toBeVisible();
+			const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
 			await submitLoginButton.click();
 			logCheckpoint('Submitted login form.');
 
 			try {
-				// Primary success signal: data-authenticated="true" appears on the DOM.
-				// This is set by ActiveChat.svelte when authStore.isAuthenticated becomes true,
-				// which happens after setAuthenticatedState() runs in the login success chain.
-				await expect(authSignal).toBeVisible({ timeout: 15000 });
+				if (!(await loginSuccessPromise)) {
+					throw new Error('Login success signal did not appear after OTP submit');
+				}
 				loginSuccess = true;
-				logCheckpoint('Login successful — data-authenticated="true" detected.');
+				logCheckpoint('Login successful — OTP login success signal detected.');
 			} catch {
 				const hasError = await errorMessage.isVisible().catch(() => false);
 				if (hasError && attempt < MAX_OTP_ATTEMPTS) {
@@ -293,11 +344,14 @@ async function submitPasswordAndHandleOtp(
 		log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
 
 		await expect(submitBtn).toBeVisible();
+		const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
 		await submitBtn.click();
 
 		try {
-			await expect(authSignal).toBeVisible({ timeout: 15000 });
-			log('Login successful — data-authenticated="true" detected.');
+			if (!(await loginSuccessPromise)) {
+				throw new Error('Login success signal did not appear after OTP submit');
+			}
+			log('Login successful — OTP login success signal detected.');
 			return;
 		} catch {
 			if (attempt === MAX_OTP_ATTEMPTS) {

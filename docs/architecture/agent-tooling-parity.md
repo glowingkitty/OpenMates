@@ -15,7 +15,7 @@ OpenMates supports Claude Code, Codex, and OpenCode from the same repository. Cl
 - `.codex/agents/`: Codex TOML mirror generated from `.claude/agents/`.
 - `.opencode/agents/`: OpenCode Markdown mirror generated from `.claude/agents/`.
 - `.codex/hooks.json` and `.codex/hooks/claude-hook-bridge.sh`: Codex lifecycle bridge to `.claude/hooks/`.
-- `.opencode/plugins/openmates-claude-hooks.js`: OpenCode plugin bridge to `.claude/hooks/`.
+- `.opencode/agents/` pins generated subagents to `openai/gpt-5.5`; OpenCode does not load the Claude Code provider or Claude hook bridge.
 
 ## Sync Workflow
 
@@ -31,10 +31,10 @@ Before deploy or review, verify parity with:
 python3 scripts/sync_agent_parity.py --check
 ```
 
-The check verifies skill mirrors, Codex and OpenCode agent mirrors, copied Codex hook scripts, and hook adapter references.
+The check verifies skill mirrors, Codex and OpenCode agent mirrors, copied Codex hook scripts, and Codex hook adapter references.
 
 ## Hook Strategy
 
-Hook scripts are not reimplemented per tool. Codex and OpenCode adapters translate their native lifecycle payloads into the Claude hook payload shape and invoke the same shell scripts. This keeps policy behavior consistent and avoids drift between tools.
+Hook scripts are not reimplemented per tool. Codex translates its native lifecycle payloads into the Claude hook payload shape and invokes the same shell scripts. This keeps policy behavior consistent and avoids drift between tools.
 
-Some lifecycle events are tool-specific. Codex supports `UserPromptSubmit` directly, so the bridge runs prompt context hooks there. OpenCode exposes hooks through plugin events, so the bridge maps supported events such as tool execution and session idle to the closest Claude hook equivalents.
+Some lifecycle events are tool-specific. Codex supports `UserPromptSubmit` directly, so the bridge runs prompt context hooks there. OpenCode intentionally has no Claude Code hook bridge so it uses its native runtime and configured GPT subagent model only.

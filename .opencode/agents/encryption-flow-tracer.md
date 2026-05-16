@@ -1,7 +1,7 @@
 ---
 description: "Trace the full key/encryption/sync data flow for an OpenMates chat issue — follows the key lifecycle across ChatKeyManager, chatSyncService, websocket handlers, IndexedDB, and backend Directus. Use for \"content decryption failed\", key mismatch, cross-device sync bugs, or any suspected encryption race condition."
 mode: subagent
-model: claude-code/sonnet
+model: openai/gpt-5.5
 steps: 40
 permission:
   read: allow

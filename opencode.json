@@ -21,34 +21,6 @@
       "gsd-*": "deny"
     }
   },
-  "provider": {
-    "claude-code": {
-      "npm": "opencode-claude-code-plugin",
-      "models": {
-        "haiku": {
-          "name": "Claude Code Haiku",
-          "attachment": false,
-          "limit": { "context": 200000, "output": 8192 },
-          "capabilities": { "reasoning": false, "toolcall": true }
-        },
-        "sonnet": {
-          "name": "Claude Code Sonnet",
-          "attachment": false,
-          "limit": { "context": 1000000, "output": 16384 },
-          "capabilities": { "reasoning": true, "toolcall": true }
-        },
-        "opus": {
-          "name": "Claude Code Opus",
-          "attachment": false,
-          "limit": { "context": 1000000, "output": 16384 },
-          "capabilities": { "reasoning": true, "toolcall": true }
-        }
-      },
-      "options": {
-        "cliPath": "claude"
-      }
-    }
-  },
   "mcp": {
     "remotion-documentation": {
       "type": "local",
