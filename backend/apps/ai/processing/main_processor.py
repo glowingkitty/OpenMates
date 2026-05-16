@@ -951,7 +951,8 @@ async def handle_main_processing(
     secrets_manager: Optional[SecretsManager] = None,
     cache_service: Optional[CacheService] = None,
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
-    user_overrides: Optional[UserOverrides] = None  # User overrides from @mention syntax (for skip-permission logic)
+    user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax (for skip-permission logic)
+    skill_config_dict: Optional[dict[str, Any]] = None,
 ) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]]:
     """
     Handles the main processing of an AI skill request after preprocessing.
@@ -3673,6 +3674,7 @@ async def handle_main_processing(
                                 cache_service=cache_service,
                                 async_task_id=async_task_id,
                                 request_data=request_data,
+                                skill_config_dict=skill_config_dict,
                                 app_id=app_id,
                                 skill_id=skill_id,
                                 tool_name=tool_name,

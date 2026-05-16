@@ -68,7 +68,7 @@
   {id}
   appId="social_media"
   skillId="search"
-  skillIconName="socialmedia"
+  skillIconName="search"
   status={localStatus}
   skillName="Search"
   {isMobile}
