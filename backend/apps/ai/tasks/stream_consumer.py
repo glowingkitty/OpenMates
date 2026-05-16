@@ -48,6 +48,7 @@ from backend.shared.python_utils.url_normalizer import (
     extract_urls_from_content,
     sanitize_text_urls_with_safeguard,
 )
+from backend.shared.python_utils.markdown_links import iter_markdown_links
 
 logger = logging.getLogger(__name__)
 
@@ -4381,9 +4382,11 @@ async def _consume_main_processing_stream(
     # refs against Wikipedia; replace any (wiki:BadTitle) with plain text so the user
     # never sees a clickable link that 404s. Valid links pass through unchanged and
     # render as wiki inline nodes on the frontend.
-    import re as _re_wiki
-    _wiki_pattern = _re_wiki.compile(r"\[([^\]]+)\]\(wiki:([^)]+)\)")
-    _matches = _wiki_pattern.findall(aggregated_response)
+    _wiki_links = [
+        link for link in iter_markdown_links(aggregated_response)
+        if link.href.startswith("wiki:")
+    ]
+    _matches = [(link.label, link.href.removeprefix("wiki:")) for link in _wiki_links]
     if _matches:
         _unique_titles = list({title for _text, title in _matches})
         logger.info(
@@ -4400,11 +4403,19 @@ async def _consume_main_processing_stream(
                     f"{log_prefix} Stripping {len(_invalid_titles)} invalid wiki link(s): "
                     f"{_invalid_titles[:5]}{'...' if len(_invalid_titles) > 5 else ''}"
                 )
-                # Replace [text](wiki:BadTitle) with just `text`
-                def _strip_invalid(m: _re_wiki.Match) -> str:
-                    text, title = m.group(1), m.group(2)
-                    return text if title in _invalid_titles else m.group(0)
-                _corrected = _wiki_pattern.sub(_strip_invalid, aggregated_response)
+                # Replace [text](wiki:BadTitle) with just `text`.
+                _parts = []
+                _cursor = 0
+                _invalid_title_set = set(_invalid_titles)
+                for _link in _wiki_links:
+                    _title = _link.href.removeprefix("wiki:")
+                    if _title not in _invalid_title_set:
+                        continue
+                    _parts.append(aggregated_response[_cursor:_link.full_start])
+                    _parts.append(_link.label)
+                    _cursor = _link.full_end
+                _parts.append(aggregated_response[_cursor:])
+                _corrected = "".join(_parts)
                 if _corrected != aggregated_response:
                     aggregated_response = _corrected
                     final_response_chunks = [_corrected]
