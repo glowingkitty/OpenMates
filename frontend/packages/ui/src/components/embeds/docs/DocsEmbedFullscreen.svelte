@@ -690,6 +690,7 @@ ${downloadHtmlContent}
   showPIIToggle={hasPII}
   piiRevealed={piiRevealed}
   onTogglePII={togglePII}
+  skipInitialScrollReset={!!highlightQuoteText}
 >
   {#snippet content()}
     {#if Object.keys(displayedArtifactPageUrls).length > 0}

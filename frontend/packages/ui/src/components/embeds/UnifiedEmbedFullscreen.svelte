@@ -253,6 +253,12 @@
      */
     onShowChat?: () => void;
 
+    /**
+     * Skip the defensive initial scroll reset when a deep link target is going
+     * to scroll itself into view after mount.
+     */
+    skipInitialScrollReset?: boolean;
+
     /* ============================================
        PII Toggle Props (for sensitive data masking)
        ============================================ */
@@ -327,6 +333,7 @@
     // Chat toggle props (for side-by-side mode)
     showChatButton = false,
     onShowChat,
+    skipInitialScrollReset = false,
     // PII toggle props (for sensitive data masking)
     showPIIToggle = false,
     piiRevealed = false,
@@ -843,7 +850,7 @@
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         isAnimatingIn = true;
-        if (contentAreaElement) {
+        if (contentAreaElement && !skipInitialScrollReset) {
           contentAreaElement.scrollTop = 0;
         }
       });
@@ -1007,6 +1014,9 @@
 
         textNode.parentNode?.replaceChild(fragment, textNode);
       }
+
+      const firstMatch = el.querySelector('mark.search-match') as HTMLElement | null;
+      firstMatch?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }
 
     if (!container) return;

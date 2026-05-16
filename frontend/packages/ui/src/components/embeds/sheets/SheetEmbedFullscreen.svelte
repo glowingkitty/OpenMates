@@ -394,6 +394,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  skipInitialScrollReset={!!focusSheetRange}
 >
   {#snippet content()}
     <div class="sheet-fullscreen">

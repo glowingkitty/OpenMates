@@ -148,6 +148,7 @@
   showPIIToggle={hasPII}
   piiRevealed={piiRevealed}
   onTogglePII={togglePII}
+  skipInitialScrollReset={!!data.highlightQuoteText}
 >
   {#snippet embedHeaderCta()}
     <EmbedHeaderCtaButton label={$text('embeds.mail.open_mail_client')} onclick={handleOpenMailClient} />

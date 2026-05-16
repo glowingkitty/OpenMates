@@ -12,7 +12,7 @@
 -->
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   // Import highlight.js theme - using github-dark for dark mode compatibility
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
@@ -169,7 +169,8 @@
    * $codeLineHighlightStore uses Svelte's auto-subscribe rune syntax — it
    * reactively re-evaluates anywhere it is referenced in this component.
    */
-  let highlightRange = $derived($codeLineHighlightStore);
+  let focusLineRange = $derived(data.focusLineRange ?? null);
+  let highlightRange = $derived($codeLineHighlightStore ?? focusLineRange);
 
   /**
    * Reference to the code lines container — used to query-select the first
@@ -181,13 +182,16 @@
    * Scroll the first highlighted line into view (centered).
    * Safe to call before the DOM is rendered — does nothing if container is null.
    */
-  function scrollToHighlightedLine() {
+  async function scrollToHighlightedLine() {
     if (!codeLinesContainer || !highlightRange) return;
+    await tick();
     const startLine = codeLinesContainer.querySelector(
       `.code-line[data-line="${highlightRange.start}"]`
     ) as HTMLElement | null;
     if (startLine) {
-      startLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      requestAnimationFrame(() => {
+        startLine.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      });
     }
   }
 
@@ -331,6 +335,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  skipInitialScrollReset={!!highlightRange}
 >
   {#snippet content()}
     {#if renderCodeContent}
