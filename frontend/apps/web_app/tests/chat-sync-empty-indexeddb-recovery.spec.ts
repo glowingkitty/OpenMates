@@ -78,6 +78,7 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 
 					const messageType = parsed?.type ?? parsed?.event;
 					const blockedSyncCompletionTypes = new Set([
+						'initial_sync_response',
 						'cache_primed',
 						'phase_1_last_chat_ready',
 						'phase_1b_chat_content_ready',
