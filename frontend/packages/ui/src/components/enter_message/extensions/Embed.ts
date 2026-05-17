@@ -186,6 +186,46 @@ export const Embed = Node.create<EmbedOptions>({
           return { "data-title": attributes.title };
         },
       },
+      receiver: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-receiver"),
+        renderHTML: (attributes) => {
+          if (!attributes.receiver) {
+            return {};
+          }
+          return { "data-receiver": attributes.receiver };
+        },
+      },
+      subject: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-subject"),
+        renderHTML: (attributes) => {
+          if (!attributes.subject) {
+            return {};
+          }
+          return { "data-subject": attributes.subject };
+        },
+      },
+      content: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-content"),
+        renderHTML: (attributes) => {
+          if (!attributes.content) {
+            return {};
+          }
+          return { "data-content": attributes.content };
+        },
+      },
+      footer: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-footer"),
+        renderHTML: (attributes) => {
+          if (!attributes.footer) {
+            return {};
+          }
+          return { "data-footer": attributes.footer };
+        },
+      },
       url: {
         default: null,
         parseHTML: (element) => element.getAttribute("data-url"),
