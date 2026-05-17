@@ -118,4 +118,23 @@ describe('EmbedStore uploaded file search metadata', () => {
     expect(names).toContain('Code file');
     expect(names).toContain('upload_to_api_video.sh');
   });
+
+  it('does not treat web-search documents as uploaded-file candidates', () => {
+    const store = new EmbedStore();
+    const entry: EmbedStoreEntry = {
+      contentRef: 'embed:web-result-1',
+      type: 'docs-doc',
+      createdAt: 1,
+      updatedAt: 1,
+      embed_id: 'web-result-1',
+      encrypted_content: '<encrypted>',
+      metadata: { title: 'Woher stammt Japans Name? | Blog japanwelt.de' },
+    };
+
+    const hasEvidence = (store as unknown as {
+      hasUploadSearchEvidence(entry: EmbedStoreEntry): boolean;
+    }).hasUploadSearchEvidence(entry);
+
+    expect(hasEvidence).toBe(false);
+  });
 });

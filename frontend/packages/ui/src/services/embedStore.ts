@@ -64,8 +64,6 @@ const FILE_LIKE_EMBED_TYPES = new Set([
   "images-image",
   "code",
   "code-code",
-  "document",
-  "docs-doc",
   "audio",
   "recording",
 ]);
@@ -207,7 +205,7 @@ function getFileNamesFromDecodedContent(decoded: unknown): string[] {
   const names: string[] = [];
   if (!decoded || typeof decoded !== "object") return names;
   const record = decoded as Record<string, unknown>;
-  for (const key of ["filename", "file_name", "file_path", "original_filename", "title"]) {
+  for (const key of ["filename", "file_name", "file_path", "original_filename"]) {
     addSearchableName(names, record[key]);
   }
   return names;
@@ -255,9 +253,12 @@ export class EmbedStore {
     if (nodeType === "pdf") return "PDF";
     if (nodeType === "image") return "Image";
     if (nodeType === "code-code") return "Code file";
-    if (nodeType === "docs-doc") return "Document";
     if (nodeType === "recording") return "Audio";
     return "Uploaded file";
+  }
+
+  private hasUploadSearchEvidence(entry: EmbedStoreEntry): boolean {
+    return this.isFileLikeType(entry.type) || !!entry.file_path;
   }
 
   private async getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]> {
@@ -328,13 +329,7 @@ export class EmbedStore {
 
       const candidates = allEntries
         .filter((entry) => entry?.contentRef && entry.status !== "error" && entry.status !== "cancelled")
-        .filter(
-          (entry) =>
-            this.isFileLikeType(entry.type) ||
-            !!entry.file_path ||
-            !!entry.metadata ||
-            !!entry.encrypted_content,
-        )
+        .filter((entry) => this.hasUploadSearchEvidence(entry))
         .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
 
       const results: UploadedFileSearchResult[] = [];
@@ -357,7 +352,7 @@ export class EmbedStore {
         const nodeType = this.inferNodeTypeFromFileName(title, entry.type || "file");
         results.push({
           embedId,
-          contentRef: `embed:${embedId}`,
+          contentRef: entry.contentRef,
           title,
           subtitle: this.getFileSubtitle(nodeType),
           type: entry.type || "file",
