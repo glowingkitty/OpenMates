@@ -142,7 +142,17 @@
   const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
-  const imageBubbles = $derived(!hasHeaderMedia && Array.isArray(headerImageBubbles) ? headerImageBubbles.slice(0, 2) : []);
+  const IMAGE_BUBBLE_CYCLE_MS = 6500;
+  let imageBubbleCycleIndex = $state(0);
+  let imageBubbleCycleInterval: ReturnType<typeof setInterval> | null = null;
+  const imageBubbles = $derived.by(() => {
+    if (hasHeaderMedia || !Array.isArray(headerImageBubbles)) return [];
+    if (headerImageBubbles.length <= 2) return headerImageBubbles;
+
+    const leftIndex = imageBubbleCycleIndex % headerImageBubbles.length;
+    const rightIndex = (leftIndex + Math.ceil(headerImageBubbles.length / 2)) % headerImageBubbles.length;
+    return [headerImageBubbles[leftIndex], headerImageBubbles[rightIndex]];
+  });
   // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
   const introTeaserCopyLines = $derived([
     $text('demo_chats.for_everyone.teaser_line1'),
@@ -268,6 +278,14 @@
 
   onMount(() => {
     if (browser) document.addEventListener('fullscreenchange', handleFullscreenChange);
+    if (browser) {
+      imageBubbleCycleInterval = setInterval(() => {
+        const bubbleCount = !hasHeaderMedia && Array.isArray(headerImageBubbles) ? headerImageBubbles.length : 0;
+        if (bubbleCount > 2) {
+          imageBubbleCycleIndex = (imageBubbleCycleIndex + 1) % bubbleCount;
+        }
+      }, IMAGE_BUBBLE_CYCLE_MS);
+    }
     if (autoplayVideo && videoMp4Url) {
       isVideoActive = true;
     }
@@ -275,6 +293,21 @@
 
   onDestroy(() => {
     if (browser) document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    if (imageBubbleCycleInterval !== null) {
+      clearInterval(imageBubbleCycleInterval);
+      imageBubbleCycleInterval = null;
+    }
+  });
+
+  $effect(() => {
+    const bubbleCount = Array.isArray(headerImageBubbles) ? headerImageBubbles.length : 0;
+    if (bubbleCount === 0) {
+      imageBubbleCycleIndex = 0;
+      return;
+    }
+    if (imageBubbleCycleIndex >= bubbleCount) {
+      imageBubbleCycleIndex = imageBubbleCycleIndex % bubbleCount;
+    }
   });
 
   $effect(() => {

@@ -262,7 +262,7 @@
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
-  const HEADER_IMAGE_BUBBLE_LIMIT = 2;
+  const HEADER_IMAGE_BUBBLE_LIMIT = 8;
 
   function normalizeEmbedIds(embedIds: unknown): string[] {
     if (typeof embedIds === 'string') {
