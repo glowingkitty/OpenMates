@@ -4368,7 +4368,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     $effect(() => {
         if (!isPrivacyVideoDemoMode() || !currentChat?.chat_id) return;
-        const targetContent = piiRevealed ? privacyVideoDemoAssistantResponse : privacyVideoDemoAssistantHiddenResponse;
+        const targetContent = privacyVideoDemoAssistantHiddenResponse;
         let changed = false;
         const nextMessages = currentMessages.map((currentMessage) => {
             if (currentMessage.role !== 'assistant' || currentMessage.content !== privacyVideoDemoAssistantResponse && currentMessage.content !== privacyVideoDemoAssistantHiddenResponse) {
