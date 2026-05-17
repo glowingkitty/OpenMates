@@ -195,17 +195,22 @@ async function decodeToonContentSilently(
   }
 }
 
-function getFileNameFromDecodedContent(decoded: unknown): string | null {
-  if (!decoded || typeof decoded !== "object") return null;
+function addSearchableName(names: string[], value: unknown): void {
+  if (typeof value !== "string" || !value.trim()) return;
+  const trimmed = value.trim();
+  const basename = trimmed.split("/").pop() || trimmed;
+  if (!names.includes(basename)) names.push(basename);
+  if (!names.includes(trimmed)) names.push(trimmed);
+}
+
+function getFileNamesFromDecodedContent(decoded: unknown): string[] {
+  const names: string[] = [];
+  if (!decoded || typeof decoded !== "object") return names;
   const record = decoded as Record<string, unknown>;
   for (const key of ["filename", "file_name", "file_path", "original_filename", "title"]) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim()) {
-      const trimmed = value.trim();
-      return trimmed.split("/").pop() || trimmed;
-    }
+    addSearchableName(names, record[key]);
   }
-  return null;
+  return names;
 }
 
 /**
@@ -255,34 +260,35 @@ export class EmbedStore {
     return "Uploaded file";
   }
 
-  private async getSearchableFileName(entry: EmbedStoreEntry): Promise<string | null> {
-    if (typeof entry.file_path === "string" && entry.file_path.trim()) {
-      return entry.file_path.trim().split("/").pop() || entry.file_path.trim();
-    }
+  private async getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]> {
+    const names: string[] = [];
+    addSearchableName(names, entry.file_path);
 
     const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name ?? entry.metadata?.title;
-    if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
+    addSearchableName(names, metadataName);
 
     if (entry.encrypted_content) {
       const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
-      if (!embedId) return null;
+      if (!embedId) return names;
 
       try {
         const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
-        if (!embedKey) return null;
+        if (!embedKey) return names;
 
         const decryptedContent = await decryptWithEmbedKey(
           entry.encrypted_content,
           embedKey,
         );
         const decoded = await decodeToonContentSilently(decryptedContent);
-        return getFileNameFromDecodedContent(decoded);
+        for (const name of getFileNamesFromDecodedContent(decoded)) {
+          addSearchableName(names, name);
+        }
       } catch {
-        return null;
+        return names;
       }
     }
 
-    return null;
+    return names;
   }
 
   async searchUploadedFiles(
@@ -313,10 +319,11 @@ export class EmbedStore {
         const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
         if (!embedId || seenEmbedIds.has(embedId)) continue;
 
-        const title = await this.getSearchableFileName(entry);
+        const searchableNames = await this.getSearchableFileNames(entry);
+        const title = searchableNames[0];
         if (!title) continue;
 
-        const haystack = [title, entry.file_path, entry.type]
+        const haystack = [...searchableNames, entry.file_path, entry.type]
           .filter((value): value is string => typeof value === "string" && value.length > 0)
           .join(" ")
           .toLowerCase();

@@ -82,14 +82,40 @@ describe('EmbedStore uploaded file search metadata', () => {
       hashed_chat_id: 'hashed-chat',
     };
 
-    const title = await (store as unknown as {
-      getSearchableFileName(entry: EmbedStoreEntry): Promise<string | null>;
-    }).getSearchableFileName(entry);
+    const names = await (store as unknown as {
+      getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]>;
+    }).getSearchableFileNames(entry);
 
-    expect(title).toBe('example.ts');
+    expect(names).toContain('example.ts');
     expect(cryptoService.decryptWithEmbedKey).toHaveBeenCalledWith(
       '<encrypted>',
       embedKey,
     );
+  });
+
+  it('keeps decrypted filename searchable when generic metadata exists', async () => {
+    const store = new EmbedStore();
+    vi.spyOn(store, 'getEmbedKey').mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
+    vi.spyOn(cryptoService, 'decryptWithEmbedKey').mockResolvedValue(
+      JSON.stringify({ filename: 'upload_to_api_video.sh' }),
+    );
+
+    const entry: EmbedStoreEntry = {
+      contentRef: 'embed:code-file-1',
+      type: 'code-code',
+      createdAt: 1,
+      updatedAt: 1,
+      embed_id: 'code-file-1',
+      encrypted_content: '<encrypted>',
+      hashed_chat_id: 'hashed-chat',
+      metadata: { title: 'Code file' },
+    };
+
+    const names = await (store as unknown as {
+      getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]>;
+    }).getSearchableFileNames(entry);
+
+    expect(names).toContain('Code file');
+    expect(names).toContain('upload_to_api_video.sh');
   });
 });
