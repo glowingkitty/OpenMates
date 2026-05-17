@@ -3442,10 +3442,10 @@ export class GroupRenderer implements EmbedRenderer {
     decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
-    const receiver = decodedContent?.receiver || "";
-    const subject = decodedContent?.subject || "";
-    const mailContent = decodedContent?.content || "";
-    const footer = decodedContent?.footer || "";
+    const receiver = decodedContent?.receiver || item.receiver || "";
+    const subject = decodedContent?.subject || item.subject || "";
+    const mailContent = decodedContent?.content || item.content || "";
+    const footer = decodedContent?.footer || item.footer || "";
     const status = (decodedContent?.status ||
       embedData?.status ||
       item.status ||

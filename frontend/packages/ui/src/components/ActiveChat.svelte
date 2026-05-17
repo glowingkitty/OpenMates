@@ -83,7 +83,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
-    import { isPrivacyVideoDemoMode, privacyVideoDemoAssistantHiddenResponse, privacyVideoDemoAssistantResponse } from '../demoMode';
+    import { isPrivacyVideoDemoMode, privacyVideoDemoAssistantHiddenResponse, privacyVideoDemoAssistantResponse, privacyVideoDemoChatCategory, privacyVideoDemoChatIcon, privacyVideoDemoChatSummary, privacyVideoDemoChatTitle } from '../demoMode';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -5490,7 +5490,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
             // Non-authenticated users can send set_active_chat for demo chats
-            if (!$authStore.isAuthenticated || !$isInSignupProcess) {
+            if (!isPrivacyVideoDemoMode() && (!$authStore.isAuthenticated || !$isInSignupProcess)) {
                 chatSyncService.sendSetActiveChat(currentChat.chat_id);
             } else {
                 console.debug('[ActiveChat] Authenticated user is in signup flow - skipping set_active_chat for new chat to preserve last_opened path');
@@ -5584,6 +5584,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             activeChatDecryptedIcon = null;
             activeChatDecryptedSummary = null;
         }
+
+        if (isPrivacyVideoDemoMode() && message.role === 'user') {
+            isNewChatProcessing = false;
+            isNewChatGeneratingTitle = false;
+            activeChatDecryptedTitle = privacyVideoDemoChatTitle;
+            activeChatDecryptedCategory = privacyVideoDemoChatCategory;
+            activeChatDecryptedIcon = privacyVideoDemoChatIcon;
+            activeChatDecryptedSummary = privacyVideoDemoChatSummary;
+            if (currentChat) {
+                currentChat = {
+                    ...currentChat,
+                    title: privacyVideoDemoChatTitle,
+                    title_v: 1,
+                    category: privacyVideoDemoChatCategory,
+                    icon: privacyVideoDemoChatIcon,
+                    chat_summary: privacyVideoDemoChatSummary,
+                    waiting_for_metadata: false,
+                    processing_metadata: false,
+                };
+            }
+        }
         
         // Start the centered status indicator immediately with "Sending..."
         processingPhase = {
@@ -5602,6 +5623,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showWelcome = false;
 
         if (isPrivacyVideoDemoMode() && message.role === 'user') {
+            processingPhase = {
+                phase: 'typing',
+                statusLines: ['Writing with private placeholders', 'OpenMates Local Privacy Demo'],
+                showIcon: true,
+                completedSteps: [
+                    { step: 'title_generated', skipped: false, data: { title: privacyVideoDemoChatTitle } },
+                    { step: 'mate_selected', skipped: false, data: { mate_name: 'Writing Mate', mate_category: privacyVideoDemoChatCategory } },
+                ],
+            };
+            currentTypingStatus = {
+                isTyping: true,
+                category: privacyVideoDemoChatCategory,
+                chatId: message.chat_id,
+                userMessageId: message.message_id,
+                aiMessageId: null,
+            };
+            currentMessages = currentMessages.map((currentMessage) => (
+                currentMessage.message_id === message.message_id
+                    ? { ...currentMessage, status: 'synced' }
+                    : currentMessage
+            ));
+            chatHistoryRef?.updateMessages(currentMessages);
+
             const demoAssistantMessage: ChatMessageModel = {
                 message_id: `${message.chat_id.slice(-10)}-${crypto.randomUUID()}`,
                 chat_id: message.chat_id,
@@ -5615,12 +5659,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 pii_mappings: message.pii_mappings,
             };
 
+            const firstParagraph = privacyVideoDemoAssistantHiddenResponse.split('\n\n')[0];
+
             setTimeout(() => {
                 if (currentChat?.chat_id !== message.chat_id) return;
-                currentMessages = [...currentMessages, demoAssistantMessage];
+                currentMessages = [...currentMessages, { ...demoAssistantMessage, content: firstParagraph }];
                 processingPhase = null;
                 chatHistoryRef?.updateMessages(currentMessages);
-            }, 900);
+            }, 1100);
+
+            setTimeout(() => {
+                if (currentChat?.chat_id !== message.chat_id) return;
+                currentMessages = currentMessages.map((currentMessage) => (
+                    currentMessage.message_id === demoAssistantMessage.message_id
+                        ? { ...currentMessage, content: privacyVideoDemoAssistantHiddenResponse }
+                        : currentMessage
+                ));
+                chatHistoryRef?.updateMessages(currentMessages);
+            }, 2200);
 
             setTimeout(() => {
                 if (currentChat?.chat_id !== message.chat_id) return;
@@ -5629,8 +5685,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         ? { ...currentMessage, status: 'synced' }
                         : currentMessage
                 ));
+                currentTypingStatus = null;
                 chatHistoryRef?.updateMessages(currentMessages);
-            }, 1900);
+            }, 3600);
         }
 
         // The message is already saved to DB by sendHandlers.ts (or chatSyncService for the message part)

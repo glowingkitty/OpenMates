@@ -36,7 +36,7 @@ import {
   type PersonalDataEntry,
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
-import { isPrivacyVideoDemoMode } from "../../../demoMode";
+import { isPrivacyVideoDemoMode, privacyVideoDemoChatCategory, privacyVideoDemoChatIcon, privacyVideoDemoChatSummary, privacyVideoDemoChatTitle } from "../../../demoMode";
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -921,6 +921,7 @@ export async function handleSend(
             id: entry.id,
             textToHide: entry.textToHide,
             replaceWith: entry.replaceWith,
+            type: entry.type === "address" ? "ADDRESS" : undefined,
           };
           // For address entries, include individual address lines as additional search texts
           if (entry.type === "address" && entry.addressLines) {
@@ -1170,7 +1171,7 @@ export async function handleSend(
         chat_id: chatIdToUse,
         encrypted_title: null,
         messages_v: 1, // A new chat with its first message starts at version 1
-        title_v: 0, // Will be incremented to 1 when first title is set
+        title_v: isPrivacyVideoDemoMode() ? 1 : 0, // Will be incremented to 1 when first title is set
         draft_v: 0,
         encrypted_draft_md: null,
         encrypted_draft_preview: null,
@@ -1179,10 +1180,18 @@ export async function handleSend(
         created_at: now,
         updated_at: now,
         processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
-        waiting_for_metadata: !isIncognitoEnabled, // Incognito chats don't get metadata from server
+        waiting_for_metadata: isPrivacyVideoDemoMode() ? false : !isIncognitoEnabled, // Incognito chats don't get metadata from server
         is_incognito: isIncognitoEnabled,
         source_demo_id: sourceDemoId, // Track source for duplication flow
       };
+
+      if (isPrivacyVideoDemoMode()) {
+        newChatData.title = privacyVideoDemoChatTitle;
+        newChatData.category = privacyVideoDemoChatCategory;
+        newChatData.icon = privacyVideoDemoChatIcon;
+        newChatData.chat_summary = privacyVideoDemoChatSummary;
+        newChatData.processing_metadata = false;
+      }
 
       // Duplication Flow: If this chat is from a demo, copy history messages
       if (sourceDemoId) {
@@ -1707,6 +1716,7 @@ export async function executeDeferredSend(
             id: entry.id,
             textToHide: entry.textToHide,
             replaceWith: entry.replaceWith,
+            type: entry.type === "address" ? "ADDRESS" : undefined,
           };
           if (entry.type === "address" && entry.addressLines) {
             const additionalTexts: string[] = [];

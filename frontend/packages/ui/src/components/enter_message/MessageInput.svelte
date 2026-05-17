@@ -30,6 +30,7 @@
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
+    import { isPrivacyVideoDemoMode } from '../../demoMode';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -382,7 +383,7 @@
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
-    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0);
+    let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !isPrivacyVideoDemoMode());
 
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
@@ -2199,6 +2200,7 @@
                     id: entry.id,
                     textToHide: entry.textToHide,
                     replaceWith: entry.replaceWith,
+                    type: entry.type === 'address' ? 'ADDRESS' : undefined,
                 };
                 // For address entries, include individual address lines as additional search texts
                 if (entry.type === 'address' && entry.addressLines) {

@@ -57,6 +57,10 @@ export interface EmbedNodeAttributes {
   rows?: number;
   cols?: number;
   title?: string;
+  receiver?: string;
+  subject?: string;
+  content?: string;
+  footer?: string;
   url?: string;
   description?: string;
   favicon?: string;

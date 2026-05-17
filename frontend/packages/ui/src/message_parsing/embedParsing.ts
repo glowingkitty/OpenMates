@@ -270,6 +270,12 @@ export function parseEmbedNodes(
                 embedAttrs.pageCount = embedRef.page_count;
               }
 
+              for (const key of ["receiver", "subject", "content", "footer"] as const) {
+                if (typeof embedRef[key] === "string") {
+                  embedAttrs[key] = embedRef[key];
+                }
+              }
+
               embedNodes.push(embedAttrs);
               console.debug(
                 "[parseEmbedNodes] Created embed from JSON reference:",
