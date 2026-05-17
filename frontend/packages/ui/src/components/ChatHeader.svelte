@@ -142,17 +142,58 @@
   const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
-  const IMAGE_BUBBLE_CYCLE_MS = 6500;
+  const IMAGE_BUBBLE_CYCLE_MS = 8000;
+  const IMAGE_BUBBLE_FADE_MS = 1000;
   let imageBubbleCycleIndex = $state(0);
   let imageBubbleCycleInterval: ReturnType<typeof setInterval> | null = null;
-  const imageBubbles = $derived.by(() => {
+  let imageBubbleFadeTimeout: ReturnType<typeof setTimeout> | null = null;
+  let previousImageBubbles = $state<Array<{
+    imageUrl: string;
+    parentEmbedId: string;
+    childEmbedId: string;
+    title?: string;
+  }> | null>(null);
+  let isImageBubbleFading = $state(false);
+
+  function getImageBubblePair(index: number) {
     if (hasHeaderMedia || !Array.isArray(headerImageBubbles)) return [];
     if (headerImageBubbles.length <= 2) return headerImageBubbles;
 
-    const leftIndex = imageBubbleCycleIndex % headerImageBubbles.length;
+    const leftIndex = index % headerImageBubbles.length;
     const rightIndex = (leftIndex + Math.ceil(headerImageBubbles.length / 2)) % headerImageBubbles.length;
     return [headerImageBubbles[leftIndex], headerImageBubbles[rightIndex]];
-  });
+  }
+
+  const imageBubbles = $derived.by(() => getImageBubblePair(imageBubbleCycleIndex));
+
+  function advanceImageBubbleCycle() {
+    const bubbleCount = !hasHeaderMedia && Array.isArray(headerImageBubbles) ? headerImageBubbles.length : 0;
+    if (bubbleCount <= 2) return;
+
+    previousImageBubbles = getImageBubblePair(imageBubbleCycleIndex);
+    isImageBubbleFading = true;
+    imageBubbleCycleIndex = (imageBubbleCycleIndex + 1) % bubbleCount;
+
+    if (imageBubbleFadeTimeout !== null) clearTimeout(imageBubbleFadeTimeout);
+    imageBubbleFadeTimeout = setTimeout(() => {
+      isImageBubbleFading = false;
+      previousImageBubbles = null;
+      imageBubbleFadeTimeout = null;
+    }, IMAGE_BUBBLE_FADE_MS);
+  }
+
+  function getPreviousImageBubble(index: number) {
+    return previousImageBubbles?.[index] ?? null;
+  }
+
+  function shouldShowPreviousImage(index: number, currentBubble: { childEmbedId: string }) {
+    const previousBubble = getPreviousImageBubble(index);
+    return isImageBubbleFading && !!previousBubble && previousBubble.childEmbedId !== currentBubble.childEmbedId;
+  }
+
+  function getImageBubbleTestId(index: number) {
+    return index === 0 ? 'chat-header-image-bubble-left' : 'chat-header-image-bubble-right';
+  }
   // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
   const introTeaserCopyLines = $derived([
     $text('demo_chats.for_everyone.teaser_line1'),
@@ -279,12 +320,7 @@
   onMount(() => {
     if (browser) document.addEventListener('fullscreenchange', handleFullscreenChange);
     if (browser) {
-      imageBubbleCycleInterval = setInterval(() => {
-        const bubbleCount = !hasHeaderMedia && Array.isArray(headerImageBubbles) ? headerImageBubbles.length : 0;
-        if (bubbleCount > 2) {
-          imageBubbleCycleIndex = (imageBubbleCycleIndex + 1) % bubbleCount;
-        }
-      }, IMAGE_BUBBLE_CYCLE_MS);
+      imageBubbleCycleInterval = setInterval(advanceImageBubbleCycle, IMAGE_BUBBLE_CYCLE_MS);
     }
     if (autoplayVideo && videoMp4Url) {
       isVideoActive = true;
@@ -297,12 +333,18 @@
       clearInterval(imageBubbleCycleInterval);
       imageBubbleCycleInterval = null;
     }
+    if (imageBubbleFadeTimeout !== null) {
+      clearTimeout(imageBubbleFadeTimeout);
+      imageBubbleFadeTimeout = null;
+    }
   });
 
   $effect(() => {
     const bubbleCount = Array.isArray(headerImageBubbles) ? headerImageBubbles.length : 0;
     if (bubbleCount === 0) {
       imageBubbleCycleIndex = 0;
+      previousImageBubbles = null;
+      isImageBubbleFading = false;
       return;
     }
     if (imageBubbleCycleIndex >= bubbleCount) {
@@ -824,17 +866,35 @@
 
       <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
       {#if imageBubbles.length > 0}
-        {#each imageBubbles as bubble, index (bubble.childEmbedId)}
+        {#each imageBubbles as bubble, index}
           <button
             class="image-bubble"
             class:image-bubble-left={index === 0}
             class:image-bubble-right={index !== 0}
             type="button"
             aria-label={bubble.title || $text('embeds.image_search.open_image')}
-            data-testid="chat-header-image-bubble"
+            data-testid={getImageBubbleTestId(index)}
+            style={`--image-bubble-fade-ms: ${IMAGE_BUBBLE_FADE_MS}ms;`}
             onclick={(e) => handleImageBubbleClick(e, bubble)}
           >
-            <img src={bubble.imageUrl} alt="" loading="eager" decoding="async" />
+            {#if shouldShowPreviousImage(index, bubble)}
+              <img
+                class="image-bubble-img image-bubble-img-previous"
+                src={getPreviousImageBubble(index)?.imageUrl}
+                alt=""
+                loading="eager"
+                decoding="async"
+              />
+            {/if}
+            {#key bubble.childEmbedId}
+              <img
+                class="image-bubble-img image-bubble-img-current"
+                src={bubble.imageUrl}
+                alt=""
+                loading="eager"
+                decoding="async"
+              />
+            {/key}
           </button>
         {/each}
       {:else if isIntroTeaserChat}
@@ -1473,13 +1533,35 @@
       inset 0 0 76px rgba(255, 255, 255, 0.1);
   }
 
-  .image-bubble img {
+  .image-bubble-img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
     filter: saturate(1.12) contrast(1.08);
     transform: scale(1.04);
+  }
+
+  .image-bubble-img-current {
+    z-index: 1;
+    animation: imageBubbleFadeIn var(--image-bubble-fade-ms, 1000ms) ease-in-out both;
+  }
+
+  .image-bubble-img-previous {
+    z-index: 0;
+    animation: imageBubbleFadeOut var(--image-bubble-fade-ms, 1000ms) ease-in-out both;
+  }
+
+  @keyframes imageBubbleFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes imageBubbleFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
   }
 
   .image-bubble-left {
