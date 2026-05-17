@@ -20,11 +20,11 @@ test('record privacy video demo flow', async ({ browser }: { browser: any }) => 
 
 	const context = await browser.newContext({
 		colorScheme: 'dark',
-		deviceScaleFactor: 2,
+		deviceScaleFactor: 1,
 		viewport: { width: 1440, height: 900 },
 		recordVideo: {
 			dir: path.dirname(CAPTURE_PATH),
-			size: { width: 2880, height: 1800 }
+			size: { width: 1440, height: 900 }
 		}
 	});
 	const recordingStartedAt = Date.now();
@@ -37,23 +37,29 @@ test('record privacy video demo flow', async ({ browser }: { browser: any }) => 
 
 		const installDemoCursor = () => {
 			if (document.getElementById('privacy-video-cursor')) return;
-			const cursor = document.createElement('div');
+			const cursor = document.createElement('img');
 			cursor.id = 'privacy-video-cursor';
+			cursor.setAttribute('alt', 'Demo mouse cursor');
+			cursor.setAttribute('data-testid', 'privacy-video-cursor');
+			cursor.setAttribute(
+				'src',
+				'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="44" viewBox="0 0 32 44"><path d="M3 3v31.2l8.7-8.4 5.5 14.4 6.1-2.4-5.5-14.1h12.1L3 3z" fill="white" stroke="black" stroke-width="2.5" stroke-linejoin="round"/><path d="M11.7 25.8l5.5 14.4 6.1-2.4-5.5-14.1" fill="none" stroke="white" stroke-width="1.2"/></svg>'
+			);
 			cursor.style.cssText = [
 				'position: fixed',
 				'left: 720px',
 				'top: 450px',
-				'width: 30px',
+				'width: 28px',
 				'height: 38px',
-				'background: #ffffff',
-				'clip-path: polygon(0 0, 0 32px, 9px 24px, 15px 38px, 21px 35px, 15px 22px, 30px 22px)',
-				'filter: drop-shadow(0 6px 10px rgba(0,0,0,0.42)) drop-shadow(0 0 0 #ff553b)',
+				'filter: drop-shadow(0 5px 9px rgba(0,0,0,0.55))',
 				'pointer-events: none',
 				'z-index: 2147483647',
-				'transform: translate(-4px, -4px) scale(1)',
+				'opacity: 1',
+				'display: block',
+				'transform: translate(-2px, -2px) scale(1)',
 				'transition: transform 120ms ease'
 			].join(';');
-			document.documentElement.appendChild(cursor);
+			document.body.appendChild(cursor);
 
 			window.addEventListener(
 				'mousemove',
@@ -64,10 +70,10 @@ test('record privacy video demo flow', async ({ browser }: { browser: any }) => 
 				{ passive: true }
 			);
 			window.addEventListener('mousedown', () => {
-				cursor.style.transform = 'translate(-4px, -4px) scale(0.82)';
+				cursor.style.transform = 'translate(-2px, -2px) scale(0.86)';
 			});
 			window.addEventListener('mouseup', () => {
-				cursor.style.transform = 'translate(-4px, -4px) scale(1)';
+				cursor.style.transform = 'translate(-2px, -2px) scale(1)';
 			});
 		};
 
@@ -126,9 +132,12 @@ test('record privacy video demo flow', async ({ browser }: { browser: any }) => 
 
 	const assistantMessage = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage).toBeVisible({ timeout: 10000 });
+	await expect(assistantMessage).toContainText('I drafted the email', { timeout: 10000 });
+	await expect(page.getByText(/George is typing/i)).toBeVisible({ timeout: 10000 });
 	await expect(assistantMessage).toContainText('[PHONE_1_111]', { timeout: 10000 });
 	await expect(page.getByText('Landlord repair email')).toBeVisible({ timeout: 10000 });
-	await page.waitForTimeout(900);
+	await page.waitForTimeout(2200);
+	await expect(page.getByText(/George is typing/i)).toHaveCount(0, { timeout: 10000 });
 
 	const piiToggle = page.getByTestId('chat-pii-toggle');
 	await expect(piiToggle).toBeVisible({ timeout: 10000 });

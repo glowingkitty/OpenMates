@@ -83,7 +83,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
-    import { isPrivacyVideoDemoMode, privacyVideoDemoAssistantHiddenResponse, privacyVideoDemoAssistantResponse, privacyVideoDemoChatCategory, privacyVideoDemoChatIcon, privacyVideoDemoChatSummary, privacyVideoDemoChatTitle } from '../demoMode';
+    import { isPrivacyVideoDemoMode, privacyVideoDemoAssistantHiddenResponse, privacyVideoDemoAssistantIntro, privacyVideoDemoAssistantResponse, privacyVideoDemoChatCategory, privacyVideoDemoChatIcon, privacyVideoDemoChatSummary, privacyVideoDemoChatTitle } from '../demoMode';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -5629,7 +5629,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 showIcon: true,
                 completedSteps: [
                     { step: 'title_generated', skipped: false, data: { title: privacyVideoDemoChatTitle } },
-                    { step: 'mate_selected', skipped: false, data: { mate_name: 'Writing Mate', mate_category: privacyVideoDemoChatCategory } },
+                    { step: 'mate_selected', skipped: false, data: { mate_name: 'George', mate_category: privacyVideoDemoChatCategory } },
                 ],
             };
             currentTypingStatus = {
@@ -5650,7 +5650,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 message_id: `${message.chat_id.slice(-10)}-${crypto.randomUUID()}`,
                 chat_id: message.chat_id,
                 role: 'assistant',
-                content: privacyVideoDemoAssistantHiddenResponse,
+                content: privacyVideoDemoAssistantIntro,
                 status: 'streaming',
                 created_at: Math.floor(Date.now() / 1000) + 1,
                 sender_name: 'assistant',
@@ -5661,10 +5661,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             setTimeout(() => {
                 if (currentChat?.chat_id !== message.chat_id) return;
-                currentMessages = [...currentMessages, { ...demoAssistantMessage, content: privacyVideoDemoAssistantHiddenResponse }];
+                currentMessages = [...currentMessages, { ...demoAssistantMessage, content: privacyVideoDemoAssistantIntro }];
                 processingPhase = null;
                 chatHistoryRef?.updateMessages(currentMessages);
-            }, 1100);
+            }, 1300);
 
             setTimeout(() => {
                 if (currentChat?.chat_id !== message.chat_id) return;
@@ -5674,7 +5674,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         : currentMessage
                 ));
                 chatHistoryRef?.updateMessages(currentMessages);
-            }, 2200);
+            }, 2700);
 
             setTimeout(() => {
                 if (currentChat?.chat_id !== message.chat_id) return;
@@ -5685,7 +5685,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 ));
                 currentTypingStatus = null;
                 chatHistoryRef?.updateMessages(currentMessages);
-            }, 3600);
+            }, 4400);
         }
 
         // The message is already saved to DB by sendHandlers.ts (or chatSyncService for the message part)

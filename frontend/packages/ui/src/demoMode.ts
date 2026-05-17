@@ -20,13 +20,16 @@ export const privacyVideoDemoSuggestions = [
 ];
 
 export const privacyVideoDemoChatTitle = "Landlord repair email";
-export const privacyVideoDemoChatCategory = "writing";
-export const privacyVideoDemoChatIcon = "mail";
+export const privacyVideoDemoChatCategory = "general_knowledge";
+export const privacyVideoDemoChatIcon = "help-circle";
 export const privacyVideoDemoChatSummary =
-  "Drafting a heater repair follow-up while keeping address, phone, and email private.";
+  "George drafts a heater repair follow-up while keeping address, phone, and email private.";
+
+export const privacyVideoDemoAssistantIntro =
+  "I drafted the email and kept your private details protected.";
 
 export const privacyVideoDemoAssistantResponse =
-  "I drafted the email and kept your private details protected.\n\n```json\n{\"type\":\"mail-email\",\"embed_id\":\"privacy-video-mail-draft\",\"status\":\"finished\",\"receiver\":\"schmidt.verwaltung@proton.com\",\"subject\":\"Repair update for the heater at Lindenstrasse 42\",\"content\":\"Hello,\\n\\nI wanted to follow up about the broken heater at Lindenstrasse 42, 10969 Berlin. Could you please let me know when the repair is scheduled or send me an update on the next steps?\\n\\nYou can call me back at +49 171 000 9111.\\n\\nBest regards,\\nClara Meyer\",\"footer\":\"clara.meyer@posteo.de\"}\n```";
+  `${privacyVideoDemoAssistantIntro}\n\n\`\`\`json\n{"type":"mail-email","embed_id":"privacy-video-mail-draft","status":"finished","receiver":"schmidt.verwaltung@proton.com","subject":"Repair update for the heater at Lindenstrasse 42","content":"Hello,\\n\\nI wanted to follow up about the broken heater at Lindenstrasse 42, 10969 Berlin. Could you please let me know when the repair is scheduled or send me an update on the next steps?\\n\\nYou can call me back at +49 171 000 9111.\\n\\nBest regards,\\nClara Meyer","footer":"clara.meyer@posteo.de"}\n\`\`\``;
 
 export const privacyVideoDemoAssistantHiddenResponse =
-  "I drafted the email and kept your private details protected.\n\n```json\n{\"type\":\"mail-email\",\"embed_id\":\"privacy-video-mail-draft\",\"status\":\"finished\",\"receiver\":\"[EMAIL_1_com]\",\"subject\":\"Repair update for the heater at [ADDRESS_1]\",\"content\":\"Hello,\\n\\nI wanted to follow up about the broken heater at [ADDRESS_1]. Could you please let me know when the repair is scheduled or send me an update on the next steps?\\n\\nYou can call me back at [PHONE_1_111].\\n\\nBest regards,\\nClara Meyer\",\"footer\":\"[EMAIL_2_de]\"}\n```";
+  `${privacyVideoDemoAssistantIntro}\n\n\`\`\`json\n{"type":"mail-email","embed_id":"privacy-video-mail-draft","status":"finished","receiver":"[EMAIL_1_com]","subject":"Repair update for the heater at [ADDRESS_1]","content":"Hello,\\n\\nI wanted to follow up about the broken heater at [ADDRESS_1]. Could you please let me know when the repair is scheduled or send me an update on the next steps?\\n\\nYou can call me back at [PHONE_1_111].\\n\\nBest regards,\\nClara Meyer","footer":"[EMAIL_2_de]"}\n\`\`\``;
