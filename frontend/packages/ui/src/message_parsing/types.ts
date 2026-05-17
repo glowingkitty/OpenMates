@@ -96,6 +96,10 @@ export interface EmbedNodeAttributes {
   // embed_id so serializers.ts can emit a placeholder embed reference in the message,
   // allowing the backend to reference the PDF even before OCR completes.
   uploadEmbedId?: string;
+
+  // Reference-only nodes point to an existing synced embed selected from search.
+  // Removing them from the composer must not delete the underlying uploaded file.
+  referenceOnly?: boolean;
 }
 
 export interface ParseMessageOptions {
@@ -171,6 +175,7 @@ export interface EmbedClipboardData {
   filename?: string;
   contentRef: string;
   contentHash?: string;
+  referenceOnly?: boolean;
   inlineContent?: Record<string, string | number | undefined>;
 }
 

@@ -30,7 +30,11 @@ function extractEmbedIdFromContentRef(
  * Uses dynamic import to avoid adding embedStore as a top-level dependency.
  * Runs asynchronously and never blocks the editor operation — failures are logged but not thrown.
  */
-function cleanupRemovedEmbed(contentRef: string | null | undefined): void {
+function cleanupRemovedEmbed(
+  contentRef: string | null | undefined,
+  referenceOnly: boolean | null | undefined = false,
+): void {
+  if (referenceOnly) return;
   const embedId = extractEmbedIdFromContentRef(contentRef);
   if (!embedId) return;
 
@@ -61,7 +65,7 @@ function cleanupRemovedGroupEmbeds(attrs: EmbedNodeAttributes): void {
   if (!attrs.groupedItems || attrs.groupedItems.length === 0) return;
 
   for (const item of attrs.groupedItems) {
-    cleanupRemovedEmbed(item.contentRef);
+    cleanupRemovedEmbed(item.contentRef, item.referenceOnly);
   }
 }
 
@@ -557,6 +561,17 @@ export const Embed = Node.create<EmbedOptions>({
       originalFile: { default: null, rendered: false },
       /** Number of pages in an uploaded PDF (set by insertPDF after upload completes) */
       pageCount: { default: null, rendered: false },
+      /** True for existing embeds inserted from search; removal must not delete storage. */
+      referenceOnly: {
+        default: false,
+        parseHTML: (element) => element.getAttribute("data-reference-only") === "true",
+        renderHTML: (attributes) => {
+          if (!attributes.referenceOnly) {
+            return {};
+          }
+          return { "data-reference-only": "true" };
+        },
+      },
 
       // -----------------------------------------------------------------------
       // Recording-specific attributes
@@ -1366,7 +1381,10 @@ export const Embed = Node.create<EmbedOptions>({
                     // Clean up the last item's embed (the one removed from the group and converted to text)
                     if (groupedItems.length > 0) {
                       const removedItem = groupedItems[groupedItems.length - 1];
-                      cleanupRemovedEmbed(removedItem.contentRef);
+                      cleanupRemovedEmbed(
+                        removedItem.contentRef,
+                        removedItem.referenceOnly,
+                      );
                     }
                   }
                   return true;
@@ -1435,6 +1453,21 @@ export const Embed = Node.create<EmbedOptions>({
             // Clean up all embeds in the group on fallback deletion too
             cleanupRemovedGroupEmbeds(attrs);
             // Force draft update — same reason as delete-group above.
+            editor.view.dom.dispatchEvent(
+              new CustomEvent("embed-upload-cancelled", {
+                bubbles: true,
+                detail: { embedId: attrs.id },
+              }),
+            );
+            return true;
+          }
+
+          if (attrs.referenceOnly) {
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo =
+              hardBreakAfter?.type.name === "hardBreak" ? to + 1 : to;
+
+            editor.chain().focus().deleteRange({ from, to: deleteTo }).run();
             editor.view.dom.dispatchEvent(
               new CustomEvent("embed-upload-cancelled", {
                 bubbles: true,
@@ -1534,7 +1567,7 @@ export const Embed = Node.create<EmbedOptions>({
               // Image embeds are not converted to markdown on Backspace.
               // Instead we delete the node entirely and cancel any in-flight upload.
               // The embed ID is in attrs.id (set by insertImage).
-              if (attrs.id) {
+              if (attrs.id && !attrs.referenceOnly) {
                 cancelUpload(attrs.id);
                 // If upload already completed (cancelUpload was a no-op), notify the
                 // server to delete the upload_files record + S3 variants + decrement
@@ -1576,7 +1609,7 @@ export const Embed = Node.create<EmbedOptions>({
             case "pdf":
               // PDF embeds are deleted entirely on Backspace — cancel any in-flight upload
               // and remove the node (same pattern as image embeds).
-              if (attrs.id) {
+              if (attrs.id && !attrs.referenceOnly) {
                 cancelUpload(attrs.id);
                 // Notify server to delete upload_files record + S3 variants + decrement storage.
                 // IMPORTANT: Use the server-assigned uploadEmbedId (not the local attrs.id)
@@ -1609,7 +1642,7 @@ export const Embed = Node.create<EmbedOptions>({
             case "recording":
               // Recording embeds are deleted entirely on Backspace — cancel any
               // in-flight upload and remove the node (same pattern as image/PDF).
-              if (attrs.id) {
+              if (attrs.id && !attrs.referenceOnly) {
                 cancelUpload(attrs.id);
                 // Notify server to delete upload_files record + S3 variants + decrement storage.
                 // IMPORTANT: Use the server-assigned uploadEmbedId (not the local attrs.id)
@@ -1653,7 +1686,7 @@ export const Embed = Node.create<EmbedOptions>({
                   .run();
               }
               // Clean up the embed from EmbedStore (contentRef: "embed:{id}")
-              cleanupRemovedEmbed(attrs.contentRef);
+              cleanupRemovedEmbed(attrs.contentRef, attrs.referenceOnly);
               console.debug("[Embed] Deleted maps embed:", attrs.id);
               // Force draft update — same reason as image case above.
               editor.view.dom.dispatchEvent(
@@ -1694,7 +1727,7 @@ export const Embed = Node.create<EmbedOptions>({
 
           // Clean up the embed from EmbedStore if it was a stored embed (contentRef: "embed:{id}")
           // This prevents orphaned embeds in IndexedDB when users delete draft-stage embeds
-          cleanupRemovedEmbed(attrs.contentRef);
+          cleanupRemovedEmbed(attrs.contentRef, attrs.referenceOnly);
 
           return true;
         }

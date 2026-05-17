@@ -21,6 +21,7 @@
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import type { UploadedFileSearchResult } from '../services/embedStore';
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import WebSearchEmbedPreview from './embeds/web/WebSearchEmbedPreview.svelte';
@@ -2072,6 +2073,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 messageInputFieldRef.focus();
             }
         }
+    }
+
+    function handleFileSuggestionClick(file: UploadedFileSearchResult) {
+        messageInputFieldRef?.insertUploadedFileReference(file);
+        messageInputFieldRef?.focus();
     }
 
     /**
@@ -10756,11 +10762,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
                          {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
-                             <NewChatSuggestions
-                                 messageInputContent={liveInputText}
-                                 onSuggestionClick={handleSuggestionClick}
-                                 onChatNavigate={handleChatNavigate}
-                             />
+                              <NewChatSuggestions
+                                  messageInputContent={liveInputText}
+                                  onSuggestionClick={handleSuggestionClick}
+                                  onChatNavigate={handleChatNavigate}
+                                  onFileSelect={handleFileSuggestionClick}
+                              />
                          {/if}
 
 
@@ -10809,6 +10816,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <ChatSearchSuggestions
                                 messageInputContent={liveInputText}
                                 onChatNavigate={handleChatNavigate}
+                                onFileSelect={handleFileSuggestionClick}
                                 currentChatId={currentChat?.chat_id}
                             />
                         {/if}

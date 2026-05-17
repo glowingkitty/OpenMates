@@ -230,6 +230,7 @@ export function createEmbedClipboardData(
     filename: attrs.filename,
     contentRef: attrs.contentRef,
     contentHash: attrs.contentHash,
+    referenceOnly: attrs.referenceOnly,
     // Lightweight metadata for preview rendering while the full embed resolves.
     // Only non-sensitive fields are included — no encrypted content or AES keys.
     inlineContent: {
@@ -266,6 +267,7 @@ export function parseEmbedClipboardData(
     status: "finished", // Clipboard data represents completed embeds
     contentRef: data.contentRef,
     contentHash: data.contentHash,
+    referenceOnly: data.referenceOnly,
     language: data.language,
     filename: data.filename,
     // Restore inlineContent metadata fields so the preview renders while resolving
@@ -524,6 +526,12 @@ export async function writeMessageWithEmbedsToClipboard(
  * For legacy embeds without contentRef, we use the old json_embed format with inline data.
  */
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
+  const createEmbedReference = (type: string, embed_id: string): Record<string, unknown> => {
+    const ref: Record<string, unknown> = { type, embed_id };
+    if (attrs.referenceOnly) ref.reference_only = true;
+    return ref;
+  };
+
   switch (attrs.type) {
     case "web-website":
       {
@@ -531,7 +539,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       if (attrs.contentRef?.startsWith("embed:")) {
         // Serialize to proper embed reference format
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify({ type: "website", embed_id }, null, 2);
+        const embedRef = JSON.stringify(createEmbedReference("website", embed_id), null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
 
@@ -556,7 +564,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       if (attrs.contentRef?.startsWith("embed:")) {
         // Serialize to proper embed reference format
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify({ type: "video", embed_id }, null, 2);
+        const embedRef = JSON.stringify(createEmbedReference("video", embed_id), null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       // Legacy: return URL
@@ -568,7 +576,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       if (attrs.contentRef?.startsWith("embed:")) {
         // Serialize to proper embed reference format - this allows drafts to restore the embed
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify({ type: "code", embed_id }, null, 2);
+        const embedRef = JSON.stringify(createEmbedReference("code", embed_id), null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
 
@@ -585,11 +593,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // Check if this is a proper embed with embed_id (stored in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify(
-          { type: "docs-doc", embed_id },
-          null,
-          2,
-        );
+        const embedRef = JSON.stringify(createEmbedReference("docs-doc", embed_id), null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       // Legacy/preview mode: Serialize as document_html block
@@ -619,7 +623,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // (contentRef is set by handleSend after storing TOON content in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify({ type: "image", embed_id }, null, 2);
+        const embedRef = JSON.stringify(createEmbedReference("image", embed_id), null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       // No contentRef yet (e.g. still uploading, or legacy static image) — omit
@@ -631,11 +635,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // The backend parses this block to inject location context into the LLM prompt.
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify(
-          { type: "location", embed_id },
-          null,
-          2,
-        );
+        const embedRef = JSON.stringify(createEmbedReference("location", embed_id), null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       // No contentRef — embed was not stored (e.g. storage failed). Omit silently.
@@ -649,11 +649,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // future audio skill processing.
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify(
-          { type: "audio-recording", embed_id },
-          null,
-          2,
-        );
+        const embedRef = JSON.stringify(createEmbedReference("audio-recording", embed_id), null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       // No contentRef — either still uploading/transcribing (should not happen at
@@ -675,6 +671,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
         const ref: Record<string, unknown> = { type: "pdf", embed_id };
         if (attrs.filename) ref.filename = attrs.filename;
         if (attrs.pageCount) ref.page_count = attrs.pageCount;
+        if (attrs.referenceOnly) ref.reference_only = true;
         const embedRef = JSON.stringify(ref, null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }

@@ -122,7 +122,7 @@
         removePendingSend,
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
-    import { embedStore } from '../../services/embedStore';
+    import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
 
     /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
     interface UnclosedBlock {
@@ -3992,6 +3992,37 @@
             console.warn('[MessageInput] appendSuggestionText: editor not available or destroyed');
         }
     }
+
+    export function insertUploadedFileReference(file: UploadedFileSearchResult) {
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] insertUploadedFileReference: editor not available or destroyed');
+            return;
+        }
+
+        editor
+            .chain()
+            .focus('end')
+            .insertContent({
+                type: 'embed',
+                attrs: {
+                    id: file.embedId,
+                    type: file.nodeType,
+                    status: 'finished',
+                    contentRef: file.contentRef,
+                    filename: file.title,
+                    title: file.title,
+                    referenceOnly: true,
+                }
+            })
+            .insertContent(' ')
+            .run();
+
+        hasContent = true;
+        lastEditorUpdateText = editor.getText();
+        updateOriginalMarkdown(editor);
+        editor.commands.focus('end');
+    }
+
     export function getTextContent(): string {
         if (editor && !editor.isDestroyed) {
             return editor.getText();

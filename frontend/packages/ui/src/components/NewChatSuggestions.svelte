@@ -31,6 +31,7 @@
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
   import { INTRO_CHATS, LEGAL_CHATS, getAllExampleChats, translateDemoChats, convertDemoChatToChat } from '../demo_chats';
   import { isPrivacyVideoDemoMode, privacyVideoDemoSuggestions } from '../demoMode';
+  import { embedStore, type UploadedFileSearchResult } from '../services/embedStore';
 
   /** Number of suggestion cards to show in the scrollable row */
   const VISIBLE_COUNT = 10;
@@ -66,10 +67,12 @@
   let {
     onSuggestionClick,
     onChatNavigate,
+    onFileSelect,
     messageInputContent = ''
   }: {
     onSuggestionClick: (suggestion: string) => void;
     onChatNavigate: (chatId: string) => void;
+    onFileSelect: (file: UploadedFileSearchResult) => void;
     messageInputContent?: string;
   } = $props();
 
@@ -269,6 +272,7 @@
     dateLabel: string;
   }
   let chatSearchResults = $state<ChatResultCard[]>([]);
+  let fileSearchResults = $state<UploadedFileSearchResult[]>([]);
   let searchGeneration = 0;
 
   function getPublicSearchChats(): Chat[] {
@@ -314,6 +318,7 @@
     const query = filterQuery;
     if (!query) {
       chatSearchResults = [];
+      fileSearchResults = [];
       return;
     }
 
@@ -328,7 +333,10 @@
           await chatDB.init();
           allChats = uniqueChatsById([...publicChats, ...(await chatDB.getAllChats())]);
         }
-        const results = await performSearch(query, allChats, textFn);
+        const [results, fileResults] = await Promise.all([
+          performSearch(query, allChats, textFn),
+          $authStore.isAuthenticated ? embedStore.searchUploadedFiles(query) : Promise.resolve([]),
+        ]);
         // Stale guard — a newer search was triggered while this one ran
         if (gen !== searchGeneration) return;
 
@@ -361,9 +369,13 @@
         // Final stale guard after async metadata resolution
         if (gen !== searchGeneration) return;
         chatSearchResults = processed;
+        fileSearchResults = fileResults;
       } catch (error) {
         console.error('[NewChatSuggestions] Chat search error:', error);
-        if (gen === searchGeneration) chatSearchResults = [];
+        if (gen === searchGeneration) {
+          chatSearchResults = [];
+          fileSearchResults = [];
+        }
       }
     })();
   });
@@ -580,9 +592,9 @@
         )
       : parsed;
 
-    // Graceful fallback: if filter matches nothing AND no chat results found, show all (not empty).
+    // Graceful fallback: if filter matches nothing AND no search results found, show all (not empty).
     // When chat results exist, an empty suggestion filter is fine — the chat cards fill the gap.
-    const pool = (filterQuery && filtered.length === 0 && chatSearchResults.length === 0) ? parsed : filtered;
+    const pool = (filterQuery && filtered.length === 0 && chatSearchResults.length === 0 && fileSearchResults.length === 0) ? parsed : filtered;
 
     return pool.slice(0, VISIBLE_COUNT);
   });
@@ -592,6 +604,7 @@
     filterQuery !== '' &&
     !loading &&
     chatSearchResults.length === 0 &&
+    fileSearchResults.length === 0 &&
     fullSuggestionsWithEncrypted
       .filter(s => !hiddenSuggestionTexts.has(s.text))
       .every(s => {
@@ -759,7 +772,7 @@
   }
 </script>
 
-{#if !loading && (visibleSuggestions.length > 0 || chatSearchResults.length > 0)}
+{#if !loading && (visibleSuggestions.length > 0 || chatSearchResults.length > 0 || fileSearchResults.length > 0)}
   <div class="suggestions-wrapper" data-testid="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
     <div class="suggestions-header">
       {#key currentLocale}
@@ -788,9 +801,31 @@
         </button>
       {/each}
 
+      <!-- Uploaded file search results from locally synced embeds -->
+      {#if fileSearchResults.length > 0}
+        {#if visibleSuggestions.length > 0}
+          <div class="chat-results-divider"></div>
+        {/if}
+        {#each fileSearchResults as fileResult (fileResult.embedId)}
+          <div class="chat-result-wrapper">
+            <button
+              class="suggestion-card file-result-card"
+              data-testid="file-search-result"
+              onclick={() => onFileSelect(fileResult)}
+            >
+              <span class="card-icon">
+                <Icon name={fileResult.iconName} type="skill" size="24px" noAnimation noMargin />
+              </span>
+              <span class="card-text">{fileResult.title}</span>
+            </button>
+            <span class="card-date">{fileResult.subtitle}</span>
+          </div>
+        {/each}
+      {/if}
+
       <!-- Existing chat search results (shown when user types a search query) -->
       {#if chatSearchResults.length > 0}
-        {#if visibleSuggestions.length > 0}
+        {#if visibleSuggestions.length > 0 || fileSearchResults.length > 0}
           <div class="chat-results-divider"></div>
         {/if}
         {#each chatSearchResults as chatResult (chatResult.chatId)}
@@ -1009,6 +1044,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .file-result-card {
+    background: var(--color-app-files, linear-gradient(135deg, #4867cd, #a0beff));
   }
 
   /* Wrapper for chat result card + date label below it */
