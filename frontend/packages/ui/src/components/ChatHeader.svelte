@@ -1379,22 +1379,27 @@
   .image-bubble {
     all: unset;
     position: absolute;
-    width: 126px;
-    height: 126px;
+    width: 168px;
+    height: 168px;
     border-radius: 999px;
     z-index: var(--z-index-raised-2);
     pointer-events: auto;
     cursor: pointer;
     overflow: hidden;
     box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.12);
-    border: 2px solid rgba(255, 255, 255, 0.36);
+    background:
+      radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.7), transparent 16%),
+      radial-gradient(circle at 70% 76%, rgba(0, 0, 0, 0.28), transparent 38%),
+      rgba(255, 255, 255, 0.12);
+    border: 3px solid rgba(255, 255, 255, 0.42);
     box-shadow:
-      inset 10px 12px 22px rgba(255, 255, 255, 0.34),
-      inset -12px -16px 26px rgba(0, 0, 0, 0.22),
-      0 18px 42px rgba(0, 0, 0, 0.24);
-    --float-rx: 10px;
-    --float-ry: 12px;
+      inset 18px 20px 34px rgba(255, 255, 255, 0.34),
+      inset -20px -26px 42px rgba(0, 0, 0, 0.3),
+      inset 0 0 0 8px rgba(255, 255, 255, 0.08),
+      0 24px 54px rgba(0, 0, 0, 0.3),
+      0 8px 18px rgba(255, 255, 255, 0.08);
+    --float-rx: 13px;
+    --float-ry: 16px;
     animation:
       decoEnter 0.6s ease-out 0.1s both,
       decoFloat 16s linear 0.7s infinite;
@@ -1413,19 +1418,26 @@
   }
 
   .image-bubble::before {
-    top: 14px;
-    left: 20px;
-    width: 34px;
-    height: 20px;
-    background: rgba(255, 255, 255, 0.5);
-    filter: blur(2px);
-    transform: rotate(-28deg);
+    top: 17px;
+    left: 26px;
+    width: 58px;
+    height: 34px;
+    background:
+      radial-gradient(ellipse at center, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.12) 62%, transparent 72%);
+    filter: blur(1px);
+    transform: rotate(-30deg);
   }
 
   .image-bubble::after {
     inset: 0;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: inset 0 0 26px rgba(255, 255, 255, 0.24);
+    background:
+      radial-gradient(ellipse at 36% 18%, rgba(255, 255, 255, 0.46), transparent 19%),
+      radial-gradient(ellipse at 72% 84%, rgba(0, 0, 0, 0.3), transparent 36%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 32%, rgba(255, 255, 255, 0.08) 64%, rgba(0, 0, 0, 0.28));
+    border: 1px solid rgba(255, 255, 255, 0.68);
+    box-shadow:
+      inset 0 0 34px rgba(255, 255, 255, 0.28),
+      inset 0 0 76px rgba(255, 255, 255, 0.1);
   }
 
   .image-bubble img {
@@ -1433,18 +1445,19 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    filter: saturate(1.08) contrast(1.04);
+    filter: saturate(1.12) contrast(1.08);
+    transform: scale(1.04);
   }
 
   .image-bubble-left {
-    left: calc(50% - 240px - 106px);
-    bottom: -15px;
+    left: calc(50% - 240px - 154px);
+    bottom: -42px;
     --deco-rotate: -15deg;
   }
 
   .image-bubble-right {
-    right: calc(50% - 240px - 106px);
-    bottom: -15px;
+    right: calc(50% - 240px - 154px);
+    bottom: -42px;
     --deco-rotate: 15deg;
     animation-delay: 0.1s, -8s;
   }
@@ -1452,9 +1465,11 @@
   .image-bubble:hover {
     border-color: rgba(255, 255, 255, 0.66);
     box-shadow:
-      inset 10px 12px 22px rgba(255, 255, 255, 0.42),
-      inset -12px -16px 26px rgba(0, 0, 0, 0.2),
-      0 22px 50px rgba(0, 0, 0, 0.3);
+      inset 18px 20px 36px rgba(255, 255, 255, 0.42),
+      inset -20px -26px 42px rgba(0, 0, 0, 0.26),
+      inset 0 0 0 8px rgba(255, 255, 255, 0.12),
+      0 30px 62px rgba(0, 0, 0, 0.34),
+      0 10px 22px rgba(255, 255, 255, 0.1);
   }
 
   .image-bubble:focus-visible {
@@ -1739,8 +1754,8 @@
   }
 
   .is-mobile-header .image-bubble {
-    width: 90px;
-    height: 90px;
+    width: 118px;
+    height: 118px;
   }
 
   .is-mobile-header .deco-icon-left {
@@ -1749,7 +1764,8 @@
   }
 
   .is-mobile-header .image-bubble-left {
-    left: calc(50% - 180px - 70px);
+    left: calc(50% - 180px - 100px);
+    bottom: -34px;
   }
 
   .is-mobile-header .deco-icon-right {
@@ -1757,7 +1773,8 @@
   }
 
   .is-mobile-header .image-bubble-right {
-    right: calc(50% - 180px - 70px);
+    right: calc(50% - 180px - 100px);
+    bottom: -34px;
   }
 
   .is-mobile-header .video-play-btn {
