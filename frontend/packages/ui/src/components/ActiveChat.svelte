@@ -4325,6 +4325,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputHasContent || 
         messageInputFocused
     );
+    let activeSuggestionSearchText = $derived(messageInputRecentlyFocused ? liveInputText : '');
     
     // Reactive variable to determine when to show follow-up suggestions in ChatHistory.
     // Show whenever there are suggestions and the welcome screen is not active.
@@ -10763,7 +10764,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
                          {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
                               <NewChatSuggestions
-                                  messageInputContent={liveInputText}
+                                  messageInputContent={activeSuggestionSearchText}
                                   onSuggestionClick={handleSuggestionClick}
                                   onChatNavigate={handleChatNavigate}
                                   onFileSelect={handleFileSuggestionClick}
@@ -10812,9 +10813,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Chat search suggestions — shown when typing in an open chat's message input.
                              Searches existing chats and shows matching results as horizontal cards.
                              Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
-                        {#if !showWelcome && !messageInputMapsOpen}
+                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused}
                             <ChatSearchSuggestions
-                                messageInputContent={liveInputText}
+                                messageInputContent={activeSuggestionSearchText}
                                 onChatNavigate={handleChatNavigate}
                                 onFileSelect={handleFileSuggestionClick}
                                 currentChatId={currentChat?.chat_id}

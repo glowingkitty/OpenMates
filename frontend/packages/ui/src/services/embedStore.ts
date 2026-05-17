@@ -267,6 +267,25 @@ export class EmbedStore {
     const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name ?? entry.metadata?.title;
     addSearchableName(names, metadataName);
 
+    try {
+      const resolved = await this.get(entry.contentRef);
+      if (resolved && typeof resolved === "object") {
+        for (const name of getFileNamesFromDecodedContent(resolved)) {
+          addSearchableName(names, name);
+        }
+
+        const content = (resolved as Record<string, unknown>).content;
+        if (typeof content === "string") {
+          const decoded = await decodeToonContentSilently(content);
+          for (const name of getFileNamesFromDecodedContent(decoded)) {
+            addSearchableName(names, name);
+          }
+        }
+      }
+    } catch {
+      // Search should be best-effort and must not log private embed content.
+    }
+
     if (entry.encrypted_content) {
       const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
       if (!embedId) return names;
@@ -309,7 +328,13 @@ export class EmbedStore {
 
       const candidates = allEntries
         .filter((entry) => entry?.contentRef && entry.status !== "error" && entry.status !== "cancelled")
-        .filter((entry) => this.isFileLikeType(entry.type) || !!entry.file_path)
+        .filter(
+          (entry) =>
+            this.isFileLikeType(entry.type) ||
+            !!entry.file_path ||
+            !!entry.metadata ||
+            !!entry.encrypted_content,
+        )
         .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
 
       const results: UploadedFileSearchResult[] = [];
