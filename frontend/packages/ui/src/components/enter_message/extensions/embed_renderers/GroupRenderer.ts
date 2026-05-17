@@ -56,6 +56,7 @@ import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPrevie
 import HomeListingEmbedPreview from "../../../embeds/home/HomeListingEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
+import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -4239,8 +4240,7 @@ export class GroupRenderer implements EmbedRenderer {
       "finished") as "processing" | "finished" | "error";
 
     const title = (decodedContent?.title as string | undefined) || "";
-    const sourceDomain =
-      (decodedContent?.source_domain as string | undefined) || "";
+    const sourceDomain = resolveImageSourceDomain(decodedContent);
     const thumbnailUrl =
       (decodedContent?.thumbnail_url as string | undefined) || "";
     const faviconUrl =
@@ -4316,8 +4316,7 @@ export class GroupRenderer implements EmbedRenderer {
   ): Promise<string> {
     const title =
       (decodedContent?.title as string | undefined) || "Image result";
-    const sourceDomain =
-      (decodedContent?.source_domain as string | undefined) || "";
+    const sourceDomain = resolveImageSourceDomain(decodedContent);
 
     return `
       <div class="embed-app-icon images">

@@ -56,6 +56,7 @@ import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionReci
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
+import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -1845,12 +1846,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const title = decodedContent?.title || "";
-    // Prefer explicit source field; fallback to extracting domain from source_page_url
-    let sourceDomain = decodedContent?.source || "";
-    if (!sourceDomain && decodedContent?.source_page_url) {
-      try { sourceDomain = new URL(decodedContent.source_page_url).hostname.replace(/^www\./, ''); }
-      catch { /* ignore invalid URLs */ }
-    }
+    const sourceDomain = resolveImageSourceDomain(decodedContent);
     console.debug("[AppSkillUseRenderer] image_result source debug:", {
       source: decodedContent?.source,
       source_page_url: decodedContent?.source_page_url,

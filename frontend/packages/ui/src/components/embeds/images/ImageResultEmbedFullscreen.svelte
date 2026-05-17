@@ -14,6 +14,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { resolveImageSourceDomain } from '../../../utils/embedSourceDomain';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
@@ -41,7 +42,7 @@
   // Extract fields from data.decodedContent
   let dc = $derived(data.decodedContent);
   let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
-  let sourceDomain = $derived(typeof dc.source_domain === 'string' ? dc.source_domain : undefined);
+  let sourceDomain = $derived(resolveImageSourceDomain(dc) || undefined);
   let sourcePageUrl = $derived(typeof dc.source_page_url === 'string' ? dc.source_page_url : undefined);
   let imageUrl = $derived(typeof dc.image_url === 'string' ? dc.image_url : undefined);
   let thumbnailUrl = $derived(typeof dc.thumbnail_url === 'string' ? dc.thumbnail_url : undefined);
