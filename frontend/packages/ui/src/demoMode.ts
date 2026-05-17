@@ -12,11 +12,9 @@ export const privacyVideoDemoPrompt =
   "Draft an email to my landlord at schmidt.verwaltung@proton.com about the broken heater at Lindenstrasse 42, 10969 Berlin. Ask for a repair update and a callback at +49 171 000 9111. Sign it as clara.meyer@posteo.de.";
 
 export const privacyVideoDemoSuggestions = [
-  "[mail] Draft a privacy-conscious email without exposing my home address",
-  "[ai] Rewrite this message so personal details stay private",
-  "[mail] Summarize a landlord repair request before I send it",
-  "[ai] Check which personal data appears in this draft",
-  "[mail] Prepare a follow-up that uses placeholders for sensitive details",
+  "[mail] Compare privacy focused email providers",
+  "[ai] What is AES encryption and how does it work?",
+  "[ai] Tips for protecting my privacy online?",
 ];
 
 export const privacyVideoDemoChatTitle = "Landlord repair email";

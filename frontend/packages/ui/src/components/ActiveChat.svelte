@@ -5653,7 +5653,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 content: privacyVideoDemoAssistantIntro,
                 status: 'streaming',
                 created_at: Math.floor(Date.now() / 1000) + 1,
-                sender_name: 'assistant',
+                sender_name: 'George',
                 encrypted_content: null,
                 user_message_id: message.message_id,
                 pii_mappings: message.pii_mappings,
