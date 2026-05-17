@@ -12,6 +12,7 @@
     import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
     import { demoMode } from '../stores/demoModeStore';
+    import { isPrivacyVideoDemoMode } from '../demoMode';
 
     // Props using Svelte 5 runes
     let { 
@@ -36,8 +37,11 @@
     
     // Server edition state - will be fetched on mount
     let serverEdition = $state<string | null>(null);
+    let privacyVideoDemoMode = $state(false);
     let serverEditionLabel = $derived(
-        serverEdition === 'self_hosted'
+        privacyVideoDemoMode
+            ? $text('signup.version_title')
+            : serverEdition === 'self_hosted'
             ? $text('header.self_hosting_edition')
             : serverEdition === 'development' && !$demoMode
               ? $text('header.development_server')
@@ -162,6 +166,8 @@
     let isMobile = $state(false);
 
     onMount(() => {
+        privacyVideoDemoMode = isPrivacyVideoDemoMode();
+
         const checkMobile = () => {
             isMobile = window.innerWidth < 730;
         };
@@ -171,6 +177,10 @@
         
         // Fetch server status to display server edition (async, fire and forget)
         (async () => {
+            if (privacyVideoDemoMode) {
+                return;
+            }
+
             try {
                 const { getApiEndpoint } = await import('../config/api');
                 const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
@@ -356,7 +366,7 @@
                 {#if !docsMode}
                     <div
                         class="right-section"
-                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible}
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible || privacyVideoDemoMode}
                     >
                         {#if !isMobile}
                             <a
