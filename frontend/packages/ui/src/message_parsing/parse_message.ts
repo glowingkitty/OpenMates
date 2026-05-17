@@ -811,13 +811,17 @@ function extractEmbedId(attrs: any): string | null {
   return null;
 }
 
-function createLargePreviewNode(embedId: string, appId: string | null): any {
+function createLargePreviewNode(embedId: string, appId: string | null, attrs: any = {}): any {
   return {
     type: "embedPreviewLarge",
     attrs: {
       embedRef: embedId,
       embedId,
       appId,
+      receiver: attrs.receiver,
+      subject: attrs.subject,
+      content: attrs.content,
+      footer: attrs.footer,
       carouselIndex: 0,
       carouselTotal: 1,
     },
@@ -853,7 +857,7 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
       .map((item: any) => {
         const embedId = extractEmbedId(item);
         if (!embedId) return null;
-        return createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(item));
+        return createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(item), item);
       })
       .filter(Boolean);
 
@@ -862,7 +866,7 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
 
   const embedId = extractEmbedId(attrs);
   if (!embedId) return null;
-  return [createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(attrs))];
+  return [createLargePreviewNode(embedId, getAppIdFromEmbedAttrs(attrs), attrs)];
 }
 
 /**

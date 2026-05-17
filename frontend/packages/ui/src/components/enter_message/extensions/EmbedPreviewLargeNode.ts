@@ -48,6 +48,18 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
       appId: {
         default: null,
       },
+      receiver: {
+        default: null,
+      },
+      subject: {
+        default: null,
+      },
+      content: {
+        default: null,
+      },
+      footer: {
+        default: null,
+      },
       /**
        * Index in the consecutive run of large previews (0-based).
        * Set by parse_message._hoistBlockEmbedPreviews() so the Svelte component
@@ -83,6 +95,10 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
             embedRef: element.getAttribute("data-embed-ref") ?? "",
             embedId: element.getAttribute("data-embed-id") || null,
             appId: element.getAttribute("data-app-id") || null,
+            receiver: element.getAttribute("data-receiver") || null,
+            subject: element.getAttribute("data-subject") || null,
+            content: element.getAttribute("data-content") || null,
+            footer: element.getAttribute("data-footer") || null,
             carouselIndex: parseInt(
               element.getAttribute("data-carousel-index") ?? "0",
               10,
@@ -106,6 +122,10 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
         "data-embed-ref": HTMLAttributes.embedRef,
         "data-embed-id": HTMLAttributes.embedId,
         "data-app-id": HTMLAttributes.appId,
+        "data-receiver": HTMLAttributes.receiver,
+        "data-subject": HTMLAttributes.subject,
+        "data-content": HTMLAttributes.content,
+        "data-footer": HTMLAttributes.footer,
         "data-carousel-index": HTMLAttributes.carouselIndex,
         "data-carousel-total": HTMLAttributes.carouselTotal,
         "data-run-ref": HTMLAttributes.runRef,
@@ -133,6 +153,10 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
               embedRef: node.attrs.embedRef as string,
               embedId: node.attrs.embedId as string | null,
               appId: node.attrs.appId as string | null,
+              receiver: node.attrs.receiver as string | null,
+              subject: node.attrs.subject as string | null,
+              content: node.attrs.content as string | null,
+              footer: node.attrs.footer as string | null,
               carouselIndex: node.attrs.carouselIndex as number,
               carouselTotal: node.attrs.carouselTotal as number,
               runRef: node.attrs.runRef as string,
@@ -157,6 +181,10 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
             updatedNode.attrs.embedRef === node.attrs.embedRef &&
             updatedNode.attrs.embedId === node.attrs.embedId &&
             updatedNode.attrs.appId === node.attrs.appId &&
+            updatedNode.attrs.receiver === node.attrs.receiver &&
+            updatedNode.attrs.subject === node.attrs.subject &&
+            updatedNode.attrs.content === node.attrs.content &&
+            updatedNode.attrs.footer === node.attrs.footer &&
             updatedNode.attrs.carouselIndex === node.attrs.carouselIndex &&
             updatedNode.attrs.carouselTotal === node.attrs.carouselTotal &&
             updatedNode.attrs.runRef === node.attrs.runRef;

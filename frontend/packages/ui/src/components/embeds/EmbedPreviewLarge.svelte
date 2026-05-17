@@ -65,6 +65,10 @@
     embedRef: string;
     embedId?: string | null;
     appId?: string | null;
+    receiver?: string | null;
+    subject?: string | null;
+    content?: string | null;
+    footer?: string | null;
     carouselIndex: number;
     carouselTotal: number;
     /** embedRef of the first card in the run — shared carousel store key */
@@ -75,6 +79,10 @@
     embedRef,
     embedId = null,
     appId: _appId = null,
+    receiver = null,
+    subject = null,
+    content = null,
+    footer = null,
     carouselIndex,
     carouselTotal,
     runRef = '',
@@ -256,7 +264,7 @@
         class="embed-preview-large-content"
         class:embed-preview-large-content--hidden={!isVisible}
       >
-        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="large" />
       </div>
     </div>
 
@@ -306,7 +314,7 @@
       style="transform: translateY(-{sharedShellHeight}px);"
     >
       <div class="embed-preview-large-container">
-        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} variant="large" />
+        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="large" />
       </div>
     </div>
   </div>
