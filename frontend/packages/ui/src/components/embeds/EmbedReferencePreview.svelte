@@ -125,6 +125,10 @@
       query: (data.query as string | null) || (decodedContent?.query as string | null) || null,
       url: (data.url as string | null) || (decodedContent?.url as string | null) || null,
       title: (data.title as string | null) || (decodedContent?.title as string | null) || null,
+      receiver: (decodedContent?.receiver as string | null) || (data.receiver as string | null) || undefined,
+      subject: (decodedContent?.subject as string | null) || (data.subject as string | null) || undefined,
+      content: (decodedContent?.content as string | null) || (data.content as string | null) || undefined,
+      footer: (decodedContent?.footer as string | null) || (data.footer as string | null) || undefined,
       filename: (data.filename as string | null) || null,
       language: (data.language as string | null) || null,
     } as EmbedNodeAttributes;
