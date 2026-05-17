@@ -101,6 +101,7 @@
      Uses <button> for proper semantic click handling + keyboard accessibility. -->
 <button
   class="source-quote-block"
+  data-testid="source-quote-block"
   style={accentStyle}
   type="button"
   onclick={handleClick}

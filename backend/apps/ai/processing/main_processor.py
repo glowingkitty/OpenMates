@@ -4081,9 +4081,12 @@ async def handle_main_processing(
                         # > [verbatim text](embed:ref) blockquote syntax to cite sources.
                         # Placed at the wrapper level so it costs ~30 tokens total, not per result.
                         _sq_hint = (
-                            "When citing specific facts from these results, quote the exact "
-                            "text using: > [verbatim text from title, description, or "
-                            "extra_snippets](embed:the_result's_embed_ref)"
+                            "When citing specific facts from these results, quote only exact "
+                            "1:1 text copied from title, description, or extra_snippets. "
+                            "Do not shorten, paraphrase, remove parentheticals, add punctuation, "
+                            "or stop before the source sentence continues. Use: > [verbatim "
+                            "text](embed:the_result's_embed_ref). Modified or false quotes "
+                            "are automatically removed."
                         ) if skill_id in _QUOTABLE_SKILL_IDS else None
 
                         # Embed ref display-text hint — added once per tool result group

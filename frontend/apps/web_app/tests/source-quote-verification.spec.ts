@@ -1,0 +1,73 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/**
+ * frontend/apps/web_app/tests/source-quote-verification.spec.ts
+ *
+ * Verifies that false source quotes emitted by the assistant are stripped before
+ * they render in the chat UI. The mocked AI fixture still runs through the real
+ * chat, encryption, embed recreation, and source-quote verification path.
+ *
+ * Architecture: docs/architecture/source-quotes.md
+ */
+export {};
+
+const { test, expect } = require('./console-monitor');
+const {
+	createSignupLogger,
+	archiveExistingScreenshots,
+	createStepScreenshotter,
+	getTestAccount
+} = require('./signup-flow-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	sendMessage,
+	waitForAssistantMessage,
+	deleteActiveChat
+} = require('./helpers/chat-test-helpers');
+
+const FALSE_QUOTE =
+	'The tower was known as Burj Dubai until its official opening in January 2010. ' +
+	'It was renamed in honour of the ruler of Abu Dhabi, Khalifa bin Zayed Al Nahyan; ' +
+	'Abu Dhabi and the federal government of UAE lent Dubai tens of billions of US ' +
+	'dollars so that Dubai could pay its debts.';
+
+test.describe('Source quote verification', () => {
+	test.setTimeout(240_000);
+
+	test('auto-removes false source quotes before rendering assistant message', async ({ page }: { page: any }) => {
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+
+		const log = createSignupLogger('source-quote-verification');
+		await archiveExistingScreenshots(log);
+		const screenshot = createStepScreenshotter(log);
+
+		await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
+		await startNewChat(page, log);
+
+		await sendMessage(
+			page,
+			'<<<TEST_MOCK:false_source_quote_stripped>>> Simulate a false source quote from the LLM.',
+			log,
+			screenshot,
+			'false-source-quote'
+		);
+
+		const assistantMessage = await waitForAssistantMessage(page, {
+			which: 'last',
+			contains: 'This sentence should remain after the invalid quote is removed.',
+			timeout: 120_000,
+			logCheckpoint: log
+		});
+
+		await expect(assistantMessage).toContainText('The source says the Burj Khalifa had a previous name.');
+		await expect(assistantMessage).not.toContainText(FALSE_QUOTE);
+		await expect(assistantMessage).not.toContainText('embed:en.wikipedia.org-gDS');
+		await expect(assistantMessage.locator('[data-testid="source-quote-block"]')).toHaveCount(0);
+
+		const embed = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first();
+		await expect(embed).toBeVisible({ timeout: 30_000 });
+		await screenshot(page, 'false-source-quote-stripped');
+
+		await deleteActiveChat(page, log, screenshot, 'false-source-quote');
+	});
+});

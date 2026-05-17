@@ -364,6 +364,7 @@ async def _verify_and_strip_bad_quotes(
     directus_service: Optional[DirectusService],
     encryption_service: Optional[EncryptionService],
     user_vault_key_id: Optional[str],
+    known_valid_refs: Optional[set[str]] = None,
     log_prefix: str = "",
 ) -> str:
     """
