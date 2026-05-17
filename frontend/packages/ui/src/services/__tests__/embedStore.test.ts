@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EmbedStore } from '../embedStore';
 import * as cryptoService from '../cryptoService';
+import type { EmbedStoreEntry } from '../../message_parsing/types';
 
 describe('EmbedStore.getEmbedKey', () => {
   beforeEach(() => {
@@ -54,5 +55,41 @@ describe('EmbedStore.getEmbedKey', () => {
 
     const key = await store.getEmbedKey('a', 'hashed-chat');
     expect(key).toBeNull();
+  });
+});
+
+describe('EmbedStore uploaded file search metadata', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('can derive a code filename from encrypted local embed content without file_path', async () => {
+    const store = new EmbedStore();
+    const embedKey = new Uint8Array([1, 2, 3, 4]);
+    vi.spyOn(store, 'getEmbedKey').mockResolvedValue(embedKey);
+    vi.spyOn(cryptoService, 'decryptWithEmbedKey').mockResolvedValue(
+      JSON.stringify({ filename: 'example.ts', language: 'typescript' }),
+    );
+
+    const entry: EmbedStoreEntry = {
+      contentRef: 'embed:code-file-1',
+      type: 'code-code',
+      createdAt: 1,
+      updatedAt: 1,
+      embed_id: 'code-file-1',
+      encrypted_content: '<encrypted>',
+      hashed_chat_id: 'hashed-chat',
+    };
+
+    const title = await (store as unknown as {
+      getSearchableFileName(entry: EmbedStoreEntry): Promise<string | null>;
+    }).getSearchableFileName(entry);
+
+    expect(title).toBe('example.ts');
+    expect(cryptoService.decryptWithEmbedKey).toHaveBeenCalledWith(
+      '<encrypted>',
+      embedKey,
+    );
   });
 });

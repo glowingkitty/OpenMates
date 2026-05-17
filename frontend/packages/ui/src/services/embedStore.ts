@@ -171,6 +171,43 @@ async function decodeToonContentLocal(
   }
 }
 
+async function decodeToonContentSilently(
+  toonContent: string | null | undefined,
+): Promise<unknown> {
+  if (!toonContent || typeof toonContent !== "string") {
+    return typeof toonContent === "object" ? toonContent : null;
+  }
+
+  await initToonDecoder();
+
+  if (toonDecode) {
+    try {
+      return toonDecode(toonContent, { strict: false });
+    } catch {
+      // File search runs over private local embeds. Do not log content previews here.
+    }
+  }
+
+  try {
+    return JSON.parse(toonContent);
+  } catch {
+    return null;
+  }
+}
+
+function getFileNameFromDecodedContent(decoded: unknown): string | null {
+  if (!decoded || typeof decoded !== "object") return null;
+  const record = decoded as Record<string, unknown>;
+  for (const key of ["filename", "file_name", "file_path", "original_filename", "title"]) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      const trimmed = value.trim();
+      return trimmed.split("/").pop() || trimmed;
+    }
+  }
+  return null;
+}
+
 /**
  * Interface for embed key entries stored in embed_keys collection
  */
@@ -225,6 +262,26 @@ export class EmbedStore {
 
     const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name ?? entry.metadata?.title;
     if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
+
+    if (entry.encrypted_content) {
+      const embedId = this.extractEmbedIdFromContentRef(entry.contentRef) || entry.embed_id;
+      if (!embedId) return null;
+
+      try {
+        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        if (!embedKey) return null;
+
+        const decryptedContent = await decryptWithEmbedKey(
+          entry.encrypted_content,
+          embedKey,
+        );
+        const decoded = await decodeToonContentSilently(decryptedContent);
+        return getFileNameFromDecodedContent(decoded);
+      } catch {
+        return null;
+      }
+    }
+
     return null;
   }
 
