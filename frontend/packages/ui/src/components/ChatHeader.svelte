@@ -81,6 +81,9 @@
     /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
      *  16:9 media frame. Used when no compact teaser video is configured. */
     backgroundFrames = null,
+    /** Proxied image-search result URLs used as an ambient full-banner background
+     *  for normal chats. Ignored when curated header media is present. */
+    headerBackgroundImages = null,
     /** Aggregated highlight counts across all messages in this chat. When
      *  `highlights > 0`, a yellow pill is rendered below the summary. Clicking
      *  the pill fires `onHighlightJump` so the parent can scroll to the first
@@ -118,6 +121,8 @@
     videoTeaserWebpUrl?: string | null;
     /** Image URLs for the crossfading Ken-Burns slideshow inside the media frame. */
     backgroundFrames?: string[] | null;
+    /** Proxied image-search result URLs for the full-banner ambient background. */
+    headerBackgroundImages?: string[] | null;
     /** Aggregated highlight counts across all messages in this chat. */
     highlightStats?: { highlights: number; comments: number } | null;
     /** Click handler for the highlights pill. */
@@ -133,6 +138,11 @@
   const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
+  const ambientHeaderImage = $derived(
+    !hasHeaderMedia && Array.isArray(headerBackgroundImages) && headerBackgroundImages.length > 0
+      ? headerBackgroundImages[0]
+      : null,
+  );
   // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
   const introTeaserCopyLines = $derived([
     $text('demo_chats.for_everyone.teaser_line1'),
@@ -579,6 +589,13 @@
   ontouchend={handleHeaderTouchEnd}
   ontouchcancel={handleHeaderTouchEnd}
 >
+  {#if ambientHeaderImage}
+    <div class="header-image-backdrop" aria-hidden="true">
+      <img src={ambientHeaderImage} alt="" loading="eager" decoding="async" />
+    </div>
+    <div class="header-image-overlay" aria-hidden="true"></div>
+  {/if}
+
   <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
        Three soft radial-gradient blobs that slowly morph shape and drift
        around the banner. Each uses --orb-color-b as the orb center color and
@@ -588,11 +605,13 @@
        ensure the three orbs never synchronise, keeping the motion organic and
        non-repeating within any reasonable viewing window.
        z-index:0 keeps them behind all content (z-index:1+ for content). -->
-  <div class="banner-orbs" aria-hidden="true">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-  </div>
+  {#if !ambientHeaderImage}
+    <div class="banner-orbs" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+  {/if}
 
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
   {#if isLoading && !isCreditsError && !isIncognito}
@@ -998,6 +1017,35 @@
   :global(.side-by-side-active) .chat-header-banner {
     height: 240px;
     min-height: unset;
+  }
+
+  .header-image-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-index-base);
+    pointer-events: none;
+    overflow: hidden;
+    background: var(--color-primary);
+  }
+
+  .header-image-backdrop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    filter: saturate(1.08) contrast(1.04);
+    transform: scale(1.03);
+  }
+
+  .header-image-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-index-raised);
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.48)),
+      linear-gradient(135deg, rgba(0, 0, 0, 0.44), rgba(0, 0, 0, 0.12));
   }
 
   /* ─── Processing state ──────────────────────────────────────────────────── */

@@ -57,6 +57,8 @@
   import { text } from '@repo/ui'; // Used for compression summary UI labels
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { introBannerVisible } from '../stores/uiStateStore';
+  import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
+  import { MAX_WIDTH_HEADER_IMAGE, proxyImage } from '../utils/imageProxy';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -66,6 +68,22 @@
   type TiptapDoc = {
     type: 'doc';
     content: Array<Record<string, unknown>>;
+  };
+
+  type TiptapNode = {
+    type?: string;
+    attrs?: Record<string, unknown>;
+    content?: TiptapNode[];
+  };
+
+  type ImageSearchCandidate = {
+    parentEmbedId: string;
+    childEmbedIds: string[];
+  };
+
+  type ImageResultContent = {
+    image_url?: string;
+    thumbnail_url?: string;
   };
 
   interface InternalMessage {
@@ -233,6 +251,75 @@
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+  let headerBackgroundImages = $state<string[] | null>(null);
+  let headerBackgroundRequestId = 0;
+  let headerBackgroundCandidateKey = '';
+  const HEADER_BACKGROUND_IMAGE_LIMIT = 5;
+
+  function normalizeEmbedIds(embedIds: unknown): string[] {
+    if (typeof embedIds === 'string') {
+      return embedIds.split('|').map(id => id.trim()).filter(Boolean);
+    }
+    if (Array.isArray(embedIds)) {
+      return embedIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+    }
+    return [];
+  }
+
+  function collectImageSearchCandidates(node: TiptapNode | undefined, candidates: ImageSearchCandidate[]) {
+    if (!node) return;
+
+    const attrs = node.attrs;
+    if (attrs) {
+      const groupedItems = attrs.groupedItems;
+      if (Array.isArray(groupedItems)) {
+        for (const item of groupedItems) collectImageSearchCandidates({ attrs: item as Record<string, unknown> }, candidates);
+      }
+
+      const appId = attrs.app_id;
+      const skillId = attrs.skill_id;
+      const contentRef = attrs.contentRef;
+      if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+        candidates.push({
+          parentEmbedId: contentRef.slice('embed:'.length),
+          childEmbedIds: normalizeEmbedIds(attrs.embed_ids),
+        });
+      }
+    }
+
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) collectImageSearchCandidates(child, candidates);
+    }
+  }
+
+  async function resolveHeaderBackgroundImages(candidates: ImageSearchCandidate[]): Promise<string[]> {
+    const seen = new Set<string>();
+    const imageUrls: string[] = [];
+
+    for (const candidate of candidates) {
+      let childEmbedIds = candidate.childEmbedIds;
+      if (childEmbedIds.length === 0) {
+        const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
+        const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
+        childEmbedIds = normalizeEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
+      }
+      if (childEmbedIds.length === 0) continue;
+
+      const remainingCount = HEADER_BACKGROUND_IMAGE_LIMIT - imageUrls.length;
+      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, remainingCount), 3, 250);
+      for (const childEmbed of childEmbeds) {
+        const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
+        const rawUrl = decodedChild?.image_url || decodedChild?.thumbnail_url;
+        if (!rawUrl || seen.has(rawUrl)) continue;
+
+        seen.add(rawUrl);
+        imageUrls.push(proxyImage(rawUrl, MAX_WIDTH_HEADER_IMAGE));
+        if (imageUrls.length >= HEADER_BACKGROUND_IMAGE_LIMIT) return imageUrls;
+      }
+    }
+
+    return imageUrls;
+  }
 
   /**
    * Parse system message content to check if it's an app_settings_memories_response.
@@ -742,6 +829,44 @@
   //   c) isNewChatCreditsError is true (credits error state), or
   //   d) isIncognito is true (always show the incognito header immediately)
   let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+
+  $effect(() => {
+    const requestId = ++headerBackgroundRequestId;
+
+    if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
+      headerBackgroundCandidateKey = '';
+      headerBackgroundImages = null;
+      return;
+    }
+
+    const candidates: ImageSearchCandidate[] = [];
+    for (const message of messages) {
+      collectImageSearchCandidates(message.content as TiptapNode | undefined, candidates);
+    }
+
+    if (candidates.length === 0) {
+      headerBackgroundCandidateKey = '';
+      headerBackgroundImages = null;
+      return;
+    }
+
+    const candidateKey = candidates
+      .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
+      .join(';');
+    if (candidateKey === headerBackgroundCandidateKey) return;
+    headerBackgroundCandidateKey = candidateKey;
+
+    resolveHeaderBackgroundImages(candidates)
+      .then((images) => {
+        if (requestId !== headerBackgroundRequestId) return;
+        headerBackgroundImages = images.length > 0 ? images : null;
+      })
+      .catch((error) => {
+        if (requestId !== headerBackgroundRequestId) return;
+        console.warn('[ChatHistory] Failed to resolve image-search header backgrounds:', error);
+        headerBackgroundImages = null;
+      });
+  });
 
   // ─── Highlights aggregation for ChatHeader pill + navigation overlay ─────
   // Per-chat reactive selectors. The store is keyed by chat_id so switching
@@ -1674,6 +1799,7 @@
                 {videoTeaserMp4Url}
                 {videoTeaserWebpUrl}
                 {backgroundFrames}
+                {headerBackgroundImages}
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}
