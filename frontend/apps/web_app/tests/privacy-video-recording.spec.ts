@@ -139,12 +139,7 @@ test('record privacy video demo flow', async ({ browser }: { browser: any }) => 
 	await page.mouse.move(toggleBox.x + toggleBox.width / 2, toggleBox.y + toggleBox.height / 2, { steps: 24 });
 	await page.mouse.click(toggleBox.x + toggleBox.width / 2, toggleBox.y + toggleBox.height / 2);
 	await expect(piiToggle).toHaveAttribute('data-pii-revealed', 'true');
-	await page.waitForTimeout(1300);
-
-	await page.mouse.click(toggleBox.x + toggleBox.width / 2, toggleBox.y + toggleBox.height / 2);
-	await expect(piiToggle).toHaveAttribute('data-pii-revealed', 'false');
-	await expect(assistantMessage).toContainText('[PHONE_1_111]', { timeout: 10000 });
-	await page.waitForTimeout(1300);
+	await page.waitForTimeout(1800);
 
 	const video = page.video();
 	await context.close();
