@@ -5659,11 +5659,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 pii_mappings: message.pii_mappings,
             };
 
-            const firstParagraph = privacyVideoDemoAssistantHiddenResponse.split('\n\n')[0];
-
             setTimeout(() => {
                 if (currentChat?.chat_id !== message.chat_id) return;
-                currentMessages = [...currentMessages, { ...demoAssistantMessage, content: firstParagraph }];
+                currentMessages = [...currentMessages, { ...demoAssistantMessage, content: privacyVideoDemoAssistantHiddenResponse }];
                 processingPhase = null;
                 chatHistoryRef?.updateMessages(currentMessages);
             }, 1100);
