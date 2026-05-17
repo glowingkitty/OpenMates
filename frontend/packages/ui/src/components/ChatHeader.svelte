@@ -81,9 +81,8 @@
     /** List of image URLs rendered as a crossfading Ken-Burns slideshow inside the
      *  16:9 media frame. Used when no compact teaser video is configured. */
     backgroundFrames = null,
-    /** Proxied image-search result URLs used as an ambient full-banner background
-     *  for normal chats. Ignored when curated header media is present. */
-    headerBackgroundImages = null,
+    /** Proxied image-search result thumbnails rendered as clickable decorative bubbles. */
+    headerImageBubbles = null,
     /** Aggregated highlight counts across all messages in this chat. When
      *  `highlights > 0`, a yellow pill is rendered below the summary. Clicking
      *  the pill fires `onHighlightJump` so the parent can scroll to the first
@@ -121,8 +120,13 @@
     videoTeaserWebpUrl?: string | null;
     /** Image URLs for the crossfading Ken-Burns slideshow inside the media frame. */
     backgroundFrames?: string[] | null;
-    /** Proxied image-search result URLs for the full-banner ambient background. */
-    headerBackgroundImages?: string[] | null;
+    /** Proxied image-search result thumbnails rendered as clickable decorative bubbles. */
+    headerImageBubbles?: Array<{
+      imageUrl: string;
+      parentEmbedId: string;
+      childEmbedId: string;
+      title?: string;
+    }> | null;
     /** Aggregated highlight counts across all messages in this chat. */
     highlightStats?: { highlights: number; comments: number } | null;
     /** Click handler for the highlights pill. */
@@ -138,11 +142,7 @@
   const useSlideshow = $derived(!useTeaser && Array.isArray(backgroundFrames) && backgroundFrames.length > 0);
   /** True when the header should render the 16:9 media frame at all. */
   const hasHeaderMedia = $derived(useTeaser || useSlideshow || !!videoMp4Url);
-  const ambientHeaderImage = $derived(
-    !hasHeaderMedia && Array.isArray(headerBackgroundImages) && headerBackgroundImages.length > 0
-      ? headerBackgroundImages[0]
-      : null,
-  );
+  const imageBubbles = $derived(!hasHeaderMedia && Array.isArray(headerImageBubbles) ? headerImageBubbles.slice(0, 2) : []);
   // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
   const introTeaserCopyLines = $derived([
     $text('demo_chats.for_everyone.teaser_line1'),
@@ -570,6 +570,18 @@
     e.stopPropagation();
     onHighlightJump?.();
   }
+
+  function handleImageBubbleClick(e: MouseEvent, bubble: { parentEmbedId: string; childEmbedId: string }) {
+    e.stopPropagation();
+    document.dispatchEvent(new CustomEvent('embedfullscreen', {
+      detail: {
+        embedId: bubble.parentEmbedId,
+        embedType: 'app-skill-use',
+        focusChildEmbedId: bubble.childEmbedId,
+        hasChatContext: true,
+      },
+    }));
+  }
 </script>
 
 <!-- Banner container: always rendered when either loading or loaded.
@@ -589,13 +601,6 @@
   ontouchend={handleHeaderTouchEnd}
   ontouchcancel={handleHeaderTouchEnd}
 >
-  {#if ambientHeaderImage}
-    <div class="header-image-backdrop" aria-hidden="true">
-      <img src={ambientHeaderImage} alt="" loading="eager" decoding="async" />
-    </div>
-    <div class="header-image-overlay" aria-hidden="true"></div>
-  {/if}
-
   <!-- ── Living gradient orbs (Creative Code aesthetic) ──────────────────────
        Three soft radial-gradient blobs that slowly morph shape and drift
        around the banner. Each uses --orb-color-b as the orb center color and
@@ -605,13 +610,11 @@
        ensure the three orbs never synchronise, keeping the motion organic and
        non-repeating within any reasonable viewing window.
        z-index:0 keeps them behind all content (z-index:1+ for content). -->
-  {#if !ambientHeaderImage}
-    <div class="banner-orbs" aria-hidden="true">
-      <div class="orb orb-1"></div>
-      <div class="orb orb-2"></div>
-      <div class="orb orb-3"></div>
-    </div>
-  {/if}
+  <div class="banner-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
 
   <!-- ── Processing state: AI icon + "Creating new chat ..." with shimmer ── -->
   {#if isLoading && !isCreditsError && !isIncognito}
@@ -787,7 +790,21 @@
       <!-- ── Standard layout: decorative icons + media frame or icon/title/summary ── -->
 
       <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
-      {#if isIntroTeaserChat}
+      {#if imageBubbles.length > 0}
+        {#each imageBubbles as bubble, index (bubble.childEmbedId)}
+          <button
+            class="image-bubble"
+            class:image-bubble-left={index === 0}
+            class:image-bubble-right={index !== 0}
+            type="button"
+            aria-label={bubble.title || $text('embeds.image_search.open_image')}
+            data-testid="chat-header-image-bubble"
+            onclick={(e) => handleImageBubbleClick(e, bubble)}
+          >
+            <img src={bubble.imageUrl} alt="" loading="eager" decoding="async" />
+          </button>
+        {/each}
+      {:else if isIntroTeaserChat}
         <div class="deco-icon deco-icon-left ai-deco-icon"></div>
         <div class="deco-icon deco-icon-right ai-deco-icon"></div>
       {:else if IconComponent}
@@ -1017,35 +1034,6 @@
   :global(.side-by-side-active) .chat-header-banner {
     height: 240px;
     min-height: unset;
-  }
-
-  .header-image-backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: var(--z-index-base);
-    pointer-events: none;
-    overflow: hidden;
-    background: var(--color-primary);
-  }
-
-  .header-image-backdrop img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    display: block;
-    filter: saturate(1.08) contrast(1.04);
-    transform: scale(1.03);
-  }
-
-  .header-image-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: var(--z-index-raised);
-    pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.48)),
-      linear-gradient(135deg, rgba(0, 0, 0, 0.44), rgba(0, 0, 0, 0.12));
   }
 
   /* ─── Processing state ──────────────────────────────────────────────────── */
@@ -1386,6 +1374,104 @@
     }
   }
 
+  /* ─── Image result bubbles (replace decorative icons when image search exists) ─── */
+
+  .image-bubble {
+    all: unset;
+    position: absolute;
+    width: 126px;
+    height: 126px;
+    border-radius: 999px;
+    z-index: var(--z-index-raised-2);
+    pointer-events: auto;
+    cursor: pointer;
+    overflow: hidden;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.12);
+    border: 2px solid rgba(255, 255, 255, 0.36);
+    box-shadow:
+      inset 10px 12px 22px rgba(255, 255, 255, 0.34),
+      inset -12px -16px 26px rgba(0, 0, 0, 0.22),
+      0 18px 42px rgba(0, 0, 0, 0.24);
+    --float-rx: 10px;
+    --float-ry: 12px;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
+    transition: transform var(--duration-fast) var(--easing-default),
+                box-shadow var(--duration-fast) var(--easing-default),
+                border-color var(--duration-fast) var(--easing-default);
+  }
+
+  .image-bubble::before,
+  .image-bubble::after {
+    content: '';
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .image-bubble::before {
+    top: 14px;
+    left: 20px;
+    width: 34px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.5);
+    filter: blur(2px);
+    transform: rotate(-28deg);
+  }
+
+  .image-bubble::after {
+    inset: 0;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 0 26px rgba(255, 255, 255, 0.24);
+  }
+
+  .image-bubble img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: saturate(1.08) contrast(1.04);
+  }
+
+  .image-bubble-left {
+    left: calc(50% - 240px - 106px);
+    bottom: -15px;
+    --deco-rotate: -15deg;
+  }
+
+  .image-bubble-right {
+    right: calc(50% - 240px - 106px);
+    bottom: -15px;
+    --deco-rotate: 15deg;
+    animation-delay: 0.1s, -8s;
+  }
+
+  .image-bubble:hover {
+    border-color: rgba(255, 255, 255, 0.66);
+    box-shadow:
+      inset 10px 12px 22px rgba(255, 255, 255, 0.42),
+      inset -12px -16px 26px rgba(0, 0, 0, 0.2),
+      0 22px 50px rgba(0, 0, 0, 0.3);
+  }
+
+  .image-bubble:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 5px;
+  }
+
+  .image-bubble:active {
+    scale: 0.97;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .image-bubble {
+      animation: decoEnter 0.6s ease-out 0.1s both !important;
+    }
+  }
+
   /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */
 
   .deco-icon {
@@ -1652,12 +1738,25 @@
     height: 90px !important;
   }
 
+  .is-mobile-header .image-bubble {
+    width: 90px;
+    height: 90px;
+  }
+
   .is-mobile-header .deco-icon-left {
     /* On mobile: content max-width 360px (half=180px), icon 90px */
     left: calc(50% - 180px - 70px);
   }
 
+  .is-mobile-header .image-bubble-left {
+    left: calc(50% - 180px - 70px);
+  }
+
   .is-mobile-header .deco-icon-right {
+    right: calc(50% - 180px - 70px);
+  }
+
+  .is-mobile-header .image-bubble-right {
     right: calc(50% - 180px - 70px);
   }
 

@@ -58,7 +58,7 @@
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { introBannerVisible } from '../stores/uiStateStore';
   import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
-  import { MAX_WIDTH_HEADER_IMAGE, proxyImage } from '../utils/imageProxy';
+  import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -81,7 +81,15 @@
     childEmbedIds: string[];
   };
 
+  type HeaderImageBubble = {
+    imageUrl: string;
+    parentEmbedId: string;
+    childEmbedId: string;
+    title?: string;
+  };
+
   type ImageResultContent = {
+    title?: string;
     image_url?: string;
     thumbnail_url?: string;
   };
@@ -251,10 +259,10 @@
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
-  let headerBackgroundImages = $state<string[] | null>(null);
-  let headerBackgroundRequestId = 0;
-  let headerBackgroundCandidateKey = '';
-  const HEADER_BACKGROUND_IMAGE_LIMIT = 5;
+  let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
+  let headerImageBubbleRequestId = 0;
+  let headerImageBubbleCandidateKey = '';
+  const HEADER_IMAGE_BUBBLE_LIMIT = 2;
 
   function normalizeEmbedIds(embedIds: unknown): string[] {
     if (typeof embedIds === 'string') {
@@ -292,9 +300,9 @@
     }
   }
 
-  async function resolveHeaderBackgroundImages(candidates: ImageSearchCandidate[]): Promise<string[]> {
+  async function resolveHeaderImageBubbles(candidates: ImageSearchCandidate[]): Promise<HeaderImageBubble[]> {
     const seen = new Set<string>();
-    const imageUrls: string[] = [];
+    const bubbles: HeaderImageBubble[] = [];
 
     for (const candidate of candidates) {
       let childEmbedIds = candidate.childEmbedIds;
@@ -305,20 +313,25 @@
       }
       if (childEmbedIds.length === 0) continue;
 
-      const remainingCount = HEADER_BACKGROUND_IMAGE_LIMIT - imageUrls.length;
+      const remainingCount = HEADER_IMAGE_BUBBLE_LIMIT - bubbles.length;
       const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, remainingCount), 3, 250);
       for (const childEmbed of childEmbeds) {
         const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
-        const rawUrl = decodedChild?.image_url || decodedChild?.thumbnail_url;
+        const rawUrl = decodedChild?.thumbnail_url || decodedChild?.image_url;
         if (!rawUrl || seen.has(rawUrl)) continue;
 
         seen.add(rawUrl);
-        imageUrls.push(proxyImage(rawUrl, MAX_WIDTH_HEADER_IMAGE));
-        if (imageUrls.length >= HEADER_BACKGROUND_IMAGE_LIMIT) return imageUrls;
+        bubbles.push({
+          imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
+          parentEmbedId: candidate.parentEmbedId,
+          childEmbedId: childEmbed.embed_id,
+          title: decodedChild?.title,
+        });
+        if (bubbles.length >= HEADER_IMAGE_BUBBLE_LIMIT) return bubbles;
       }
     }
 
-    return imageUrls;
+    return bubbles;
   }
 
   /**
@@ -831,11 +844,11 @@
   let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
 
   $effect(() => {
-    const requestId = ++headerBackgroundRequestId;
+    const requestId = ++headerImageBubbleRequestId;
 
     if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
-      headerBackgroundCandidateKey = '';
-      headerBackgroundImages = null;
+      headerImageBubbleCandidateKey = '';
+      headerImageBubbles = null;
       return;
     }
 
@@ -845,26 +858,26 @@
     }
 
     if (candidates.length === 0) {
-      headerBackgroundCandidateKey = '';
-      headerBackgroundImages = null;
+      headerImageBubbleCandidateKey = '';
+      headerImageBubbles = null;
       return;
     }
 
     const candidateKey = candidates
       .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
       .join(';');
-    if (candidateKey === headerBackgroundCandidateKey) return;
-    headerBackgroundCandidateKey = candidateKey;
+    if (candidateKey === headerImageBubbleCandidateKey) return;
+    headerImageBubbleCandidateKey = candidateKey;
 
-    resolveHeaderBackgroundImages(candidates)
-      .then((images) => {
-        if (requestId !== headerBackgroundRequestId) return;
-        headerBackgroundImages = images.length > 0 ? images : null;
+    resolveHeaderImageBubbles(candidates)
+      .then((bubbles) => {
+        if (requestId !== headerImageBubbleRequestId) return;
+        headerImageBubbles = bubbles.length > 0 ? bubbles : null;
       })
       .catch((error) => {
-        if (requestId !== headerBackgroundRequestId) return;
-        console.warn('[ChatHistory] Failed to resolve image-search header backgrounds:', error);
-        headerBackgroundImages = null;
+        if (requestId !== headerImageBubbleRequestId) return;
+        console.warn('[ChatHistory] Failed to resolve image-search header bubbles:', error);
+        headerImageBubbles = null;
       });
   });
 
@@ -1799,7 +1812,7 @@
                 {videoTeaserMp4Url}
                 {videoTeaserWebpUrl}
                 {backgroundFrames}
-                {headerBackgroundImages}
+                {headerImageBubbles}
                 {highlightStats}
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}
