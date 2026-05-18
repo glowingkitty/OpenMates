@@ -258,14 +258,14 @@ export class EmbedStore {
   }
 
   private hasUploadSearchEvidence(entry: EmbedStoreEntry): boolean {
-    return this.isFileLikeType(entry.type) || !!entry.file_path;
+    return this.isFileLikeType(entry.type) || !!entry.file_path || !!entry.encrypted_type;
   }
 
   private async getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]> {
     const names: string[] = [];
     addSearchableName(names, entry.file_path);
 
-    const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name ?? entry.metadata?.title;
+    const metadataName = entry.metadata?.filename ?? entry.metadata?.file_name;
     addSearchableName(names, metadataName);
 
     try {

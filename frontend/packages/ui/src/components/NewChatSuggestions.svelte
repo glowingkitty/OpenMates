@@ -335,7 +335,7 @@
         }
         const [results, fileResults] = await Promise.all([
           performSearch(query, allChats, textFn),
-          $authStore.isAuthenticated ? embedStore.searchUploadedFiles(query) : Promise.resolve([]),
+          embedStore.searchUploadedFiles(query),
         ]);
         // Stale guard — a newer search was triggered while this one ran
         if (gen !== searchGeneration) return;

@@ -115,8 +115,28 @@ describe('EmbedStore uploaded file search metadata', () => {
       getSearchableFileNames(entry: EmbedStoreEntry): Promise<string[]>;
     }).getSearchableFileNames(entry);
 
-    expect(names).toContain('Code file');
+    expect(names).not.toContain('Code file');
     expect(names).toContain('upload_to_api_video.sh');
+  });
+
+  it('allows encrypted shared embed rows to be inspected for upload filenames', () => {
+    const store = new EmbedStore();
+    const entry: EmbedStoreEntry = {
+      contentRef: 'embed:shared-code-file',
+      type: 'app-skill-use',
+      createdAt: 1,
+      updatedAt: 1,
+      embed_id: 'shared-code-file',
+      encrypted_content: '<encrypted-content>',
+      encrypted_type: '<encrypted-type>',
+      hashed_chat_id: 'hashed-chat',
+    };
+
+    const hasEvidence = (store as unknown as {
+      hasUploadSearchEvidence(entry: EmbedStoreEntry): boolean;
+    }).hasUploadSearchEvidence(entry);
+
+    expect(hasEvidence).toBe(true);
   });
 
   it('does not treat web-search documents as uploaded-file candidates', () => {
