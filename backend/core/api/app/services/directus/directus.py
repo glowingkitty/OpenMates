@@ -76,7 +76,9 @@ class DirectusService:
         
         self.cache = cache_service or CacheService()
         self.cache_ttl = int(os.getenv("DIRECTUS_CACHE_TTL", "3600"))
-        self.token_ttl = int(os.getenv("DIRECTUS_TOKEN_TTL", "43200"))
+        # Directus' default ACCESS_TOKEN_TTL is 15 minutes. Cache admin tokens a
+        # little shorter so refreshes happen before Directus starts returning 401s.
+        self.token_ttl = int(os.getenv("DIRECTUS_TOKEN_TTL", "840"))
         # Use injected encryption_service or create one if not provided (though it should be provided from main.py)
         self.encryption_service = encryption_service or EncryptionService()
         self._client = httpx.AsyncClient() # Initialize the client
