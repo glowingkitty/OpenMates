@@ -92,6 +92,8 @@ api.dev.openmates.org {
 	# (credentials: include) and needs FastAPI to return the specific origin, not wildcard
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
 	# Includes /v1/apps/reminder/skills/* — webapp uses credentials: include for reminder creation/management
+	# Includes /v1/code/run and /v1/code/run/* — authenticated Code Run starts and streams
+	# from the webapp must pass through FastAPI CORS instead of the public CORS handler.
 	# Includes /v1/users/* — profile image endpoint uses session cookie (credentials: include);
 	#   browsers block wildcard CORS with credentials, so it must pass through FastAPI CORSMiddleware.
 	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
@@ -113,6 +115,7 @@ api.dev.openmates.org {
 	# requires specific origin in CORS response, not wildcard)
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
 	# Includes /v1/apps/reminder/skills/* — webapp uses credentials: include for reminder creation/management
+	# Includes /v1/code/run and /v1/code/run/* — authenticated Code Run starts and streams.
 	# Includes /v1/daily-inspirations/* — daily inspiration persistence (session auth, credentials: include)
 	# Includes /v1/embeds/presigned-url — webapp uses credentials: include for session-authenticated
 	# presigned S3 URL generation; browsers block wildcard CORS with credentials.
