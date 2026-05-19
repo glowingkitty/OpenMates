@@ -965,7 +965,7 @@
         <div class="code-split-wrapper" class:split-active={outputPaneActive}>
           <!-- Code panel — always visible. When output is active, takes 30% on desktop,
                or becomes a shortened scrollable container on mobile. -->
-          <div class="code-panel" class:code-panel-split={outputPaneActive}>
+          <div class="code-panel" class:code-panel-split={outputPaneActive} data-testid="code-source-panel">
             <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
               {#each highlightedLines as lineHtml, i}
                 {@const lineNum = i + 1}

@@ -231,6 +231,17 @@ async function waitForCodeRunSuccess(fullscreenOverlay: any, _expectedOutput: st
 	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
 }
 
+async function assertCodeRunDidNotMutateSource(fullscreenOverlay: any, expectedOutput: string, log: any) {
+	const sourcePanel = fullscreenOverlay.getByTestId('code-source-panel');
+	await expect(sourcePanel).toBeVisible({ timeout: 10000 });
+
+	const sourceText = (await sourcePanel.textContent()) || '';
+	log(`Code source after run (first 500 chars): ${sourceText.substring(0, 500)}`);
+	expect(sourceText).toContain(expectedOutput);
+	expect(sourceText).not.toMatch(/Charged 5 credits/i);
+	expect(sourceText).not.toMatch(/Exited at .* with code 0/i);
+}
+
 // ─── Test ─────────────────────────────────────────────────────────────────────
 
 test('multi-turn code generation: iterative improvements with code embed verification', async ({
@@ -581,7 +592,8 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
   await fileSelection.getByRole('button', { name: 'Continue' }).click();
 
   await waitForCodeRunSuccess(fullscreenOverlay, expectedOutput, log);
- await screenshot(page, 'run-complete');
+  await assertCodeRunDidNotMutateSource(fullscreenOverlay, expectedOutput, log);
+	await screenshot(page, 'run-complete');
 
  await closeFullscreen(page, fullscreenOverlay);
  await deleteActiveChat(page, log, screenshot, 'cleanup');
