@@ -1007,6 +1007,7 @@
                     {#each runCandidates as candidate}
                       <label class="code-run-file-option" class:required={candidate.required}>
                         <input
+                          data-testid={candidate.required ? 'code-run-required-file-checkbox' : 'code-run-optional-file-checkbox'}
                           type="checkbox"
                           checked={candidate.selected || candidate.required}
                           disabled={candidate.required}
