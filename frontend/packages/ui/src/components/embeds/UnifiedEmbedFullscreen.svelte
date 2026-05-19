@@ -953,6 +953,8 @@
   $effect(() => {
     const query = $searchTextHighlightStore;
     const container = contentAreaElement;
+    let observer: MutationObserver | null = null;
+    const observerOptions = { childList: true, subtree: true, characterData: true };
 
     function removeExistingMarks(el: HTMLElement) {
       const marks = Array.from(el.querySelectorAll('mark.search-match'));
@@ -982,60 +984,66 @@
 
     function applyHighlights(el: HTMLElement, q: string) {
       if (!el.isConnected) return;
-      removeExistingMarks(el);
-      if (!q || !q.trim()) return;
+      observer?.disconnect();
 
-      const lowerQuery = normalizeForSearch(q);
-      if (!lowerQuery) return;
+      try {
+        removeExistingMarks(el);
+        if (!q || !q.trim()) return;
 
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-      const textNodes: Text[] = [];
-      let node: Node | null;
-      while ((node = walker.nextNode())) {
-        // Skip aria-hidden elements (e.g. doc page-break spacers, line number columns)
-        let ancestor = node.parentElement;
-        let skip = false;
-        while (ancestor && ancestor !== el) {
-          if (ancestor.getAttribute('aria-hidden') === 'true') { skip = true; break; }
-          ancestor = ancestor.parentElement;
-        }
-        if (!skip) textNodes.push(node as Text);
-      }
+        const lowerQuery = normalizeForSearch(q);
+        if (!lowerQuery) return;
 
-      for (const textNode of textNodes) {
-        const textContent = textNode.textContent || '';
-        // Use plain lowercase for content — web search snippets are ASCII so no normalization
-        // needed. Normalizing content would shift character positions when … → ... expands.
-        const lowerContent = textContent.toLowerCase();
-        if (lowerContent.indexOf(lowerQuery) === -1) continue;
-
-        const fragment = document.createDocumentFragment();
-        let lastIdx = 0;
-        let searchFrom = 0;
-
-        while (searchFrom < lowerContent.length) {
-          const idx = lowerContent.indexOf(lowerQuery, searchFrom);
-          if (idx === -1) break;
-          if (idx > lastIdx) {
-            fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+        const textNodes: Text[] = [];
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          // Skip aria-hidden elements (e.g. doc page-break spacers, line number columns)
+          let ancestor = node.parentElement;
+          let skip = false;
+          while (ancestor && ancestor !== el) {
+            if (ancestor.getAttribute('aria-hidden') === 'true') { skip = true; break; }
+            ancestor = ancestor.parentElement;
           }
-          const mark = document.createElement('mark');
-          mark.className = 'search-match';
-          mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
-          fragment.appendChild(mark);
-          lastIdx = idx + lowerQuery.length;
-          searchFrom = lastIdx;
+          if (!skip) textNodes.push(node as Text);
         }
 
-        if (lastIdx < textContent.length) {
-          fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+        for (const textNode of textNodes) {
+          const textContent = textNode.textContent || '';
+          // Use plain lowercase for content — web search snippets are ASCII so no normalization
+          // needed. Normalizing content would shift character positions when … → ... expands.
+          const lowerContent = textContent.toLowerCase();
+          if (lowerContent.indexOf(lowerQuery) === -1) continue;
+
+          const fragment = document.createDocumentFragment();
+          let lastIdx = 0;
+          let searchFrom = 0;
+
+          while (searchFrom < lowerContent.length) {
+            const idx = lowerContent.indexOf(lowerQuery, searchFrom);
+            if (idx === -1) break;
+            if (idx > lastIdx) {
+              fragment.appendChild(document.createTextNode(textContent.slice(lastIdx, idx)));
+            }
+            const mark = document.createElement('mark');
+            mark.className = 'search-match';
+            mark.textContent = textContent.slice(idx, idx + lowerQuery.length);
+            fragment.appendChild(mark);
+            lastIdx = idx + lowerQuery.length;
+            searchFrom = lastIdx;
+          }
+
+          if (lastIdx < textContent.length) {
+            fragment.appendChild(document.createTextNode(textContent.slice(lastIdx)));
+          }
+
+          textNode.parentNode?.replaceChild(fragment, textNode);
         }
 
-        textNode.parentNode?.replaceChild(fragment, textNode);
+        const firstMatch = el.querySelector('mark.search-match') as HTMLElement | null;
+        firstMatch?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      } finally {
+        if (observer && el.isConnected) observer.observe(el, observerOptions);
       }
-
-      const firstMatch = el.querySelector('mark.search-match') as HTMLElement | null;
-      firstMatch?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }
 
     if (!container) return;
@@ -1055,19 +1063,19 @@
     // (e.g. markdown-it, highlight.js, or async embed child loading updating the DOM).
     // Debounce via rAF to avoid excessive re-runs on rapid DOM mutations.
     let mutationRafHandle: number | null = null;
-    const observer = new MutationObserver(() => {
+    observer = new MutationObserver(() => {
       if (mutationRafHandle !== null) return; // already pending
       mutationRafHandle = requestAnimationFrame(() => {
         mutationRafHandle = null;
         applyHighlights(container, query);
       });
     });
-    observer.observe(container, { childList: true, subtree: true, characterData: true });
+    observer.observe(container, observerOptions);
 
     return () => {
       if (rafHandle !== null) cancelAnimationFrame(rafHandle);
       if (mutationRafHandle !== null) cancelAnimationFrame(mutationRafHandle);
-      observer.disconnect();
+      observer?.disconnect();
       if (container.isConnected) removeExistingMarks(container);
     };
   });
