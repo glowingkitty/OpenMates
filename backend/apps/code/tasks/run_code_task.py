@@ -81,6 +81,7 @@ async def _charge_run_credits(
     execution_id: str,
     usage_details: dict[str, Any],
 ) -> int:
+    file_names = [file.get("path") for file in payload.get("files", []) if isinstance(file.get("path"), str)]
     charge_payload = {
         "user_id": payload["user_id"],
         "user_id_hash": payload["user_id_hash"],
@@ -95,6 +96,7 @@ async def _charge_run_credits(
             "message_id": payload.get("message_id"),
             "credits_per_minute": RUN_CREDITS_PER_MINUTE,
             "files_count": len(payload.get("files", [])),
+            "code_run_filenames": file_names,
             **usage_details,
         },
         "api_key_hash": None,
@@ -137,31 +139,39 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         return loop.run_until_complete(coro)
 
     started_at = time.time()
+    billable_started_at = 0.0
     billing_state = {"charged_credits": 0, "charged_minutes": 0}
     run_async(_store_execution(execution_id, {"status": "preparing_sandbox", "started_at": started_at}))
 
-    def charge_initial_minute() -> None:
+    def charge_run(duration: float, billing_phase: str) -> None:
         if billing_state["charged_credits"]:
             return
+        charged_minutes = max(1, math.ceil(duration / 60))
         charged_credits = run_async(
             _charge_run_credits(
                 payload,
-                RUN_CREDITS_PER_MINUTE,
+                charged_minutes * RUN_CREDITS_PER_MINUTE,
                 execution_id,
-                {"billing_phase": "initial_minute", "charged_minutes": 1},
+                {
+                    "billing_phase": billing_phase,
+                    "duration_seconds": round(duration, 3),
+                    "charged_minutes": charged_minutes,
+                    "total_charged_minutes": charged_minutes,
+                },
             )
         )
         billing_state["charged_credits"] = charged_credits
-        billing_state["charged_minutes"] = 1
+        billing_state["charged_minutes"] = charged_minutes
         run_async(_store_execution(
             execution_id,
-            {"charged_credits": charged_credits, "charged_minutes": 1},
+            {"charged_credits": charged_credits, "charged_minutes": charged_minutes},
         ))
 
     def on_output(kind: str, text: str) -> None:
+        nonlocal billable_started_at
         if kind == "status":
             if text.startswith("User code setup started"):
-                charge_initial_minute()
+                billable_started_at = time.time()
             elif text.startswith("Sandbox started"):
                 run_async(_store_execution(execution_id, {"status": "preparing_sandbox"}))
             elif text.startswith("Uploading"):
@@ -180,23 +190,8 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         duration = result.duration_seconds
         status = "finished" if result.exit_code in (None, 0) else "failed"
         charged_minutes = max(1, math.ceil(duration / 60))
-        extra_minutes = max(0, charged_minutes - billing_state["charged_minutes"])
-        extra_credits = 0
-        if extra_minutes:
-            extra_credits = run_async(
-                _charge_run_credits(
-                    payload,
-                    extra_minutes * RUN_CREDITS_PER_MINUTE,
-                    execution_id,
-                    {
-                        "billing_phase": "extra_minutes",
-                        "duration_seconds": round(duration, 3),
-                        "charged_minutes": extra_minutes,
-                        "total_charged_minutes": charged_minutes,
-                    },
-                )
-            )
-        credits = billing_state["charged_credits"] + extra_credits
+        charge_run(duration, "completed")
+        credits = billing_state["charged_credits"]
         run_async(_append_output(
             execution_id,
             "status",
@@ -218,6 +213,8 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         ))
     except Exception as exc:
         logger.error("Code Run execution %s failed: %s", execution_id, exc, exc_info=True)
+        if billable_started_at and not billing_state["charged_credits"]:
+            charge_run(time.time() - billable_started_at, "failed")
         run_async(_append_output(execution_id, "stderr", f"Run failed: {exc}\n"))
         run_async(_store_execution(
             execution_id,

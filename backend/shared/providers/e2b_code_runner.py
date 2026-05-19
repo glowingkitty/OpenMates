@@ -182,7 +182,7 @@ def run_code_in_e2b(files: list[CodeRunFile], target_path: str, on_output: Outpu
             for file in files
         ])
         billable_started_at = time.monotonic()
-        _emit(on_output, "status", "User code setup started. Reserving first minute...\n")
+        _emit(on_output, "status", "User code setup started. Tracking billable runtime...\n")
 
         for message, command in _dependency_commands(files):
             _emit(on_output, "status", message + "\n")

@@ -267,4 +267,50 @@ async def test_charge_run_credits_links_usage_to_chat(monkeypatch: pytest.Monkey
     assert requests[0]["json"]["skill_id"] == "run"
     assert requests[0]["json"]["usage_details"]["chat_id"] == CHAT_ID
     assert requests[0]["json"]["usage_details"]["message_id"] == MESSAGE_ID
-    assert requests[0]["json"]["usage_details"]["credits_per_minute"] == 5
+    usage_details = requests[0]["json"]["usage_details"]
+    assert usage_details["credits_per_minute"] == 5
+    assert usage_details["code_run_filenames"] == ["main.py"]
+
+
+@pytest.mark.anyio
+async def test_charge_run_credits_includes_code_run_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[dict] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeAsyncClient:
+        def __init__(self, timeout: int):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url: str, json: dict, headers: dict):
+            requests.append({"url": url, "json": json, "headers": headers})
+            return FakeResponse()
+
+    monkeypatch.setattr("backend.apps.code.tasks.run_code_task.httpx.AsyncClient", FakeAsyncClient)
+
+    await _charge_run_credits(
+        {
+            "user_id": USER_ID,
+            "user_id_hash": USER_HASH,
+            "chat_id": CHAT_ID,
+            "message_id": MESSAGE_ID,
+            "target_embed_id": TARGET_EMBED_ID,
+            "target_path": "main.py",
+            "files": [{"path": "main.py"}, {"path": "helper.py"}],
+        },
+        10,
+        "execution-1",
+        {"billing_phase": "completed", "duration_seconds": 61.234, "charged_minutes": 2},
+    )
+
+    usage_details = requests[0]["json"]["usage_details"]
+    assert usage_details["code_run_filenames"] == ["main.py", "helper.py"]
+    assert usage_details["duration_seconds"] == 61.234
