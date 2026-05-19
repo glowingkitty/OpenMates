@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import os
 import base64
+import queue
 import re
 import shlex
+import threading
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Iterable, Literal
@@ -64,6 +66,11 @@ class CodeRunResult:
 
 OutputKind = Literal["status", "stdout", "stderr"]
 OutputCallback = Callable[[OutputKind, str], None]
+CancelCallback = Callable[[], bool]
+
+
+class CodeRunCancelled(RuntimeError):
+    """Raised when a user cancels an active sandbox command."""
 
 
 async def get_e2b_api_key_async(secrets_manager: "SecretsManager" | None = None) -> str:
@@ -154,12 +161,67 @@ def _emit(callback: OutputCallback, kind: OutputKind, text: str) -> None:
     callback(kind, redact_execution_output(text))
 
 
+def _exit_code_from_result(value: object) -> int | None:
+    return getattr(value, "exit_code", None)
+
+
+def _run_interruptible_command(
+    sandbox: object,
+    command: str,
+    timeout_seconds: int,
+    stream: OutputCallback,
+    should_cancel: CancelCallback | None,
+) -> int | None:
+    handle = sandbox.commands.run(_shell(command, timeout_seconds), background=True, timeout=timeout_seconds + 10)
+    events: queue.Queue[tuple[str, object]] = queue.Queue()
+
+    def wait_for_command() -> None:
+        try:
+            result = handle.wait(
+                on_stdout=lambda data: events.put(("stdout", data)),
+                on_stderr=lambda data: events.put(("stderr", data)),
+            )
+            events.put(("done", result))
+        except Exception as exc:  # E2B raises on non-zero exit codes.
+            events.put(("error", exc))
+
+    waiter = threading.Thread(target=wait_for_command, daemon=True)
+    waiter.start()
+
+    while True:
+        try:
+            kind, value = events.get(timeout=0.2)
+        except queue.Empty:
+            if should_cancel and should_cancel():
+                try:
+                    handle.kill()
+                finally:
+                    raise CodeRunCancelled("Code run cancelled by user")
+            if not waiter.is_alive():
+                continue
+            continue
+
+        if kind in {"stdout", "stderr"}:
+            stream(kind, str(value))
+            continue
+        if kind == "done":
+            return _exit_code_from_result(value)
+        if kind == "error":
+            exit_code = _exit_code_from_result(value)
+            if exit_code is not None:
+                return exit_code
+            if isinstance(value, BaseException):
+                raise value
+            raise RuntimeError(str(value))
+
+
 def run_code_in_e2b(
     files: list[CodeRunFile],
     target_path: str,
     on_output: OutputCallback,
     api_key: str,
     dependency_installs: list[CodeRunDependencyInstall] | None = None,
+    should_cancel: CancelCallback | None = None,
 ) -> CodeRunResult:
     """Run one target file in an E2B sandbox and stream sanitized output."""
     try:
@@ -195,6 +257,8 @@ def run_code_in_e2b(
         _emit(on_output, "status", "Starting sandbox...\n")
         sandbox = Sandbox.create(api_key=api_key)
         sandbox_id = getattr(sandbox, "sandbox_id", None) or getattr(sandbox, "id", None)
+        if should_cancel and should_cancel():
+            raise CodeRunCancelled("Code run cancelled by user")
 
         sandbox.commands.run(f"mkdir -p {shlex.quote(WORKSPACE_DIR)}")
         _emit(on_output, "status", f"Uploading {len(files)} files...\n")
@@ -206,15 +270,20 @@ def run_code_in_e2b(
             for file in files
         ])
         billable_started_at = time.monotonic()
+        if should_cancel and should_cancel():
+            raise CodeRunCancelled("Code run cancelled by user")
 
         for message, command in _dependency_commands(files, dependency_installs or []):
+            if should_cancel and should_cancel():
+                raise CodeRunCancelled("Code run cancelled by user")
             _emit(on_output, "status", message + "\n")
-            install = sandbox.commands.run(
-                _shell(f"cd {shlex.quote(WORKSPACE_DIR)} && {command}", INSTALL_TIMEOUT_SECONDS),
-                on_stdout=lambda data: stream("stdout", data),
-                on_stderr=lambda data: stream("stderr", data),
+            exit_code = _run_interruptible_command(
+                sandbox,
+                f"cd {shlex.quote(WORKSPACE_DIR)} && {command}",
+                INSTALL_TIMEOUT_SECONDS,
+                stream,
+                should_cancel,
             )
-            exit_code = getattr(install, "exit_code", None)
             if exit_code not in (None, 0):
                 _emit(on_output, "stderr", f"Dependency installation failed with exit code {exit_code}.\n")
                 return CodeRunResult(
@@ -225,13 +294,16 @@ def run_code_in_e2b(
                 )
 
         run_command = _run_command_for_file(target)
+        if should_cancel and should_cancel():
+            raise CodeRunCancelled("Code run cancelled by user")
         _emit(on_output, "status", f"Running ({target.path})...\n")
-        result = sandbox.commands.run(
-            _shell(f"cd {shlex.quote(WORKSPACE_DIR)} && {run_command}", RUN_TIMEOUT_SECONDS),
-            on_stdout=lambda data: stream("stdout", data),
-            on_stderr=lambda data: stream("stderr", data),
+        exit_code = _run_interruptible_command(
+            sandbox,
+            f"cd {shlex.quote(WORKSPACE_DIR)} && {run_command}",
+            RUN_TIMEOUT_SECONDS,
+            stream,
+            should_cancel,
         )
-        exit_code = getattr(result, "exit_code", None)
         return CodeRunResult(
             exit_code=exit_code,
             duration_seconds=time.monotonic() - billable_started_at,

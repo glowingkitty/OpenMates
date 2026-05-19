@@ -55,7 +55,7 @@ export interface CodeRunEvent {
 
 export interface CodeRunStatus {
   execution_id: string;
-  status: 'queued' | 'preparing_sandbox' | 'uploading_files' | 'installing_dependencies' | 'running' | 'finished' | 'failed' | 'timeout' | 'cancelled';
+  status: 'queued' | 'preparing_sandbox' | 'uploading_files' | 'installing_dependencies' | 'running' | 'cancelling' | 'finished' | 'failed' | 'timeout' | 'cancelled';
   target_filename?: string;
   files?: string[];
   events?: CodeRunEvent[];
@@ -117,6 +117,20 @@ export async function getCodeRunStatus(executionId: string): Promise<CodeRunStat
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     throw new Error(payload?.detail || `Code run status unavailable (${response.status})`);
+  }
+
+  return response.json();
+}
+
+export async function cancelCodeRun(executionId: string): Promise<{ execution_id: string; status: CodeRunStatus['status'] }> {
+  const response = await fetch(`${getApiUrl()}/v1/code/run/${encodeURIComponent(executionId)}/cancel`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.detail || `Code run cancellation failed (${response.status})`);
   }
 
   return response.json();

@@ -41,6 +41,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import {
     CodeRunStartError,
+    cancelCodeRun,
     getCodeRunStatus,
     getCodeRunStreamUrl,
     startCodeRun,
@@ -335,6 +336,7 @@
   let runEvents = $state<CodeRunEvent[]>([]);
   let runFiles = $state<string[]>([]);
   let runError = $state<string | null>(null);
+  let runCancelRequested = $state(false);
   let runPollTimer: ReturnType<typeof setTimeout> | null = null;
   let runSocket: WebSocket | null = null;
   let persistedRunExecutionId = $state<string | null>(null);
@@ -549,7 +551,7 @@
   }
 
   function compactRunOutputHasFinalLine(): boolean {
-    return runDisplayEvents.some((event) => event.kind === 'status' && event.text.startsWith('Exited '));
+    return runDisplayEvents.some((event) => event.kind === 'status' && (event.text.startsWith('Exited ') || event.text.startsWith('Cancelled ')));
   }
 
   async function persistRunOutput() {
@@ -895,6 +897,7 @@
 
   function syncRunStatus(status: CodeRunStatus) {
     runStatus = status.status;
+    runCancelRequested = status.status === 'cancelling';
     runEvents = status.events || [];
     runFiles = status.files || runFiles;
     runError = status.error || null;
@@ -902,6 +905,8 @@
 
   function applyRunUpdate(update: Partial<CodeRunStatus>) {
     if (update.status) runStatus = update.status;
+    if (update.status === 'cancelling') runCancelRequested = true;
+    if (update.status && TERMINAL_RUN_STATUSES.has(update.status)) runCancelRequested = false;
     if (update.files) runFiles = update.files;
     if (update.error !== undefined) runError = update.error || null;
   }
@@ -983,6 +988,7 @@
     runPanelOpen = true;
     runStatus = 'queued';
     runError = null;
+    runCancelRequested = false;
     runEvents = [{ kind: 'status', text: 'Queued code run...\n', timestamp: Date.now() / 1000 }];
     runFiles = [];
     try {
@@ -1011,6 +1017,23 @@
       runStatus = 'failed';
       runError = error instanceof Error ? error.message : 'Code run failed to start';
       runEvents = [{ kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    }
+  }
+
+  async function handleCancelRun() {
+    if (!runExecutionId || !runActive || runCancelRequested) return;
+    runCancelRequested = true;
+    try {
+      const result = await cancelCodeRun(runExecutionId);
+      runStatus = result.status;
+      runEvents = [
+        ...runEvents,
+        { kind: 'status', text: `${$text('app_skills.code.run.cancelling')}\n`, timestamp: Date.now() / 1000 }
+      ];
+    } catch (error) {
+      runCancelRequested = false;
+      runError = error instanceof Error ? error.message : 'Code run cancellation failed';
+      runEvents = [...runEvents, { kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
     }
   }
 
@@ -1197,6 +1220,7 @@
                     </div>
                     <div class="code-run-header-actions">
                       <button class="code-run-again" onclick={handleCopyRunOutput} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.copy_output')}</button>
+                      <button class="code-run-stop" onclick={handleCancelRun} disabled={!runActive || runCancelRequested}>{runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}</button>
                       <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
                     </div>
                   </div>
@@ -1468,6 +1492,26 @@
   }
 
   .code-run-again:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .code-run-stop {
+    border: 1px solid #7f1d1d;
+    border-radius: var(--radius-2);
+    background: #450a0a;
+    color: #fecaca;
+    padding: var(--spacing-3) var(--spacing-5);
+    cursor: pointer;
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-stop:not(:disabled):hover {
+    background: #7f1d1d;
+    border-color: #991b1b;
+  }
+
+  .code-run-stop:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }

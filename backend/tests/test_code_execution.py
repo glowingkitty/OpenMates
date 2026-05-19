@@ -25,6 +25,8 @@ from backend.core.api.app.routes.code_execution import (
     CodeRunClientFile,
     RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
     _collect_code_files,
+    _execution_key,
+    cancel_code_run,
 )
 
 
@@ -39,11 +41,17 @@ MESSAGE_ID = "message-1"
 class FakeRedis:
     def __init__(self, embeds: dict[str, dict]):
         self.embeds = embeds
+        self.values: dict[str, bytes] = {}
 
     async def get(self, key: str):
+        if key in self.values:
+            return self.values[key]
         embed_id = key.removeprefix("embed:")
         embed = self.embeds.get(embed_id)
         return json.dumps(embed).encode() if embed else None
+
+    async def set(self, key: str, value: str, ex: int | None = None):
+        self.values[key] = value.encode()
 
 
 class FakeCache:
@@ -64,6 +72,9 @@ class FakeCache:
 
     async def get_embed_from_cache(self, embed_id: str):
         return self.embeds.get(embed_id)
+
+    async def publish_event(self, channel: str, payload: dict):
+        return None
 
 
 class FakeDirectusEmbed:
@@ -226,6 +237,24 @@ def test_code_run_cost_is_five_credits_per_minute() -> None:
 def test_dependency_install_request_rejects_shell_values() -> None:
     with pytest.raises(ValueError):
         ApiCodeRunDependencyInstall(ecosystem="python", packages=["requests;curl"])
+
+
+@pytest.mark.anyio
+async def test_cancel_code_run_marks_execution_cancelling() -> None:
+    cache = FakeCache([], {})
+    client = await cache.client
+    execution_id = "execution-1"
+    await client.set(
+        _execution_key(execution_id),
+        json.dumps({"execution_id": execution_id, "user_id_hash": USER_HASH, "status": "running"}),
+    )
+
+    response = await cancel_code_run(execution_id, _user(), cache)
+    stored = json.loads((await client.get(_execution_key(execution_id))).decode())
+
+    assert response.status == "cancelling"
+    assert stored["status"] == "cancelling"
+    assert stored["cancel_requested"] is True
 
 
 @pytest.mark.anyio

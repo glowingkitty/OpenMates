@@ -53,6 +53,7 @@ E2B_CREATE_RATE_WINDOW_SECONDS = int(os.getenv("CODE_RUN_E2B_CREATE_RATE_WINDOW_
 CODE_RUN_START_RATE_LIMIT = "10/minute"
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
 CLIENT_CONTENT_REQUIRED_CODE = "client_content_required"
+TERMINAL_RUN_STATUSES = {"finished", "failed", "timeout", "cancelled"}
 EXECUTABLE_EXTENSIONS = {
     ".py": "python",
     ".js": "javascript",
@@ -139,6 +140,11 @@ class CodeRunStartResponse(BaseModel):
     target_filename: str
     files: list[str]
     credits_per_minute: int = RUN_CREDITS_PER_MINUTE
+
+
+class CodeRunCancelResponse(BaseModel):
+    execution_id: str
+    status: str
 
 
 def get_cache_service(request: Request) -> CacheService:
@@ -705,6 +711,35 @@ async def get_code_run_status(
     return data
 
 
+@router.post("/{execution_id}/cancel", response_model=CodeRunCancelResponse)
+async def cancel_code_run(
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> CodeRunCancelResponse:
+    client = await cache_service.client
+    key = _execution_key(execution_id)
+    raw = await client.get(key)
+    if not raw:
+        raise HTTPException(status_code=404, detail="Code run not found or expired")
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    expected_user_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+    if data.get("user_id_hash") != expected_user_hash:
+        raise HTTPException(status_code=404, detail="Code run not found or expired")
+
+    if data.get("status") in TERMINAL_RUN_STATUSES:
+        return CodeRunCancelResponse(execution_id=execution_id, status=str(data.get("status")))
+
+    now = time.time()
+    data.update({"cancel_requested": True, "cancel_requested_at": now, "status": "cancelling", "updated_at": now})
+    await client.set(key, json.dumps(data), ex=EXECUTION_TTL_SECONDS)
+    await cache_service.publish_event(
+        _stream_channel(execution_id),
+        {"type": "code_run_update", "payload": {"status": "cancelling", "cancel_requested": True, "updated_at": now}},
+    )
+    return CodeRunCancelResponse(execution_id=execution_id, status="cancelling")
+
+
 @router.websocket("/{execution_id}/stream")
 async def stream_code_run_status(
     websocket: WebSocket,
@@ -729,7 +764,7 @@ async def stream_code_run_status(
 
     await websocket.accept()
     await websocket.send_json({"type": "code_run_snapshot", "payload": data})
-    if data.get("status") in {"finished", "failed", "timeout", "cancelled"}:
+    if data.get("status") in TERMINAL_RUN_STATUSES:
         return
 
     try:
@@ -739,7 +774,7 @@ async def stream_code_run_status(
                 continue
             await websocket.send_json(payload)
             update_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
-            if update_payload.get("status") in {"finished", "failed", "timeout", "cancelled"}:
+            if update_payload.get("status") in TERMINAL_RUN_STATUSES:
                 break
     except WebSocketDisconnect:
         logger.debug("Code Run stream disconnected for execution %s", execution_id)

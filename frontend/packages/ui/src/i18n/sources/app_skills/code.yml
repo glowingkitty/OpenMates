@@ -177,6 +177,24 @@ run.detected_install_command:
   de: Erkannter Installationsbefehl
   verified_by_human: [en, de]
 
+run.stop:
+  context: Button label for cancelling an active Code Run execution
+  en: Stop
+  de: Stoppen
+  verified_by_human: [en, de]
+
+run.cancelling_button:
+  context: Disabled button label while Code Run cancellation is being requested
+  en: Stopping...
+  de: Wird gestoppt...
+  verified_by_human: [en, de]
+
+run.cancelling:
+  context: Terminal status line shown after the user requests Code Run cancellation
+  en: Stopping code run...
+  de: Code-Ausführung wird gestoppt...
+  verified_by_human: [en, de]
+
 preview_show:
   context: Header CTA button label for opening a rendered preview of previewable code
   en: Show preview

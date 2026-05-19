@@ -19,7 +19,13 @@ import httpx
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
-from backend.shared.providers.e2b_code_runner import CodeRunDependencyInstall, CodeRunFile, get_e2b_api_key_async, run_code_in_e2b
+from backend.shared.providers.e2b_code_runner import (
+    CodeRunCancelled,
+    CodeRunDependencyInstall,
+    CodeRunFile,
+    get_e2b_api_key_async,
+    run_code_in_e2b,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -73,6 +79,14 @@ async def _append_output(execution_id: str, kind: str, text: str) -> None:
         _stream_channel(execution_id),
         {"type": "code_run_event", "payload": event},
     )
+
+
+async def _is_cancel_requested(execution_id: str) -> bool:
+    cache_service = await get_worker_cache_service()
+    client = await cache_service.client
+    raw = await client.get(_execution_key(execution_id))
+    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw) if raw else {}
+    return bool(data.get("cancel_requested") or data.get("status") == "cancelled")
 
 
 async def _charge_run_credits(
@@ -146,6 +160,8 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
     def charge_run(duration: float, billing_phase: str) -> None:
         if billing_state["charged_credits"]:
             return
+        if duration <= 0:
+            return
         charged_minutes = max(1, math.ceil(duration / 60))
         charged_credits = run_async(
             _charge_run_credits(
@@ -181,7 +197,36 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
                 run_async(_store_execution(execution_id, {"status": "running"}))
         run_async(_append_output(execution_id, kind, text))
 
+    def should_cancel() -> bool:
+        return bool(run_async(_is_cancel_requested(execution_id)))
+
+    def billable_duration() -> float:
+        return time.time() - billable_started_at if billable_started_at else 0.0
+
+    def finalize_cancelled() -> None:
+        duration = billable_duration()
+        charge_run(duration, "cancelled")
+        credits = billing_state["charged_credits"]
+        run_async(_append_output(
+            execution_id,
+            "status",
+            f"Cancelled at {time.strftime('%H:%M')} after {duration:.1f}s. Charged {credits} credits.\n",
+        ))
+        run_async(_store_execution(
+            execution_id,
+            {
+                "status": "cancelled",
+                "duration_seconds": duration,
+                "charged_credits": credits,
+                "charged_minutes": billing_state["charged_minutes"],
+                "finished_at": time.time(),
+            },
+        ))
+
     try:
+        if should_cancel():
+            finalize_cancelled()
+            return
         run_async(secrets_manager.initialize())
         api_key = run_async(get_e2b_api_key_async(secrets_manager))
         files = [CodeRunFile(**item) for item in payload["files"]]
@@ -190,7 +235,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             for item in payload.get("dependency_installs", [])
             if isinstance(item, dict) and isinstance(item.get("packages"), list)
         ]
-        result = run_code_in_e2b(files, payload["target_path"], on_output, api_key, dependency_installs)
+        result = run_code_in_e2b(files, payload["target_path"], on_output, api_key, dependency_installs, should_cancel)
         duration = result.duration_seconds
         status = "finished" if result.exit_code in (None, 0) else "failed"
         charged_minutes = max(1, math.ceil(duration / 60))
@@ -215,6 +260,8 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
                 "finished_at": time.time(),
             },
         ))
+    except CodeRunCancelled:
+        finalize_cancelled()
     except Exception as exc:
         logger.error("Code Run execution %s failed: %s", execution_id, exc, exc_info=True)
         if billable_started_at and not billing_state["charged_credits"]:
