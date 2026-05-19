@@ -12,6 +12,7 @@ Research: docs/architecture/apps/travel-train-api-research.md
 
 import logging
 import uuid
+from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -29,6 +30,7 @@ CT_LOCATION = "application/x.db.vendo.mob.location.v3+json"
 
 USER_AGENT = "DBNavigator/Android/25.18.2"
 REQUEST_TIMEOUT = 15.0
+LOCATION_MATCH_THRESHOLD = 0.72
 
 # ---------------------------------------------------------------------------
 # Top German stations — avoids a location search API call for common cities.
@@ -88,6 +90,12 @@ _TOP_STATIONS: Dict[str, str] = {
 # In-memory cache for location search results (session-scoped)
 _location_cache: Dict[str, str] = {}
 
+_LOCATION_QUERY_ALIASES: Dict[str, List[str]] = {
+    "bad schandau": ["Bad Schandau Bahnhof", "Bad Schandau Nationalparkbahnhof"],
+}
+
+_STATION_SUFFIXES = ("Bahnhof", "Hbf", "Hauptbahnhof")
+
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
@@ -142,6 +150,93 @@ async def search_locations(query: str, max_results: int = 5) -> List[Dict[str, A
     ]
 
 
+def _normalize_location_name(value: str) -> str:
+    """Normalize location names for conservative fuzzy matching."""
+    normalized = value.lower()
+    replacements = {
+        "ä": "ae",
+        "ö": "oe",
+        "ü": "ue",
+        "ß": "ss",
+        "-": " ",
+        "(": " ",
+        ")": " ",
+        ",": " ",
+    }
+    for old, new in replacements.items():
+        normalized = normalized.replace(old, new)
+    words = [
+        word
+        for word in normalized.split()
+        if word not in {"bf", "bhf", "bahnhof", "hbf", "hauptbahnhof"}
+    ]
+    return " ".join(words)
+
+
+def _location_query_candidates(city_name: str) -> List[str]:
+    """Return exact, known-alias, and station-suffix query candidates."""
+    stripped = city_name.strip()
+    if not stripped:
+        return []
+
+    candidates = [stripped]
+    candidates.extend(_LOCATION_QUERY_ALIASES.get(stripped.lower(), []))
+
+    lower = stripped.lower()
+    has_station_suffix = any(suffix.lower() in lower for suffix in _STATION_SUFFIXES)
+    if not has_station_suffix:
+        candidates.extend(f"{stripped} {suffix}" for suffix in _STATION_SUFFIXES)
+
+    deduped: List[str] = []
+    seen = set()
+    for candidate in candidates:
+        key = candidate.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            deduped.append(candidate)
+    return deduped
+
+
+def _pick_location_result(query: str, results: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Choose the best location result without accepting unrelated fuzzy matches."""
+    if not results:
+        return None
+
+    normalized_query = _normalize_location_name(query)
+    if not normalized_query:
+        return results[0]
+
+    scored: List[tuple[float, Dict[str, Any]]] = []
+    for result in results:
+        name = str(result.get("name") or "")
+        normalized_name = _normalize_location_name(name)
+        if not normalized_name:
+            continue
+
+        if normalized_query == normalized_name:
+            score = 1.0
+        elif normalized_query in normalized_name or normalized_name in normalized_query:
+            score = 0.9
+        else:
+            score = SequenceMatcher(None, normalized_query, normalized_name).ratio()
+        scored.append((score, result))
+
+    if not scored:
+        return None
+
+    score, result = max(scored, key=lambda item: item[0])
+    if score < LOCATION_MATCH_THRESHOLD:
+        logger.info(
+            "DB location fuzzy match rejected: %s -> %s (score %.2f)",
+            query,
+            result.get("name", "?"),
+            score,
+        )
+        return None
+
+    return result
+
+
 async def resolve_location_id(city_name: str) -> Optional[str]:
     """
     Resolve a city/station name to a HAFAS locationId string.
@@ -164,16 +259,19 @@ async def resolve_location_id(city_name: str) -> Optional[str]:
     if key in _location_cache:
         return _location_cache[key]
 
-    # 4. API fallback
-    try:
-        results = await search_locations(city_name, max_results=1)
-        if results:
-            lid = results[0]["locationId"]
-            _location_cache[key] = lid
-            logger.info("DB location resolved: %s → %s", city_name, results[0].get("name", "?"))
-            return lid
-    except Exception as e:
-        logger.warning("DB location search failed for '%s': %s", city_name, e)
+    # 4. API fallback with conservative fuzzy station-name retries.
+    for candidate in _location_query_candidates(city_name):
+        try:
+            results = await search_locations(candidate, max_results=5)
+            match = _pick_location_result(candidate, results)
+            if match:
+                lid = match["locationId"]
+                _location_cache[key] = lid
+                _location_cache[candidate.strip().lower()] = lid
+                logger.info("DB location resolved: %s → %s", city_name, match.get("name", "?"))
+                return lid
+        except Exception as e:
+            logger.warning("DB location search failed for '%s': %s", candidate, e)
 
     return None
 
