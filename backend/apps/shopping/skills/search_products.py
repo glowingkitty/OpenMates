@@ -33,6 +33,7 @@ from backend.apps.shopping.providers.amazon_provider import (
 )
 from backend.apps.shopping.providers.amazon_provider import infer_country_from_locale
 from backend.apps.shopping.providers.rewe_provider import search_products as rewe_search
+from backend.apps.shopping.providers.stoffe_provider import search_products as stoffe_search
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +49,13 @@ class SearchProductsRequestItem(BaseModel):
     query: str = Field(
         description="Search query (e.g. 'bio joghurt', 'coffee grinder', 'wireless mouse')."
     )
-    provider: str = Field(
-        default="REWE",
-        description="Product provider: 'REWE' (German supermarket) or 'Amazon' (marketplace).",
+    provider: Optional[str] = Field(
+        default=None,
+        description="Product provider: 'REWE', 'Amazon', or 'Stoffe.de'. Inferred from category if omitted.",
+    )
+    category: Optional[str] = Field(
+        default=None,
+        description="Product category used for provider routing and compatibility validation.",
     )
     max_results: int = Field(
         default=10,
@@ -119,11 +124,12 @@ class SearchProductsResponse(BaseModel):
 
 class SearchProductsSkill(BaseSkill):
     """
-    Skill that searches the REWE online shop for products with live pricing.
+    Skill that searches supported shopping providers for products with live pricing.
 
     Accepts a 'requests' array where each request contains:
     - query: Search term (required), e.g. "bio joghurt", "pasta barilla"
-    - provider: "REWE" | "Amazon" (default: "REWE")
+    - provider: "REWE" | "Amazon" | "Stoffe.de" (default inferred from category, else REWE)
+    - category: Route omitted providers and reject incompatible combinations
     - max_results: Maximum products per search (1–20, default 10)
     - sort: Provider-specific sort order
       - REWE: "relevance" | "price_asc" | "price_desc" | "new"
@@ -141,8 +147,8 @@ class SearchProductsSkill(BaseSkill):
     - purchase_url, image_url
     - attributes: is_organic, is_vegan, is_vegetarian, etc.
 
-    Pricing requires an active REWE session stored in Vault (cookie pool).
-    Without cookies, basic product info is returned but prices are None.
+    REWE pricing requires an active session stored in Vault (cookie pool).
+    Amazon uses SerpAPI, and Stoffe.de uses its public storefront API.
     """
 
     FOLLOW_UP_SUGGESTIONS = [
@@ -155,6 +161,54 @@ class SearchProductsSkill(BaseSkill):
     DEFAULT_PROVIDER = "REWE"
     AMAZON_PROVIDER = "AMAZON"
     REWE_PROVIDER = "REWE"
+    STOFFE_PROVIDER = "STOFFE.DE"
+
+    CATEGORY_DEFAULT_PROVIDERS = {
+        "grocery": REWE_PROVIDER,
+        "fabrics": STOFFE_PROVIDER,
+        "sewing_supplies": STOFFE_PROVIDER,
+        "patterns": STOFFE_PROVIDER,
+        "general_marketplace": AMAZON_PROVIDER,
+        "electronics": AMAZON_PROVIDER,
+        "home": AMAZON_PROVIDER,
+        "fashion": AMAZON_PROVIDER,
+        "beauty": AMAZON_PROVIDER,
+        "books": AMAZON_PROVIDER,
+        "sports": AMAZON_PROVIDER,
+        "toys": AMAZON_PROVIDER,
+        "automotive": AMAZON_PROVIDER,
+        "health": AMAZON_PROVIDER,
+        "music": AMAZON_PROVIDER,
+        "movies": AMAZON_PROVIDER,
+        "tools": AMAZON_PROVIDER,
+        "office": AMAZON_PROVIDER,
+        "pet_supplies": AMAZON_PROVIDER,
+        "video_games": AMAZON_PROVIDER,
+        "baby": AMAZON_PROVIDER,
+    }
+    CATEGORY_ALLOWED_PROVIDERS = {
+        "grocery": {REWE_PROVIDER, AMAZON_PROVIDER},
+        "fabrics": {STOFFE_PROVIDER, AMAZON_PROVIDER},
+        "sewing_supplies": {STOFFE_PROVIDER, AMAZON_PROVIDER},
+        "patterns": {STOFFE_PROVIDER, AMAZON_PROVIDER},
+        "general_marketplace": {AMAZON_PROVIDER},
+        "electronics": {AMAZON_PROVIDER},
+        "home": {AMAZON_PROVIDER},
+        "fashion": {AMAZON_PROVIDER},
+        "beauty": {AMAZON_PROVIDER},
+        "books": {AMAZON_PROVIDER},
+        "sports": {AMAZON_PROVIDER},
+        "toys": {AMAZON_PROVIDER},
+        "automotive": {AMAZON_PROVIDER},
+        "health": {AMAZON_PROVIDER},
+        "music": {AMAZON_PROVIDER},
+        "movies": {AMAZON_PROVIDER},
+        "tools": {AMAZON_PROVIDER},
+        "office": {AMAZON_PROVIDER},
+        "pet_supplies": {AMAZON_PROVIDER},
+        "video_games": {AMAZON_PROVIDER},
+        "baby": {AMAZON_PROVIDER},
+    }
 
     async def execute(
         self,
@@ -216,7 +270,10 @@ class SearchProductsSkill(BaseSkill):
         )
 
         provider_values = {
-            (req.get("provider") or self.DEFAULT_PROVIDER).strip().upper()
+            self._resolve_provider(
+                req.get("provider"),
+                self._normalize_category(req.get("category")),
+            )[0]
             for req in validated_requests
         }
         response_provider = (
@@ -255,7 +312,10 @@ class SearchProductsSkill(BaseSkill):
 
         # Extract parameters with defaults
         query: str = req.get("query", "").strip()
-        provider: str = str(req.get("provider", self.DEFAULT_PROVIDER)).strip().upper()
+        category = self._normalize_category(req.get("category"))
+        provider, provider_error = self._resolve_provider(req.get("provider"), category)
+        if provider_error:
+            return (request_id, [], provider_error)
         max_results: int = int(req.get("max_results", 10))
         sort: str = req.get("sort", "relevance")
         # Use "or" to handle None from Pydantic model_dump() — prevents None reaching rewe_search()
@@ -306,11 +366,17 @@ class SearchProductsSkill(BaseSkill):
                     locale_hint=locale_hint,
                     secrets_manager=secrets_manager,
                 )
+            elif provider == self.STOFFE_PROVIDER:
+                products, pagination = await stoffe_search(
+                    query=query,
+                    max_results=max_results,
+                    sort=sort,
+                )
             else:
                 return (
                     request_id,
                     [],
-                    "Invalid provider. Choose 'REWE' or 'Amazon'",
+                    "Invalid provider. Choose 'REWE', 'Amazon', or 'Stoffe.de'",
                 )
         except ValueError as e:
             logger.error(
@@ -370,3 +436,46 @@ class SearchProductsSkill(BaseSkill):
         )
 
         return (request_id, results, None)
+
+    @classmethod
+    def _normalize_category(cls, category: Any) -> Optional[str]:
+        if category is None:
+            return None
+        normalized = str(category).strip().lower().replace("-", "_")
+        return normalized or None
+
+    @classmethod
+    def _normalize_provider(cls, provider: Any) -> Optional[str]:
+        if provider is None:
+            return None
+        normalized = str(provider).strip().upper()
+        if normalized in {"STOFFE", "STOFFE.DE", "STOFFE_DE"}:
+            return cls.STOFFE_PROVIDER
+        return normalized or None
+
+    @classmethod
+    def _resolve_provider(cls, provider: Any, category: Optional[str]) -> tuple[str, Optional[str]]:
+        normalized_provider = cls._normalize_provider(provider)
+
+        if category and category not in cls.CATEGORY_DEFAULT_PROVIDERS:
+            return (
+                normalized_provider or cls.DEFAULT_PROVIDER,
+                "Invalid category. Choose one of: %s" % sorted(cls.CATEGORY_DEFAULT_PROVIDERS),
+            )
+
+        resolved_provider = normalized_provider or (
+            cls.CATEGORY_DEFAULT_PROVIDERS.get(category) if category else cls.DEFAULT_PROVIDER
+        )
+
+        if category and resolved_provider not in cls.CATEGORY_ALLOWED_PROVIDERS[category]:
+            return (
+                resolved_provider,
+                "Invalid provider/category combination: provider '%s' cannot search category '%s'. "
+                "Allowed providers: %s"
+                % (resolved_provider, category, sorted(cls.CATEGORY_ALLOWED_PROVIDERS[category])),
+            )
+
+        if resolved_provider not in {cls.REWE_PROVIDER, cls.AMAZON_PROVIDER, cls.STOFFE_PROVIDER}:
+            return resolved_provider, "Invalid provider. Choose 'REWE', 'Amazon', or 'Stoffe.de'"
+
+        return resolved_provider, None
