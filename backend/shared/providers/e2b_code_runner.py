@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import base64
 import re
 import shlex
 import time
@@ -39,9 +40,12 @@ SECRET_PATTERNS = [
 @dataclass(frozen=True)
 class CodeRunFile:
     path: str
-    content: str
     language: str
+    content: str = ""
     is_target: bool = False
+    content_base64: str | None = None
+    mime_type: str | None = None
+    source_embed_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -121,6 +125,12 @@ def _dependency_commands(files: Iterable[CodeRunFile]) -> list[tuple[str, str]]:
     return commands
 
 
+def _file_payload(file: CodeRunFile) -> bytes | str:
+    if file.content_base64:
+        return base64.b64decode(file.content_base64)
+    return file.content
+
+
 def _emit(callback: OutputCallback, kind: OutputKind, text: str) -> None:
     callback(kind, redact_execution_output(text))
 
@@ -168,7 +178,7 @@ def run_code_in_e2b(files: list[CodeRunFile], target_path: str, on_output: Outpu
         for directory in dirs:
             sandbox.commands.run(f"mkdir -p {shlex.quote(f'{WORKSPACE_DIR}/{directory}')}")
         sandbox.files.write_files([
-            {"path": f"{WORKSPACE_DIR}/{file.path}", "data": file.content}
+            {"path": f"{WORKSPACE_DIR}/{file.path}", "data": _file_payload(file)}
             for file in files
         ])
         billable_started_at = time.monotonic()
