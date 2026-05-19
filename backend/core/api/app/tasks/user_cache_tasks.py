@@ -11,6 +11,33 @@ from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatList
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_CHAT_VERSION = 0
+
+
+def _cached_chat_versions_from_details(
+    chat_data: Dict[str, Any],
+    user_id: str,
+    chat_id: str,
+) -> CachedChatVersions:
+    """Build cache version metadata while tolerating old corrupted rows."""
+
+    version_values = {}
+    for field in ("messages_v", "title_v"):
+        value = chat_data.get(field)
+        if value is None:
+            logger.warning(
+                "[CACHE_WARMING_DATA_REPAIR] Chat %s for user %s has null %s; "
+                "using %s so cache warming can complete.",
+                chat_id,
+                user_id,
+                field,
+                DEFAULT_CHAT_VERSION,
+            )
+            value = DEFAULT_CHAT_VERSION
+        version_values[field] = value
+
+    return CachedChatVersions(**version_values)
+
 async def _load_and_cache_embeds_for_chats(
     chat_ids: List[str],
     directus_service: DirectusService,
@@ -235,9 +262,10 @@ async def _warm_cache_phase_one(
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
-        versions_data = CachedChatVersions(
-            messages_v=chat_details["messages_v"],
-            title_v=chat_details["title_v"]
+        versions_data = _cached_chat_versions_from_details(
+            chat_details,
+            user_id,
+            target_immediate_chat_id,
         )
         await cache_service.set_chat_versions(user_id, target_immediate_chat_id, versions_data)
         await cache_service.set_chat_version_component(
@@ -317,7 +345,7 @@ async def _warm_cache_phase_two_optimized(
             chat_id = chat_data["id"]
 
             effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
-            versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
+            versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
@@ -362,7 +390,7 @@ async def _warm_cache_phase_two_optimized(
                     effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
-                    versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
+                    versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
                     await cache_service.set_chat_versions(user_id, chat_id, versions)
                     await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
@@ -438,7 +466,7 @@ async def _warm_cache_phase_two(
             effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
-            versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
+            versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
             await cache_service.set_chat_versions(user_id, chat_id, versions)
             await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
@@ -490,7 +518,7 @@ async def _warm_cache_phase_three_optimized(
             chat_id = chat_data["id"]
 
             effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
-            versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
+            versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
@@ -535,7 +563,7 @@ async def _warm_cache_phase_three_optimized(
                     effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
-                    versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
+                    versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
                     await cache_service.set_chat_versions(user_id, chat_id, versions)
                     await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
@@ -638,7 +666,7 @@ async def _warm_cache_phase_three(
             effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
-            versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
+            versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
             await cache_service.set_chat_versions(user_id, chat_id, versions)
             await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
