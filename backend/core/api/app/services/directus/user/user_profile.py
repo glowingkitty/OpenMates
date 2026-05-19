@@ -75,6 +75,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         # Create a profile object with both encrypted and decrypted data
         profile = {
             "id": user_id,
+            "user_id": user_id,
             "account_id": user_data.get("account_id"),  # Include account_id for invoice generation
             "tfa_enabled": tfa_enabled_status, # Add the determined status here
             "is_admin": user_data.get("is_admin", False),

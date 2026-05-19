@@ -72,6 +72,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     let password = $state('');
     let isPasswordLoading = $state(false);
     let passwordVerifiedFor2FA = $state(false);
+    let passwordHashedEmail = $state<string | undefined>(undefined);
+    let passwordLookupHash = $state<string | undefined>(undefined);
     
     // 2FA state
     let show2FAInput = $state(false);
@@ -351,6 +353,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 showPasswordInput = false;
                 show2FAInput = true;
                 passwordVerifiedFor2FA = true;
+                passwordHashedEmail = hashedEmail;
+                passwordLookupHash = lookupHash;
                 password = '';
                 isPasswordLoading = false;
                 isAuthenticating = false;
@@ -390,7 +394,12 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         try {
             if (passwordVerifiedFor2FA || !verify2FAOnSubmit) {
                 console.log('[SecurityAuth] Password + 2FA authentication collected');
-                onSuccess({ method: '2fa', tfaCode });
+                onSuccess({
+                    method: '2fa',
+                    tfaCode,
+                    hashedEmail: passwordHashedEmail,
+                    lookupHash: passwordLookupHash
+                });
                 return;
             }
 

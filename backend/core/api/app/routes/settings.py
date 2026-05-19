@@ -8,6 +8,7 @@ import os
 import hashlib
 import json
 import glob
+import pyotp
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
@@ -3345,6 +3346,75 @@ async def _mark_email_change_reauth_verified(user_id: str, cache_service: CacheS
     await cache_service.set(_email_change_reauth_key(user_id), "verified", ttl=300)
 
 
+async def _verify_email_change_password(
+    user_id: str,
+    hashed_email: Optional[str],
+    lookup_hash: Optional[str],
+    directus_service: DirectusService,
+) -> None:
+    """Verify the current password without creating a Directus login session."""
+    if not hashed_email or not lookup_hash:
+        raise HTTPException(status_code=400, detail="Password verification data is required")
+
+    user_fields = await directus_service.get_user_fields_direct(user_id, ["hashed_email", "lookup_hashes"])
+    if not user_fields:
+        raise HTTPException(status_code=401, detail="Invalid password authentication")
+
+    stored_hashed_email = user_fields.get("hashed_email")
+    lookup_hashes = user_fields.get("lookup_hashes") or []
+    if isinstance(lookup_hashes, str):
+        try:
+            lookup_hashes = json.loads(lookup_hashes)
+        except json.JSONDecodeError:
+            lookup_hashes = []
+
+    if stored_hashed_email != hashed_email or lookup_hash not in lookup_hashes:
+        logger.warning(f"Invalid password reauth for email change: user {user_id}")
+        raise HTTPException(status_code=401, detail="Invalid password authentication")
+
+
+async def _verify_email_change_2fa(
+    user_id: str,
+    auth_code: Optional[str],
+    directus_service: DirectusService,
+    cache_service: CacheService,
+    encryption_service: EncryptionService,
+) -> None:
+    """Verify TOTP for email changes without changing trusted devices or sessions."""
+    if not auth_code:
+        raise HTTPException(status_code=400, detail="2FA code is required")
+
+    tfa_cache_key = f"user_tfa_data:{user_id}"
+    cached_tfa_data = await cache_service.get(tfa_cache_key)
+    if cached_tfa_data:
+        encrypted_secret = cached_tfa_data.get("encrypted_tfa_secret")
+        vault_key_id = cached_tfa_data.get("vault_key_id")
+    else:
+        user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret", "vault_key_id"])
+        encrypted_secret = user_fields.get("encrypted_tfa_secret") if user_fields else None
+        vault_key_id = user_fields.get("vault_key_id") if user_fields else None
+        if encrypted_secret and vault_key_id:
+            await cache_service.set(
+                tfa_cache_key,
+                {"encrypted_tfa_secret": encrypted_secret, "vault_key_id": vault_key_id},
+                ttl=300,
+            )
+
+    if not encrypted_secret or not vault_key_id:
+        logger.warning(f"2FA reauth requested for email change but 2FA is not configured: user {user_id}")
+        raise HTTPException(status_code=401, detail="Invalid 2FA code")
+
+    try:
+        decrypted_secret = await encryption_service.decrypt_with_user_key(encrypted_secret, vault_key_id)
+    except Exception as decrypt_err:
+        logger.error(f"Error decrypting TFA secret for email change reauth: user {user_id}: {decrypt_err}", exc_info=True)
+        raise HTTPException(status_code=401, detail="Invalid 2FA code") from decrypt_err
+
+    if not decrypted_secret or not pyotp.TOTP(decrypted_secret).verify(auth_code, valid_window=1):
+        logger.warning(f"Invalid 2FA reauth for email change: user {user_id}")
+        raise HTTPException(status_code=401, detail="Invalid 2FA code")
+
+
 async def _validate_email_change_target(
     new_email: str,
     current_user_id: str,
@@ -3747,16 +3817,12 @@ async def verify_email_change_reauth(
     user_id = current_user.id
 
     if body.auth_method == "password":
-        if not body.hashed_email or not body.lookup_hash:
-            raise HTTPException(status_code=400, detail="Password verification data is required")
-        auth_success, auth_data, _ = await directus_service.login_user_with_lookup_hash(
+        await _verify_email_change_password(
+            user_id=user_id,
             hashed_email=body.hashed_email,
             lookup_hash=body.lookup_hash,
+            directus_service=directus_service,
         )
-        auth_user = auth_data.get("user", {}) if auth_data else {}
-        if not auth_success or not auth_data or auth_user.get("id") != user_id:
-            logger.warning(f"Invalid password reauth for email change: user {user_id}")
-            raise HTTPException(status_code=401, detail="Invalid password authentication")
     elif body.auth_method == "passkey":
         if not body.auth_code:
             raise HTTPException(status_code=400, detail="Passkey credential ID is required")
@@ -3766,21 +3832,27 @@ async def verify_email_change_reauth(
             logger.warning(f"Invalid passkey reauth for email change: user {user_id}")
             raise HTTPException(status_code=401, detail="Invalid passkey authentication")
     elif body.auth_method == "2fa_otp":
-        if not body.auth_code:
-            raise HTTPException(status_code=400, detail="2FA code is required")
-        from backend.core.api.app.routes.auth_routes.auth_2fa_verify import verify_device_2fa
-        from backend.core.api.app.schemas.auth_2fa import VerifyDevice2FARequest
-
-        verify_response = await verify_device_2fa(
-            request=request,
-            verify_request=VerifyDevice2FARequest(tfa_code=body.auth_code),
+        user_fields = await directus_service.get_user_fields_direct(user_id, ["lookup_hashes"])
+        lookup_hashes = user_fields.get("lookup_hashes") if user_fields else []
+        if isinstance(lookup_hashes, str):
+            try:
+                lookup_hashes = json.loads(lookup_hashes)
+            except json.JSONDecodeError:
+                lookup_hashes = []
+        if lookup_hashes:
+            await _verify_email_change_password(
+                user_id=user_id,
+                hashed_email=body.hashed_email,
+                lookup_hash=body.lookup_hash,
+                directus_service=directus_service,
+            )
+        await _verify_email_change_2fa(
+            user_id=user_id,
+            auth_code=body.auth_code,
             directus_service=directus_service,
             cache_service=cache_service,
-            compliance_service=compliance_service,
             encryption_service=encryption_service,
         )
-        if not verify_response.success:
-            raise HTTPException(status_code=401, detail="Invalid 2FA code")
     else:
         raise HTTPException(status_code=400, detail="Invalid authentication method")
 
