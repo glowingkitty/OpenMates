@@ -88,7 +88,7 @@ async function expectLocalChatsCleared(page: any): Promise<void> {
 }
 
 async function replaceLocalChatDbWithMissingStores(page: any): Promise<void> {
-	const prepUrl = `${new URL(getE2EDebugUrl('/')).origin}/e2e-indexeddb-prep`;
+	const prepUrl = `${new URL(page.url()).origin}/e2e-indexeddb-prep`;
 	await page.route(prepUrl, (route: any) =>
 		route.fulfill({
 			contentType: 'text/html',
