@@ -26,6 +26,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.embed_service import EmbedService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.tasks.celery_config import app as celery_app
@@ -46,6 +47,7 @@ MAX_ACTIVE_E2B_RUNS = int(os.getenv("CODE_RUN_MAX_ACTIVE_E2B_RUNS", "100"))
 E2B_CREATE_RATE_WINDOW_SECONDS = int(os.getenv("CODE_RUN_E2B_CREATE_RATE_WINDOW_SECONDS", "1"))
 CODE_RUN_START_RATE_LIMIT = "10/minute"
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
+CLIENT_CONTENT_REQUIRED_CODE = "client_content_required"
 EXECUTABLE_EXTENSIONS = {
     ".py": "python",
     ".js": "javascript",
@@ -79,9 +81,18 @@ SECRET_PATTERNS = [
 ]
 
 
+class CodeRunClientFile(BaseModel):
+    embed_id: str = Field(min_length=1)
+    code: str = Field(min_length=1, max_length=MAX_FILE_CHARS)
+    language: str = ""
+    filename: str | None = None
+    is_target: bool = False
+
+
 class CodeRunStartRequest(BaseModel):
     chat_id: str = Field(min_length=1)
     target_embed_id: str = Field(min_length=1)
+    client_files: list[CodeRunClientFile] = Field(default_factory=list, max_length=MAX_FILES)
 
 
 class CodeRunStartResponse(BaseModel):
@@ -165,30 +176,86 @@ def _dedupe_path(path: str, used: set[str]) -> str:
         counter += 1
 
 
-async def _decrypt_embed_content(embed: dict[str, Any], encryption_service: EncryptionService, vault_key_id: str) -> dict[str, Any] | None:
-    encrypted_content = embed.get("encrypted_content")
-    if not encrypted_content:
-        return None
-    plaintext = await encryption_service.decrypt_with_user_key(encrypted_content, vault_key_id)
-    if not plaintext:
-        return None
+def _embed_metadata_matches(embed: dict[str, Any], chat_id: str, expected_user_hash: str) -> bool:
+    hashed_user_id = embed.get("hashed_user_id")
+    if hashed_user_id != expected_user_hash:
+        return False
+    hashed_chat_id = embed.get("hashed_chat_id")
+    if hashed_chat_id != hashlib.sha256(chat_id.encode()).hexdigest():
+        return False
+    return True
+
+
+async def _get_embed_metadata(
+    embed_id: str,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+) -> dict[str, Any] | None:
+    cached = await cache_service.get_embed_from_cache(embed_id)
+    if cached:
+        return cached
+    # Metadata only. Directus stores client-encrypted content and must never be
+    # treated as server-readable execution input.
+    return await directus_service.embed.get_embed_by_id(embed_id)
+
+
+def _decode_toon_content(plaintext_toon: str) -> dict[str, Any] | None:
     try:
-        decoded = toon_decode(plaintext)
+        decoded = toon_decode(plaintext_toon)
     except Exception:
         return None
     return decoded if isinstance(decoded, dict) else None
 
 
-async def _get_embed_with_fallback(embed_id: str, cache_service: CacheService, directus_service: DirectusService) -> dict[str, Any] | None:
-    cached = await cache_service.get_embed_from_cache(embed_id)
-    if cached:
-        return cached
-    return await directus_service.embed.get_embed_by_id(embed_id)
+def _client_file_to_content(file: CodeRunClientFile) -> dict[str, Any]:
+    return {
+        "type": "code",
+        "code": file.code,
+        "language": file.language,
+        "filename": file.filename,
+    }
+
+
+def _append_code_file(
+    *,
+    embed_id: str,
+    target_embed_id: str,
+    content: dict[str, Any],
+    used_paths: set[str],
+    files: list[dict[str, Any]],
+    total_chars: int,
+) -> tuple[int, str | None]:
+    embed_type = str(content.get("type") or "").lower()
+    if embed_type not in {"code", "code-code"}:
+        return total_chars, None
+
+    code = content.get("code")
+    if not isinstance(code, str) or not code:
+        return total_chars, None
+    if _looks_like_secret(code):
+        raise HTTPException(status_code=400, detail="Code appears to contain secrets and cannot be sent to the sandbox")
+    if len(code) > MAX_FILE_CHARS:
+        raise HTTPException(status_code=400, detail="One code file is too large to run")
+
+    total_chars += len(code)
+    if total_chars > MAX_TOTAL_CHARS:
+        raise HTTPException(status_code=400, detail="Chat code files are too large to run together")
+
+    language = str(content.get("language") or "").lower()
+    path = _dedupe_path(_safe_filename(content.get("filename"), embed_id, language), used_paths)
+    is_dependency = path.rsplit("/", 1)[-1] in DEPENDENCY_FILENAMES
+    is_executable = language in EXECUTABLE_LANGUAGES or PurePosixPath(path).suffix.lower() in EXECUTABLE_EXTENSIONS
+    if not is_dependency and not is_executable and embed_id != target_embed_id:
+        return total_chars, None
+
+    files.append({"path": path, "content": code, "language": language, "is_target": embed_id == target_embed_id})
+    return total_chars, path if embed_id == target_embed_id else None
 
 
 async def _collect_code_files(
     chat_id: str,
     target_embed_id: str,
+    client_files: list[CodeRunClientFile],
     current_user: User,
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -199,49 +266,53 @@ async def _collect_code_files(
         embed_ids.append(target_embed_id)
 
     if len(embed_ids) > MAX_FILES:
-        embed_ids = embed_ids[:MAX_FILES]
+        embed_ids = [embed_id for embed_id in embed_ids if embed_id != target_embed_id][: MAX_FILES - 1]
+        embed_ids.append(target_embed_id)
 
     used_paths: set[str] = set()
     files: list[dict[str, Any]] = []
     target_path: str | None = None
     total_chars = 0
     expected_user_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+    client_files_by_id = {file.embed_id: file for file in client_files}
+    embed_service = EmbedService(cache_service=cache_service, directus_service=directus_service, encryption_service=encryption_service)
 
     for embed_id in embed_ids:
-        embed = await _get_embed_with_fallback(embed_id, cache_service, directus_service)
-        if not embed:
+        metadata = await _get_embed_metadata(embed_id, cache_service, directus_service)
+        if not metadata or not _embed_metadata_matches(metadata, chat_id, expected_user_hash):
             continue
-        if embed.get("hashed_user_id") and embed.get("hashed_user_id") != expected_user_hash:
-            continue
-        content = await _decrypt_embed_content(embed, encryption_service, current_user.vault_key_id)
+
+        content: dict[str, Any] | None = None
+        cached_toon = await embed_service._get_cached_embed_toon(embed_id, current_user.vault_key_id, "[CODE_RUN] ")
+        if cached_toon:
+            content = _decode_toon_content(cached_toon)
+        elif embed_id in client_files_by_id:
+            content = _client_file_to_content(client_files_by_id[embed_id])
+
         if not content:
             continue
-        embed_type = str(content.get("type") or embed.get("type") or "").lower()
-        if embed_type not in {"code", "code-code"}:
-            continue
-        code = content.get("code")
-        if not isinstance(code, str) or not code:
-            continue
-        if _looks_like_secret(code):
-            raise HTTPException(status_code=400, detail="Code appears to contain secrets and cannot be sent to the sandbox")
-        if len(code) > MAX_FILE_CHARS:
-            raise HTTPException(status_code=400, detail="One code file is too large to run")
-        total_chars += len(code)
-        if total_chars > MAX_TOTAL_CHARS:
-            raise HTTPException(status_code=400, detail="Chat code files are too large to run together")
 
-        language = str(content.get("language") or "").lower()
-        path = _dedupe_path(_safe_filename(content.get("filename"), embed_id, language), used_paths)
-        is_dependency = path.rsplit("/", 1)[-1] in DEPENDENCY_FILENAMES
-        is_executable = language in EXECUTABLE_LANGUAGES or PurePosixPath(path).suffix.lower() in EXECUTABLE_EXTENSIONS
-        if not is_dependency and not is_executable and embed_id != target_embed_id:
-            continue
-        file_item = {"path": path, "content": code, "language": language, "is_target": embed_id == target_embed_id}
-        files.append(file_item)
-        if embed_id == target_embed_id:
-            target_path = path
+        total_chars, maybe_target_path = _append_code_file(
+            embed_id=embed_id,
+            target_embed_id=target_embed_id,
+            content=content,
+            used_paths=used_paths,
+            files=files,
+            total_chars=total_chars,
+        )
+        if maybe_target_path:
+            target_path = maybe_target_path
 
     if not target_path:
+        metadata = await _get_embed_metadata(target_embed_id, cache_service, directus_service)
+        if metadata and _embed_metadata_matches(metadata, chat_id, expected_user_hash) and not client_files_by_id.get(target_embed_id):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": CLIENT_CONTENT_REQUIRED_CODE,
+                    "message": "Code content is not in the recent server cache; resend the decrypted code from this device.",
+                },
+            )
         raise HTTPException(status_code=404, detail="Target code embed is not available for server-side execution")
     return files, target_path
 
@@ -317,6 +388,7 @@ async def start_code_run(
     files, target_path = await _collect_code_files(
         body.chat_id,
         body.target_embed_id,
+        body.client_files,
         current_user,
         cache_service,
         directus_service,

@@ -32,6 +32,7 @@
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import {
+    CodeRunStartError,
     getCodeRunStatus,
     getCodeRunStreamUrl,
     startCodeRun,
@@ -333,6 +334,7 @@
   });
 
   const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
+  const CLIENT_CONTENT_REQUIRED_CODE = 'client_content_required';
 
   let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
   let hasCodeHeaderCta = $derived((isRunnable && !!chatId && !!embedId) || isPreviewable);
@@ -436,7 +438,25 @@
     runEvents = [{ kind: 'status', text: 'Queued code run...\n', timestamp: Date.now() / 1000 }];
     runFiles = [];
     try {
-      const started = await startCodeRun(chatId, embedId);
+      let started;
+      try {
+        started = await startCodeRun(chatId, embedId);
+      } catch (error) {
+        if (!(error instanceof CodeRunStartError) || error.code !== CLIENT_CONTENT_REQUIRED_CODE) {
+          throw error;
+        }
+        runEvents = [
+          ...runEvents,
+          { kind: 'status', text: 'Recent server cache missed; resending decrypted code from this device...\n', timestamp: Date.now() / 1000 }
+        ];
+        started = await startCodeRun(chatId, embedId, [{
+          embed_id: embedId,
+          code: renderCodeContent,
+          language: renderLanguage,
+          ...(renderFilename ? { filename: renderFilename } : {}),
+          is_target: true,
+        }]);
+      }
       runExecutionId = started.execution_id;
       runStatus = started.status as CodeRunStatus['status'];
       runFiles = started.files;

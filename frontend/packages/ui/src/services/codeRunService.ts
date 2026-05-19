@@ -16,6 +16,25 @@ export interface CodeRunStartResponse {
   credits_per_minute: number;
 }
 
+export interface CodeRunClientFile {
+  embed_id: string;
+  code: string;
+  language: string;
+  filename?: string;
+  is_target?: boolean;
+}
+
+export class CodeRunStartError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string
+  ) {
+    super(message);
+    this.name = 'CodeRunStartError';
+  }
+}
+
 export interface CodeRunEvent {
   kind: 'status' | 'stdout' | 'stderr';
   text: string;
@@ -40,17 +59,29 @@ export type CodeRunStreamMessage =
   | { type: 'code_run_update'; payload: Partial<CodeRunStatus> }
   | { type: 'code_run_event'; payload: CodeRunEvent };
 
-export async function startCodeRun(chatId: string, targetEmbedId: string): Promise<CodeRunStartResponse> {
+export async function startCodeRun(
+  chatId: string,
+  targetEmbedId: string,
+  clientFiles: CodeRunClientFile[] = []
+): Promise<CodeRunStartResponse> {
   const response = await fetch(`${getApiUrl()}/v1/code/run`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, target_embed_id: targetEmbedId }),
+    body: JSON.stringify({ chat_id: chatId, target_embed_id: targetEmbedId, client_files: clientFiles }),
   });
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new Error(payload?.detail || `Code run failed to start (${response.status})`);
+    const detail = payload?.detail;
+    if (detail && typeof detail === 'object') {
+      throw new CodeRunStartError(
+        detail.message || `Code run failed to start (${response.status})`,
+        response.status,
+        detail.code
+      );
+    }
+    throw new CodeRunStartError(detail || `Code run failed to start (${response.status})`, response.status);
   }
 
   return response.json();
