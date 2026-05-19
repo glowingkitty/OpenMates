@@ -105,6 +105,19 @@ def test_shopping_category_routes_to_stoffe_when_provider_omitted():
     assert provider == SearchProductsSkill.STOFFE_PROVIDER
 
 
+def test_shopping_category_schema_exposes_enum_values():
+    from backend.apps.shopping.skills.search_products import SearchProductsRequestItem
+
+    schema = SearchProductsRequestItem.model_json_schema()
+
+    category_schema = schema["properties"]["category"]
+    category_options = category_schema.get("anyOf") or []
+    enum_values = next(option["enum"] for option in category_options if "enum" in option)
+    assert "fabrics" in enum_values
+    assert "sewing_supplies" in enum_values
+    assert "grocery" in enum_values
+
+
 def test_shopping_category_allows_fabrics_on_amazon():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider("Amazon", "fabrics")
@@ -120,3 +133,36 @@ def test_shopping_category_rejects_groceries_on_stoffe():
     assert provider == SearchProductsSkill.STOFFE_PROVIDER
     assert error is not None
     assert "cannot search category 'grocery'" in error
+
+
+def test_shopping_country_routes_unsupported_rewe_country_to_amazon_when_provider_omitted():
+    SearchProductsSkill = _get_search_products_skill_class()
+    provider, error = SearchProductsSkill._resolve_provider(None, "grocery", "US")
+
+    assert error is None
+    assert provider == SearchProductsSkill.AMAZON_PROVIDER
+
+
+def test_shopping_country_rejects_explicit_rewe_outside_germany():
+    SearchProductsSkill = _get_search_products_skill_class()
+    provider, error = SearchProductsSkill._resolve_provider("REWE", "grocery", "US")
+
+    assert provider == SearchProductsSkill.REWE_PROVIDER
+    assert error is not None
+    assert "does not support destination country 'US'" in error
+
+
+def test_shopping_country_allows_stoffe_supported_european_destination():
+    SearchProductsSkill = _get_search_products_skill_class()
+    provider, error = SearchProductsSkill._resolve_provider(None, "fabrics", "AT")
+
+    assert error is None
+    assert provider == SearchProductsSkill.STOFFE_PROVIDER
+
+
+def test_shopping_country_routes_unsupported_stoffe_country_to_amazon_when_provider_omitted():
+    SearchProductsSkill = _get_search_products_skill_class()
+    provider, error = SearchProductsSkill._resolve_provider(None, "fabrics", "US")
+
+    assert error is None
+    assert provider == SearchProductsSkill.AMAZON_PROVIDER
