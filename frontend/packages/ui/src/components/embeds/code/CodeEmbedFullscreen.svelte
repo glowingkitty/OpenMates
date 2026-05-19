@@ -507,6 +507,10 @@
     }));
   }
 
+  function cloneRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
+    return events.map(({ kind, text, timestamp }) => ({ kind, text, timestamp }));
+  }
+
   function buildCompactRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
     return events.filter((event) => !event.text.startsWith('Queued code run for'));
   }
@@ -555,6 +559,8 @@
     const savedAt = Date.now();
     const now = Math.floor(savedAt / 1000);
     const outputId = savedRunOutput?.id ?? crypto.randomUUID();
+    const plainFiles = runFiles.filter((file) => typeof file === 'string');
+    const plainEvents = cloneRunEvents(runDisplayEvents);
     try {
       await sendUpsertCodeRunOutputImpl({
         id: outputId,
@@ -562,8 +568,8 @@
         embed_id: embedId,
         output: outputText,
         status: runStatus as CodeRunStatus['status'],
-        files: runFiles,
-        events: runDisplayEvents,
+        files: plainFiles,
+        events: plainEvents,
         saved_at: savedAt,
         created_at: now,
         updated_at: now,
@@ -572,9 +578,9 @@
         id: outputId,
         text: outputText,
         status: runStatus as CodeRunStatus['status'],
-        files: runFiles,
+        files: plainFiles,
         savedAt,
-        events: runDisplayEvents,
+        events: plainEvents,
       };
     } catch (error) {
       console.warn('[CodeEmbedFullscreen] Failed to persist code run output:', error);
