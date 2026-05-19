@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
 from types import SimpleNamespace
 
@@ -19,6 +20,7 @@ from backend.apps.code.tasks.run_code_task import RUN_CREDITS_PER_MINUTE as TASK
 from backend.apps.code.tasks.run_code_task import _charge_run_credits
 from backend.core.api.app.routes.code_execution import (
     CLIENT_CONTENT_REQUIRED_CODE,
+    CodeRunClientAttachment,
     CodeRunClientFile,
     RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
     _collect_code_files,
@@ -108,6 +110,8 @@ async def test_collect_code_files_uses_vault_encrypted_recent_cache() -> None:
         CHAT_ID,
         TARGET_EMBED_ID,
         [],
+        [],
+        None,
         _user(),
         FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: cached}),
         FakeDirectus({}),
@@ -125,6 +129,8 @@ async def test_collect_code_files_requests_client_content_for_directus_only_embe
             CHAT_ID,
             TARGET_EMBED_ID,
             [],
+            [],
+            None,
             _user(),
             FakeCache([], {}),
             FakeDirectus({TARGET_EMBED_ID: _metadata()}),
@@ -141,6 +147,8 @@ async def test_collect_code_files_accepts_validated_client_fallback() -> None:
         CHAT_ID,
         TARGET_EMBED_ID,
         [CodeRunClientFile(embed_id=TARGET_EMBED_ID, code="print('client')", language="python", filename="client.py", is_target=True)],
+        [],
+        None,
         _user(),
         FakeCache([], {}),
         FakeDirectus({TARGET_EMBED_ID: _metadata()}),
@@ -149,6 +157,64 @@ async def test_collect_code_files_accepts_validated_client_fallback() -> None:
 
     assert target_path == "client.py"
     assert files == [{"path": "client.py", "content": "print('client')", "language": "python", "is_target": True}]
+
+
+@pytest.mark.anyio
+async def test_collect_code_files_filters_cached_files_to_selected_embeds() -> None:
+    target_toon = encode({"type": "code", "code": "print('target')", "language": "python", "filename": "main.py"})
+    helper_toon = encode({"type": "code", "code": "print('helper')", "language": "python", "filename": "helper.py"})
+    skipped_toon = encode({"type": "code", "code": "print('skip')", "language": "python", "filename": "skip.py"})
+    embeds = {
+        TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{target_toon}"),
+        "embed-helper": {**_metadata(encrypted_content=f"vault:{helper_toon}"), "embed_id": "embed-helper"},
+        "embed-skip": {**_metadata(encrypted_content=f"vault:{skipped_toon}"), "embed_id": "embed-skip"},
+    }
+
+    files, target_path = await _collect_code_files(
+        CHAT_ID,
+        TARGET_EMBED_ID,
+        [],
+        [],
+        [TARGET_EMBED_ID, "embed-helper"],
+        _user(),
+        FakeCache([TARGET_EMBED_ID, "embed-helper", "embed-skip"], embeds),
+        FakeDirectus({}),
+        FakeEncryption(),
+    )
+
+    assert target_path == "main.py"
+    assert [file["path"] for file in files] == ["main.py", "helper.py"]
+
+
+@pytest.mark.anyio
+async def test_collect_code_files_accepts_selected_client_attachment_fallback() -> None:
+    target_toon = encode({"type": "code", "code": "print('target')", "language": "python", "filename": "main.py"})
+    attachment_id = "embed-attachment"
+    attachment_metadata = {**_metadata(), "embed_id": attachment_id}
+
+    files, target_path = await _collect_code_files(
+        CHAT_ID,
+        TARGET_EMBED_ID,
+        [],
+        [
+            CodeRunClientAttachment(
+                embed_id=attachment_id,
+                path="data/input.txt",
+                content_base64=base64.b64encode(b"hello").decode("ascii"),
+                mime_type="text/plain",
+            )
+        ],
+        [TARGET_EMBED_ID, attachment_id],
+        _user(),
+        FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{target_toon}")}),
+        FakeDirectus({attachment_id: attachment_metadata}),
+        FakeEncryption(),
+    )
+
+    assert target_path == "main.py"
+    assert files[0]["path"] == "main.py"
+    assert files[1]["path"] == "inputs/data/input.txt"
+    assert base64.b64decode(files[1]["content_base64"]) == b"hello"
 
 
 def test_code_run_cost_is_five_credits_per_minute() -> None:

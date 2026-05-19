@@ -81,6 +81,24 @@ run.again:
   de: Erneut ausführen
   verified_by_human: [en, de]
 
+run.copy_output:
+  context: Button to copy only stdout and stderr from Code Run output, excluding status lines
+  en: Copy output
+  de: Ausgabe kopieren
+  verified_by_human: [en, de]
+
+run.output_copied:
+  context: Toast shown after copying Code Run program output
+  en: Program output copied to clipboard
+  de: Programmausgabe in die Zwischenablage kopiert
+  verified_by_human: [en, de]
+
+run.output_copy_failed:
+  context: Toast shown when copying Code Run program output fails
+  en: Failed to copy program output
+  de: Programmausgabe konnte nicht kopiert werden
+  verified_by_human: [en, de]
+
 run.show_output:
   context: Header CTA button label for showing saved code run output
   en: Show output
@@ -91,6 +109,54 @@ run.hide_output:
   context: Header CTA button label for hiding code run output
   en: Hide output
   de: Ausgabe ausblenden
+  verified_by_human: [en, de]
+
+run.hide_files:
+  context: Header CTA button label for closing Code Run file selection
+  en: Hide files
+  de: Dateien ausblenden
+  verified_by_human: [en, de]
+
+run.select_files:
+  context: Code Run file selection panel title
+  en: Select files to include
+  de: Dateien zum Einschließen auswählen
+  verified_by_human: [en, de]
+
+run.select_files_description:
+  context: Code Run file selection panel subtitle
+  en: Choose which current-chat files are copied into the sandbox.
+  de: Wähle aus, welche Dateien aus dem aktuellen Chat in die Sandbox kopiert werden.
+  verified_by_human: [en, de]
+
+run.required_file:
+  context: Subtitle for the required target code file in Code Run selection
+  en: Required target file
+  de: Erforderliche Zieldatei
+  verified_by_human: [en, de]
+
+run.select_all:
+  context: Button to select all optional Code Run files
+  en: Select all
+  de: Alle auswählen
+  verified_by_human: [en, de]
+
+run.unselect_all:
+  context: Button to unselect all optional Code Run files
+  en: Unselect all
+  de: Alle abwählen
+  verified_by_human: [en, de]
+
+run.continue:
+  context: Button to continue from Code Run file selection to sandbox execution
+  en: Continue
+  de: Weiter
+  verified_by_human: [en, de]
+
+run.loading_files:
+  context: Loading text while Code Run discovers current-chat files
+  en: Loading files...
+  de: Dateien werden geladen...
   verified_by_human: [en, de]
 
 preview_show:

@@ -24,6 +24,13 @@ export interface CodeRunClientFile {
   is_target?: boolean;
 }
 
+export interface CodeRunClientAttachment {
+  embed_id: string;
+  path: string;
+  content_base64: string;
+  mime_type?: string;
+}
+
 export class CodeRunStartError extends Error {
   constructor(
     message: string,
@@ -62,13 +69,21 @@ export type CodeRunStreamMessage =
 export async function startCodeRun(
   chatId: string,
   targetEmbedId: string,
-  clientFiles: CodeRunClientFile[] = []
+  clientFiles: CodeRunClientFile[] = [],
+  clientAttachments: CodeRunClientAttachment[] = [],
+  selectedEmbedIds?: string[]
 ): Promise<CodeRunStartResponse> {
   const response = await fetch(`${getApiUrl()}/v1/code/run`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, target_embed_id: targetEmbedId, client_files: clientFiles }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      target_embed_id: targetEmbedId,
+      client_files: clientFiles,
+      client_attachments: clientAttachments,
+      ...(selectedEmbedIds ? { selected_embed_ids: selectedEmbedIds } : {}),
+    }),
   });
 
   if (!response.ok) {

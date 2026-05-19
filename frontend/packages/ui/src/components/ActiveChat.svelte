@@ -11105,6 +11105,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     highlightQuoteText: embedFullscreenData.highlightQuoteText,
                                     focusLineRange: embedFullscreenData.focusLineRange,
                                     focusSheetRange: embedFullscreenData.focusSheetRange,
+                                    chatEmbedIds,
                                 }}
                                 embedId={embedFullscreenData.embedId}
                                 onClose={handleCloseEmbedFullscreen}

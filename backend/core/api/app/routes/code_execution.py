@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
 import logging
 import os
@@ -17,9 +18,11 @@ import uuid
 from pathlib import PurePosixPath
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
 from toon_format import decode as toon_decode
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -38,6 +41,8 @@ router = APIRouter(prefix="/v1/code/run", tags=["Code Run"])
 MAX_FILES = 50
 MAX_FILE_CHARS = 1_000_000
 MAX_TOTAL_CHARS = 10_000_000
+MAX_ATTACHMENT_BYTES = 5_000_000
+MAX_TOTAL_ATTACHMENT_BYTES = 20_000_000
 EXECUTION_TTL_SECONDS = 3600
 RUN_CREDITS_PER_MINUTE = 5
 ACTIVE_RUN_TTL_SECONDS = 600
@@ -89,10 +94,19 @@ class CodeRunClientFile(BaseModel):
     is_target: bool = False
 
 
+class CodeRunClientAttachment(BaseModel):
+    embed_id: str = Field(min_length=1)
+    path: str = Field(min_length=1, max_length=255)
+    content_base64: str = Field(min_length=1)
+    mime_type: str = "application/octet-stream"
+
+
 class CodeRunStartRequest(BaseModel):
     chat_id: str = Field(min_length=1)
     target_embed_id: str = Field(min_length=1)
     client_files: list[CodeRunClientFile] = Field(default_factory=list, max_length=MAX_FILES)
+    client_attachments: list[CodeRunClientAttachment] = Field(default_factory=list, max_length=MAX_FILES)
+    selected_embed_ids: list[str] | None = Field(default=None, max_length=MAX_FILES)
 
 
 class CodeRunStartResponse(BaseModel):
@@ -160,6 +174,15 @@ def _safe_filename(raw_filename: str | None, embed_id: str, language: str) -> st
     return cleaned or f"snippet-{embed_id[:8]}.txt"
 
 
+def _safe_attachment_path(raw_path: str, embed_id: str) -> str:
+    filename = raw_path.strip().replace("\\", "/") or f"attachment-{embed_id[:8]}.bin"
+    parts = [part for part in PurePosixPath(filename).parts if part not in ("", ".", "..")]
+    cleaned = "/".join(re.sub(r"[^A-Za-z0-9._/-]", "_", part) for part in parts)
+    if not cleaned.startswith("inputs/"):
+        cleaned = f"inputs/{cleaned}"
+    return cleaned or f"inputs/attachment-{embed_id[:8]}.bin"
+
+
 def _dedupe_path(path: str, used: set[str]) -> str:
     if path not in used:
         used.add(path)
@@ -216,6 +239,118 @@ def _client_file_to_content(file: CodeRunClientFile) -> dict[str, Any]:
     }
 
 
+def _metadata_allowed_for_chat(embed: dict[str, Any], chat_id: str, expected_user_hash: str, chat_index_embed_ids: set[str]) -> bool:
+    if _embed_metadata_matches(embed, chat_id, expected_user_hash):
+        return True
+    embed_id = embed.get("embed_id")
+    # Upload-cache entries are written by the upload service for server-side app
+    # skills and may not include hashed_chat_id. Only trust them when the chat's
+    # embed index already listed the ID for this selected chat.
+    return isinstance(embed_id, str) and embed_id in chat_index_embed_ids and embed.get("status") == "finished"
+
+
+def _pick_file_variant(files: Any) -> dict[str, Any] | None:
+    if not isinstance(files, dict):
+        return None
+    for variant_name in ("original", "full", "audio", "source", "preview"):
+        variant = files.get(variant_name)
+        if isinstance(variant, dict) and isinstance(variant.get("s3_key"), str):
+            return variant
+    for variant in files.values():
+        if isinstance(variant, dict) and isinstance(variant.get("s3_key"), str):
+            return variant
+    return None
+
+
+def _attachment_extension(content: dict[str, Any], variant: dict[str, Any]) -> str:
+    file_format = variant.get("format")
+    if isinstance(file_format, str) and file_format:
+        return f".{file_format.lower().lstrip('.')}"
+    content_type = content.get("content_type") or content.get("mime_type")
+    if isinstance(content_type, str) and "/" in content_type:
+        return f".{content_type.rsplit('/', 1)[-1].lower()}"
+    return ".bin"
+
+
+def _attachment_path(content: dict[str, Any], embed_id: str, variant: dict[str, Any]) -> str:
+    filename = content.get("filename") or content.get("original_filename")
+    if not isinstance(filename, str) or not filename.strip():
+        filename = f"attachment-{embed_id[:8]}{_attachment_extension(content, variant)}"
+    return filename
+
+
+async def _download_encrypted_s3_bytes(s3_key: str) -> bytes:
+    download_url = f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}/internal/s3/download"
+    shared_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
+    async with httpx.AsyncClient(timeout=120) as client:
+        response = await client.get(
+            download_url,
+            params={"bucket_key": "chatfiles", "s3_key": s3_key},
+            headers={"X-Internal-Service-Token": shared_token},
+        )
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="Selected file could not be loaded from storage")
+    return response.content
+
+
+async def _decrypt_attachment_bytes(
+    *,
+    encrypted_bytes: bytes,
+    vault_wrapped_aes_key: str,
+    aes_nonce: str,
+    current_user: User,
+    encryption_service: EncryptionService,
+) -> bytes:
+    aes_key_b64 = await encryption_service.decrypt_with_user_key(vault_wrapped_aes_key, current_user.vault_key_id)
+    if not aes_key_b64:
+        raise HTTPException(status_code=400, detail="Selected file key could not be decrypted")
+    aes_key = base64.b64decode(aes_key_b64)
+    if aes_nonce == "":
+        nonce = encrypted_bytes[:12]
+        ciphertext = encrypted_bytes[12:]
+    else:
+        nonce = base64.b64decode(aes_nonce)
+        ciphertext = encrypted_bytes
+    return AESGCM(aes_key).decrypt(nonce, ciphertext, None)
+
+
+async def _append_server_attachment(
+    *,
+    embed_id: str,
+    content: dict[str, Any],
+    current_user: User,
+    encryption_service: EncryptionService,
+    used_paths: set[str],
+    files: list[dict[str, Any]],
+) -> bool:
+    vault_wrapped_aes_key = content.get("vault_wrapped_aes_key")
+    aes_nonce = content.get("aes_nonce")
+    variant = _pick_file_variant(content.get("files") or content.get("s3_files"))
+    if not isinstance(vault_wrapped_aes_key, str) or not isinstance(aes_nonce, str) or not variant:
+        return False
+    s3_key = variant["s3_key"]
+    encrypted_bytes = await _download_encrypted_s3_bytes(s3_key)
+    plaintext = await _decrypt_attachment_bytes(
+        encrypted_bytes=encrypted_bytes,
+        vault_wrapped_aes_key=vault_wrapped_aes_key,
+        aes_nonce=aes_nonce,
+        current_user=current_user,
+        encryption_service=encryption_service,
+    )
+    if len(plaintext) > MAX_ATTACHMENT_BYTES:
+        raise HTTPException(status_code=400, detail="One selected attachment is too large to run")
+    path = _dedupe_path(_safe_attachment_path(_attachment_path(content, embed_id, variant), embed_id), used_paths)
+    files.append({
+        "path": path,
+        "content_base64": base64.b64encode(plaintext).decode("ascii"),
+        "language": "",
+        "is_target": False,
+        "mime_type": str(content.get("content_type") or content.get("mime_type") or "application/octet-stream"),
+        "source_embed_id": embed_id,
+    })
+    return True
+
+
 def _append_code_file(
     *,
     embed_id: str,
@@ -252,18 +387,67 @@ def _append_code_file(
     return total_chars, path if embed_id == target_embed_id else None
 
 
+def _append_client_attachments(
+    *,
+    attachments: list[CodeRunClientAttachment],
+    selected_embed_ids: set[str] | None,
+    expected_embed_ids: set[str],
+    used_paths: set[str],
+    files: list[dict[str, Any]],
+) -> None:
+    total_bytes = 0
+    server_resolved_embed_ids = {str(file.get("source_embed_id")) for file in files if file.get("source_embed_id")}
+    for attachment in attachments:
+        if attachment.embed_id in server_resolved_embed_ids:
+            continue
+        if selected_embed_ids is not None and attachment.embed_id not in selected_embed_ids:
+            continue
+        if attachment.embed_id not in expected_embed_ids:
+            raise HTTPException(status_code=400, detail="Attachment does not belong to the selected chat")
+        try:
+            content = base64.b64decode(attachment.content_base64, validate=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Attachment content is not valid base64") from exc
+        if len(content) > MAX_ATTACHMENT_BYTES:
+            raise HTTPException(status_code=400, detail="One selected attachment is too large to run")
+        total_bytes += len(content)
+        if total_bytes > MAX_TOTAL_ATTACHMENT_BYTES:
+            raise HTTPException(status_code=400, detail="Selected attachments are too large to run together")
+        path = _dedupe_path(_safe_attachment_path(attachment.path, attachment.embed_id), used_paths)
+        files.append({
+            "path": path,
+            "content_base64": base64.b64encode(content).decode("ascii"),
+            "language": "",
+            "is_target": False,
+            "mime_type": attachment.mime_type,
+            "source_embed_id": attachment.embed_id,
+        })
+
+
 async def _collect_code_files(
     chat_id: str,
     target_embed_id: str,
     client_files: list[CodeRunClientFile],
+    client_attachments: list[CodeRunClientAttachment],
+    selected_embed_ids: list[str] | None,
     current_user: User,
     cache_service: CacheService,
     directus_service: DirectusService,
     encryption_service: EncryptionService,
 ) -> tuple[list[dict[str, Any]], str]:
     embed_ids = await cache_service.get_chat_embed_ids(chat_id)
+    selected_ids = set(selected_embed_ids) if selected_embed_ids is not None else None
+    chat_index_embed_ids = set(embed_ids)
+    if selected_ids is not None:
+        selected_ids.add(target_embed_id)
+        for embed_id in selected_ids:
+            if embed_id not in embed_ids:
+                embed_ids.append(embed_id)
+
     if target_embed_id not in embed_ids:
         embed_ids.append(target_embed_id)
+    if selected_ids is not None:
+        embed_ids = [embed_id for embed_id in embed_ids if embed_id in selected_ids]
 
     if len(embed_ids) > MAX_FILES:
         embed_ids = [embed_id for embed_id in embed_ids if embed_id != target_embed_id][: MAX_FILES - 1]
@@ -275,12 +459,14 @@ async def _collect_code_files(
     total_chars = 0
     expected_user_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
     client_files_by_id = {file.embed_id: file for file in client_files}
+    validated_embed_ids: set[str] = set()
     embed_service = EmbedService(cache_service=cache_service, directus_service=directus_service, encryption_service=encryption_service)
 
     for embed_id in embed_ids:
         metadata = await _get_embed_metadata(embed_id, cache_service, directus_service)
-        if not metadata or not _embed_metadata_matches(metadata, chat_id, expected_user_hash):
+        if not metadata or not _metadata_allowed_for_chat(metadata, chat_id, expected_user_hash, chat_index_embed_ids):
             continue
+        validated_embed_ids.add(embed_id)
 
         content: dict[str, Any] | None = None
         cached_toon = await embed_service._get_cached_embed_toon(embed_id, current_user.vault_key_id, "[CODE_RUN] ")
@@ -288,6 +474,8 @@ async def _collect_code_files(
             content = _decode_toon_content(cached_toon)
         elif embed_id in client_files_by_id:
             content = _client_file_to_content(client_files_by_id[embed_id])
+        else:
+            content = metadata
 
         if not content:
             continue
@@ -302,6 +490,15 @@ async def _collect_code_files(
         )
         if maybe_target_path:
             target_path = maybe_target_path
+        elif embed_id != target_embed_id and selected_ids is not None:
+            await _append_server_attachment(
+                embed_id=embed_id,
+                content=content,
+                current_user=current_user,
+                encryption_service=encryption_service,
+                used_paths=used_paths,
+                files=files,
+            )
 
     if not target_path:
         metadata = await _get_embed_metadata(target_embed_id, cache_service, directus_service)
@@ -314,6 +511,14 @@ async def _collect_code_files(
                 },
             )
         raise HTTPException(status_code=404, detail="Target code embed is not available for server-side execution")
+
+    _append_client_attachments(
+        attachments=client_attachments,
+        selected_embed_ids=selected_ids,
+        expected_embed_ids=validated_embed_ids,
+        used_paths=used_paths,
+        files=files,
+    )
     return files, target_path
 
 
@@ -389,6 +594,8 @@ async def start_code_run(
         body.chat_id,
         body.target_embed_id,
         body.client_files,
+        body.client_attachments,
+        body.selected_embed_ids,
         current_user,
         cache_service,
         directus_service,
