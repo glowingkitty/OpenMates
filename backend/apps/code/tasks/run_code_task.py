@@ -25,7 +25,7 @@ from backend.shared.providers.e2b_code_runner import CodeRunFile, get_e2b_api_ke
 logger = logging.getLogger(__name__)
 
 EXECUTION_TTL_SECONDS = 3600
-RUN_CREDITS_PER_MINUTE = 10
+RUN_CREDITS_PER_MINUTE = 5
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
@@ -91,6 +91,8 @@ async def _charge_run_credits(
             "execution_id": execution_id,
             "target_embed_id": payload.get("target_embed_id"),
             "target_filename": payload.get("target_path"),
+            "chat_id": payload.get("chat_id"),
+            "message_id": payload.get("message_id"),
             "credits_per_minute": RUN_CREDITS_PER_MINUTE,
             "files_count": len(payload.get("files", [])),
             **usage_details,

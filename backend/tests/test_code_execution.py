@@ -15,9 +15,12 @@ import pytest
 from fastapi import HTTPException
 from toon_format import encode
 
+from backend.apps.code.tasks.run_code_task import RUN_CREDITS_PER_MINUTE as TASK_RUN_CREDITS_PER_MINUTE
+from backend.apps.code.tasks.run_code_task import _charge_run_credits
 from backend.core.api.app.routes.code_execution import (
     CLIENT_CONTENT_REQUIRED_CODE,
     CodeRunClientFile,
+    RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
     _collect_code_files,
 )
 
@@ -27,6 +30,7 @@ TARGET_EMBED_ID = "embed-target"
 USER_ID = "user-1"
 USER_HASH = hashlib.sha256(USER_ID.encode()).hexdigest()
 CHAT_HASH = hashlib.sha256(CHAT_ID.encode()).hexdigest()
+MESSAGE_ID = "message-1"
 
 
 class FakeRedis:
@@ -90,6 +94,7 @@ def _metadata(encrypted_content: str = "client-ciphertext") -> dict:
         "hashed_chat_id": CHAT_HASH,
         "encrypted_content": encrypted_content,
         "encryption_mode": "client",
+        "message_id": MESSAGE_ID,
         "status": "finished",
     }
 
@@ -144,3 +149,56 @@ async def test_collect_code_files_accepts_validated_client_fallback() -> None:
 
     assert target_path == "client.py"
     assert files == [{"path": "client.py", "content": "print('client')", "language": "python", "is_target": True}]
+
+
+def test_code_run_cost_is_five_credits_per_minute() -> None:
+    assert ROUTE_RUN_CREDITS_PER_MINUTE == 5
+    assert TASK_RUN_CREDITS_PER_MINUTE == 5
+
+
+@pytest.mark.anyio
+async def test_charge_run_credits_links_usage_to_chat(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[dict] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeAsyncClient:
+        def __init__(self, timeout: int):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url: str, json: dict, headers: dict):
+            requests.append({"url": url, "json": json, "headers": headers})
+            return FakeResponse()
+
+    monkeypatch.setattr("backend.apps.code.tasks.run_code_task.httpx.AsyncClient", FakeAsyncClient)
+
+    charged = await _charge_run_credits(
+        {
+            "user_id": USER_ID,
+            "user_id_hash": USER_HASH,
+            "chat_id": CHAT_ID,
+            "message_id": MESSAGE_ID,
+            "target_embed_id": TARGET_EMBED_ID,
+            "target_path": "main.py",
+            "files": [{"path": "main.py"}],
+        },
+        5,
+        "execution-1",
+        {"billing_phase": "initial_minute", "charged_minutes": 1},
+    )
+
+    assert charged == 5
+    assert requests[0]["json"]["credits"] == 5
+    assert requests[0]["json"]["app_id"] == "code"
+    assert requests[0]["json"]["skill_id"] == "run"
+    assert requests[0]["json"]["usage_details"]["chat_id"] == CHAT_ID
+    assert requests[0]["json"]["usage_details"]["message_id"] == MESSAGE_ID
+    assert requests[0]["json"]["usage_details"]["credits_per_minute"] == 5

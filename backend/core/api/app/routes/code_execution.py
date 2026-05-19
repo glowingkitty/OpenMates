@@ -39,7 +39,7 @@ MAX_FILES = 50
 MAX_FILE_CHARS = 1_000_000
 MAX_TOTAL_CHARS = 10_000_000
 EXECUTION_TTL_SECONDS = 3600
-RUN_CREDITS_PER_MINUTE = 10
+RUN_CREDITS_PER_MINUTE = 5
 ACTIVE_RUN_TTL_SECONDS = 600
 MAX_ACTIVE_RUNS_PER_USER = 5
 PROVIDER_ACTIVE_RUN_TTL_SECONDS = 600
@@ -100,7 +100,7 @@ class CodeRunStartResponse(BaseModel):
     status: str
     target_filename: str
     files: list[str]
-    credits_per_minute: int = 10
+    credits_per_minute: int = RUN_CREDITS_PER_MINUTE
 
 
 def get_cache_service(request: Request) -> CacheService:
@@ -394,6 +394,8 @@ async def start_code_run(
         directus_service,
         encryption_service,
     )
+    target_metadata = await _get_embed_metadata(body.target_embed_id, cache_service, directus_service) or {}
+    target_message_id = target_metadata.get("message_id")
     user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
     client = await cache_service.client
     active_key = _active_run_key(user_id_hash)
@@ -430,6 +432,7 @@ async def start_code_run(
         "user_id": current_user.id,
         "user_id_hash": user_id_hash,
         "chat_id": body.chat_id,
+        "message_id": target_message_id if isinstance(target_message_id, str) else None,
         "target_embed_id": body.target_embed_id,
         "target_path": target_path,
         "files": files,
