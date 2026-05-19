@@ -47,6 +47,7 @@ export { default as OfflineIndicator } from "./src/components/OfflineIndicator.s
 // Removed export * from Settings.svelte as default export on line 6 is sufficient
 // Types
 export * from "./src/types/chat";
+export type { EmbedType } from "./src/message_parsing/types";
 
 // i18n exports
 export * from "./src/i18n/setup";
@@ -126,6 +127,8 @@ export {
   type ShareDuration,
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
+export type { EmbedKeyEntry } from "./src/services/embedStore";
+export { handleCodeRunOutputSyncedImpl } from "./src/services/handlersCodeRunOutputs";
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
 export { pushNotificationService } from "./src/services/pushNotificationService"; // Export push notification service
 export {

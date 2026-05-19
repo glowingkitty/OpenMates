@@ -117,6 +117,32 @@ async def _fetch_daily_inspirations(
         return []
 
 
+async def _fetch_code_run_outputs_for_chats(
+    directus_service: DirectusService,
+    chat_ids: List[str],
+    user_id: str,
+) -> List[Dict[str, Any]]:
+    """Fetch encrypted Code Run output sidecars for this user's chats."""
+    if not chat_ids:
+        return []
+    try:
+        rows = await directus_service.get_items(
+            "code_run_outputs",
+            params={
+                "filter[chat_id][_in]": ",".join(chat_ids),
+                "filter[author_user_id][_eq]": user_id,
+                "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+                "sort": "-updated_at",
+                "limit": -1,
+            },
+            admin_required=True,
+        ) or []
+        return rows if isinstance(rows, list) else []
+    except Exception as exc:
+        logger.warning("Failed to fetch Code Run outputs for sync: %s", exc, exc_info=True)
+        return []
+
+
 async def handle_phased_sync_request(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -672,6 +698,7 @@ async def _handle_phase1b_sync(
         # Fetch embeds + embed_keys for all Phase 1 chats
         all_embeds: List[Dict[str, Any]] = []
         all_embed_keys: List[Dict[str, Any]] = []
+        all_code_run_outputs: List[Dict[str, Any]] = []
         seen_embed_ids: set = set()
         seen_key_ids: set = set()
         hashed_chat_ids: List[str] = []
@@ -712,6 +739,12 @@ async def _handle_phase1b_sync(
             except Exception as e:
                 logger.warning(f"[PHASE1b] Error batch fetching embed_keys: {e}")
 
+        all_code_run_outputs = await _fetch_code_run_outputs_for_chats(
+            directus_service,
+            phase1_chat_ids,
+            user_id,
+        )
+
         # Send Phase 1b as separate WS message
         await manager.send_personal_message(
             {
@@ -719,7 +752,8 @@ async def _handle_phase1b_sync(
                 "payload": {
                     "chats": chats_data,
                     "embeds": all_embeds,
-                    "embed_keys": all_embed_keys
+                    "embed_keys": all_embed_keys,
+                    "code_run_outputs": all_code_run_outputs,
                 }
             },
             user_id,
@@ -731,7 +765,8 @@ async def _handle_phase1b_sync(
         logger.info(
             f"[PHASE1b_COMPLETE] ✅ Phase 1b sync for user {user_id[:8]}... in {phase1b_elapsed:.3f}s: "
             f"{len(chats_data)} chats, {messages_total} messages, "
-            f"{len(all_embeds)} embeds, {len(all_embed_keys)} embed_keys"
+            f"{len(all_embeds)} embeds, {len(all_embed_keys)} embed_keys, "
+            f"{len(all_code_run_outputs)} code_run_outputs"
         )
 
     except Exception as e:
@@ -989,6 +1024,7 @@ async def _handle_phase3_sync(
             # Fetch embeds + embed_keys for this batch so they're available offline
             batch_embeds: List[Dict[str, Any]] = []
             batch_embed_keys: List[Dict[str, Any]] = []
+            batch_code_run_outputs: List[Dict[str, Any]] = []
             batch_seen_embed_ids: set = set()
             batch_seen_key_ids: set = set()
             batch_hashed_ids: List[str] = []
@@ -1041,6 +1077,13 @@ async def _handle_phase3_sync(
                 payload_data["embeds"] = batch_embeds
             if batch_embed_keys:
                 payload_data["embed_keys"] = batch_embed_keys
+            batch_code_run_outputs = await _fetch_code_run_outputs_for_chats(
+                directus_service,
+                batch_chat_ids,
+                user_id,
+            )
+            if batch_code_run_outputs:
+                payload_data["code_run_outputs"] = batch_code_run_outputs
 
             await manager.send_personal_message(
                 {
@@ -1053,7 +1096,8 @@ async def _handle_phase3_sync(
 
             logger.debug(
                 f"Phase 3: Sent batch {batch_num} ({len(batch_data)} chats, "
-                f"{len(batch_embeds)} embeds, {len(batch_embed_keys)} embed_keys)"
+                f"{len(batch_embeds)} embeds, {len(batch_embed_keys)} embed_keys, "
+                f"{len(batch_code_run_outputs)} code_run_outputs)"
             )
 
         # Clear sync cache after successful completion
@@ -1062,6 +1106,26 @@ async def _handle_phase3_sync(
             logger.info(f"Cleared {deleted_count} sync message caches for user {user_id[:8]}...")
         except Exception as clear_error:
             logger.warning(f"Failed to clear sync cache: {clear_error}")
+
+        try:
+            code_run_outputs = await _fetch_code_run_outputs_for_chats(
+                directus_service,
+                cached_chat_ids,
+                user_id,
+            )
+            await manager.send_personal_message(
+                {
+                    "type": "code_run_outputs_sync_ready",
+                    "payload": {
+                        "outputs": code_run_outputs,
+                        "output_count": len(code_run_outputs),
+                    },
+                },
+                user_id,
+                device_fingerprint_hash,
+            )
+        except Exception as output_sync_error:
+            logger.warning(f"Failed to sync Code Run outputs: {output_sync_error}", exc_info=True)
 
         # Trigger app memories sync
         try:

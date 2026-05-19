@@ -604,6 +604,13 @@ export async function handlePhase1bChatContentImpl(
       }
     }
 
+    if (payload.code_run_outputs && payload.code_run_outputs.length > 0) {
+      const { handleCodeRunOutputSyncedImpl } = await import("./handlersCodeRunOutputs");
+      await Promise.all(
+        payload.code_run_outputs.map((output) => handleCodeRunOutputSyncedImpl(output)),
+      );
+    }
+
     console.info("[ChatSyncService:CoreSync] ✅ Phase 1b complete");
   } catch (error) {
     console.error("[ChatSyncService:CoreSync] Phase 1b error:", error);

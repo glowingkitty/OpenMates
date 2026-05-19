@@ -125,9 +125,12 @@ class ChatDatabase {
   // Version 25: schema-healing bump. Re-runs migrations for clients whose local
   //             DB is at the current version but missing stores after interrupted
   //             upgrades or blocked logout/delete races.
-  private readonly VERSION = 25;
+  // Version 26: code_run_outputs store — encrypted sidecar rows for Code Run
+  //             terminal output. Keeps run output out of canonical code embeds.
+  private readonly VERSION = 26;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
+  public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
   private readonly REQUIRED_STORE_NAMES = [
     this.CHATS_STORE_NAME,
@@ -142,6 +145,7 @@ class ChatDatabase {
     this.EMBED_KEYS_STORE_NAME,
     this.MESSAGE_HIGHLIGHTS_STORE_NAME,
     this.EMBED_DIFFS_STORE_NAME,
+    this.CODE_RUN_OUTPUTS_STORE_NAME,
     this.DAILY_INSPIRATIONS_STORE_NAME,
   ];
   private initializationPromise: Promise<void> | null = null;
@@ -966,6 +970,22 @@ class ChatDatabase {
         { unique: true },
       );
       console.warn("[ChatDatabase] Created embed_diffs store (v24)");
+    }
+
+    // Code Run outputs store (v26) — sidecar persistence for terminal output.
+    if (!db.objectStoreNames.contains(this.CODE_RUN_OUTPUTS_STORE_NAME)) {
+      const codeRunOutputsStore = db.createObjectStore(
+        this.CODE_RUN_OUTPUTS_STORE_NAME,
+        { keyPath: "id" },
+      );
+      codeRunOutputsStore.createIndex("chat_id", "chat_id", { unique: false });
+      codeRunOutputsStore.createIndex("embed_id", "embed_id", { unique: false });
+      codeRunOutputsStore.createIndex(
+        "chat_id_embed_id",
+        ["chat_id", "embed_id"],
+        { unique: false },
+      );
+      console.warn("[ChatDatabase] Created code_run_outputs store (v26)");
     }
 
     // Daily inspirations store (v20) - client-side persistence for personalised inspiration carousel.

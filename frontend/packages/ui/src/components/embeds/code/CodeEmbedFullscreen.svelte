@@ -33,6 +33,9 @@
   import { embedStore } from '../../../services/embedStore';
   import { decodeToonContent, resolveEmbed } from '../../../services/embedResolver';
   import { fetchWithPresignedUrl } from '../../../services/presignedUrlService';
+  import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
+  import { sendRequestCodeRunOutputImpl, sendUpsertCodeRunOutputImpl } from '../../../services/sendersCodeRunOutputs';
+  import { chatDB } from '../../../services/db';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -47,6 +50,7 @@
     type CodeRunStatus,
     type CodeRunStreamMessage,
   } from '../../../services/codeRunService';
+  import type { CodeRunOutput } from '../../../types/chat';
 
   /**
    * Props for code embed fullscreen
@@ -332,6 +336,7 @@
   let persistedRunExecutionId = $state<string | null>(null);
 
   interface SavedCodeRunOutput {
+    id?: string;
     text: string;
     status?: CodeRunStatus['status'];
     files?: string[];
@@ -377,6 +382,7 @@
   let runSelectionLoading = $state(false);
   let runSelectionError = $state<string | null>(null);
   let runCandidates = $state<CodeRunFileCandidate[]>([]);
+  let requestedRunOutputKey = $state<string | null>(null);
   let outputPaneActive = $derived(previewActive || runPanelOpen || runSelectionOpen);
   let savedRunOutput = $state<SavedCodeRunOutput | null>(null);
   let runDisplayEvents = $derived(buildCompactRunEvents(runEvents));
@@ -414,6 +420,17 @@
     return { text, status, files, savedAt, events };
   }
 
+  function savedRunOutputFromRow(row: CodeRunOutput): SavedCodeRunOutput {
+    return {
+      id: row.id,
+      text: row.output,
+      status: row.status as CodeRunStatus['status'] | undefined,
+      files: row.files,
+      savedAt: row.saved_at,
+      events: row.events as CodeRunEvent[] | undefined,
+    };
+  }
+
   function codeRunOutputRef(embedIdValue: string): string {
     return `code-run-output:${embedIdValue}`;
   }
@@ -421,11 +438,34 @@
   async function loadSavedRunOutput() {
     if (!embedId) return;
     try {
-      const sidecar = await embedStore.get(codeRunOutputRef(embedId));
+      const syncedOutput = await getCodeRunOutputForEmbed(chatDB, embedId);
+      if (syncedOutput) {
+        const output = savedRunOutputFromRow(syncedOutput);
+        if (savedRunOutput?.text !== output.text || savedRunOutput?.id !== output.id) {
+          savedRunOutput = output;
+        }
+      }
+
+      const sidecar = syncedOutput ? null : await embedStore.get(codeRunOutputRef(embedId));
       if (!sidecar || typeof sidecar !== 'object') return;
       const output = readSavedRunOutput(sidecar as Record<string, unknown>);
       if (output && savedRunOutput?.text !== output.text) {
         savedRunOutput = output;
+        if (chatId) {
+          const now = Math.floor(Date.now() / 1000);
+          await sendUpsertCodeRunOutputImpl({
+            id: crypto.randomUUID(),
+            chat_id: chatId,
+            embed_id: embedId,
+            output: output.text,
+            status: output.status,
+            files: output.files,
+            events: output.events,
+            saved_at: output.savedAt ?? Date.now(),
+            created_at: now,
+            updated_at: now,
+          });
+        }
       }
     } catch (error) {
       console.warn('[CodeEmbedFullscreen] Failed to load saved code run output:', error);
@@ -435,6 +475,26 @@
   $effect(() => {
     void embedId;
     void loadSavedRunOutput();
+    const requestKey = chatId && embedId ? `${chatId}:${embedId}` : null;
+    if (chatId && embedId && requestedRunOutputKey !== requestKey) {
+      requestedRunOutputKey = requestKey;
+      void sendRequestCodeRunOutputImpl(chatId, embedId);
+    }
+  });
+
+  onMount(() => {
+    const handleSyncedOutput = (event: Event) => {
+      const output = (event as CustomEvent<CodeRunOutput>).detail;
+      if (!embedId || output.embed_id !== embedId) return;
+      savedRunOutput = savedRunOutputFromRow(output);
+      if (!runActive && !runPanelOpen) {
+        runEvents = savedOutputToEvents(savedRunOutput);
+        runStatus = savedRunOutput.status ?? 'finished';
+        runFiles = savedRunOutput.files ?? [];
+      }
+    };
+    window.addEventListener('codeRunOutputSynced', handleSyncedOutput);
+    return () => window.removeEventListener('codeRunOutputSynced', handleSyncedOutput);
   });
 
   function savedOutputToEvents(output: SavedCodeRunOutput): CodeRunEvent[] {
@@ -484,22 +544,32 @@
 
   async function persistRunOutput() {
     if (!embedId || !runExecutionId || persistedRunExecutionId === runExecutionId) return;
+    if (!chatId) {
+      console.warn('[CodeEmbedFullscreen] Cannot sync Code Run output without chatId');
+      return;
+    }
     const outputText = compactRunOutputText();
     if (!outputText || !compactRunOutputHasFinalLine()) return;
 
     persistedRunExecutionId = runExecutionId;
     const savedAt = Date.now();
-    const nextSavedRunOutput = {
-      code_run_output: outputText,
-      code_run_events: runDisplayEvents,
-      code_run_status: runStatus,
-      code_run_files: runFiles,
-      code_run_saved_at: savedAt,
-    };
-
+    const now = Math.floor(savedAt / 1000);
+    const outputId = savedRunOutput?.id ?? crypto.randomUUID();
     try {
-      await embedStore.put(codeRunOutputRef(embedId), nextSavedRunOutput, 'code-run-output');
+      await sendUpsertCodeRunOutputImpl({
+        id: outputId,
+        chat_id: chatId,
+        embed_id: embedId,
+        output: outputText,
+        status: runStatus as CodeRunStatus['status'],
+        files: runFiles,
+        events: runDisplayEvents,
+        saved_at: savedAt,
+        created_at: now,
+        updated_at: now,
+      });
       savedRunOutput = {
+        id: outputId,
         text: outputText,
         status: runStatus as CodeRunStatus['status'],
         files: runFiles,

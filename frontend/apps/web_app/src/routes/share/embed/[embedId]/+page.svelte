@@ -20,6 +20,23 @@
     import { browser } from '$app/environment';
     import { goto } from '$app/navigation';
     import { getApiEndpoint } from '@repo/ui';
+    import type { EmbedKeyEntry, EmbedType, SyncCodeRunOutput, SyncEmbed } from '@repo/ui';
+
+    type SharedEmbedKeyEntry = Omit<EmbedKeyEntry, 'key_type'> & {
+        key_type: EmbedKeyEntry['key_type'] | 'embed';
+        parent_embed_id?: string | null;
+    };
+
+    type SharedEmbedFetchResult = {
+        embed: SyncEmbed | null;
+        childEmbeds: SyncEmbed[];
+        embed_keys: SharedEmbedKeyEntry[];
+        code_run_outputs: SyncCodeRunOutput[];
+    };
+
+    function hasContent(value: unknown): value is { content: unknown } {
+        return typeof value === 'object' && value !== null && 'content' in value && Boolean(value.content);
+    }
 
     // Get embed ID from URL params
     let embedId = $derived($page.params.embedId);
@@ -67,14 +84,19 @@
      * Fetch embed data from server
      * Returns embed data, child embeds, and embed_keys for the wrapped key architecture
      */
-    async function fetchEmbedFromServer(embedId: string): Promise<{ embed: any | null; childEmbeds: any[]; embed_keys: any[] }> {
+    async function fetchEmbedFromServer(embedId: string): Promise<SharedEmbedFetchResult> {
         try {
             const response = await fetch(getApiEndpoint(`/v1/share/embed/${embedId}`));
             if (!response.ok) {
                 throw new Error(`Server returned ${response.status}`);
             }
 
-            const data = await response.json();
+            const data = (await response.json()) as {
+                embed?: SyncEmbed | null;
+                child_embeds?: SyncEmbed[];
+                embed_keys?: SharedEmbedKeyEntry[];
+                code_run_outputs?: SyncCodeRunOutput[];
+            };
 
             // Check if this is dummy data (non-existent embed)
             // The backend returns dummy data for non-existent embeds to prevent enumeration
@@ -89,17 +111,19 @@
                 encrypted_type_preview: data.embed?.encrypted_type?.substring(0, 50) || 'none',
                 child_embed_count: data.child_embeds?.length || 0,
                 embed_keys_count: data.embed_keys?.length || 0,
+                code_run_outputs_count: data.code_run_outputs?.length || 0,
                 all_embed_fields: Object.keys(data.embed || {})
             });
 
             return {
                 embed: data.embed || null,
                 childEmbeds: data.child_embeds || [],
-                embed_keys: data.embed_keys || []
+                embed_keys: data.embed_keys || [],
+                code_run_outputs: data.code_run_outputs || []
             };
         } catch (error) {
             console.error('[ShareEmbed] Error fetching embed from server:', error);
-            return { embed: null, childEmbeds: [], embed_keys: [] };
+            return { embed: null, childEmbeds: [], embed_keys: [], code_run_outputs: [] };
         }
     }
 
@@ -161,7 +185,7 @@
             // The server returns encrypted embed data for existing embeds
             // or dummy encrypted data for non-existent embeds (to prevent enumeration)
             console.debug('[ShareEmbed] Fetching embed data from server...');
-            const { embed: fetchedEmbed, childEmbeds: fetchedChildEmbeds, embed_keys: fetchedEmbedKeys } = await fetchEmbedFromServer(embedId);
+            const { embed: fetchedEmbed, childEmbeds: fetchedChildEmbeds, embed_keys: fetchedEmbedKeys, code_run_outputs: fetchedCodeRunOutputs } = await fetchEmbedFromServer(embedId);
 
             if (!fetchedEmbed) {
                 error = 'Embed not found. The embed may have been deleted or the link is invalid.';
@@ -304,7 +328,7 @@
                 status: fetchedEmbed.status || 'finished',
                 hashed_chat_id: fetchedEmbed.hashed_chat_id,
                 hashed_user_id: fetchedEmbed.hashed_user_id
-            }, (decryptedType || (fetchedEmbed.encrypted_type ? 'app-skill-use' : fetchedEmbed.embed_type || 'app-skill-use')) as any, decryptedContent || undefined);
+            }, (decryptedType || (fetchedEmbed.encrypted_type ? 'app-skill-use' : fetchedEmbed.embed_type || 'app-skill-use')) as EmbedType, decryptedContent || undefined);
 
             // Process embed_keys if any - unwrap them with main embed key and store
             // This is for child embeds that have their keys wrapped with the parent embed key
@@ -355,8 +379,19 @@
                 }
 
                 // Also store the raw embed_keys entries in IndexedDB for future use
-                await embedStore.storeEmbedKeys(fetchedEmbedKeys);
-                console.debug(`[ShareEmbed] Stored ${fetchedEmbedKeys.length} embed keys`);
+                const storableEmbedKeys = fetchedEmbedKeys.filter(
+                    (entry): entry is EmbedKeyEntry => entry.key_type === 'master' || entry.key_type === 'chat'
+                );
+                if (storableEmbedKeys.length > 0) {
+                    await embedStore.storeEmbedKeys(storableEmbedKeys);
+                    console.debug(`[ShareEmbed] Stored ${storableEmbedKeys.length} embed keys`);
+                }
+            }
+
+            if (fetchedCodeRunOutputs && fetchedCodeRunOutputs.length > 0) {
+                const { handleCodeRunOutputSyncedImpl } = await import('@repo/ui');
+                await Promise.all(fetchedCodeRunOutputs.map((output) => handleCodeRunOutputSyncedImpl(output)));
+                console.debug(`[ShareEmbed] Stored ${fetchedCodeRunOutputs.length} Code Run output sidecar(s)`);
             }
 
             // Store child embeds if any
@@ -425,11 +460,11 @@
                             hashed_chat_id: childEmbed.hashed_chat_id,
                             hashed_user_id: childEmbed.hashed_user_id,
                             parent_embed_id: embedId // Set parent_embed_id so getEmbedKey can find parent key
-                        }, (childEmbed.encrypted_type ? 'app-skill-use' : childEmbed.embed_type || 'app-skill-use') as any);
+                        }, (childEmbed.encrypted_type ? 'app-skill-use' : childEmbed.embed_type || 'app-skill-use') as EmbedType);
                         
                         // Verify child embed can be retrieved and decrypted
                         const verifyChildEmbed = await embedStore.get(childContentRef);
-                        if (!verifyChildEmbed || !verifyChildEmbed.content) {
+                        if (!hasContent(verifyChildEmbed)) {
                             // This can happen for old embeds that were encrypted with their own keys (before key inheritance)
                             // Old child embeds require master/chat keys to unwrap, which aren't available in shared scenario
                             // New embeds use parent key (key inheritance) and will decrypt successfully
@@ -454,7 +489,7 @@
             // Verify the embed can be retrieved and decrypted before proceeding
             // This ensures the embed key is properly cached and the embed is accessible
             const verifyEmbed = await embedStore.get(`embed:${embedId}`);
-            if (!verifyEmbed || !verifyEmbed.content) {
+            if (!hasContent(verifyEmbed)) {
                 console.warn('[ShareEmbed] Embed verification failed - embed may not be decryptable yet');
                 // Continue anyway - handleEmbedFullscreen will retry loading
             } else {
@@ -467,7 +502,7 @@
                     for (const childEmbed of fetchedChildEmbeds) {
                         if (childEmbed.embed_id) {
                             const childVerify = await embedStore.get(`embed:${childEmbed.embed_id}`);
-                            if (childVerify && childVerify.content) {
+                            if (hasContent(childVerify)) {
                                 verifiedCount++;
                             } else {
                                 console.warn(`[ShareEmbed] Child embed ${childEmbed.embed_id} not accessible yet`);

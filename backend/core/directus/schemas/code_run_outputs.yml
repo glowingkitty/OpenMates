@@ -1,0 +1,44 @@
+# backend/core/directus/schemas/code_run_outputs.yml
+#
+# Encrypted sidecar storage for Code Run terminal output. These rows are keyed
+# by code embed and encrypted with that embed's key so they can sync across the
+# owner's devices and be included with shared embed payloads without mutating the
+# canonical code embed content.
+code_run_outputs:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key — client-generated uuid for the output row."
+
+    chat_id:
+      type: string
+      note: "[Indexed] Chat containing the code embed. Plaintext for auth and sync routing."
+
+    embed_id:
+      type: string
+      note: "[Indexed] Code embed this terminal output belongs to."
+
+    author_user_id:
+      type: string
+      note: "[Indexed] User id that ran the code. Used for owner-device sync and update authorization."
+
+    key_version:
+      type: integer
+      note: "Reserved for future key rotation diagnostics. Payload is encrypted with the embed key."
+
+    encrypted_payload:
+      type: textfield
+      note: "[Encrypted] JSON blob containing output, events, status, files, and saved_at. Encrypted client-side with the embed key."
+
+    created_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the output row was created."
+
+    updated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the output row was last updated."
+
+  indexes:
+    - fields: [chat_id, embed_id, author_user_id]
+      unique: true

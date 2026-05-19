@@ -408,6 +408,13 @@ export async function handleBackgroundMessageSyncImpl(
       );
     }
 
+    if (payload.code_run_outputs && payload.code_run_outputs.length > 0) {
+      const { handleCodeRunOutputSyncedImpl } = await import("./handlersCodeRunOutputs");
+      await Promise.all(
+        payload.code_run_outputs.map((output) => handleCodeRunOutputSyncedImpl(output)),
+      );
+    }
+
     // Yield to main thread between batches
     await new Promise((resolve) => setTimeout(resolve, 0));
   } catch (error) {
