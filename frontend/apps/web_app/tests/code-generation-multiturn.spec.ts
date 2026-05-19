@@ -13,15 +13,14 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
 
 /**
  * Multi-turn code generation E2E test.
@@ -217,6 +216,18 @@ async function assertNoJsonEmbedLeaks(page: any, messageIndex: number, log: any)
 	expect(fenceLeaks.length).toBe(0);
 
 	log(`Message ${messageIndex}: no JSON embed leaks.`);
+}
+
+async function waitForCodeRunSuccess(fullscreenOverlay: any, expectedOutput: string, log: any) {
+ const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+ await expect(terminal).toBeVisible({ timeout: 15000 });
+
+ await expect(async () => {
+  const text = (await terminal.textContent()) || '';
+  log(`Code Run terminal text: ${text.substring(0, 500)}`);
+  expect(text).toContain(expectedOutput);
+  expect(text).toMatch(/finished|Exited with code 0/i);
+ }).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
 }
 
 // ─── Test ─────────────────────────────────────────────────────────────────────
@@ -494,4 +505,67 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 
 	log(`Test completed successfully. Chat ${chatId} was created and deleted.`);
+});
+
+test('generated Python code embed can run in E2B sandbox', async ({ page }: { page: any }) => {
+ setupPageListeners(page);
+
+ test.slow();
+ test.setTimeout(240000);
+
+ const log = createSignupLogger('CODE_RUN_E2B');
+ const screenshot = createStepScreenshotter(log, {
+  filenamePrefix: 'code-run-e2b'
+ });
+ const expectedOutput = 'openmates-code-run-ok';
+
+ skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+ await archiveExistingScreenshots(log);
+ log('Starting Code Run E2B test.');
+
+ await loginToTestAccount(page, log, screenshot);
+ await startNewChat(page, log);
+ await screenshot(page, 'ready');
+
+ await sendMessage(
+  page,
+  withMockMarker(
+   `Write a self-contained Python script with no external dependencies that prints exactly "${expectedOutput}". Show only the complete code in one Python code block.`,
+   'code_run_e2b_smoke'
+  ),
+  log,
+  screenshot,
+  'code-run'
+ );
+
+ await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30000 });
+ const chatIdMatch = page.url().match(/chat-id=([0-9a-f-]+)/);
+ const chatId = chatIdMatch ? chatIdMatch[1] : 'unknown';
+ log(`Chat ID: ${chatId}`);
+
+ const assistantMessages = page.getByTestId('message-assistant');
+ await expect(assistantMessages.last()).toBeVisible({ timeout: 60000 });
+ const messageIndex = (await assistantMessages.count()) - 1;
+ await waitForCodeEmbedsInMessage(page, messageIndex, log);
+ await waitForStreamingComplete(page, log);
+
+ const codeEmbed = assistantMessages
+  .nth(messageIndex)
+  .locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
+  .first();
+ const fullscreenOverlay = await openFullscreen(page, codeEmbed);
+ await screenshot(page, 'fullscreen-open');
+
+ const runButton = fullscreenOverlay.getByTestId('embed-run-button');
+ await expect(runButton).toBeVisible({ timeout: 10000 });
+ await runButton.click();
+
+ await waitForCodeRunSuccess(fullscreenOverlay, expectedOutput, log);
+ await screenshot(page, 'run-complete');
+
+ await closeFullscreen(page, fullscreenOverlay);
+ await deleteActiveChat(page, log, screenshot, 'cleanup');
+
+ log(`Code Run E2B test completed successfully. Chat ${chatId} was created and deleted.`);
 });
