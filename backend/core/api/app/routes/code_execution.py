@@ -77,6 +77,7 @@ EXECUTABLE_LANGUAGES = {
 DEPENDENCY_FILENAMES = {"requirements.txt", "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
 PYTHON_PACKAGE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$")
 NPM_PACKAGE_PATTERN = re.compile(r"^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$")
+INSTALL_SNIPPET_LANGUAGES = {"bash", "sh", "shell", "terminal", "console"}
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
@@ -267,6 +268,72 @@ def _client_file_to_content(file: CodeRunClientFile) -> dict[str, Any]:
         "language": file.language,
         "filename": file.filename,
     }
+
+
+def _parse_install_line(line: str) -> tuple[Literal["python", "npm"], list[str]] | None:
+    if re.search(r"[;&|<>`$\\]", line):
+        return None
+    trimmed = line.strip()
+    python_match = re.match(r"^(?:pip3?\s+install|python3?\s+-m\s+pip\s+install)\s+(.+)$", trimmed)
+    npm_match = re.match(r"^npm\s+(?:install|i)\s+(.+)$", trimmed)
+    ecosystem: Literal["python", "npm"] | None = "python" if python_match else "npm" if npm_match else None
+    raw_packages = (python_match or npm_match).group(1) if python_match or npm_match else ""
+    if not ecosystem or not raw_packages.strip():
+        return None
+    packages = [part for part in raw_packages.split() if part]
+    pattern = PYTHON_PACKAGE_PATTERN if ecosystem == "python" else NPM_PACKAGE_PATTERN
+    if not packages or any(part.startswith("-") or not pattern.match(part) for part in packages):
+        return None
+    return ecosystem, packages
+
+
+def _dependency_installs_from_install_snippets(files: list[dict[str, Any]]) -> list[CodeRunDependencyInstall]:
+    installs: dict[Literal["python", "npm"], list[str]] = {"python": [], "npm": []}
+    seen: dict[Literal["python", "npm"], set[str]] = {"python": set(), "npm": set()}
+    for file in files:
+        language = str(file.get("language") or "").lower()
+        path = str(file.get("path") or "")
+        if language not in INSTALL_SNIPPET_LANGUAGES and not path.endswith(".sh"):
+            continue
+        content = file.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+        parsed_lines: list[tuple[Literal["python", "npm"], list[str]]] = []
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parsed = _parse_install_line(line)
+            if not parsed:
+                parsed_lines = []
+                break
+            parsed_lines.append(parsed)
+        for ecosystem, packages in parsed_lines:
+            for package in packages:
+                if package not in seen[ecosystem]:
+                    installs[ecosystem].append(package)
+                    seen[ecosystem].add(package)
+    return [
+        CodeRunDependencyInstall(ecosystem=ecosystem, packages=packages)
+        for ecosystem, packages in installs.items()
+        if packages
+    ]
+
+
+def _merge_dependency_installs(*groups: list[CodeRunDependencyInstall]) -> list[CodeRunDependencyInstall]:
+    merged: dict[Literal["python", "npm"], list[str]] = {"python": [], "npm": []}
+    seen: dict[Literal["python", "npm"], set[str]] = {"python": set(), "npm": set()}
+    for group in groups:
+        for install in group:
+            for package in install.packages:
+                if package not in seen[install.ecosystem]:
+                    merged[install.ecosystem].append(package)
+                    seen[install.ecosystem].add(package)
+    return [
+        CodeRunDependencyInstall(ecosystem=ecosystem, packages=packages)
+        for ecosystem, packages in merged.items()
+        if packages
+    ]
 
 
 def _metadata_allowed_for_chat(embed: dict[str, Any], chat_id: str, expected_user_hash: str, chat_index_embed_ids: set[str]) -> bool:
@@ -631,6 +698,15 @@ async def start_code_run(
         directus_service,
         encryption_service,
     )
+    dependency_installs = _merge_dependency_installs(
+        body.dependency_installs,
+        _dependency_installs_from_install_snippets(files),
+    )
+    if dependency_installs:
+        logger.info(
+            "Code Run dependency installs requested: %s",
+            {install.ecosystem: len(install.packages) for install in dependency_installs},
+        )
     target_metadata = await _get_embed_metadata(body.target_embed_id, cache_service, directus_service) or {}
     target_message_id = target_metadata.get("message_id")
     user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
@@ -673,7 +749,7 @@ async def start_code_run(
         "target_embed_id": body.target_embed_id,
         "target_path": target_path,
         "files": files,
-        "dependency_installs": [install.model_dump() for install in body.dependency_installs],
+        "dependency_installs": [install.model_dump() for install in dependency_installs],
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),

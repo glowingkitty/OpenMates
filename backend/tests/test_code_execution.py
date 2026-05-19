@@ -25,7 +25,9 @@ from backend.core.api.app.routes.code_execution import (
     CodeRunClientFile,
     RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
     _collect_code_files,
+    _dependency_installs_from_install_snippets,
     _execution_key,
+    _merge_dependency_installs,
     cancel_code_run,
 )
 
@@ -237,6 +239,36 @@ def test_code_run_cost_is_five_credits_per_minute() -> None:
 def test_dependency_install_request_rejects_shell_values() -> None:
     with pytest.raises(ValueError):
         ApiCodeRunDependencyInstall(ecosystem="python", packages=["requests;curl"])
+
+
+def test_dependency_installs_from_selected_install_snippets() -> None:
+    installs = _dependency_installs_from_install_snippets([
+        {"path": "install.sh", "language": "bash", "content": "# deps\npip install requests pandas==2.2.3\n"},
+        {"path": "main.py", "language": "python", "content": "import requests\n"},
+    ])
+
+    assert [install.model_dump() for install in installs] == [
+        {"ecosystem": "python", "packages": ["requests", "pandas==2.2.3"]}
+    ]
+
+
+def test_dependency_installs_ignore_complex_shell_snippets() -> None:
+    installs = _dependency_installs_from_install_snippets([
+        {"path": "install.sh", "language": "bash", "content": "pip install requests && python main.py\n"},
+    ])
+
+    assert installs == []
+
+
+def test_merge_dependency_installs_deduplicates_client_and_snippet_packages() -> None:
+    installs = _merge_dependency_installs(
+        [ApiCodeRunDependencyInstall(ecosystem="python", packages=["requests"])],
+        [ApiCodeRunDependencyInstall(ecosystem="python", packages=["requests", "pandas"])]
+    )
+
+    assert [install.model_dump() for install in installs] == [
+        {"ecosystem": "python", "packages": ["requests", "pandas"]}
+    ]
 
 
 @pytest.mark.anyio
