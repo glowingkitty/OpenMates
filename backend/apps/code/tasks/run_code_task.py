@@ -114,11 +114,16 @@ async def _charge_run_credits(
 async def _clear_active_run(payload: dict[str, Any]) -> None:
     active_key = payload.get("active_run_key")
     active_owner = payload.get("active_run_owner")
-    if not active_key or not active_owner:
+    provider_active_key = payload.get("provider_active_run_key")
+    provider_active_owner = payload.get("provider_active_run_owner")
+    if not active_key and not provider_active_key:
         return
     cache_service = await get_worker_cache_service()
     client = await cache_service.client
-    await client.srem(active_key, active_owner)
+    if active_key and active_owner:
+        await client.srem(active_key, active_owner)
+    if provider_active_key and provider_active_owner:
+        await client.srem(provider_active_key, provider_active_owner)
 
 
 def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:

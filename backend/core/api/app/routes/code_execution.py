@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -25,6 +26,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.tasks.celery_config import app as celery_app
 
@@ -39,6 +41,10 @@ EXECUTION_TTL_SECONDS = 3600
 RUN_CREDITS_PER_MINUTE = 10
 ACTIVE_RUN_TTL_SECONDS = 600
 MAX_ACTIVE_RUNS_PER_USER = 5
+PROVIDER_ACTIVE_RUN_TTL_SECONDS = 600
+MAX_ACTIVE_E2B_RUNS = int(os.getenv("CODE_RUN_MAX_ACTIVE_E2B_RUNS", "100"))
+E2B_CREATE_RATE_WINDOW_SECONDS = int(os.getenv("CODE_RUN_E2B_CREATE_RATE_WINDOW_SECONDS", "1"))
+CODE_RUN_START_RATE_LIMIT = "10/minute"
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
 EXECUTABLE_EXTENSIONS = {
     ".py": "python",
@@ -104,6 +110,14 @@ def _execution_key(execution_id: str) -> str:
 
 def _active_run_key(user_id_hash: str) -> str:
     return f"code_run_active:{user_id_hash}"
+
+
+def _provider_active_run_key() -> str:
+    return "code_run_provider_active:e2b"
+
+
+def _provider_create_rate_key() -> str:
+    return "code_run_provider_create_rate:e2b"
 
 
 def _stream_channel(execution_id: str) -> str:
@@ -254,8 +268,43 @@ return 1
     return int(result) == 1
 
 
+async def _try_reserve_provider_run(client: Any, execution_id: str) -> str | None:
+    script = """
+local active_key = KEYS[1]
+local rate_key = KEYS[2]
+local execution_id = ARGV[1]
+local max_runs = tonumber(ARGV[2])
+local active_ttl_seconds = tonumber(ARGV[3])
+local create_rate_window_seconds = tonumber(ARGV[4])
+if redis.call('GET', rate_key) then
+    return 'rate_limited'
+end
+if redis.call('SCARD', active_key) >= max_runs then
+    return 'capacity_limited'
+end
+redis.call('SET', rate_key, execution_id, 'EX', create_rate_window_seconds)
+redis.call('SADD', active_key, execution_id)
+redis.call('EXPIRE', active_key, active_ttl_seconds)
+return 'ok'
+"""
+    result = await client.eval(
+        script,
+        2,
+        _provider_active_run_key(),
+        _provider_create_rate_key(),
+        execution_id,
+        MAX_ACTIVE_E2B_RUNS,
+        PROVIDER_ACTIVE_RUN_TTL_SECONDS,
+        E2B_CREATE_RATE_WINDOW_SECONDS,
+    )
+    value = result.decode("utf-8") if isinstance(result, bytes) else str(result)
+    return None if value == "ok" else value
+
+
 @router.post("", response_model=CodeRunStartResponse)
+@limiter.limit(CODE_RUN_START_RATE_LIMIT)
 async def start_code_run(
+    request: Request,
     body: CodeRunStartRequest,
     current_user: User = Depends(get_current_user),
     cache_service: CacheService = Depends(get_cache_service),
@@ -280,6 +329,18 @@ async def start_code_run(
     run_slot_created = await _try_add_active_run(client, active_key, execution_id)
     if not run_slot_created:
         raise HTTPException(status_code=429, detail="Too many code runs are already active for this user")
+    provider_limit = await _try_reserve_provider_run(client, execution_id)
+    if provider_limit:
+        await client.srem(active_key, execution_id)
+        if provider_limit == "rate_limited":
+            raise HTTPException(
+                status_code=429,
+                detail="Code Run is starting sandboxes too quickly. Please try again in a moment",
+            )
+        raise HTTPException(
+            status_code=429,
+            detail="Code Run sandbox capacity is currently full. Please try again shortly",
+        )
 
     now = time.time()
     record = {
@@ -302,12 +363,15 @@ async def start_code_run(
         "files": files,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
+        "provider_active_run_key": _provider_active_run_key(),
+        "provider_active_run_owner": execution_id,
     }
     try:
         await _create_execution_record(cache_service, execution_id, record)
         celery_app.send_task("code.run_execution", args=[execution_id, payload], queue="app_code")
     except Exception:
         await client.srem(active_key, execution_id)
+        await client.srem(_provider_active_run_key(), execution_id)
         raise
     return CodeRunStartResponse(
         execution_id=execution_id,
