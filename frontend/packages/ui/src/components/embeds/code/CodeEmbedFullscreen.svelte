@@ -47,6 +47,7 @@
     type CodeRunEvent,
     type CodeRunClientAttachment,
     type CodeRunClientFile,
+    type CodeRunDependencyInstall,
     type CodeRunStatus,
     type CodeRunStreamMessage,
   } from '../../../services/codeRunService';
@@ -324,6 +325,9 @@
 
   const RUNNABLE_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'node', 'typescript', 'ts', 'bash', 'sh', 'shell']);
   const RUNNABLE_EXTENSIONS = new Set(['.py', '.js', '.mjs', '.cjs', '.ts', '.sh']);
+  const INSTALL_SNIPPET_LANGUAGES = new Set(['bash', 'sh', 'shell', 'terminal', 'console']);
+  const PYTHON_PACKAGE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$/;
+  const NPM_PACKAGE_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$/;
 
   let runPanelOpen = $state(false);
   let runStatus = $state<CodeRunStatus['status'] | 'idle'>('idle');
@@ -366,14 +370,16 @@
   }
 
   interface CodeRunFileCandidate {
+    id: string;
     embedId: string;
-    kind: 'code' | 'attachment';
+    kind: 'code' | 'attachment' | 'dependency';
     title: string;
     subtitle: string;
     selected: boolean;
     required: boolean;
     clientFile?: CodeRunClientFile;
     attachmentSources?: CodeRunAttachmentSource[];
+    dependencyInstall?: CodeRunDependencyInstall;
   }
 
   let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
@@ -657,6 +663,63 @@
     return typeof mimeType === 'string' && mimeType ? mimeType : 'application/octet-stream';
   }
 
+  function safeInstallPackagesFromLine(line: string): CodeRunDependencyInstall | null {
+    if (/[;&|<>`$\\]/.test(line)) return null;
+    const trimmed = line.trim();
+    const pythonMatch = trimmed.match(/^(?:pip3?\s+install|python3?\s+-m\s+pip\s+install)\s+(.+)$/);
+    const npmMatch = trimmed.match(/^npm\s+(?:install|i)\s+(.+)$/);
+    const ecosystem = pythonMatch ? 'python' : npmMatch ? 'npm' : null;
+    const rawPackages = pythonMatch?.[1] ?? npmMatch?.[1] ?? '';
+    if (!ecosystem || !rawPackages.trim()) return null;
+
+    const packages = rawPackages.split(/\s+/).filter(Boolean);
+    if (packages.length === 0 || packages.some((pkg) => pkg.startsWith('-'))) return null;
+    const pattern = ecosystem === 'python' ? PYTHON_PACKAGE_PATTERN : NPM_PACKAGE_PATTERN;
+    if (!packages.every((pkg) => pattern.test(pkg))) return null;
+    return { ecosystem, packages };
+  }
+
+  function detectInstallSnippets(code: string, language: string): CodeRunDependencyInstall[] {
+    const normalizedLanguage = language.toLowerCase();
+    if (normalizedLanguage && !INSTALL_SNIPPET_LANGUAGES.has(normalizedLanguage)) return [];
+    const installs = new Map<string, Set<string>>();
+    let sawInstall = false;
+
+    for (const rawLine of code.split('\n')) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const install = safeInstallPackagesFromLine(line);
+      if (!install) return [];
+      sawInstall = true;
+      const packages = installs.get(install.ecosystem) ?? new Set<string>();
+      for (const pkg of install.packages) packages.add(pkg);
+      installs.set(install.ecosystem, packages);
+    }
+
+    if (!sawInstall) return [];
+    return Array.from(installs.entries()).map(([ecosystem, packages]) => ({
+      ecosystem: ecosystem as CodeRunDependencyInstall['ecosystem'],
+      packages: Array.from(packages),
+    }));
+  }
+
+  function dependencyCandidate(embedIdValue: string, install: CodeRunDependencyInstall): CodeRunFileCandidate {
+    const packageList = install.packages.join(', ');
+    const titleKey = install.ecosystem === 'python'
+      ? 'app_skills.code.run.install_python_packages'
+      : 'app_skills.code.run.install_npm_packages';
+    return {
+      id: `dependency:${install.ecosystem}:${embedIdValue}:${install.packages.join('|')}`,
+      embedId: embedIdValue,
+      kind: 'dependency',
+      title: $text(titleKey, { values: { packages: packageList } }),
+      subtitle: $text('app_skills.code.run.detected_install_command'),
+      selected: true,
+      required: false,
+      dependencyInstall: install,
+    };
+  }
+
   function arrayBufferToBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -689,6 +752,7 @@
   async function buildRunCandidates(): Promise<CodeRunFileCandidate[]> {
     const ids = Array.from(new Set([embedId, ...(data.chatEmbedIds || [])].filter((id): id is string => typeof id === 'string' && !!id)));
     const candidates: CodeRunFileCandidate[] = [{
+      id: embedId || '',
       embedId: embedId || '',
       kind: 'code',
       title: renderFilename || $text('embeds.code_snippet'),
@@ -716,7 +780,13 @@
           filename: typeof decoded.filename === 'string' ? decoded.filename : undefined,
         });
         if (!parsed.code) continue;
+        const dependencyInstalls = detectInstallSnippets(parsed.code, parsed.language || '');
+        if (dependencyInstalls.length > 0) {
+          candidates.push(...dependencyInstalls.map((install) => dependencyCandidate(id, install)));
+          continue;
+        }
         candidates.push({
+          id,
           embedId: id,
           kind: 'code',
           title: parsed.filename || $text('embeds.code_snippet'),
@@ -739,6 +809,7 @@
       if (!variant || typeof variant.s3_key !== 'string') continue;
       const title = attachmentTitle(decoded, id, variant);
       candidates.push({
+        id,
         embedId: id,
         kind: 'attachment',
         title,
@@ -780,9 +851,9 @@
     }
   }
 
-  function toggleRunCandidate(candidateEmbedId: string) {
+  function toggleRunCandidate(candidateId: string) {
     runCandidates = runCandidates.map((candidate) => (
-      candidate.embedId === candidateEmbedId && !candidate.required
+      candidate.id === candidateId && !candidate.required
         ? { ...candidate, selected: !candidate.selected }
         : candidate
     ));
@@ -895,10 +966,15 @@
     }
     if (!chatId || !embedId || runActive) return;
     const candidates = candidatesOverride || selectedRunCandidates;
-    const selectedEmbedIds = candidates.map((candidate) => candidate.embedId);
+    const selectedEmbedIds = candidates
+      .filter((candidate) => candidate.kind !== 'dependency')
+      .map((candidate) => candidate.embedId);
     const selectedCodeFiles = candidates
       .filter((candidate): candidate is CodeRunFileCandidate & { clientFile: CodeRunClientFile } => candidate.kind === 'code' && !!candidate.clientFile)
       .map((candidate) => candidate.clientFile);
+    const selectedDependencyInstalls = candidates
+      .filter((candidate): candidate is CodeRunFileCandidate & { dependencyInstall: CodeRunDependencyInstall } => candidate.kind === 'dependency' && !!candidate.dependencyInstall)
+      .map((candidate) => candidate.dependencyInstall);
     const selectedAttachments = await selectedClientAttachments(candidates);
     clearRunPollTimer();
     closeRunSocket();
@@ -912,7 +988,7 @@
     try {
       let started;
       try {
-        started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds);
+        started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds, selectedDependencyInstalls);
       } catch (error) {
         if (!(error instanceof CodeRunStartError) || error.code !== CLIENT_CONTENT_REQUIRED_CODE) {
           throw error;
@@ -921,7 +997,7 @@
           ...runEvents,
           { kind: 'status', text: 'Recent server cache missed; resending decrypted code from this device...\n', timestamp: Date.now() / 1000 }
         ];
-        started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds);
+        started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds, selectedDependencyInstalls);
       }
       runExecutionId = started.execution_id;
       persistedRunExecutionId = null;
@@ -1090,7 +1166,7 @@
                           type="checkbox"
                           checked={candidate.selected || candidate.required}
                           disabled={candidate.required}
-                          onchange={() => toggleRunCandidate(candidate.embedId)}
+                          onchange={() => toggleRunCandidate(candidate.id)}
                         />
                         <span class="code-run-file-meta">
                           <span class="code-run-file-title">{candidate.title}</span>

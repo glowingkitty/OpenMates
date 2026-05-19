@@ -49,6 +49,12 @@ class CodeRunFile:
 
 
 @dataclass(frozen=True)
+class CodeRunDependencyInstall:
+    ecosystem: Literal["python", "npm"]
+    packages: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class CodeRunResult:
     exit_code: int | None
     duration_seconds: float
@@ -109,18 +115,31 @@ def _run_command_for_file(file: CodeRunFile) -> str:
     raise ValueError(f"Unsupported executable language for {file.path}")
 
 
-def _dependency_commands(files: Iterable[CodeRunFile]) -> list[tuple[str, str]]:
+def _dependency_commands(
+    files: Iterable[CodeRunFile],
+    dependency_installs: Iterable[CodeRunDependencyInstall] = (),
+) -> list[tuple[str, str]]:
     names = {file.path.rsplit("/", 1)[-1] for file in files}
     commands: list[tuple[str, str]] = []
 
     if "requirements.txt" in names:
         commands.append(("Installing Python dependencies from requirements.txt...", "python -m pip install -r requirements.txt"))
+    else:
+        python_packages = sorted({pkg for install in dependency_installs if install.ecosystem == "python" for pkg in install.packages})
+        if python_packages:
+            packages = " ".join(shlex.quote(package) for package in python_packages)
+            commands.append(("Installing selected Python packages...", f"python -m pip install {packages}"))
 
     if "package.json" in names:
         if "package-lock.json" in names:
             commands.append(("Installing JavaScript dependencies with npm ci --ignore-scripts...", "npm ci --ignore-scripts"))
         else:
             commands.append(("Installing JavaScript dependencies with npm install --ignore-scripts...", "npm install --ignore-scripts"))
+    else:
+        npm_packages = sorted({pkg for install in dependency_installs if install.ecosystem == "npm" for pkg in install.packages})
+        if npm_packages:
+            packages = " ".join(shlex.quote(package) for package in npm_packages)
+            commands.append(("Installing selected npm packages...", f"npm install --ignore-scripts --no-audit --no-fund --package-lock=false {packages}"))
 
     return commands
 
@@ -135,7 +154,13 @@ def _emit(callback: OutputCallback, kind: OutputKind, text: str) -> None:
     callback(kind, redact_execution_output(text))
 
 
-def run_code_in_e2b(files: list[CodeRunFile], target_path: str, on_output: OutputCallback, api_key: str) -> CodeRunResult:
+def run_code_in_e2b(
+    files: list[CodeRunFile],
+    target_path: str,
+    on_output: OutputCallback,
+    api_key: str,
+    dependency_installs: list[CodeRunDependencyInstall] | None = None,
+) -> CodeRunResult:
     """Run one target file in an E2B sandbox and stream sanitized output."""
     try:
         from e2b import Sandbox
@@ -167,13 +192,12 @@ def run_code_in_e2b(files: list[CodeRunFile], target_path: str, on_output: Outpu
         _emit(on_output, kind, chunk)
 
     try:
-        _emit(on_output, "status", "Preparing sandbox...\n")
+        _emit(on_output, "status", "Starting sandbox...\n")
         sandbox = Sandbox.create(api_key=api_key)
         sandbox_id = getattr(sandbox, "sandbox_id", None) or getattr(sandbox, "id", None)
-        _emit(on_output, "status", "Sandbox started. Preparing files...\n")
 
         sandbox.commands.run(f"mkdir -p {shlex.quote(WORKSPACE_DIR)}")
-        _emit(on_output, "status", f"Uploading {len(files)} chat files...\n")
+        _emit(on_output, "status", f"Uploading {len(files)} files...\n")
         dirs = sorted({file.path.rsplit("/", 1)[0] for file in files if "/" in file.path})
         for directory in dirs:
             sandbox.commands.run(f"mkdir -p {shlex.quote(f'{WORKSPACE_DIR}/{directory}')}")
@@ -182,9 +206,8 @@ def run_code_in_e2b(files: list[CodeRunFile], target_path: str, on_output: Outpu
             for file in files
         ])
         billable_started_at = time.monotonic()
-        _emit(on_output, "status", "User code setup started. Tracking billable runtime...\n")
 
-        for message, command in _dependency_commands(files):
+        for message, command in _dependency_commands(files, dependency_installs or []):
             _emit(on_output, "status", message + "\n")
             install = sandbox.commands.run(
                 _shell(f"cd {shlex.quote(WORKSPACE_DIR)} && {command}", INSTALL_TIMEOUT_SECONDS),
@@ -202,7 +225,7 @@ def run_code_in_e2b(files: list[CodeRunFile], target_path: str, on_output: Outpu
                 )
 
         run_command = _run_command_for_file(target)
-        _emit(on_output, "status", f"Running {target.path}...\n")
+        _emit(on_output, "status", f"Running ({target.path})...\n")
         result = sandbox.commands.run(
             _shell(f"cd {shlex.quote(WORKSPACE_DIR)} && {run_command}", RUN_TIMEOUT_SECONDS),
             on_stdout=lambda data: stream("stdout", data),

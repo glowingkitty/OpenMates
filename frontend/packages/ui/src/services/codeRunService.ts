@@ -31,6 +31,11 @@ export interface CodeRunClientAttachment {
   mime_type?: string;
 }
 
+export interface CodeRunDependencyInstall {
+  ecosystem: 'python' | 'npm';
+  packages: string[];
+}
+
 export class CodeRunStartError extends Error {
   constructor(
     message: string,
@@ -71,7 +76,8 @@ export async function startCodeRun(
   targetEmbedId: string,
   clientFiles: CodeRunClientFile[] = [],
   clientAttachments: CodeRunClientAttachment[] = [],
-  selectedEmbedIds?: string[]
+  selectedEmbedIds?: string[],
+  dependencyInstalls: CodeRunDependencyInstall[] = []
 ): Promise<CodeRunStartResponse> {
   const response = await fetch(`${getApiUrl()}/v1/code/run`, {
     method: 'POST',
@@ -83,6 +89,7 @@ export async function startCodeRun(
       client_files: clientFiles,
       client_attachments: clientAttachments,
       ...(selectedEmbedIds ? { selected_embed_ids: selectedEmbedIds } : {}),
+      ...(dependencyInstalls.length ? { dependency_installs: dependencyInstalls } : {}),
     }),
   });
 

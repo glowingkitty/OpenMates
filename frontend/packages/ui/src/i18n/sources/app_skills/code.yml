@@ -159,6 +159,24 @@ run.loading_files:
   de: Dateien werden geladen...
   verified_by_human: [en, de]
 
+run.install_python_packages:
+  context: Code Run dependency checklist option for Python packages detected from an install command
+  en: "Install Python packages: {packages}"
+  de: "Python-Pakete installieren: {packages}"
+  verified_by_human: [en, de]
+
+run.install_npm_packages:
+  context: Code Run dependency checklist option for npm packages detected from an install command
+  en: "Install npm packages: {packages}"
+  de: "npm-Pakete installieren: {packages}"
+  verified_by_human: [en, de]
+
+run.detected_install_command:
+  context: Subtitle for a Code Run dependency option detected from an install command snippet
+  en: Detected install command
+  de: Erkannter Installationsbefehl
+  verified_by_human: [en, de]
+
 preview_show:
   context: Header CTA button label for opening a rendered preview of previewable code
   en: Show preview

@@ -19,7 +19,7 @@ import httpx
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
-from backend.shared.providers.e2b_code_runner import CodeRunFile, get_e2b_api_key_async, run_code_in_e2b
+from backend.shared.providers.e2b_code_runner import CodeRunDependencyInstall, CodeRunFile, get_e2b_api_key_async, run_code_in_e2b
 
 
 logger = logging.getLogger(__name__)
@@ -170,11 +170,10 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
     def on_output(kind: str, text: str) -> None:
         nonlocal billable_started_at
         if kind == "status":
-            if text.startswith("User code setup started"):
-                billable_started_at = time.time()
-            elif text.startswith("Sandbox started"):
+            if text.startswith("Starting sandbox"):
                 run_async(_store_execution(execution_id, {"status": "preparing_sandbox"}))
             elif text.startswith("Uploading"):
+                billable_started_at = time.time()
                 run_async(_store_execution(execution_id, {"status": "uploading_files"}))
             elif text.startswith("Installing"):
                 run_async(_store_execution(execution_id, {"status": "installing_dependencies"}))
@@ -186,7 +185,12 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         run_async(secrets_manager.initialize())
         api_key = run_async(get_e2b_api_key_async(secrets_manager))
         files = [CodeRunFile(**item) for item in payload["files"]]
-        result = run_code_in_e2b(files, payload["target_path"], on_output, api_key)
+        dependency_installs = [
+            CodeRunDependencyInstall(ecosystem=item["ecosystem"], packages=tuple(item["packages"]))
+            for item in payload.get("dependency_installs", [])
+            if isinstance(item, dict) and isinstance(item.get("packages"), list)
+        ]
+        result = run_code_in_e2b(files, payload["target_path"], on_output, api_key, dependency_installs)
         duration = result.duration_seconds
         status = "finished" if result.exit_code in (None, 0) else "failed"
         charged_minutes = max(1, math.ceil(duration / 60))

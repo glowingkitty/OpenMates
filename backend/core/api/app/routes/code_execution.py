@@ -16,11 +16,11 @@ import re
 import time
 import uuid
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from toon_format import decode as toon_decode
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -74,6 +74,8 @@ EXECUTABLE_LANGUAGES = {
     "shell",
 }
 DEPENDENCY_FILENAMES = {"requirements.txt", "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
+PYTHON_PACKAGE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$")
+NPM_PACKAGE_PATTERN = re.compile(r"^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$")
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
@@ -101,12 +103,34 @@ class CodeRunClientAttachment(BaseModel):
     mime_type: str = "application/octet-stream"
 
 
+class CodeRunDependencyInstall(BaseModel):
+    ecosystem: Literal["python", "npm"]
+    packages: list[str] = Field(min_length=1, max_length=30)
+
+    @field_validator("packages")
+    @classmethod
+    def validate_packages(cls, packages: list[str], info: Any) -> list[str]:
+        ecosystem = info.data.get("ecosystem")
+        pattern = PYTHON_PACKAGE_PATTERN if ecosystem == "python" else NPM_PACKAGE_PATTERN
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for package in packages:
+            value = package.strip()
+            if not value or value.startswith("-") or not pattern.match(value):
+                raise ValueError("Unsupported dependency package specifier")
+            if value not in seen:
+                normalized.append(value)
+                seen.add(value)
+        return normalized
+
+
 class CodeRunStartRequest(BaseModel):
     chat_id: str = Field(min_length=1)
     target_embed_id: str = Field(min_length=1)
     client_files: list[CodeRunClientFile] = Field(default_factory=list, max_length=MAX_FILES)
     client_attachments: list[CodeRunClientAttachment] = Field(default_factory=list, max_length=MAX_FILES)
     selected_embed_ids: list[str] | None = Field(default=None, max_length=MAX_FILES)
+    dependency_installs: list[CodeRunDependencyInstall] = Field(default_factory=list, max_length=20)
 
 
 class CodeRunStartResponse(BaseModel):
@@ -643,6 +667,7 @@ async def start_code_run(
         "target_embed_id": body.target_embed_id,
         "target_path": target_path,
         "files": files,
+        "dependency_installs": [install.model_dump() for install in body.dependency_installs],
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),

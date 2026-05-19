@@ -21,6 +21,7 @@ from backend.apps.code.tasks.run_code_task import _charge_run_credits
 from backend.core.api.app.routes.code_execution import (
     CLIENT_CONTENT_REQUIRED_CODE,
     CodeRunClientAttachment,
+    CodeRunDependencyInstall as ApiCodeRunDependencyInstall,
     CodeRunClientFile,
     RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
     _collect_code_files,
@@ -220,6 +221,11 @@ async def test_collect_code_files_accepts_selected_client_attachment_fallback() 
 def test_code_run_cost_is_five_credits_per_minute() -> None:
     assert ROUTE_RUN_CREDITS_PER_MINUTE == 5
     assert TASK_RUN_CREDITS_PER_MINUTE == 5
+
+
+def test_dependency_install_request_rejects_shell_values() -> None:
+    with pytest.raises(ValueError):
+        ApiCodeRunDependencyInstall(ecosystem="python", packages=["requests;curl"])
 
 
 @pytest.mark.anyio
