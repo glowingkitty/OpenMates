@@ -215,7 +215,7 @@ nudity-2.0 + face-attributes + minor + deepfake + celebrities + offensive + gore
 - Weapon 0.3–0.7
 - Suggestive 0.3–0.6
 
-#### 1b — Gemini 3 Flash call (function calling)
+#### 1b — Gemini 3.5 Flash call (function calling)
 
 **System prompt:**
 ```
@@ -380,10 +380,10 @@ Same parallel Sightengine + Gemini call as Step 1, but with stricter thresholds:
 
 ## 4. Fallback chain
 
-When Gemini 3 Flash is unavailable (quota, outage, regional issue):
+When Gemini 3.5 Flash is unavailable (quota, outage, regional issue):
 
 ```
-Gemini 3 Flash (primary)
+Gemini 3.5 Flash (primary)
     │ fails
     ▼
 GPT-5 mini (OpenAI, vision + function calling)
@@ -490,7 +490,7 @@ Audit log is **encrypted at rest** but **not end-to-end encrypted** (unlike chat
 ```
 backend/shared/providers/
 ├── sightengine_client.py        # existing (upload uses it) — extend with generation-specific calls
-├── gemini_vision_safety.py      # NEW — Gemini 3 Flash function-calling wrapper
+├── gemini_vision_safety.py      # NEW — Gemini 3.5 Flash function-calling wrapper
 ├── gpt5_mini_fallback.py        # NEW — fallback vision classifier
 └── groq_safeguard_client.py     # NEW — gpt-oss-safeguard-20b client
 

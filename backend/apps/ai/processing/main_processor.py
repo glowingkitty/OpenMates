@@ -133,7 +133,7 @@ ASYNC_SKILL_INLINE_WAIT_SKILLS = {
 
 
 # Characters LLM providers use instead of the canonical hyphen in tool names.
-# Gemini 3 Flash emits colons ('web:search'), some older models emit underscores
+# Gemini 3.5 Flash emits colons ('web:search'), some older models emit underscores
 # ('web_search'), others emit pipes or dots. We normalize all of these to the
 # hyphen form ('web-search') before the allow-list check in main processing.
 # See OPE-399 follow-up for the incident where an entire chat response went
@@ -1808,7 +1808,7 @@ async def handle_main_processing(
     # and must be rejected before it reaches skill execution. See OPE-399.
     #
     # Separator normalization: different LLM providers emit tool names with
-    # different separators (Gemini 3 Flash uses ':' — 'web:search', older
+    # different separators (Gemini 3.5 Flash uses ':' — 'web:search', older
     # models sometimes use '_' — 'web_search', some emit '|' — 'web|search',
     # and the canonical form is '-' — 'web-search'). To avoid rejecting a
     # legitimately preselected tool just because the provider used the

@@ -3,7 +3,7 @@
 # REAL integration tests for the image safety pipeline.
 #
 # Unlike test_image_safety_pipeline.py (unit, mocks everything), these tests
-# hit real Sightengine, Gemini 3 Flash, and Groq gpt-oss-safeguard-20b APIs
+# hit real Sightengine, Gemini 3.5 Flash, and Groq gpt-oss-safeguard-20b APIs
 # via the Vault-backed SecretsManager. They exist to verify that the whole
 # pipeline actually does what the unit tests claim when pointed at live
 # classifiers.

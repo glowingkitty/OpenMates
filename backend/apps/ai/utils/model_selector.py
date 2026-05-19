@@ -67,7 +67,7 @@ TASK_AREA_CATEGORIES = {
 # These are model_id values from leaderboard (without provider prefix)
 ECONOMICAL_MODELS = {
     "claude-haiku-4-5-20251001",  # Fast, affordable Claude
-    "gemini-3-flash-preview",     # Fast Gemini
+    "gemini-3.5-flash",           # Fast Gemini
     "gemini-flash-latest",        # Fast Gemini
     "gpt-oss-120b",               # Cheaper GPT
 }

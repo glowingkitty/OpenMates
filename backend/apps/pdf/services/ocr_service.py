@@ -14,7 +14,7 @@
 #      Sends the PDF inline as base64, prompts the model to emit markdown with
 #      page-break markers, then splits the response into per-page entries.
 #      Image extraction is not available via this path (images=[]).
-#      Model: gemini-3-flash-preview (same fast Gemini model used by the system).
+#      Model: gemini-3.5-flash (same fast Gemini model used by the system).
 #
 #   3. pymupdf text extraction (last resort)
 #      Purely local — no external API call. Uses the fitz (PyMuPDF) library that
@@ -237,7 +237,7 @@ async def _run_gemini_ocr(
         )
 
     logger.info(
-        f"{log_prefix} [Gemini] Submitting {len(pdf_bytes)} bytes to gemini-3-flash-preview"
+        f"{log_prefix} [Gemini] Submitting {len(pdf_bytes)} bytes to gemini-3.5-flash"
     )
 
     prompt = (
@@ -255,7 +255,7 @@ async def _run_gemini_ocr(
     def _call_gemini() -> str:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-3.5-flash",
             contents=[
                 genai_types.Part.from_bytes(
                     data=pdf_bytes,

@@ -8,16 +8,18 @@ description: "AI models and services from Google."
 logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
 
 models:
-  - id: "gemini-3-flash-preview"
-    name: "Gemini 3 Flash"
-    description: "Fast Gemini 3 preview model (primary: Google AI Studio US; fallbacks: Google Vertex AI global, OpenRouter)."
+  - id: "gemini-3.5-flash"
+    name: "Gemini 3.5 Flash"
+    description: "Stable Gemini 3.5 Flash model built for fast coding, agentic, and long-context tasks (primary: Google AI Studio US; fallback: Google Vertex AI global)."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-12-17" # Model release date (Gemini 3 Flash preview release)
+    release_date: "2026-05-19" # Model release date (Gemini 3.5 Flash GA release)
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "gemini-3-flash"
-      openrouter: "google/gemini-3-flash-preview"
+      lmarena: "gemini-3.5-flash"
+      openrouter: "google/gemini-3.5-flash"
+    aliases:
+      - "gemini-3-flash-preview" # Legacy user settings and @ai-model mentions
     reasoning: true
     input_types:
       - text
@@ -30,29 +32,29 @@ models:
     servers:
       - id: "google_ai_studio"
         name: "Google AI Studio"
-        model_id: "gemini-3-flash-preview"
+        model_id: "gemini-3.5-flash"
         region: "US" # Server region for UI display
       - id: "google"
         name: "Google Vertex AI"
-        model_id: "gemini-3-flash-preview" # Google Vertex AI uses the model ID as-is
-        region: "global" # Preview models only available on global endpoint (not regional)
+        model_id: "gemini-3.5-flash" # Google Vertex AI uses the model ID as-is
+        region: "global"
       # OpenRouter removed — Google models should only use Google's own infrastructure
       # (AI Studio + Vertex AI). If both fail, model fallback in main_processor handles it.
     pricing:
       tokens:
         input:
-          per_credit_unit: 650
+          per_credit_unit: 200
         output:
-          per_credit_unit: 110
+          per_credit_unit: 40
     costs:
       input_per_million_token:
-        price: 0.50
+        price: 1.50
         currency: USD
-        max_context: 1000000
+        max_context: 1048576
       output_per_million_token:
-        price: 3.00
+        price: 9.00
         currency: USD
-        max_context: 1000000
+        max_context: 1048576
     features:
       knowledge_cutoff: "2025-01"
 

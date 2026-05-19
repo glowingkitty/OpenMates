@@ -134,7 +134,7 @@ class ConfigManager:
             return None
 
         for model in provider_config.get("models", []):
-            if isinstance(model, dict) and model.get("id") == model_id:
+            if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
                 # Return the entire model block, as it contains costs and other details needed for billing.
                 return model
         
@@ -160,7 +160,7 @@ class ConfigManager:
         
         for provider_id, provider_config in self._provider_configs.items():
             for model in provider_config.get("models", []):
-                if isinstance(model, dict) and model.get("id") == model_id:
+                if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
                     logger.info(f"Found model '{model_id}' in provider '{provider_id}'.")
                     return provider_id
         
@@ -191,7 +191,7 @@ class ConfigManager:
             provider_config = self.get_provider_config(provider_id)
             if provider_config:
                 for model in provider_config.get("models", []):
-                    if isinstance(model, dict) and model.get("id") == model_id:
+                    if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
                         model_name = model.get("name")
                         if model_name:
                             logger.debug(f"Found display name '{model_name}' for model '{model_id}' in provider '{provider_id}'.")
@@ -201,7 +201,7 @@ class ConfigManager:
         # Search all providers
         for pid, provider_config in self._provider_configs.items():
             for model in provider_config.get("models", []):
-                if isinstance(model, dict) and model.get("id") == model_id:
+                if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
                     model_name = model.get("name")
                     if model_name:
                         logger.debug(f"Found display name '{model_name}' for model '{model_id}' in provider '{pid}'.")

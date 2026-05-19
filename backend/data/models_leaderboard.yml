@@ -43,8 +43,8 @@ rankings:
     lmarena_rank: 5
     openrouter_rank: null
   - rank: 4
-    model_id: gemini-3-flash-preview
-    name: Gemini 3 Flash Preview
+    model_id: gemini-3.5-flash
+    name: Gemini 3.5 Flash
     provider_id: google
     country_origin: US
     composite_score: 93.8

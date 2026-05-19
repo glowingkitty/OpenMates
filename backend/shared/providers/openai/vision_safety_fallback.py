@@ -2,7 +2,7 @@
 #
 # GPT-5 mini vision safety fallback for the image safety pipeline.
 #
-# Invoked only when Gemini 3 Flash vision-safety returns an error (outage,
+# Invoked only when Gemini 3.5 Flash vision-safety returns an error (outage,
 # quota, regional issue). Uses OpenAI's Chat Completions vision API with a
 # tool_choice=forced function call — same schema as Gemini so the pipeline
 # reasoner consumes identical structured output.
