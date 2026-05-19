@@ -30,6 +30,7 @@
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import {
     getCodeRunStatus,
     getCodeRunStreamUrl,
@@ -334,6 +335,7 @@
   const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
 
   let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
+  let hasCodeHeaderCta = $derived((isRunnable && !!chatId && !!embedId) || isPreviewable);
 
   function togglePreview() {
     previewActive = !previewActive;
@@ -473,12 +475,6 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
-  showRun={isRunnable && !!chatId && !!embedId}
-  {runActive}
-  onRun={handleRun}
-  showPreview={isPreviewable}
-  {previewActive}
-  onTogglePreview={togglePreview}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -489,10 +485,31 @@
   {onShowChat}
   skipInitialScrollReset={!!highlightRange}
 >
+  {#snippet embedHeaderCta()}
+    {#if hasCodeHeaderCta}
+      <div class="embed-header-cta-group">
+        {#if isRunnable && chatId && embedId}
+          <EmbedHeaderCtaButton label={$text('app_skills.code.run_code')} onclick={handleRun} testId="embed-run-button" />
+        {/if}
+        {#if isPreviewable}
+          <EmbedHeaderCtaButton
+            label={previewActive ? $text('app_skills.code.preview_hide') : $text('app_skills.code.preview_show')}
+            onclick={togglePreview}
+            testId="embed-preview-button"
+          />
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
+
   {#snippet content()}
     {#if renderCodeContent}
       <!-- Split-pane layout when preview is active, full code otherwise -->
-      <div class="code-fullscreen-container" class:preview-split={previewActive}>
+      <div
+        class="code-fullscreen-container"
+        class:preview-split={previewActive}
+        class:with-header-cta={hasCodeHeaderCta}
+      >
         {#if hasPII}
           <!-- PII reveal toggle bar -->
           <div class="code-pii-bar">
@@ -607,6 +624,10 @@
     padding-bottom: var(--spacing-8);
     margin-left: var(--spacing-5);
     margin-right: var(--spacing-5);
+  }
+
+  .code-fullscreen-container.with-header-cta {
+    margin-top: 42px;
   }
 
   /* When preview split is active, container fills available height.

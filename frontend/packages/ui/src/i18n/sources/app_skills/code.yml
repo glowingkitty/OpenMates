@@ -57,6 +57,12 @@ run:
   de: Ausführen
   verified_by_human: [en, de]
 
+run_code:
+  context: Header CTA button label for running a code embed in a sandbox
+  en: Run code
+  de: Code ausführen
+  verified_by_human: [en, de]
+
 run.description:
   context: Description for the Code Run skill
   en: Run code from the current chat in an isolated sandbox.
@@ -73,6 +79,18 @@ run.again:
   context: Button to run the code again
   en: Run again
   de: Erneut ausführen
+  verified_by_human: [en, de]
+
+preview_show:
+  context: Header CTA button label for opening a rendered preview of previewable code
+  en: Show preview
+  de: Vorschau anzeigen
+  verified_by_human: [en, de]
+
+preview_hide:
+  context: Header CTA button label for closing a rendered preview of previewable code
+  en: Hide preview
+  de: Vorschau ausblenden
   verified_by_human: [en, de]
 
 get_docs.how_to_use.1:
