@@ -87,6 +87,48 @@ async function expectLocalChatsCleared(page: any): Promise<void> {
 	expect(chatCount).toBe(0);
 }
 
+async function replaceLocalChatDbWithMissingStores(page: any): Promise<void> {
+	await page.setContent('<!doctype html><title>prepare missing stores</title>');
+	await page.evaluate(async () => {
+		await new Promise<void>((resolve, reject) => {
+			const deleteRequest = indexedDB.deleteDatabase('chats_db');
+			deleteRequest.onerror = () =>
+				reject(deleteRequest.error ?? new Error('Failed to delete chats_db'));
+			deleteRequest.onblocked = () => reject(new Error('Deleting chats_db was blocked'));
+			deleteRequest.onsuccess = () => resolve();
+		});
+
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open('chats_db', 24);
+			request.onerror = () =>
+				reject(request.error ?? new Error('Failed to create partial chats_db'));
+			request.onupgradeneeded = () => {
+				const db = request.result;
+				if (!db.objectStoreNames.contains('chats')) {
+					const chatStore = db.createObjectStore('chats', { keyPath: 'chat_id' });
+					chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', {
+						unique: false
+					});
+					chatStore.createIndex('updated_at', 'updated_at', { unique: false });
+					chatStore.createIndex('pinned', 'pinned', { unique: false });
+				}
+				if (!db.objectStoreNames.contains('messages')) {
+					const messageStore = db.createObjectStore('messages', { keyPath: 'message_id' });
+					messageStore.createIndex('chat_id_created_at', ['chat_id', 'created_at'], {
+						unique: false
+					});
+					messageStore.createIndex('chat_id', 'chat_id', { unique: false });
+					messageStore.createIndex('created_at', 'created_at', { unique: false });
+				}
+			};
+			request.onsuccess = () => {
+				request.result.close();
+				resolve();
+			};
+		});
+	});
+}
+
 async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 	await page.context().addInitScript(() => {
 		const OriginalWebSocket = window.WebSocket;
@@ -102,61 +144,61 @@ async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
 				},
 				set(handler: ((this: WebSocket, ev: MessageEvent) => any) | null) {
 					currentMessageHandler = handler;
-				if (!handler) {
-					return;
-				}
+					if (!handler) {
+						return;
+					}
 
 					socket.addEventListener('message', (event: MessageEvent) => {
-					let parsed: any;
-					try {
-						parsed = JSON.parse(String(event.data));
-					} catch {
-						handler.call(socket, event);
-						return;
-					}
+						let parsed: any;
+						try {
+							parsed = JSON.parse(String(event.data));
+						} catch {
+							handler.call(socket, event);
+							return;
+						}
 
-					const messageType = parsed?.type ?? parsed?.event;
-					const blockedSyncPayloadTypes = new Set([
-						'initial_sync_response',
-						'cache_primed',
-						'phase_1_last_chat_ready',
-						'phase_1b_chat_content_ready',
-						'phase_2_last_20_chats_ready',
-						'background_message_sync',
-						'phase_3_last_100_chats_ready',
-						'chat_content_batch_response',
-						'load_more_chats_response',
-						'sync_metadata_chats_response',
-						'phased_sync_complete'
-					]);
+						const messageType = parsed?.type ?? parsed?.event;
+						const blockedSyncPayloadTypes = new Set([
+							'initial_sync_response',
+							'cache_primed',
+							'phase_1_last_chat_ready',
+							'phase_1b_chat_content_ready',
+							'phase_2_last_20_chats_ready',
+							'background_message_sync',
+							'phase_3_last_100_chats_ready',
+							'chat_content_batch_response',
+							'load_more_chats_response',
+							'sync_metadata_chats_response',
+							'phased_sync_complete'
+						]);
 
-					if (blockedSyncPayloadTypes.has(messageType)) {
-						return;
-					}
+						if (blockedSyncPayloadTypes.has(messageType)) {
+							return;
+						}
 
-					if (messageType === 'sync_status_response' || messageType === 'cache_status_response') {
-						const coldCacheMessage = {
-							...parsed,
-							is_primed: false,
-							chat_count: 1,
-							timestamp: Math.floor(Date.now() / 1000),
-							payload: {
-								...(parsed.payload ?? {}),
+						if (messageType === 'sync_status_response' || messageType === 'cache_status_response') {
+							const coldCacheMessage = {
+								...parsed,
 								is_primed: false,
 								chat_count: 1,
-								timestamp: Math.floor(Date.now() / 1000)
-							}
-						};
-						handler.call(
-							socket,
-							new MessageEvent('message', { data: JSON.stringify(coldCacheMessage) })
-						);
-						return;
-					}
+								timestamp: Math.floor(Date.now() / 1000),
+								payload: {
+									...(parsed.payload ?? {}),
+									is_primed: false,
+									chat_count: 1,
+									timestamp: Math.floor(Date.now() / 1000)
+								}
+							};
+							handler.call(
+								socket,
+								new MessageEvent('message', { data: JSON.stringify(coldCacheMessage) })
+							);
+							return;
+						}
 
-					handler.call(socket, event);
-				});
-			}
+						handler.call(socket, event);
+					});
+				}
 			});
 
 			return socket;
@@ -230,7 +272,11 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 	await expect(activityHistory).toBeVisible({ timeout: 15000 });
 }
 
-test('empty local IndexedDB with cold server cache keeps sync pending instead of finalizing no chats', async ({ page }: { page: any }) => {
+test('empty local IndexedDB with cold server cache keeps sync pending instead of finalizing no chats', async ({
+	page
+}: {
+	page: any;
+}) => {
 	test.slow();
 	test.setTimeout(180000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -267,8 +313,59 @@ test('empty local IndexedDB with cold server cache keeps sync pending instead of
 		)
 	).toBe(false);
 	expect(
-		consoleLogs.some((entry) =>
-			entry.includes('Keeping sync pending') || entry.includes('keeping sync pending')
+		consoleLogs.some(
+			(entry) => entry.includes('Keeping sync pending') || entry.includes('keeping sync pending')
 		)
 	).toBe(true);
+});
+
+test('partial local IndexedDB schema is healed before authenticated sync starts', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const logCheckpoint = createSignupLogger('CHAT_SYNC_MISSING_STORE_RECOVERY');
+	const consoleLogs: string[] = [];
+	page.on('console', (message: any) => {
+		consoleLogs.push(`[${message.type()}] ${message.text()}`);
+	});
+
+	await loginToTestAccount(page, logCheckpoint, async () => undefined, { waitForEditor: true });
+	await replaceLocalChatDbWithMissingStores(page);
+
+	await page.goto(getE2EDebugUrl('/?missing-store-recovery=1'));
+	await page.waitForLoadState('load');
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
+	await ensureSidebarOpen(page);
+
+	await expect(async () => {
+		const hasMissingStoreError = consoleLogs.some(
+			(entry) =>
+				entry.includes('One of the specified object stores was not found') ||
+				entry.includes('NotFoundError')
+		);
+		expect(hasMissingStoreError).toBe(false);
+
+		const storeNames = await page.evaluate(async () => {
+			return await new Promise<string[]>((resolve, reject) => {
+				const request = indexedDB.open('chats_db');
+				request.onerror = () =>
+					reject(request.error ?? new Error('Failed to open healed chats_db'));
+				request.onsuccess = () => {
+					const db = request.result;
+					const names = Array.from(db.objectStoreNames);
+					db.close();
+					resolve(names);
+				};
+			});
+		});
+
+		expect(storeNames).toContain('pending_embed_operations');
+		expect(storeNames).toContain('embed_diffs');
+		expect(storeNames).toContain('daily_inspirations');
+	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
 });

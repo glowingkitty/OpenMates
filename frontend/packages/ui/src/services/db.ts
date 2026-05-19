@@ -104,6 +104,8 @@ class ChatDatabase {
     "pending_embed_operations";
   private readonly PENDING_EMBED_SHARE_STORE_NAME =
     "pending_embed_share_updates";
+  private readonly EMBEDS_STORE_NAME = "embeds";
+  private readonly EMBED_KEYS_STORE_NAME = "embed_keys";
 
   // Version incremented for various schema changes
   // Version 15: Added pinned field and index for chat pinning functionality
@@ -120,10 +122,28 @@ class ChatDatabase {
   // Version 24: embed_diffs store — version history for diffable embeds (code, document, sheet).
   //             Primary key: id (uuid). Indexed by message_id and chat_id for
   //             bulk load on chat open + per-message decoration rendering.
-  private readonly VERSION = 24;
+  // Version 25: schema-healing bump. Re-runs migrations for clients whose local
+  //             DB is at the current version but missing stores after interrupted
+  //             upgrades or blocked logout/delete races.
+  private readonly VERSION = 25;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
+  private readonly REQUIRED_STORE_NAMES = [
+    this.CHATS_STORE_NAME,
+    this.MESSAGES_STORE_NAME,
+    this.OFFLINE_CHANGES_STORE_NAME,
+    this.NEW_CHAT_SUGGESTIONS_STORE_NAME,
+    this.APP_SETTINGS_MEMORIES_STORE_NAME,
+    this.PENDING_OG_METADATA_STORE_NAME,
+    this.PENDING_EMBED_OPERATIONS_STORE_NAME,
+    this.PENDING_EMBED_SHARE_STORE_NAME,
+    this.EMBEDS_STORE_NAME,
+    this.EMBED_KEYS_STORE_NAME,
+    this.MESSAGE_HIGHLIGHTS_STORE_NAME,
+    this.EMBED_DIFFS_STORE_NAME,
+    this.DAILY_INSPIRATIONS_STORE_NAME,
+  ];
   private initializationPromise: Promise<void> | null = null;
 
   // Flag to prevent new operations during database deletion
@@ -195,6 +215,32 @@ class ChatDatabase {
     console.warn("[ChatDatabase] Disabled skipOrphanDetection mode");
   }
 
+  private getMissingRequiredStores(db: IDBDatabase | null = this.db): string[] {
+    if (!db) return [...this.REQUIRED_STORE_NAMES];
+    return this.REQUIRED_STORE_NAMES.filter(
+      (storeName) => !db.objectStoreNames.contains(storeName),
+    );
+  }
+
+  private closeInvalidSchemaConnection(
+    missingStores: string[],
+    reason: string,
+  ): void {
+    console.warn(
+      `[ChatDatabase] ${reason}; reopening database to heal schema. Missing store(s): ${missingStores.join(", ")}`,
+    );
+    try {
+      this.db?.close();
+    } catch (error) {
+      console.warn(
+        "[ChatDatabase] Error closing invalid schema connection:",
+        error,
+      );
+    }
+    this.db = null;
+    this.initializationPromise = null;
+  }
+
   /**
    * Initialize the database.
    *
@@ -225,7 +271,14 @@ class ChatDatabase {
       !get(forcedLogoutInProgress) &&
       !get(isLoggingOut)
     ) {
-      return;
+      const missingStores = this.getMissingRequiredStores(this.db);
+      if (missingStores.length === 0) {
+        return;
+      }
+      this.closeInvalidSchemaConnection(
+        missingStores,
+        "Open database handle is missing required stores",
+      );
     }
 
     // If an open is already in progress, piggyback on the existing promise.
@@ -473,6 +526,20 @@ class ChatDatabase {
       request.onsuccess = async () => {
         console.warn("[ChatDatabase] Database opened successfully");
         this.db = request.result;
+
+        const missingStores = this.getMissingRequiredStores(this.db);
+        if (missingStores.length > 0) {
+          this.closeInvalidSchemaConnection(
+            missingStores,
+            "Database opened without required stores after migration",
+          );
+          reject(
+            new Error(
+              `IndexedDB schema invalid: missing required store(s): ${missingStores.join(", ")}`,
+            ),
+          );
+          return;
+        }
 
         // Set marker in localStorage to indicate database has been initialized
         // This is used by orphaned database detection to know if cleanup is needed
@@ -753,9 +820,8 @@ class ChatDatabase {
     }
 
     // Embeds store
-    const EMBEDS_STORE_NAME = "embeds";
-    if (!db.objectStoreNames.contains(EMBEDS_STORE_NAME)) {
-      const embedsStore = db.createObjectStore(EMBEDS_STORE_NAME, {
+    if (!db.objectStoreNames.contains(this.EMBEDS_STORE_NAME)) {
+      const embedsStore = db.createObjectStore(this.EMBEDS_STORE_NAME, {
         keyPath: "contentRef",
       });
       embedsStore.createIndex("type", "type", { unique: false });
@@ -767,7 +833,7 @@ class ChatDatabase {
       });
       console.warn("[ChatDatabase] Created embeds store for unified parsing");
     } else if (transaction) {
-      const embedsStore = transaction.objectStore(EMBEDS_STORE_NAME);
+      const embedsStore = transaction.objectStore(this.EMBEDS_STORE_NAME);
       if (!embedsStore.indexNames.contains("app_id")) {
         embedsStore.createIndex("app_id", "app_id", { unique: false });
         console.warn("[ChatDatabase] Added app_id index to embeds store");
@@ -788,9 +854,8 @@ class ChatDatabase {
     }
 
     // Embed keys store
-    const EMBED_KEYS_STORE_NAME = "embed_keys";
-    if (!db.objectStoreNames.contains(EMBED_KEYS_STORE_NAME)) {
-      const embedKeysStore = db.createObjectStore(EMBED_KEYS_STORE_NAME, {
+    if (!db.objectStoreNames.contains(this.EMBED_KEYS_STORE_NAME)) {
+      const embedKeysStore = db.createObjectStore(this.EMBED_KEYS_STORE_NAME, {
         keyPath: "id",
       });
       embedKeysStore.createIndex("hashed_embed_id", "hashed_embed_id", {
@@ -925,7 +990,7 @@ class ChatDatabase {
 
     // Embed data migration (v14)
     if (transaction && oldVersion < 14) {
-      this.migrateEmbedData(transaction, EMBEDS_STORE_NAME);
+      this.migrateEmbedData(transaction, this.EMBEDS_STORE_NAME);
     }
 
     // v21: Delete stale old-format community demo chats from the user's chats_db.
@@ -1168,6 +1233,30 @@ class ChatDatabase {
         "[ChatDatabase] getTransaction called but DB is still null after init.",
       );
       throw new Error("Database not initialized despite awaiting init()");
+    }
+    const requestedStores = Array.isArray(storeNames)
+      ? storeNames
+      : [storeNames];
+    let missingStores = requestedStores.filter(
+      (storeName) => !this.db?.objectStoreNames.contains(storeName),
+    );
+    if (missingStores.length > 0) {
+      this.closeInvalidSchemaConnection(
+        missingStores,
+        "Transaction requested stores missing from open database",
+      );
+      await this.init();
+      if (!this.db) {
+        throw new Error("Database not initialized after schema repair attempt");
+      }
+      missingStores = requestedStores.filter(
+        (storeName) => !this.db?.objectStoreNames.contains(storeName),
+      );
+      if (missingStores.length > 0) {
+        throw new Error(
+          `IndexedDB schema invalid after repair attempt: missing required store(s): ${missingStores.join(", ")}`,
+        );
+      }
     }
     return this.db.transaction(storeNames, mode);
   }
