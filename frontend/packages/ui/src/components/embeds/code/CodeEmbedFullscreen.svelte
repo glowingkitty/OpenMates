@@ -336,6 +336,7 @@
 
   let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
   let hasCodeHeaderCta = $derived((isRunnable && !!chatId && !!embedId) || isPreviewable);
+  let outputPaneActive = $derived(previewActive || runPanelOpen);
 
   function togglePreview() {
     previewActive = !previewActive;
@@ -428,6 +429,7 @@
     if (!chatId || !embedId || runActive) return;
     clearRunPollTimer();
     closeRunSocket();
+    previewActive = false;
     runPanelOpen = true;
     runStatus = 'queued';
     runError = null;
@@ -504,10 +506,10 @@
 
   {#snippet content()}
     {#if renderCodeContent}
-      <!-- Split-pane layout when preview is active, full code otherwise -->
+      <!-- Split-pane layout when preview or terminal output is active, full code otherwise -->
       <div
         class="code-fullscreen-container"
-        class:preview-split={previewActive}
+        class:output-pane-active={outputPaneActive}
         class:with-header-cta={hasCodeHeaderCta}
       >
         {#if hasPII}
@@ -543,10 +545,10 @@
           </div>
         {/if}
 
-        <div class="code-split-wrapper" class:split-active={previewActive}>
-          <!-- Code panel — always visible. When preview is active, takes 50% on desktop,
+        <div class="code-split-wrapper" class:split-active={outputPaneActive}>
+          <!-- Code panel — always visible. When output is active, takes 30% on desktop,
                or becomes a shortened scrollable container on mobile. -->
-          <div class="code-panel" class:code-panel-split={previewActive}>
+          <div class="code-panel" class:code-panel-split={outputPaneActive}>
             <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
               {#each highlightedLines as lineHtml, i}
                 {@const lineNum = i + 1}
@@ -564,35 +566,35 @@
             </div>
           </div>
 
-          <!-- Preview panel — only rendered when preview mode is active -->
-          {#if previewActive}
+          <!-- Output panel — rendered preview and terminal share the same right-side area. -->
+          {#if outputPaneActive}
             <div class="preview-panel">
-              <CodePreviewPane code={renderCodeContent} {previewType} />
+              {#if previewActive}
+                <CodePreviewPane code={renderCodeContent} {previewType} />
+              {:else if runPanelOpen}
+                <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
+                  <div class="code-run-header">
+                    <div>
+                      <div class="code-run-title">{$text('app_skills.code.run.output')}</div>
+                      <div class="code-run-subtitle">
+                        {#if runExecutionId}
+                          {runStatus} · {runFiles.length} file{runFiles.length === 1 ? '' : 's'} included
+                        {:else}
+                          {runStatus}
+                        {/if}
+                      </div>
+                    </div>
+                    <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
+                  </div>
+                  {#if runFiles.length > 0}
+                    <div class="code-run-files">Included: {runFiles.join(', ')}</div>
+                  {/if}
+                  <pre class="code-run-output">{#each runEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                </section>
+              {/if}
             </div>
           {/if}
         </div>
-
-        {#if runPanelOpen}
-          <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
-            <div class="code-run-header">
-              <div>
-                <div class="code-run-title">{$text('app_skills.code.run.output')}</div>
-                <div class="code-run-subtitle">
-                  {#if runExecutionId}
-                    {runStatus} · {runFiles.length} file{runFiles.length === 1 ? '' : 's'} included
-                  {:else}
-                    {runStatus}
-                  {/if}
-                </div>
-              </div>
-              <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
-            </div>
-            {#if runFiles.length > 0}
-              <div class="code-run-files">Included: {runFiles.join(', ')}</div>
-            {/if}
-            <pre class="code-run-output">{#each runEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
-          </section>
-        {/if}
       </div>
     {:else}
       <!-- Empty state -->
@@ -630,11 +632,11 @@
     margin-top: 42px;
   }
 
-  /* When preview split is active, container fills available height.
+  /* When preview or terminal output is active, container fills available height.
      Uses flex: 1 instead of height: calc() because the parent .content-area
      is itself a flex child (flex: 1) — percentage heights don't resolve
      against flex-sized parents. */
-  .code-fullscreen-container.preview-split {
+  .code-fullscreen-container.output-pane-active {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 358px);
@@ -643,7 +645,7 @@
     padding-bottom: 0;
   }
 
-  /* ── Split wrapper — holds code panel + preview panel side by side ── */
+  /* ── Split wrapper — holds code panel + output panel side by side ── */
   .code-split-wrapper {
     width: 100%;
     flex: 1;
@@ -681,7 +683,11 @@
   }
 
   .code-run-terminal {
-    margin: var(--spacing-6) var(--spacing-5) 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin: 0;
+    box-sizing: border-box;
     border: 1px solid #2d3748;
     border-radius: var(--radius-3);
     background: #050b12;
@@ -738,9 +744,10 @@
   }
 
   .code-run-output {
+    flex: 1;
     margin: 0;
     padding: var(--spacing-5) var(--spacing-6) var(--spacing-6);
-    max-height: 320px;
+    min-height: 0;
     overflow: auto;
     white-space: pre-wrap;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
