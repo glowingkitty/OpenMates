@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
-const path = require('path');
-
 // Use shared console monitor (Rule 10) — replaces inline console boilerplate
 const {
 	test,
@@ -23,8 +21,6 @@ const {
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
-
-const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
 
 /**
  * Multi-turn code generation E2E test.
@@ -233,13 +229,6 @@ async function waitForCodeRunSuccess(fullscreenOverlay: any, _expectedOutput: st
 		expect(text).toMatch(/finished|Exited at .* with code 0/i);
 		expect(text).toMatch(/Charged 5 credits/i);
 	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
-}
-
-async function attachCodeRunFixtureFile(page: any, log: any) {
-	const fileInput = page.locator('input[type="file"][multiple]');
-	await expect(fileInput).toBeAttached({ timeout: 10000 });
-	await fileInput.setInputFiles(SAMPLE_PY);
-	log('Attached sample.py as optional Code Run context file.');
 }
 
 // ─── Test ─────────────────────────────────────────────────────────────────────
@@ -540,8 +529,6 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
   await startNewChat(page, log);
   await screenshot(page, 'ready');
 
-  await attachCodeRunFixtureFile(page, log);
-
   await sendMessage(
   page,
   withMockMarker(
@@ -564,10 +551,11 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
  await waitForCodeEmbedsInMessage(page, messageIndex, log);
  await waitForStreamingComplete(page, log);
 
- const codeEmbed = assistantMessages
-  .nth(messageIndex)
-  .locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
-  .first();
+  const codeEmbed = assistantMessages
+   .nth(messageIndex)
+   .locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
+   .filter({ hasText: 'code_run_smoke.py' })
+   .first();
  const fullscreenOverlay = await openFullscreen(page, codeEmbed);
  await screenshot(page, 'fullscreen-open');
 
@@ -578,7 +566,7 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
   const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
   await expect(fileSelection).toBeVisible({ timeout: 15000 });
   await expect(fileSelection).toContainText('Select files to include');
-  await expect(fileSelection).toContainText('sample.py');
+  await expect(fileSelection).toContainText('code_run_helper.py');
 
   const requiredCheckbox = fileSelection.getByTestId('code-run-required-file-checkbox').first();
   await expect(requiredCheckbox).toBeChecked();

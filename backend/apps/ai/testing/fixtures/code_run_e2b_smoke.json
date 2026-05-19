@@ -25,8 +25,14 @@
     "server_region": "US",
     "icon_names": ["code"]
   },
-  "response": "Here is a minimal self-contained Python script:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6f61e239-0470-47e3-bd19-cd74f37b8a24\"}\n```",
+  "response": "Here is a helper file and the minimal self-contained Python script:\n\n```json\n{\"type\": \"code\", \"embed_id\": \"2b7d63d4-2b45-45c8-a5d6-4d8f0dff6a71\"}\n```\n\n```json\n{\"type\": \"code\", \"embed_id\": \"6f61e239-0470-47e3-bd19-cd74f37b8a24\"}\n```",
   "embeds": {
+    "2b7d63d4-2b45-45c8-a5d6-4d8f0dff6a71": {
+      "type": "code",
+      "language": "python",
+      "filename": "code_run_helper.py",
+      "code_content": "HELPER_VALUE = \"not-needed-for-smoke\"\n"
+    },
     "6f61e239-0470-47e3-bd19-cd74f37b8a24": {
       "type": "code",
       "language": "python",
