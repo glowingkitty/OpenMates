@@ -205,7 +205,7 @@ class SearchConnectionsResponse(BaseModel):
         default_factory=list,
         description="List of result groups, each with 'id' and 'results' array",
     )
-    provider: str = Field(default="Google")
+    provider: str = Field(default="")
     providers: List[Dict[str, str]] = Field(
         default_factory=list,
         description="Providers that returned results, each with 'id', 'name', 'icon_url'",
@@ -455,8 +455,9 @@ class SearchConnectionsSkill(BaseSkill):
                 # Unknown provider — use ID as fallback display name
                 providers_list.append({"id": pid, "name": pid, "icon_url": ""})
 
-        # Legacy provider string for backward compatibility
-        provider_name = ", ".join(p["name"] for p in providers_list) or "Google"
+        # Legacy provider string for older renderers. Keep it empty when no
+        # provider metadata exists so empty states do not claim a fake source.
+        provider_name = ", ".join(p["name"] for p in providers_list)
 
         # 7. Build and return response
         return self._build_response_with_errors(

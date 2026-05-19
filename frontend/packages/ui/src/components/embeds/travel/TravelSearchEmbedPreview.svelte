@@ -286,7 +286,9 @@
   // Provider display: prefer providers list (with icons), fall back to legacy text
   let hasProviderIcons = $derived(providers.length > 0);
   let viaProviderText = $derived(
-    provider ? `${$text('embeds.via')} ${provider}` : ''
+    provider && (flatResults.length > 0 || providers.length > 0)
+      ? `${$text('embeds.via')} ${provider}`
+      : ''
   );
   
   // Route summary: origin → destination from first result

@@ -259,6 +259,12 @@ async def test_execute_preserves_empty_search_metadata(monkeypatch: pytest.Monke
     assert response.results[0]["providers"] == response.providers
 
 
+def test_search_connections_response_has_no_fake_provider_default() -> None:
+    from backend.apps.travel.skills.search_connections import SearchConnectionsResponse
+
+    assert SearchConnectionsResponse().provider == ""
+
+
 @pytest.mark.anyio
 async def test_deutsche_bahn_location_resolution_retries_station_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.shared.providers import deutsche_bahn

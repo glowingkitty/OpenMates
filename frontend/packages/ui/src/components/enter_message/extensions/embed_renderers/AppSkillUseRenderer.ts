@@ -1193,7 +1193,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "Google";
+    const provider = decodedContent?.provider || embedData?.provider || "";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -1202,6 +1202,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
     const results = decodedContent?.results || [];
+    const providers = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray(embedData?.providers)
+        ? embedData.providers
+        : [];
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -1230,6 +1235,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           query,
           provider,
+          providers,
           status: status as "processing" | "finished" | "error",
           results,
           taskId,

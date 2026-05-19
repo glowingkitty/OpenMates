@@ -1121,8 +1121,11 @@ export class GroupRenderer implements EmbedRenderer {
     const query = decodedContent?.query || embedData?.query || itemQuery;
     const provider =
       decodedContent?.provider || embedData?.provider || itemProvider;
-    const providers: string[] =
-      (decodedContent?.providers as string[]) || (embedData?.providers as string[]) || [];
+    const providers = Array.isArray(decodedContent?.providers)
+      ? decodedContent.providers
+      : Array.isArray(embedData?.providers)
+        ? embedData.providers
+        : [];
 
     console.debug("[GroupRenderer] mountAppSkillUsePreview:", {
       embedId, // CRITICAL: This is the ID used for embedUpdated event matching
@@ -1269,7 +1272,8 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "Google",
+            provider: provider || "",
+            providers,
             status,
             results,
             taskId,
