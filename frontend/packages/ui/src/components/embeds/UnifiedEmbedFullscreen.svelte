@@ -87,6 +87,8 @@
     onDownload?: () => void;
     /** Optional calendar handler - downloads an .ics calendar file for scheduled embeds */
     onCalendar?: () => void;
+    /** Optional run handler - starts sandbox execution for executable code embeds */
+    onRun?: () => void;
     /** Optional share handler - opens share menu for the embed */
     onShare?: () => void;
     /**
@@ -288,6 +290,12 @@
     /** Whether to show the preview/render toggle button in the top bar. */
     showPreview?: boolean;
 
+    /** Whether to show the code run button in the top bar. */
+    showRun?: boolean;
+
+    /** Whether code execution is currently active (highlights the run button). */
+    runActive?: boolean;
+
     /** Whether preview mode is currently active (highlights the button). */
     previewActive?: boolean;
 
@@ -302,6 +310,7 @@
     onCopy,
     onDownload,
     onCalendar,
+    onRun,
     onShare,
     showShare = true,
     content,
@@ -340,6 +349,8 @@
     onTogglePII,
     // Preview toggle props (for markdown/HTML render)
     showPreview = false,
+    showRun = false,
+    runActive = false,
     previewActive = false,
     onTogglePreview
   }: Props = $props();
@@ -704,13 +715,21 @@
     }
   }
 
-  function handleCalendar() {
-    if (onCalendar) {
-      onCalendar();
-    } else {
-      console.debug('[UnifiedEmbedFullscreen] Calendar action (no handler provided)');
+    function handleCalendar() {
+      if (onCalendar) {
+        onCalendar();
+      } else {
+        console.debug('[UnifiedEmbedFullscreen] Calendar action (no handler provided)');
+      }
     }
-  }
+
+    function handleRun() {
+      if (onRun) {
+        onRun();
+      } else {
+        console.debug('[UnifiedEmbedFullscreen] Run action (no handler provided)');
+      }
+    }
 
   /**
    * Deep-link from the embed header icon to the app-store skill settings page.
@@ -1130,6 +1149,8 @@
       showCopy={!!onCopy}
       showDownload={!!onDownload}
       showCalendar={!!onCalendar}
+      {showRun}
+      {runActive}
       {showPreview}
       {previewActive}
       {showPIIToggle}
@@ -1139,6 +1160,7 @@
       onCopy={handleCopy}
       onDownload={handleDownload}
       onCalendar={handleCalendar}
+      onRun={handleRun}
       onReportIssue={handleReportIssue}
       onShowChat={handleShowChatClick}
       {onTogglePII}

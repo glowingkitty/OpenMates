@@ -29,6 +29,10 @@
     showCalendar?: boolean;
     /** Whether to show the preview/render button (for markdown/HTML code embeds). */
     showPreview?: boolean;
+    /** Whether to show the code run button. */
+    showRun?: boolean;
+    /** Whether a code run is currently active (highlights the button). */
+    runActive?: boolean;
     /** Whether preview mode is currently active (highlights the button). */
     previewActive?: boolean;
     /** Whether to show the PII hide/show toggle. */
@@ -41,6 +45,7 @@
     onCopy?: () => void;
     onDownload?: () => void;
     onCalendar?: () => void;
+    onRun?: () => void;
     onTogglePreview?: () => void;
     onReportIssue?: () => void;
     /** Whether to show the admin debug toggle button. */
@@ -59,6 +64,8 @@
     showDownload = false,
     showCalendar = false,
     showPreview = false,
+    showRun = false,
+    runActive = false,
     previewActive = false,
     showPIIToggle = false,
     piiRevealed = false,
@@ -67,6 +74,7 @@
     onCopy,
     onDownload,
     onCalendar,
+    onRun,
     onTogglePreview,
     onReportIssue,
     showDebug = false,
@@ -138,6 +146,19 @@
           onclick={onCalendar}
           aria-label="Add to calendar"
           title="Add to calendar"
+        ></button>
+      </div>
+    {/if}
+
+    <!-- Run code in sandbox -->
+    {#if showRun && onRun}
+      <div class="button-wrapper" class:run-active={runActive}>
+        <button
+          class="clickable-icon icon_play top-button"
+          data-testid="embed-run-button"
+          onclick={onRun}
+          aria-label={$text('app_skills.code.run')}
+          title={$text('app_skills.code.run')}
         ></button>
       </div>
     {/if}
@@ -231,6 +252,10 @@
   }
 
   .debug-mode-active {
+    color: var(--color-primary) !important;
+  }
+
+  .run-active {
     color: var(--color-primary) !important;
   }
 

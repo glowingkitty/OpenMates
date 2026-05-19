@@ -51,6 +51,30 @@ get_docs.description:
     - en
     - de
 
+run:
+  context: Skill name and button label for running a code embed in a sandbox
+  en: Run
+  de: Ausführen
+  verified_by_human: [en, de]
+
+run.description:
+  context: Description for the Code Run skill
+  en: Run code from the current chat in an isolated sandbox.
+  de: Führe Code aus dem aktuellen Chat in einer isolierten Sandbox aus.
+  verified_by_human: [en, de]
+
+run.output:
+  context: Terminal panel title for Code Run
+  en: Run output
+  de: Ausführungsprotokoll
+  verified_by_human: [en, de]
+
+run.again:
+  context: Button to run the code again
+  en: Run again
+  de: Erneut ausführen
+  verified_by_human: [en, de]
+
 get_docs.how_to_use.1:
   context: Example instruction for get docs skill - explore API capabilities
   en: Based on the docs, what can I do with the **Miro API**?

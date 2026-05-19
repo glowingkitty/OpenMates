@@ -30,6 +30,14 @@
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import {
+    getCodeRunStatus,
+    getCodeRunStreamUrl,
+    startCodeRun,
+    type CodeRunEvent,
+    type CodeRunStatus,
+    type CodeRunStreamMessage,
+  } from '../../../services/codeRunService';
 
   /**
    * Props for code embed fullscreen
@@ -301,9 +309,150 @@
   /** Whether preview mode is currently active (toggled by the preview button). */
   let previewActive = $state(false);
 
+  const RUNNABLE_LANGUAGES = new Set(['python', 'py', 'javascript', 'js', 'node', 'typescript', 'ts', 'bash', 'sh', 'shell']);
+  const RUNNABLE_EXTENSIONS = new Set(['.py', '.js', '.mjs', '.cjs', '.ts', '.sh']);
+
+  let runPanelOpen = $state(false);
+  let runStatus = $state<CodeRunStatus['status'] | 'idle'>('idle');
+  let runExecutionId = $state<string | null>(null);
+  let runEvents = $state<CodeRunEvent[]>([]);
+  let runFiles = $state<string[]>([]);
+  let runError = $state<string | null>(null);
+  let runPollTimer: ReturnType<typeof setTimeout> | null = null;
+  let runSocket: WebSocket | null = null;
+
+  let isRunnable = $derived.by(() => {
+    const lang = renderLanguage.toLowerCase();
+    if (RUNNABLE_LANGUAGES.has(lang)) return true;
+    if (renderFilename) {
+      const ext = renderFilename.slice(renderFilename.lastIndexOf('.')).toLowerCase();
+      if (RUNNABLE_EXTENSIONS.has(ext)) return true;
+    }
+    return false;
+  });
+
+  const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
+
+  let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
+
   function togglePreview() {
     previewActive = !previewActive;
   }
+
+  function clearRunPollTimer() {
+    if (runPollTimer) {
+      clearTimeout(runPollTimer);
+      runPollTimer = null;
+    }
+  }
+
+  function closeRunSocket() {
+    if (runSocket) {
+      runSocket.onclose = null;
+      runSocket.onerror = null;
+      runSocket.onmessage = null;
+      runSocket.close();
+      runSocket = null;
+    }
+  }
+
+  function syncRunStatus(status: CodeRunStatus) {
+    runStatus = status.status;
+    runEvents = status.events || [];
+    runFiles = status.files || runFiles;
+    runError = status.error || null;
+  }
+
+  function applyRunUpdate(update: Partial<CodeRunStatus>) {
+    if (update.status) runStatus = update.status;
+    if (update.files) runFiles = update.files;
+    if (update.error !== undefined) runError = update.error || null;
+  }
+
+  function appendRunEvent(event: CodeRunEvent) {
+    runEvents = [...runEvents, event];
+  }
+
+  function openRunStream(executionId: string) {
+    closeRunSocket();
+
+    const socket = new WebSocket(getCodeRunStreamUrl(executionId));
+    runSocket = socket;
+
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data) as CodeRunStreamMessage;
+      if (message.type === 'code_run_snapshot') {
+        syncRunStatus(message.payload);
+        return;
+      }
+      if (message.type === 'code_run_update') {
+        applyRunUpdate(message.payload);
+        return;
+      }
+      if (message.type === 'code_run_event') {
+        appendRunEvent(message.payload);
+      }
+    };
+
+    socket.onerror = () => {
+      socket.close();
+    };
+
+    socket.onclose = () => {
+      if (runSocket === socket) {
+        runSocket = null;
+      }
+      if (runExecutionId === executionId && !TERMINAL_RUN_STATUSES.has(runStatus)) {
+        pollRunStatus(executionId);
+      }
+    };
+  }
+
+  async function pollRunStatus(executionId: string) {
+    try {
+      const status = await getCodeRunStatus(executionId);
+      syncRunStatus(status);
+      if (!TERMINAL_RUN_STATUSES.has(status.status)) {
+        runPollTimer = setTimeout(() => pollRunStatus(executionId), 1000);
+      }
+    } catch (error) {
+      runStatus = 'failed';
+      runError = error instanceof Error ? error.message : 'Code run status unavailable';
+      runEvents = [...runEvents, { kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    }
+  }
+
+  async function handleRun() {
+    if (!chatId || !embedId || runActive) return;
+    clearRunPollTimer();
+    closeRunSocket();
+    runPanelOpen = true;
+    runStatus = 'queued';
+    runError = null;
+    runEvents = [{ kind: 'status', text: 'Queued code run...\n', timestamp: Date.now() / 1000 }];
+    runFiles = [];
+    try {
+      const started = await startCodeRun(chatId, embedId);
+      runExecutionId = started.execution_id;
+      runStatus = started.status as CodeRunStatus['status'];
+      runFiles = started.files;
+      runEvents = [
+        { kind: 'status', text: `Queued code run for ${started.target_filename}. Pricing: ${started.credits_per_minute} credits per started minute.\n`, timestamp: Date.now() / 1000 }
+      ];
+      openRunStream(started.execution_id);
+    } catch (error) {
+      runStatus = 'failed';
+      runError = error instanceof Error ? error.message : 'Code run failed to start';
+      runEvents = [{ kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    }
+  }
+
+  $effect(() => {
+    return () => {
+      clearRunPollTimer();
+      closeRunSocket();
+    };
+  });
 
   // Share is handled by UnifiedEmbedFullscreen's built-in share handler
   // which uses currentEmbedId, appId, and skillId to construct the embed
@@ -324,6 +473,9 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
+  showRun={isRunnable && !!chatId && !!embedId}
+  {runActive}
+  onRun={handleRun}
   showPreview={isPreviewable}
   {previewActive}
   onTogglePreview={togglePreview}
@@ -402,6 +554,28 @@
             </div>
           {/if}
         </div>
+
+        {#if runPanelOpen}
+          <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
+            <div class="code-run-header">
+              <div>
+                <div class="code-run-title">{$text('app_skills.code.run.output')}</div>
+                <div class="code-run-subtitle">
+                  {#if runExecutionId}
+                    {runStatus} · {runFiles.length} file{runFiles.length === 1 ? '' : 's'} included
+                  {:else}
+                    {runStatus}
+                  {/if}
+                </div>
+              </div>
+              <button class="code-run-again" onclick={handleRun} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
+            </div>
+            {#if runFiles.length > 0}
+              <div class="code-run-files">Included: {runFiles.join(', ')}</div>
+            {/if}
+            <pre class="code-run-output">{#each runEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+          </section>
+        {/if}
       </div>
     {:else}
       <!-- Empty state -->
@@ -483,6 +657,79 @@
     /* position: relative so child can use absolute positioning to fill the panel
        without expanding it to the iframe's content height */
     position: relative;
+  }
+
+  .code-run-terminal {
+    margin: var(--spacing-6) var(--spacing-5) 0;
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-3);
+    background: var(--color-grey-100);
+    color: var(--color-grey-0);
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  }
+
+  .code-run-header {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    align-items: center;
+    padding: var(--spacing-5) var(--spacing-6);
+    background: rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .code-run-title {
+    font-size: var(--font-size-small);
+    font-weight: 700;
+  }
+
+  .code-run-subtitle,
+  .code-run-files {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-files {
+    padding: var(--spacing-4) var(--spacing-6) 0;
+  }
+
+  .code-run-again {
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: var(--radius-2);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-grey-0);
+    padding: var(--spacing-3) var(--spacing-5);
+    cursor: pointer;
+    font-size: var(--font-size-xxs);
+  }
+
+  .code-run-again:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .code-run-output {
+    margin: 0;
+    padding: var(--spacing-5) var(--spacing-6) var(--spacing-6);
+    max-height: 320px;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .code-run-line {
+    display: inline;
+  }
+
+  .code-run-status {
+    color: #93c5fd;
+  }
+
+  .code-run-stderr {
+    color: #fca5a5;
   }
 
   /* Mobile: preview only — hide code panel, show full-width preview.
