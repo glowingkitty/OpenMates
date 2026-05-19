@@ -67,6 +67,7 @@ const CODE_TOON_FOLLOWER_FIELDS = [
   "embed_ref",
   "status",
   "line_count",
+  "code_run_output",
   "task_id",
 ];
 

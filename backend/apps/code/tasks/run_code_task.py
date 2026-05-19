@@ -200,7 +200,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         run_async(_append_output(
             execution_id,
             "status",
-            f"Exited with code {result.exit_code if result.exit_code is not None else 0} in {duration:.1f}s. Charged {charged_minutes} minute(s), {credits} credits.\n",
+            f"Exited at {time.strftime('%H:%M')} with code {result.exit_code if result.exit_code is not None else 0} in {duration:.1f}s. Charged {credits} credits.\n",
         ))
         if result.output_truncated:
             run_async(_append_output(execution_id, "stderr", "Output was truncated after 100 KB.\n"))

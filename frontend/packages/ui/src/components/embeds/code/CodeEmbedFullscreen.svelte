@@ -24,10 +24,13 @@
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
+  import { authStore } from '../../../stores/authStore';
+  import { loginInterfaceOpen } from '../../../stores/uiStateStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
+  import { embedStore } from '../../../services/embedStore';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -322,6 +325,14 @@
   let runError = $state<string | null>(null);
   let runPollTimer: ReturnType<typeof setTimeout> | null = null;
   let runSocket: WebSocket | null = null;
+  let persistedRunExecutionId = $state<string | null>(null);
+
+  interface SavedCodeRunOutput {
+    text: string;
+    status?: CodeRunStatus['status'];
+    files?: string[];
+    savedAt?: number;
+  }
 
   let isRunnable = $derived.by(() => {
     const lang = renderLanguage.toLowerCase();
@@ -337,11 +348,135 @@
   const CLIENT_CONTENT_REQUIRED_CODE = 'client_content_required';
 
   let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
-  let hasCodeHeaderCta = $derived((isRunnable && !!chatId && !!embedId) || isPreviewable);
+  let hasCodeHeaderCta = $derived((isRunnable && !!embedId) || isPreviewable);
   let outputPaneActive = $derived(previewActive || runPanelOpen);
+  let savedRunOutput = $state<SavedCodeRunOutput | null>(null);
+  let runDisplayEvents = $derived(buildCompactRunEvents(runEvents));
+  let runCtaLabel = $derived.by(() => {
+    if (runPanelOpen) return $text('app_skills.code.run.hide_output');
+    if (savedRunOutput) return $text('app_skills.code.run.show_output');
+    return $text('app_skills.code.run_code');
+  });
+
+  function readSavedRunOutput(content: Record<string, unknown>): SavedCodeRunOutput | null {
+    const text = content.code_run_output;
+    if (typeof text !== 'string' || !text.trim()) return null;
+    const status = typeof content.code_run_status === 'string'
+      ? content.code_run_status as CodeRunStatus['status']
+      : undefined;
+    const files = Array.isArray(content.code_run_files)
+      ? content.code_run_files.filter((file): file is string => typeof file === 'string')
+      : undefined;
+    const savedAt = typeof content.code_run_saved_at === 'number' ? content.code_run_saved_at : undefined;
+    return { text, status, files, savedAt };
+  }
+
+  $effect(() => {
+    const embeddedOutput = readSavedRunOutput(dc);
+    if (embeddedOutput && savedRunOutput?.text !== embeddedOutput.text) {
+      savedRunOutput = embeddedOutput;
+    }
+  });
+
+  function savedOutputToEvents(output: SavedCodeRunOutput): CodeRunEvent[] {
+    const lines = output.text.endsWith('\n') ? output.text : `${output.text}\n`;
+    return lines.split(/(?<=\n)/).filter(Boolean).map((line) => ({
+      kind: line.trim() === '...' ? 'stdout' : 'status',
+      text: line,
+      timestamp: output.savedAt ? output.savedAt / 1000 : Date.now() / 1000,
+    }));
+  }
+
+  function buildCompactRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
+    const compact: CodeRunEvent[] = [];
+    const preparing = events.find((event) => event.kind === 'status' && event.text.startsWith('Preparing sandbox'));
+    const running = events.findLast((event) => event.kind === 'status' && event.text.startsWith('Running '));
+    const final = events.findLast((event) => event.kind === 'status' && event.text.startsWith('Exited '));
+    const hasProgramOutput = events.some((event) => (event.kind === 'stdout' || event.kind === 'stderr') && event.text.trim());
+
+    if (preparing) compact.push(preparing);
+    if (running) compact.push(running);
+    if (hasProgramOutput) {
+      compact.push({ kind: 'stdout', text: '...\n', timestamp: running?.timestamp || Date.now() / 1000 });
+    }
+    if (final) compact.push(final);
+
+    if (compact.length > 0) return compact;
+    return events.filter((event) => !event.text.startsWith('Queued code run for'));
+  }
+
+  function compactRunOutputText(): string {
+    return runDisplayEvents.map((event) => event.text).join('').trimEnd();
+  }
+
+  function compactRunOutputHasFinalLine(): boolean {
+    return runDisplayEvents.some((event) => event.kind === 'status' && event.text.startsWith('Exited '));
+  }
+
+  async function persistRunOutput() {
+    if (!embedId || !runExecutionId || persistedRunExecutionId === runExecutionId) return;
+    const outputText = compactRunOutputText();
+    if (!outputText || !compactRunOutputHasFinalLine()) return;
+
+    persistedRunExecutionId = runExecutionId;
+    const savedAt = Date.now();
+    const nextDecodedContent = {
+      ...dc,
+      code_run_output: outputText,
+      code_run_status: runStatus,
+      code_run_files: runFiles,
+      code_run_saved_at: savedAt,
+    };
+
+    try {
+      const { encode: toonEncode } = await import('@toon-format/toon');
+      const nextContent = toonEncode(nextDecodedContent);
+      const contentRef = `embed:${embedId}`;
+      const existing = await embedStore.get(contentRef);
+      const existingRecord = existing && typeof existing === 'object' ? existing as Record<string, unknown> : {};
+      await embedStore.put(contentRef, {
+        ...existingRecord,
+        embed_id: embedId,
+        type: existingRecord.type || data.embedData?.type || 'code-code',
+        status: 'finished',
+        content: nextContent,
+        updatedAt: savedAt,
+      }, 'code-code');
+      savedRunOutput = {
+        text: outputText,
+        status: runStatus as CodeRunStatus['status'],
+        files: runFiles,
+        savedAt,
+      };
+    } catch (error) {
+      console.warn('[CodeEmbedFullscreen] Failed to persist code run output:', error);
+      persistedRunExecutionId = null;
+    }
+  }
 
   function togglePreview() {
     previewActive = !previewActive;
+  }
+
+  function toggleRunOutput() {
+    if (runPanelOpen) {
+      runPanelOpen = false;
+      return;
+    }
+    if (savedRunOutput) {
+      previewActive = false;
+      runPanelOpen = true;
+      runStatus = savedRunOutput.status || 'finished';
+      runFiles = savedRunOutput.files || [];
+      runEvents = savedOutputToEvents(savedRunOutput);
+      runError = null;
+      return;
+    }
+    if (!$authStore.isAuthenticated) {
+      loginInterfaceOpen.set(true);
+      return;
+    }
+    handleRun();
   }
 
   function clearRunPollTimer() {
@@ -428,6 +563,10 @@
   }
 
   async function handleRun() {
+    if (!$authStore.isAuthenticated) {
+      loginInterfaceOpen.set(true);
+      return;
+    }
     if (!chatId || !embedId || runActive) return;
     clearRunPollTimer();
     closeRunSocket();
@@ -458,6 +597,7 @@
         }]);
       }
       runExecutionId = started.execution_id;
+      persistedRunExecutionId = null;
       runStatus = started.status as CodeRunStatus['status'];
       runFiles = started.files;
       runEvents = [
@@ -470,6 +610,12 @@
       runEvents = [{ kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
     }
   }
+
+  $effect(() => {
+    if (runExecutionId && TERMINAL_RUN_STATUSES.has(runStatus) && compactRunOutputHasFinalLine()) {
+      void persistRunOutput();
+    }
+  });
 
   $effect(() => {
     return () => {
@@ -510,8 +656,8 @@
   {#snippet embedHeaderCta()}
     {#if hasCodeHeaderCta}
       <div class="embed-header-cta-group">
-        {#if isRunnable && chatId && embedId}
-          <EmbedHeaderCtaButton label={$text('app_skills.code.run_code')} onclick={handleRun} testId="embed-run-button" />
+        {#if isRunnable && embedId}
+          <EmbedHeaderCtaButton label={runCtaLabel} onclick={toggleRunOutput} testId="embed-run-button" />
         {/if}
         {#if isPreviewable}
           <EmbedHeaderCtaButton
@@ -609,7 +755,7 @@
                   {#if runFiles.length > 0}
                     <div class="code-run-files">Included: {runFiles.join(', ')}</div>
                   {/if}
-                  <pre class="code-run-output">{#each runEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                  <pre class="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
                 </section>
               {/if}
             </div>

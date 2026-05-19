@@ -81,6 +81,18 @@ run.again:
   de: Erneut ausführen
   verified_by_human: [en, de]
 
+run.show_output:
+  context: Header CTA button label for showing saved code run output
+  en: Show output
+  de: Ausgabe anzeigen
+  verified_by_human: [en, de]
+
+run.hide_output:
+  context: Header CTA button label for hiding code run output
+  en: Hide output
+  de: Ausgabe ausblenden
+  verified_by_human: [en, de]
+
 preview_show:
   context: Header CTA button label for opening a rendered preview of previewable code
   en: Show preview
