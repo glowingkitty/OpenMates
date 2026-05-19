@@ -863,9 +863,12 @@
       return;
     }
 
-    const candidateKey = candidates
+    const embedUpdateKey = messages
+      .map(message => message._embedUpdateTimestamp ?? '')
+      .join('|');
+    const candidateKey = `${candidates
       .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
-      .join(';');
+      .join(';')}#${embedUpdateKey}`;
     if (candidateKey === headerImageBubbleCandidateKey) return;
     headerImageBubbleCandidateKey = candidateKey;
 
