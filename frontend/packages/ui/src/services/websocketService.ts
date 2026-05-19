@@ -104,10 +104,22 @@ type KnownMessageTypes =
 
 interface WebSocketMessage {
   type: KnownMessageTypes | string; // Allow known types + any string
-  payload: any;
+  payload: unknown;
 }
 
-type MessageHandler = (payload: any) => void;
+type MessageHandler = (payload: unknown) => void;
+
+type NetworkInformationLike = {
+  addEventListener?: (type: "change", listener: () => void) => void;
+};
+
+type NavigatorWithConnection = Navigator & {
+  connection?: NetworkInformationLike;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 class WebSocketService extends EventTarget {
   private ws: WebSocket | null = null;
@@ -121,7 +133,7 @@ class WebSocketService extends EventTarget {
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
   private connectionPromise: Promise<void> | null = null;
   private resolveConnectionPromise: (() => void) | null = null;
-  private rejectConnectionPromise: ((reason?: any) => void) | null = null;
+  private rejectConnectionPromise: ((reason?: unknown) => void) | null = null;
   private pingIntervalId: NodeJS.Timeout | null = null;
   private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
   private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
@@ -256,7 +268,7 @@ class WebSocketService extends EventTarget {
       // Listen for network type changes on mobile (e.g., cellular → Wi-Fi after wake).
       // navigator.connection is not available in all browsers (Safari notably lacks it),
       // but where present it fires earlier and more reliably than the online event.
-      const connection = (navigator as any).connection;
+      const connection = (navigator as NavigatorWithConnection).connection;
       if (connection && typeof connection.addEventListener === "function") {
         connection.addEventListener("change", () => {
           // Skip if we've never connected and user isn't authenticated —
@@ -396,13 +408,13 @@ class WebSocketService extends EventTarget {
   }
 
   private registerDefaultErrorHandlers(): void {
-    this.on("error", (payload: any) => {
+    this.on("error", (payload: unknown) => {
       console.error(
         "[WebSocketService] Received error message from server:",
         payload,
       );
       let errorMessage = "An unexpected error occurred on the server.";
-      if (payload && typeof payload.message === "string") {
+      if (isRecord(payload) && typeof payload.message === "string") {
         errorMessage = payload.message;
       } else if (typeof payload === "string") {
         errorMessage = payload;
@@ -412,7 +424,7 @@ class WebSocketService extends EventTarget {
   }
 
   private registerPongHandler(): void {
-    this.on("pong", (_payload: any) => {
+    this.on("pong", (_payload: unknown) => {
       // Pong received, clear pong timeout
       console.debug("[WebSocketService] Pong received, clearing timeout");
       if (this.pongTimeoutId) {
@@ -423,7 +435,7 @@ class WebSocketService extends EventTarget {
   }
 
   private registerServerRestartingHandler(): void {
-    this.on("server_restarting", (_payload: any) => {
+    this.on("server_restarting", (_payload: unknown) => {
       // Server is about to restart after a deployment. Notify the UI so it can
       // show a "Server updating" banner instead of the generic "You are offline"
       // message. The WS reconnect loop will still fire normally — this message
@@ -557,13 +569,13 @@ class WebSocketService extends EventTarget {
             }
 
             let messageType: string | undefined;
-            let messagePayload: any;
-            let dispatchEventDetail: { type: string; payload: any };
+            let messagePayload: unknown;
+            let dispatchEventDetail: { type: string; payload: unknown };
 
             if (typeof rawMessage.type === "string") {
               messageType = rawMessage.type;
-              messagePayload = rawMessage.payload;
-              dispatchEventDetail = rawMessage as WebSocketMessage;
+              messagePayload = rawMessage.payload !== undefined ? rawMessage.payload : rawMessage;
+              dispatchEventDetail = { type: messageType, payload: messagePayload };
             } else if (typeof rawMessage.event === "string") {
               messageType = rawMessage.event;
               // For messages with 'event' field, use the entire message as the payload
@@ -593,9 +605,10 @@ class WebSocketService extends EventTarget {
             }
 
             if (messageType === "error") {
+              const payloadRecord = isRecord(messagePayload) ? messagePayload : null;
               const errorMessage =
-                typeof messagePayload?.message === "string"
-                  ? messagePayload.message
+                typeof payloadRecord?.message === "string"
+                  ? payloadRecord.message
                   : typeof messagePayload === "string"
                     ? messagePayload
                     : "";
@@ -630,9 +643,12 @@ class WebSocketService extends EventTarget {
 
             // 🔍 STREAMING DEBUG: Log WebSocket message reception for ai_message_update
             if (messageType === "ai_message_update") {
-              const seq = messagePayload?.sequence || "unknown";
+              const payloadRecord = isRecord(messagePayload) ? messagePayload : null;
+              const seq = payloadRecord?.sequence || "unknown";
               const contentLength =
-                messagePayload?.full_content_so_far?.length || 0;
+                typeof payloadRecord?.full_content_so_far === "string"
+                  ? payloadRecord.full_content_so_far.length
+                  : 0;
               const timestamp = new Date().toISOString();
               console.log(
                 `[WebSocketService] 🔴 RAW MESSAGE RECEIVED | ` +
@@ -659,7 +675,8 @@ class WebSocketService extends EventTarget {
 
                 // 🔍 STREAMING DEBUG: Log handler execution for ai_message_update
                 if (messageType === "ai_message_update") {
-                  const seq = messagePayload?.sequence || "unknown";
+                  const payloadRecord = isRecord(messagePayload) ? messagePayload : null;
+                  const seq = payloadRecord?.sequence || "unknown";
                   console.log(
                     `[WebSocketService] 🟣 HANDLER EXECUTION | ` +
                       `type: ${messageType} | ` +
@@ -678,7 +695,8 @@ class WebSocketService extends EventTarget {
 
                     // 🔍 STREAMING DEBUG: Log individual handler call for ai_message_update
                     if (messageType === "ai_message_update") {
-                      const seq = messagePayload?.sequence || "unknown";
+                      const payloadRecord = isRecord(messagePayload) ? messagePayload : null;
+                      const seq = payloadRecord?.sequence || "unknown";
                       console.log(
                         `[WebSocketService] 🟠 CALLING HANDLER | ` +
                           `handler_index: ${index + 1} | ` +
@@ -1175,7 +1193,7 @@ class WebSocketService extends EventTarget {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
-  public async sendMessage(type: string, payload: any): Promise<void> {
+  public async sendMessage(type: string, payload: unknown): Promise<void> {
     const message: WebSocketMessage = { type, payload };
     if (!this.isConnected()) {
       if (type !== "ping") {
@@ -1239,14 +1257,15 @@ class WebSocketService extends EventTarget {
   }
 
   // Register handlers for specific message types
-  public on(messageType: string, handler: MessageHandler): void {
+  public on<T = unknown>(messageType: string, handler: (payload: T) => void): void {
     if (!this.messageHandlers.has(messageType)) {
       this.messageHandlers.set(messageType, []);
     }
     const currentHandlers = this.messageHandlers.get(messageType);
     // Check if this exact handler is already registered to prevent duplicates
-    if (currentHandlers && !currentHandlers.includes(handler)) {
-      currentHandlers.push(handler);
+    const messageHandler = handler as MessageHandler;
+    if (currentHandlers && !currentHandlers.includes(messageHandler)) {
+      currentHandlers.push(messageHandler);
       console.debug(
         `[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers.length}`,
       );
@@ -1258,10 +1277,10 @@ class WebSocketService extends EventTarget {
   }
 
   // Unregister handlers
-  public off(messageType: string, handler: MessageHandler): void {
+  public off<T = unknown>(messageType: string, handler: (payload: T) => void): void {
     const handlers = this.messageHandlers.get(messageType);
     if (handlers) {
-      const index = handlers.indexOf(handler);
+      const index = handlers.indexOf(handler as MessageHandler);
       if (index > -1) {
         handlers.splice(index, 1);
       }
