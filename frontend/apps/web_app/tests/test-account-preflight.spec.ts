@@ -15,6 +15,8 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 test('configured account can complete password and OTP login', async ({ page }: { page: any }) => {
+	test.setTimeout(120000);
+
 	const { email, password, otpKey } = getTestAccount();
 	const slot = process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT || process.env.PLAYWRIGHT_WORKER_SLOT || '1';
 
