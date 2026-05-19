@@ -14,39 +14,49 @@ import type { CodeRunOutput, CodeRunOutputPayload } from "../types/chat";
 export async function sendUpsertCodeRunOutputImpl(
   output: CodeRunOutput,
 ): Promise<void> {
-  const embedKey = await embedStore.getEmbedKey(output.embed_id);
+  const cloneSafeOutput: CodeRunOutput = {
+    ...output,
+    files: output.files?.map((file) => String(file)),
+    events: output.events?.map(({ kind, text, timestamp }) => ({
+      kind,
+      text: String(text),
+      timestamp: Number(timestamp),
+    })),
+  };
+
+  const embedKey = await embedStore.getEmbedKey(cloneSafeOutput.embed_id);
   if (!embedKey) {
     throw new Error(
-      `[sendersCodeRunOutputs] No embed key for embed ${output.embed_id} — cannot encrypt Code Run output`,
+      `[sendersCodeRunOutputs] No embed key for embed ${cloneSafeOutput.embed_id} — cannot encrypt Code Run output`,
     );
   }
 
   const payload: CodeRunOutputPayload = {
-    output: output.output,
-    status: output.status,
-    files: output.files,
-    events: output.events,
-    saved_at: output.saved_at,
-    created_at: output.created_at,
-    updated_at: output.updated_at,
+    output: cloneSafeOutput.output,
+    status: cloneSafeOutput.status,
+    files: cloneSafeOutput.files,
+    events: cloneSafeOutput.events,
+    saved_at: cloneSafeOutput.saved_at,
+    created_at: cloneSafeOutput.created_at,
+    updated_at: cloneSafeOutput.updated_at,
   };
   const encrypted_payload = await encryptWithEmbedKey(JSON.stringify(payload), embedKey);
 
   try {
-    await idbUpsertCodeRunOutput(chatDB, output);
+    await idbUpsertCodeRunOutput(chatDB, cloneSafeOutput);
   } catch (error) {
     console.error("[sendersCodeRunOutputs] IDB upsert failed", error);
   }
 
   try {
     await webSocketService.sendMessage("upsert_code_run_output", {
-      chat_id: output.chat_id,
-      embed_id: output.embed_id,
-      id: output.id,
-      key_version: output.key_version ?? null,
+      chat_id: cloneSafeOutput.chat_id,
+      embed_id: cloneSafeOutput.embed_id,
+      id: cloneSafeOutput.id,
+      key_version: cloneSafeOutput.key_version ?? null,
       encrypted_payload,
-      created_at: output.created_at,
-      updated_at: output.updated_at ?? output.created_at,
+      created_at: cloneSafeOutput.created_at,
+      updated_at: cloneSafeOutput.updated_at ?? cloneSafeOutput.created_at,
     });
   } catch (error) {
     console.error("[sendersCodeRunOutputs] WS upsert failed", error);
