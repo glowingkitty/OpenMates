@@ -73,6 +73,7 @@ PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
+ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
@@ -1064,6 +1065,8 @@ class BatchRunner:
             d["file"] = r.file
         if r.run_id:
             d["run_id"] = r.run_id
+        if r.account:
+            d["account"] = r.account
         if r.retries > 0:
             d["retries"] = r.retries
         if r.flaky:
@@ -3946,6 +3949,12 @@ class TestOrchestrator:
             return SuiteResult(status="skipped", reason="dry run")
 
         client = GitHubActionsClient()
+
+        if not self.spec and not self.only_failed:
+            preflight = self._run_account_preflight(client)
+            if preflight.status == "failed":
+                return preflight
+
         runner = BatchRunner(
             client=client,
             specs=specs,
@@ -3963,6 +3972,33 @@ class TestOrchestrator:
             self._merge_cookie_audits()
 
         return result
+
+    def _run_account_preflight(self, client: GitHubActionsClient) -> SuiteResult:
+        """Validate each configured persistent E2E account before normal specs."""
+        started = time.time()
+        _log(f"Playwright account preflight: {MAX_ACCOUNTS} account slot(s)")
+        runner = BatchRunner(
+            client=client,
+            specs=[ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS,
+            batch_size=MAX_ACCOUNTS,
+            fail_fast=False,
+            use_mocks=self.use_mocks,
+        )
+        results = runner._run_batch([ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS, 0)
+        failures = [r for r in results if r.status != "passed"]
+        if failures:
+            failed_slots = ", ".join(str(r.account) for r in failures)
+            _log(f"Account preflight failed for slot(s): {failed_slots}", "ERROR")
+        else:
+            failed_slots = ""
+            _log("Account preflight passed", "OK")
+
+        return SuiteResult(
+            status="failed" if failures else "passed",
+            tests=[runner._spec_result_to_dict(r) for r in results],
+            duration_seconds=round(time.time() - started, 1),
+            reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
+        )
 
     @staticmethod
     def _merge_cookie_audits() -> None:
@@ -3992,6 +4028,7 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        ACCOUNT_PREFLIGHT_SPEC,
     }
 
     def _discover_specs(self) -> list[str]:

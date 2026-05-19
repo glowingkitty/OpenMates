@@ -303,11 +303,13 @@ test('completes full account recovery flow with same password', async ({
 		activeTfaSecret = newTfaSecret!.trim();
 		logRecoveryCheckpoint('Got new 2FA secret from setup page.');
 
-		// Write the new secret to an artifact file so the host can update .env
-		// (the container mounts .env read-only, so we can't write it directly)
+		// Write the new secret where playwright-spec.yml uploads artifacts from.
+		// The workflow uses this file to update the matching GitHub Actions secret.
 		const nodefs = require('fs');
-		nodefs.mkdirSync('/workspace/artifacts', { recursive: true });
-		nodefs.writeFileSync('/workspace/artifacts/new_otp_key.txt', activeTfaSecret, 'utf8');
+		const nodepath = require('path');
+		const artifactsDir = nodepath.resolve(process.cwd(), 'artifacts');
+		nodefs.mkdirSync(artifactsDir, { recursive: true });
+		nodefs.writeFileSync(nodepath.join(artifactsDir, 'new_otp_key.txt'), activeTfaSecret, 'utf8');
 		// Also log it prominently so it's visible even without artifact access
 		console.log(`\n\n==================================================`);
 		console.log(`NEW OPENMATES_TEST_ACCOUNT_OTP_KEY: ${activeTfaSecret}`);
