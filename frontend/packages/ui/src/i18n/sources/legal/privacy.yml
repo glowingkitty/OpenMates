@@ -2927,7 +2927,7 @@ follow_up_6:
   he: אילו נתונים אתם משתפים עם צדדים שלישיים?
 # ─────────────────────────────────────────────────────────────────────
 # Keys below this line power the restructured privacy policy (2026-04-08).
-# Grouping mirrors shared/docs/privacy_policy.yml provider_groups (A–J).
+# Grouping mirrors shared/docs/privacy_policy.yml provider_groups (A–K).
 # English-only for now; other locales fill in via the translation pipeline.
 # Do NOT reintroduce "end-to-end encryption", "zero-knowledge", or
 # "server never sees" language — the architecture is client-side
@@ -5420,8 +5420,30 @@ providers.image_generation.recraft.description:
   ru: Recraft обеспечивает работу навыков images.generate и images.vectorize, создавая векторные и растровые изображения и преобразуя растровые изображения в SVG. Recraft получает твои промпты, предпочтения по стилю и — при векторизации — твои исходные изображения.
   he: Recraft מפעילה את המיומנויות images.generate ו-images.vectorize, מייצרת תמונות וקטוריות ורסטר והופכת מפות סיביות (bitmaps) ל-SVG. Recraft מקבלת את ההנחיות שלך, העדפות סגנון, ובעת וקטוריזציה — את תמונות המקור שלך.
   verified_by_human: []
+providers.code_execution.heading:
+  context: Subheading for Group E providers (code execution)
+  en: Code execution (only when you run code)
+  verified_by_human: []
+providers.code_execution.description:
+  context: Description of Group E
+  en: >-
+    This provider is only used when you run code in an isolated sandbox from the
+    code app. If you never run code, none of your data is shared with it.
+  verified_by_human: []
+providers.code_execution.e2b.heading:
+  context: Heading for E2B provider entry
+  en: E2B (isolated code sandbox)
+  verified_by_human: []
+providers.code_execution.e2b.description:
+  context: E2B description
+  en: >-
+    E2B runs selected code embeds inside isolated sandboxes. E2B receives the
+    code you choose to run, runtime inputs, and execution output needed to run
+    and display the sandbox result. This sharing only happens when you
+    explicitly run code.
+  verified_by_human: []
 providers.web_and_search.heading:
-  context: Subheading for Group E providers (web and search)
+  context: Subheading for Group F providers (web and search)
   en: Web, search, and content retrieval (only when you use a web or search skill)
   de: Web, Suche und Inhaltsabruf (nur wenn du einen Web- oder Such-Skill nutzt)
   zh: 网页、搜索与内容获取 (仅在使用网页或搜索技能时)
@@ -5445,7 +5467,7 @@ providers.web_and_search.heading:
   he: אינטרנט, חיפוש ואחזור תוכן (רק בשימוש במיומנות אינטרנט או חיפוש)
   verified_by_human: []
 providers.web_and_search.description:
-  context: Description of Group E
+  context: Description of Group F
   en: >-
     These providers are only used when you invoke a web, videos, news, or
     web-read skill. They see the content of what you search for or the URLs

@@ -357,7 +357,26 @@ provider_groups:
           - Source images when vectorizing
 
   # =====================================================================
-  # Group E — Web, search, and content retrieval. Only used when you
+  # Group E — Code execution. Only used when you run generated code.
+  # =====================================================================
+  code_execution:
+    description: >
+      This provider is only used when you run code in an isolated sandbox from
+      the code app. If you never run code, none of your data is shared with it.
+    providers:
+      e2b:
+        privacy_policy: https://e2b.dev/privacy  # verified 2026-05-19
+        location: US
+        legal_entity: FOUNDRYLABS, INC.
+        used_for:
+          - isolated sandbox execution for generated code embeds
+        data_shared:
+          - Code selected for execution
+          - Runtime inputs and execution output needed to run and display the sandbox result
+          - Note: Shared only when you explicitly run code
+
+  # =====================================================================
+  # Group F — Web, search, and content retrieval. Only used when you
   # invoke a web/videos/news/read skill.
   # =====================================================================
   web_and_search:
@@ -407,7 +426,7 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
-  # Group F — Travel. Only used when you invoke a travel skill.
+  # Group G — Travel. Only used when you invoke a travel skill.
   # =====================================================================
   travel:
     description: >
@@ -434,7 +453,7 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
-  # Group G — Events. Only used when you invoke the events skill.
+  # Group H — Events. Only used when you invoke the events skill.
   # Only the providers actually enabled in the events app registry are
   # listed here. Providers that exist as code but are gated behind a
   # feature flag (Bachtrack, ClassicTIC, Berlin Philharmonic, Siegessäule,
@@ -472,7 +491,7 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
-  # Group H — Health. Only used when you invoke the appointment-search
+  # Group I — Health. Only used when you invoke the appointment-search
   # skill. Special-category data disclosure.
   # =====================================================================
   health:
@@ -503,7 +522,7 @@ provider_groups:
           - Note: Transmitted via Webshare proxy without user identifiers
 
   # =====================================================================
-  # Group I — Shopping. Only used when you invoke the shopping skill.
+  # Group J — Shopping. Only used when you invoke the shopping skill.
   # =====================================================================
   shopping:
     description: >
@@ -527,7 +546,7 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
-  # Group J — Community and developer channels. Only used if you choose
+  # Group K — Community and developer channels. Only used if you choose
   # to use them.
   # =====================================================================
   community:

@@ -135,7 +135,7 @@ export const routes = {
 
 // Privacy-policy links for every third-party provider referenced in the
 // privacy policy. Grouped to mirror shared/docs/privacy_policy.yml
-// provider_groups (Group A-J). When adding a new provider to a skill or
+// provider_groups (Group A-K). When adding a new provider to a skill or
 // app.yml, add its privacy-policy link here AND update:
 //   - shared/docs/privacy_policy.yml
 //   - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
@@ -169,30 +169,33 @@ export const privacyPolicyLinks = {
   fal: "https://fal.ai/legal/privacy-policy", // verified 2026-04-14
   recraft: "https://www.recraft.ai/privacy", // verified 2026-04-14
 
-  // Group E — Web, search, content retrieval
+  // Group E — Code execution
+  e2b: "https://e2b.dev/privacy", // verified 2026-05-19
+
+  // Group F — Web, search, content retrieval
   brave: "https://brave.com/privacy/",
   firecrawl: "https://www.firecrawl.dev/privacy-policy",
   webshare: "https://www.webshare.io/privacy-policy",
   googleMaps: "https://policies.google.com/privacy",
 
-  // Group F — Travel
+  // Group G — Travel
   serpapi: "https://serpapi.com/legal#privacy-policy", // embedded in legal page — verified 2026-04-14
   flightradar24: "https://www.flightradar24.com/terms-and-conditions",
 
-  // Group G — Events
+  // Group H — Events
   meetup: "https://www.meetup.com/privacy/",
   luma: "https://lu.ma/privacy",
   residentAdvisor: "https://ra.co/about/privacy",
 
-  // Group H — Health
+  // Group I — Health
   doctolib: "https://www.doctolib.de/terms/privacy",
   jameda: "https://www.jameda.de/datenschutz/",
 
-  // Group I — Shopping
+  // Group J — Shopping
   rewe: "https://www.rewe.de/datenschutz/",
   amazon: "https://www.amazon.com/privacy",
 
-  // Group J — Community
+  // Group K — Community
   discord: "https://discord.com/privacy",
 } as const;
 

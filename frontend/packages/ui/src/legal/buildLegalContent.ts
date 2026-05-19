@@ -61,7 +61,7 @@ export interface LegalContentOptions {
  * Build Privacy Policy content from translation keys.
  *
  * The structure mirrors shared/docs/privacy_policy.yml. Providers are grouped
- * by WHEN they are used (Group A-J), so a user can tell at a glance which
+ * by WHEN they are used (Group A-K), so a user can tell at a glance which
  * third parties they opt into by using a specific feature.
  *
  * Honest encryption posture: the server processes user content in memory
@@ -209,7 +209,7 @@ export function buildPrivacyPolicyContent(
   lines.push("");
 
   // ──────────────────────────────────────────────────────────────
-  // Section 4 — When each provider is used (Group A-J)
+  // Section 4 — When each provider is used (Group A-K)
   // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.providers.heading")}`);
   lines.push("");
@@ -260,7 +260,14 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.image_generation.fal", privacyPolicyLinks.fal);
   renderProvider("legal.privacy.providers.image_generation.recraft", privacyPolicyLinks.recraft);
 
-  // Group E — Web, search, content
+  // Group E — Code execution
+  lines.push(`### ${t("legal.privacy.providers.code_execution.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.code_execution.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.code_execution.e2b", privacyPolicyLinks.e2b);
+
+  // Group F — Web, search, content
   lines.push(`### ${t("legal.privacy.providers.web_and_search.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.web_and_search.description"));
