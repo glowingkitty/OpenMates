@@ -4138,6 +4138,91 @@ shopping.price_unavailable:
   sv: Pris ej tillgängligt
   he: מחיר לא זמין
   verified_by_human: [en, de]
+shopping.base_price:
+  context: Label for a product's base price, e.g. price per meter or unit
+  en: Base price
+  de: Grundpreis
+  verified_by_human: [en, de]
+shopping.unit:
+  context: Label for the sales unit of a product
+  en: Unit
+  de: Einheit
+  verified_by_human: [en, de]
+shopping.stock:
+  context: Label for product stock quantity
+  en: Stock
+  de: Bestand
+  verified_by_human: [en, de]
+shopping.colors:
+  context: Label for available color variants of a product
+  en: Colors
+  de: Farben
+  verified_by_human: [en, de]
+shopping.availability:
+  context: Label for product availability or delivery readiness
+  en: Availability
+  de: Verfügbarkeit
+  verified_by_human: [en, de]
+shopping.status:
+  context: Label for whether a product can be purchased
+  en: Status
+  de: Status
+  verified_by_human: [en, de]
+shopping.available:
+  context: Product status when it can be purchased
+  en: Available
+  de: Verfügbar
+  verified_by_human: [en, de]
+shopping.not_available:
+  context: Product status when it cannot be purchased
+  en: Not available
+  de: Nicht verfügbar
+  verified_by_human: [en, de]
+shopping.fabric_details:
+  context: Section title for fabric-specific product metadata
+  en: Fabric details
+  de: Stoffdetails
+  verified_by_human: [en, de]
+shopping.material:
+  context: Fabric material label
+  en: Material
+  de: Material
+  verified_by_human: [en, de]
+shopping.width:
+  context: Fabric width label
+  en: Width
+  de: Breite
+  verified_by_human: [en, de]
+shopping.weight:
+  context: Fabric weight label
+  en: Weight
+  de: Gewicht
+  verified_by_human: [en, de]
+shopping.motif:
+  context: Fabric motif or pattern label
+  en: Motif
+  de: Motiv
+  verified_by_human: [en, de]
+shopping.usage:
+  context: Fabric recommended usage label
+  en: Usage
+  de: Verwendung
+  verified_by_human: [en, de]
+shopping.composition:
+  context: Fabric composition label
+  en: Composition
+  de: Zusammensetzung
+  verified_by_human: [en, de]
+shopping.product_id:
+  context: Product identifier label
+  en: Product ID
+  de: Produkt-ID
+  verified_by_human: [en, de]
+shopping.variation_id:
+  context: Product variation identifier label
+  en: Variation ID
+  de: Varianten-ID
+  verified_by_human: [en, de]
 shopping.no_results:
   context: Message when no products were found
   en: No products found.
