@@ -219,15 +219,16 @@ async function assertNoJsonEmbedLeaks(page: any, messageIndex: number, log: any)
 }
 
 async function waitForCodeRunSuccess(fullscreenOverlay: any, expectedOutput: string, log: any) {
- const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
- await expect(terminal).toBeVisible({ timeout: 15000 });
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	await expect(terminal).toBeVisible({ timeout: 15000 });
 
  await expect(async () => {
   const text = (await terminal.textContent()) || '';
-  log(`Code Run terminal text: ${text.substring(0, 500)}`);
-  expect(text).toContain(expectedOutput);
-  expect(text).toMatch(/finished|Exited with code 0/i);
- }).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
+		log(`Code Run terminal text: ${text.substring(0, 500)}`);
+		expect(text).toContain(expectedOutput);
+		expect(text).toMatch(/finished|Exited with code 0/i);
+		expect(text).toMatch(/Charged 1 minute\(s\), 10 credits/i);
+	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
 }
 
 // ─── Test ─────────────────────────────────────────────────────────────────────
