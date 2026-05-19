@@ -231,6 +231,18 @@ async function waitForCodeRunSuccess(fullscreenOverlay: any, _expectedOutput: st
 	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
 }
 
+async function waitForCodeRunCancelled(fullscreenOverlay: any, log: any) {
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	await expect(terminal).toBeVisible({ timeout: 15000 });
+
+	await expect(async () => {
+		const text = (await terminal.textContent()) || '';
+		log(`Cancelled Code Run terminal text: ${text.substring(0, 500)}`);
+		expect(text).toMatch(/cancelled|Cancelled at/i);
+		expect(text).toMatch(/Charged .*5 credits/i);
+	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
+}
+
 async function assertCodeRunDidNotMutateSource(fullscreenOverlay: any, expectedOutput: string, log: any) {
 	const sourcePanel = fullscreenOverlay.getByTestId('code-source-panel');
 	await expect(sourcePanel).toBeVisible({ timeout: 10000 });
@@ -599,4 +611,81 @@ test('generated Python code embed can run in E2B sandbox', async ({ page }: { pa
  await deleteActiveChat(page, log, screenshot, 'cleanup');
 
  log(`Code Run E2B test completed successfully. Chat ${chatId} was created and deleted.`);
+});
+
+test('active Code Run can be stopped and shows cancelled billing summary', async ({ page }: { page: any }) => {
+	setupPageListeners(page);
+
+	test.slow();
+	test.setTimeout(240000);
+
+	const log = createSignupLogger('CODE_RUN_CANCEL');
+	const screenshot = createStepScreenshotter(log, {
+		filenamePrefix: 'code-run-cancel'
+	});
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await archiveExistingScreenshots(log);
+	log('Starting Code Run cancellation test.');
+
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	await screenshot(page, 'ready');
+
+	await sendMessage(
+		page,
+		withMockMarker(
+			'Write a Python script named code_run_cancel.py that prints "start", sleeps for 120 seconds, then prints "done". Show only the complete code block.',
+			'code_run_cancel'
+		),
+		log,
+		screenshot,
+		'code-run-cancel'
+	);
+
+	await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30000 });
+	const chatIdMatch = page.url().match(/chat-id=([0-9a-f-]+)/);
+	const chatId = chatIdMatch ? chatIdMatch[1] : 'unknown';
+	log(`Chat ID: ${chatId}`);
+
+	const assistantMessages = page.getByTestId('message-assistant');
+	await expect(assistantMessages.last()).toBeVisible({ timeout: 60000 });
+	const messageIndex = (await assistantMessages.count()) - 1;
+	await waitForCodeEmbedsInMessage(page, messageIndex, log);
+	await waitForStreamingComplete(page, log);
+
+	const codeEmbed = assistantMessages
+		.nth(messageIndex)
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
+		.filter({ hasText: 'code_run_cancel.py' })
+		.first();
+	const fullscreenOverlay = await openFullscreen(page, codeEmbed);
+	await screenshot(page, 'fullscreen-open');
+
+	const runButton = fullscreenOverlay.getByTestId('embed-run-button');
+	await expect(runButton).toBeVisible({ timeout: 10000 });
+	await runButton.click();
+
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	await expect(terminal).toBeVisible({ timeout: 15000 });
+	await expect(async () => {
+		const text = (await terminal.textContent()) || '';
+		log(`Waiting for long-running Code Run to start: ${text.substring(0, 300)}`);
+		expect(text).toContain('Running (code_run_cancel.py)');
+	}).toPass({ timeout: 180000, intervals: [1000, 2000, 5000] });
+
+	const stopButton = fullscreenOverlay.getByRole('button', { name: 'Stop' });
+	await expect(stopButton).toBeVisible({ timeout: 10000 });
+	await expect(stopButton).toBeEnabled({ timeout: 10000 });
+	await stopButton.click();
+	await screenshot(page, 'stop-clicked');
+
+	await waitForCodeRunCancelled(fullscreenOverlay, log);
+	await screenshot(page, 'run-cancelled');
+
+	await closeFullscreen(page, fullscreenOverlay);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+
+	log(`Code Run cancellation test completed successfully. Chat ${chatId} was created and deleted.`);
 });
