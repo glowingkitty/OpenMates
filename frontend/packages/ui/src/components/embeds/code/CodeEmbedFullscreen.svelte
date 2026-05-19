@@ -414,11 +414,27 @@
     return { text, status, files, savedAt, events };
   }
 
-  $effect(() => {
-    const embeddedOutput = readSavedRunOutput(dc);
-    if (embeddedOutput && savedRunOutput?.text !== embeddedOutput.text) {
-      savedRunOutput = embeddedOutput;
+  function codeRunOutputRef(embedIdValue: string): string {
+    return `code-run-output:${embedIdValue}`;
+  }
+
+  async function loadSavedRunOutput() {
+    if (!embedId) return;
+    try {
+      const sidecar = await embedStore.get(codeRunOutputRef(embedId));
+      if (!sidecar || typeof sidecar !== 'object') return;
+      const output = readSavedRunOutput(sidecar as Record<string, unknown>);
+      if (output && savedRunOutput?.text !== output.text) {
+        savedRunOutput = output;
+      }
+    } catch (error) {
+      console.warn('[CodeEmbedFullscreen] Failed to load saved code run output:', error);
     }
+  }
+
+  $effect(() => {
+    void embedId;
+    void loadSavedRunOutput();
   });
 
   function savedOutputToEvents(output: SavedCodeRunOutput): CodeRunEvent[] {
@@ -473,8 +489,7 @@
 
     persistedRunExecutionId = runExecutionId;
     const savedAt = Date.now();
-    const nextDecodedContent = {
-      ...dc,
+    const nextSavedRunOutput = {
       code_run_output: outputText,
       code_run_events: runDisplayEvents,
       code_run_status: runStatus,
@@ -483,19 +498,7 @@
     };
 
     try {
-      const { encode: toonEncode } = await import('@toon-format/toon');
-      const nextContent = toonEncode(nextDecodedContent);
-      const contentRef = `embed:${embedId}`;
-      const existing = await embedStore.get(contentRef);
-      const existingRecord = existing && typeof existing === 'object' ? existing as Record<string, unknown> : {};
-      await embedStore.put(contentRef, {
-        ...existingRecord,
-        embed_id: embedId,
-        type: existingRecord.type || data.embedData?.type || 'code-code',
-        status: 'finished',
-        content: nextContent,
-        updatedAt: savedAt,
-      }, 'code-code');
+      await embedStore.put(codeRunOutputRef(embedId), nextSavedRunOutput, 'code-run-output');
       savedRunOutput = {
         text: outputText,
         status: runStatus as CodeRunStatus['status'],
