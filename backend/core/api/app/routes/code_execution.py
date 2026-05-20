@@ -76,8 +76,13 @@ EXECUTABLE_LANGUAGES = {
 }
 DEPENDENCY_FILENAMES = {"requirements.txt", "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
 PYTHON_PACKAGE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9_,.-]+\])?(?:(?:==|~=|!=|<=|>=|<|>)[A-Za-z0-9.*+!_-]+)?$")
+NPM_PACKAGE_NAME_PATTERN = re.compile(r"^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$")
 NPM_PACKAGE_PATTERN = re.compile(r"^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$")
+NPM_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9.*^~<>=| &!_-]+$")
 INSTALL_SNIPPET_LANGUAGES = {"bash", "sh", "shell", "terminal", "console"}
+PACKAGE_JSON_DEPENDENCY_SECTIONS = ("dependencies", "devDependencies")
+PACKAGE_JSON_UNSUPPORTED_DEPENDENCY_SECTIONS = ("optionalDependencies", "peerDependencies", "bundleDependencies", "bundledDependencies")
+UNSAFE_DEPENDENCY_PREFIXES = ("http:", "https:", "git:", "git+", "file:", "link:", "workspace:", "npm:")
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
@@ -129,6 +134,7 @@ class CodeRunDependencyInstall(BaseModel):
 class CodeRunStartRequest(BaseModel):
     chat_id: str = Field(min_length=1)
     target_embed_id: str = Field(min_length=1)
+    enable_internet: bool = True
     client_files: list[CodeRunClientFile] = Field(default_factory=list, max_length=MAX_FILES)
     client_attachments: list[CodeRunClientAttachment] = Field(default_factory=list, max_length=MAX_FILES)
     selected_embed_ids: list[str] | None = Field(default=None, max_length=MAX_FILES)
@@ -285,6 +291,68 @@ def _parse_install_line(line: str) -> tuple[Literal["python", "npm"], list[str]]
     if not packages or any(part.startswith("-") or not pattern.match(part) for part in packages):
         return None
     return ecosystem, packages
+
+
+def _validate_python_requirements_manifest(content: str) -> None:
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        requirement = line.split(" #", 1)[0].strip()
+        lower = requirement.lower()
+        if (
+            not requirement
+            or requirement.startswith(("-", ".", "/"))
+            or "://" in requirement
+            or lower.startswith(("git+", "hg+", "svn+", "bzr+"))
+            or not PYTHON_PACKAGE_PATTERN.match(requirement)
+        ):
+            raise HTTPException(status_code=400, detail="requirements.txt contains unsupported dependency entries")
+
+
+def _is_safe_npm_version(value: str) -> bool:
+    version = value.strip()
+    lower = version.lower()
+    return (
+        bool(version)
+        and not lower.startswith(UNSAFE_DEPENDENCY_PREFIXES)
+        and "://" not in lower
+        and ".." not in version
+        and bool(NPM_VERSION_PATTERN.match(version))
+    )
+
+
+def _validate_package_json_manifest(content: str) -> None:
+    try:
+        package_json = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="package.json is not valid JSON") from exc
+    if not isinstance(package_json, dict):
+        raise HTTPException(status_code=400, detail="package.json must be an object")
+    if package_json.get("scripts"):
+        raise HTTPException(status_code=400, detail="package.json scripts are not supported in Code Run")
+    for section in PACKAGE_JSON_UNSUPPORTED_DEPENDENCY_SECTIONS:
+        if package_json.get(section):
+            raise HTTPException(status_code=400, detail=f"package.json {section} are not supported in Code Run")
+    for section in PACKAGE_JSON_DEPENDENCY_SECTIONS:
+        dependencies = package_json.get(section)
+        if dependencies is None:
+            continue
+        if not isinstance(dependencies, dict):
+            raise HTTPException(status_code=400, detail=f"package.json {section} must be an object")
+        for package_name, package_version in dependencies.items():
+            if not isinstance(package_name, str) or not NPM_PACKAGE_NAME_PATTERN.match(package_name):
+                raise HTTPException(status_code=400, detail="package.json contains unsupported package names")
+            if not isinstance(package_version, str) or not _is_safe_npm_version(package_version):
+                raise HTTPException(status_code=400, detail="package.json contains unsupported dependency versions")
+
+
+def _validate_dependency_manifest(path: str, content: str) -> None:
+    filename = path.rsplit("/", 1)[-1]
+    if filename == "requirements.txt":
+        _validate_python_requirements_manifest(content)
+    elif filename == "package.json":
+        _validate_package_json_manifest(content)
 
 
 def _dependency_installs_from_install_snippets(files: list[dict[str, Any]]) -> list[CodeRunDependencyInstall]:
@@ -479,6 +547,8 @@ def _append_code_file(
     is_executable = language in EXECUTABLE_LANGUAGES or PurePosixPath(path).suffix.lower() in EXECUTABLE_EXTENSIONS
     if not is_dependency and not is_executable and embed_id != target_embed_id:
         return total_chars, None
+    if is_dependency:
+        _validate_dependency_manifest(path, code)
 
     files.append({"path": path, "content": code, "language": language, "is_target": embed_id == target_embed_id})
     return total_chars, path if embed_id == target_embed_id else None
@@ -748,6 +818,7 @@ async def start_code_run(
         "message_id": target_message_id if isinstance(target_message_id, str) else None,
         "target_embed_id": body.target_embed_id,
         "target_path": target_path,
+        "enable_internet": body.enable_internet,
         "files": files,
         "dependency_installs": [install.model_dump() for install in dependency_installs],
         "active_run_key": active_key,

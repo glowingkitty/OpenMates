@@ -222,6 +222,7 @@ def run_code_in_e2b(
     api_key: str,
     dependency_installs: list[CodeRunDependencyInstall] | None = None,
     should_cancel: CancelCallback | None = None,
+    enable_internet: bool = True,
 ) -> CodeRunResult:
     """Run one target file in an E2B sandbox and stream sanitized output."""
     try:
@@ -255,7 +256,11 @@ def run_code_in_e2b(
 
     try:
         _emit(on_output, "status", "Starting sandbox...\n")
-        sandbox = Sandbox.create(api_key=api_key)
+        sandbox = Sandbox.create(
+            api_key=api_key,
+            allow_internet_access=enable_internet,
+            network={"allow_public_traffic": False},
+        )
         sandbox_id = getattr(sandbox, "sandbox_id", None) or getattr(sandbox, "id", None)
         if should_cancel and should_cancel():
             raise CodeRunCancelled("Code run cancelled by user")

@@ -24,6 +24,7 @@ from backend.shared.providers.e2b_code_runner import (
     CodeRunDependencyInstall,
     CodeRunFile,
     get_e2b_api_key_async,
+    redact_execution_output,
     run_code_in_e2b,
 )
 
@@ -235,7 +236,15 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             for item in payload.get("dependency_installs", [])
             if isinstance(item, dict) and isinstance(item.get("packages"), list)
         ]
-        result = run_code_in_e2b(files, payload["target_path"], on_output, api_key, dependency_installs, should_cancel)
+        result = run_code_in_e2b(
+            files,
+            payload["target_path"],
+            on_output,
+            api_key,
+            dependency_installs,
+            should_cancel,
+            bool(payload.get("enable_internet", True)),
+        )
         duration = result.duration_seconds
         status = "finished" if result.exit_code in (None, 0) else "failed"
         charged_minutes = max(1, math.ceil(duration / 60))
@@ -263,15 +272,16 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
     except CodeRunCancelled:
         finalize_cancelled()
     except Exception as exc:
-        logger.error("Code Run execution %s failed: %s", execution_id, exc, exc_info=True)
+        safe_error = redact_execution_output(str(exc))
+        logger.error("Code Run execution %s failed: %s", execution_id, safe_error, exc_info=True)
         if billable_started_at and not billing_state["charged_credits"]:
             charge_run(time.time() - billable_started_at, "failed")
-        run_async(_append_output(execution_id, "stderr", f"Run failed: {exc}\n"))
+        run_async(_append_output(execution_id, "stderr", f"Run failed: {safe_error}\n"))
         run_async(_store_execution(
             execution_id,
             {
                 "status": "failed",
-                "error": str(exc),
+                "error": safe_error,
                 "duration_seconds": time.time() - started_at,
                 "finished_at": time.time(),
             },

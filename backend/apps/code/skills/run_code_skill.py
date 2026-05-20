@@ -15,6 +15,7 @@ from backend.apps.base_skill import BaseSkill
 class RunCodeRequest(BaseModel):
     chat_id: str = Field(description="Chat ID containing the code embeds to run.")
     target_embed_id: str = Field(description="Code embed ID to execute as the entrypoint.")
+    enable_internet: bool = Field(default=True, description="Allow outbound internet access from the E2B sandbox.")
 
 
 class RunCodeResponse(BaseModel):

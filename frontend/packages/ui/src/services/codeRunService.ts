@@ -77,7 +77,8 @@ export async function startCodeRun(
   clientFiles: CodeRunClientFile[] = [],
   clientAttachments: CodeRunClientAttachment[] = [],
   selectedEmbedIds?: string[],
-  dependencyInstalls: CodeRunDependencyInstall[] = []
+  dependencyInstalls: CodeRunDependencyInstall[] = [],
+  enableInternet = true,
 ): Promise<CodeRunStartResponse> {
   const response = await fetch(`${getApiUrl()}/v1/code/run`, {
     method: 'POST',
@@ -86,6 +87,7 @@ export async function startCodeRun(
     body: JSON.stringify({
       chat_id: chatId,
       target_embed_id: targetEmbedId,
+      enable_internet: enableInternet,
       client_files: clientFiles,
       client_attachments: clientAttachments,
       ...(selectedEmbedIds ? { selected_embed_ids: selectedEmbedIds } : {}),

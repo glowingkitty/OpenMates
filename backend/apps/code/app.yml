@@ -391,13 +391,13 @@ skills:
       Run the currently selected code embed in an isolated E2B sandbox from the
       web app. The sandbox receives code files from the current chat, installs
       supported dependency manifests, and executes the selected file. Pricing is
-      10 credits per started minute of sandbox runtime.
+      5 credits per started minute of sandbox runtime.
     stage: production
     class_path: backend.apps.code.skills.run_code_skill.RunCodeSkill
     providers:
       - name: E2B
     pricing:
-      per_minute: 10
+      per_minute: 5
     api_config:
       expose_post: false
     tool_schema:
@@ -409,6 +409,10 @@ skills:
         target_embed_id:
           type: string
           description: Code embed ID to execute as the entrypoint.
+        enable_internet:
+          type: boolean
+          default: true
+          description: Allow outbound internet access from the E2B sandbox.
       required:
         - chat_id
         - target_embed_id

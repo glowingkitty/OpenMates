@@ -119,8 +119,8 @@ run.hide_files:
 
 run.select_files:
   context: Code Run file selection panel title
-  en: Select files to include
-  de: Dateien zum Einschließen auswählen
+  en: "Select files to upload & process in E2B sandbox:"
+  de: "Dateien zum Hochladen und Verarbeiten in der E2B-Sandbox auswählen:"
   verified_by_human: [en, de]
 
 run.select_files_description:

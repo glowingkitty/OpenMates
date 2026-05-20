@@ -28,6 +28,7 @@ from backend.core.api.app.routes.code_execution import (
     _dependency_installs_from_install_snippets,
     _execution_key,
     _merge_dependency_installs,
+    _validate_dependency_manifest,
     cancel_code_run,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.code_run_output_handlers import (
@@ -184,7 +185,7 @@ async def test_collect_code_files_uses_vault_encrypted_recent_cache() -> None:
 
 @pytest.mark.anyio
 async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload() -> None:
-    cache = FakeCache([], {})
+    cache = FakeCache([TARGET_EMBED_ID], {})
     manager = FakeManager()
 
     await _impl_upsert(
@@ -215,12 +216,66 @@ async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload()
     )
 
     client = await cache.client
-    cached = json.loads((await client.get(code_run_output_cache_key(TARGET_EMBED_ID))).decode())
+    cached = json.loads((await client.get(code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID))).decode())
     decrypted = await FakeEncryption().decrypt_with_user_key(cached["encrypted_content"], "vault-key")
 
     assert "type: code_run_output" in decrypted
     assert "hello from code" in decrypted
     assert manager.broadcasts[0]["type"] == "code_run_output_synced"
+
+
+@pytest.mark.anyio
+async def test_code_run_output_upsert_rejects_unknown_embed() -> None:
+    cache = FakeCache([], {})
+    manager = FakeManager()
+
+    await _impl_upsert(
+        manager,
+        cache,
+        FakeCodeRunDirectus({}),
+        FakeEncryption(),
+        USER_ID,
+        "vault-key",
+        "device-1",
+        {
+            "chat_id": CHAT_ID,
+            "embed_id": TARGET_EMBED_ID,
+            "id": "output-1",
+            "encrypted_payload": "client-ciphertext",
+            "created_at": 120,
+            "updated_at": 123,
+        },
+    )
+
+    assert manager.broadcasts == []
+    assert manager.personal_messages[0]["payload"]["message"] == "Code Run output does not belong to this chat."
+
+
+@pytest.mark.anyio
+async def test_code_run_output_upsert_rejects_unowned_chat() -> None:
+    cache = FakeCache([TARGET_EMBED_ID], {})
+    manager = FakeManager()
+
+    await _impl_upsert(
+        manager,
+        cache,
+        FakeCodeRunDirectus({}),
+        FakeEncryption(),
+        USER_ID,
+        "vault-key",
+        "device-1",
+        {
+            "chat_id": "missing-chat",
+            "embed_id": TARGET_EMBED_ID,
+            "id": "output-1",
+            "encrypted_payload": "client-ciphertext",
+            "created_at": 120,
+            "updated_at": 123,
+        },
+    )
+
+    assert manager.broadcasts == []
+    assert manager.personal_messages[0]["payload"]["message"] == "You do not have permission to sync this Code Run output."
 
 
 @pytest.mark.anyio
@@ -230,7 +285,7 @@ async def test_resolve_code_embed_references_appends_cached_code_run_output() ->
     cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
     client = await cache.client
     await client.set(
-        code_run_output_cache_key(TARGET_EMBED_ID),
+        code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID),
         json.dumps({"encrypted_content": f"vault:{output_toon}", "chat_id": CHAT_ID, "embed_id": TARGET_EMBED_ID}),
     )
     service = EmbedService(cache, FakeDirectus({}), FakeEncryption())
@@ -348,6 +403,31 @@ def test_code_run_cost_is_five_credits_per_minute() -> None:
 def test_dependency_install_request_rejects_shell_values() -> None:
     with pytest.raises(ValueError):
         ApiCodeRunDependencyInstall(ecosystem="python", packages=["requests;curl"])
+
+
+def test_requirements_manifest_rejects_external_urls() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_dependency_manifest("requirements.txt", "requests\nhttps://example.com/pkg.tar.gz\n")
+
+    assert exc_info.value.status_code == 400
+
+
+def test_package_json_manifest_rejects_scripts_and_file_deps() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_dependency_manifest(
+            "package.json",
+            json.dumps({"scripts": {"postinstall": "curl example.com"}, "dependencies": {"left-pad": "^1.3.0"}}),
+        )
+    assert exc_info.value.status_code == 400
+
+    with pytest.raises(HTTPException) as file_dep_exc:
+        _validate_dependency_manifest("package.json", json.dumps({"dependencies": {"left-pad": "file:../left-pad"}}))
+    assert file_dep_exc.value.status_code == 400
+
+
+def test_dependency_manifests_accept_plain_registry_packages() -> None:
+    _validate_dependency_manifest("requirements.txt", "requests==2.32.0\npandas>=2.2\n")
+    _validate_dependency_manifest("package.json", json.dumps({"dependencies": {"@sveltejs/kit": "^2.0.0", "vite": "latest"}}))
 
 
 def test_dependency_installs_from_selected_install_snippets() -> None:

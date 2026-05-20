@@ -9,6 +9,7 @@ The encrypted_payload is client-side encrypted with the embed key. The server is
 blind to terminal output and only enforces chat ownership plus author updates.
 """
 
+import hashlib
 import json
 import logging
 from typing import Any, Dict
@@ -31,8 +32,8 @@ CODE_RUN_OUTPUT_TRUNCATED_HEAD_CHARS = 12000
 CODE_RUN_OUTPUT_TRUNCATED_TAIL_CHARS = 12000
 
 
-def code_run_output_cache_key(embed_id: str) -> str:
-    return f"code_run_output:{embed_id}"
+def code_run_output_cache_key(user_id_hash: str, chat_id_hash: str, embed_id: str) -> str:
+    return f"code_run_output:{user_id_hash}:{chat_id_hash}:{embed_id}"
 
 
 def _compact_output_for_inference(output: str) -> tuple[str, bool]:
@@ -76,6 +77,7 @@ async def _cache_output_for_inference(
     user_vault_key_id: str | None,
     chat_id: str,
     embed_id: str,
+    user_id: str,
     payload: Dict[str, Any],
 ) -> None:
     if not user_vault_key_id:
@@ -97,7 +99,11 @@ async def _cache_output_for_inference(
         return
 
     await client.set(
-        code_run_output_cache_key(embed_id),
+        code_run_output_cache_key(
+            hashlib.sha256(user_id.encode()).hexdigest(),
+            hashlib.sha256(chat_id.encode()).hexdigest(),
+            embed_id,
+        ),
         json.dumps({
             "chat_id": chat_id,
             "embed_id": embed_id,
@@ -118,12 +124,44 @@ async def _verify_chat_accessible(
         is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
         if is_owner:
             return True
-        metadata = await directus_service.chat.get_chat_metadata(chat_id)
-        return metadata is None
+        return False
     except Exception as exc:  # pragma: no cover - defensive
         logger.error(
             "[code_run_outputs] ownership check failed chat=%s user=%s err=%s",
             chat_id,
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        return False
+
+
+async def _verify_embed_in_chat(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    chat_id: str,
+    embed_id: str,
+    user_id: str,
+) -> bool:
+    try:
+        chat_embed_ids = await cache_service.get_chat_embed_ids(chat_id)
+        if embed_id in chat_embed_ids:
+            return True
+
+        metadata = await directus_service.embed.get_embed_by_id(embed_id)
+        if not isinstance(metadata, dict):
+            return False
+        expected_user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        expected_chat_hash = hashlib.sha256(chat_id.encode()).hexdigest()
+        return (
+            metadata.get("hashed_user_id") == expected_user_hash
+            and metadata.get("hashed_chat_id") == expected_chat_hash
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error(
+            "[code_run_outputs] embed/chat check failed chat=%s embed=%s user=%s err=%s",
+            chat_id,
+            embed_id,
             user_id,
             exc,
             exc_info=True,
@@ -247,6 +285,14 @@ async def _impl_upsert(
         )
         return
 
+    if not await _verify_embed_in_chat(cache_service, directus_service, chat_id, embed_id, user_id):
+        await manager.send_personal_message(
+            message={"type": "error", "payload": {"message": "Code Run output does not belong to this chat."}},
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+        )
+        return
+
     existing = await _load_existing_output(directus_service, chat_id, embed_id, user_id)
     output_id = existing.get("id") or payload.get("id") or str(uuid4())
     row = {
@@ -289,6 +335,7 @@ async def _impl_upsert(
             user_vault_key_id=user_vault_key_id,
             chat_id=chat_id,
             embed_id=embed_id,
+            user_id=user_id,
             payload=payload,
         )
     except Exception as exc:
@@ -321,6 +368,8 @@ async def handle_request_code_run_output(
         if not chat_id or not embed_id:
             return
         if not await _verify_chat_accessible(directus_service, chat_id, user_id):
+            return
+        if not await _verify_embed_in_chat(cache_service, directus_service, chat_id, embed_id, user_id):
             return
         row = await _load_existing_output(directus_service, chat_id, embed_id, user_id)
         if row:

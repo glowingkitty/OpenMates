@@ -1878,7 +1878,16 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Redis client not available")
                 return None
 
-            cached_json = await client.get(f"code_run_output:{embed_id}")
+            metadata = await self.cache_service.get_embed_from_cache(embed_id)
+            if not metadata:
+                metadata = await self.directus_service.embed.get_embed_by_id(embed_id)
+            user_id_hash = metadata.get("hashed_user_id") if isinstance(metadata, dict) else None
+            chat_id_hash = metadata.get("hashed_chat_id") if isinstance(metadata, dict) else None
+            if not isinstance(user_id_hash, str) or not isinstance(chat_id_hash, str):
+                logger.debug(f"{log_prefix} Code Run output cache skipped for unscoped embed {embed_id}")
+                return None
+
+            cached_json = await client.get(f"code_run_output:{user_id_hash}:{chat_id_hash}:{embed_id}")
             if not cached_json:
                 return None
 
