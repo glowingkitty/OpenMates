@@ -43,7 +43,7 @@
     "@toon-format/toon": "2.1.0",
     "ahocorasick": "1.0.2",
     "qrcode-terminal": "^0.12.0",
-    "ws": "^8.18.3"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@types/node": "^24.5.0",
