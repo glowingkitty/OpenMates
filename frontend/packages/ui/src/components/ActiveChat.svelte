@@ -68,6 +68,7 @@
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
+    import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
@@ -2738,7 +2739,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const messages = await chatDB.getMessagesForChat(chatId);
             const candidates: ImageSearchCandidate[] = [];
             for (const message of messages) {
-                collectResumeCardImageCandidates(message.content as TiptapNode | undefined, candidates);
+                const content = typeof message.content === 'string'
+                    ? preprocessTiptapJsonForEmbeds(parse_message(message.content, 'read', {
+                        unifiedParsingEnabled: true,
+                        role: message.role,
+                    }))
+                    : message.content;
+                collectResumeCardImageCandidates(content as TiptapNode | undefined, candidates);
             }
             if (candidates.length === 0) return null;
 
