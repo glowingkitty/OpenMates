@@ -566,10 +566,6 @@ def _sum_optional(values: list[float | None]) -> float | None:
     return sum(present)
 
 
-def _has_any_optional(values: list[float | None]) -> bool:
-    return any(value is not None for value in values)
-
-
 def _line_path(values: list[float], x: float, y: float, width: float, height: float) -> str:
     points = _line_points(values, x, y, width, height)
     if not points:
@@ -1122,13 +1118,12 @@ def generate_daily_metric_svgs(
     previous_revenue_values = revenue_values(previous_day_labels, "revenue_eur")
     current_purchase_values = revenue_values(day_labels, "transactions")
     previous_purchase_values = revenue_values(previous_day_labels, "transactions")
-    authoritative_daily_revenue = _has_any_optional(current_revenue_values + previous_revenue_values)
 
     daily_development_metrics = [
         {
             "label": "Revenue",
-            "current": _sum_optional(current_revenue_values) if authoritative_daily_revenue else current_trend_total(trend_by_day, "income_eur"),
-            "previous": _sum_optional(previous_revenue_values) if authoritative_daily_revenue else previous_trend_total(trend_by_day, "income_eur"),
+            "current": _sum_optional(current_revenue_values),
+            "previous": _sum_optional(previous_revenue_values),
             "formatter": "eur",
         },
         {
@@ -1138,8 +1133,8 @@ def generate_daily_metric_svgs(
         },
         {
             "label": "New purchases",
-            "current": _sum_optional(current_purchase_values) if authoritative_daily_revenue else current_trend_total(trend_by_day, "purchases"),
-            "previous": _sum_optional(previous_purchase_values) if authoritative_daily_revenue else previous_trend_total(trend_by_day, "purchases"),
+            "current": _sum_optional(current_purchase_values),
+            "previous": _sum_optional(previous_purchase_values),
         },
         {
             "label": "New chats",
@@ -1285,7 +1280,7 @@ def load_or_refresh_server_stats(
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if not _server_stats_payload_has_daily_metric_schema(payload):
-        return payload, "production stats endpoint is missing daily metric fields; using legacy app-tracked fallback where possible"
+        return payload, "production stats endpoint is missing daily Stripe/bank and usage fields; unavailable metric blocks show '-'"
     return payload, None
 
 
