@@ -43,10 +43,31 @@
   // (e.g. cross-device sync hasn't finished decrypting/registering refs).
   let retryCount = 0;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let deepResolvedEmbedId = $state<string | null>(null);
 
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
-    return embedId || embedStore.resolveByRef(embedRef) || null;
+    return embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null;
+  });
+
+  $effect(() => {
+    void $embedRefIndexVersion;
+    const syncResolved = embedId || embedStore.resolveByRef(embedRef);
+    if (syncResolved) {
+      deepResolvedEmbedId = syncResolved;
+      return;
+    }
+
+    let cancelled = false;
+    embedStore.resolveByRefDeep(embedRef).then((repairedEmbedId) => {
+      if (!cancelled && repairedEmbedId) {
+        deepResolvedEmbedId = repairedEmbedId;
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   /**

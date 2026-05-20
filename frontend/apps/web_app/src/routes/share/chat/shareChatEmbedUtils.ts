@@ -10,16 +10,25 @@ export type ShareChatEmbedLike = {
   parent_embed_id?: string;
 };
 
+export function normalizeEmbedIds(rawIds: unknown): string[] {
+  const ids = typeof rawIds === 'string' ? rawIds.split('|') : rawIds;
+  if (!Array.isArray(ids)) return [];
+
+  return ids
+    .filter((id): id is string => typeof id === 'string')
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+}
+
 export function deriveParentByChildEmbeds(embeds: ShareChatEmbedLike[]): Map<string, string> {
   const derivedParentByChild = new Map<string, string>();
 
   for (const embed of embeds) {
     const parentId = embed?.embed_id;
-    const childIds = embed?.embed_ids;
-    if (!parentId || !Array.isArray(childIds)) continue;
+    const childIds = normalizeEmbedIds(embed?.embed_ids);
+    if (!parentId || childIds.length === 0) continue;
 
     for (const childId of childIds) {
-      if (typeof childId !== 'string' || childId.length === 0) continue;
       if (!derivedParentByChild.has(childId)) {
         derivedParentByChild.set(childId, parentId);
       }

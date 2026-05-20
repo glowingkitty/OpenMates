@@ -55,6 +55,7 @@ interface EmbedRefEntry {
 const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
+const MAX_REF_REPAIR_CANDIDATES = 200;
 const DIRECT_EMBED_REF_ID_PREFIX_RE = /^[0-9a-f]{6}$/i;
 
 const FILE_SEARCH_RESULT_LIMIT = 6;
@@ -503,6 +504,26 @@ export class EmbedStore {
     );
   }
 
+  private collectAllRefRepairCandidatesFromEntries(
+    entries: EmbedStoreEntry[],
+  ): string[] {
+    const candidates = new Set<string>();
+    for (const entry of entries) {
+      if (entry.status === "error" || entry.status === "cancelled") continue;
+
+      const embedId = this.getEntryEmbedId(entry);
+      if (embedId) candidates.add(embedId);
+      if (candidates.size >= MAX_REF_REPAIR_CANDIDATES) break;
+    }
+    return Array.from(candidates);
+  }
+
+  private collectAllRefRepairCandidatesFromCache(): string[] {
+    return this.collectAllRefRepairCandidatesFromEntries(
+      Array.from(embedCache.values()),
+    );
+  }
+
   private async collectDirectRefCandidatesFromIndexedDb(
     embedIdPrefix: string,
   ): Promise<string[]> {
@@ -525,6 +546,32 @@ export class EmbedStore {
     } catch (error) {
       console.debug(
         "[EmbedStore] Failed to scan IndexedDB for direct embed_ref lookup:",
+        error,
+      );
+      return [];
+    }
+  }
+
+  private async collectAllRefRepairCandidatesFromIndexedDb(): Promise<string[]> {
+    try {
+      const transaction = await chatDB.getTransaction(
+        [EMBEDS_STORE_NAME],
+        "readonly",
+      );
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      const allEntries = await new Promise<EmbedStoreEntry[]>(
+        (resolve, reject) => {
+          const request = store.getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        },
+      );
+
+      return this.collectAllRefRepairCandidatesFromEntries(allEntries);
+    } catch (error) {
+      console.debug(
+        "[EmbedStore] Failed to scan IndexedDB for broad embed_ref repair:",
         error,
       );
       return [];
@@ -2914,14 +2961,16 @@ export class EmbedStore {
     if (indexedEmbedId) return indexedEmbedId;
 
     const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
-    if (!embedIdPrefix) return null;
 
     const candidates = new Set<string>(
-      this.collectDirectRefCandidatesFromCache(embedIdPrefix),
+      embedIdPrefix
+        ? this.collectDirectRefCandidatesFromCache(embedIdPrefix)
+        : this.collectAllRefRepairCandidatesFromCache(),
     );
-    for (const embedId of await this.collectDirectRefCandidatesFromIndexedDb(
-      embedIdPrefix,
-    )) {
+    const idbCandidates = embedIdPrefix
+      ? await this.collectDirectRefCandidatesFromIndexedDb(embedIdPrefix)
+      : await this.collectAllRefRepairCandidatesFromIndexedDb();
+    for (const embedId of idbCandidates) {
       candidates.add(embedId);
     }
 

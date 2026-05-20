@@ -32,7 +32,7 @@
 	} from '@repo/ui';
 	import { goto } from '$app/navigation';
 	import { getApiEndpoint } from '@repo/ui';
-	import { deriveParentByChildEmbeds, type ShareChatEmbedLike } from '../shareChatEmbedUtils';
+	import { deriveParentByChildEmbeds, normalizeEmbedIds, type ShareChatEmbedLike } from '../shareChatEmbedUtils';
 
 	// CRITICAL: Configure shared chat mode IMMEDIATELY on script load (before any other code runs)
 	// This prevents chatDB.init() from blocking during shared chat access.
@@ -317,6 +317,44 @@
 		}
 	}
 
+	async function validateSharedEmbedRefs(
+		chatId: string,
+		messages: Message[],
+		keyBytes: Uint8Array
+	): Promise<void> {
+		const { decryptWithChatKey, embedStore } = await import('@repo/ui');
+		const refs = new Set<string>();
+
+		for (const message of messages) {
+			if (!message.encrypted_content) continue;
+			const plaintext = await decryptWithChatKey(message.encrypted_content, keyBytes, {
+				chatId,
+				fieldName: 'shared_chat_embed_ref_validation'
+			});
+			if (!plaintext) continue;
+
+			for (const match of plaintext.matchAll(/embed:([A-Za-z0-9._-]+)/g)) {
+				refs.add(match[1]);
+			}
+		}
+
+		if (refs.size === 0) return;
+
+		const unresolved: string[] = [];
+		for (const ref of refs) {
+			const resolved = embedStore.resolveByRef(ref) || await embedStore.resolveByRefDeep(ref);
+			if (!resolved) unresolved.push(ref);
+		}
+
+		if (unresolved.length > 0) {
+			console.warn('[ShareChat] Unresolved embed refs after cold-load hydration:', {
+				chatId,
+				unresolved,
+				totalRefs: refs.size
+			});
+		}
+	}
+
 	/**
 	 * Load and decrypt the shared chat
 	 */
@@ -597,11 +635,11 @@
 				// "Loading preview..." stuck state in EmbedReferencePreview / EmbedPreviewLarge.
 				const parentEmbeds = fetchedEmbeds.filter(
 					(e: ShareChatEmbedLike) =>
-						Array.isArray(e.embed_ids) && (e.embed_ids as unknown[]).length > 0
+						normalizeEmbedIds(e.embed_ids).length > 0
 				);
 				const childEmbeds = fetchedEmbeds.filter(
 					(e: ShareChatEmbedLike) =>
-						!Array.isArray(e.embed_ids) || (e.embed_ids as unknown[]).length === 0
+						normalizeEmbedIds(e.embed_ids).length === 0
 				);
 				const sortedEmbeds = [...parentEmbeds, ...childEmbeds];
 
@@ -619,7 +657,7 @@
 								status: embed.status || 'finished',
 								hashed_chat_id: embed.hashed_chat_id,
 								hashed_user_id: embed.hashed_user_id,
-								embed_ids: Array.isArray(embed.embed_ids) ? embed.embed_ids : undefined,
+								embed_ids: normalizeEmbedIds(embed.embed_ids),
 								parent_embed_id: embed.parent_embed_id || (embed.embed_id ? derivedParentByChild.get(embed.embed_id) : undefined)
 							},
 							embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use'
@@ -640,6 +678,8 @@
 				}
 				console.debug(`[ShareChat] Stored ${fetchedCodeRunOutputs.length} code run outputs`);
 			}
+
+			await validateSharedEmbedRefs(chatId, fetchedMessages, keyBytes);
 
 			// NOTE: Shared chat keys are now persisted in IndexedDB via sharedChatKeyStorage
 			// This allows unauthenticated users to reload the tab and still access the chat.
