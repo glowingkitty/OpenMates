@@ -4,7 +4,7 @@
 
 import math
 import logging
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,10 @@ def calculate_credits_from_duration(
     """
     credits = 0.0
     duration_pricing = pricing_details.get("per_minute")
-    if duration_pricing and duration_pricing.get("credits") is not None:
+    if isinstance(duration_pricing, (int, float)) and not isinstance(duration_pricing, bool):
+        credits_per_minute = duration_pricing
+        credits += duration_minutes * credits_per_minute
+    elif duration_pricing and duration_pricing.get("credits") is not None:
         credits_per_minute = duration_pricing.get("credits", 0)
         credits += duration_minutes * credits_per_minute
     return credits
@@ -123,6 +126,8 @@ def calculate_fixed_credits(
     Returns fixed credits if defined.
     """
     fixed_pricing = pricing_details.get("fixed")
+    if isinstance(fixed_pricing, (int, float)) and not isinstance(fixed_pricing, bool):
+        return float(fixed_pricing)
     if fixed_pricing and fixed_pricing.get("credits") is not None:
         return float(fixed_pricing.get("credits", 0))
     return 0.0
