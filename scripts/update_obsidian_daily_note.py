@@ -566,6 +566,10 @@ def _sum_optional(values: list[float | None]) -> float | None:
     return sum(present)
 
 
+def _has_any_optional(values: list[float | None]) -> bool:
+    return any(value is not None for value in values)
+
+
 def _line_path(values: list[float], x: float, y: float, width: float, height: float) -> str:
     points = _line_points(values, x, y, width, height)
     if not points:
@@ -1042,9 +1046,10 @@ def generate_daily_metric_svgs(
         month_labels,
         ("stripe", "bank", "transactions"),
     )
+    daily_revenue_items = _daily_revenue(stripe_daily, bank_daily)
     daily_revenue_by_day = {
         str(day.get("date") or ""): day
-        for day in _daily_revenue(stripe_daily, bank_daily)
+        for day in daily_revenue_items
         if day.get("date")
     }
     user_history = _align_month_items(
@@ -1102,7 +1107,7 @@ def generate_daily_metric_svgs(
         return values
 
     def revenue_values(labels: list[str], key: str) -> list[float | None]:
-        if not stripe_daily and not bank_daily:
+        if not daily_revenue_items:
             return [None for _ in labels]
         values = []
         for label in labels:
@@ -1113,11 +1118,17 @@ def generate_daily_metric_svgs(
                 values.append(float(_safe_int(day.get(key))))
         return values
 
+    current_revenue_values = revenue_values(day_labels, "revenue_eur")
+    previous_revenue_values = revenue_values(previous_day_labels, "revenue_eur")
+    current_purchase_values = revenue_values(day_labels, "transactions")
+    previous_purchase_values = revenue_values(previous_day_labels, "transactions")
+    authoritative_daily_revenue = _has_any_optional(current_revenue_values + previous_revenue_values)
+
     daily_development_metrics = [
         {
             "label": "Revenue",
-            "current": _sum_optional(revenue_values(day_labels, "revenue_eur")),
-            "previous": _sum_optional(revenue_values(previous_day_labels, "revenue_eur")),
+            "current": _sum_optional(current_revenue_values) if authoritative_daily_revenue else current_trend_total(trend_by_day, "income_eur"),
+            "previous": _sum_optional(previous_revenue_values) if authoritative_daily_revenue else previous_trend_total(trend_by_day, "income_eur"),
             "formatter": "eur",
         },
         {
@@ -1127,8 +1138,8 @@ def generate_daily_metric_svgs(
         },
         {
             "label": "New purchases",
-            "current": _sum_optional(revenue_values(day_labels, "transactions")),
-            "previous": _sum_optional(revenue_values(previous_day_labels, "transactions")),
+            "current": _sum_optional(current_purchase_values) if authoritative_daily_revenue else current_trend_total(trend_by_day, "purchases"),
+            "previous": _sum_optional(previous_purchase_values) if authoritative_daily_revenue else previous_trend_total(trend_by_day, "purchases"),
         },
         {
             "label": "New chats",
@@ -1199,6 +1210,30 @@ def _server_stats_cache_is_fresh(cache_path: Path) -> bool:
     return age_seconds < SERVER_STATS_CACHE_MAX_AGE_SECONDS
 
 
+def _server_stats_payload_has_daily_metric_schema(payload: dict[str, object]) -> bool:
+    raw_data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    if not isinstance(raw_data, dict):
+        return False
+    sections = raw_data.get("sections")
+    if not isinstance(sections, dict):
+        return False
+
+    stripe = sections.get("stripe_revenue")
+    bank = sections.get("bank_transfer_revenue")
+    revenue = sections.get("revenue")
+    trend = revenue.get("trend_14d") if isinstance(revenue, dict) else None
+    first_trend = next((item for item in trend if isinstance(item, dict)), None) if isinstance(trend, list) else None
+    return (
+        isinstance(stripe, dict)
+        and isinstance(stripe.get("daily"), list)
+        and isinstance(bank, dict)
+        and isinstance(bank.get("daily"), list)
+        and isinstance(first_trend, dict)
+        and "new_registrations" in first_trend
+        and "usage_entries_created" in first_trend
+    )
+
+
 def _fetch_production_server_stats(git_repo: Path) -> dict[str, object]:
     result = subprocess.run(
         [
@@ -1230,14 +1265,16 @@ def load_or_refresh_server_stats(
 ) -> tuple[dict[str, object] | None, str | None]:
     cache_path = vault / SERVER_STATS_CACHE_DIR / "production-latest.json"
     cached = _read_server_stats_cache(cache_path)
-    if cached and _server_stats_cache_is_fresh(cache_path):
+    cached_has_daily_metric_schema = bool(cached and _server_stats_payload_has_daily_metric_schema(cached))
+    if cached and cached_has_daily_metric_schema and _server_stats_cache_is_fresh(cache_path):
         return cached, None
 
     try:
         data = _fetch_production_server_stats(git_repo)
     except Exception as exc:
         if cached:
-            return cached, f"using stale cached stats because refresh failed: {exc}"
+            schema_warning = " cached stats are missing daily metric fields;" if not cached_has_daily_metric_schema else ""
+            return cached, f"using stale cached stats because refresh failed:{schema_warning} {exc}"
         return None, f"server stats unavailable: {exc}"
 
     payload = {
@@ -1247,6 +1284,8 @@ def load_or_refresh_server_stats(
     if not dry_run:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if not _server_stats_payload_has_daily_metric_schema(payload):
+        return payload, "production stats endpoint is missing daily metric fields; using legacy app-tracked fallback where possible"
     return payload, None
 
 
