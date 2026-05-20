@@ -5,7 +5,7 @@
   import ChatMessage from "./ChatMessage.svelte";
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import { fade } from "svelte/transition";
-  import type { MessageStatus, ProcessingPhase } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
+  import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
@@ -59,6 +59,7 @@
   import { introBannerVisible } from '../stores/uiStateStore';
   import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
+  import { chatDB } from '../services/db';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -332,6 +333,26 @@
     }
 
     return bubbles;
+  }
+
+  async function persistResumeCardImageBubbles(bubbles: ResumeCardImageBubble[] | null): Promise<void> {
+    if (!currentChatId || isIncognito || isPublicChat(currentChatId)) return;
+
+    try {
+      const chat = await chatDB.getChat(currentChatId);
+      if (!chat) return;
+
+      const nextBubbles = bubbles?.slice(0, 2) ?? null;
+      const current = chat.resume_card_image_bubbles ?? null;
+      if (JSON.stringify(current) === JSON.stringify(nextBubbles)) return;
+
+      await chatDB.updateChat({
+        ...chat,
+        resume_card_image_bubbles: nextBubbles,
+      });
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to persist resume card image bubbles:', error);
+    }
   }
 
   /**
@@ -849,6 +870,7 @@
     if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
       headerImageBubbleCandidateKey = '';
       headerImageBubbles = null;
+      void persistResumeCardImageBubbles(null);
       return;
     }
 
@@ -860,6 +882,7 @@
     if (candidates.length === 0) {
       headerImageBubbleCandidateKey = '';
       headerImageBubbles = null;
+      void persistResumeCardImageBubbles(null);
       return;
     }
 
@@ -876,11 +899,15 @@
       .then((bubbles) => {
         if (requestId !== headerImageBubbleRequestId) return;
         headerImageBubbles = bubbles.length > 0 ? bubbles : null;
+        void persistResumeCardImageBubbles(
+          bubbles.length > 0 ? bubbles.map(({ imageUrl, title }) => ({ imageUrl, title })).slice(0, 2) : null,
+        );
       })
       .catch((error) => {
         if (requestId !== headerImageBubbleRequestId) return;
         console.warn('[ChatHistory] Failed to resolve image-search header bubbles:', error);
         headerImageBubbles = null;
+        void persistResumeCardImageBubbles(null);
       });
   });
 

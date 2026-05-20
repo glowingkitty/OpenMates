@@ -333,6 +333,10 @@ export interface Chat {
   category?: string | null; // Cleartext category for demo chats
   demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
 
+  // Local UI metadata derived from image-search embeds. Stored only in IndexedDB so
+  // resume/recent chat cards can render decorative thumbnails without re-parsing messages.
+  resume_card_image_bubbles?: ResumeCardImageBubble[] | null;
+
   // Sharing fields
   is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.
   is_private?: boolean; // Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
@@ -361,6 +365,11 @@ export interface Chat {
   // Messages load on-demand when the user opens the chat. Search matches against
   // title, summary, and tags only (no message content search until opened).
   is_metadata_only?: boolean;
+}
+
+export interface ResumeCardImageBubble {
+  imageUrl: string;
+  title?: string;
 }
 
 export interface ChatComponentVersions {

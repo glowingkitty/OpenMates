@@ -17,7 +17,7 @@
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
@@ -68,7 +68,6 @@
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
-    import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
@@ -138,7 +137,7 @@
         VideoTranscriptSkillPreviewData,
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
-    import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
+    import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
 
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
@@ -201,27 +200,6 @@
         focus: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
-    };
-
-    type ResumeCardImageBubble = {
-        imageUrl: string;
-        title?: string;
-    };
-
-    type ImageSearchCandidate = {
-        parentEmbedId: string;
-        childEmbedIds: string[];
-    };
-
-    type ImageResultContent = {
-        title?: string;
-        image_url?: string;
-        thumbnail_url?: string;
-    };
-
-    type TiptapNode = {
-        attrs?: Record<string, unknown>;
-        content?: TiptapNode[];
     };
 
     type EmbedResolverData = {
@@ -2698,92 +2676,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let _priorityRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-    function normalizeImageBubbleEmbedIds(embedIds: unknown): string[] {
-        if (typeof embedIds === 'string') {
-            return embedIds.split('|').map(id => id.trim()).filter(Boolean);
-        }
-        if (Array.isArray(embedIds)) {
-            return embedIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
-        }
-        return [];
-    }
-
-    function collectResumeCardImageCandidates(node: TiptapNode | undefined, candidates: ImageSearchCandidate[]) {
-        if (!node) return;
-
-        const attrs = node.attrs;
-        if (attrs) {
-            const groupedItems = attrs.groupedItems;
-            if (Array.isArray(groupedItems)) {
-                for (const item of groupedItems) collectResumeCardImageCandidates({ attrs: item as Record<string, unknown> }, candidates);
-            }
-
-            const appId = attrs.app_id;
-            const skillId = attrs.skill_id;
-            const contentRef = attrs.contentRef;
-            if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
-                candidates.push({
-                    parentEmbedId: contentRef.slice('embed:'.length),
-                    childEmbedIds: normalizeImageBubbleEmbedIds(attrs.embed_ids),
-                });
-            }
-        }
-
-        if (Array.isArray(node.content)) {
-            for (const child of node.content) collectResumeCardImageCandidates(child, candidates);
-        }
-    }
-
-    async function buildResumeCardImageBubbles(chatId: string): Promise<ResumeCardImageBubble[] | null> {
-        try {
-            const messages = await chatDB.getMessagesForChat(chatId);
-            const candidates: ImageSearchCandidate[] = [];
-            for (const message of messages) {
-                const content = typeof message.content === 'string'
-                    ? preprocessTiptapJsonForEmbeds(parse_message(message.content, 'read', {
-                        unifiedParsingEnabled: true,
-                        role: message.role,
-                    }))
-                    : message.content;
-                collectResumeCardImageCandidates(content as TiptapNode | undefined, candidates);
-            }
-            if (candidates.length === 0) return null;
-
-            const { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } = await import('../services/embedResolver');
-            const seen = new Set<string>();
-            const bubbles: ResumeCardImageBubble[] = [];
-
-            for (const candidate of candidates) {
-                let childEmbedIds = candidate.childEmbedIds;
-                if (childEmbedIds.length === 0) {
-                    const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
-                    const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
-                    childEmbedIds = normalizeImageBubbleEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
-                }
-                if (childEmbedIds.length === 0) continue;
-
-                const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, 2 - bubbles.length), 3, 250);
-                for (const childEmbed of childEmbeds) {
-                    const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
-                    const rawUrl = decodedChild?.thumbnail_url || decodedChild?.image_url;
-                    if (!rawUrl || seen.has(rawUrl)) continue;
-
-                    seen.add(rawUrl);
-                    bubbles.push({
-                        imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
-                        title: decodedChild?.title,
-                    });
-                    if (bubbles.length >= 2) return bubbles;
-                }
-            }
-
-            return bubbles.length > 0 ? bubbles : null;
-        } catch (error) {
-            console.warn('[ActiveChat] Failed to build resume card image bubbles:', error);
-            return null;
-        }
-    }
-
     async function buildRecentChatMeta(chat: Chat): Promise<RecentChatMeta> {
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
@@ -2800,13 +2692,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         if (chat.title) {
-            const imageBubbles = await buildResumeCardImageBubbles(chat.chat_id);
+            const imageBubbles = chat.resume_card_image_bubbles ?? null;
             return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, imageBubbles, draftPreview };
         }
 
         try {
             const meta = await chatMetadataCache.getDecryptedMetadata(chat);
-            const imageBubbles = await buildResumeCardImageBubbles(chat.chat_id);
+            const imageBubbles = chat.resume_card_image_bubbles ?? null;
             return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
         } catch {
             return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
@@ -3280,7 +3172,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
             const displaySummary = chat.chat_summary || decryptedSummary || null;
-            const imageBubbles = await buildResumeCardImageBubbles(chat.chat_id);
+            const imageBubbles = chat.resume_card_image_bubbles ?? null;
 
             resumeChatData = chat;
             resumeChatTitle = displayTitle;
