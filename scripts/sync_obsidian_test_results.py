@@ -3,7 +3,7 @@
 Synchronizes the latest OpenMates test results into the local Obsidian vault.
 
 The vault stores durable markdown summaries and only the latest screenshots.
-Failed-run videos are copied into the vault so they can be played directly.
+Videos stay in GitHub Actions artifacts and are never copied into the vault.
 The script is idempotent: rerunning it for the same test-results/last-run.json
 does not increment history counters twice.
 """
@@ -81,20 +81,6 @@ def discover_specs() -> list[str]:
     return sorted(path.name for path in SPEC_DIR.glob("*.spec.ts") if path.name != "create-test-account.spec.ts")
 
 
-def spec_slug(spec: str) -> str:
-    return spec.replace(".spec.ts", "").replace(".test.ts", "").replace("/", "-")
-
-
-def vault_video_names(vault: Path, slug: str) -> list[str]:
-    video_dir = vault / ASSETS_CURRENT_DIR / slug
-    if not video_dir.is_dir():
-        return []
-    return sorted(
-        item.name for item in video_dir.iterdir()
-        if item.suffix.lower() in {".webm", ".mp4"}
-    )
-
-
 def collect_playwright_tests(last_run: dict[str, Any]) -> dict[str, dict[str, Any]]:
     playwright = last_run.get("suites", {}).get("playwright", {})
     tests = playwright.get("tests", []) if isinstance(playwright, dict) else []
@@ -123,6 +109,10 @@ def update_history(
     specs_state = history.setdefault("specs", {})
     history["last_synced_run_id"] = run_id
     history["last_synced_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    for state in specs_state.values():
+        if isinstance(state, dict):
+            for key in ("local_video_paths", "video_paths", "video_artifact_name"):
+                state.pop(key, None)
 
     for spec in all_specs:
         state = specs_state.setdefault(
@@ -138,6 +128,8 @@ def update_history(
                 "last_counted_run_id": None,
             },
         )
+        for key in ("local_video_paths", "video_paths", "video_artifact_name"):
+            state.pop(key, None)
         test = tests_by_spec.get(spec)
         if not test:
             continue
@@ -147,7 +139,7 @@ def update_history(
         state["last_status"] = status
         state["last_run"] = run_time
         state["last_counted_run_id"] = run_id
-        for key in ("github_run_url", "video_artifact_name", "video_paths", "local_video_paths"):
+        for key in ("github_run_url",):
             if test.get(key):
                 state[key] = test[key]
 
@@ -198,33 +190,6 @@ def reset_current_assets(vault: Path, results_dir: Path) -> None:
             shutil.copy2(item, dest_dir / item.name)
 
 
-def copy_current_videos(vault: Path, results_dir: Path) -> None:
-    """Copy locally persisted failed-run videos into the vault.
-
-    Only videos from failed runs are persisted by run_tests.py. Successful-run
-    videos stay in GitHub Actions artifacts to avoid unbounded vault growth.
-    """
-    source_root = results_dir / "videos/current"
-    if not source_root.is_dir():
-        return
-
-    dest_root = vault / ASSETS_CURRENT_DIR
-    dest_root.mkdir(parents=True, exist_ok=True)
-    for spec_dir in source_root.iterdir():
-        if not spec_dir.is_dir():
-            continue
-        videos = [item for item in spec_dir.iterdir() if item.suffix.lower() in {".webm", ".mp4"}]
-        if not videos:
-            continue
-        dest_dir = dest_root / spec_dir.name
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        for old_video in dest_dir.iterdir():
-            if old_video.suffix.lower() in {".webm", ".mp4"}:
-                old_video.unlink()
-        for video in videos:
-            shutil.copy2(video, dest_dir / video.name)
-
-
 def status_icon(status: str) -> str:
     if status == "passed":
         return "✅"
@@ -258,7 +223,7 @@ def write_overview(
     }
 
     lines = [frontmatter(props), "", "# OpenMates Test Runs", ""]
-    lines.append("> Generated from `test-results/last-run.json`. Obsidian keeps latest screenshots plus failed-run videos; successful-run videos stay in GitHub Actions artifacts.")
+    lines.append("> Generated from `test-results/last-run.json`. Obsidian keeps latest screenshots only; videos stay in GitHub Actions artifacts.")
     lines.append("")
     lines.append("## Latest Summary")
     lines.append("")
@@ -272,29 +237,18 @@ def write_overview(
     specs_state = history.get("specs", {})
     lines.append("## All Specs")
     lines.append("")
-    lines.append("| Status | Spec | Last run | Failures | Consecutive | GitHub run | Video |")
-    lines.append("| --- | --- | --- | ---: | ---: | --- | --- |")
+    lines.append("| Status | Spec | Last run | Failures | Consecutive | GitHub run |")
+    lines.append("| --- | --- | --- | ---: | ---: | --- |")
 
     for spec in all_specs:
         test = tests_by_spec.get(spec) or {}
         state = specs_state.get(spec, {})
         status = str(test.get("status") or state.get("last_status") or "not_run")
-        slug = spec_slug(spec)
         github_run_url = test.get("github_run_url") or state.get("github_run_url")
         run_link = f"[run]({github_run_url})" if github_run_url else ""
-        local_video_names = [Path(path).name for path in test.get("local_video_paths") or state.get("local_video_paths") or []]
-        if not local_video_names and is_failure(status):
-            local_video_names = vault_video_names(vault, slug)
-        if local_video_names:
-            video_links = []
-            for index, video_name in enumerate(local_video_names, start=1):
-                video_links.append(f"[video {index}](assets/current/{slug}/{video_name})")
-            video_text = ", ".join(video_links)
-        else:
-            video_text = "artifact" if test.get("video_paths") or state.get("video_paths") else ""
         lines.append(
             f"| {status_icon(status)} `{status}` | `{spec}` | {state.get('last_run') or ''} | "
-            f"{state.get('total_failures', 0)} | {state.get('consecutive_failures', 0)} | {run_link} | {video_text} |"
+            f"{state.get('total_failures', 0)} | {state.get('consecutive_failures', 0)} | {run_link} |"
         )
 
     overview_path = vault / OVERVIEW_PATH
@@ -329,7 +283,6 @@ def main() -> int:
         return 0
 
     reset_current_assets(vault, results_dir)
-    copy_current_videos(vault, results_dir)
     write_overview(vault, all_specs, tests_by_spec, history, last_run)
     write_json(history_abs, history)
     print(f"Synced OpenMates test overview for {len(all_specs)} specs into {vault / OVERVIEW_PATH}")
