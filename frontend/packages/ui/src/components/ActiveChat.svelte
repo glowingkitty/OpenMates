@@ -10886,6 +10886,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          {isCreditsRestored}
                           isIncognito={!!currentChat?.is_incognito}
                            isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
+                           isSharedChat={!!currentChat?.is_shared_by_others && !$demoMode}
                           canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}

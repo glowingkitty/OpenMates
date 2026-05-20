@@ -638,6 +638,7 @@
     onResend = undefined,
     isIncognito = false,
     isExampleChat = false,
+    isSharedChat = false,
     videoMp4Url = null,
     videoTeaserUrl = null,
     videoTeaserMp4Url = null,
@@ -689,6 +690,8 @@
     /** True when the active chat is a pre-made example chat.
      *  Shows an "Example chat" badge in the ChatHeader. */
     isExampleChat?: boolean;
+    /** True when the active chat was opened from a shared-chat link. */
+    isSharedChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
      *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
@@ -1837,6 +1840,7 @@
                 isCreditsError={isNewChatCreditsError}
                 {isIncognito}
                 {isExampleChat}
+                {isSharedChat}
                 {videoMp4Url}
                 {videoTeaserUrl}
                 {videoTeaserMp4Url}

@@ -46,6 +46,7 @@
     );
 
     let headerDiv: HTMLElement;
+    let demoProfileImageUrl = $state<string | null>(null);
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
@@ -169,6 +170,8 @@
 
         checkMobile();
         window.addEventListener('resize', checkMobile);
+
+        demoProfileImageUrl = localStorage.getItem('demo_profile_image_url');
         
         // Fetch server status to display server edition (async, fire and forget)
         (async () => {
@@ -357,7 +360,7 @@
                 {#if !docsMode}
                     <div
                         class="right-section"
-                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible}
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $demoMode || $loginInterfaceOpen || $introBannerVisible}
                     >
                         {#if !isMobile}
                             <a
@@ -394,14 +397,18 @@
                     {#if context === 'webapp' && $demoMode}
                         <button
                             class="user-profile profile-button demo-profile-button"
+                            class:has-demo-profile-image={!!demoProfileImageUrl}
                             data-testid="header-demo-profile-btn"
                             aria-label={$text('settings.account.profile_picture')}
+                            style={demoProfileImageUrl ? `background-image: url('${demoProfileImageUrl}')` : undefined}
                             onclick={() => {
                                 panelState.openSettings();
                                 settingsDeepLink.set('account/profile-picture');
                             }}
                         >
-                            <span class="clickable-icon icon_user" aria-hidden="true"></span>
+                            {#if !demoProfileImageUrl}
+                                <span class="clickable-icon icon_user" aria-hidden="true"></span>
+                            {/if}
                         </button>
                     {/if}
                 {/if}
@@ -742,6 +749,12 @@
         background: var(--color-grey-20);
         color: var(--color-grey-100);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .demo-profile-button.has-demo-profile-image {
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
     }
 
     .profile-button:hover {

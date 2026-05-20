@@ -68,6 +68,8 @@
     isIncognito = false,
     /** When true, shows an "Example chat" badge/pill in the loaded header state. */
     isExampleChat = false,
+    /** When true, shows a "Shared chat" badge/pill in the loaded header state. */
+    isSharedChat = false,
     /** MP4 URL for the in-place video player. On play-button click the video element
      *  is mounted inside the media frame and native browser fullscreen is requested.
      *  No video is loaded before the user clicks play. */
@@ -109,6 +111,8 @@
     /** True when this chat is a pre-made example chat (shown to non-authenticated users).
      *  Displays an "Example chat" badge in the loaded header state. */
     isExampleChat?: boolean;
+    /** True when this chat is opened through a shared-chat link. */
+    isSharedChat?: boolean;
     /** MP4 URL — gates the play button in the media frame. The video is only
      *  loaded by the fullscreen embed after the user clicks play. */
     videoMp4Url?: string | null;
@@ -157,11 +161,9 @@
 
   function getImageBubblePair(index: number) {
     if (hasHeaderMedia || !Array.isArray(headerImageBubbles)) return [];
-    if (headerImageBubbles.length <= 2) return headerImageBubbles;
+    if (headerImageBubbles.length === 0) return [];
 
-    const leftIndex = index % headerImageBubbles.length;
-    const rightIndex = (leftIndex + Math.ceil(headerImageBubbles.length / 2)) % headerImageBubbles.length;
-    return [headerImageBubbles[leftIndex], headerImageBubbles[rightIndex]];
+    return [headerImageBubbles[index % headerImageBubbles.length]];
   }
 
   const imageBubbles = $derived.by(() => getImageBubblePair(imageBubbleCycleIndex));
@@ -192,7 +194,7 @@
   }
 
   function getImageBubbleTestId(index: number) {
-    return index === 0 ? 'chat-header-image-bubble-left' : 'chat-header-image-bubble-right';
+    return index === 0 ? 'chat-header-image-background' : 'chat-header-image-background-next';
   }
   // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
   const introTeaserCopyLines = $derived([
@@ -669,6 +671,7 @@
   class:is-medium-header={isMediumHeader}
   class:is-mobile-header={isMobileHeader}
   class:is-compact-teaser-header={isCompactTeaserHeader}
+  class:has-image-background={imageBubbles.length > 0}
   style={bannerStyle}
   role="presentation"
   ontouchstart={handleHeaderTouchStart}
@@ -773,7 +776,9 @@
           </div>
 
           {#if isExampleChat}
-            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {:else if isSharedChat}
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
           {/if}
 
           {#if !isIntroTeaserChat && showSummary}
@@ -865,42 +870,10 @@
       <!-- ── Standard layout: decorative icons + media frame or icon/title/summary ── -->
 
       <!-- Large decorative icons at left and right edges (126×126px, 0.4 opacity). -->
-      {#if imageBubbles.length > 0}
-        {#each imageBubbles as bubble, index}
-          <button
-            class="image-bubble"
-            class:image-bubble-left={index === 0}
-            class:image-bubble-right={index !== 0}
-            type="button"
-            aria-label={bubble.title || $text('embeds.image_search.open_image')}
-            data-testid={getImageBubbleTestId(index)}
-            style={`--image-bubble-fade-ms: ${IMAGE_BUBBLE_FADE_MS}ms;`}
-            onclick={(e) => handleImageBubbleClick(e, bubble)}
-          >
-            {#if shouldShowPreviousImage(index, bubble)}
-              <img
-                class="image-bubble-img image-bubble-img-previous"
-                src={getPreviousImageBubble(index)?.imageUrl}
-                alt=""
-                loading="eager"
-                decoding="async"
-              />
-            {/if}
-            {#key bubble.childEmbedId}
-              <img
-                class="image-bubble-img image-bubble-img-current"
-                src={bubble.imageUrl}
-                alt=""
-                loading="eager"
-                decoding="async"
-              />
-            {/key}
-          </button>
-        {/each}
-      {:else if isIntroTeaserChat}
+      {#if imageBubbles.length === 0 && isIntroTeaserChat}
         <div class="deco-icon deco-icon-left ai-deco-icon"></div>
         <div class="deco-icon deco-icon-right ai-deco-icon"></div>
-      {:else if IconComponent}
+      {:else if imageBubbles.length === 0 && IconComponent}
         <div class="deco-icon deco-icon-left">
           <IconComponent size={126} color="white" />
         </div>
@@ -919,7 +892,9 @@
               <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
               {#if isExampleChat}
-                <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+                <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+              {:else if isSharedChat}
+                <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
               {/if}
             </div>
           {/if}
@@ -1012,6 +987,78 @@
             </button>
           {/if}
         </div>
+      {:else if imageBubbles.length > 0}
+        {#each imageBubbles as bubble, index}
+          <button
+            class="image-bubble"
+            type="button"
+            aria-label={bubble.title || $text('embeds.image_search.open_image')}
+            data-testid={getImageBubbleTestId(index)}
+            style={`--image-bubble-fade-ms: ${IMAGE_BUBBLE_FADE_MS}ms;`}
+            onclick={(e) => handleImageBubbleClick(e, bubble)}
+          >
+            {#if shouldShowPreviousImage(index, bubble)}
+              <img
+                class="image-bubble-img image-bubble-img-previous"
+                src={getPreviousImageBubble(index)?.imageUrl}
+                alt=""
+                loading="eager"
+                decoding="async"
+              />
+            {/if}
+            {#key bubble.childEmbedId}
+              <img
+                class="image-bubble-img image-bubble-img-current"
+                src={bubble.imageUrl}
+                alt=""
+                loading="eager"
+                decoding="async"
+              />
+            {/key}
+          </button>
+        {/each}
+
+        <div class="header-bottom-content">
+          <div class="loaded-content">
+            <!-- Category icon: shown inside the bottom gradient panel when image search fills the header background. -->
+            {#if IconComponent}
+              <div class="loaded-icon" data-testid="chat-header-icon">
+                <IconComponent size={38} color="white" />
+              </div>
+            {/if}
+
+            <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
+                 never render as HTML to prevent stored XSS via prompt injection. -->
+            <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+
+            {#if isExampleChat}
+              <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            {:else if isSharedChat}
+              <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
+            {/if}
+
+            <!-- Summary: fades in with max-height expand when available -->
+            {#if showSummary}
+              <p class="loaded-summary" data-testid="chat-header-summary">{summary}</p>
+            {/if}
+
+            <!-- Highlights pill: yellow annotation-layer count. -->
+            {#if showHighlightPill}
+              <button
+                class="highlight-count-pill"
+                type="button"
+                data-testid="chat-header-highlight-count"
+                onclick={handleHighlightPillClick}
+                disabled={!onHighlightJump}
+              >{highlightPillLabel}</button>
+            {/if}
+
+            <!-- Creation time -->
+            {#if showTime}
+              <span class="loaded-time">{formattedTime}</span>
+            {/if}
+          </div>
+        </div>
       {:else}
         <div class="loaded-content">
           <!-- Category icon: only shown when no header media (video or slideshow) -->
@@ -1028,7 +1075,9 @@
           <span class="loaded-title" data-testid="chat-header-title">{title}</span>
 
           {#if isExampleChat}
-            <span class="example-chat-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+            <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+          {:else if isSharedChat}
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
           {/if}
 
           <!-- Summary: fades in with max-height expand when available -->
@@ -1295,9 +1344,9 @@
     overflow: hidden;
   }
 
-  /* "Example chat" badge: semi-transparent pill below the title.
-     Helps unauthenticated users distinguish example chats from real ones. */
-  .example-chat-badge {
+  /* Chat kind badge: semi-transparent pill below the title. Reused for example
+     and shared chats so both states sit in the same place and visual style. */
+  .chat-kind-badge {
     display: inline-block;
     margin-top: 6px;
     padding: 3px 12px;
@@ -1467,73 +1516,31 @@
     }
   }
 
-  /* ─── Image result bubbles (replace decorative icons when image search exists) ─── */
+  /* ─── Image result background (replace decorative icons when image search exists) ─── */
 
   .image-bubble {
     all: unset;
     position: absolute;
-    width: 168px;
-    height: 168px;
-    border-radius: 999px;
-    z-index: var(--z-index-raised-2);
+    inset: 0;
+    z-index: var(--z-index-raised);
     pointer-events: auto;
     cursor: pointer;
     overflow: hidden;
     box-sizing: border-box;
-    background:
-      radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.7), transparent 16%),
-      radial-gradient(circle at 70% 76%, rgba(0, 0, 0, 0.28), transparent 38%),
-      rgba(255, 255, 255, 0.12);
-    border: 3px solid rgba(255, 255, 255, 0.42);
-    box-shadow:
-      inset 18px 20px 34px rgba(255, 255, 255, 0.34),
-      inset -20px -26px 42px rgba(0, 0, 0, 0.3),
-      inset 0 0 0 8px rgba(255, 255, 255, 0.08),
-      0 24px 54px rgba(0, 0, 0, 0.3),
-      0 8px 18px rgba(255, 255, 255, 0.08);
-    --float-rx: 13px;
-    --float-ry: 16px;
-    opacity: var(--image-bubble-opacity, 0.4);
-    animation:
-      decoEnter 0.6s ease-out 0.1s backwards,
-      imageBubbleFloat 16s linear 0.7s infinite;
-    transition: transform var(--duration-fast) var(--easing-default),
-                scale var(--duration-fast) var(--easing-default),
-                opacity var(--duration-fast) var(--easing-default),
-                box-shadow var(--duration-fast) var(--easing-default),
-                border-color var(--duration-fast) var(--easing-default);
+    background: #1a1a1a;
+    opacity: 1;
+    animation: fadeIn 0.45s ease-out both;
   }
 
-  .image-bubble::before,
   .image-bubble::after {
     content: '';
     position: absolute;
-    border-radius: 999px;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  .image-bubble::before {
-    top: 17px;
-    left: 26px;
-    width: 58px;
-    height: 34px;
-    background:
-      radial-gradient(ellipse at center, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.12) 62%, transparent 72%);
-    filter: blur(1px);
-    transform: rotate(-30deg);
-  }
-
-  .image-bubble::after {
     inset: 0;
+    pointer-events: none;
+    z-index: 3;
     background:
-      radial-gradient(ellipse at 36% 18%, rgba(255, 255, 255, 0.46), transparent 19%),
-      radial-gradient(ellipse at 72% 84%, rgba(0, 0, 0, 0.3), transparent 36%),
-      linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 32%, rgba(255, 255, 255, 0.08) 64%, rgba(0, 0, 0, 0.28));
-    border: 1px solid rgba(255, 255, 255, 0.68);
-    box-shadow:
-      inset 0 0 34px rgba(255, 255, 255, 0.28),
-      inset 0 0 76px rgba(255, 255, 255, 0.1);
+      linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0) 34%),
+      linear-gradient(0deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 48%);
   }
 
   .image-bubble-img {
@@ -1542,14 +1549,18 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
     display: block;
     filter: saturate(1.12) contrast(1.08);
-    transform: scale(1.04);
+    transform: scale(1.08);
+    will-change: opacity, object-position, transform;
   }
 
   .image-bubble-img-current {
     z-index: 1;
-    animation: imageBubbleFadeIn var(--image-bubble-fade-ms, 1000ms) ease-in-out both;
+    animation:
+      imageBubbleFadeIn var(--image-bubble-fade-ms, 1000ms) ease-in-out both,
+      imageHeaderPan 24s ease-in-out infinite alternate;
   }
 
   .image-bubble-img-previous {
@@ -1567,87 +1578,49 @@
     to { opacity: 0; }
   }
 
-  .image-bubble-left {
-    left: calc(50% - 240px - 154px);
-    bottom: -42px;
-    --deco-rotate: -15deg;
-  }
-
-  .image-bubble-right {
-    right: calc(50% - 240px - 154px);
-    bottom: -42px;
-    --deco-rotate: 15deg;
-    animation-delay: 0.1s, -8s;
-  }
-
   .image-bubble:hover {
-    --image-bubble-opacity: 1;
-    scale: 1.12;
-    border-color: rgba(255, 255, 255, 0.66);
-    box-shadow:
-      inset 18px 20px 36px rgba(255, 255, 255, 0.42),
-      inset -20px -26px 42px rgba(0, 0, 0, 0.26),
-      inset 0 0 0 8px rgba(255, 255, 255, 0.12),
-      0 30px 62px rgba(0, 0, 0, 0.34),
-      0 10px 22px rgba(255, 255, 255, 0.1);
-  }
-
-  @keyframes imageBubbleFloat {
-    0% {
-      transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
-        rotate(var(--deco-rotate, 0deg));
-    }
-    12.5% {
-      transform: translateX(calc(0.707 * var(--float-rx, 10px)))
-        translateY(calc(-0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) + 2deg));
-    }
-    25% {
-      transform: translateX(var(--float-rx, 10px)) translateY(0px)
-        rotate(calc(var(--deco-rotate, 0deg) + 3deg));
-    }
-    37.5% {
-      transform: translateX(calc(0.707 * var(--float-rx, 10px)))
-        translateY(calc(0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) + 2deg));
-    }
-    50% {
-      transform: translateX(0px) translateY(var(--float-ry, 12px))
-        rotate(var(--deco-rotate, 0deg));
-    }
-    62.5% {
-      transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
-        translateY(calc(0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) - 2deg));
-    }
-    75% {
-      transform: translateX(calc(-1 * var(--float-rx, 10px))) translateY(0px)
-        rotate(calc(var(--deco-rotate, 0deg) - 3deg));
-    }
-    87.5% {
-      transform: translateX(calc(-0.707 * var(--float-rx, 10px)))
-        translateY(calc(-0.707 * var(--float-ry, 12px)))
-        rotate(calc(var(--deco-rotate, 0deg) - 2deg));
-    }
-    100% {
-      transform: translateX(0px) translateY(calc(-1 * var(--float-ry, 12px)))
-        rotate(var(--deco-rotate, 0deg));
-    }
+    filter: brightness(1.04);
   }
 
   .image-bubble:focus-visible {
     outline: 3px solid rgba(255, 255, 255, 0.9);
-    outline-offset: 5px;
+    outline-offset: -6px;
   }
 
-  .image-bubble:active {
-    scale: 0.97;
+  @keyframes imageHeaderPan {
+    0% { object-position: 50% 50%; transform: scale(1.08); }
+    25% { object-position: 12% 50%; transform: scale(1.12); }
+    50% { object-position: 88% 50%; transform: scale(1.12); }
+    75% { object-position: 50% 12%; transform: scale(1.12); }
+    100% { object-position: 50% 88%; transform: scale(1.12); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .image-bubble {
-      animation: decoEnter 0.6s ease-out 0.1s backwards !important;
+    .image-bubble,
+    .image-bubble-img-current {
+      animation: none !important;
     }
+  }
+
+  .header-bottom-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-index-raised-2);
+    display: flex;
+    justify-content: center;
+    padding: var(--spacing-6) 56px var(--spacing-7);
+    box-sizing: border-box;
+    background: inherit;
+    box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+  }
+
+  .header-bottom-content .loaded-content {
+    max-width: min(720px, 100%);
+    padding: 0;
+    pointer-events: auto;
   }
 
   /* ─── Large decorative icons (126×126px) at banner edges ─────────────── */
@@ -1917,8 +1890,8 @@
   }
 
   .is-mobile-header .image-bubble {
-    width: 118px;
-    height: 118px;
+    width: 100%;
+    height: 100%;
   }
 
   .is-mobile-header .deco-icon-left {
@@ -1926,18 +1899,17 @@
     left: calc(50% - 180px - 70px);
   }
 
-  .is-mobile-header .image-bubble-left {
-    left: calc(50% - 180px - 100px);
-    bottom: -34px;
-  }
-
   .is-mobile-header .deco-icon-right {
     right: calc(50% - 180px - 70px);
   }
 
-  .is-mobile-header .image-bubble-right {
-    right: calc(50% - 180px - 100px);
-    bottom: -34px;
+  .is-mobile-header .header-bottom-content {
+    padding: var(--spacing-5) 42px var(--spacing-6);
+  }
+
+  .is-mobile-header .header-bottom-content .loaded-content {
+    max-width: 100%;
+    padding: 0;
   }
 
   .is-mobile-header .video-play-btn {
