@@ -1191,6 +1191,8 @@ export async function handleLoadMoreChatsResponseImpl(
           pinned: details.pinned || false,
           is_shared: details.is_shared || false,
           is_private: details.is_private || false,
+          share_pii: details.share_pii || false,
+          share_highlights: details.share_highlights ?? true,
         } as Chat;
       })
       .filter((c): c is Chat => c !== null);

@@ -1,6 +1,13 @@
 export type ShareChatEmbedLike = {
   embed_id?: string;
   embed_ids?: unknown;
+  encrypted_content?: string;
+  encrypted_type?: string;
+  embed_type?: string;
+  status?: string;
+  hashed_chat_id?: string;
+  hashed_user_id?: string;
+  parent_embed_id?: string;
 };
 
 export function deriveParentByChildEmbeds(embeds: ShareChatEmbedLike[]): Map<string, string> {
@@ -21,4 +28,3 @@ export function deriveParentByChildEmbeds(embeds: ShareChatEmbedLike[]): Map<str
 
   return derivedParentByChild;
 }
-

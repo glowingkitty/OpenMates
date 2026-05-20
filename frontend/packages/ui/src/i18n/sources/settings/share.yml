@@ -1077,6 +1077,31 @@ include_sensitive_data_warning:
   he: "המידע האישי שלך (אימיילים, מספרי טלפון וכו') ייכלל בתוכן המשותף. הפעל זאת רק אם בטחונך במקבלי הקישור מלא."
   verified_by_human: []
 
+include_highlights:
+  context: Toggle label for including message highlights and comments in a shared chat
+  en: Include highlights and comments
+  de: Markierungen und Kommentare einschließen
+  zh: 包含高亮和评论
+  es: Incluir destacados y comentarios
+  fr: Inclure les surlignages et commentaires
+  pt: Incluir destaques e comentários
+  ru: Включить выделения и комментарии
+  ja: ハイライトとコメントを含める
+  ko: 하이라이트와 댓글 포함
+  it: Includi evidenziazioni e commenti
+  tr: Vurguları ve yorumları dahil et
+  vi: Bao gồm phần đánh dấu và bình luận
+  id: Sertakan sorotan dan komentar
+  pl: Uwzględnij wyróżnienia i komentarze
+  nl: Markeringen en opmerkingen opnemen
+  ar: تضمين التمييزات والتعليقات
+  hi: हाइलाइट और टिप्पणियाँ शामिल करें
+  th: รวมไฮไลต์และความคิดเห็น
+  cs: Zahrnout zvýraznění a komentáře
+  sv: Inkludera markeringar och kommentarer
+  he: כלול הדגשות ותגובות
+  verified_by_human: []
+
 optional_settings:
   context: Header for optional share settings section
   en: Optional Settings

@@ -95,6 +95,9 @@
     // Share with Community state - only for chats, not embeds.
     // When enabled, the share link (with encryption key) is emailed to admin for review.
     let shareWithCommunity = $state(false);
+    let includeSensitiveData = $state(false);
+    let shareHighlights = $state(true);
+    let chatHasPII = $state(false);
 
     // Generated share link state
     let generatedLink = $state('');
@@ -329,10 +332,19 @@
                 const { chatDB } = await import('../../../services/db');
                 const chat = await chatDB.getChat(chatId);
                 currentChat = chat || null;
+                includeSensitiveData = chat?.share_pii ?? false;
+                shareHighlights = chat?.share_highlights ?? true;
+
+                const messages = await chatDB.getMessagesForChat(chatId);
+                chatHasPII = messages.some((message) =>
+                    (message.pii_mappings && message.pii_mappings.length > 0) ||
+                    !!message.encrypted_pii_mappings
+                );
                 console.debug('[SettingsShare] Loaded currentChat:', chatId, chat ? 'found' : 'not found', 'isLinkGenerated:', isLinkGenerated);
             } catch (error) {
                 console.error('[SettingsShare] Error loading currentChat:', error);
                 currentChat = null;
+                chatHasPII = false;
             }
         })();
     });
@@ -743,6 +755,8 @@
                     ...chat,
                     is_shared: true,
                     is_private: false,
+                    share_pii: includeSensitiveData,
+                    share_highlights: shareHighlights,
                     user_id: chat.user_id || currentUserId || undefined
                 });
                 console.debug('[SettingsShare] Marked chat as shared in IndexedDB:', chatId, 'user_id:', chat.user_id || currentUserId);
@@ -924,6 +938,8 @@
                         icon: icon || null,
                         follow_up_suggestions: followUpSuggestions || null,
                         is_shared: true,  // Mark chat as shared on server
+                        share_pii: includeSensitiveData,
+                        share_highlights: shareHighlights,
                         share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,
                         share_link: shareWithCommunity && !isEmbedSharing && generatedLink ? generatedLink : undefined
                     }),
@@ -936,7 +952,7 @@
                     
                     // Queue for retry if offline or server error
                     // Network errors will be caught in the catch block
-                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
+                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
                     return;
                 }
                 
@@ -946,12 +962,12 @@
                 } else {
                     console.warn('[SettingsShare] OG metadata update returned success=false, queueing for retry:', data);
                     // Queue for retry even if server returned success=false
-                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
+                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
                 }
             } catch (fetchError) {
                 // Network error (offline, timeout, etc.) - queue for retry
                 console.debug('[SettingsShare] Network error sending OG metadata update, queueing for retry:', fetchError);
-                await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
+                await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
             }
         } catch (error) {
             console.error('[SettingsShare] Error queueing OG metadata update:', error);
@@ -1309,6 +1325,8 @@
             void selectedDuration;
             void password;
             void shareWithCommunity;
+            void includeSensitiveData;
+            void shareHighlights;
             resetGeneratedState();
         }
     });
@@ -1460,6 +1478,41 @@
                             {$text('settings.share.share_with_community_info')}
                         </p>
                     </div>
+                {/if}
+            {/if}
+
+            {#if !isEmbedSharing}
+                <div class="option-row">
+                    <div class="option-label">
+                        <div class="icon settings_size shared"></div>
+                        <span>{$text('settings.share.include_highlights')}</span>
+                    </div>
+                    <Toggle
+                        bind:checked={shareHighlights}
+                        name="share-highlights"
+                        ariaLabel="Toggle include highlights and comments"
+                    />
+                </div>
+
+                {#if chatHasPII}
+                    <div class="option-row">
+                        <div class="option-label">
+                            <div class="icon settings_size lock"></div>
+                            <span>{$text('settings.share.include_sensitive_data')}</span>
+                        </div>
+                        <Toggle
+                            bind:checked={includeSensitiveData}
+                            name="include-sensitive-data"
+                            ariaLabel="Toggle include sensitive data"
+                        />
+                    </div>
+
+                    {#if includeSensitiveData}
+                        <div class="community-info" transition:slide={{ duration: 200, easing: cubicOut }}>
+                            <div class="info-icon">⚠️</div>
+                            <p>{$text('settings.share.include_sensitive_data_warning')}</p>
+                        </div>
+                    {/if}
                 {/if}
             {/if}
 

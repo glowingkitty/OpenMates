@@ -90,6 +90,8 @@ export async function mergeServerChatWithLocal(
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       is_shared: serverChat.is_shared,
       is_private: serverChat.is_private,
+      share_pii: serverChat.share_pii,
+      share_highlights: serverChat.share_highlights,
       user_id: currentUserId,
     };
   }
@@ -159,6 +161,8 @@ export async function mergeServerChatWithLocal(
         : serverChat.encrypted_active_focus_id ?? localChat.encrypted_active_focus_id,
     is_shared: serverChat.is_shared ?? localChat.is_shared,
     is_private: serverChat.is_private ?? localChat.is_private,
+    share_pii: serverChat.share_pii ?? localChat.share_pii,
+    share_highlights: serverChat.share_highlights ?? localChat.share_highlights,
   };
 
   if (keyMismatch) {

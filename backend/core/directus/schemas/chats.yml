@@ -106,6 +106,16 @@ chats:
       default: false
       note: "Whether the user has opted-in to share this chat with the community for potential selection as a demo chat. When true, the chat appears in the admin review queue."
 
+    share_pii:
+      type: boolean
+      default: false
+      note: "Whether public shared-chat responses may include encrypted PII placeholder mappings. Defaults to false so shared viewers only see placeholders unless the owner explicitly opts in."
+
+    share_highlights:
+      type: boolean
+      default: true
+      note: "Whether public shared-chat responses may include encrypted highlight/comment rows. Defaults to true so annotations are part of the shared chat unless the owner opts out."
+
     last_disclaimer_type:
       type: string
       nullable: true

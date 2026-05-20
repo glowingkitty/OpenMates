@@ -129,6 +129,7 @@ export {
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
 export { handleCodeRunOutputSyncedImpl } from "./src/services/handlersCodeRunOutputs";
+export { handleMessageHighlightAddedImpl } from "./src/services/handlersMessageHighlights";
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
 export { pushNotificationService } from "./src/services/pushNotificationService"; // Export push notification service
 export {

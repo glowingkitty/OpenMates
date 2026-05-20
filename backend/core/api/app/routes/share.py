@@ -57,6 +57,8 @@ class ShareChatMetadataUpdate(BaseModel):
     icon: Optional[str] = None
     follow_up_suggestions: Optional[List[str]] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
+    share_pii: Optional[bool] = None  # Whether shared chat viewers may receive encrypted PII mappings
+    share_highlights: Optional[bool] = None  # Whether shared chat viewers may receive encrypted highlights/comments
     share_with_community: Optional[bool] = None  # Whether to email the share link to admin for community consideration
     share_link: Optional[str] = None  # Full share link with encryption key (for community sharing email)
 
@@ -144,6 +146,11 @@ async def get_shared_chat(
             dummy_data.pop("is_dummy", None)
             return dummy_data
         
+        share_pii = bool(chat.get("share_pii", False))
+        share_highlights = chat.get("share_highlights", True)
+        if share_highlights is None:
+            share_highlights = True
+
         # Chat exists and is shared - return real encrypted data
         # Note: We return encrypted data as-is (client-side decryption)
         # The encryption key is in the URL fragment, never sent to server
@@ -154,6 +161,25 @@ async def get_shared_chat(
             chat_id=chat_id,
             decrypt_content=False  # Return encrypted messages
         )
+        if not share_pii and messages:
+            import json
+            sanitized_messages = []
+            for message in messages:
+                if isinstance(message, str):
+                    try:
+                        parsed_message = json.loads(message)
+                        if isinstance(parsed_message, dict):
+                            parsed_message.pop("encrypted_pii_mappings", None)
+                            sanitized_messages.append(json.dumps(parsed_message))
+                        else:
+                            sanitized_messages.append(message)
+                    except Exception:
+                        sanitized_messages.append(message)
+                    continue
+                sanitized = dict(message)
+                sanitized.pop("encrypted_pii_mappings", None)
+                sanitized_messages.append(sanitized)
+            messages = sanitized_messages
         
         # Get embeds for the chat (encrypted, as stored in database)
         import hashlib
@@ -166,6 +192,19 @@ async def get_shared_chat(
         # NOTE: For share links, we only need chat key entries (not master keys) since
         # share recipients don't have access to the owner's master key
         embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+
+        message_highlights = []
+        if share_highlights:
+            message_highlights = await directus_service.get_items(
+                "message_highlights",
+                params={
+                    "filter[chat_id][_eq]": chat_id,
+                    "fields": "id,chat_id,message_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+                    "sort": "created_at",
+                    "limit": -1,
+                },
+                admin_required=True,
+            ) or []
         
         return {
             "chat_id": chat_id,
@@ -177,6 +216,9 @@ async def get_shared_chat(
             "messages": messages or [],
             "embeds": embeds or [],
             "embed_keys": embed_keys or [],
+            "message_highlights": message_highlights,
+            "share_pii": share_pii,
+            "share_highlights": bool(share_highlights),
             "is_dummy": False  # Internal flag, not sent to client
         }
         
@@ -399,6 +441,12 @@ async def update_share_metadata(
             if payload.is_shared:
                 updates["is_private"] = False
 
+        if payload.share_pii is not None:
+            updates["share_pii"] = payload.share_pii
+
+        if payload.share_highlights is not None:
+            updates["share_highlights"] = payload.share_highlights
+
         # Update community sharing preference
         if payload.share_with_community is not None:
             updates["share_with_community"] = payload.share_with_community
@@ -414,7 +462,7 @@ async def update_share_metadata(
             # Request the updated fields in the response to verify they were saved
             # Directus will return the updated item with these fields if the update succeeds
             params = {
-                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,is_shared,is_private'
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,is_shared,is_private,share_pii,share_highlights'
             }
             updated_item = await directus_service.update_item("chats", chat_id, updates, params=params)
             if updated_item is None:

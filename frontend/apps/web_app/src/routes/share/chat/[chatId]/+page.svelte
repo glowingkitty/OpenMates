@@ -23,6 +23,7 @@
 		chatDB,
 		activeChatStore,
 		decryptShareKeyBlob,
+		handleMessageHighlightAddedImpl,
 		forcedLogoutInProgress,
 		resetForcedLogoutInProgress,
 		isLoggingOut,
@@ -87,7 +88,19 @@
 		encrypted_sender_name?: string;
 		encrypted_category?: string;
 		encrypted_model_name?: string;
+		encrypted_pii_mappings?: string;
 		user_message_id?: string;
+	};
+
+	type ShareChatHighlight = {
+		id?: string;
+		chat_id?: string;
+		message_id?: string;
+		author_user_id?: string;
+		key_version?: number | null;
+		encrypted_payload?: string;
+		created_at?: number;
+		updated_at?: number;
 	};
 
 	type ShareChatEmbedKey = {
@@ -149,6 +162,7 @@
 		messages: Message[];
 		embeds: ShareChatEmbedLike[];
 		embed_keys: ShareChatEmbedKey[];
+		message_highlights: ShareChatHighlight[];
 	}> {
 		try {
 			const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}`));
@@ -195,7 +209,9 @@
 					: Math.floor(Date.now() / 1000);
 
 			// Convert parsed messages to Message format
-			const messages: Message[] = parsedMessages.map((messageObj) => {
+			const messages: Message[] = parsedMessages.flatMap((messageObj) => {
+				const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
+				if (!messageId) return [];
 				const role =
 					messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user';
 				// Prefer client_message_id as the IDB key so that batchSaveMessages() can
@@ -205,8 +221,8 @@
 				// second copy is inserted under a different key → duplicate message in the chat.
 				// Fall back to `message_id` then `id` for non-owner viewers who have no prior
 				// local copy (so any stable ID is fine for them).
-				return {
-					message_id: messageObj.client_message_id || messageObj.message_id || messageObj.id,
+				return [{
+					message_id: messageId,
 					chat_id: data.chat_id,
 					role,
 					created_at: messageObj.created_at || Math.floor(Date.now() / 1000),
@@ -216,8 +232,9 @@
 					encrypted_category: messageObj.encrypted_category,
 					encrypted_model_name: messageObj.encrypted_model_name, // Model name for assistant messages
 					user_message_id: messageObj.user_message_id,
+					encrypted_pii_mappings: messageObj.encrypted_pii_mappings,
 					client_message_id: messageObj.client_message_id
-				};
+				}];
 			});
 
 			// Get current user ID to check ownership
@@ -269,6 +286,8 @@
 				// If chat is from another user, ownership check will fail and chat will be read-only
 				// SHARING: Mark as shared by others and assign to shared_by_others group for sidebar
 				is_shared_by_others: true,
+				share_pii: data.share_pii ?? false,
+				share_highlights: data.share_highlights ?? true,
 				group_key: 'shared_by_others'
 			};
 
@@ -276,11 +295,12 @@
 				chat,
 				messages,
 				embeds: (data.embeds || []) as ShareChatEmbedLike[],
-				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[]
+				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[],
+				message_highlights: (data.message_highlights || []) as ShareChatHighlight[]
 			};
 		} catch (error) {
 			console.error('[ShareChat] Error fetching chat from server:', error);
-			return { chat: null, messages: [], embeds: [], embed_keys: [] };
+			return { chat: null, messages: [], embeds: [], embed_keys: [], message_highlights: [] };
 		}
 	}
 
@@ -395,7 +415,8 @@
 				chat: fetchedChat,
 				messages: fetchedMessages,
 				embeds: fetchedEmbeds,
-				embed_keys: fetchedEmbedKeys
+				embed_keys: fetchedEmbedKeys,
+				message_highlights: fetchedMessageHighlights
 			} = await fetchChatFromServer(chatId);
 
 			if (!fetchedChat) {
@@ -458,6 +479,32 @@
 				console.debug(`[ShareChat] Stored ${fetchedMessages.length} messages`);
 			}
 
+			if (fetchedMessageHighlights.length > 0) {
+				for (const highlight of fetchedMessageHighlights) {
+					if (
+						!highlight.id ||
+						!highlight.chat_id ||
+						!highlight.message_id ||
+						!highlight.author_user_id ||
+						!highlight.encrypted_payload ||
+						highlight.created_at == null
+					) {
+						continue;
+					}
+
+					await handleMessageHighlightAddedImpl({
+						chat_id: highlight.chat_id,
+						message_id: highlight.message_id,
+						id: highlight.id,
+						author_user_id: highlight.author_user_id,
+						key_version: highlight.key_version ?? null,
+						encrypted_payload: highlight.encrypted_payload,
+						created_at: highlight.created_at
+					});
+				}
+				console.debug(`[ShareChat] Stored ${fetchedMessageHighlights.length} message highlights`);
+			}
+
 			// Process embed_keys first - unwrap them with chat key and store
 			// This is the wrapped key architecture: embed_keys contain AES(embed_key, chat_key)
 			// We unwrap to get embed_key, which is used to decrypt embed content
@@ -472,7 +519,7 @@
 				for (const keyEntry of fetchedEmbedKeys) {
 					try {
 						// Only process key entries for this chat (key_type='chat' with matching hashed_chat_id)
-						if (keyEntry.key_type === 'chat' && keyEntry.hashed_chat_id === hashedChatId) {
+						if (keyEntry.key_type === 'chat' && keyEntry.hashed_chat_id === hashedChatId && keyEntry.encrypted_embed_key) {
 							// Unwrap the embed key using the chat key
 							const embedKey = await unwrapEmbedKeyWithChatKey(
 								keyEntry.encrypted_embed_key,
@@ -503,7 +550,7 @@
 				}
 
 				// Also store the raw embed_keys entries in IndexedDB for future use
-				await embedStore.storeEmbedKeys(fetchedEmbedKeys);
+				await embedStore.storeEmbedKeys(fetchedEmbedKeys as unknown as Parameters<typeof embedStore.storeEmbedKeys>[0]);
 				console.debug(`[ShareChat] Stored ${fetchedEmbedKeys.length} embed keys`);
 			}
 
@@ -559,7 +606,7 @@
 								hashed_chat_id: embed.hashed_chat_id,
 								hashed_user_id: embed.hashed_user_id,
 								embed_ids: Array.isArray(embed.embed_ids) ? embed.embed_ids : undefined,
-								parent_embed_id: embed.parent_embed_id || derivedParentByChild.get(embed.embed_id)
+								parent_embed_id: embed.parent_embed_id || (embed.embed_id ? derivedParentByChild.get(embed.embed_id) : undefined)
 							},
 							embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use'
 						);
