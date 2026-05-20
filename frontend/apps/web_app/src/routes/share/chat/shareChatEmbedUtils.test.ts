@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveParentByChildEmbeds, normalizeEmbedIds } from './shareChatEmbedUtils';
+import { dedupeShareChatEmbeds, deriveParentByChildEmbeds, normalizeEmbedIds } from './shareChatEmbedUtils';
 
 describe('normalizeEmbedIds', () => {
   it('normalizes array and pipe-delimited embed ids', () => {
@@ -10,6 +10,21 @@ describe('normalizeEmbedIds', () => {
   it('returns empty array for invalid values', () => {
     expect(normalizeEmbedIds(null)).toEqual([]);
     expect(normalizeEmbedIds({})).toEqual([]);
+  });
+});
+
+describe('dedupeShareChatEmbeds', () => {
+  it('keeps the first row for each embed id', () => {
+    expect(dedupeShareChatEmbeds([
+      { embed_id: 'parent', embed_ids: ['child'] },
+      { embed_id: 'child', encrypted_content: 'first' },
+      { embed_id: 'child', encrypted_content: 'duplicate' },
+      { embed_id: 'other' }
+    ])).toEqual([
+      { embed_id: 'parent', embed_ids: ['child'] },
+      { embed_id: 'child', encrypted_content: 'first' },
+      { embed_id: 'other' }
+    ]);
   });
 });
 

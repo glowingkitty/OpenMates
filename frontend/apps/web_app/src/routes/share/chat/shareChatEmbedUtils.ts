@@ -20,6 +20,25 @@ export function normalizeEmbedIds(rawIds: unknown): string[] {
     .filter((id) => id.length > 0);
 }
 
+export function dedupeShareChatEmbeds<T extends ShareChatEmbedLike>(embeds: T[]): T[] {
+  const seenEmbedIds = new Set<string>();
+  const deduped: T[] = [];
+
+  for (const embed of embeds) {
+    const embedId = embed.embed_id;
+    if (!embedId) {
+      deduped.push(embed);
+      continue;
+    }
+    if (seenEmbedIds.has(embedId)) continue;
+
+    seenEmbedIds.add(embedId);
+    deduped.push(embed);
+  }
+
+  return deduped;
+}
+
 export function deriveParentByChildEmbeds(embeds: ShareChatEmbedLike[]): Map<string, string> {
   const derivedParentByChild = new Map<string, string>();
 

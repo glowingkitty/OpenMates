@@ -32,7 +32,12 @@
 	} from '@repo/ui';
 	import { goto } from '$app/navigation';
 	import { getApiEndpoint } from '@repo/ui';
-	import { deriveParentByChildEmbeds, normalizeEmbedIds, type ShareChatEmbedLike } from '../shareChatEmbedUtils';
+	import {
+		dedupeShareChatEmbeds,
+		deriveParentByChildEmbeds,
+		normalizeEmbedIds,
+		type ShareChatEmbedLike
+	} from '../shareChatEmbedUtils';
 
 	// CRITICAL: Configure shared chat mode IMMEDIATELY on script load (before any other code runs)
 	// This prevents chatDB.init() from blocking during shared chat access.
@@ -607,11 +612,12 @@
 			}
 
 			// Store embeds if any
-			if (fetchedEmbeds && fetchedEmbeds.length > 0) {
+			const uniqueFetchedEmbeds = dedupeShareChatEmbeds(fetchedEmbeds);
+			if (uniqueFetchedEmbeds.length > 0) {
 				// Ensure child embeds can resolve the parent key in shared-chat (non-auth) flows.
 				// The EmbedStore can reuse a parent's embed key for a child embed if `parent_embed_id` is stored.
 				// Some payloads include `parent_embed_id` directly; otherwise we can derive it from parent `embed_ids`.
-				const derivedParentByChild = deriveParentByChildEmbeds(fetchedEmbeds);
+				const derivedParentByChild = deriveParentByChildEmbeds(uniqueFetchedEmbeds);
 
 				// CRITICAL: Pre-cache embed keys for child embeds.
 				// putEncrypted tries to decrypt content to extract embed_ref, which requires
@@ -633,11 +639,11 @@
 				// Without this ordering, child embeds can't resolve their parent's key, so their
 				// content can't be decrypted and embed_ref never gets registered — causing
 				// "Loading preview..." stuck state in EmbedReferencePreview / EmbedPreviewLarge.
-				const parentEmbeds = fetchedEmbeds.filter(
+				const parentEmbeds = uniqueFetchedEmbeds.filter(
 					(e: ShareChatEmbedLike) =>
 						normalizeEmbedIds(e.embed_ids).length > 0
 				);
-				const childEmbeds = fetchedEmbeds.filter(
+				const childEmbeds = uniqueFetchedEmbeds.filter(
 					(e: ShareChatEmbedLike) =>
 						normalizeEmbedIds(e.embed_ids).length === 0
 				);
@@ -667,7 +673,7 @@
 					}
 				}
 				console.debug(
-					`[ShareChat] Stored ${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`
+					`[ShareChat] Stored ${uniqueFetchedEmbeds.length}/${fetchedEmbeds.length} embeds (${parentEmbeds.length} parents first, then ${childEmbeds.length} children)`
 				);
 			}
 
