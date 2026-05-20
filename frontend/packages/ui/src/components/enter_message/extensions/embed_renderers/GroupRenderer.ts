@@ -50,6 +50,7 @@ import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointm
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
+import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
 import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPreview.svelte";
@@ -1746,6 +1747,31 @@ export class GroupRenderer implements EmbedRenderer {
             isMobile: false,
             onFullscreen:
               status === "finished" ? handlePdfSearchFullscreen : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "math" && skillId === "calculate") {
+        const mathResults = Array.isArray(results) ? results : [];
+        const mathQuery =
+          query || decodedContent?.expression || mathResults[0]?.expression || "";
+        const mathStatus = (mathResults.length > 0 ? "finished" : status) as
+          | "processing"
+          | "finished"
+          | "error";
+        const component = mount(MathCalculateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: mathQuery,
+            status: mathStatus,
+            results: mathResults,
+            taskId,
+            skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
           },
         });
         mountedComponents.set(target, component);
